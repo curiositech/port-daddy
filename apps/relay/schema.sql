@@ -1169,6 +1169,41 @@ CREATE TABLE IF NOT EXISTS github_publisher_intents (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   lease_fence INTEGER NOT NULL DEFAULT 0 CHECK (lease_fence >= 0),
+  recovery_binding_json TEXT CHECK (
+    recovery_binding_json IS NULL OR (
+      json_valid(recovery_binding_json)
+      AND json_type(recovery_binding_json) = 'object'
+      AND json_type(recovery_binding_json, '$.grantId') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.grantId')) = 36
+      AND substr(json_extract(recovery_binding_json, '$.grantId'), 1, 4) = 'pdg_'
+      AND substr(json_extract(recovery_binding_json, '$.grantId'), 5) NOT GLOB '*[^0-9a-f]*'
+      AND json_type(recovery_binding_json, '$.grantEpoch') = 'integer'
+      AND json_extract(recovery_binding_json, '$.grantEpoch') > 0
+      AND json_type(recovery_binding_json, '$.repository') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.repository')) BETWEEN 3 AND 201
+      AND instr(json_extract(recovery_binding_json, '$.repository'), '/') > 1
+      AND json_type(recovery_binding_json, '$.operation') = 'text'
+      AND json_extract(recovery_binding_json, '$.operation') IN (
+        'pull-request.publish','pull-request.update','pull-request.ready',
+        'pull-request.request-reviewers','pull-request.comment',
+        'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')
+      AND json_type(recovery_binding_json, '$.baseBranch') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.baseBranch')) BETWEEN 1 AND 255
+      AND json_type(recovery_binding_json, '$.baseSha') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.baseSha')) = 40
+      AND json_extract(recovery_binding_json, '$.baseSha') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.headSha') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.headSha')) = 40
+      AND json_extract(recovery_binding_json, '$.headSha') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.sessionId') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.sessionId')) BETWEEN 1 AND 256
+      AND json_type(recovery_binding_json, '$.requestHash') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.requestHash')) = 64
+      AND json_extract(recovery_binding_json, '$.requestHash') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.idempotencyKey') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.idempotencyKey')) BETWEEN 1 AND 256
+    )
+  ),
   PRIMARY KEY (account_user_id, installation_id, repository, scope_sha, idempotency_key)
 );
 CREATE INDEX IF NOT EXISTS github_publisher_session_idx
@@ -1206,9 +1241,9 @@ CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
 CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope BEFORE INSERT ON publisher_grants
 BEGIN
   -- D1's remote parser has rejected valid trigger CASE bodies as incomplete
-  -- while local SQLite accepts them. Keep one parenthesized CASE statement:
+  -- while local SQLite accepts them. Avoid CASE and keep one statement:
   -- https://github.com/cloudflare/workers-sdk/issues/4326
-  SELECT (CASE WHEN EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
+  SELECT RAISE(ABORT, 'publisher grant scope invalid') WHERE EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
     OR EXISTS (SELECT 1 FROM json_each(NEW.operations_json) WHERE type != 'text' OR value NOT IN (
     'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
     'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
@@ -1223,8 +1258,7 @@ BEGIN
   ) OR EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
-    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
-    THEN RAISE(ABORT, 'publisher grant scope invalid') END);
+    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1);
 END;
 CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
 BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
@@ -1237,10 +1271,9 @@ END;
 CREATE TRIGGER IF NOT EXISTS publisher_grants_irreversible_revocation
 BEFORE UPDATE OF revoked_at, revoked_reason ON publisher_grants
 BEGIN
-  SELECT CASE WHEN OLD.revoked_at IS NOT NULL
+  SELECT RAISE(ABORT, 'publisher grant revocation is irreversible') WHERE OLD.revoked_at IS NOT NULL
       OR NEW.revoked_at IS NULL OR NEW.revoked_reason IS NULL
-      OR length(trim(NEW.revoked_reason)) = 0
-    THEN RAISE(ABORT, 'publisher grant revocation is irreversible') END;
+      OR length(trim(NEW.revoked_reason)) = 0;
 END;
 CREATE TABLE IF NOT EXISTS github_publisher_session_bindings (
   session_id TEXT PRIMARY KEY,

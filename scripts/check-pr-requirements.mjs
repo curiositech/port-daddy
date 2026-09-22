@@ -84,6 +84,7 @@ import { fileURLToPath } from 'node:url'
 // VISUAL_SURFACE_RE moved there so the visual rule (3) and the changelog rule (4)
 // cannot drift apart.
 import { VISUAL_SURFACE_RE, isFigureSurface, isUserVisibleSurface } from './lib/user-visible-surfaces.mjs'
+import { isPrintOnlyBookPaletteChange } from './lib/print-only-palette-change.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -168,6 +169,29 @@ function changedFiles() {
     // gate — but we also can't invent a file list. Return empty and let the body
     // checks still run; CI's detect-changes basis is the git history anyway.
     return []
+  }
+}
+
+// Supporting files govern static printed output, not an app interaction. They
+// still require page-scale evidence and never permit visual-exempt.
+const PRINT_SUPPORT_FILES = new Set([
+  'website-v2/docs/design/BRAND.md',
+  'website-v2/scripts/check-figure-palette.mjs',
+  'website-v2/src/figure-palette-guard.test.ts',
+])
+function isPrintEvidenceSurface(file) {
+  if (isFigureSurface(file) || PRINT_SUPPORT_FILES.has(file)) return true
+  if (file !== 'website-v2/src/styles/tokens.semantic.css') return false
+  try {
+    // Bind classification to actual PR snapshots, never body prose or a caller's
+    // assertion. No shallow-history fallback: missing provenance needs motion.
+    const options = { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+    const base = execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], options).trim()
+    const before = execFileSync('git', ['show', `${base}:${file}`], options)
+    const after = execFileSync('git', ['show', `HEAD:${file}`], options)
+    return isPrintOnlyBookPaletteChange(before, after)
+  } catch {
+    return false
   }
 }
 
@@ -442,12 +466,12 @@ function main() {
   //     whose meaning is "there is no visual change here" is simply false on it,
   //     and half-honouring it would let the app-surface half of a mixed diff
   //     keep slipping through.
-  const figureFiles = files.filter(isFigureSurface)
+  const figureFiles = files.filter(isPrintEvidenceSurface)
   const visualExemptClaimed = hasMarker(body, 'visual-exempt')
   const visualExemptHonoured = visualExemptClaimed && figureFiles.length === 0
 
   // (3) App-visual surface ⇒ screenshot + motion artifact.
-  const visualFiles = files.filter((f) => VISUAL_SURFACE_RE.test(f) && !isFigureSurface(f))
+  const visualFiles = files.filter((f) => VISUAL_SURFACE_RE.test(f) && !figureFiles.includes(f))
   if (visualFiles.length && !visualExemptHonoured) {
     const committedImage = files.some((f) => IMAGE_EXT_RE.test(f))
     const committedMotion = files.some((f) => MOTION_EXT_RE.test(f))

@@ -180,7 +180,7 @@ const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
  * @param raw The operator's YAML value, in any spelling.
  * @returns The concrete Workers AI id, or undefined when the token is unknown.
  */
-function resolveModelToken(raw: unknown): string | undefined {
+export function resolveModelToken(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const token = raw.trim();
   if (!token) return undefined;
@@ -367,16 +367,23 @@ export { resolveCfModel };
 /**
  * The Workers AI model one ship runs on.
  *
- * Reads the ship's first `cloudflare` fallback and honors its declared pin when
- * the id is admitted; anything else falls through to the ship's name default.
- * The `break` is deliberate — a cloudflare fallback that declares nothing
- * honorable means "run the default", not "keep looking down the list".
+ * Honors an admitted model on a `cloudflare` primary, then reads the ship's
+ * first `cloudflare` fallback. Anything else falls through to the ship's name
+ * default. The `break` is deliberate — a cloudflare fallback that declares
+ * nothing honorable means "run the default", not "keep looking down the list".
  *
  * @param agent The raw pd-fleet.yml ship block.
  * @param name The ship's name, which decides the default.
  * @returns A concrete, admitted Workers AI model id.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
+  if (agent.backend === 'cloudflare') {
+    const pinned = resolveModelToken(agent.model);
+    // A blank or unknown primary pin is never dispatched. Deliberately use the
+    // admitted role default below: that keeps a typo from silencing review while
+    // the real-config tests make the fallback visible instead of accidental.
+    if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
+  }
   for (const fb of agent.fallbacks ?? []) {
     if (fb?.backend !== 'cloudflare') continue;
     // Both vocabularies are accepted, stable token first: `capability:`/a role

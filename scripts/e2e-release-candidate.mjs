@@ -23,6 +23,7 @@ import {
   assertOwnedSyntheticTree,
   assertExecutableArtifact,
   findAuthorityArtifacts,
+  isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
@@ -1015,9 +1016,11 @@ class ReleaseCandidateSuite {
 
   async portCollisionRecovery(caseRoot) {
     const blockerSockets = new Set();
+    const blockerSocketErrors = [];
     const blocker = createServer((socket) => {
       blockerSockets.add(socket);
       socket.once('close', () => blockerSockets.delete(socket));
+      socket.on('error', (error) => blockerSocketErrors.push(error));
       socket.end('occupied\n');
     });
     await new Promise((resolveListen, reject) => {
@@ -1072,6 +1075,14 @@ class ReleaseCandidateSuite {
           else resolveClose();
         });
       });
+      const unexpectedBlockerSocketErrors = blockerSocketErrors.filter(
+        (error) => !isExpectedCollisionSocketError(error),
+      );
+      if (unexpectedBlockerSocketErrors.length > 0) {
+        throw new Error(
+          `collision fixture socket failed unexpectedly: ${unexpectedBlockerSocketErrors.map((error) => error?.code || error?.message || String(error)).join(', ')}`,
+        );
+      }
       if (cleanupError) throw cleanupError;
     }
 

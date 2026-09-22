@@ -20,6 +20,7 @@
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
+import { parse as parseYaml } from 'yaml';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
@@ -346,6 +347,21 @@ describe('shipwright — history is scoped to the session user', () => {
     const verdict = validateEmittedYaml(`\`\`\`yaml\n${yaml}\`\`\``)[0]!;
     expect(verdict.valid).toBe(true);
     expect(verdict.ships.map((ship) => ship.name)).toEqual(['code-reviewer', 'qa', 'purser']);
+    const agents = (parseYaml(yaml) as {
+      fleet: { agents: Record<string, Record<string, unknown>> };
+    }).fleet.agents;
+    expect(agents.qa).toMatchObject({
+      trigger: 'pull_request:*',
+      cloud_only: true,
+      backend: 'cloudflare',
+      blocking: false,
+    });
+    expect(agents.qa?.model).toBe(verdict.ships.find((ship) => ship.name === 'qa')?.cfModel);
+    expect(agents.qa).not.toHaveProperty('fallbacks');
+    expect(agents['code-reviewer']).toMatchObject({
+      backend: 'cli:claude-code',
+      fallbacks: [{ backend: 'cloudflare', capability: 'cheap' }],
+    });
     expect(yaml).toContain('apps/relay/**');
     const hostile = buildShipwrightDraftProposal(REPO, {
       ...onboardingProfile,
@@ -907,6 +923,9 @@ describe('GET /account/shipwright — page', () => {
     expect(p).toContain('goals');
     expect(p).toContain('purser');
     expect(p).toContain('graft');
+    expect(p).toContain('QA is the hosted-diff exception');
+    expect(p).toContain('cloud_only: true');
+    expect(p).toContain('never emit local QA');
     expect(p).toContain('pd-fleet.yml');
     // The tied-hands claim is gone; the prompt states the click-gated truth.
     expect(p).not.toContain('cannot open PRs');

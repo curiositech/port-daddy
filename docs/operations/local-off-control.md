@@ -57,8 +57,10 @@ made here.
 - [x] Gate automatic post-merge console rebuilding.
 - [x] Repair this operator's identified installed Git hooks, Git shim, stale
   pre-compaction pair and Pilot script; preserve unrelated hook bodies.
-- [x] Complete adversarial regression validation and publish hook PR #10137:
-  239 current selected tests pass for the hook-preservation correction. The
+- [x] Complete adversarial regression validation and publish hook PR #10137.
+  The named hook-preservation cases cover On → Off → On without reinstalling,
+  preservation of unrelated commands, fail-closed malformed witnesses, and LFS
+  delegation. The
   earlier 12 intercepted Pilot cases remain prior evidence, not a fresh run.
   Nine old socket-based cases remain excluded after a safety denial. Skill-sync
   catalog integration is covered in the current selected run. Independent source re-review found no
@@ -76,6 +78,75 @@ made here.
 - [ ] Reconcile local, account and global cloud automation controls in the UI.
   Local Off is not proof that hosted Fleet is off; hosted settings are not proof
   that a local shell is contained.
+
+## On, Off and degraded operation
+
+The absence of a stop marker proves only that the local start gate is open. It
+does not prove that coordination enforcement, a sandbox, an agent harness,
+provider access, cost accounting, or effect receipts are healthy. The pure
+policy in `lib/runtime-posture.ts` keeps operator intent, the observed stop
+boundary, and those capability observations separate.
+
+The TypeScript CLI/runtime entry guard now maps the real filesystem result into
+this posture policy before admitting automatic local work. Broader KINDA
+capability probes and the remaining effect boundaries are explicitly still open
+below; the policy module alone is not enforcement for those paths.
+
+Capability observations may carry machine-readable degraded reasons (for
+example untrusted project hooks, duplicate hook scope, advisory-only guard,
+unconfined egress, stale data, wrong scope, or incomplete cleanup), plus a scope
+and freshness deadline. Expired or wrong-scope readiness becomes unknown.
+The control observation has its own bounded freshness window. Provider-backed
+reads declare the `provider_call` effect trait, so read-only access to local
+evidence stays available while provider egress still obeys Off. Provider calls
+and outward mutations require current cost-accounting truth even when they are
+not model inference.
+
+The table's first column names the derived runtime posture, the second explains
+the observed control and capability state, and the third states what that posture
+permits for automated or paid effects.
+
+| Posture | Meaning | Automated or paid effects |
+|---|---|---|
+| `off` | The operator wants Off and the stop boundary is durably observed closed. | Denied. |
+| `transitioning` | Off was requested but the boundary is still open, or shutdown is not yet settled. | Denied. |
+| `activation_blocked` | On was requested but a stop boundary remains closed. | Denied; do not report On. |
+| `unknown` | The control boundary cannot be verified. | Denied. |
+| `degraded` | The gate is open but at least one common capability is absent, disabled, stale or unknown. | Some effects may remain available; each effect whose own prerequisite is missing is denied. |
+| `on` | The gate and all declared common capabilities are ready. | Still rechecked at each final effect boundary. |
+
+Human local editing, read-only inspection, and emergency controls remain
+available in every posture. Common degraded states have narrower consequences:
+
+- no Coordination Guard denies governed outward mutations and background agents;
+- no sandbox denies managed subprocesses and background agents;
+- no harness denies scheduled automation and background agents;
+- unknown cost truth denies paid inference and background agents;
+- missing provider access denies paid inference without disabling free local work;
+- missing effect receipts denies governed outward mutations and schedules.
+
+These are the minimum shared rules. Composite work declares every applicable
+effect trait, so a scheduled paid mutation accumulates the schedule, provider,
+cost, coordination and receipt requirements. A caller may require more
+capabilities for a specific effect but may not remove the policy minimum. A green
+posture summary is not an authorization receipt.
+
+### Remaining delivery slices
+
+- [x] Define and test the shared On/Off/degraded posture and per-effect admission
+  matrix without starting the halted runtime.
+- [ ] Project real capability probes into that contract with freshness and source
+  authority: guard, sandbox, harness, cost ledger, provider and effect receipts.
+- [ ] Apply per-effect admission at every automatic local, subprocess, background,
+  paid, scheduled and outward-mutation boundary; retain final-boundary rechecks.
+- [ ] Add an explicit, confirmed On ceremony that durably removes only validated
+  stop markers, never auto-starts work, and reports partial activation honestly.
+- [ ] Show the posture and individual capability states in FleetBar, pd-console,
+  web and iOS without collapsing local, account and global controls.
+- [ ] Prove installer and hook parity across Claude, Codex, Gemini and agy,
+  including trusted/untrusted project configuration and duplicate hook scopes.
+- [ ] Collect packaged no-start/no-egress and explicit-On evidence under an
+  independently controlled boundary; label unavailable proof as unavailable.
 
 This safety work precedes further native Cooperative Harbor proof. The seven
 Harbor delivery stages and the existing `port-daddy-unified-product-hypertree`
@@ -188,8 +259,9 @@ the handle for the engine's cleanup path; saving Off is not a shutdown receipt.
 The engine installs that cleanup closure before async-only trigger handles arrive,
 so later handle registration remains reachable from shutdown.
 
-Evidence for this slice: 53 synthetic tests across local-control/shim, spawner and
-I/O bridge suites, plus eight explicitly selected Fleet/Dispatch Off tests pass.
+Evidence for this slice covered the named local-control/shim, spawner and I/O
+bridge invariants with synthetic filesystem, child, transport and trigger
+adapters, plus explicit Fleet/Dispatch Off cases.
 The other 115 cases in those two legacy suites were excluded. The broad spawner,
 CLI-tube and Fleet I/O wiring suites were not run: their existing HOME/temp-dir,
 watcher or effect fixtures are outside this halt-safe validation path. All new

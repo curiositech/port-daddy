@@ -1,0 +1,19 @@
+% Portable open-font specimen. The runner supplies pdprotocolroot; no private inputs.
+\documentclass[11pt,twoside]{article}
+\providecommand{\pdprotocolroot}{.}
+\providecommand{\pdprotocolfontprofile}{main-open}
+\makeatletter
+\edef\input@path{{\pdprotocolroot/website-v2/public/whitepaper/}}
+\makeatother
+\input{\pdprotocolroot/website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex}
+\graphicspath{{\pdprotocolroot/website-v2/public/whitepaper/}}
+\ifdefstring{\pdprotocolfontprofile}{heros-open}{%
+  \AtBeginDocument{\setmainfont{texgyreheros-regular.otf}[BoldFont=texgyreheros-bold.otf,
+    ItalicFont=texgyreheros-italic.otf,BoldItalicFont=texgyreheros-bolditalic.otf]}}{%
+  \ifdefstring{\pdprotocolfontprofile}{main-open}{}{%
+    \PackageError{protocol-fixture}{Unknown open font profile}{Use main-open or heros-open.}}}
+\begin{document}
+\pagestyle{empty}
+\typeout{PROTOCOL FONT PROFILE: \pdprotocolfontprofile}
+\input{\pdprotocolroot/tests/harbor-research/fixtures/protocol-style-fixture.tex}
+\end{document}

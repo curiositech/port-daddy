@@ -90,6 +90,10 @@
           "type": "string",
           "description": "Prompt or shell command (depending on backend). For backend=custom, this IS the command; for LLM backends, this is the user message."
         },
+        "cloud_only": {
+          "type": "boolean",
+          "description": "If true, this agent is admitted only by the hosted Fleet executor and omitted from the local daemon FleetConfig. Missing or false keeps the agent locally eligible; malformed values fail closed to hosted-only in runtime parsing."
+        },
         "worktree": { "type": "boolean" },
         "singleton": { "type": "boolean", "description": "If true, fleet refuses to spawn a second instance while one is running." },
         "respawn": { "type": "boolean", "description": "Auto-restart on death." },

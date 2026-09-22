@@ -19,8 +19,8 @@
 import { parse as parseYaml } from 'yaml';
 import {
   CF_ROLE_MODELS,
-  resolveCfModel,
 } from '../../shared/model-registry.generated.js';
+import { resolveModelToken } from '../../shared/fleet-config.js';
 
 export interface ShipConfig {
   name: string;
@@ -74,14 +74,19 @@ const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
 const CLOUD_STATIC_SHIPS = new Set(['qa']);
 
 interface RawFallback {
-  backend?: string;
-  model?: string;
+  backend?: unknown;
+  capability?: unknown;
+  model?: unknown;
 }
 
 interface RawAgent {
   trigger?: string | string[];
   prompt?: string;
   backend?: string;
+  class?: unknown;
+  cf_role?: unknown;
+  model?: unknown;
+  cloud_only?: unknown;
   fallbacks?: RawFallback[];
   allowedTools?: string;
   telos?: string;
@@ -100,9 +105,12 @@ function coerceBlocking(value: unknown): boolean {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. the first Workers AI `fallbacks[].model` pin, GUARDED — a pin outside the
- *      pinnable set is remapped to the ship default rather than reported, else
- *   2. a name-based default (the review model for *reviewer* ships).
+ *   1. an admitted primary role, capability, or literal `model` pin when
+ *      `backend: cloudflare`, else
+ *   2. the first Cloudflare fallback's admitted `capability` or `model` token;
+ *      an unusable token falls through to the ship default rather than looking
+ *      past the first Cloudflare fallback, else
+ *   3. a name-based default (the review model for *reviewer* ships).
  *
  * The guard is the correction: this function previously honored ANY `@cf/`-
  * prefixed string, so the relay would report a ship as valid and name the model
@@ -111,10 +119,19 @@ function coerceBlocking(value: unknown): boolean {
  * config against; it must not certify a model the executor will refuse.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
+  if (agent.class === 'purser') {
+    const pinned = resolveModelToken(agent.cf_role) ?? resolveModelToken(agent.model);
+    if (pinned) return pinned;
+  }
+  if (agent.backend === 'cloudflare') {
+    const pinned = resolveModelToken(agent.model);
+    if (pinned) return pinned;
+  }
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
-      return resolveCfModel(fb.model);
-    }
+    if (fb?.backend !== 'cloudflare') continue;
+    const pinned = resolveModelToken(fb.capability) ?? resolveModelToken(fb.model);
+    if (pinned) return pinned;
+    break;
   }
   return name.includes('reviewer') ? CF_ROLE_MODELS.reviewBot : CF_ROLE_MODELS.shipDefault;
 }
@@ -252,6 +269,9 @@ export function validateFleetYaml(fleetYaml: string): FleetValidationResult {
     }
     if (!prompt) {
       errors.push({ field: `${name}.prompt`, message: 'required' });
+    }
+    if (agent.cloud_only !== undefined && typeof agent.cloud_only !== 'boolean') {
+      errors.push({ field: `${name}.cloud_only`, message: 'must be a boolean' });
     }
 
     if (hasTrigger && prompt) {

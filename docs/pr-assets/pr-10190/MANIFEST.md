@@ -60,10 +60,10 @@ only ink added is the grey caption band naming each panel.
 
 ---
 
-## Artefact 1 — `bc-delta-threshold-book-vs-chapter-1x-150dpi.png`
+## Artefact 1 — `https://media.portdaddy.dev/sha256/4e/4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6.png`
 
-- File: `docs/pr-assets/pr-10190/bc-delta-threshold-book-vs-chapter-1x-150dpi.png` (383 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/70aef86ce08b30265d0fa0640c92a5ac6d3b6f9e/docs/pr-assets/pr-10190/bc-delta-threshold-book-vs-chapter-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/4e/4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6.png` (383 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/4e/4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6.png`
 - What it shows: NEW figure `fig-bc-delta-threshold` under the **Book** preamble (left) and the **chapter** preamble of `agent-transactions-whitepaper.tex` (right). No BEFORE — the fragment is added by this PR. Read the marked point at δ = 0.30: a square on the left, a diamond on the right, and a caption that now names neither.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -72,10 +72,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `00d00787efd56e3e17ffbf4278d4386b2f28353e` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 2 — `he-succession-price-book-vs-chapter-1x-150dpi.png`
+## Artefact 2 — `https://media.portdaddy.dev/sha256/d6/d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11.png`
 
-- File: `docs/pr-assets/pr-10190/he-succession-price-book-vs-chapter-1x-150dpi.png` (317 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/70aef86ce08b30265d0fa0640c92a5ac6d3b6f9e/docs/pr-assets/pr-10190/he-succession-price-book-vs-chapter-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/d6/d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11.png` (317 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/d6/d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11.png`
 - What it shows: NEW figure `fig-he-succession-price`, Book edition (left) beside chapter edition (right). No BEFORE — added by this PR.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -84,10 +84,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `00d00787efd56e3e17ffbf4278d4386b2f28353e` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 3 — `anchor-handshake-ladder-redraw-book-1x-150dpi.png`
+## Artefact 3 — `https://media.portdaddy.dev/sha256/af/af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a.png`
 
-- File: `docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-book-1x-150dpi.png` (251 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/70aef86ce08b30265d0fa0640c92a5ac6d3b6f9e/docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/af/af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a.png` (251 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/af/af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a.png`
 - What it shows: `fig-anchor-handshake-ladder` BEFORE (the first drawn form, `6251d2538`) | AFTER (the redraw at this PR's head), under the **Book** preamble.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -96,10 +96,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `00d00787efd56e3e17ffbf4278d4386b2f28353e` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 4 — `anchor-handshake-ladder-redraw-chapter-1x-150dpi.png`
+## Artefact 4 — `https://media.portdaddy.dev/sha256/d5/d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74.png`
 
-- File: `docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-chapter-1x-150dpi.png` (254 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/70aef86ce08b30265d0fa0640c92a5ac6d3b6f9e/docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-chapter-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/d5/d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74.png` (254 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/d5/d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74.png`
 - What it shows: The same redraw pair under the **chapter** preamble of `anchor-protocol-whitepaper.tex` (11 pt Latin Modern, 16.3 cm column).
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git

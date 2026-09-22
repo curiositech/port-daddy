@@ -113,6 +113,8 @@ pd setup
 
 The [release train](docs/RELEASING.md#release-train-authority-and-recovery) publishes through the Port Daddy GitHub App with repository-scoped authority, exact source/tag/Release receipts and explicit cleanup status. Release discovery accepts large changelogs while rejecting missing dated headers or failed Git reads. Approved Actions configuration and a controlled live rollout are separate from source validation; signing, soak, protected review/queue and fresh-install gates remain in place.
 
+[Fleetbot source publication](docs/operations/fleetbot-source-publication.md) packages a clean committed change without credentials and submits it as data to the protected workload. Relay creates a governed App PR; signed receipt and Git tree readback bind it to the reviewed source. This source path still requires a configured protected grant and authorized dispatcher; it does not start the local runtime or provide a local proposal broker.
+
 ### 3. Verify
 
 ```bash

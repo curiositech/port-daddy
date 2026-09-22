@@ -38,6 +38,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account }
         )
         await store.refresh()

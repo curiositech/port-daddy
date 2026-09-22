@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 import { CF_ADMITTED_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
@@ -9,6 +10,16 @@ const REAL_YAML = readFileSync(
   fileURLToPath(new URL('../../../pd-fleet.yml', import.meta.url)),
   'utf8',
 );
+const REAL_DOCUMENT = parseYaml(REAL_YAML) as {
+  fleet?: { agents?: Record<string, {
+    execution?: unknown;
+    allowedTools?: unknown;
+    cloud_only?: unknown;
+    backend?: unknown;
+    model?: unknown;
+    fallbacks?: unknown;
+  }> };
+};
 
 describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () => {
   const ships = parseFleetShips(REAL_YAML, 'pull_request:opened');
@@ -71,13 +82,53 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
+  it('keeps qa cloud-static and advisory without claiming execution authority', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.execution.mode).toBe('write_sandbox');
-    expect(qa!.executionConfigState).toBe('valid');
+    expect(qa!.execution.mode).toBe('none');
+    expect(qa!.executionConfigState).toBe('absent');
     expect(qa!.participation.unavailableBlocks).toBe(false);
-    expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
+    expect(qa!.blocking).toBe(false);
+    expect(qa!.participation.default).not.toBe('required');
+    expect(qa!.participation.rules.length).toBeGreaterThan(0);
+    expect(
+      qa!.participation.rules.every(({ disposition }) => disposition !== 'required'),
+    ).toBe(true);
+
+    const declaredQa = REAL_DOCUMENT.fleet?.agents?.qa;
+    expect(declaredQa).toBeDefined();
+    expect(declaredQa!.execution).toBeUndefined();
+    expect(declaredQa!.allowedTools).toBeUndefined();
+    expect(declaredQa!.cloud_only).toBe(true);
+    expect(declaredQa!.backend).toBe('cloudflare');
+    expect(declaredQa!.fallbacks).toBeUndefined();
+    expect(qa!.cfModel).toBe(declaredQa!.model);
+  });
+
+  it('honors a cloudflare primary model without requiring a fake fallback', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: inspect the frozen diff
+      backend: cloudflare
+      model: '${CF_ROLE_MODELS.reviewBot}'
+`, 'pull_request:opened');
+
+    expect(parsed?.[0].cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+  });
+
+  it('uses an admitted role default when a cloudflare primary model is blank', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: inspect the frozen diff
+      backend: cloudflare
+      model: ''
+`, 'pull_request:opened');
+    expect(parsed?.[0].cfModel).toBe(CF_ROLE_MODELS.shipDefault);
+    expect(CF_ADMITTED_MODELS).toContain(parsed?.[0].cfModel);
   });
 
   it('legacy test-author tool strings do not acquire execution authority', () => {

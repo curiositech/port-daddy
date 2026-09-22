@@ -99,7 +99,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testPopoverScrollContentContainsNativeCloudFleetSurface() throws {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.rebind(to: "https://active-berth.example")
         store.isDaemonRunning = true
         store.projects = []
@@ -118,7 +118,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testFooterControlsStayOutsideScrollView() throws {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = []
 
@@ -153,7 +153,9 @@ final class FleetPopoverTests: XCTestCase {
     func testFooterDistinguishesUnavailableFromPolling() throws {
         let unavailableStore = FleetStore(
             autoStart: false,
-            endpointResolver: { .unavailable(.noPublication) })
+            endpointResolver: { .unavailable(.noPublication) },
+            control: fixtureRuntimeControl()
+        )
         let unavailable = try FleetPopover(
             store: unavailableStore,
             costStore: CostStore(autoStart: false),
@@ -165,7 +167,9 @@ final class FleetPopoverTests: XCTestCase {
             autoStart: false,
             endpointResolver: {
                 .available(url: "http://127.0.0.1:54321", source: .publishedPortFile)
-            })
+            },
+            control: fixtureRuntimeControl()
+        )
         let polling = try FleetPopover(
             store: pollingStore,
             costStore: CostStore(autoStart: false),
@@ -191,7 +195,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testHeaderExposesVisualTaskOutsideScrollView() throws {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = []
 
@@ -207,7 +211,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testScrollContentContainsCostDashboard() throws {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = []
 
@@ -254,7 +258,7 @@ final class FleetPopoverTests: XCTestCase {
         let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.availableBaseURL() ?? "http://127.0.0.1:8080"))
             .appendingPathComponent("status")
             .absoluteString
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = []
         store.daemonStatus = DaemonStatusResponse(
@@ -305,7 +309,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testMenuBarFailurePreservesBoatGlyphAndWarnsByColor() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = [
             project(agents: [
@@ -319,7 +323,7 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     func testMenuBarFailedIdleFleetStillPreservesBoatGlyph() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = [
             project(agents: [
@@ -334,7 +338,7 @@ final class FleetPopoverTests: XCTestCase {
     /// A CRITICAL daemon severity is the dominant menu-bar signal: the icon
     /// becomes an alarm triangle in the failure color, even with a healthy fleet.
     func testCriticalDaemonHealthRaisesAlarmIconAndTone() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = [project(agents: [agent(name: "cartographer", status: .running)])]
         store.daemonStatus = makeDaemonStatus(severity: "critical", runtimeState: "degraded", degraded: true)
@@ -347,7 +351,7 @@ final class FleetPopoverTests: XCTestCase {
     /// A WARN daemon severity degrades the menu bar to the warning triangle/tone
     /// but stops short of the critical alarm.
     func testWarnDaemonHealthShowsWarningTriangle() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = [project(agents: [agent(name: "cartographer", status: .running)])]
         store.daemonStatus = makeDaemonStatus(severity: "warn", runtimeState: "degraded", degraded: true)
@@ -359,7 +363,7 @@ final class FleetPopoverTests: XCTestCase {
 
     /// An older daemon that omits `severity` still degrades via runtime.degraded.
     func testDaemonSeverityDerivesFromRuntimeWhenFieldAbsent() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.isDaemonRunning = true
         store.projects = []
         store.daemonStatus = makeDaemonStatus(severity: nil, runtimeState: "degraded", degraded: true)
@@ -518,7 +522,11 @@ final class FleetPopoverTests: XCTestCase {
         name: String,
         outputDirectory: String
     ) throws {
-        let store = FleetStore(autoStart: false, endpointResolver: { endpoint })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { endpoint },
+            control: fixtureRuntimeControl()
+        )
         store.isDaemonRunning = endpoint.isAvailable
         store.projects = []
 

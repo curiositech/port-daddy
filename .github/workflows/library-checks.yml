@@ -99,7 +99,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The protocol checkpoint tests verify ancestry to their pinned source base.
+      # Keep commit history available without downloading historical file blobs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-node@v4
         with:
@@ -289,16 +294,35 @@ jobs:
       # can reuse a name without the Book failing to compile -- which is also
       # what let chapters 6 and 8 each print the conditional escrow bound
       # under their own number, with different titles, until someone read
-      # both. The label is the signal, so the check keys on it. The two
-      # definitions allowed here are restated on purpose in different words
-      # (the cross-operator attestation problem in chapters 5 and 6, the float
-      # plan in chapters 6 and 7); each is a known duplicate still waiting for
-      # an owner, and the allow is the record of that, not a verdict that a
-      # reader should meet either twice.
-      - name: No theorem is stated twice in the Book
-        run: >-
-          python3 scripts/harbor-research/check_duplicate_theorems.py
-          --allow def:0040b --allow def:float-plan
+      # both. The label is the signal, so the check keys on it. The
+      # attestation and float-plan definitions now use chapter-specific raw
+      # IDs; the gate runs without exceptions. This checks label collisions,
+      # not semantic equivalence between differently named statements.
+      - name: Statement raw IDs are unique in the Book
+        run: python3 scripts/harbor-research/check_duplicate_theorems.py
+
+      # Unique names do not resolve the Float Plan schema/ownership conflict.
+      # Keep that accepted debt visible until the structured ledger records completion.
+      - name: Report remaining Float Plan semantic duplication
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          rows = json.loads(Path("docs/harbor-research/critique-ledger.json").read_text())
+          matches = [row for row in rows if row.get("#") == "CA-014"]
+          if len(matches) != 1:
+              raise SystemExit("Expected exactly one CA-014 critique ledger row")
+          status = matches[0]["Status"]
+          complete = isinstance(status, str) and re.fullmatch(r"DONE \S.*", status) is not None
+          if complete:
+              message = "CA-014 is recorded complete in the critique ledger. The raw-ID gate checks labels only."
+          else:
+              message = "CA-014 remains open: Float Plan semantic/schema duplication still needs the Book owner's reconciliation. Unique raw IDs do not resolve it."
+              print("::warning title=Book semantic duplication remains open::" + message)
+          if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+              with Path(summary).open("a", encoding="utf-8") as stream:
+                  stream.write(message + "\n")
+          PY
 
       # The two steps above fixed half of what an outside reader found and then
       # went green over the other half. The reader wrote that "the four-message
@@ -365,6 +389,12 @@ jobs:
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
+      - name: Atlas-coverage unit tests
+        run: python3 -m unittest discover -s skills/whitepaper-figure-system/tests -p 'test_*.py'
+
+      - name: TikZ figure-engineering unit tests
+        run: python3 -m unittest discover -s skills/tikz-figure-engineering/tests -p 'test_*.py'
+
       # The figure gate's own tests. A suite that checks the checkers and is
       # not itself checked is the same defect one layer up -- this one was red
       # for six days because nothing ran it.
@@ -374,10 +404,7 @@ jobs:
       # tests", which is how 11 page-measurement tests went missing above.
       # Raise the floor when the suite grows.
       #
-      # `claude/figcheck-suite-repair` adds this same step with a floor of 86.
-      # If that branch lands first this is a one-number conflict on the floor,
-      # which is the right kind of conflict: the higher number is the correct
-      # one, because the suite only ever grows.
+      # Retain the regression cases from PR #10201 alongside the newer checks.
       - name: figcheck T1-T10 and tikz_precheck unit tests (the figure gate's own tests)
         run: |
           set -euo pipefail
@@ -388,8 +415,8 @@ jobs:
             exit 1
           fi
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 171 ]; then
-            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 171 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 197 ]; then
+            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 197 it has; a module failed to import"
             exit 1
           fi
 
@@ -399,20 +426,13 @@ jobs:
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
 
-      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
-      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
-      # (worked_example_per_section, claims_carry_epistemic_kind) already
-      # fail on 6 of the 8 Book chapters today, pre-dating this check --
-      # making the step required now would freeze every PR that merely
-      # touches a whitepaper path (this job also runs unconditionally on
-      # merge_group, so a required failure here would freeze the whole
-      # queue). Drop continue-on-error once those two floors are clean
-      # chapter-by-chapter; the floors made advisory in the linter itself
-      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
-      # advisory here too -- --strict only fails on a BLOCKING floor.
-      - name: Chapter template floors hold across every Book chapter (advisory)
-        continue-on-error: true
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+      # The conservative authored-role map excludes only recap and grouped
+      # exercise sections. All literature, teaching appendices and substantive
+      # boundaries remain body. Re-measured at cf07690b03: 15 blocking floors.
+      # This aggregate ceiling prevents debt growth without hiding existing
+      # failures. Metadata/read errors remain fatal regardless of the budget.
+      - name: Book chapter floor regression budget
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus whitepaper/chapter-apparatus.json --max-blocking 15
 
       - name: readers_eye unit tests
         run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v
@@ -424,8 +444,8 @@ jobs:
       - name: The reader's-eye check still separates clean prose from bad
         run: python3 skills/textbook-craft/scripts/readers_eye.py --selftest
 
-      # Advisory, for exactly the reason the chapter_lint step above is: the
-      # corpus is not clean for these rules yet (149 findings across the eight
+      # Advisory: this prose check has no measured regression ceiling yet.
+      # The corpus is not clean for these rules (149 findings across the eight
       # chapters at the time of landing, 92 of them the single systemic
       # "this paper" register issue), and a check nobody has cleaned up after
       # must not freeze the merge queue on the day it lands. Promote one rule

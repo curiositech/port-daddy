@@ -1,6 +1,6 @@
 # Marketing copy and platform posts — written to a template
 
-Landing-page copy, social posts, cold email, listings and résumés. One thing separates this file from document structure: these are venues with a HOUSE FORM, and the tell is the form arriving complete rather than any individual sentence. Severity here should be read against the venue's base rate — measured generation runs around 40% for LinkedIn long-form and about 2% for Reddit replies, so the same finding means different things in each.
+Landing-page copy, social posts, cold email, listings and résumés. One thing separates this file from document structure: these are venues with a HOUSE FORM, and the tell is the form arriving complete rather than any individual sentence. Severity follows demonstrated reader harm, not estimated AI prevalence. Check the genre before changing a familiar form.
 
 _30 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
@@ -47,7 +47,7 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`bullet-restates-its-own-title`](#bullet-restates-its-own-title) | med | form | n/a |
 | [`credential-persona-opener`](#credential-persona-opener) | med | shape | n/a |
 | [`engagement-bait-close`](#engagement-bait-close) | med | shape | n/a |
-| [`eyebrow-with-no-information`](#eyebrow-with-no-information) | med | form | yes |
+| [`eyebrow-with-no-information`](#eyebrow-with-no-information) | med | form | n/a |
 | [`grok-forced-irreverence`](#grok-forced-irreverence) | med | shape | n/a |
 | [`kimi-linkedin-confident-slop`](#kimi-linkedin-confident-slop) | med | shape | n/a |
 | [`markdown-scaffolding-in-casual-comment`](#markdown-scaffolding-in-casual-comment) | med | shape | **no** |
@@ -456,21 +456,19 @@ The closing line that asks for interaction rather than ending the thought: 'What
 > If anyone has made the Postgres side of this work above 10k writes a second, I'd like to know how.
 
 <a id="eyebrow-with-no-information"></a>
-### `eyebrow-with-no-information`  ·  medium · generic-llm · marketing-copy · structural · family: form
-
-**Automated here:** yes, these scripts implement it.
+### `eyebrow-with-no-information`  ·  medium · generic-llm · marketing-copy · llm-judge · family: form
 
 The small uppercase label above a headline carrying no fact: INTRODUCING, FOR MODERN TEAMS, AI-POWERED, THE FUTURE OF WORK.
 
 **Why it reads AI:** An eyebrow is an editorial device that presumes a hierarchy: a publication, a section, an issue. A landing page with one section has nothing for it to be above. The slot exists in the template, so the generator fills it, and the filling has to come from somewhere when no fact is available. It is among the most-cited visual giveaways in practitioner threads for exactly this reason.
 
-**Detect:** Locate small uppercase or letterspaced elements; convict the ones containing no digit, no acronym or standard name, and no link. Capitalisation is deliberately NOT used as the signal, because 'For Modern Teams' is title-cased and says nothing.
+**Detect:** Judge each eyebrow with its adjacent heading. What distinct orientation, scope, taxonomy or constraint would the reader lose if it were removed? Digits, capitalization and links cannot determine meaning.
 
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 2
-
-**Fix:** Delete it and raise the headline. If the page reads identically you have proved it was decoration. If you keep one, make it carry the specific the headline cannot: SOC 2 TYPE II - FEB 2026, WORKS WITH POSTGRES 14+, OPEN SOURCE, AGPL-3.0. The rule of thumb is that an eyebrow must contain a proper noun, a number, a date or a licence. Then delete the eyebrow slot from the component itself, or the next generated section will fill it again.
+**Fix:** Keep meaningful taxonomy and scope even when they contain no proper noun, digit or link. Delete or merge only a label whose removal loses no information or orientation.
 
 **False positive when:** Editorial and documentation contexts where the eyebrow is a real taxonomy label (ENGINEERING, CHANGELOG, API REFERENCE, ISSUE 47) and navigates somewhere; conference pages carrying date and place; and brands whose whole system is editorial and where every eyebrow resolves to a real section. The question is not whether there is an eyebrow but whether it resolves to something a reader could navigate to or verify — which is why a linked eyebrow is never flagged.
+
+**Evidence:** GOV.UK explicitly supports useful captions above headings: https://design-system.service.gov.uk/styles/headings/. Empty-label diagnosis is an editorial judgment, not a validated AI detector.
 
 **Before**
 

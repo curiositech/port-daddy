@@ -187,6 +187,12 @@ export function isWithin(path, parent) {
   return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
+/** A collision probe may be reset by the daemon after it discovers the port is occupied. */
+export function isExpectedCollisionSocketError(error) {
+  const code = error && typeof error === 'object' ? error.code : null;
+  return code === 'ECONNRESET' || code === 'EPIPE';
+}
+
 /** Resolve a possibly-not-yet-created path through its nearest real parent. */
 export function physicalPath(path) {
   let cursor = resolve(path);

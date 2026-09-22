@@ -1,9 +1,12 @@
 import {
+  isFleetbotConversationalOperation,
   isRepository,
   isSafePublisherIdentifier,
+  fleetbotReceiptReadProofPreimage,
   stableJson,
   type FleetbotOperation,
   type FleetbotPublisherCapability,
+  type FleetbotReceiptReadProof,
 } from '../../../lib/github-publisher-contract.js';
 import { fromHex, hashBytes, hashHex, toHex, verifyEd25519 } from './crypto.js';
 
@@ -166,6 +169,40 @@ async function readLiveIdentity(db: D1Database, grant: PublisherGrant, now: numb
   return identity;
 }
 
+/**
+ * Authenticate one domain-separated receipt read without consuming mutation
+ * authority. The caller still has to prove the exact durable binding against
+ * the admitted capability-use and intent rows.
+ */
+export async function authorizePublisherReceiptRead(
+  db: D1Database,
+  proof: FleetbotReceiptReadProof,
+  proofSignature: string,
+  now: number,
+): Promise<PublisherGrant> {
+  const grant = await readPublisherGrant(db, proof.binding.grantId, now);
+  if (grant.epoch !== proof.binding.grantEpoch
+      || grant.subjectFingerprint !== proof.daemonFingerprint.toLowerCase()) {
+    fail('PUBLISHER_GRANT_STALE', 403, 'the receipt proof names a stale or different standing grant');
+  }
+  if (!grant.repositories.includes(proof.binding.repository)
+      || !grant.operations.includes(proof.binding.operation)
+      || !grant.baseBranches.includes(proof.binding.baseBranch)) {
+    fail('PUBLISHER_GRANT_SCOPE_MISMATCH', 403, 'the standing grant does not authorize this receipt scope');
+  }
+  const identity = await readLiveIdentity(db, grant, now);
+  if (identity.key_generation !== proof.signingKeyGeneration
+      || !SIGNATURE_RE.test(proofSignature)
+      || !(await verifyEd25519(
+        identity.pub_key,
+        hashHex(fleetbotReceiptReadProofPreimage(proof)),
+        proofSignature,
+      ))) {
+    fail('WORKLOAD_PROOF_INVALID', 401, 'receipt read proof is not signed by the live grant subject');
+  }
+  return grant;
+}
+
 export interface AuthorizePublisherGrantInput {
   capability: FleetbotPublisherCapability;
   capabilitySignature: string;
@@ -174,7 +211,7 @@ export interface AuthorizePublisherGrantInput {
   repository: string;
   operation: FleetbotOperation;
   baseBranch: string;
-  /** Null only for the read-only inspect operation, which publishes no branch. */
+  /** Null for inspect and conversational writes, which do not mutate the PR branch or state. */
   headBranch: string | null;
   sessionId: string;
   installationId: number;
@@ -188,6 +225,8 @@ export async function authorizePublisherGrant(
   input: AuthorizePublisherGrantInput,
 ): Promise<PublisherGrant> {
   const grant = await readPublisherGrant(db, input.capability.grantId, input.now);
+  const requiresPublisherBranch = input.operation !== 'pull-request.inspect'
+    && !isFleetbotConversationalOperation(input.operation);
   if (grant.epoch !== input.capability.grantEpoch
       || grant.subjectFingerprint !== input.capability.daemonFingerprint.toLowerCase()) {
     fail('PUBLISHER_GRANT_STALE', 403, 'the capability names a stale or different standing grant');
@@ -196,7 +235,7 @@ export async function authorizePublisherGrant(
       || !grant.repositories.includes(input.repository)
       || !grant.operations.includes(input.operation)
       || !grant.baseBranches.includes(input.baseBranch)
-      || (input.isMutation && (input.headBranch === null
+      || (requiresPublisherBranch && (input.headBranch === null
         || !grant.branchPrefixes.some((prefix) => input.headBranch!.startsWith(prefix))))) {
     fail('PUBLISHER_GRANT_SCOPE_MISMATCH', 403, 'the standing grant does not authorize this exact GitHub action');
   }

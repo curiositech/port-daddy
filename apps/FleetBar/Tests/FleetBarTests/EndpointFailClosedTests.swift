@@ -33,6 +33,15 @@ final class RequestCountingProtocol: URLProtocol {
 @MainActor
 final class EndpointFailClosedTests: XCTestCase {
 
+    private func controlRoot(_ name: String) throws -> URL {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../.scratch/endpoint-control-\(name)-\(UUID().uuidString)")
+            .standardizedFileURL
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: root) }
+        return root
+    }
+
     override func setUp() {
         super.setUp()
         URLProtocol.registerClass(RequestCountingProtocol.self)
@@ -44,11 +53,17 @@ final class EndpointFailClosedTests: XCTestCase {
         super.tearDown()
     }
 
-    func testNoRequestIsBuiltWhenControlPlaneUnavailable() async {
-        let store = FleetStore(autoStart: false)
-        // Force an unavailable endpoint via an invalid operator selection.
+    func testInvalidOperatorEndpointBuildsNoRequestWhileRuntimeControlIsOpen() async {
+        let control = fixtureRuntimeControl()
+        XCTAssertNil(control.blockedReason,
+                     "the endpoint failure must be independent of runtime-control denial")
+        let store = FleetStore(autoStart: false, control: control)
+
+        // Force an unavailable endpoint via FleetStore's real operator-selection
+        // validation while the independent runtime control remains open.
         store.rebind(to: "not-a-daemon-url")
-        XCTAssertFalse(store.isControlPlaneAvailable)
+        XCTAssertEqual(store.controlPlaneUnavailableReason,
+                       .invalidExplicitURL("not-a-daemon-url"))
         XCTAssertNil(store.daemonURL)
 
         RequestCountingProtocol.reset()
@@ -63,7 +78,7 @@ final class EndpointFailClosedTests: XCTestCase {
         // Positive control: with a resolved endpoint, refresh() DOES issue a
         // request (which our protocol intercepts and fails). Proves the
         // zero-count above is a real fail-closed, not a dead counter.
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.rebind(to: "http://127.0.0.1:59999")
         XCTAssertTrue(store.isControlPlaneAvailable)
 
@@ -74,8 +89,35 @@ final class EndpointFailClosedTests: XCTestCase {
         XCTAssertFalse(store.isDaemonRunning) // request was failed by the mock
     }
 
+    func testOffAndUnknownControlSuppressOtherwiseValidEndpointWithoutARequest() async throws {
+        let offRoot = try controlRoot("off")
+        try Data().write(to: offRoot.appendingPathComponent("HALT"))
+        let unknownRoot = offRoot.appendingPathComponent("missing/parent/control")
+        let cases: [(LocalRuntimeControl.State, LocalRuntimeControl)] = [
+            (.off, LocalRuntimeControl(canonicalRoot: offRoot)),
+            (.unknown, LocalRuntimeControl(canonicalRoot: unknownRoot)),
+        ]
+
+        for (expectedState, control) in cases {
+            XCTAssertEqual(control.observation.state, expectedState)
+            let store = FleetStore(
+                autoStart: false,
+                endpointResolver: {
+                    .available(url: "http://127.0.0.1:59999", source: .publishedPortFile)
+                },
+                control: control
+            )
+            XCTAssertNil(store.daemonURL)
+            XCTAssertFalse(store.isControlPlaneAvailable)
+
+            RequestCountingProtocol.reset()
+            await store.refresh()
+            XCTAssertEqual(RequestCountingProtocol.total(), 0)
+        }
+    }
+
     func testIsCanonicalDaemonReflectsProvenanceNotPort() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         // An operator-selected berth is an explicit URL — never "canonical",
         // regardless of which port number it happens to carry.
         store.rebind(to: "http://127.0.0.1:59999")
@@ -85,7 +127,11 @@ final class EndpointFailClosedTests: XCTestCase {
 
     func testUnavailableDiscoveryRecoversWhenDaemonPublishes() async {
         var discovered: DaemonEndpoint = .unavailable(.noPublication)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
         XCTAssertNil(store.daemonURL)
 
         discovered = .available(
@@ -105,7 +151,11 @@ final class EndpointFailClosedTests: XCTestCase {
         var discovered = DaemonEndpoint.available(
             url: "http://127.0.0.1:54321",
             source: .publishedPortFile)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
 
         discovered = .available(
             url: "http://127.0.0.1:54322",
@@ -126,7 +176,11 @@ final class EndpointFailClosedTests: XCTestCase {
         var discovered = DaemonEndpoint.available(
             url: "http://127.0.0.1:54321",
             source: .publishedPortFile)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
 
         RequestCountingProtocol.reset()
         store.rebind(to: "http://127.0.0.1:59999")
