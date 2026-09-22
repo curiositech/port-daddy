@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-rejection-coverage.schema.json",
   "title": "PortholeRejectionCoverage",
-  "description": "A point-in-time subsystem inventory separating claim classes with replayable mutation evidence from claims whose rejection has not yet been demonstrated. Demonstrated means at least one exact constructed lie was killed, never universal proof.",
+  "description": "A point-in-time subsystem inventory separating claim classes with replayable mutation evidence from claims whose rejection has not yet been demonstrated. An exact constructed lie is a deliberately named, seeded mutation of the current subject run against the named validator and contract. Demonstrated means at least one such lie was killed, never universal proof.",
   "type": "object",
   "properties": {
     "schema": { "const": "pd.porthole.rejection-coverage.v1" },
@@ -55,6 +55,15 @@
             "then": {
               "properties": {
                 "mutationReceiptRefs": { "maxItems": 0 },
+                "gapReason": { "type": "string", "minLength": 8 }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "status": { "const": "inconclusive" } }, "required": ["status"] },
+            "then": {
+              "properties": {
+                "mutationReceiptRefs": { "minItems": 1 },
                 "gapReason": { "type": "string", "minLength": 8 }
               }
             }

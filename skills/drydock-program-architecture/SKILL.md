@@ -346,7 +346,12 @@ Before calling the packet complete:
 8. Confirm every PASS claim names an exact tier, digest, and external witness.
 9. Have a skeptical reviewer argue safety, liveness, economics, usability, and
    evidence independently.
-10. Confirm every important invariant has a registered constructed lie, and no
+10. Confirm every important invariant has a registered constructed lie in the
+    `PortholeRejectionCoverage` `claims[].mutationReceiptRefs` row, with the
+    receipt's `mutation.constructedLie` and `oracle` naming the lie and owning
+    validator. The JSON schemas enforce the row shape and required references;
+    `schemas/agent-harbor/v0/porthole-mutation-invariants.mjs` enforces the
+    cross-record digest, disposition, and survivor/orphan bindings. No
     subsystem or skill reports demonstrated rejection without an exact
     `PortholeMutationReceipt` bound to the current validator digest.
 

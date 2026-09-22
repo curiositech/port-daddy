@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-mutation-receipt.schema.json",
   "title": "PortholeMutationReceipt",
-  "description": "A fail-closed, replay-addressable account of one deliberately constructed lie presented to one exact validator. A killed disposition means the unchanged baseline was accepted and the mutant was rejected; it does not prove that every lie in the claim class is rejected.",
+  "description": "A fail-closed, replay-addressable account of one deliberately constructed lie presented to one exact validator. A killed disposition means the unchanged baseline was accepted and the constructed mutant was rejected; killed describes the mutant's rejection, not the baseline, and does not prove that every lie in the claim class is rejected.",
   "type": "object",
   "properties": {
     "schema": { "const": "pd.porthole.mutation-receipt.v1" },

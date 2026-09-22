@@ -7,11 +7,26 @@ export function checkPortholeMutationReceipt(receipt) {
   if (receipt.issuer.signingKeyId !== receipt.signature.keyId) {
     errors.push('mutation receipt signature key must match issuer signing key');
   }
-  if (Date.parse(receipt.execution.completedAt) < Date.parse(receipt.execution.startedAt)) {
+  const startedAt = Date.parse(receipt.execution.startedAt);
+  const completedAt = Date.parse(receipt.execution.completedAt);
+  const issuedAt = Date.parse(receipt.issuedAt);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completedAt) || !Number.isFinite(issuedAt)) {
+    errors.push('mutation receipt timestamps must be valid dates');
+  }
+  if (completedAt < startedAt) {
     errors.push('mutation execution cannot complete before it starts');
   }
-  if (Date.parse(receipt.issuedAt) < Date.parse(receipt.execution.completedAt)) {
+  if (issuedAt < completedAt) {
     errors.push('mutation receipt cannot be issued before execution completes');
+  }
+  const outcomes = [receipt.execution.baseline.outcome, receipt.execution.mutated.outcome];
+  const expectedOutcomes = {
+    killed: ['accepted', 'rejected'],
+    survived: ['accepted', 'accepted'],
+    'not-run': ['not-run', 'not-run'],
+  }[receipt.disposition];
+  if (expectedOutcomes && outcomes.some((outcome, index) => outcome !== expectedOutcomes[index])) {
+    errors.push(`mutation receipt ${receipt.disposition} disposition has incompatible execution outcomes`);
   }
   const evidenceRefs = new Set(receipt.evidence.artifactRefs);
   for (const run of [receipt.execution.baseline, receipt.execution.mutated]) {
@@ -60,9 +75,40 @@ export function checkPortholeRejectionCoverage(coverage, receipts) {
       if (claim.status === 'demonstrated' && receipt.disposition !== 'killed') {
         errors.push(`demonstrated claim ${claim.invariantId} cites a non-killed mutation`);
       }
-      if (claim.status === 'survived' && receipt.disposition !== 'survived') {
-        errors.push(`survived claim ${claim.invariantId} cites a mutation that did not survive`);
+      if (claim.status === 'survived' && !['killed', 'survived'].includes(receipt.disposition)) {
+        errors.push(`survived claim ${claim.invariantId} cites an unusable mutation disposition`);
       }
+      if (claim.status === 'inconclusive' && !['inconclusive', 'not-run'].includes(receipt.disposition)) {
+        errors.push(`inconclusive claim ${claim.invariantId} cites a conclusive mutation`);
+      }
+    }
+
+    const applicableReceipts = receipts.filter((receipt) =>
+      receipt.subsystemId === coverage.subsystemId
+      && receipt.invariantId === claim.invariantId
+      && receipt.subject.sourceDigest === coverage.subjectDigest
+      && receipt.subject.validatorArtifactDigest === coverage.validatorArtifactDigest
+      && receipt.subject.testBundleDigest === coverage.testBundleDigest
+      && receipt.subject.contractRef === coverage.contractRef);
+    const referenced = new Set(claim.mutationReceiptRefs);
+    const missingApplicable = applicableReceipts.filter((receipt) => !referenced.has(receipt.receiptId));
+    if (missingApplicable.length > 0) {
+      errors.push(`rejection coverage claim ${claim.invariantId} omits applicable mutation receipt(s): ${missingApplicable.map((receipt) => receipt.receiptId).join(', ')}`);
+    }
+    if (claim.status === 'inconclusive' && (claim.mutationReceiptRefs.length === 0 || typeof claim.gapReason !== 'string' || claim.gapReason.length < 8)) {
+      errors.push(`inconclusive claim ${claim.invariantId} must name evidence and a gap reason`);
+    }
+  }
+
+  const referencedReceiptIds = new Set(coverage.claims.flatMap((claim) => claim.mutationReceiptRefs));
+  for (const receipt of receipts) {
+    if (receipt.disposition === 'killed' && receipt.subsystemId === coverage.subsystemId
+      && receipt.subject.sourceDigest === coverage.subjectDigest
+      && receipt.subject.validatorArtifactDigest === coverage.validatorArtifactDigest
+      && receipt.subject.testBundleDigest === coverage.testBundleDigest
+      && receipt.subject.contractRef === coverage.contractRef
+      && !referencedReceiptIds.has(receipt.receiptId)) {
+      errors.push(`killed mutation receipt ${receipt.receiptId} is orphaned from rejection coverage`);
     }
   }
 

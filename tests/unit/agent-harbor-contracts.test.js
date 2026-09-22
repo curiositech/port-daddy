@@ -705,13 +705,47 @@ describe('agent-harbor v0 schema package', () => {
     expect(checkPortholeRejectionCoverage(coverage, [killedReceipt, receipt])).toEqual([]);
 
     const mislabeledReceipt = structuredClone(receipt);
-    mislabeledReceipt.disposition = 'killed';
+    mislabeledReceipt.disposition = 'not-run';
     expect(checkPortholeRejectionCoverage(coverage, [killedReceipt, mislabeledReceipt]))
-      .toContain(`survived claim ${coverage.claims[1].invariantId} cites a mutation that did not survive`);
+      .toContain(`survived claim ${coverage.claims[1].invariantId} cites an unusable mutation disposition`);
 
     const receiptless = structuredClone(coverage);
     receiptless.claims[1].mutationReceiptRefs = [];
     expect(validate(schema, receiptless).some((error) => error.includes('fewer than minItems 1'))).toBe(true);
+  });
+
+  it('rejects malformed receipt timestamps and disposition outcome drift', () => {
+    const receipt = structuredClone(loadFixture('porthole-mutation-receipt'));
+    receipt.execution.startedAt = '';
+    expect(checkPortholeMutationReceipt(receipt)).toContain('mutation receipt timestamps must be valid dates');
+
+    const killedWithAcceptedMutant = structuredClone(loadFixture('porthole-mutation-receipt'));
+    killedWithAcceptedMutant.execution.mutated.outcome = 'accepted';
+    expect(checkPortholeMutationReceipt(killedWithAcceptedMutant))
+      .toContain('mutation receipt killed disposition has incompatible execution outcomes');
+  });
+
+  it('requires all applicable receipts and survivor-dominant mixed rows', () => {
+    const coverage = structuredClone(loadFixture('porthole-rejection-coverage'));
+    const survivor = structuredClone(loadFixture('porthole-mutation-receipt'));
+    survivor.receiptId = 'mutation_receipt_attempt_substitution_survived_01';
+    survivor.execution.mutated.outcome = 'accepted';
+    survivor.disposition = 'survived';
+
+    expect(checkPortholeRejectionCoverage(coverage, [loadFixture('porthole-mutation-receipt'), survivor]))
+      .toContain(`rejection coverage claim ${coverage.claims[0].invariantId} omits applicable mutation receipt(s): ${survivor.receiptId}`);
+
+    coverage.claims[0].mutationReceiptRefs.push(survivor.receiptId);
+    expect(checkPortholeRejectionCoverage(coverage, [loadFixture('porthole-mutation-receipt'), survivor]))
+      .toContain(`demonstrated claim ${coverage.claims[0].invariantId} cites a non-killed mutation`);
+  });
+
+  it('requires inconclusive rows to cite inconclusive evidence and a reason', () => {
+    const schema = loadSchema('porthole-rejection-coverage');
+    const coverage = structuredClone(loadFixture('porthole-rejection-coverage'));
+    coverage.claims[1].status = 'inconclusive';
+    coverage.claims[1].gapReason = null;
+    expect(validate(schema, coverage).some((error) => error.includes('fewer than minItems 1'))).toBe(true);
   });
 
   it('binds rejection coverage to the exact subsystem, invariant, subject, validator, tests, contract, and named-row totals', () => {

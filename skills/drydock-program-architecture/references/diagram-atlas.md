@@ -664,7 +664,8 @@ flowchart TB
 
 **Proves visually:** a proposal grows a richer hypertree; only the concrete,
 admitted frontier becomes the current executable DAG, while later work remains
-fog or alternatives.
+**future fog** (deliberately unresolved questions, not executable jobs) or
+alternatives.
 
 **Does not prove:** that decomposition quality is high or that any node has
 execution authority.
@@ -688,7 +689,7 @@ flowchart LR
         Alt2["alternative β"]
     end
 
-    Compiler["Round compiler\npolicy + capacity + evidence"]
+    Compiler["Round compiler\npolicy + capacity + evidence\nselects admitted nodes and joins"]
     DAG["Executable DAG n\nA, B, C, join"]
     Event["Plan delta + event head"]
 
@@ -712,7 +713,9 @@ flowchart LR
 
 **Proves visually:** the same validator sees an accepted baseline and a
 deliberately false variant; results feed named rejection coverage and Porthole
-replay rather than a context-free score.
+replay rather than a context-free score. **Inconclusive** means the honest
+baseline or runner failed, so the receipt is evidence for repair rather than a
+rejection claim.
 
 **Does not prove:** universal rejection of every possible lie in a claim class.
 
@@ -749,7 +752,12 @@ flowchart LR
 
 **Proves visually:** repositories, worktrees, manager chat, the zoomable
 hypertree, artifacts, terminals, evidence, and orthogonal service agents occupy
-distinct product regions over one event history.
+distinct product regions over one event history. **Epistemology risk** here means
+the risk that a claim is accepted without enough provenance or adversarial
+evidence; the risk service proposes questions, not verdicts. Services feed the
+manager: skill fitting and Parley scout submit proposals, while validators and
+rework judge typed artifacts. **Parley scout** is the service that gathers
+bounded external or repository context for a proposal.
 
 **Does not prove:** GPUI implementation, usability, or live service health.
 
@@ -762,7 +770,7 @@ flowchart TB
     Graph["Gigantic zoomable hypertree\nactive frontier + future fog"]
     Build["Artifact canvas\ncode · UI · docs · plots"]
     Detail["Node inspector\nchat · diff · terminal · receipts"]
-    Services["Orthogonal services"]
+    Services["Orthogonal services\nproposals and checks"]
     Skill["skill fitting"]
     Parley["parley scout"]
     Risk["epistemology risk"]

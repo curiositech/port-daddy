@@ -67,6 +67,11 @@ flowchart LR
 The round is neither a chat turn nor a bulk swarm. It is a bounded production
 and adjudication interval with typed inputs and outputs.
 
+**[`WorkIntent`](../../schemas/agent-harbor/v0/work-intent.schema.json)** is the
+versioned Port Daddy contract for an operator's requested end state, constraints,
+and execution mode; the cited schema makes the durable, ephemeral, and prototype
+modes auditable rather than merely labels in this diagram.
+
 ```mermaid
 flowchart TB
     I["WorkIntent\ndurable · ephemeral · prototype"]
