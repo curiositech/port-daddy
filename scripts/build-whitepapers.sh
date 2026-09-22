@@ -57,7 +57,7 @@ clean_build_dir() {
 }
 clean_build_dir
 mkdir -p "$BUILD_DIR"
-trap clean_build_dir EXIT
+
 
 # Toolchain note. SOURCE_DATE_EPOCH is pinned per paper (see paper_epoch), so a
 # rebuild of unchanged source on the SAME renderer is byte-identical. It is not
