@@ -10,10 +10,10 @@
   \draw[pdinkmuted!45,line width=.35pt] (0,0) -- (0.80,0);
   \draw[pdinkmuted!30,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,1.0) -- (0.80,1.0);
   % Welfare loss curve L(rho) = 1 - (1-rho)^2 = 2*rho - rho^2
-  \draw[pdred,line width=.85pt] plot[domain=0:0.80,samples=31]
+  \draw[pderror,line width=.85pt] plot[domain=0:0.80,samples=31]
     (\x,{2*\x - \x*\x});
   % Contention point at rho=0.50 -> L(0.50) = 0.75
-  \fill[pdred] (0.50,0.75) circle[radius=1.2pt];
+  \fill[pderror] (0.50,0.75) circle[radius=1.2pt];
   % Labels
   \node[anchor=east,inner sep=1.5pt] at (0,0) {$0$};
   \node[anchor=west,inner sep=1.5pt] at (0.80,0.96) {$.96$};
