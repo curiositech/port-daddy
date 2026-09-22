@@ -352,10 +352,6 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(status, 2)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class InkAuditLoaderTests(unittest.TestCase):
     """The ink metrics are advisory: when the Tufte skill's ink_audit.py is
     absent (the skill moved, a partial checkout), figcheck must degrade to
@@ -385,3 +381,83 @@ class InkAuditLoaderTests(unittest.TestCase):
         module = figcheck._load_ink_audit()
         self.assertIsNotNone(module)
         self.assertTrue(hasattr(module, "load_image"))
+
+
+class TestPathArgumentTolerance(unittest.TestCase):
+    """run_figcheck accepts a str or a Path, and reports the same thing either way.
+
+    Regression guard for 65fabd93f, which added `pdf_path.stem` to the report and
+    thereby narrowed an undocumented, str-tolerant parameter to Path-only. Every
+    test in this file and in test_figcheck_t8.py passes the str that
+    NamedTemporaryFile.name returns, so the whole suite went red at once --
+    nineteen AttributeErrors that nothing in CI was watching for.
+    """
+
+    def setUp(self):
+        doc = pymupdf.open()
+        page = doc.new_page(width=400, height=300)
+        page.insert_text((50, 50), "either type", fontsize=10, fontname="helv")
+        self.path = save_temp_pdf(doc)
+
+    def tearDown(self):
+        Path(self.path).unlink(missing_ok=True)
+
+    def test_a_str_path_is_accepted(self):
+        report = figcheck.run_figcheck(self.path)
+        self.assertEqual(report["figure"], Path(self.path).stem)
+
+    def test_a_path_object_is_accepted(self):
+        report = figcheck.run_figcheck(Path(self.path))
+        self.assertEqual(report["figure"], Path(self.path).stem)
+
+    def test_both_argument_types_give_the_same_report(self):
+        from_str = figcheck.run_figcheck(self.path)
+        from_path = figcheck.run_figcheck(Path(self.path))
+        self.assertEqual(from_str, from_path)
+
+    def test_the_figure_key_is_a_stem_not_a_path(self):
+        # The whole point of 65fabd93f: a committed report must not carry the
+        # location of the throwaway PDF it was measured from.
+        report = figcheck.run_figcheck(self.path)
+        self.assertNotIn("/", report["figure"])
+        self.assertNotIn("pdf", report, msg="the old absolute-path key must stay gone")
+
+
+class TestMarkdownRendering(unittest.TestCase):
+    """render_markdown is the report dict's only reader outside run_figcheck.
+
+    Regression guard for the second half of 65fabd93f: it renamed the report key
+    "pdf" to "figure" and left render_markdown asking for the old name, so the
+    documented --md flag raised KeyError 100% of the time. main()'s except-guard
+    wraps run_figcheck but not the render_markdown call below it, and neither
+    production caller passes --md, so nothing surfaced it.
+    """
+
+    def setUp(self):
+        doc = pymupdf.open()
+        page = doc.new_page(width=400, height=300)
+        page.insert_text((50, 50), "renderable", fontsize=10, fontname="helv")
+        self.path = save_temp_pdf(doc)
+
+    def tearDown(self):
+        Path(self.path).unlink(missing_ok=True)
+
+    def test_render_markdown_reads_every_key_run_figcheck_writes(self):
+        report = figcheck.run_figcheck(self.path)
+        text = figcheck.render_markdown(report)
+        self.assertIn(report["figure"], text)
+
+    def test_render_markdown_names_the_figure_in_its_heading(self):
+        report = figcheck.run_figcheck(self.path)
+        heading = figcheck.render_markdown(report).splitlines()[0]
+        self.assertEqual(heading, f"# figcheck: `{report['figure']}`")
+
+    def test_render_markdown_tabulates_all_registered_checks(self):
+        report = figcheck.run_figcheck(self.path)
+        text = figcheck.render_markdown(report)
+        for check in figcheck.ALL_CHECKS:
+            self.assertIn(f"| {check} |", text, msg=f"{check} missing from the markdown table")
+
+
+if __name__ == "__main__":
+    unittest.main()
