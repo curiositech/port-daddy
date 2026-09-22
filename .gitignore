@@ -50,6 +50,15 @@ website-v2/.tmp-og/
 .remember/
 .serena/
 .cache/
+*.sqlite3
+# Purchased type is private input, never a public asset or source commit.
+SuisseIntl-*.otf
+SuisseIntl-*.ttf
+SuisseIntl-*.woff2
+swisstypefaces-*.zip
+swisstypefaces-EULA.pdf
+pd-book-font-config.tex
+book-font-profile.json
 .visual-audit/
 .public-export/
 CLAUDE.md

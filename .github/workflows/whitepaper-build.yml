@@ -43,6 +43,9 @@ on:
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'whitepaper/textbook.json'
+      - 'scripts/harbor-research/check_book_caption_margins.py'
+      - 'scripts/harbor-research/page_overflow.py'
+      - 'scripts/harbor-research/run_pdf_checks.py'
       - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
@@ -52,6 +55,9 @@ on:
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'whitepaper/textbook.json'
+      - 'scripts/harbor-research/check_book_caption_margins.py'
+      - 'scripts/harbor-research/page_overflow.py'
+      - 'scripts/harbor-research/run_pdf_checks.py'
       - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
@@ -226,6 +232,18 @@ jobs:
           retention-days: 1
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+
+      # Caption coverage comes from the converged build inventory, not a
+      # hand-selected list of figures. Keep this sidecar out of the website.
+      - name: Hand over the matching caption inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-caption-inventory
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.aux
+            .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.log
 
       # THE BOOK IS BUILT ON EVERY RUN AND COMMITTED ON ALMOST NONE.
       #
@@ -455,7 +473,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: freshly-built-editions
-          path: /tmp/editions
+          path: ${{ runner.temp }}/book-page-checks
+
+      - name: Fetch the matching caption inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: book-caption-inventory
+          path: ${{ runner.temp }}/book-page-checks
 
       # One command for every check that reads a rendered PDF -- the page
       # half of type-over-art (illegible type over a plate) and page_overflow
@@ -470,7 +494,7 @@ jobs:
       # run_pdf_checks.py itself fails if handed no PDFs, so the empty-
       # artifact case is still covered without a separate check for it.
       - name: Nothing on any page is where a reader cannot read it
-        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions --expect 1
+        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir "${{ runner.temp }}/book-page-checks" --expect 1
 
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real
