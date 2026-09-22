@@ -10,6 +10,8 @@ const MESSAGE = ["messageId","protocolId","conversationId","epoch","senderPrinci
 const TERMINAL = ["state","fenceMessageId","requiredAcknowledgements","receivedAcknowledgements","stateDigest","unresolvedParticipants"];
 const KINDS = new Set(["REQUEST","RESPONSE","CONTRIBUTION","DISSENT","GATHER_RESULT","CANCEL_REQUEST","TERMINAL_FENCE","ACK"]);
 const TERMINALS = new Set(["COMPLETED","BLOCKED","TIMED_OUT","CANCELLED","DISSENT_RECORDED"]);
+const GATHER_POLICIES = new Set(["ALL", "QUORUM", "FIRST_SUCCESS"]);
+const GATHER_REDUCERS = new Set(["ORDERED_LIST", "PRESERVE_DISSENT", "FIRST_BY_CANONICAL_ORDER"]);
 
 function exactKeys(value, keys, path, errors) {
   if (!value || typeof value !== "object" || Array.isArray(value)) { errors.push({code:"E_SHAPE",path}); return; }
@@ -43,6 +45,8 @@ export function validateTrace(trace) {
     if (gathers.has(g.gatherId)) errors.push({code:"E_DUPLICATE_GATHER",path:`$.gathers[${i}].gatherId`});
     gathers.set(g.gatherId,g);
     if (!Array.isArray(g.membership)||!g.membership.length||!unique(g.membership)||g.membership.some(x=>!participants.has(x))) errors.push({code:"E_GATHER_MEMBERSHIP",path:`$.gathers[${i}].membership`});
+    if (!GATHER_POLICIES.has(g.policy)) errors.push({code:"E_GATHER_POLICY",path:`$.gathers[${i}].policy`});
+    if (!GATHER_REDUCERS.has(g.reducer)) errors.push({code:"E_REDUCER",path:`$.gathers[${i}].reducer`});
     if (g.policy==="QUORUM" && (!Number.isInteger(g.quorum)||g.quorum<1||g.quorum>g.membership.length)) errors.push({code:"E_GATHER_QUORUM",path:`$.gathers[${i}].quorum`});
     if (g.policy!=="QUORUM" && g.quorum!==null) errors.push({code:"E_GATHER_QUORUM",path:`$.gathers[${i}].quorum`});
     if (g.policy==="FIRST_SUCCESS" && g.reducer!=="FIRST_BY_CANONICAL_ORDER") errors.push({code:"E_NONDETERMINISTIC_REDUCER",path:`$.gathers[${i}].reducer`});

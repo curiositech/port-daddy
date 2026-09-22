@@ -14,6 +14,7 @@ const cases=[
   ["causation-gap",()=>{const x=clone();x.messages[1].causationId="missing";return x},"E_CAUSATION_GAP"],
   ["expired",()=>{const x=clone();x.messages[0].expiresAt=x.messages[0].observedAt;return x},"E_EXPIRED"],
   ["dynamic-member",()=>{const x=clone();x.gathers[0].membership.push("principal:nobody");return x},"E_GATHER_MEMBERSHIP"],
+  ["unsupported-gather-policy",()=>{const x=clone();x.gathers[0].policy="ANY";return x},"E_GATHER_POLICY"],
   ["bad-contributor",()=>{const x=clone();x.messages[1].senderPrincipalRef="principal:author";return x},"E_GATHER_CONTRIBUTION"],
   ["post-terminal",()=>{const x=clone();x.messages[3].kind="RESPONSE";return x},"E_POST_TERMINAL_MESSAGE"],
   ["completed-with-incomplete-gather",()=>{const x=clone();x.messages.splice(1,1);x.messages[1].causationId="m1";x.messages[2].senderSequence=1;return x},"E_GATHER_INCOMPLETE"],
