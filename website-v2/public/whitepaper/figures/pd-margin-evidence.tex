@@ -58,19 +58,12 @@
   }{The entire bond has cleared. Its recipient ledger splits the payment;
     it does not split the bond between status buckets.}}
 
-\newsavebox{\pdanalogybox}
 \newcommand{\pdmarginanalogy}[4]{%
-  \sbox{\pdanalogybox}{%
-    \IfFileExists{plates/margin-evidence/#3.png}{%
-      \includegraphics[width=\linewidth]{plates/margin-evidence/#3.png}%
-    }{\PackageError{pd-margin-layout}{Missing margin illustration #3}%
-      {Generate and inspect the artwork before including it.}}}%
   \pdmarginexhibit{#1}{#2}{%
-    \ifdim\ht\pdanalogybox>0.22\textheight
-      \includegraphics[height=0.22\textheight]{plates/margin-evidence/#3.png}%
-    \else
-      \usebox{\pdanalogybox}%
-    \fi
+    \IfFileExists{plates/margin-evidence/#3.png}{%
+      \includegraphics[width=\linewidth,height=0.22\textheight,keepaspectratio]{plates/margin-evidence/#3.png}%
+    }{\PackageError{pd-margin-layout}{Missing margin illustration #3}%
+      {Generate and inspect the artwork before including it.}}%
   }{#4}}
 
 % \pdwrapanalogy[placement][width]{id}{title}{asset-stem}{caption}
