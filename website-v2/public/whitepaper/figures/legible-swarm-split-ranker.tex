@@ -29,32 +29,30 @@ attention.ts/2/2/1/attention,
 resurrection.ts/3/3/3/resurrection}
 
   % Top-level subtitle & dividing hairline
-  \node[pd label,anchor=west,inner sep=0pt] at (0,4.40)
+  \node[pd label,anchor=west,inner sep=0pt] at (0,4.15)
     {Synthetic ordinal ranks; 1 is highest on both sides};
-  \draw[pd hairline] (0,4.10) -- (11.4,4.10);
+  \draw[pd hairline] (0,3.90) -- (11.4,3.90);
 
   % =========================================================================
-  % PANEL 1 (Left): Agreement (Concordant preferences across both observers)
+  % PANEL 1 (Left): Agreement
   % =========================================================================
-  \node[pd title,anchor=west,inner sep=0pt] at (0,3.75)
-    {\textbf{(a) Agreement}};
-  \node[pd label,anchor=west,inner sep=0pt,text=pdinkmuted] at (0,3.40)
-    {one order serves both};
+  \node[pd title,anchor=west,inner sep=0pt] at (0,3.45)
+    {\textbf{(a) Agreement suiting both}};
 
   % Column headers
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxA,2.65)
+  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxA,2.55)
     {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxA,2.65)
+  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxA,2.55)
     {\textbf{Maya}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
 
   % Guide spines
-  \draw[draw=pdink!18,line width=0.4pt] (\lxA,2.50) -- (\lxA,0.30);
-  \draw[draw=pdink!18,line width=0.4pt] (\rxA,2.50) -- (\rxA,0.30);
+  \draw[draw=pdink!18,line width=0.4pt] (\lxA,2.40) -- (\lxA,0.25);
+  \draw[draw=pdink!18,line width=0.4pt] (\rxA,2.40) -- (\rxA,0.25);
 
   % Agreement rows
   \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
-    \pgfmathsetmacro{\yL}{2.40 - (\route-1)*\rankpitch}
-    \pgfmathsetmacro{\yR}{2.40 - (\agreement-1)*\rankpitch}
+    \pgfmathsetmacro{\yL}{2.30 - (\route-1)*\rankpitch}
+    \pgfmathsetmacro{\yR}{2.30 - (\agreement-1)*\rankpitch}
     \draw[draw=pdink!55,line width=0.75pt] (\lxA,\yL) -- (\rxA,\yR);
     \fill[pdink!70] (\lxA,\yL) circle (1.2pt);
     \fill[pdink!70] (\rxA,\yR) circle (1.2pt);
@@ -67,27 +65,25 @@ resurrection.ts/3/3/3/resurrection}
   }
 
   % =========================================================================
-  % PANEL 2 (Right): Dispute (Strict reversal preventing single-ranking)
+  % PANEL 2 (Right): Dispute
   % =========================================================================
-  \node[pd title,anchor=west,inner sep=0pt] at (6.8,3.75)
-    {\textbf{(b) Dispute}};
-  \node[pd label,anchor=west,inner sep=0pt,text=pdinkmuted] at (6.8,3.40)
-    {top choices conflict};
+  \node[pd title,anchor=west,inner sep=0pt] at (5.7,3.45)
+    {\textbf{(b) Top choices conflict in dispute}};
 
   % Column headers
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxB,2.65)
+  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxB,2.55)
     {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxB,2.65)
+  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxB,2.55)
     {\textbf{Maya}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
 
   % Guide spines
-  \draw[draw=pdink!18,line width=0.4pt] (\lxB,2.50) -- (\lxB,0.30);
-  \draw[draw=pdink!18,line width=0.4pt] (\rxB,2.50) -- (\rxB,0.30);
+  \draw[draw=pdink!18,line width=0.4pt] (\lxB,2.40) -- (\lxB,0.25);
+  \draw[draw=pdink!18,line width=0.4pt] (\rxB,2.40) -- (\rxB,0.25);
 
   % Dispute rows
   \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
-    \pgfmathsetmacro{\yL}{2.40 - (\route-1)*\rankpitch}
-    \pgfmathsetmacro{\yR}{2.40 - (\dispute-1)*\rankpitch}
+    \pgfmathsetmacro{\yL}{2.30 - (\route-1)*\rankpitch}
+    \pgfmathsetmacro{\yR}{2.30 - (\dispute-1)*\rankpitch}
     \ifnum\route=\dispute\relax
       % Unchanged item (resurrection.ts): subtle dashed baseline
       \draw[draw=pdink!35,line width=0.6pt,dash pattern=on 2pt off 1.5pt]
