@@ -1,0 +1,23 @@
+% Analytical sparkline: Team welfare loss under precautionary locks L(\rho) = 1 - (1-\rho)^2.
+% Fits inside the 93.95pt book margin column.
+% Source: ch7 §5.1 (Sen Pareto-inferior locking instance).
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=70pt,y=25pt,font=\fontsize{7}{8}\selectfont]
+  % Baseline and upper bound
+  \draw[pdinkmuted!45,line width=.35pt] (0,0) -- (0.80,0);
+  \draw[pdinkmuted!30,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,1.0) -- (0.80,1.0);
+  % Welfare loss curve L(rho) = 1 - (1-rho)^2 = 2*rho - rho^2
+  \draw[pdred,line width=.85pt] plot[domain=0:0.80,samples=31]
+    (\x,{2*\x - \x*\x});
+  % Contention point at rho=0.50 -> L(0.50) = 0.75
+  \fill[pdred] (0.50,0.75) circle[radius=1.2pt];
+  % Labels
+  \node[anchor=east,inner sep=1.5pt] at (0,0) {$0$};
+  \node[anchor=west,inner sep=1.5pt] at (0.80,0.96) {$.96$};
+  \node[anchor=south,inner sep=1.5pt] at (0.35,0.70) {$L(\rho)=1-(1-\rho)^2$};
+  \node[anchor=north,inner sep=2pt] at (0.40,0) {$\rho: 0\longrightarrow .80$};
+\end{tikzpicture}
+\makeatother\endgroup

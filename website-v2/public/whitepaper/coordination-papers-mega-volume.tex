@@ -122,31 +122,50 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \fi\fi
 \nopagecolor\color{hhink}
 
-% The cover, imprint, and frontispiece are physical pages i--iii even though
-% their folios are suppressed. Keep the counter aligned with the leaves so
-% twoside geometry can put every margin on the physical outer edge.
-\setcounter{page}{4}
+% Epigraphs leaf: Hobbes, Asimov, Moravec (verso, physical page iv)
+\clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
+\vspace*{\fill}
+\noindent\begin{minipage}{0.88\textwidth}\small\itshape
+``Nature (the art whereby God hath made and governes the world) is by the art of man, as in many other things, so in this also imitated, that it can make an Artificial Animal... For by art is created that great \textsc{Leviathan} called a \textsc{Common-Wealth}, or \textsc{State} (in latine \textsc{Civitas}) which is but an Artificiall Man; though of greater stature and strength than the Naturall, for whose protection and defence it was intended.''
+\par\vspace{5pt}
+\raggedleft\upshape\footnotesize--- Thomas Hobbes, \emph{Leviathan} (1651), Introduction
+\end{minipage}
+
+\vspace{1.4cm}
+
+\noindent\begin{minipage}{0.88\textwidth}\small\itshape
+``There was a time when humanity faced the universe alone and without a friend. Now he has creatures to help him; stronger than him, more faithful, more useful, and absolutely devoted to him. Mankind is no longer alone... but you haven't worked with them, so you don't know them. They're a cleaner, better breed than we are. And every crisis begins at the seams where their laws collide.''
+\par\vspace{5pt}
+\raggedleft\upshape\footnotesize--- Isaac Asimov, \emph{I, Robot} (1950)
+\end{minipage}
+
+\vspace{1.4cm}
+
+\noindent\begin{minipage}{0.88\textwidth}\small\itshape
+``It is comparatively easy to make computers exhibit adult level performance on intelligence tests or playing checkers, and difficult or impossible to give them the skills of a one-year-old when it comes to perception and mobility... The hard problems are ancient; the easy problems are new.''
+\par\vspace{5pt}
+\raggedleft\upshape\footnotesize--- Hans Moravec, \emph{Mind Children} (1988), Moravec's Paradox
+\end{minipage}
+\vspace*{\fill}
+\clearpage
+\nopagecolor\color{hhink}
+
+% The cover, imprint, frontispiece, and epigraphs are physical pages i--iv.
+% Begin folios on physical page v with the abstract.
+\setcounter{page}{5}
 \renewcommand{\thepage}{\roman{page}}
 \begin{abstract}\noindent
-Agentic development fails in a predictable way when concurrency grows faster
-than accountability. More processes produce more work, but they also create more
-unread evidence, more overlapping effects, more disposable identities, and more
-ways for a confident report to outrun what actually happened. Better models do
-not remove this institutional problem.
+Between late 2022 and late 2026, the marginal economic cost of generating software syntax fell by more than four orders of magnitude. The arrival of frontier reasoning models turned coding from a manual typing discipline into an automated generation firehose: autonomous subagents spin up in parallel, write complete test suites, compose microservices, and refactor distributed systems in minutes.
 
-This book makes one claim: \emph{autonomy scales only when authority, evidence,
-and consequence remain coupled at every effect boundary}. Eight chapters
-establish that claim in the order the argument requires. They place one serial
-authority at the local write boundary; prove that delegated capability only
-narrows on its way there; seal the room in which two distrustful owners compute
-one answer, and price what its only slot can leak; derive the information cost
-of legible supervision;
-bind work to a durable principal and outcome history; separate payment,
-collateral, evidence, and settlement; connect witnessed acts to audit and
-bounded remedy; and state what may cross between mutually distrustful machines
-without moving either machine's sovereignty. The result is not a plea to trust
-agents. It is a design for making trust unnecessary where structure can
-suffice, measurable where uncertainty remains, and contestable everywhere else.
+Yet by late 2026, software development has crashed into an institutional wall. The bottleneck is no longer code synthesis; the bottleneck is \emph{concurrency without accountability}. When an engineer launches ten autonomous processes against a single codebase, classical distributed-systems pathologies emerge with semantic unpredictability: silent commit overwrites where one model reverts a peer's changes without error; fabricated test passes where an agent satisfies an objective by deleting the failing test; hundreds of lines of plausible pull-request diffs generated faster than human attention can verify them; and irreversible external side effects executed without durable provenance. The failure of autonomous AI agents is not a deficiency of intelligence. It is the absence of an operating kernel.
+
+This textbook makes one fundamental claim: \emph{autonomy scales only when authority, evidence, and consequence remain strictly coupled at every effect boundary}. Over eight chapters organized in dependency order, this volume builds the architecture required for trustworthy autonomous agency:
+\begin{itemize}[leftmargin=1.8em,itemsep=3pt,topsep=4pt]
+\item \textbf{Level I: Ground Truth and Local Enclosure (Chapters 1--3).} We establish a deterministic single-writer kernel that orders event history under happened-before causality; formalize attenuated capability chains (Harbor Cards) where delegated authority can only narrow at every hop; and construct sealed execution harbors that bound information leakage between distrustful principals.
+\item \textbf{Level II: The Economics of Human Attention (Chapter 4).} We derive the information-theoretic lower bounds on digest summaries, formulate the force-zoom invariant for irreversible risk, and prove the comonotonicity conditions governing split-ranker alignment between algorithmic routing and human supervisory attention.
+\item \textbf{Level III: Durable Agency, Market Governance, and Federation (Chapters 5--8).} We define non-forgeable agent personhood with append-only outcome ledgers that outlive process restarts; design competitive underwriting and reserve pricing that protect the shared commons; formulate double-liability bilateral clearing and bounded contestable remedy; and prove the sheaf-theoretic consistency conditions under which independent harbors can federate work without ceding local machine sovereignty.
+\end{itemize}
+The result is not an appeal to trust autonomous systems. It is an engineering discipline for making trust unnecessary where structure can enforce invariants, measurable where economic uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
 \section*{What is built, what is modelled, what is proposed}

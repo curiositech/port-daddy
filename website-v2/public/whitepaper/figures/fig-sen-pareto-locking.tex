@@ -1,0 +1,56 @@
+% Figure: A Sen-Inspired Design Warning (ch7-17)
+% Paired-outcome comparison: (a) Enforced Lock (Pareto-Inferior) vs. (b) Advisory Coordination (Pareto-Superior)
+% Shows why precautionary locks block welfare gains when agents are uncertain about future file needs.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\wcol{5.6}
+  % Panel (a): Enforced Exclusive Lock
+  \node[pd title,anchor=west] at (0,4.6) {\textbf{(a) Enforced lock: Pareto-inferior}};
+  \draw[pd hairline] (0,4.35) -- (5.0,4.35);
+
+  % Alpha node
+  \node[draw=pdink,fill=white,thick,rounded corners=2pt,inner sep=4pt,pd label] (a1) at (1.1,3.4) {Agent $\alpha$};
+  \node[pd label,anchor=west,inner sep=0pt] at (2.2,3.4) {\small Holds lock on $ (unused)};
+
+  % Beta node
+  \node[draw=pdink,fill=white,thick,rounded corners=2pt,inner sep=4pt,pd label] (b1) at (1.1,2.1) {Agent $\beta$};
+  \node[pd label,anchor=west,inner sep=0pt] at (2.2,2.1) {\small Needs $ for task \beta$};
+
+  % Lock barrier
+  \draw[pd focus rule,draw=pdred,line width=1.5pt] (0.2,2.75) -- (4.8,2.75);
+  \node[pd tag,text=pdred,anchor=south west] at (0.3,2.8) {\textbf{Blocked by exclusive lock}};
+  \draw[->,pd rule,dashed,draw=pdred] (b1.north) -- (1.1,2.7);
+
+  % Outcome panel (a)
+  \node[draw=pdink!30,fill=pdink!5,rounded corners=2pt,inner sep=5pt,align=left,anchor=north west] at (0.2,1.3) {
+    \textbf{Outcome:}\enspace \alpha$ finishes, \beta$ blocked.\[2pt]
+    \textbf{Welfare:}\enspace 1 task completed.\enspace\textcolor{pdred}{\textbf{[Pareto-inferior]}}
+  };
+
+  % Panel (b): Advisory Claim & Negotiation
+  \node[pd title,anchor=west] at (\wcol,4.6) {\textbf{(b) Advisory claim: Pareto-superior}};
+  \draw[pd hairline] (\wcol,4.35) -- (\wcol+5.0,4.35);
+
+  % Alpha node
+  \node[draw=pdink,fill=white,thick,rounded corners=2pt,inner sep=4pt,pd label] (a2) at (\wcol+1.1,3.4) {Agent $\alpha$};
+  \node[pd label,anchor=west,inner sep=0pt] at (\wcol+2.2,3.4) {\small Advisory claim on $};
+
+  % Beta node
+  \node[draw=pdink,fill=white,thick,rounded corners=2pt,inner sep=4pt,pd label] (b2) at (\wcol+1.1,2.1) {Agent $\beta$};
+  \node[pd label,anchor=west,inner sep=0pt] at (\wcol+2.2,2.1) {\small Requests $ via conflict graph};
+
+  % Negotiation flow
+  \draw[->,pd rule,draw=pdteal,line width=1.2pt] (b2.north) -- node[pd tag,anchor=west,text=pdteal]{\small Conflict signal} (a2.south);
+  \draw[->,pd rule,draw=pdcobalt,line width=1.2pt] (a2.east) to[bend left=25] node[pd tag,anchor=west,text=pdcobalt]{\small Releases $} (b2.east);
+
+  % Outcome panel (b)
+  \node[draw=pdteal!30,fill=pdteal!5,rounded corners=2pt,inner sep=5pt,align=left,anchor=north west] at (\wcol+0.2,1.3) {
+    \textbf{Outcome:}\enspace Both \alpha$ and \beta$ finish.\[2pt]
+    \textbf{Welfare:}\enspace 2 tasks completed.\enspace\textcolor{pdteal}{\textbf{[Pareto-optimal]}}
+  };
+\end{tikzpicture}
+\caption{Precautionary locks versus advisory claims. In panel (a), agent $\alpha$'s decisive lock on an unneeded file $ aborts agent $\beta$'s task \beta$. In panel (b), advisory notification lets $\alpha$ release $, achieving the Pareto-superior outcome where both tasks succeed.}
+\label{fig:sen-pareto-locking}
+\end{figure}

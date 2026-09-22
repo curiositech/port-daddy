@@ -662,9 +662,12 @@ Under enforced claims:
 \end{itemize}
 \end{pdclaim}
 
+\input{figures/fig-sen-pareto-locking}
+
 This property is a counterexample to the universal claim that exclusive locks always improve team welfare; it is not a derivation of Sen's theorem. Sen's result requires an unrestricted preference domain and a social-choice rule with decisive personal pairs. A production lock manager may restrict preferences, negotiate releases, or time out claims. The usable lesson is narrower: do not grant an agent an unconditional veto over a shared resource when the team may possess Pareto-relevant information the allocator lacks.
 
-This is not a contrived scenario. AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task. An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
+This is not a contrived scenario. AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task.\marginnote{\input{figures/spark-welfare-loss}\par
+Precautionary lock welfare loss $L(\rho)=1-(1-\rho)^2$ as file contention $\rho$ scales.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
 \begin{enumerate}[nosep]
   \item \textbf{Over-claim} (request locks on every file they might touch) $\rightarrow$ destroys parallelism.
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.

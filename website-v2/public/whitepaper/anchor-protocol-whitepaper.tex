@@ -471,7 +471,8 @@ If an operator decides the revocation was erroneous, they must issue a new card.
 \begin{pdclaim}{Theorem}{Conditional Gossip Expectation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fresh}
-Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.
+Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.\marginnote{\input{figures/spark-revocation-gossip}\par
+Epidemic spread across mesh: informed fraction $F(r)\to 1$ in $O(\log m)$ rounds.}
 
 No finite worst-case freshness bound holds under an unbounded partition.
 \end{pdclaim}
