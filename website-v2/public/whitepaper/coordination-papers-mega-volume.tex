@@ -46,13 +46,13 @@
     % which put 9pt type over a halftone photograph that is 37% lighter than
     % luminance 140 -- neither black nor reversed white reads on that.
     \node[anchor=north west,inner sep=0pt,text width=145mm,align=left] at (14,14) {%
-      {\pdcovergrotesk\fontsize{38}{42}\selectfont\bfseries\color{hhink}%
+      {\pdcovergrotesk\fontsize{36}{40}\selectfont\bfseries\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
        The Harbor,\\the Person,\\and the Economy\par}%
       \vspace{6mm}%
-      {\pdcovergrotesk\fontsize{12}{15}\selectfont\color{hhink}%
+      {\pdcovergrotesk\fontsize{12}{15}\selectfont\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
        \pdeditionsubtitle\par}%
-      \vspace{3.5mm}%
-      {\pdcovergrotesk\fontsize{8.5}{11}\selectfont\color{hhgray}%
+      \vspace{4mm}%
+      {\pdcovergrotesk\fontsize{8.5}{11}\selectfont\color{hhgray}\spaceskip=0pt\xspaceskip=0pt%
        Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition\par}%
     };
   \end{tikzpicture}
@@ -177,6 +177,7 @@ The result is not an appeal to trust autonomous systems. It is an engineering di
 
 \section*{What is built, what is modelled, what is proposed}
 \addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
+\pdmarginfigure{lampson}{Butler Lampson formulated the golden rule: authentication, authorization, and audit are distinct, interdependent mechanisms.}%
 The book includes designs that the product does not yet implement.
 The implemented core is a local daemon: a single-writer SQLite/WAL
 path for sessions, claims, messages, commitments, and coordination state ---
@@ -232,6 +233,7 @@ afternoon}. Follow the failure taxonomy and the summary-with-evidence
 example. Stop when you can explain why a green test report may still need
 inspection. You do not need the information-theory derivation on this pass.
 \item[What survives a crash?]
+\pdmarginfigure{lamport}{Leslie Lamport established that without synchronized physical clocks, distributed systems must order events by causal happened-before relations.}%
 Read \hyperref[swk:sec:durability]{Chapter 1's durability section} and its
 fault-class table, then the recovery discussion. Check that you can
 distinguish a process crash from power loss before following the proofs.
@@ -385,6 +387,7 @@ question of any dashboard: which channel, and what can it not show.
 
 \section{Introduction: the unit of account is the work}
 
+\pdmarginfigure{hobbes}{Thomas Hobbes framed the sovereign Commonwealth as an artificial man; autonomous software requires the same institutional structure to prevent destructive races.}%
 Agentic software is usually measured by the agent: capability, runtime, tool
 access, and parallel copies. That is the wrong unit of account. A process may
 disappear, rename itself, summarize its mistakes, or hand work off. The durable
@@ -412,7 +415,8 @@ order the book is read.
   that conserves, and canaries for what the gate cannot prove. What the room
   cannot promise is stated as a limit, at the same prominence as the claims.
 
-  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
+  \item \textbf{Supervision has an information cost.} \pdmarginfigure{shannon}{Claude Shannon derived the mathematical bounds on information transmission; human supervision cannot compress fleet telemetry below its entropy rate.}%
+  A digest cannot guarantee
   that a human will notice any one of many relevant events unless it spends
   enough bits, attention, or artifact openings to distinguish them. A summary
   is therefore an index into evidence, not a substitute for it.
@@ -443,6 +447,7 @@ Read these as a dependency chain: each chapter uses earlier mechanisms and
 states what they cannot guarantee.
 
 \subsection{What counts as knowing}
+\pdmarginfigure{lovelace}{Ada Lovelace observed that analytical engines have no pretensions to originate anything; they execute what we know how to order them to perform.}%
 Every consequential statement has a status and a boundary. Derivations establish
 relations under named assumptions. Finite checks exhaust a stated state space,
 not every deployment. Simulations estimate behavior under a stated generator;
