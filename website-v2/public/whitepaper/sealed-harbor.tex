@@ -496,7 +496,7 @@ Equal-parity secrets should produce identical logs.
 Model-Checked Property~\ref{thm:sealed-noninterference} reports the bounded
 search, not an unbounded guarantee.}
 
-\paragraph{Intuition: the voting booth.}
+\paragraph{Intuition: the voting booth.} \pdmarginanalogy{sealed-speaking-tube}{}{ch03-authorized-speaking-tube}{Like a shipboard speaking tube whose whistle stopper must be unplugged before sound can pass, communication across the clean-room boundary is silent except through the explicitly gated slot.}%
 You cannot inspect a wall for holes by staring at bricks; you inspect it by
 standing outside in two parallel worlds and asking whether anything you can see
 ever differs. If Derek's secret is $0$ in one world and $2$ in the other, and
@@ -563,7 +563,7 @@ artifact), \emph{who} performs the release (the declassifier), and
 release-ledger's own open question, since a room can only price the release
 it observes, not the frequency an adversary chooses to request it.
 
-\paragraph{Proof idea.}
+\paragraph{Proof idea.} \pdmarginanalogy{sealed-shadowbox}{}{ch03-two-shutter-shadowbox}{Like a two-shutter laboratory pass-through box whose interlocked doors ensure both are never open at once, noninterference prevents secret input from directly reaching the observer.}%
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
 interleaving of the same action sequence to depth 7. This is
@@ -807,7 +807,7 @@ single writer makes every concurrent history observationally sequential; the
 statement is Theorem~\ref{thm:sealed-conservation} and the checked instance is
 Property~\ref{prop:sealed-ledger-checked}.}
 
-\paragraph{The scene, resumed.}
+\paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{Like an hourglass whose precision orifice meters the escape of sand grain by grain, the differential privacy ledger meters information release under a strict cumulative budget.}%
 Derek's data never leaves the room; what leaves is a stream of gated releases,
 each carrying a differential-privacy cost $\varepsilon_i$. The contract says the
 total never exceeds $\varepsilon_{\max}$. But releases race: two of Erin's jobs
@@ -1022,7 +1022,8 @@ Wald's sequential test a stopping-time identity and a useful approximation;
 the statements are Theorems~\ref{thm:sealed-power} and \ref{thm:sealed-latency}.}
 
 \paragraph{Intuition: dye packs and quality control.}
-Dye packs in bank bundles: each pack fails alone with probability $\beta$, so
+Dye packs\marginnote{\input{figures/spark-canary-power}\par
+\emph{Detection power:} $1-\beta^k$ as captured canary count $k$ scales ($\beta=0.2, 0.5$).} in bank bundles: each pack fails alone with probability $\beta$, so
 grabbing $k$ dyed bundles fails to stain with probability $\beta^k$; how many
 dyed bundles a thief grabs is set by how much he takes and how densely packs
 are planted. The sequential half is quality control: each gate output is a
@@ -1043,7 +1044,8 @@ leak carrying $k$ canary spans is detected with probability
 1-\beta^k.
 \]
 
-Under uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
+Under\marginnote{\input{figures/spark-canary-hypergeom}\par
+\emph{Operating curve:} detection probability vs.\ exfiltrated leak size $m$.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
 chosen independently of their hidden locations
 carries $K\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 \[
@@ -1057,7 +1059,9 @@ the operating curve.
 \Needspace{18\baselineskip}
 \begin{pdclaim}{Theorem}{Latency (Wald)}
 \setlength{\parskip}{4pt plus 1pt}
-\label{thm:sealed-latency}
+\label{thm:sealed-latency}%
+\marginnote{\input{figures/spark-wald-sprt}\par
+\emph{Wald stopping boundary:} Sequential ratio walk with thresholds $A, B$.}%
 Assume i.i.d. Bernoulli gate outputs under two fixed, simple hypotheses,
 with rates $0<p_0<p_1<1$.
 
@@ -1225,6 +1229,7 @@ Figure~\ref{fig:sealed-residuals-converge}.
 % than start before a deferred figure and resume beneath it on the next page.
 \FloatBarrier
 
+\pdmarginanalogy{sealed-lead-darkslide}{}{ch03-lead-lined-darkslide}{Like a photographic plate holder with a lead darkslide shielding stray radiation, a zero-knowledge attestation exposes validity without revealing underlying confidential data.}%
 If an Erin-visible channel permits $b$
 freely chosen bits per job, a malicious worker, one that launders by computing
 $t=f(s)$ and submitting $t$ so that the gate honestly releases $g(t)$, can

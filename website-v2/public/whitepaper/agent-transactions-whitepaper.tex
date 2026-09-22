@@ -467,6 +467,7 @@ The choice between $I_1$ and $I_2$ is not a security decision---it is an economi
 
 \subsection{Runtime Invariant Enforcement}
 
+\pdmarginanalogy{bonded-canal-lock}{}{canal-lock}{Like a canal lock isolating water levels between chambers, invariant checks isolate state transitions so failure in one chamber cannot flood the system.}%
 Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\pdcite{owens2026anchor}, under the applied-pi-calculus methodology of Blanchet~\pdcite{blanchet2016modeling}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
 
 % SUBMISSION-SKILL: naming conflict --- "regimentation" vs. "enforcement" is an
@@ -1201,6 +1202,7 @@ One direction for solving $\pi$ is to delegate its computation to a specialized 
   \item The advisor's bond on the proposing plan is slashed proportionally to the accepted fleet's eventual breach rate. Clean settlements accumulate reputation; breaches shrink it.
 \end{itemize}
 
+\pdmarginanalogy{bonded-shear-pin}{}{ch07-shear-pin-fuse}{Like a drive shaft shear pin designed to snap under catastrophic overload to protect the engine, slashing liquidates posted collateral to protect the commons when a contract is breached.}%
 The pricer is priced. Convergence depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
 
 \paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
@@ -1512,6 +1514,7 @@ Spec == Init /\ [][Next]_vars
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
+\pdmarginanalogy{bonded-escrow-box}{}{ch07-dual-control-escrow-box}{Like a dual-control iron escrow chest requiring two separate keys to unlock, escrowed funds cannot be released unilaterally until criteria and verification agree.}%
 The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---which together discharge what \texttt{EscrowInvariant} asserts.
 
 \begin{definition}[Accounting State]\label{def:acct-state}

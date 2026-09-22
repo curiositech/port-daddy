@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Surveyor leveling rod with cobalt blue zero benchmark band against a vertical cliff. Analogy for the front-loaded probation cliff.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

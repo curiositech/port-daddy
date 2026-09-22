@@ -309,6 +309,7 @@ This is a statement about how the deployed daemon holds keys --- backed by the i
 
 Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
+\pdmarginanalogy{anchor-measuring-spoons}{}{ch02-nested-measuring-spoons}{Like a graduated set of nested measuring spoons, each successive delegate receives a smaller measure of authority that nests strictly inside the parent.}%
 \begin{pdclaim}{Design invariant}{Offline Attenuation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:offline-attn}
@@ -331,6 +332,7 @@ Macaroons are the inspiration, but two older literatures own the property being 
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
 
+\pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. The protocol gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks, not the lossy cuckoo-filter encodings themselves. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\pdcite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
 
 \paragraph{Why filters cannot be merged bitwise.} A cuckoo-filter slot stores
@@ -394,7 +396,8 @@ The two steps are an implementation discipline the daemon is built to keep --- t
 
 \input{figures/fig-anchor-revocation-gossip}
 
-\paragraph{What retires an entry.} An append-only log that never drops anything has a
+\paragraph{What retires an entry.} \pdmarginanalogy{anchor-parking-meter}{}{ch02-finite-grant-parking-meter}{Like a mechanical parking meter whose red flag drops when time expires, capability grants expire automatically when their lease lifetime elapses.}%
+An append-only log that never drops anything has a
 size that grows with the fleet's whole history rather than with its live population,
 and on a constrained host that is a storage bug waiting for a slow month to expose
 it. The log does not have to grow that way, and the reason is temporal attenuation: a
@@ -2010,6 +2013,7 @@ RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is true.
 \end{lstlisting}
 The identical escalation attempt v6 accepted is now rejected at the \texttt{is\_subset(cap\_write, cap\_read)} step, because write is not a subset of what $B$ was actually holding.
 \end{pdsolution}
+\pdmarginanalogy{anchor-couriers-pouch}{}{ch02-couriers-dispatch-pouch}{Like a diplomatic courier pouch requiring a designated officer to break the seal, a third-party caveat requires a distinct witness to issue its discharge.}%
 \begin{pdexercise}[kind=Trace,rating=3]{ex:anchor-macaroon-discharge}
 The authorization chains in this chapter use signed Ed25519 cards. \path{analyses/macaroon_discharge_v1.pv} and \path{analyses/macaroon_discharge_v2_naive_unsound.pv} model a related but different construction, an HMAC-chained macaroon with a third-party discharge caveat. Compare the two: what does the naive discharge verifier in v2 admit, and what does v1's verifier check that closes it?
 \end{pdexercise}

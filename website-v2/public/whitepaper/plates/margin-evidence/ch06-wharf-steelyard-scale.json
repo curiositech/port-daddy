@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Dockside steelyard beam scale with cobalt blue sliding counterpoise weight. Analogy for price clearing discovery balancing supply and demand.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "2187d47b78013496221d05e8816c15ace662fc7a22f309bf32a77ef1c4b90999",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

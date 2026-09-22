@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Reinforced iron escrow chest with two distinct keys, left key handle cobalt blue. Analogy for bilateral dual-control escrow settlement.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "ce07f093860cbf0d836e0f293c32e26bdeb577d4cbddaaeed7b62dba3069a4be",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

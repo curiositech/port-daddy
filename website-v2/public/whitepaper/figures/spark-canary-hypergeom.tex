@@ -1,0 +1,25 @@
+% Analytical sparkline: Canary operating characteristic curve Pr(detect | m).
+% Domain m in [0, 80] spans; p = (c/n)*(1-beta) = 0.04.
+% Fits inside the 93.95pt book margin column.
+% Source: thm:sealed-power operating curve.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=0.82pt,y=36pt,font=\fontsize{7}{8}\selectfont]
+  % Baseline and ceiling
+  \draw[pdinkmuted!35,line width=.35pt] (0,0) -- (80,0);
+  \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,1) -- (80,1);
+  % Operating curve 1 - (1 - 0.04)^m
+  \draw[pdteal,line width=.85pt] plot[domain=0:80,samples=41]
+    (\x,{1 - (1 - 0.04)^\x});
+  \foreach \m in {10,25,50,80}{%
+    \fill[pdteal] (\m,{1 - (1 - 0.04)^\m}) circle[radius=1pt];
+  }
+  % Labels
+  \node[anchor=east,inner sep=1pt] at (0,0) {$0$};
+  \node[anchor=west,inner sep=1pt] at (80,0.96) {$.96$};
+  \node[anchor=south,inner sep=1pt] at (40,1.02) {$\Pr(\text{detect}\mid m)$};
+  \node[anchor=north,inner sep=1.5pt] at (40,0) {$m: 0\longrightarrow 80$};
+\end{tikzpicture}
+\makeatother\endgroup

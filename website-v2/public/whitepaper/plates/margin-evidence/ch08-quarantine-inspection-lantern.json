@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Maritime port quarantine inspection lantern with cobalt blue cylindrical fresnel lens. Analogy for admission gating until proofs clear.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

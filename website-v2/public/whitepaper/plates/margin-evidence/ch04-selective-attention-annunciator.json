@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Shipboard annunciator panel with one dropped cobalt blue signal flag. Analogy for selective attention and exception reporting.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

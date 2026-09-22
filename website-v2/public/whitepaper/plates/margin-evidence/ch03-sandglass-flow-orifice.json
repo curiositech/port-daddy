@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Sandglass with calibrated cobalt blue orifice plate restricting sand flow. Analogy for differential privacy leakage budget metering.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "bae7947e853ad1b007c8f01e41fd8c20d140c552f3b7f810448d7bacb07e16ef",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

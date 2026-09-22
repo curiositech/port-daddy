@@ -714,6 +714,8 @@ current handle from a stale predecessor's~\pdcite{burrows2006chubby}. This
 chapter calls the number an \emph{epoch} because it is kept per resource and
 survives reallocation, but the protocol shape is the same one: acquire, receive
 a monotone number, present it with every effect, get refused when it is stale.
+
+\pdmarginanalogy{swk-railway-token-staff}{}{ch01-railway-token-staff}{Like an English railway token staff, possession of the token is the sole physical authority to occupy the single track, preventing collision without distributed consensus.}%
 \begin{theorem}[Atomic Mutual Exclusion and Fenced Leases]\label{thm:exclusion}
 \setlength{\parskip}{4pt plus 1pt}
 Within a canonical conflict domain (exact normalized key, transactional interval overlap $[a, b] \cap [c, d] \neq \emptyset$, or path prefix hierarchy), at most one holder can hold an active lease at any logical instant.
@@ -984,6 +986,7 @@ problem; we flag it rather than assert it solved.}
 
 \subsection{A second transport}
 
+\pdmarginanalogy{swk-flywheel-governor}{}{ch01-flywheel-governor}{Like a steam engine centrifugal governor whose collar chokes the inlet when speed threatens stability, rate-limiting enforces backpressure before the transport faults.}%
 The kernel ships \emph{two} transports, not one: a request/response protocol over a
 Unix domain socket \emph{and} a binary framed transport over a Unix domain socket,
 the latter with peer-credential authentication and backpressure/draining for
@@ -1830,6 +1833,7 @@ viewed from two ends.
 
 \subsection{The operation log and tamper-evidence}
 
+\pdmarginanalogy{swk-water-meter-dial}{}{ch01-water-meter-dial}{Like a rotary water flow meter whose dials advance with each volume, an append-only operation log records state monotonically without running backward.}%
 The append-only operation log is the kernel's audit subsystem --- the stream the policy
 monitor subscribes to and the thing that makes ``what actually happened''
 answerable. Hash-chained tamper-evidence over it --- the digital-timestamping
@@ -2656,6 +2660,21 @@ Classify each fault as I1a-survivable or I1b-exposed: (a) a forced kill of the d
 A claim commits at $t_0$; the next auto-checkpoint fires at $t_0+\delta$. Draw the window during which a power loss can revert the claim. Does a page-count auto-checkpoint threshold bound $\delta$ in wall-clock time?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-checkpoint-window}
+\par\smallskip
+\begin{center}
+\begin{tikzpicture}[x=1mm,y=1mm]
+  % Timeline axis
+  \draw[->,line width=0.8pt,hhink] (0,8) -- (82,8) node[right,font=\footnotesize\selectfont] {$t$};
+  % Tick marks and labels
+  \draw[line width=0.9pt,hhink] (15,6.5) -- (15,9.5) node[below=11pt,font=\scriptsize\selectfont,align=center] {\textbf{Commit $t_0$}\\(I1a-safe)};
+  \draw[line width=0.9pt,hhink] (65,6.5) -- (65,9.5) node[below=11pt,font=\scriptsize\selectfont,align=center] {\textbf{Checkpoint $t_0+\delta$}\\(\texttt{fsync} / I1b-safe)};
+  % Vulnerability window shading
+  \fill[hhamber!18,draw=hhamber,line width=0.6pt,dashed] (15,10) rectangle (65,18);
+  \node[font=\scriptsize\bfseries,text=hhamber!90!hhink] at (40,14) {Vulnerability Window $\delta$ (I1b-exposed)};
+  \node[font=\tiny,text=hhgray] at (40,21) {Unsynced WAL frames held in volatile OS page cache};
+\end{tikzpicture}
+\end{center}
+\par\smallskip
 The commit is power-loss exposed from $t_0$ until the WAL frames that contain it are synced. A page-count threshold bounds accumulated WAL frames, not elapsed time: at a low or zero write rate it may not fire for arbitrarily long, so it gives no wall-clock bound. Only with an independently guaranteed write-rate floor $w_{\min}$ pages per second and threshold $P$ does $\delta \lesssim P/w_{\min}$ follow, and this chapter assumes no such floor.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op10-interface}
@@ -2677,6 +2696,38 @@ A release with no matching (key, holder) row is a successful no-op so that retri
 Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk the uniqueness-constraint insert for both (Listing~\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-acquire-race}
+\par\smallskip
+\begin{center}
+\begin{tikzpicture}[x=1mm,y=1mm]
+  % Vertical life-lines
+  \draw[line width=0.6pt,pdink!40] (10,32) -- (10,0);
+  \draw[line width=0.6pt,pdink!40] (45,32) -- (45,0);
+  \draw[line width=0.6pt,pdink!40] (80,32) -- (80,0);
+
+  \node[font=\footnotesize\bfseries,text=pdcobalt] at (10,35) {Agent A};
+  \node[font=\footnotesize\bfseries,text=pdink] at (45,35) {Kernel WAL};
+  \node[font=\footnotesize\bfseries,text=pdamber] at (80,35) {Agent B};
+
+  % Concurrent acquires
+  \draw[->,line width=0.7pt,pdcobalt] (10,29) -- (43,27) node[midway,above,font=\tiny] {\texttt{acquire(k)}};
+  \draw[->,line width=0.7pt,pdamber] (80,29) -- (47,27) node[midway,above,font=\tiny] {\texttt{acquire(k)}};
+
+  % First insert succeeds
+  \node[draw=pdcobalt,fill=pdcobalt!10,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,22)
+    {\textbf{INSERT (k, A)}: commits (1st)};
+  \draw[->,line width=0.7pt,pdcobalt] (43,18) -- (10,16) node[midway,below,font=\tiny] {\textbf{GRANTED}};
+
+  % Second insert conflicts
+  \node[draw=pdamber,fill=pdamber!12,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,12)
+    {\textbf{INSERT (k, B)}: \textsc{UniqueViolation}};
+
+  % Catch block & select holder
+  \node[draw=pdink!70,fill=pdink!5,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,5)
+    {\texttt{SELECT holder} $\to$ \textbf{A}};
+  \draw[->,line width=0.7pt,pdamber] (47,1) -- (80,-1) node[midway,below,font=\tiny] {\textbf{DENIED(A)}};
+\end{tikzpicture}
+\end{center}
+\par\smallskip
 The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED}\allowbreak\texttt{(holder}\allowbreak\texttt{=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}

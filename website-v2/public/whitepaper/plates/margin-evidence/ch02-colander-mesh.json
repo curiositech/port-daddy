@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Analytical laboratory test sieve with fine wire mesh and cobalt blue top rim. Analogy for attenuation caveats filtering operations.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "fe269190992342929a3d6b3e8b3b43fc583c584a63a507ab449f245adf725918",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

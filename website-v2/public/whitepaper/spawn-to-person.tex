@@ -669,7 +669,7 @@ writing the map down rather than leaving the reader to infer it --- and worth
 being precise about the three places where the map breaks, because a
 correspondence stated without its failures is an analogy doing unearned work.
 
-\pdmarginanalogy{stp-splice-continuity}{}{ch05-continuity-rope-splice}{Like the overlapping strands of a splice, continuity can persist across successive connections without one strand spanning the whole history.}%
+\pdwrapanalogy[r][0.42\textwidth]{stp-splice-continuity}{The Overlapping Strand}{ch05-continuity-rope-splice}{Like the overlapping strands of a wire rope splice, continuity can persist across successive connections without one strand spanning the whole history.}%
 The level at which they agree is the \emph{ancestral}. Parfit's direct
 psychological connectedness $\mathsf{conn}(a,b)$ --- $b$ carries $a$'s memories
 and intentions --- is not transitive, which is exactly the problem Reid's
@@ -861,7 +861,7 @@ We use the neutral maturity scale throughout (\BUILT~/
 % --- FIGURE 4: the three continuity subsystems ---
 \begin{table}[H]
 \centering
-\caption{A restart preserves recorded notes, summaries, and witnessed outcomes---not the predecessor's execution state. The three subsystems retain different parts of its history. [internal]}
+\caption{A restart preserves recorded notes, summaries, and witnessed outcomes---not the predecessor's execution state. The three subsystems retain different parts of its history.}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -1060,6 +1060,7 @@ Before any subsystem of continuity matters, the identity it attaches to must be 
 the agent cannot freely re-pick. This is the most under-appreciated claim in the
 paper.
 
+\pdmarginanalogy{stp-wax-seal-signet}{}{ch05-wax-seal-signet}{Like an engraved signet ring pressing into hot sealing wax, a cryptographic signature permanently binds an executed action to the accountable identity.}%
 \medskip\noindent\textbf{In one breath.} A reputation is worth exactly what it
 costs to walk away from; an identity that can be re-picked for free carries
 none, however long its record.
@@ -1346,6 +1347,7 @@ Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
 resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
 A flat ``distrust all newcomers'' policy taxes the wrong party.}
 
+\pdmarginanalogy{stp-stepped-pole}{}{ch05-stepped-surveyors-pole}{Like a surveyor's leveling rod measuring elevation against a sheer rock face, the front-loaded probation cliff imposes a steep initial scrutiny step before leveling off.}%
 \begin{pdclaim}{Theorem}{Front-Loaded Probation Dominance, \mbox{under} a Ceiling}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:probation-dominance}
@@ -1604,6 +1606,7 @@ or measured fact.
 
 \subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
 
+\pdmarginanalogy{stp-stagecoach-relay}{}{ch05-stagecoach-relay-post}{Like a stagecoach team swap at a relay post, fresh horses are hitched while the passengers, luggage, and route remain unchanged: hot-swapping an LLM engine preserves the agent's identity and contract.}%
 Everything above binds a record to a name the actor cannot re-pick. It says
 nothing yet about what is running \emph{behind} the name.\footnote{A
 standalone, submission-form version of this section is \emph{Continuity
@@ -2070,7 +2073,7 @@ Table~\ref{tab:stp-not-bandit} lines the four bandit assumptions up against the 
 reality that breaks each.
 \begin{table}[H]
 \centering
-\caption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
+\caption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead.}
 \label{tab:stp-not-bandit}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -2912,6 +2915,26 @@ that occurs if the left-hand thing is absent (e.g.\ ``no non-forgeable
 identity $\Rightarrow$ \underline{\hspace{3cm}}'').
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-dependency-chain}
+\par\smallskip
+\begin{center}
+\begin{tikzpicture}[x=1mm,y=1mm]
+  % 4 stages in the dependency chain
+  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N1) at (0,14) {Evidence\\Checkpoints};
+  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N2) at (28,14) {Verified\\Lineage};
+  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N3) at (56,14) {Accountable\\Person};
+  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N4) at (84,14) {Durable\\Reputation};
+
+  \draw[->,line width=0.8pt,pdink!70] (N1) -- (N2);
+  \draw[->,line width=0.8pt,pdink!70] (N2) -- (N3);
+  \draw[->,line width=0.8pt,pdink!70] (N3) -- (N4);
+
+  % Right-to-left failure consequences
+  \node[font=\tiny,text=red!80!black,align=center] at (14,3) {Absent: state lost;\\unwitnessed drift};
+  \node[font=\tiny,text=red!80!black,align=center] at (42,3) {Absent: history\\cannot follow swap};
+  \node[font=\tiny,text=red!80!black,align=center] at (70,3) {Absent: disposable\\sybil reset};
+\end{tikzpicture}
+\end{center}
+\par\smallskip
 Read right-to-left. No reputation $\Rightarrow$ a buyer cannot price
 differentiated trust, so the alleged tradeable asset is adverse-selection
 noise. No durable accountable person/outcome identity $\Rightarrow$ reputation

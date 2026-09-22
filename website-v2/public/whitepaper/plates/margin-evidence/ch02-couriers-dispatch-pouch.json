@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Leather diplomatic courier pouch with cobalt blue wax seal over tie cord. Analogy for third-party caveat discharge.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "c369922d6ca4b689014f0c4de4f1c245835772262f477aaabe49add229c7914f",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

@@ -1317,7 +1317,8 @@ every benefit function.
 \Needspace{17\baselineskip}
 \begin{pdexample}{The Threshold and the Tuning Band, by Hand}
 \setlength{\parskip}{4pt plus 1pt}
-At $\delta=0.05,w=1$:
+At $\delta=0.05,w=1$:\marginnote{\input{figures/spark-escalation-threshold}\par
+\emph{Escalation threshold:} $u^\star(\delta)=\tfrac{\delta w}{1+\delta w}$ ($w=1$).}%
 \[
 u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476
 \]
@@ -1744,6 +1745,7 @@ the study named in the front matter is where they will be measured.
 \section{Read-poverty: the binding constraint at scale}\label{sec:readpoverty}
 % ═════════════════════════════════════════════════════════════════════════════
 
+\pdmarginanalogy{ls-attention-annunciator}{}{ch04-selective-attention-annunciator}{Like a shipboard annunciator dropping a signal flag only when a monitored circuit faults, selective attention suppresses routine traffic to present only actionable exceptions.}%
 A single operator can hold two coding agents in their head. They cannot hold two
 hundred. Spin up two agents and coordination is free: you read both their notes,
 eyeball both their claims, route a question by recognition. Spin up fifty and an
@@ -2155,6 +2157,7 @@ link to the work'' is cheap when the digest over-flags generously and the zoom i
 adaptive, and the operator's dial (bits on the digest, opens on the zoom) has a
 favorable exchange rate exactly in the sparse-flag corner.
 
+\pdmarginanalogy{ls-telegraph-sounder}{}{ch04-telegraph-sounder-key}{Like a Morse telegraph sounder clicking out discrete impulses across a narrow wire, discrete signals must encode information efficiently across the human attention bottleneck.}%
 \begin{pdexample}{The Bernoulli View of the Floor, and the Zoom-Advantage Numbers}
 \setlength{\parskip}{4pt plus 1pt}
 Write the flagged-item rate as a probability $p$ instead of a fixed pair $(N,k)$: the zero-miss floor becomes the binary entropy
@@ -2394,11 +2397,12 @@ inspection. Candidate C proposes a comment correction in
 names are real; the proposals and preferences are invented for this example.
 
 Figure~\ref{fig:split-ranker} holds the routing order fixed and compares two
-possible Maya orders. The upper panel is an agreement case; the lower is her
+possible Maya orders. The left panel is an agreement case; the right is her
 dispute. Both sides show \emph{ordinal ranks}, with 1 highest, rather than
 putting capability scores and expected losses on incompatible numerical
 scales. Neither the left-to-right direction nor the panel order denotes time.
 
+\pdmarginanalogy{ls-sextant-mirror}{}{ch04-sextant-index-mirror}{Like a navigator bringing index and horizon mirrors into alignment with a sextant, the split ranker reconciles discovery relevance with operator attention instead of forcing them into one distorted optic.}%
 \input{figures/legible-swarm-split-ranker}
 
 With a one-item budget, the router selects A while Maya selects B. Their
@@ -2902,9 +2906,10 @@ once the audit probability times the sanction exceeds $G$.
 \noindent No sidecar exists in the reference implementation today, and no design
 document specifies one; the row is carried in Appendix~\ref{app:honest} with the rest.
 
+\pdmarginanalogy{ls-tide-gauge}{}{ch04-tide-gauge-staff}{Like a mechanical tide gauge recording drum smoothing choppy waves into a clean tidal curve, reader projections synthesize continuous noisy activity into legible, actionable summaries.}%
 \begin{table}[H]
 \centering
-\caption{Five reader-specific projections over one durable event spine. Compaction changes the selection mask, not the addressability of the underlying claims, notes, diffs, episodes and events: every selected mark keeps its ledger address. [internal]}
+\caption{Five reader-specific projections over one durable event spine. Compaction changes the selection mask, not the addressability of the underlying claims, notes, diffs, episodes and events: every selected mark keeps its ledger address.}
 \label{tab:ls-read-surfaces}
 \small
 \renewcommand{\arraystretch}{1.15}

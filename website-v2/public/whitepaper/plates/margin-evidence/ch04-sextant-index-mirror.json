@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Marine brass navigation sextant with cobalt blue index mirror bracket aligning split horizon. Analogy for split-ranker comparison and sighting agreement.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "8823fa6f8670914e4e12f19acf516a05effacf47d7e668b63ab40a4f50c492b5",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

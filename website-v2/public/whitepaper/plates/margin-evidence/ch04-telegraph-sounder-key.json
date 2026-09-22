@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Electric Morse telegraph sounder with cobalt blue coil bobbin. Analogy for discrete signals carrying dense meaning across an attention bottleneck.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

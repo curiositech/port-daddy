@@ -428,6 +428,7 @@ threats are deferred to other primitives. Specifically:
 \item \textbf{Deferred:} revocation latency (handled in \S\ref{sec:fh-revocation}); settlement disputes (handled in \S\ref{sec:fh-settlement}); admission of unbonded new harbors (handled in \S\ref{sec:fh-admission}).
 \end{itemize}
 
+\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident customs seal clamped over cargo in transit through foreign territory, capability grants traverse intermediary relay harbors without disclosing confidential payloads.}%
 We are explicit that the ceremony does not close every threat in one step. Federation is a layered defense; this is one layer.
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
@@ -512,6 +513,7 @@ Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filte
 
 \subsection{Sheaf Laplacian and Abramsky--Brandenburger Contextuality}\label{sec:fh-sheaf}
 
+\pdmarginanalogy{fh-traverse-compass}{}{ch08-closed-traverse-compass}{Like a surveyor running a closed traverse with a vernier compass where bearing errors must cancel around a loop, the sheaf Laplacian computes cycle discrepancies that reveal equivocation.}%
 Three harbors in a ring each record the offset between their own log and the neighbor they last compared with. Walk the ring and add the offsets: if the sum returns to zero, one consistent history explains every reading; if it does not, some offset was misreported, and the size of the residual says by how much. That is the whole picture; the formalism below states it for arbitrary topologies.
 
 The same least-squares structure appears in inconsistent pairwise rankings.
@@ -1015,6 +1017,7 @@ At the end of the window, six months of witness-logged behavior with zero forfei
 That is all four items of the ceremony below, in order, with the one number this federation's own history happens to fix.
 \end{pdexample}
 
+\pdmarginanalogy{fh-quarantine-lantern}{}{ch08-quarantine-inspection-lantern}{Like a port quarantine inspection lantern signaling a vessel held at outer anchorage until its health manifest clears, a new harbor is held in probationary isolation until its admission bond and epoch roots verify.}%
 \begin{enumerate}[nosep]
 \item An existing harbor $S$ (the sponsor) posts a bond on $N$'s behalf, sized to cover the federation's worst-case loss from $N$ misbehaving during a probationary epoch.
 \item $N$ joins the federation under probation; its cards are accepted, its evidence trail is witness-logged, but its sponsor bond is at risk.
@@ -1120,6 +1123,7 @@ This is the model's expectation under its own stated assumptions --- a connected
 
 \subsection{What this example shows}\label{sec:fh-ex-shows}
 
+\pdmarginanalogy{fh-interlocking-lever}{}{ch08-interlocking-railway-lever}{Like a mechanical interlocking lever that physically locks opposing railway points before a signal clears, cross-harbor synchronization enforces mutual exclusion across federation boundaries.}%
 The example is small and the failure is real. The point of working it is to show that each of the four primitives --- transfer, revocation, settlement, admission --- is doing its job at exactly one step, and that the composition is straightforward when each primitive is honest about what it covers.
 
 Notice in particular what \emph{did not} happen:
