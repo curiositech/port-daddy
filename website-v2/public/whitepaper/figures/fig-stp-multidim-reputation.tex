@@ -14,8 +14,8 @@
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdviolet}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west] at (0,3.35) {witnessed outcome profiles remain vectors};
+\begin{tikzpicture}[pd figure,x=.95cm,y=1cm]
+  \node[pd title,anchor=west] at (0,3.9) {witnessed outcome profiles remain vectors};
   % ---- three independently judged axes --------------------------------------
   \foreach \x/\axis/\judge in {0.75/accuracy/test oracle,3.55/aesthetics/expert reviewer,6.35/efficiency/cost ledger} {
     \draw[pd hairline] (\x,0) -- (\x,2.60);
@@ -28,8 +28,8 @@
   \draw[pd breach rule,dashed,line width=1.5pt] (0.75,1.95) -- (3.55,1.43) -- (6.35,2.60);
   \foreach \x/\y in {0.75/2.60,3.55/2.21,6.35/1.17} \node[pd focus datum] at (\x,\y) {};
   \foreach \x/\y in {0.75/1.95,3.55/1.43,6.35/2.60} \node[pd breach datum] at (\x,\y) {};
-  \node[pd focus label,anchor=west] at (6.60,1.17) {outcome A};
-  \node[pd breach label,anchor=west] at (6.60,2.60) {outcome B};
+  \node[pd focus label,anchor=north east] at (6.1,1.0) {outcome A};
+  \node[pd breach label,anchor=south east] at (6.1,2.75) {outcome B};
   % ---- buyers apply preferences after disclosure -----------------------------
   \node[pd title,anchor=west] at (0,-1.55) {buyers apply preferences after disclosure};
   \draw[pd hairline] (0,-2.55) -- (6.50,-2.55);
@@ -47,12 +47,6 @@
   \node[pd label,anchor=north] at (0,-4.05) {lower weighted fit};
   \node[pd label,anchor=north] at (6.50,-4.05) {higher weighted fit};
 \end{tikzpicture}
-\caption{\textbf{One quality vector supports legitimate preference reversal.}
-Outcome A is strongest on accuracy and aesthetics; outcome B is strongest on
-efficiency. Each axis is independently judged, then disclosed without a universal
-scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B.
-Premature averaging would erase one of these valid decisions and create a single
-Goodhart target. Color is redundant with solid-versus-dashed profiles and direct
-labels. [internal]}
+\caption{A favours accuracy and aesthetics; B favours efficiency. Different buyer priorities legitimately reverse the ranking. A universal average would erase that choice. [internal]}
 \label{fig:multidim}
 \end{figure}

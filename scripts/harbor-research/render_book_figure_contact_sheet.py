@@ -62,7 +62,7 @@ INK = (0.10, 0.12, 0.15)
 MUTED = (0.36, 0.39, 0.44)
 RULE = (0.77, 0.79, 0.82)
 PANEL_FILL = (0.985, 0.985, 0.98)
-PASS = (0.08, 0.43, 0.28)
+PASS = MUTED  # Mechanical success is not green design approval.
 FAIL = (0.72, 0.13, 0.12)
 UNKNOWN = (0.42, 0.34, 0.08)
 
@@ -137,7 +137,8 @@ def _qa_status(record: dict) -> tuple[str, str]:
     else:
         status = "UNASSESSED"
 
-    parts = [status]
+    parts = [{"PASS": "Checks clear", "FAIL": "Checks failed",
+              "UNASSESSED": "Checks unassessed"}[status]]
     if not compiled:
         parts.append("not compiled")
     if failures:
@@ -147,6 +148,7 @@ def _qa_status(record: dict) -> tuple[str, str]:
     width = record.get("ink_width_in")
     if isinstance(width, (int, float)):
         parts.append(f"ink {width:.2f} in")
+    parts.append("design unreviewed")
     return status, " | ".join(parts)
 
 
@@ -388,7 +390,7 @@ def _draw_page(
 
     page.insert_text((margin, 29), title, fontsize=10, fontname="helv", color=MUTED)
     page.insert_text((margin, 55), slug, fontsize=20, fontname="hebo", color=INK)
-    status_label = f"FIGURE {overall}"
+    status_label = "DESIGN UNREVIEWED"
     label_width = fitz.get_text_length(status_label, fontname="hebo", fontsize=10)
     page.insert_text(
         (PAGE_WIDTH - margin - label_width, 52),
@@ -440,7 +442,7 @@ def _draw_page(
                 align=fitz.TEXT_ALIGN_CENTER,
             )
 
-    footer = f"Page {page_number}/{page_count} | 17 x 11 in review sheet | one figure per page"
+    footer = f"Page {page_number}/{page_count} | Automated checks only; assess meaning and the full Book page separately"
     footer_width = fitz.get_text_length(footer, fontname="helv", fontsize=7.5)
     page.insert_text(
         (PAGE_WIDTH - margin - footer_width, PAGE_HEIGHT - 10),

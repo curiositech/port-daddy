@@ -41,11 +41,6 @@
   \node[pd label,anchor=north,text width=7.6cm,align=center] at (4.45,-1.20)
     {\texttt{BEGIN IMMEDIATE}: claim port, open session, record commitment};
 \end{tikzpicture}
-\caption{The same three writes, one local fix. Today (top), each write
-commits on its own; if the third fails, the first two stand, orphaned --- a
-real failure gap. Wrapped in one local transaction, begun in immediate mode
-(bottom), all three commit together or not at all: no remote step, no Saga,
-because the durable transaction primitive already exists and every step is
-a local write to one file. [internal, OP-11]}
+\caption{Separate commits can leave orphaned writes. One immediate-mode transaction makes the three local writes atomic; no distributed compensation protocol is needed. [internal, OP-11]}
 \label{fig:swk-atomicity-fix}
 \end{figure}

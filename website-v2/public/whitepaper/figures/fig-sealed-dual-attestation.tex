@@ -22,9 +22,8 @@
 % counter-read this figure is drawn to preempt.
 % Grammar chosen: message-sequence ladder, five lifelines, numbered
 % forward-sloped messages keyed to a ruled legend naming what each one
-% binds (tpl-message-ladder), full width (6.0 in) -- five lifelines do not
-% fit the 4.5 in column at a legible pitch, and a wide sequence is the
-% declared exception of Standard S1.
+% binds (tpl-message-ladder). Five lifelines use short, wrapped headers;
+% the entire diagram stays in the 4.5 in body column at normal label size.
 % Grammar rejected: a 3-lifeline ladder (CVM, Derek's broker, Erin's
 % broker) matching the register row's original recommendation -- collapses
 % the hardware root of trust into the CVM and the verifier into each
@@ -32,34 +31,31 @@
 % figure exists to correct.
 % Five-second test: count the appraisal arrows leaving the verifier --
 % there are two, one per broker, not one arrow that forks.
-% QA: beauty_lint warns B7 (sub-point table-column justification noise,
-% under 1.4pt, the usual artifact of ragged-vs-justified cells at
-% different lengths), B8 (5.3-5.5in tall against the 5.2in guideline --
-% seven messages across five lifelines is inherently tall; the same
-% Standard S1 exception that licenses this figure's full 6in width
-% licenses its height), and in the technical edition only, B1 (badge
-% numerals 0.9pt short of the ideal moat under Heros bold) and B4 (the
-% legend's booktabs rules carry their own weights alongside the three
-% tikz weights, as in every figure that pairs a tikzpicture with a
-% ruled legend). All justified, not fixed.
+% QA: inspect the assembled page. Legacy fragment approvals do not cover
+% current type metrics, margin ownership, or the clearance around messages.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\dy{0.95}   \def\gap{2.85}   \def\rows{7}
+  \def\dy{1.05}   \def\gap{2.15}   \def\rows{7}
   \foreach \i/\name/\role in {%
     0/{hardware}/{root of trust},
     1/{init agent}/{attester (CVM)},
     2/{verifier}/{RATS appraisal}}{
-    \node[pd state,minimum width=2.5cm] (h\i) at ({\i*\gap},0) {\name};
-    \node[pd label,text=pdinkmuted,anchor=north] at ({\i*\gap},-0.52) {\role};
+    \node[pd state,minimum width=1.85cm] (h\i) at ({\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north,text width=1.8cm,align=center] at ({\i*\gap},-0.52) {\role};
     \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});}
   \foreach \i/\name/\role in {%
     3/{Derek}/{relying party},
     4/{Erin}/{relying party}}{
-    \node[pd state,minimum width=2.5cm] (h\i) at ({\i*\gap},0) {\name};
-    \node[pd label,text=pdinkmuted,anchor=north] at ({\i*\gap},-0.52) {\role};
-    \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});}
+    \node[pd state,minimum width=1.85cm] (h\i) at ({\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north,text width=1.8cm,align=center] at ({\i*\gap},-0.52) {\role};
+    \ifnum\i=4
+      \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},-4.45);
+      \draw[pd guide] ({\i*\gap},-5.95) -- ({\i*\gap},{-\rows*\dy-0.55});
+    \else
+      \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});
+    \fi}
   \foreach \a/\b/\k in {1/0/1, 0/1/2, 1/2/3, 2/3/4, 2/4/5, 3/1/6, 4/1/7}{
     \pgfmathsetmacro{\ytail}{-\k*\dy-0.43}
     \pgfmathsetmacro{\yhead}{-\k*\dy-0.67}
@@ -69,7 +65,8 @@
   \begin{scope}[on background layer]
     \node[pd panel,fit={(m4)(m5)},inner xsep=10pt,inner ysep=7pt] (appraisals) {};
   \end{scope}
-  \node[pd tag,anchor=west] at (appraisals.east) {independent};
+  \node[pd label,anchor=west,text width=2.2cm,align=left]
+    at ([xshift=6pt]appraisals.east) {independent appraisals};
   \node[pd terminal,minimum width=3.6cm,align=center,text width=3.2cm]
     (SEALED) at ({1*\gap},{-\rows*\dy-1.55})
     {job runs: no ambient network or credentials};
@@ -78,7 +75,7 @@
 \vspace{4pt}
 \footnotesize
 \hyphenpenalty=10000\exhyphenpenalty=10000
-\begin{tabular}{@{}c >{\raggedright\arraybackslash}p{3.3cm} >{\raggedright\arraybackslash}p{7.2cm}@{}}
+\begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \# & binds & value \\
 \midrule
@@ -90,16 +87,8 @@
 6 & the data key & released to the job only if appraisal 4 matched \\
 7 & the model and skill key & released to the job only if appraisal 5 matched \\
 \bottomrule
-\end{tabular}
-\caption{The dual-attested key release ceremony of Sec.~\ref{sec:sealed-design},
-five lifelines wide: the hardware root of trust, the confidential VM's init
-agent (the RATS \emph{attester}), the RATS \emph{verifier}, and Derek's and
-Erin's key brokers, each a RATS \emph{relying party} for its own key. One
-attestation evidence bundle is produced (2) and forwarded once (3), but
-appraised twice, independently (4, 5, boxed) --- against Derek's approved
-measurement and against Erin's, separately, never one shared verification
-step fanned out to both. Each broker releases its own key only off its own
-appraisal (6, 7); only once both have released does the job run, with no
-ambient network or credentials. [internal]}
+\end{tabularx}
+\caption{One evidence bundle, two independent appraisals. Derek and Erin
+each release a key only after their own appraisal succeeds. [internal]}
 \label{fig:sealed-dual-attestation}
 \end{figure}

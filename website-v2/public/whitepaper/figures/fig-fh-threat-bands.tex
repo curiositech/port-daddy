@@ -19,9 +19,9 @@
 \pdfigurehue{pdgold}%
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.87cm,y=1cm]
   \def\lx{1.65}   \def\x0{2.05}   \def\pw{8.35}
-  \node[pd title,anchor=north west,text width=10.6cm,align=left] at (0,5.15)
+  \node[pd title,anchor=north west,text width=9.5cm,align=left] at (0,5.15)
     {assurance advances only when a threat acquires an artifact or theorem};
 
   \foreach \y/\lab in {3.30/{identity + replay},1.90/{revocation},0.50/{equivocation},
@@ -75,22 +75,16 @@
 
   % ---- assurance-position axis --------------------------------------------
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\x0,-6.40) -- (\x0+\pw+0.05,-6.40);
-  \foreach \x/\lab in {2.05/OPEN,6.15/CONDITIONAL,10.25/MECHANIZED}
+  \foreach \x/\lab in {2.05/Open,6.15/Conditional,10.25/Mechanized}
     {\draw[pd tick] (\x,-6.40) -- (\x,-6.55);
-     \node[pd label,anchor=north] at (\x,-6.60) {\lab};}
-  \node[pd note,anchor=north west,text width=10.2cm] at (0,-7.05)
+    \node[pd label,anchor=north,text width=1.7cm,align=center] at (\x,-6.60) {\lab};}
+  \node[pd note,anchor=north west,text width=9.5cm] at (0,-7.05)
     {position, not colour, carries the claim: each row advances only when the
     missing artifact or theorem exists};
 \end{tikzpicture}
-\caption{\textbf{The assurance landscape is uneven and falsifiable.} Position
-encodes how far each threat has moved from an acknowledged gap toward a
-mechanized artifact. Identity and replay (gold) have the strongest concrete
-evidence. Revocation (red) is conditional on connected reliable rounds
-(Theorem~\ref{thm:fh-conv}); equivocation and settlement are conditional on
-named connectivity or custody hypotheses, and the wide settlement interval
-shows how far its assurance moves if the custody gate is bypassable
-(\S\ref{sec:fh-escrow}). Cold-start admission, cartel monitoring, and
-centralization remain open. A row advances only when the missing artifact or
-theorem exists. [internal]}
+\caption{Evidence differs by threat. Identity and replay have concrete
+artifacts; revocation and settlement depend on stated connectivity and
+custody assumptions. Admission, cartel monitoring, and centralization remain
+open. [internal]}
 \label{fig:fh-threat-bands}
 \end{figure*}

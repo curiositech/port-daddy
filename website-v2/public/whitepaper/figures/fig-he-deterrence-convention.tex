@@ -5,7 +5,8 @@
 % quoting the audit rate needed for deterrence?
 % Claim: at the same G=10, d=0.8, B=50, keep-gain needs rho*=0.25 but
 % claw-back needs only rho*_c=0.2083 -- a platform that mismatches
-% convention and formula is over- or under-auditing by about 17%.
+% convention and formula over-audits or under-deters. The percentage depends
+% on which rate is the denominator; show the two rates directly.
 % Evidence: rho*=G/(dB)=0.25; rho*_c=G/(d(G+B))=0.2083 [harbor3].
 % Must distinguish: which bar belongs to which slashing convention, not
 % just the two bare numbers.
@@ -15,13 +16,13 @@
 % callout -- it would not let a reader see both critical rates as
 % positions on one common scale (Cleveland-McGill).
 % Five-second test: a reader can see the claw-back bar is visibly shorter
-% and name the roughly 17% gap.
+% and identify the contract assumption responsible for the gap.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdgold}%
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
-\begin{axis}[pd axis,
-  width=6.0cm,height=3.6cm,
+\begin{axis}[pd evidence axis,
+  width=194pt,height=106pt,
   ybar,bar width=1.1cm,
   symbolic x coords={keep-gain,claw-back},
   enlarge x limits=0.35,
@@ -29,22 +30,16 @@
   ymin=0,ymax=0.32,
   ytick={0,0.1,0.2,0.3},
   ylabel={critical rate $\rho^\star$},
-  nodes near coords,
+  nodes near coords={\pgfmathprintnumber[fixed,precision=4]{\pgfplotspointmeta}},
   every node near coord/.append style={pd label,anchor=south,yshift=6pt}]
   % Each convention has its own bar outline and a clear value-label gap.
   \addplot[pd focus fill,bar shift=0pt] coordinates {(keep-gain,0.25)};
   \addplot[pd focus fill,bar shift=0pt] coordinates {(claw-back,0.2083)};
 \end{axis}
-\node[pd note,anchor=north west,text width=8.0cm] at (-0.30,-2.55)
-  {same $G=10$, $d=0.8$, $B=50$ in both bars; only the forfeiture on a
-   caught cheat changes, $B$ versus $G+B$};
 \end{tikzpicture}
-\caption{\textbf{Quoting the wrong convention misprices deterrence by about
-$17\%$.} Keep-gain forfeits only the bond $B$ on a caught cheat: critical
-rate $\rho^\star=G/(dB)=0.25$. Claw-back also confiscates the gain $G$,
-dropping the critical rate to $G/(d(G+B))=0.2083$. A platform that claws
-back but budgets audits at the keep-gain rate over-audits; one that does not
-claw back but budgets at the claw-back rate under-deters.
-[internal; harbor3]}
+\caption{Same $G=10$, $d=0.8$, $B=50$; different forfeiture.
+Keep-gain takes $B$, requiring audit rate $0.25$.
+Claw-back takes $G+B$, requiring $0.2083$.
+[analytic example]}
 \label{fig:he-deterrence-convention}
 \end{figure}

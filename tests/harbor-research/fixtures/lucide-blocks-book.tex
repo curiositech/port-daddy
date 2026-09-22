@@ -1,0 +1,154 @@
+\documentclass[11pt,twoside]{article}
+\def\pdedition{swiss}
+\def\pdbookfontprofile{suisse}
+\def\pdbookfontdir{/Users/erichowens/coding/tmp/book-private-fonts/suisse-intl-20260918/Suisse Intl/OTF/}
+\input{coordination-papers-mega-volume-preamble.tex}
+\setmonofont[Path=/System/Library/Fonts/,Extension=.ttc,
+  UprightFont=Menlo,BoldFont=Menlo,ItalicFont=Menlo,BoldItalicFont=Menlo]{Menlo}
+\begin{document}
+\pagestyle{plain}
+\makeatletter
+\ifdefined\pdblockglyph
+  \let\labpicturehandler\pgfsys@typesetpicturebox
+  \newsavebox{\labglyphbox}\sbox{\labglyphbox}{\pdblockglyph{Property}}
+  \typeout{INLINE GLYPH WIDTH: \the\wd\labglyphbox}
+  \ifdim\wd\labglyphbox>20pt\PackageError{block-fixture}{Inline glyph too wide}{}\fi
+  \ifx\labpicturehandler\pgfsys@typesetpicturebox\else
+    \PackageError{block-fixture}{Global picture handler changed}{}\fi
+\fi
+\makeatother
+\section{Semantic block specimen}
+All passages below are authored layout fixtures. No checker or empirical study
+was run. Counters, labels, claim validation and margin citations use the Book machinery.
+\begin{definition}[Bounded counter]\label{lab:def}
+\marginnote{Margin note inside a framed definition. This tests the shared allocator, not a separate inset column.}
+A bounded counter is an integer $x$ with $0\leq x\leq 3$.
+\end{definition}
+\begin{property}[Range]\label{lab:prop}
+The set in Definition~\ref{lab:def} has four members. This is a plain property.
+\end{property}
+\begin{theorem}[Upper bound]\label{lab:thm}
+For a bounded counter, $x+1\leq4$.
+\end{theorem}
+\begin{proof}Add one to both sides of $x\leq3$.\end{proof}
+\begin{pdclaim}{Model-checked property}{Finite Scope}\label{lab:checked}
+The four-state model is the intended checking scope. This fixture does not
+claim a completed model-checking run or runtime verification.
+\end{pdclaim}
+\begin{pdclaim}{Empirical hypothesis}{Recovery Rate}\label{lab:hyp}
+A visible receipt may improve recovery. The hypothesis needs an outcome measure
+and a comparison group; its sign remains unknown.
+\end{pdclaim}
+\begin{pdclaim}{Design invariant}{Monotone Revisions}\label{lab:inv}
+The design requires each accepted update to increase the revision.
+Implementation conformance requires separate evidence.
+\end{pdclaim}
+\begin{pdexample}{Exact Arithmetic}\label{lab:arithmetic}
+Seventeen groups of six give $17\times6=102$; withholding fourteen leaves
+$102-14=88$. These are exact equalities.
+\begin{enumerate}\item Count groups.\item Subtract withheld cases.\end{enumerate}
+\end{pdexample}
+\clearpage
+\section{Page breaks and margin citation}
+The citation uses the existing allocator.\pdcite{lamport1978}
+\par
+\makeatletter
+\sbox{\pd@sidebox}{\begin{minipage}{\marginparwidth}\marginfont
+Lamport 1978.\par Citation fixture via the existing allocator.\end{minipage}}%
+\pd@placemarginopt{\pd@sidebox}
+\makeatother
+\begin{pdclaim}{Theorem}{Long statement}\label{lab:long}
+This authored passage exercises natural page breaking. Its equations express
+integer arithmetic, and its paragraphs carry no empirical evidence.
+\newcount\labloop\labloop=0
+\loop\ifnum\labloop<18
+For each integer $k$, adding one increases its value. The statement concerns
+the mathematical model. An implementation can violate an intended constraint;
+the heading alone does not certify an implementation. The displayed expression
+retains its ordinary mathematical spacing:
+\[ (k+1)-k=1. \]
+\advance\labloop by1\repeat
+\end{pdclaim}
+\begin{pdexample}{Long worked passage}\label{lab:longexample}
+\labloop=0
+\loop\ifnum\labloop<14
+\begin{enumerate}\item Let $a=17$ and $b=6$.\item Compute $ab=102$.
+\item Subtract $14$ to obtain $88$.\end{enumerate}
+Every repetition here tests a page break in the Book's existing worked-example
+frame. It is authored test content, not a new independent observation.\par
+\advance\labloop by1\repeat
+\end{pdexample}
+{\raggedright References: Definition~\ref{lab:def}, Property~\ref{lab:prop},
+Theorem~\ref{lab:thm}, checked claim~\ref{lab:checked}, hypothesis~\ref{lab:hyp},
+invariant~\ref{lab:inv}, worked example~\ref{lab:arithmetic},
+long theorem~\ref{lab:long}.\par}
+Named reference: \cref{lab:arithmetic}.\par
+Automatic reference: \autoref{lab:arithmetic}.\par
+\begin{lemma}[Identity]$x=x$.\end{lemma}
+\begin{proposition}[Identity]$x=x$.\end{proposition}
+\begin{corollary}[Identity]$x=x$.\end{corollary}
+\begin{conjecture}[Fixture]This exercises the existing conjecture environment.\end{conjecture}
+\begin{theorem}[Ordinary amsthm page break]\label{lab:ordinary-long}
+\labloop=0
+\loop\ifnum\labloop<12
+For every integer $k$, the identity $(k+1)-k=1$ follows by cancellation.
+This authored paragraph tests the ordinary italic theorem body across a page
+boundary. The counter belongs to the original theorem environment, and the
+same environment still accepts an optional title and a label.\par
+\advance\labloop by1\repeat
+\end{theorem}
+\begin{thebibliography}{1}
+\bibitem{lamport1978}Leslie Lamport. Time, Clocks, and the Ordering of Events in a Distributed System. 1978.\par
+\end{thebibliography}
+\clearpage
+\section{Heading paragraph edge cases}
+\begin{definition}\label{lab:unnamed}
+Unnamed definition body starts here.
+\end{definition}
+\begin{theorem}[A deliberately long heading that must wrap without absorbing
+the opening sentence of the statement]\label{lab:wrapped}
+Wrapped theorem body starts here.
+\end{theorem}
+\begin{property}[Reality of Reputation and Principal Liability]
+\ifdim\gluestretch\rightskip>0pt
+  \PackageError{block-fixture}{Ragged heading leaked into property body}{}%
+\fi
+Wrapped property body starts here. The body retains ordinary paragraph alignment.
+\end{property}
+\begin{pdclaim}{Design invariant}{}\label{lab:unnamed-claim}
+Unnamed claim body starts here.
+\end{pdclaim}
+\begin{pdexample}{A deliberately long worked example title that must wrap
+while keeping its arithmetic in the body}\label{lab:wrapped-example}
+Wrapped calculation body starts here.
+\end{pdexample}
+\begin{protocol}[Admission]
+Protocol body starts here.
+\end{protocol}
+\begin{lsprotocol}{Consent}
+Consent protocol body starts here.
+\end{lsprotocol}
+\begin{stpprotocol}[Delegation]
+Delegation protocol body starts here.
+\end{stpprotocol}
+\begin{heprotocol}[Settlement]
+Settlement protocol body starts here.
+\end{heprotocol}
+\begin{remark}[Scope]
+Remark body starts here.
+\end{remark}
+\scene{Mara, 3:25 p.m.}{Scene body starts here.}
+\begin{pdexercise}{lab:exercise}
+Exercise body starts here.
+\end{pdexercise}
+\begin{pdSolution}{lab:exercise}
+Solution body starts here.
+\end{pdSolution}
+\begin{theorem}[A statement beginning with a list]
+\begin{enumerate}\item List body starts here.\end{enumerate}
+\end{theorem}
+\begin{pdclaim}{Theorem}{A statement beginning with a display}
+\[ x=x. \]
+Display body continues here.
+\end{pdclaim}
+\end{document}

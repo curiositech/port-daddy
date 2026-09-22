@@ -16,22 +16,22 @@
 \pdfigurehue{pdgold}%
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
   \tikzset{
-    incident head/.style={pd artifact,minimum width=2.25cm,minimum height=.72cm,
+    incident head/.style={pd artifact,minimum width=1.8cm,minimum height=.72cm,
       inner xsep=5pt,inner ysep=4pt,align=center},
     incident event/.style={pd state,minimum width=3.10cm,minimum height=.82cm,
       inner xsep=6pt,inner ysep=5pt,align=center}
   }
   \def\xA{.85} \def\xS{4.15} \def\xB{7.45} \def\xE{10.75} \def\xW{14.05}
 
-  \node[pd title,anchor=west] at (0,7.75)
+  \node[pd title,anchor=west,text width=9.5cm] at (0,7.75)
     {one admitted federation, one delayed failure, six ordered steps};
 
   % Admission is a prerequisite, not a message improvised during the incident.
   \draw[pd panel] (0,5.92) rectangle (15.20,6.90);
-  \node[pd kind,anchor=west] at (.20,6.42) {Admission prerequisite};
-  \node[pd label,anchor=west,text width=10.5cm,align=left] at (4.40,6.42)
+  \node[pd kind,anchor=west,text width=2.5cm] at (.20,6.42) {Admission prerequisite};
+  \node[pd label,anchor=west,text width=6.6cm,align=left] at (4.40,6.42)
     {$A$, $S$, and $B$ enrolled; Beta: six months, zero forfeitures};
 
   \node[incident head] (hA) at (\xA,4.95) {Harbor $A$\\Acme};
@@ -66,14 +66,14 @@
   \node[pd focus badge] (m1) at (2.50,2.15) {1};
   \draw[pd protocol arrow,pd to badge] (\xA,2.34) -- (m1);
   \draw[pd protocol arrow,pd from badge] (m1) -- (\xS,1.96);
-  \node[pd tag,anchor=south,text width=5.2cm,align=center] at (2.50,2.48)
+  \node[pd label,anchor=south west,text width=5.2cm,align=left] at (0,2.48)
     {$\mathsf{xfer\_offer}\langle C_A,\mathsf{att}_A,R_A{}^{(e)}\rangle$};
 
   % 2. Destination-local verification and migration.
   \node[pd focus state,minimum width=3.3cm,minimum height=.92cm,
     inner xsep=6pt,inner ysep=5pt,align=center] (localS) at (\xS,.78)
     {verify destination card\\snapshot; run migration};
-  \node[pd focus badge] at ({\xS-2.65},.78) {2};
+  \node[pd focus badge,anchor=east] at ([xshift=-6pt]localS.west) {2};
   \draw[pd focus arrow] (\xS,1.96) -- (localS.north);
 
   % The delayed consequence is the fact the worked example exists to expose.
@@ -84,7 +84,7 @@
   \node[pd breach state,minimum width=3.65cm,minimum height=1.00cm,
     inner xsep=6pt,inner ysep=5pt,align=center] (damage) at (\xB,-1.38)
     {integration test fails\\\texttt{float32} $\neq$ \texttt{float64}};
-  \node[pd badge] at ({\xB-2.08},-1.38) {3};
+  \node[pd badge,anchor=east] at ([xshift=-6pt]damage.west) {3};
 
   % 4. The claim crosses from B to escrow with proof-bound evidence.
   \node[pd badge] (m4) at (9.10,-2.86) {4};
@@ -102,23 +102,21 @@
   \draw[pd focus arrow] (clear.west) -- (split);
   \draw[pd focus arrow] (split) -- (\xB,-5.08);
   \draw[pd focus arrow] (split) -- (\xA,-5.28);
-  \node[pd focus label,anchor=south] at (8.18,-4.83) {pay Beta};
+  \node[pd focus label,anchor=north east] at (\xB,-5.20) {pay Beta};
   \node[pd focus label,anchor=south] at (5.55,-5.02) {refund Acme};
 
   % 6. Revocation is a later publication, then asynchronous gossip.
-  \node[pd focus badge] (m6) at (7.45,-6.64) {6};
-  \draw[pd focus arrow,pd to badge] (\xA,-6.45) -- (m6);
-  \draw[pd focus arrow,pd from badge] (m6) -- (\xW,-6.83);
-  \node[pd tag,anchor=south,text width=7.0cm,align=center] at (7.45,-6.30)
+  \node[pd focus badge] (m6) at (7.45,-7.34) {6};
+  \draw[pd focus arrow,pd to badge] (\xA,-7.15) -- (m6);
+  \draw[pd focus arrow,pd from badge] (m6) -- (\xW,-7.53);
+  \node[pd tag,anchor=south,text width=7.0cm,align=center] at (7.45,-7.00)
     {publish new epoch root; expect three reliable gossip rounds};
+  \foreach \x in {\xA,\xS,\xB,\xE,\xW}
+    \draw[pd uml lifeline] (\x,-7.1) -- (\x,-7.75);
 \end{tikzpicture}
 
-\caption{A five-party sequence for the Controller-7 incident. Admission is
-already settled before work begins. Acme funds a 24-hour bond, transfers an
-attenuated card to staging, and staging runs the migration; two hours later
-Beta detects the \texttt{float32}/\texttt{float64} mismatch, submits a bound
-claim, and escrow clears it. Acme then publishes the revocation root, whose
-three-round estimate is an expectation for eight harbors under reliable
-rounds, not a deadline. [internal]}
+\caption{Beta's bound claim settles against Acme's bond. Revocation follows;
+the three-round estimate assumes reliable rounds, not a guaranteed deadline.
+[internal]}
 \label{fig:fh-worked-example}
 \end{figure*}

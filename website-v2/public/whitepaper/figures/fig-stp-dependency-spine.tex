@@ -1,0 +1,42 @@
+% Atlas: III/fig:stp-dependency-spine.
+% Question: what must persist before an agent's reputation can be traded?
+% Claim: every lower capability needs the capabilities above it.
+% Evidence: sec:intro, sec:organs and sec:keystone; this chapter's status claims.
+% Distinguish: dependency from sufficiency; partial mechanisms from proposed trade.
+% Grammar: vertical dependency spine with an aligned status column. Reject the
+% old 14cm horizontal rail: its five label pairs require shrinking or overhang.
+% Five-second test: continuity precedes reputation; a market is not implemented.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1pt,y=1pt]
+  \def\stagepitch{47}
+  \node[pd title,anchor=west] at (20,30) {Required capability};
+  \node[pd title,anchor=west] at (166,30) {Reference system};
+  % Named stops on a dependency spine, not five process boxes. The 47pt
+  % pitch leaves a visible shaft between marks at native Book label size.
+  \foreach \name/\row/\labeltext in {memory/0/{Memory and\\checkpoint},%
+      continuity/1/{Continuity},person/2/{Persistent participant},%
+      reputation/3/{Reputation},market/4/{Tradable asset}}{%
+    \node[pd datum,circle,draw=pdfocus,fill=pdpage,line width=1pt,inner sep=2.5pt]
+      (\name) at (6,-\row*\stagepitch) {};
+    \node[pd label,anchor=west,text width=124pt,align=left]
+      at (20,-\row*\stagepitch) {\labeltext};}
+  \foreach \a/\b in {memory/continuity,continuity/person,person/reputation,reputation/market}{%
+    \draw[pd guide arrow,draw=pdfocus] (\a.south) -- (\b.north);}
+  \node[pd label,anchor=west,text width=142pt,align=left] at (166,0)
+    {Memory implemented;\\checkpoint partial};
+  \node[pd label,anchor=west,text width=142pt,align=left] at (166,-\stagepitch)
+    {Partial};
+  \node[pd label,anchor=west,text width=142pt,align=left] at (166,-2*\stagepitch)
+    {Requires an outcome ledger};
+  \node[pd label,anchor=west,text width=142pt,align=left] at (166,-3*\stagepitch)
+    {Specified};
+  \node[pd label,anchor=west,text width=142pt,align=left] at (166,-4*\stagepitch)
+    {Market proposed};
+\end{tikzpicture}
+\caption{Each lower capability requires the ones above it; none follows
+from them alone. The status column describes the reference system, not an
+operational market. [internal]}
+\label{fig:stp-dependency-spine}
+\end{figure}

@@ -54,12 +54,9 @@
   \node[pd note,anchor=north,text width=3.5cm,align=center] at ({(\ox+\rx)/2},{\oy-.72})
     {extra deposit returns intact past $B_T$};
 \end{tikzpicture}
-\caption{Deposit-only Sybil deterrence saturates. One principal can fund $K$
-interchangeable identities, but the loss attached to a defaulting identity
-rises only until its deposit reaches the transaction coverage $B_T$. Past
-that knee, $s=\min(B_{\mathrm{dep}},B_T)=B_T$: additional posted capital
-returns intact on no-loss transactions and cannot increase the attacker
-maximum loss. Figure~\ref{fig:sybil-mc-inline} shows the corresponding
-simulated profit and commons-deficit sweeps. [internal, closed form]}
+\caption{More identities multiply entry cost, not loss per default.
+Slashing stops at coverage $B_T$; deposits above that cap cannot increase
+the loss. Figure~\ref{fig:sybil-mc-inline} tests the resulting incentives.
+[internal, closed form]}
 \label{fig:sybil-inline}
 \end{figure}

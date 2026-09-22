@@ -1,68 +1,68 @@
-% Redraw of fig-sealed-two-worlds to the tikz-diagram-craft v2 standard.
-%
-% Reader question: do two runs that differ only in Derek's secret look
-% identical to Erin, the observer?
-% Claim: yes at every step but the declared release, and even there, for two
-% secrets of equal parity, the release still agrees.
-% Evidence: Theorem sealed-noninterference and its proof idea, and "Numbers by
-% hand" (both s=0 and s=2 give g(s)=0), website-v2/public/whitepaper/
-% sealed-harbor.tex, Sec.~sealed-noninterference [internal, c1_noninterference.py].
-% Must distinguish: the four lockstep steps where Erin's view is tied (=)
-% from the one step (release, boxed as "the slot") the theorem actually lets
-% differ; the honest run (ties hold) from the mutation (a leaky gate, where
-% they would not).
-% Grammar chosen: two-run lockstep, before/after on identical geometry
-% (tpl-before-after) -- one time axis, two lanes, so the same step compares
-% directly across worlds.
-% Grammar rejected: a single trace with a branch would hide that the compared
-% quantity is Erin's view of two SEPARATE runs, not one run's two options.
-% Five-second test: which step is the only one allowed to differ, and does it.
+% Retained two-run layout with a reported-result caption and measurable text.
+% Illustration literals read from C1 source; C1 NOT imported or executed here.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lx{0}      % load column
-  \def\rx{2.1}    % read column: leave a visible arrow shaft between boxes
-  \def\sx{4.2}    % submit column
-  \def\gx{6.4}    % release column, inside the slot
-  \def\yA{6.6}    % World A lane
-  \def\yB{3.4}    % World B lane
-  % --- the two worlds, identical except Derek's secret ---------------------
-  \node[pd title,anchor=east,align=center,text width=1.5cm] at (-1.0,\yA) {World A\\$s=0$};
-  \node[pd title,anchor=east,align=center,text width=1.5cm] at (-1.0,\yB) {World B\\$s=2$};
-  \node[pd state,minimum width=1.42cm] (A1) at (\lx,\yA) {load};
-  \node[pd state,minimum width=1.42cm] (A2) at (\rx,\yA) {read};
-  \node[pd state,minimum width=1.42cm] (A3) at (\sx,\yA) {submit};
-  \node[pd state,minimum width=1.42cm] (B1) at (\lx,\yB) {load};
-  \node[pd state,minimum width=1.42cm] (B2) at (\rx,\yB) {read};
-  \node[pd state,minimum width=1.42cm] (B3) at (\sx,\yB) {submit};
-  \draw[pd focus arrow] (A1) -- (A2); \draw[pd focus arrow] (A2) -- (A3);
-  \draw[pd focus arrow] (B1) -- (B2); \draw[pd focus arrow] (B2) -- (B3);
-  % --- Erin's observable state, tied at every step ($\equiv$), drawn as two
-  % short segments so the mark they frame never sits on a stroked path -----
-  \foreach \x in {\lx,\rx,\sx} {
-    \draw[pd hairline] (\x,{\yA-.36}) -- (\x,{\yA-.90});
-    \draw[pd hairline] (\x,{\yB+.90}) -- (\x,{\yB+.36});
-    \node[pd label] at (\x,{(\yA+\yB)/2}) {$\equiv$};
-  }
-  % --- the slot: the one declared release step ------------------------------
-  \node[pd focus state,line width=1.6pt,minimum width=1.42cm,align=center] (A4) at (\gx,\yA) {release\\$g=0$};
-  \node[pd focus state,line width=1.6pt,minimum width=1.42cm,align=center] (B4) at (\gx,\yB) {release\\$g=0$};
-  \begin{scope}[on background layer]
-    \node[pd panel,fit={(A4)(B4)},inner xsep=2pt] (slot) {};
-  \end{scope}
-  \node[pd title,anchor=south] at (slot.north) {the slot};
-  \draw[pd focus arrow] (A3) -- (A4); \draw[pd focus arrow] (B3) -- (B4);
-  \draw[pd hairline] (\gx,{\yA-.60}) -- (\gx,{\yA-.90});
-  \draw[pd hairline] (\gx,{\yB+.90}) -- (\gx,{\yB+.60});
-  \node[pd label] at (\gx,{(\yA+\yB)/2}) {$\equiv$};
-  \node[pd note,anchor=north west,align=left,text width=3.3cm] at (-0.50,1.95)
-    {Erin's trace is identical at every step, to depth 7};
-  % --- the mutation: honest gate replaced by one that leaks the raw secret -
-  \node[pd breach state,text width=2.1cm,align=center] (LEAK) at (\gx,-0.05)
-    {leaky gate:\\caught here};
-  \draw[pd breach arrow] (slot.south) -- (LEAK.north);
-\end{tikzpicture}
-\caption{Two runs of the clean room, identical except Derek's secret ($s{=}0$ against $s{=}2$, equal parity so $g(s){=}0$ either way), driven in lockstep through \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not. Below the slot, replacing the honest gate with one that leaks the raw secret breaks the tie at this same step -- leak $0$ from World A against leak $2$ from World B, now distinguishable. The finite clean-room model, secrets $s\in\{0,1,2,3\}$ with $g(s)=s\bmod 2$, passes this check exhaustively to depth 7 over every interleaving and secret pair; both mutations are caught -- the leaked-secret gate shown here (4 steps) and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].}
+% Same folded-paper geometry as the shared SGDocument, with text-only bounds.
+\newcommand{\TWRecord}[7]{%
+  \begin{scope}[shift={#2}]
+    \draw[draw=sgInk,fill=#5,line width=.85pt]
+      (0,0)--({#3-7},0)--(#3,7)--(#3,#4)--(0,#4)--cycle;
+    \draw[draw=sgInk,line width=.65pt] ({#3-7},0)--({#3-7},7)--(#3,7);
+    \node[outer sep=0pt,align=center]
+      (#1top) at ({#3/2},{#4/2-6.25}) {#6};
+    \node[outer sep=0pt,align=center]
+      (#1bottom) at ({#3/2},{#4/2+6.25}) {#7};
+  \end{scope}}
+\SGMeasuredFigure{VIII/fig:sealed-two-worlds}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north,align=center,outer sep=0pt] (secretheader) at (24,0) {Derek's\\secret};
+  \node[anchor=north west,font=\SGType\bfseries,outer sep=0pt] (logheader) at (75,0)
+    {Erin's visible log after each action};
+  \fill[sgTeal!6] (254,25) rectangle (316,171);
+  \draw[sgTeal,line width=.8pt] (254,25) rectangle (316,171);
+  \node[anchor=south,outer sep=0pt] (load) at (86,43) {load};
+  \node[anchor=south,outer sep=0pt] (read) at (144,43) {read};
+  \node[anchor=south,outer sep=0pt] (submit) at (202,43) {submit};
+  \node[anchor=south,outer sep=0pt] (release) at (285,43) {release};
+  \TWRecord{secretA}{(0,60)}{47}{36}{sgViolet!8}{A}{$s=0$}
+  \TWRecord{secretB}{(0,123)}{47}{36}{sgAmber!10}{B}{$s=2$}
+  % No guide is hidden behind an opaque log cell. Alignment encodes comparison.
+  \draw[draw=sgInk,fill=white,line width=.8pt] (71.5,66) rectangle (100.5,90);
+  \draw[draw=sgInk,fill=white,line width=.8pt] (129.5,66) rectangle (158.5,90);
+  \draw[draw=sgInk,fill=white,line width=.8pt] (187.5,66) rectangle (216.5,90);
+  \draw[draw=sgInk,fill=white,line width=.8pt] (71.5,129) rectangle (100.5,153);
+  \draw[draw=sgInk,fill=white,line width=.8pt] (129.5,129) rectangle (158.5,153);
+  \draw[draw=sgInk,fill=white,line width=.8pt] (187.5,129) rectangle (216.5,153);
+  \node[outer sep=0pt] (aLoad) at (86,78) {$[\ ]$};
+  \node[outer sep=0pt] (aRead) at (144,78) {$[\ ]$};
+  \node[outer sep=0pt] (aSubmit) at (202,78) {$[\ ]$};
+  \node[outer sep=0pt] (bLoad) at (86,141) {$[\ ]$};
+  \node[outer sep=0pt] (bRead) at (144,141) {$[\ ]$};
+  \node[outer sep=0pt] (bSubmit) at (202,141) {$[\ ]$};
+  \TWRecord{outA}{(262,60)}{46}{36}{white}{gate:}{$0$}
+  \TWRecord{outB}{(262,123)}{46}{36}{white}{gate:}{$0$}
+  \node[text=sgTeal,outer sep=0pt] (eqLoad) at (86,109.5) {$=$};
+  \node[text=sgTeal,outer sep=0pt] (eqRead) at (144,109.5) {$=$};
+  \node[text=sgTeal,outer sep=0pt] (eqSubmit) at (202,109.5) {$=$};
+  \node[text=sgTeal,outer sep=0pt] (eqRelease) at (285,109.5) {$=$};
+  \draw[sg/arrow] (66,184)--(315,184);
+  \node[anchor=north east,outer sep=0pt] (order) at (315,192) {action order};
+  \node[anchor=north west,outer sep=0pt] (emptykey) at (66,201) {$[\ ]$: no observed event};
+
+  % Separate negative control, not a branch inside an honest execution.
+  \draw[sgGrid,line width=.8pt] (0,228)--(316,228);
+  \node[anchor=north west,font=\SGType\bfseries,outer sep=0pt] (rawheader) at (0,241) {Raw-secret gate};
+  \node[anchor=north west,align=left,outer sep=0pt] (rawscope) at (0,259) {same four actions,\\different release};
+  \TWRecord{badA}{(178,242)}{48}{39}{sgRed!7}{A}{gate: $0$}
+  \TWRecord{badB}{(268,242)}{48}{39}{sgRed!7}{B}{gate: $2$}
+  \node[text=sgRed,font=\SGType\bfseries,outer sep=0pt] (neq) at (247,261) {$\neq$};
+  \foreach \name in {secretheader,logheader,load,read,submit,release,
+    secretAtop,secretAbottom,secretBtop,secretBbottom,aLoad,aRead,aSubmit,bLoad,bRead,bSubmit,
+    outAtop,outAbottom,outBtop,outBbottom,eqLoad,eqRead,eqSubmit,eqRelease,
+    order,emptykey,rawheader,rawscope,badAtop,badAbottom,badBtop,badBbottom,neq}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{TW-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}}
+\caption{Parity hides the difference between secrets 0 and 2; a raw-secret release exposes it. Reported model check: four secrets, depth 7, not unbounded executions. [internal, \protect\path{c1_noninterference.py}]}
 \label{fig:sealed-two-worlds}
 \end{figure}

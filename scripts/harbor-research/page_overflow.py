@@ -18,7 +18,7 @@ usage: page_overflow.py BOOK.pdf [--slack PT] [--json]
 exit 1 when any page has ink past the mediabox, a figure past the column, or
 a margin-column collision.
 """
-import argparse, json, sys
+import argparse, json, re, sys
 import fitz  # pymupdf
 
 PAPER_W, PAPER_H = 7 * 72, 10 * 72
@@ -27,13 +27,27 @@ FULLW_EXTRA = (0.2 + 1.3) * 72  # marginparsep + marginparwidth: the full-width 
 
 def column(page, page_no):
     """The text column of this page. The head rule (a hairline the width of
-    \textwidth near the top) gives it exactly; parity of the printed folio
-    (PDF page - 1 in the body) is the fallback. Returns x0, x1, outer side."""
+    \textwidth near the top) gives it exactly; parity of the PDF's printed
+    folio is the fallback. A missing PageLabels tree means physical Arabic
+    numbering, not a hard-coded offset from an older Book. Returns x0, x1,
+    outer side."""
     for d in page.get_drawings():
         r = d["rect"]
         if r.height < 1 and abs(r.width - TEXTW) < 2 and r.y0 < 60:
-            return r.x0, r.x1, ("R" if r.x0 < PAPER_W / 2 - 20 else "L")
-    if (page_no - 1) % 2 == 1:
+            # Compare the column's CENTER with the page center. Both left
+            # edges are left of the page center, so the old left-edge test
+            # misclassified every verso as having a right outer margin.
+            return r.x0, r.x1, ("R" if r.x0 + r.x1 < PAPER_W else "L")
+    label = page.get_label()
+    folio = page_no
+    if label.isdecimal():
+        folio = int(label)
+    elif re.fullmatch(r"[ivxlcdm]+", label, re.IGNORECASE):
+        values = {"i": 1, "v": 5, "x": 10, "l": 50, "c": 100, "d": 500, "m": 1000}
+        digits = [values[c] for c in label.lower()]
+        folio = sum(-v if i + 1 < len(digits) and v < digits[i + 1] else v
+                    for i, v in enumerate(digits))
+    if folio % 2 == 1:
         return INNER, INNER + TEXTW, "R"
     return PAPER_W - INNER - TEXTW, PAPER_W - INNER, "L"
 

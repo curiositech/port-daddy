@@ -1,6 +1,7 @@
 {
   "purpose": "Temporary inventory for figure sources that exist but are not yet input by an assembled-Book chapter.",
   "fragments": [
+    "website-v2/public/whitepaper/figures/icos-margin-specimens.tex",
     "whitepaper/figures/fig-swk-durability-faultclass.tex",
     "whitepaper/figures/fig-swk-marker-renewal.tex",
     "whitepaper/figures/fig-swk-workunit-crimes.tex"

@@ -47,13 +47,6 @@ event & alphabet & in \texttt{ok} & in \texttt{tainted} \\
 \texttt{net\_egress} & $\Sigma_c$, controllable & enabled & disabled \\
 \bottomrule
 \end{tabular}}
-\caption{The taint automaton behind the sealed room: Schneider's two-state
-security automaton for ``no egress after an in-context read of a secret'', with
-his states relabelled. The read is uncontrollable, and the policy never tries
-to refuse it: it is enabled in both states and only records the taint. The one
-event the tainted state disables is \texttt{net\_egress}, which the daemon
-mediates, so every uncontrollable event stays enabled and the policy is
-regimentable. Gate the channel, never the token [internal,
-\texttt{b3\_controllability.py}].}
+\caption{Reading a secret records taint; it is never refused. Afterward the policy blocks mediated network egress, while leaving uncontrollable events enabled. [internal, \protect\path{b3_controllability.py}]}
 \label{fig:swk-taint-automaton}
 \end{figure}

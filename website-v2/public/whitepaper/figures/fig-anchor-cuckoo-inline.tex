@@ -1,66 +1,44 @@
-% Reader question: why can two daemons not OR cuckoo-filter encodings, and what can they merge safely?
-% Claim: bitwise OR preserves two history-dependent placements for c1; ID-set union followed by local rebuild gives c1 one placement.
-% Evidence: sec:revocation places c1 in i0 for peer A and i3 for peer B, with log union c1,c2,c4,c7,c9 [internal].
-% Must distinguish: encoded bucket state from semantic revocation IDs, invalid duplicate occupancy from one locally rebuilt placement.
-% Grammar: paired dataflow traces with aligned outputs; rejected a load plot because this paragraph proves merge semantics, not capacity.
-% Five-second test: the left output contains c1 twice, while the right output contains c1 once after a visibly connected rebuild arrow.
+% Bounded bit counterexample; semantic fixture in test_book_pictograph_semantics.py.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-    bucket/.style={pd artifact,minimum width=.58cm,minimum height=.60cm,
-      inner sep=0pt,rounded corners=1pt}]
-  \def\dx{.64}
+\SGMeasuredFigure{fig-anchor-cuckoo-inline}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \tikzset{slot/.style={draw=sgInk,line width=.8pt,minimum width=47pt,
+    minimum height=30pt,inner sep=3pt,align=center,font=\SGType\ttfamily}}
+  \draw[sg/grid] (161,0)--(161,231);
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0) {OR the encodings};
+  \node[anchor=north west,font=\SGType\bfseries] at (174,0) {Union the records};
+  \node at (70,32) {bucket 0};
+  \node at (125,32) {bucket 1};
+  \node[anchor=east] at (35,61) {A};
+  \node[anchor=east] at (35,103) {B};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (70,61) {001};
+  \node[slot,fill=sgInk!3] at (125,61) {000};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (70,103) {010};
+  \node[slot,fill=sgInk!3] at (125,103) {000};
+  \draw[sgInk,line width=.8pt] (45,128)--(150,128);
+  \node[anchor=east,text=sgRed] at (35,153) {OR};
+  \node[slot,draw=sgRed,fill=sgRed!7] at (70,153) {011};
+  \node[slot,fill=sgInk!3] at (125,153) {000};
+  \node[anchor=north,text=sgRed,align=center,text width=149pt] at (78,182)
+    {neither original\\fingerprint remains};
+  \node[anchor=north west] at (0,217) {\texttt{000}: empty slot};
 
-  \node[pd title,anchor=west] at (.05,5.42) {unsafe: merge encoding};
-  \node[pd title,anchor=west] at (5.68,5.42) {safe: merge IDs};
-  \draw[pd hairline] (5.40,.40) -- (5.40,5.16);
-
-  % Left panel: two history-dependent placements are retained by OR.
-  \node[pd label,anchor=east] at (1.08,4.50) {A filter};
-  \foreach \i in {1,...,5} \node[bucket] (la\i) at ({1.40+(\i-1)*\dx},4.50) {};
-  \node[bucket,pd focus fill] at (la1) {c1};
-  \node[pd label,anchor=east] at (1.08,3.72) {B filter};
-  \foreach \i in {1,...,5} \node[bucket] (lb\i) at ({1.40+(\i-1)*\dx},3.72) {};
-  \node[bucket,pd focus fill] at (lb4) {c1};
-
-  \node[pd breach state,minimum width=2.10cm,minimum height=.66cm]
-    (or) at (2.68,2.55) {bitwise OR};
-  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
-    (la3.south) -- (or.north west);
-  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
-    (lb3.south) -- (or.north east);
-
-  \node[pd label,anchor=east] at (1.08,1.18) {invalid};
-  \foreach \i in {1,...,5} \node[bucket] (lo\i) at ({1.40+(\i-1)*\dx},1.18) {};
-  \node[bucket,pd breach fill] at (lo1) {c1};
-  \node[bucket,pd breach fill] at (lo4) {c1};
-  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
-    (or.south) -- (lo3.north);
-  \node[pd breach label,anchor=north] at (2.68,.65) {c1 twice};
-
-  % Right panel: merge semantic IDs, then project once into local geometry.
-  \node[pd artifact,minimum width=2.15cm] (logA) at (6.88,4.32)
-    {A: \texttt{c1 c7 c4}};
-  \node[pd artifact,minimum width=2.15cm] (logB) at (9.48,4.32)
-    {B: \texttt{c2 c1 c9}};
-  \node[pd focus state,minimum width=3.20cm,minimum height=.88cm]
-    (rebuild) at (8.18,2.72) {set union\\rebuild locally};
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
-    (logA.south) -- (rebuild.north west);
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
-    (logB.south) -- (rebuild.north east);
-
-  \node[pd label,anchor=east] at (6.68,1.18) {valid};
-  \node[bucket,pd focus fill] (ro1) at (7.00,1.18) {c1};
-  \foreach \i/\v in {2/c2,3/c4,4/c7,5/c9}
-    \node[bucket,pd neutral fill] (ro\i) at ({7.00+(\i-1)*\dx},1.18) {\v};
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
-    (rebuild.south) -- (ro3.north);
-  \node[pd focus label,anchor=west] at (10.18,1.18) {c1 once};
-\end{tikzpicture}
-\caption{Paired dataflows compare unsafe filter-state union with semantic
-ID-set union. Bitwise OR leaves \texttt{c1} in two buckets; a local rebuild
-from merged IDs places it exactly once. [internal]}
+  \SGDocument{logA}{(174,34)}{67}{34}{sgViolet!8}{peer A\\ID \texttt{c1}}
+  \SGDocument{logB}{(250,34)}{67}{34}{sgAmber!8}{peer B\\ID \texttt{c2}}
+  \node[sg/check,draw=sgTeal,fill=sgTeal!6,minimum width=116pt,
+    minimum height=32pt] (union) at (246,105) {union IDs\\$\{\mathtt{c1},\mathtt{c2}\}$};
+  \draw[sg/arrow,draw=sgViolet] (logA.south)--(207.5,80)--(union.north west);
+  \draw[sg/arrow,draw=sgAmber] (logB.south)--(283.5,80)--(union.north east);
+  \draw[sg/arrow,draw=sgTeal] (union.south)--(246,162);
+  \node[anchor=east,text=sgTeal,align=right] at (236,141) {local\\rebuild};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (218,182) {001};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (273,182) {010};
+  \node[anchor=north,text=sgTeal,align=center,text width=145pt] at (246,208)
+    {both fingerprints found};
+\end{tikzpicture}}
+\caption{Bitwise OR corrupts stored fingerprints; set union preserves the
+identifiers needed to rebuild them. Two-bucket example with one three-bit
+slot per bucket.}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

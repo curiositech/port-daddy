@@ -81,17 +81,9 @@ $\delta$ & closed-form $(p_d)^{\star}$ & grid flips at \\
 0.99 & 0.0541 & 0.10 \\
 \bottomrule
 \end{tabularx}}
-\caption{A6 --- cartel sustainability under the grim-trigger folk theorem,
-the tested $(p_d,\delta)$ grid ($5{,}000$ trials/configuration, $200$
-rounds, cartel size $3$). \colorbox{pdamber!24}{S} marks a sustainable
-cell; \colorbox{pdhealth!24}{C} marks one that collapses. The sustainable
-band widens by at most one column as patience $\delta$ rises, and the
-simulated flip point matches the closed-form threshold $(p_d)^\star(\delta)$
-of \S\ref{sec:youle:a6} to within one tested grid step at every $\delta$ (table
-below) --- at $\delta=0.95$, $(p_d)^\star\approx0.0478$ against a simulated
-flip at $p_d=0.05$. The matplotlib original right panel (mean rounds to
-first detection) is not redrawn
-here; the sustainability frontier above is the section's load-bearing
-result. [verified, proofs/bonded/pareto/simulation-cartel.mjs]}
+\caption{S means the cartel sustains; C means it collapses. Every simulated
+boundary lies within one tested grid step of the closed-form threshold
+(\S\ref{sec:youle:a6}). Each configuration uses 5{,}000 trials, 200 rounds,
+and three colluders. [verified, \protect\path{proofs/bonded/pareto/simulation-cartel.mjs}]}
 \label{fig:cartel-folk}
 \end{figure}

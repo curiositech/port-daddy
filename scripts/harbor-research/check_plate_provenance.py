@@ -135,7 +135,7 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png")
 
 # See the "TODO" paragraph in the module docstring before adding an
 # exemption instead of adding a directory here.
-REQUIRED_PROVENANCE_DIRS = {"swiss", "technical"}
+REQUIRED_PROVENANCE_DIRS = {"swiss", "technical", "interstitial"}
 
 ASPECT_FIELDS = ("final_aspect", "generation_aspect", "aspect")
 ASPECT_TOLERANCE = 0.02  # 2%

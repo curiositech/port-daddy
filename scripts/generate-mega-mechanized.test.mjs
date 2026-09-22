@@ -155,7 +155,7 @@ test('renderMechanizedClaims labels a Kani row with its harness function alongsi
   );
 });
 
-test('renderMechanizedClaims prints a shared directory once and stacks the remaining basenames one per line', () => {
+test('renderMechanizedClaims keeps short path groups together in wide labeled rows', () => {
   const manifest = fixtureManifest();
   manifest.formalArtifacts.push({
     id: 'multi-path-tla',
@@ -168,21 +168,12 @@ test('renderMechanizedClaims prints a shared directory once and stacks the remai
     evidencePolicy: 'CI artifact per run',
     ci: { status: 'wired', job: ['tla-fixture'] },
   });
-  const rendered = renderMechanizedClaims(manifest);
-  // The shared "proofs/multifixture/" directory is printed once, annotated
-  // with the file count, not repeated before every one of the two basenames
-  // -- repeating an 18-path row's shared prefix on every line was the actual
-  // remaining cause of an overfull \hbox this emitter hit and fixed.
-  assert.match(rendered, /\\path\{proofs\/\}\\allowbreak \\path\{multifixture\/\}\\ \\textit\{\(2 files\)\}/);
-  // The two basenames follow, joined by a forced \newline (not a wrapped
-  // comma list), each still through \path{} for its raw underscore/dot.
-  assert.match(rendered, /\\path\{Model\.\}\\allowbreak \\path\{tla\}\\newline\{\}\\path\{Model\.\}\\allowbreak \\path\{cfg\}/);
-  assert.doesNotMatch(rendered, /Model\.tla.*,.*Model\.cfg/s);
-  // And the shared directory itself appears exactly once in this row, not twice.
-  assert.equal((rendered.match(/proofs\/\}\\allowbreak \\path\{multifixture\/\}/g) ?? []).length, 1);
+  const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
+  assert.match(rendered, /Artifact & \\path\{proofs\/multifixture\/Model\.tla\} \\\\\*\nArtifact & \\path\{proofs\/multifixture\/Model\.cfg\} \\\\\*/);
+  assert.doesNotMatch(rendered, /\\footnotesize|\\scriptsize|\\tiny/);
 });
 
-test('renderMechanizedClaims falls back to one \\newline per full path when multiple paths share no directory', () => {
+test('renderMechanizedClaims retains full paths even when directories differ', () => {
   const manifest = fixtureManifest();
   manifest.formalArtifacts.push({
     id: 'multi-path-no-shared-dir',
@@ -196,11 +187,11 @@ test('renderMechanizedClaims falls back to one \\newline per full path when mult
     ci: { status: 'wired', job: ['fixture-job'] },
   });
   const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
-  assert.match(rendered, /\\path\{analyses\/one\.pv\}\\newline\{\}\\path\{proofs\/two\.tla\}/);
+  assert.match(rendered, /Artifact & \\path\{analyses\/one\.pv\} \\\\\*\nArtifact & \\path\{proofs\/two\.tla\} \\\\\*/);
   assert.doesNotMatch(rendered, /files\}/);
 });
 
-test('renderMechanizedClaims falls back to ci.reason (retired) or an em dash (wired) for research artifacts, which have no evidencePolicy field', () => {
+test('renderMechanizedClaims states retirement reasons without inventing or repeating evidence policies', () => {
   const manifest = fixtureManifest();
   manifest.researchProgramArtifacts.push({
     id: 'monte-fixture-retired',
@@ -211,9 +202,12 @@ test('renderMechanizedClaims falls back to ci.reason (retired) or an em dash (wi
     ci: { status: 'retired', reason: 'superseded & no longer run' },
   });
   const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
-  // Wired research artifact: no evidencePolicy field exists for its kind, so
-  // the cell reads the house "not applicable" mark rather than inventing text.
-  assert.match(rendered, /\\texttt\{monte-fixture\} & \\path\{proofs\/fixture\/simulate\.mjs\} & \\texttt\{monte-carlo-fixture\} & \\textsc\{current\} & --- \\\\/);
+  // A missing evidencePolicy is omitted, not replaced with invented text.
+  assert.match(rendered, /\\texttt\{monte-fixture\}/);
+  assert.match(rendered, /Status & \\textsc\{current\} \\\\\*/);
+  assert.match(rendered, /Artifact & \\path\{proofs\/fixture\/simulate\.mjs\}/);
+  assert.ok(rendered.includes('CI & \\texttt{monte-carlo-fixture} \\\\'));
+  assert.doesNotMatch(rendered, /Evidence & ---/);
   // Retired research artifact: ci.reason is real, recorded content, so it
   // fills the evidence-policy column instead of a bare dash.
   assert.match(rendered, /superseded \\& no longer run/);
@@ -283,15 +277,32 @@ test('the real whitepaper/corpus.json renders end to end without drift', () => {
   }
 });
 
-test('renderMechanizedClaims keeps every caption on the page of its first table chunk', () => {
+test('renderMechanizedClaims uses one caption and first head for each page-breaking record table', () => {
   const rendered = renderMechanizedClaims(fixtureManifest());
-  const captionCount = [...rendered.matchAll(/\\captionof\{table\}/g)].length;
-  // Each caption opens inside an unbreakable full-width minipage ...
-  const opened = [...rendered.matchAll(/\\noindent\\begin\{minipage\}\{\\textwidth\}\n\\captionof\{table\}/g)].length;
-  assert.equal(opened, captionCount, 'every caption is preceded by the minipage opener');
-  // ... and that minipage closes right after the FIRST chunk's \end{tabularx},
-  // so later chunks (marked "(continued)") keep their own page-break points.
-  const closed = [...rendered.matchAll(/\\end\{tabularx\}\n\\end\{minipage\}/g)].length;
-  assert.equal(closed, captionCount, 'exactly one minipage close per table, after its first chunk');
-  assert.doesNotMatch(rendered, /\(continued\)\}\n\n\\begin\{tabularx\}[^]*?\\end\{tabularx\}\n\\end\{minipage\}/, 'a continuation chunk is never inside the minipage');
+  const tables = rendered.split('\\begin{xltabular}').slice(1);
+  assert.equal(tables.length, 3);
+  for (const table of tables) {
+    assert.equal((table.match(/\\caption\{/g) ?? []).length, 1);
+    assert.ok(table.indexOf('\\caption{') < table.indexOf('\\endfirsthead'));
+    assert.match(table, /\\endhead/);
+    assert.match(table, /\\textbf\{Field\} & \\textbf\{Artifact record\}/);
+  }
+  assert.doesNotMatch(rendered, /\\begin\{minipage\}|\\captionof/);
+});
+
+test('record layout retains every manifest field without ordinary word fragmentation', () => {
+  const manifest = fixtureManifest();
+  manifest.formalArtifacts[0].evidencePolicy = 'Verification establishes only the stated boundary.';
+  const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
+  for (const row of [...manifest.formalArtifacts, ...manifest.researchProgramArtifacts]) {
+    assert.ok(rendered.includes(row.id));
+    for (const path of row.paths) assert.ok(rendered.includes(path));
+    if (row.ci.status === 'wired') {
+      for (const job of row.ci.job) assert.ok(rendered.includes(job));
+    }
+    assert.ok(rendered.includes(`\\textsc{${row.status}}`));
+  }
+  assert.match(rendered, /retired --- superseded \\& no longer run/);
+  assert.ok(renderMechanizedClaims(manifest).includes('Verification establishes only the stated boundary.'));
+  assert.ok(renderMechanizedClaims(manifest).includes('foremost'));
 });

@@ -12,6 +12,13 @@
 }
 \input{coordination-papers-mega-volume-preamble.tex}
 \input{coordination-papers-mega-volume-seams.tex}
+% References belong beside the discussion throughout the assembled Book.
+% The registry remains build data; standalone chapter behavior is unchanged.
+\providecommand{\pdEnableMarginCitations}{1}
+\ifdefined\pdEnableMarginCitations
+  \input{figures/pd-book-citations.tex}
+  \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-margin-references.tex}{margin references}
+\fi
 \hypersetup{
   pdftitle={\pdeditiontitle: \pdeditionsubtitle},
   pdfauthor={Erich Owens},
@@ -144,8 +151,8 @@ suffice, measurable where uncertainty remains, and contestable everywhere else.
 
 \section*{What is built, what is modelled, what is proposed}
 \addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
-This book is ahead of the product, and it says so here rather than in a
-footnote. What runs today is a local daemon --- a single-writer SQLite/WAL
+The book includes designs that the product does not yet implement.
+The implemented core is a local daemon: a single-writer SQLite/WAL
 path for sessions, claims, messages, commitments, and coordination state ---
 together with the operator projections derived from those records (each with
 a route back to the artifact it summarizes), durable work and obligation
@@ -155,7 +162,7 @@ authenticated events outbound. Those parts are built and regression-tested,
 and each of them is graded \emph{built, weakly} in
 \hyperref[app:volume-status]{the implementation boundary}, because
 filesystem and network effects outside the mediated paths lie outside the
-transaction, and the grade is honest about that. Most of the rest is
+transaction. Most of the rest is
 modelled and machine-checked but not running: the sealed room's
 noninterference and its release ledger, attenuation at every hop, the
 incentive to signal claims truthfully, conservation of the bond ledger, and
@@ -175,47 +182,69 @@ model, and not only the right confinement model, is an open empirical
 question, and a pre-registered study kept separate from the product
 (\texttt{studies/substrate-study} in the repository) is testing it against
 per-agent worktrees with a merge queue. Until that study reports, the rail
-stands as a design invariant; the book does not yet know whether it is also a
-good model of collaboration, and it would rather say so than guess. Every
+stands as a design invariant, not an empirically established collaboration
+model. Every
 important statement in the chapters is labelled by kind (theorem, design
 invariant, model-checked property, or empirical hypothesis), every runtime
 claim names its assurance mode, and the appendix keeps the ledger of both.
 
 \section*{How to use this textbook}
 \addcontentsline{toc}{section}{How to use this textbook}
-The unit of account in this book is the work, not the agent. A work unit is a
-case file: who authorized it, what it may touch, what it did, what evidence it
-left, what it still owes, and who pays if it fails. Every chapter builds or
-defends one part of that file. The chapters are ordered so that each stands on
-the ones before it, and each proving chapter follows the chapter whose promises
-it discharges. Read in order for the argument, or enter at the question you
-need: where a rule can be made real (\pdchapref{swk}{The Single-Writer
-Kernel}); how authority travels without growing (\pdchapref{anchor}{The Anchor
-Protocol}); what two owners who distrust each other may compute together,
-and what its only exit may leak (\pdchapref{sealed}{The Sealed Harbor});
-what an operator must be able to see (\pdchapref{ls}{The Legible
-Swarm}); what remains long enough to owe anything (\pdchapref{stp}{From Spawn
-to Person}); what makes exchange rational (\pdchapref{he}{The Harbor Economy});
-who may decide, on what evidence (\pdchapref{bonded}{The Bonded Commons}); and
-what may cross a trust boundary (\pdchapref{fh}{The Federated Harbor}). No
-chapter carries its own abstract or reader's map, in this edition or any
-other; each chapter simply opens on the question it answers and begins with
-its argument. What follows is the one reader's map this book keeps: not a
-table repeated once per chapter, but a single figure tracing five kinds of
-reader through the book's four parts, drawn once, in front, where a route can
-be checked against the whole argument instead of guessed one chapter at a
-time.
+A work unit records who authorized a job, what it may touch, what happened,
+and who remains responsible afterward. The chapters develop the mechanisms
+needed to keep that record useful across concurrent work, restarts, and
+transactions between operators.
+
+Read chapters 1--8 in order for the full argument. For a first visit, choose
+a question below. These are short entry routes; the facing-page map shows
+where to continue for a deeper reading.
+
+\begin{description}[style=nextline,leftmargin=0pt]
+\item[Why do agents need coordination?]
+Start with Mara's refactor in \hyperref[ls:sec:mara]{Chapter 4's worked
+afternoon}. Follow the failure taxonomy and the summary-with-evidence
+example. Stop when you can explain why a green test report may still need
+inspection. You do not need the information-theory derivation on this pass.
+\item[What survives a crash?]
+Read \hyperref[swk:sec:durability]{Chapter 1's durability section} and its
+fault-class table, then the recovery discussion. Check that you can
+distinguish a process crash from power loss before following the proofs.
+\item[What may a delegated agent do?]
+Start with \hyperref[anchor:sec:problem]{Chapter 2's reused-process-ID
+example}, then follow the permission chain and its limitations. Continue
+to Chapter 3 if your question concerns data confinement.
+\item[How could two operators trade work?]
+Read Chapter 5's restart example, then Chapter 6's worked settlement.
+Use Chapters 7 and 8 to inspect disputes and cross-machine assumptions.
+An ability to follow the ledger arithmetic is enough for the first pass.
+\end{description}
+
+\noindent This is a book about mechanisms and their limits, not an installation
+guide or a product-approval checklist. For deployment decisions, begin with
+the \hyperref[app:volume-status]{implementation boundary} and check the
+current software separately. The chapter's label tells you what kind of
+evidence supports a claim; it does not certify a deployment.
+
+Cross-references are live. Chapter titles, section numbers, theorems, figures,
+tables, exercises, page numbers, and citations are links.
+\ifdefined\pdEnableMarginCitations
+Sources appear in the margin beside the discussion: full details at first
+use, shorter references thereafter. A repeated reference links back to its
+full entry.
+\else
+Every bibliography entry ends with the pages that cite it.
+\fi
 
 % A spread begins on a verso and ends on the facing recto. This is a page
 % architecture guarantee, not a hope that two consecutive pages face.
 % The map invokes this prose between its two halves. Keeping the words here
 % leaves the figure responsible only for spread geometry and the reading key.
 \newcommand{\pdreaderleftprose}{%
-There are two ways through every result. Each opens with an express lane, the
-claim in one breath and a pointer to the box that states it precisely; readers
-who know the field read the lane and the box and move on, and everyone else
-reads straight through the scene, the analogy, the box, the numbers worked by
-hand, what the result buys, and where it stops. Worked numbers carry a tag:
+Use an express-lane paragraph to locate a claim, then read its assumptions
+and evidence label. If the notation is unfamiliar, start with the worked
+example and return to the formal statement. When resuming after a break,
+the chapter question and the last example provide a useful starting point.
+Worked numbers carry a tag:
 \textsf{[verified]} when a named script in the repository regenerates them,
 \textsf{[internal]} when only the chapter's own derivation does. Exercises come
 in three kinds, \textsc{Check}, \textsc{Trace}, and \textsc{Open}, rated one to
@@ -227,12 +256,14 @@ exercise and solution links to the other.\par}
 
 Every important statement is labeled by what backs it. A \emph{Theorem} follows
 from a stated formal model with explicit assumptions. A \emph{Design invariant}
-is intended to hold and is backed by the implementation and its tests. A
+states a requirement the design intends to preserve; its implementation status
+and evidence are recorded separately. A
 \emph{Model-checked property} holds for a bounded model that a checker
 exhausted. An \emph{Empirical hypothesis} awaits measurement. Runtime claims
 name one of five assurance modes, \emph{Observed}, \emph{Coordinated},
-\emph{Brokered}, \emph{Confined}, and \emph{Attested}, in increasing order of
-what the harbor itself enforces. The implementation status vocabulary is
+\emph{Brokered}, \emph{Confined}, and \emph{Attested}. These name distinct
+properties, not a universal security ranking: attesting a measurement does not
+by itself establish confinement. The implementation status vocabulary is
 equally strict: \Built{} means running code exercised by tests; \BuiltWeak{}
 means a running slice that does not yet satisfy its full contract;
 \Designed{} means a concrete design without a shipping realization;
@@ -241,11 +272,9 @@ finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
 
 \clearpage
-\paragraph{Four ways to teach from this book.} The eight chapters are written to
-be read in order and they do not have to be. Each of the paths below is a
-coherent semester that ends somewhere, rather than a subset that merely omits
-things, and each names the chapter that carries the weight of that discipline's
-own question.
+\paragraph{Four ways to teach from this book.} The course paths below select
+chapters in book order. Each path leaves the other chapters as reference;
+instructors should check prerequisite definitions before assigning an excerpt.
 
 \begin{table}[H]
 \centering
@@ -300,12 +329,11 @@ transition: a before-state, a stimulus, what the harness observed and put in
 front of the model, which authority permitted or refused the next act, what
 the agent did, the after-state, and the receipt that binds them. That is the
 work unit's receipt chain of \pdchapref{swk}{The Single-Writer Kernel} applied
-to the harness's own conduct. The invariant is the one this book applies to
-everything else. Watching a feature run once and behave establishes nothing
-(one of us has watched a harness behave beautifully for an evening and fall
-over at breakfast); what establishes a harness claim is a controlled Genesis
-that produces a Voyage whose consequential transitions are supported by
-durable evidence and an adjudication receipt. The first Genesis the book
+to the harness's own conduct. One successful run establishes what happened
+in that case; it does not show which other conditions the harness can handle.
+To support a broader claim, repeat a controlled Genesis under the relevant
+conditions and retain the Voyage's consequential transitions, durable evidence,
+and adjudication receipt. The first Genesis the book
 cites is the substrate study
 named above, and the same Genesis replayed under different harness conditions
 is how the questions in this book that are still empirical hypotheses become
@@ -325,10 +353,6 @@ and carries the assessor's error rate. \emph{Buyer preference} shows what was
 chosen, not that the choice was right. A \emph{delayed outcome} shows what
 happened, and arrives too late to prevent it. The reader should ask the same
 question of any dashboard: which channel, and what can it not show.
-
-Cross-references are live. Chapter titles, section numbers, theorems, figures,
-tables, exercises, page numbers, and citations are links, and every
-bibliography entry ends with the pages that cite it.
 
 \cleartoleftpage
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{complete contents}
@@ -389,12 +413,8 @@ order the book is read.
   permitted to do with it.
 \end{enumerate}
 
-Together they form one causal chain. The kernel marks where effects become
-real; the protocol keeps delegated authority from growing on its way there;
-legibility states what a human must recover; continuity gives the record a
-durable subject; the economy bounds consequence and prices it; the commons
-connects evidence to remedy; federation carries those objects without
-pretending that transport creates consensus.
+Read these as a dependency chain: each chapter uses earlier mechanisms and
+states what they cannot guarantee.
 
 \subsection{What counts as knowing}
 Every consequential statement has a status and a boundary. Derivations establish
@@ -410,8 +430,11 @@ claims the research killed rather than conclusions it merely failed to prove.
 result's source, status, conditions, boundary, chapter home, and verification
 artifact. The chapters stand alone; the book's claim is the chain they make.
 
-\cleardoublepage
-\pagenumbering{arabic}
+% The first part is a verso/recto spread. Align the physical leaf before
+% resetting the counter; a recto reset followed by another verso clear used
+% to insert two empty leaves after an odd-length introduction.
+\cleartoleftpage
+\pagenumbering{arabic}\setcounter{page}{2}
 \hypersetup{pageanchor=true}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}

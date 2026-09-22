@@ -49,16 +49,8 @@
     {worked instance: $(100,0,0,0)\to(0,100,0,0)\to(0,0,100,0)$ with $C{=}90{+}10$,
     or the refuse branch $\to(0,0,0,100)$};
 \end{tikzpicture}
-\caption{\textbf{One bond, one bucket, at any time.} A funded bond of amount
-$a_b$ moves through exactly one path: posted at $A$, locked in escrow, then
-either \textbf{clear} (paid out, with the fee an explicit second cleared
-recipient rather than a silent subtraction) or \textbf{refuse} (returned to
-$A$). Design Invariant~\ref{prop:fh-cross-cons}'s own worked instance is
-annotated on the pipes: a \$100 bond clears as \$90 to the counterparty plus
-\$10 in fees, or refunds the whole \$100 on the dashed branch. The four
-buckets always sum to $a_b$, and only one is ever nonzero -- a fee that
-vanished from the row would be the first sign of a broken partition. The
-\texttt{Bucket} partition is model-checked by Apalache at $|F|=4$ harbors and
-bond depth 16 (\S\ref{sec:fh-tla-ext}). [internal]}
+\caption{Whole-bond status, not recipient balances. Clearance may divide the
+funds among payment, remainder, and fee. The status partition was model-checked
+for four harbors through depth 16; recipient conservation is a separate check. [internal]}
 \label{fig:fh-conservation-ledger}
 \end{figure}

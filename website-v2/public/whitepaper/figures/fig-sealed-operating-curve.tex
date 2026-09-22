@@ -1,79 +1,91 @@
-% Restyle of fig-sealed-operating-curve to the tikz-diagram-craft v2 standard
-% (both plots are unchanged; only roles and column width are new).
-%
-% Reader question: how fast does detection power climb with canaries carried,
-% and how long does the sequential test run?
-% Claim: power climbs fast (three canaries already catch 99.2% of leaks) and
-% the sequential test resolves in a few hundred outputs either way.
-% Evidence: Theorem sealed-power, Theorem sealed-latency, website-v2/public/
-% whitepaper/sealed-harbor.tex, Sec.~sealed-detection, "Verification" and
-% "Numbers by hand" [internal, a4_canary_sprt.py].
-% Must distinguish: the marked anchor (k=3, 0.992) on the power curve from
-% the rest of the climb; the null run length from the leak run length.
-% Grammar chosen: two-panel measured plot (pgfplots) -- power against k with
-% the anchor marked, expected run length under null and leak as a bar pair.
-% Grammar rejected: a single unlabeled curve would lose the worked anchor;
-% a pie of outcomes has no axis for a run-length comparison.
-% Five-second test: how many canaries reach 99%, and which run is longer.
-% NOTE for the author: pgfplots centers `title=` on the axis without
-% constraining its width, so a long bold title silently overflows the column
-% independent of the axis `width=` (found via this figure: an un-constrained
-% title alone pushed technical ink to 4.75in against a 6.6cm-wide axis).
-% Fixed here with an explicit `text width` on `title style`; worth a QA-script
-% check (figcheck T7/ink) if other pgfplots fragments carry long titles.
+% Native analytical power / approximate and chapter-reported stopping comparison.
+% Upper: exact conditional power 1-beta^k at integer k, beta=.2.
+% Lower: Wald approximations versus chapter-reported simulation means.
+% The source-reported simulation values are not rerun or promoted to CIs here.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure]
+\tikzset{
+  oc axis/.style={font=\SGType,text=pdinkmuted},
+  oc tick/.style={font=\SGType,text=pdinkmuted},
+  oc text/.style={font=\SGType,text=pdink,align=left},
+  oc focus/.style={font=\SGType,text=pdfocus!85!pdink,align=left},
+  oc guide/.style={draw=pdink,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  oc pair/.style={draw=pdinkmuted,line width=.35pt},
+}
+\SGMeasuredFigure{VIII/fig:sealed-operating-curve}{%
+\begin{tikzpicture}[pd figure,font=\SGType]
+  % Conditional analytic power: integer k is a parameter, not a measurement.
   \begin{axis}[
-    width=5.9cm,height=4.2cm,
+    name=power,
+    pd axis,
+    width=225pt,height=100pt,
     axis lines=left,
-    title={detection power climbs fast in the number of canaries carried},
-    title style={font=\pdfiglabelbold,text=pdink,yshift=-2pt,align=center,text width=5.3cm},
-    xmin=0.5,xmax=8.5,ymin=0,ymax=1.05,
-    xlabel={smuggled canaries $k$ (per-canary miss rate $\beta=0.2$)},
-    ylabel={detection probability},
-    xlabel style={font=\pdfiglabel,text=pdinkmuted,align=center,text width=5.6cm},
-    ylabel style={font=\pdfiglabel,text=pdinkmuted},
-    tick label style={font=\pdfiglabel,text=pdinkmuted},
+    xmin=0,xmax=8.5,ymin=0,ymax=1.03,
+    xlabel={canaries carried $k$ (integer)},
+    ylabel={conditional detection probability},
+    xlabel style={oc axis,align=center},
+    ylabel style={oc axis},
+    tick label style={oc tick},
+    xtick={0,1,2,3,4,5,6,7,8},
+    ytick={0,.50,1.00},
+    yticklabels={0,.50,1.00},
     axis line style={pd hairline},
     tick style={pd tick},
-    xtick={1,2,3,4,5,6,7,8},
-    ytick={0,0.25,0.5,0.75,1.0},
     clip=false,
   ]
-    \addplot[domain=1:8,samples=8,pd rule,mark=*,mark size=1.1pt,mark options={fill=pdink}] {1-0.2^x};
-    \addplot[only marks,mark=*,mark size=1.7pt,draw=pdfocus,fill=pdfocus] coordinates {(3,0.992)};
-    \draw[pd guide] (axis cs:3,0) -- (axis cs:3,0.992);
-    \node[pd focus label,anchor=north west,align=left,text width=3.2cm] at (axis cs:4.4,0.62) {$k=3$: caught with probability $0.992$};
+    \addplot[draw=pdink,line width=1.05pt,mark=none,domain=0:8,samples=9]
+      {1-0.2^x};
+    \addplot[only marks,mark=*,mark size=2.4pt,draw=pdfocus,fill=pdfocus]
+      coordinates {(3,.992)};
+    \draw[oc guide] (axis cs:3,0) -- (axis cs:3,.992);
+    \node[oc focus,anchor=west] at (axis cs:3.25,.82)
+      {$k=3$: $0.992$};
+    \node[oc text,anchor=west] at (axis cs:5.05,.18)
+      {$1-\beta^k$};
   \end{axis}
-\end{tikzpicture}
 
-\vspace{4pt}
-\begin{tikzpicture}[pd figure]
+  \begin{scope}[yshift=-150pt]
+  % Paired evidence classes: open circle = Wald approximation; filled square
+  % = chapter-reported simulation mean, not a new rerun or CI.
   \begin{axis}[
-    xbar,
-    width=5.9cm,height=3.6cm,
-    bar width=9pt,
+    name=latency,
+    pd axis,
+    width=225pt,height=85pt,
     axis lines=left,
-    xmin=0,xmax=520,ymin=0.4,ymax=2.6,
+    xmin=0,xmax=500,ymin=.2,ymax=2.75,
+    xlabel={outputs to stopping decision $N$},
+    xlabel style={oc axis,align=center},
+    tick label style={oc tick},
     ytick={1,2},
-    yticklabels={{under the null},{under a leak}},
-    y tick label style={font=\pdfiglabel,text=pdink,text width=2.1cm,align=right},
-    xlabel={expected outputs to a stopping decision, $\mathbb{E}[N]$ (Wald)},
-    xlabel style={font=\pdfiglabel,text=pdinkmuted,align=center,text width=5.6cm},
-    tick label style={font=\pdfiglabel,text=pdinkmuted},
+    yticklabels={under null,under leak},
+    y tick label style={font=\SGType,text=pdink, text width=2.2cm,align=right},
+    xtick={0,100,200,300,400,500},
     axis line style={pd hairline},
     tick style={pd tick},
-    xtick={0,100,200,300,400,500},
     clip=false,
   ]
-    \addplot[pd neutral fill] coordinates {(431.9,1)};
-    \addplot[pd focus fill] coordinates {(296.9,2)};
-    \node[pd label,anchor=west,text=pdink] at (axis cs:436,1) {$431.9$};
-    \node[pd label,anchor=west,text=pdink] at (axis cs:301,2) {$296.9$};
+    % Symmetric vertical dodge preserves true x values; thin connectors pair
+    % the approximation and chapter-reported mean, not an error bar.
+    \draw[oc pair] (axis cs:431.9,1.12) -- (axis cs:438.1,.88);
+    \draw[oc pair] (axis cs:296.9,2.12) -- (axis cs:359.0,1.88);
+    \addplot[only marks,mark=o,mark size=2.25pt,draw=pdink,fill=pdpage]
+      coordinates {(431.9,1.12) (296.9,2.12)};
+    \addplot[only marks,mark=square*,mark size=2.25pt,draw=pdfocus,fill=pdfocus]
+      coordinates {(438.1,.88) (359.0,1.88)};
+
+    \node[oc text,anchor=west] at (axis cs:12,2.57)
+      {$\circ$ Wald no-overshoot};
+    \node[oc focus,anchor=west] at (axis cs:225,2.57)
+      {$\blacksquare$ chapter-reported mean};
+
+    \node[oc text,anchor=east] at (axis cs:290,2.12) {$296.9$};
+    \node[oc focus,anchor=west] at (axis cs:367,1.88) {$359.0$};
+    \node[oc text,anchor=south] at (axis cs:431.9,1.25) {$431.9$};
+    \node[oc focus,anchor=north] at (axis cs:438.1,.75) {$438.1$};
   \end{axis}
-\end{tikzpicture}
-\caption{Top: the power curve, detection probability against canaries carried, at the measured per-canary miss rate $\beta=0.2$; the chapter's anchor, three canaries caught with probability $0.992$, is marked. Bottom: the sequential test's expected run length at a null hit-rate of $0.001$, a leak hit-rate of $0.01$, a false-alarm target of $0.01$, and a miss target of $0.05$ -- Wald's formula gives $431.9$ expected outputs under the no-leak null and $296.9$ under exfiltration, idealized against a simulated overshoot of $438.1$ and $359.0$ respectively, which only helps the realized error rates.}
+  \end{scope}
+\end{tikzpicture}}
+\caption{Three carried canaries give 99.2\% conditional detection at $\beta=.2$. The stopping-time comparison uses $p_0=.001$, $p_1=.01$, $\alpha=.01$, $\gamma=.05$; reported capped simulation means have no supplied uncertainty and do not certify error control.}
 \label{fig:sealed-operating-curve}
 \end{figure}

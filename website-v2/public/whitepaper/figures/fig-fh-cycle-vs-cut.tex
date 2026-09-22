@@ -49,11 +49,8 @@
   \node[pd state,minimum width=2.5cm,minimum height=.70cm,
     inner xsep=5pt,inner ysep=4pt] at (7.78,-1.35) {$r=0$: invisible};
 \end{tikzpicture}
-\caption{The same disagreement on edge 3--4 is placed on two six-harbor
-topologies. On $C_6$ that edge closes a visible cycle and the measured
-consistency radius is $r=1.2247$. On $P_6$, edge 6--1 is absent, so edge
-3--4 is a cut and the residual is exactly zero. Detection therefore depends
-on a visible cycle, not on the local disagreement alone. [verified,
-\texttt{sheaf\_consistency\_radius.py}; seed 20260816]}
+\caption{The same disagreement is detectable on the cycle ($r=1.2247$)
+but invisible on the path ($r=0$). Detection requires a visible cycle.
+[verified, \protect\path{sheaf_consistency_radius.py}; seed 20260816]}
 \label{fig:fh-cycle-vs-cut}
 \end{figure}

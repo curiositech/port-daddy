@@ -1,0 +1,1063 @@
+{
+  "scope": "Synthetic SQLite receiver; finite process-crash matrix, not runtime proof",
+  "script_sha256": "8fcbe645943730e4473a050c6f54710892a502c55ae0ca42513e0002e176a880",
+  "protocol_sha256": "b4e2dc03efbb9842a2a2f41b8bf8bee91fc269d8a9de71959c36e77c44fbadc1",
+  "python": "3.9.6 (default, Oct 17 2025, 17:15:53) \n[Clang 17.0.0 (clang-1700.4.4.1)]",
+  "sqlite": "3.51.0",
+  "primary_cases": [
+    {
+      "name": "journal_retry__none",
+      "policy": "journal_retry",
+      "cut": "none",
+      "exit_codes": [
+        0,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "journal_retry__before_effect",
+      "policy": "journal_retry",
+      "cut": "before_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "journal_retry__after_effect",
+      "policy": "journal_retry",
+      "cut": "after_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            2
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ],
+          [
+            2,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 2,
+        "units": 20
+      }
+    },
+    {
+      "name": "journal_retry__after_receipt",
+      "policy": "journal_retry",
+      "cut": "after_receipt",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "journal_hold__none",
+      "policy": "journal_hold",
+      "cut": "none",
+      "exit_codes": [
+        0,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "journal_hold__before_effect",
+      "policy": "journal_hold",
+      "cut": "before_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      }
+    },
+    {
+      "name": "journal_hold__after_effect",
+      "policy": "journal_hold",
+      "cut": "after_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "journal_hold__after_receipt",
+      "policy": "journal_hold",
+      "cut": "after_receipt",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "receiver_dedup__none",
+      "policy": "receiver_dedup",
+      "cut": "none",
+      "exit_codes": [
+        0,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "receiver_dedup__before_effect",
+      "policy": "receiver_dedup",
+      "cut": "before_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "receiver_dedup__after_effect",
+      "policy": "receiver_dedup",
+      "cut": "after_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "receiver_dedup__after_receipt",
+      "policy": "receiver_dedup",
+      "cut": "after_receipt",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    }
+  ],
+  "mutation_cases": [
+    {
+      "name": "mutant_forget_key",
+      "policy": "receiver_dedup",
+      "cut": "after_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            2
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ],
+          [
+            2,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            2
+          ]
+        ],
+        "effect_count": 2,
+        "units": 20
+      }
+    },
+    {
+      "name": "mutant_done_before_effect",
+      "policy": "journal_retry",
+      "cut": "before_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            999
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            999
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      }
+    }
+  ],
+  "binding_before": {
+    "local": [],
+    "effects": [
+      [
+        1,
+        "principal-1:payment-1",
+        10
+      ]
+    ],
+    "keys": [
+      [
+        "principal-1:payment-1",
+        10,
+        1
+      ]
+    ],
+    "effect_count": 1,
+    "units": 10
+  },
+  "binding_after": {
+    "local": [],
+    "effects": [
+      [
+        1,
+        "principal-1:payment-1",
+        10
+      ]
+    ],
+    "keys": [
+      [
+        "principal-1:payment-1",
+        10,
+        1
+      ]
+    ],
+    "effect_count": 1,
+    "units": 10
+  },
+  "receipt_oracle_mutations": {
+    "local_receipt": true,
+    "local_key": true,
+    "effect_receipt": true,
+    "effect_key": true,
+    "effect_payload": true,
+    "retained_key": true,
+    "retained_payload": true,
+    "retained_receipt": true,
+    "missing_retained_key": true
+  },
+  "restoration_cases": [
+    {
+      "name": "restored__none",
+      "policy": "receiver_dedup",
+      "cut": "none",
+      "exit_codes": [
+        0,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "restored__before_effect",
+      "policy": "receiver_dedup",
+      "cut": "before_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [],
+        "keys": [],
+        "effect_count": 0,
+        "units": 0
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "restored__after_effect",
+      "policy": "receiver_dedup",
+      "cut": "after_effect",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "pending",
+            null
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    },
+    {
+      "name": "restored__after_receipt",
+      "policy": "receiver_dedup",
+      "cut": "after_receipt",
+      "exit_codes": [
+        70,
+        0
+      ],
+      "before_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      },
+      "after_recovery": {
+        "local": [
+          [
+            "principal-1:payment-1",
+            "done",
+            1
+          ]
+        ],
+        "effects": [
+          [
+            1,
+            "principal-1:payment-1",
+            10
+          ]
+        ],
+        "keys": [
+          [
+            "principal-1:payment-1",
+            10,
+            1
+          ]
+        ],
+        "effect_count": 1,
+        "units": 10
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "journal_retry__none",
+      "pass": true
+    },
+    {
+      "name": "journal_retry__before_effect",
+      "pass": true
+    },
+    {
+      "name": "journal_retry__after_effect",
+      "pass": true
+    },
+    {
+      "name": "journal_retry__after_receipt",
+      "pass": true
+    },
+    {
+      "name": "journal_hold__none",
+      "pass": true
+    },
+    {
+      "name": "journal_hold__before_effect",
+      "pass": true
+    },
+    {
+      "name": "journal_hold__after_effect",
+      "pass": true
+    },
+    {
+      "name": "journal_hold__after_receipt",
+      "pass": true
+    },
+    {
+      "name": "receiver_dedup__none",
+      "pass": true
+    },
+    {
+      "name": "receiver_dedup__before_effect",
+      "pass": true
+    },
+    {
+      "name": "receiver_dedup__after_effect",
+      "pass": true
+    },
+    {
+      "name": "receiver_dedup__after_receipt",
+      "pass": true
+    },
+    {
+      "name": "equal_sender_state_different_effects",
+      "pass": true
+    },
+    {
+      "name": "forget_key_caught",
+      "pass": true
+    },
+    {
+      "name": "false_completion_caught",
+      "pass": true
+    },
+    {
+      "name": "payload_conflict_rejected_unchanged",
+      "pass": true
+    },
+    {
+      "name": "payload_binding_mutant_caught",
+      "pass": true
+    },
+    {
+      "name": "restored__none__receipt_effect_key_payload",
+      "pass": true
+    },
+    {
+      "name": "restored__before_effect__receipt_effect_key_payload",
+      "pass": true
+    },
+    {
+      "name": "restored__after_effect__receipt_effect_key_payload",
+      "pass": true
+    },
+    {
+      "name": "restored__after_receipt__receipt_effect_key_payload",
+      "pass": true
+    },
+    {
+      "name": "receipt_oracle_mutations_caught",
+      "pass": true
+    }
+  ],
+  "pass": true
+}

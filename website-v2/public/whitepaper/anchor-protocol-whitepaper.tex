@@ -127,7 +127,8 @@
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[
+0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Anchor Protocol:}}\\[0.2cm]
   {\Large A Mechanically Analyzed Control Plane\\for Local Agent Swarms}\\[0.3cm]
@@ -139,28 +140,20 @@
   \texttt{engineering@portdaddy.dev}
 }
 \date{September 2026\\Version 1.5 (textbook edition)}
-
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
-
 \begin{document}
 \pdopensolutions
 \setlength{\emergencystretch}{2em}
-
 \maketitle
 \thispagestyle{empty}
-
 \vspace{1cm}
-
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
-
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 30 minutes end-to-end. \pdchapref{bonded}{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026) carries the economic and governance argument; either paper can be read first.}
-
 \vspace{0.6cm}
-
 % --- Series locator box -------------------------------------------------------
 \begin{center}
 \begin{tikzpicture}
@@ -174,52 +167,41 @@
 };
 \end{tikzpicture}
 \end{center}
-
 \vspace{0.4cm}
-
 \tableofcontents
 \newpage
-
 % ═════════════════════════════════════════════════════════════════════════════
 \section{What problem this solves}\label{sec:problem}
 % ═════════════════════════════════════════════════════════════════════════════
-
 \textbf{The scene.} It is 2\,a.m.\ and your laptop is running four coding-agent sessions at once: one refactoring the auth module, one running the test suite against a local Postgres, one building a preview deployment, and one you started an hour ago and forgot about. All four are agents. All four can read your files, bind ports, and run shell commands with your full user permissions --- and none of them can tell, from the outside, which of the other three is behaving. Nothing on the machine distinguishes the forgotten session from a process that has quietly replaced it.
-
-That is the local swarm problem, and before naming its three shapes it is worth running the first one on a single number, because the whole chapter turns on how little that number says.
-
-\begin{pdexample}{the ghost in the harbor, traced through one PID}
+A process ID alone cannot distinguish the original agent from a replacement. Consider what happens when the operating system reuses it.
+\begin{pdexample}{The Ghost in the Harbor, Traced through One PID}
+\setlength{\parskip}{4pt plus 1pt}
 Agent~A holds a valid card and is running as PID~4021. It crashes at time $t$.
 Three seconds later the operating system reuses 4021 for an unrelated Agent~B,
 which presents A's card --- scavenged from a shared temp file, byte-identical,
-signature still good, expiry still in the future. Now do the comparison two
+signature still good, expiry still in the future.
+Now do the comparison two
 ways. A daemon that checks only the numeric process id computes $4021 = 4021$
 and admits B; a daemon that compares the peer credential against the
 socket-connection identity recorded at issuance \emph{and} re-validates the
-process start time computes $t+3 > t$ and refuses it. Nothing about the card
+process start time computes $t+3 > t$ and refuses it.
+Nothing about the card
 differs between the two readings --- every cryptographic check passes in both
 --- so the entire decision rests on a comparison the token cryptography never
 sees. That is why \S\ref{sec:limitations} lists this as a boundary rather than
 as a property, and why the fix is a runtime conformance test rather than a
 theorem. [internal]
 \end{pdexample}
-
 In a multi-agent development environment, agents operate concurrently to read files, spin up test servers, and execute commands, and this introduces three concrete failure modes on \texttt{localhost}:
-
 \begin{enumerate}
   \item \textbf{Port Squatting (The ``Ghost in the Harbor''):} If Agent A crashes, a malicious or malfunctioning Agent B can bind to Agent A's previously assigned port, intercepting traffic meant for A.
-  
   \item \textbf{Resource Contention:} Agents fighting over shared resources (e.g., a SQLite database file) without a centralized locking mechanism cause state corruption.
-  
   \item \textbf{Privilege Escalation:} A ``Reviewer'' agent delegated by a ``Coder'' agent should not possess the rights to initiate production deployments, yet local environments rarely enforce principle-of-least-privilege between processes.
 \end{enumerate}
-
-\paragraph{The idea in one breath.} \emph{Every agent on the machine carries a short-lived, cryptographically signed card that names exactly what it may do; anything it hands to a child is strictly smaller; and any card can be withdrawn before it expires.} Everything that follows is that sentence made precise, then mechanically checked.
-
+\paragraph{The protocol in brief.} \emph{An agent presents a short-lived signed card naming its permissions. A delegated card may grant no more authority than its parent. Revocation withdraws a card before expiry once the verifier receives the relevant epoch update.} The chapter distinguishes the implemented checks from the properties established by bounded or symbolic models.
 To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\pdcite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\pdcite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
-
 \paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Table~\ref{tab:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
-
 \vspace{4pt}
 \noindent\begin{tikzpicture}
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
@@ -229,15 +211,16 @@ To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}--
 };
 \end{tikzpicture}
 \vspace{4pt}
-
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The Anchor Protocol Architecture}\label{sec:architecture}
 % ═════════════════════════════════════════════════════════════════════════════
-
-The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-four-phases}; Table~\ref{tab:anchor-four-phases} tabulates the same four rows as a lookup reference).
-
+The Anchor Protocol defines how agents authenticate to a Harbor and to each other.
+It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens). We present
+four mechanisms as phases: algorithm pinning, asymmetric identity, delegation,
+and revocation. This ordering explains their security dependencies, not a release
+schedule or a claim that every mechanism is deployed
+(Figure~\ref{fig:anchor-four-phases}; Table~\ref{tab:anchor-four-phases}).
 \input{figures/fig-anchor-four-phases}
-
 \begin{table}[H]
 \centering
 \caption{The four phases as a lookup table, restating Figure~\ref{fig:anchor-four-phases}'s flow in row form. Threat closure is cumulative, not substitutive. Each phase closes one attack
@@ -258,35 +241,47 @@ that a later phase changes the key or the chain of, never the party that perform
 \bottomrule
 \end{tabularx}
 \end{table}
-
 Figure~\ref{fig:anchor-four-phases} draws the same table as a staircase: each
 threat's row turns from red (open) to the chapter hue (closed) at the phase
 that closes it, and the closure frontier moves strictly rightward, so no
 later phase reopens a threat an earlier one closed.
-
-A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Temporal attenuation is the same rule applied to the clock: a child's expiry is the earlier of its parent's expiry and the lifetime requested, so a twenty-minute child requested under a parent with ten minutes left is refused, and the acceptable narrower card is the one that inherits the parent's ten; in the capability lattice, lifetime is one more coordinate that moves down or stays. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
-
-\begin{pdexample}{a child card under a parent with ten minutes left}
+A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent. A child's expiry is the earlier of its parent's expiry and the requested expiry. A request for twenty minutes under a parent with ten minutes left therefore produces a ten-minute card; an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay unchanged, never widen. Figure~\ref{fig:anchor-capability-attenuation} separates a valid child, a request clamped before signing, and a refused rights expansion.
+\pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
+\begin{pdexample}{A Child Card under a Parent with Ten Minutes Left}
+\setlength{\parskip}{4pt plus 1pt}
 A parent card holds \texttt{fs:read} and \texttt{db:write} with 10 minutes of
 lifetime remaining. A child requested with \texttt{db:write} for 20 minutes is
 refused: its rights are a subset, but its expiry would be later than the parent's.
 The same child requested for 8 minutes is issued with an 8-minute expiry; a child
 requested for 20 minutes \emph{under the parent's clock} is issued with the
-parent's 10. In the lattice both coordinates moved down or stayed: rights
-$\{\texttt{db:write}\} \subseteq \{\texttt{fs:read},\texttt{db:write}\}$ and
-lifetime $\min(20, 10) = 10$. Figure~\ref{fig:anchor-capability-attenuation}
-draws the same check with the numbers 60, 15 and 5. [internal]
+parent's 10.
+In the lattice both coordinates moved down or stayed: rights
+\[
+\{\texttt{db:write}\} \subseteq \{\texttt{fs:read},\texttt{db:write}\}
+\]
+and
+lifetime
+\[
+\min(20, 10) = 10.
+\]
+Figure~\ref{fig:anchor-capability-attenuation}
+contrasts that clamped request with a shorter eight-minute child and an attempted extra right. [internal]
 \end{pdexample}
 
 \input{figures/fig-anchor-capability-attenuation}
 
 \subsection{Phase 1: Symmetric Pinning}
 
-Early versions of the protocol relied on HS256 (HMAC-SHA256). The primary vulnerability in JWTs is ``Algorithm Confusion'' (CVE-2015-9235~\pdcite{cve20159235}, CVE-2023-48238~\pdcite{cve202348238}), where an attacker modifies the token header to \texttt{\{"alg": "none"\}} or symmetric HS256 while using an asymmetric public key as the HMAC secret.
+The symmetric profile uses HS256 (HMAC-SHA256). One attack on JWT verification is ``Algorithm Confusion'' (CVE-2015-9235~\pdcite{cve20159235}, CVE-2023-48238~\pdcite{cve202348238}), where an attacker modifies the token header to \texttt{\{"alg": "none"\}} or symmetric HS256 while using an asymmetric public key as the HMAC secret.
 
-\begin{pdclaim}{Design invariant}{Algorithmic pinning}
+\begin{pdclaim}{Design invariant}{Algorithmic Pinning}
+\setlength{\parskip}{4pt plus 1pt}
 \label{prop:alg-pinning}
-The Port Daddy Verifier employs strict \textbf{Algorithmic Pinning}. It entirely ignores the user-provided \texttt{alg} header and explicitly forces the underlying crypto library to evaluate the signature using the pre-determined algorithm. This approach is what the JWT Best Current Practices, RFC~8725, recommends~\pdcite{rfc8725jwtbcp}.
+The Port Daddy Verifier employs strict \textbf{Algorithmic Pinning}.
+
+It entirely ignores the user-provided \texttt{alg} header and explicitly forces the underlying crypto library to evaluate the signature using the pre-determined algorithm.
+
+This approach is what the JWT Best Current Practices, RFC~8725, recommends~\pdcite{rfc8725jwtbcp}.
 \end{pdclaim}
 
 Figure~\ref{fig:anchor-alg-confusion} shows the two verifier paths side by side: the naive verifier trusts the \texttt{alg} field on the wire (and is exploited), while the pinned verifier records the issuance algorithm out-of-band and admits no rewrite trace.
@@ -295,13 +290,18 @@ Figure~\ref{fig:anchor-alg-confusion} shows the two verifier paths side by side:
 
 \subsection{Phase 2: Asymmetric Identity (Ed25519)}
 
-To support decentralized Agent-to-Agent (A2A) communication without sharing HMAC secrets, the protocol transitioned to \textbf{Ed25519 (EdDSA)}~\pdcite{bernstein2012high,josefsson2017edwards}. Ed25519 provides fast, deterministic signatures with small keys and signatures, making it ideal for local agent communication.
+The asymmetric profile uses \textbf{Ed25519 (EdDSA)}~\pdcite{bernstein2012high,josefsson2017edwards} so agents can verify peer credentials without holding the issuer's signing secret. Ed25519 provides deterministic signatures with small keys and signatures.
 
-\begin{pdclaim}{Design invariant}{Harbor key hierarchy}
+\begin{pdclaim}{Design invariant}{Harbor Key Hierarchy}
+\setlength{\parskip}{4pt plus 1pt}
 \label{def:anchor-key-hierarchy}
 The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor is assigned a unique Ed25519 keypair. In Phase~2 the Daemon issues Harbor Cards signed by the Harbor's private key \texttt{sk\_harbor}, escrowed to it over a private channel; agents use the matching \texttt{pk\_harbor} (broadcast via Port Daddy's ambient discovery service) to verify tokens presented by peers.
 
-One key changes hands at the Phase~3 boundary, and the chapter should say so rather than leave it to be inferred. From Phase~3 on, the root of an authorization chain is the Daemon's \emph{own} signing key \texttt{sk\_daemon}, and every verifier checks \texttt{chain[0]} under \texttt{pk\_daemon} --- which is what Algorithm~\ref{alg:delegation} requires, what \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} model, and what \texttt{core/harbor-card-rs} implements. The escrowed per-Harbor keypair of this definition is the earlier, Phase-2 arrangement and does not root authorization chains. This is a statement about how the deployed daemon holds keys --- backed by the implementation and its conformance tests, not by any query in Table~\ref{tab:proverif-results}, whose models assume the hierarchy rather than establish it.
+The delegation profile in Phase~3 uses a different trust root: the Daemon's \emph{own} signing key \texttt{sk\_daemon}. Every verifier checks \texttt{chain[0]} under \texttt{pk\_daemon} --- which is what Algorithm~\ref{alg:delegation} requires, what \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} model, and what \texttt{core/harbor-card-rs} implements.
+
+The escrowed per-Harbor keypair belongs to the Phase~2 profile and does not root authorization chains.
+
+This is a statement about how the deployed daemon holds keys --- backed by the implementation and its conformance tests, not by any query in Table~\ref{tab:proverif-results}, whose models assume the hierarchy rather than establish it.
 \end{pdclaim}
 
 % SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
@@ -309,9 +309,14 @@ One key changes hands at the Phase~3 boundary, and the chapter should say so rat
 
 Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
-\begin{pdclaim}{Design invariant}{Offline attenuation}
+\begin{pdclaim}{Design invariant}{Offline Attenuation}
+\setlength{\parskip}{4pt plus 1pt}
 \label{def:offline-attn}
-Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own ephemeral private key. The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and checks that Agent B's capabilities are a subset of Agent A's. The subset check is the deployed verifier's obligation at every hop; what the models of \S\ref{sec:attn-soundness} establish is that the check is necessary and sufficient at one hop, and the per-hop discipline --- not this statement --- is what chains it.
+Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own ephemeral private key.
+
+The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and checks that Agent B's capabilities are a subset of Agent A's.
+
+The subset check is the deployed verifier's obligation at every hop; what the models of \S\ref{sec:attn-soundness} establish is that the check is necessary and sufficient at one hop, and the per-hop discipline --- not this statement --- is what chains it.
 \end{pdclaim}
 
 Figure~\ref{fig:anchor-handshake-ladder} puts that ceremony on a clock: who signs what, in what order, and --- the point of ``offline'' --- which participant stops being spoken to after the first message.
@@ -320,15 +325,26 @@ Figure~\ref{fig:anchor-handshake-ladder} puts that ceremony on a clock: who sign
 
 For depth-$N$ chains, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop must produce a fresh nonce and bind the previous and next identities into its signature so that an attacker who intercepts a single hop cannot splice it into a different chain.
 
-Macaroons are the inspiration, but two older literatures own the property being checked here, and both deserve the credit before the nickname does. SPKI/SDSI's certificate-chain reduction is a calculus for asking exactly this question --- does the chain only ever narrow as it lengthens? --- and answering it by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the per-hop subset check the Harbor performs is that reduction carried out one link at a time. And Miller's object-capability discipline --- no ambient authority, a capability as the only route to any authority at all, worked out for concurrent and mutually suspicious distributed components~\pdcite{miller2006robustcomposition} --- is the conceptual peer of this protocol's capability/permission split, closer than Dennis and Van Horn's founding 1966 statement, and it comes with a design rule this chapter learned the expensive way: never hand out an unattenuated capability in the first place, so that the chain check is defense in depth rather than the only line. (The v6 verifier of \S\ref{sec:attn-soundness}, which checked each hop against the root instead of its parent, is what happens when the check is the only line.)
+Macaroons are the inspiration, but two older literatures own the property being checked here, and both deserve the credit before the nickname does. SPKI/SDSI's certificate-chain reduction is a calculus for asking exactly this question --- does the chain only ever narrow as it lengthens? --- and answering it by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the per-hop subset check the Harbor performs is that reduction carried out one link at a time. And Miller's object-capability discipline --- no ambient authority, a capability as the only route to any authority at all, worked out for concurrent and mutually suspicious distributed components~\pdcite{miller2006robustcomposition} --- is the conceptual peer of this protocol's capability/permission split, closer than Dennis and Van Horn's founding 1966 statement. The corresponding design rule is to restrict a capability at issuance as well as checking the chain at verification, so that the chain check is defense in depth rather than the only line. The v6 verifier of \S\ref{sec:attn-soundness} provides a concrete counterexample: checking each hop against the root instead of its parent admits a downstream re-grant.
 
 \input{figures/fig-anchor-delegation-inline}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
 
-Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. While the Anchor Protocol previously attempted to gossip cuckoo filters directly between daemons --- merging two peers' filters by OR-ing their bit arrays --- it now gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\pdcite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
+Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. The protocol gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks, not the lossy cuckoo-filter encodings themselves. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\pdcite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
 
-\paragraph{Why filters cannot be merged bitwise.} The abandoned design failed for a structural reason worth stating plainly, because it is the reason the log exists. Two cuckoo filters cannot be safely combined by OR-ing their bit arrays. A fingerprint's final resting bucket is not a function of the key alone: it is the first candidate bucket $i_1$ if that bucket had a free slot at insertion time, and otherwise the alternate $i_2$ reached by evicting some other fingerprint --- so occupancy depends on insertion order and eviction history, not just on the set of keys. Peer~$A$ may hold fingerprint \texttt{c1} in bucket $i_0$ while peer~$B$, having inserted a different key first, holds the same \texttt{c1} in bucket $i_3$. The bitwise union contains both placements, which no single consistent filter state could have produced: subsequent deletions then remove the wrong occupancy and can \emph{reanimate} a revoked card --- a false negative, the one error a revocation gate must never make. Gossiping the append-only log of \texttt{kid}s and rebuilding each daemon's filter locally sidesteps the problem entirely, because set union over identifiers is well defined where union over their lossy encodings is not.
+\paragraph{Why filters cannot be merged bitwise.} A cuckoo-filter slot stores
+a fingerprint, not an independent membership bit. Consider two one-slot
+buckets and two keys whose candidate buckets are 0 and 1. Peer~A stores
+fingerprint \texttt{001} in bucket 0; peer~B stores \texttt{010} there instead.
+Both leave bucket 1 empty. Bitwise OR produces \texttt{011} in bucket 0 and
+leaves bucket 1 empty, so neither original fingerprint can be found. This
+small counterexample is enough to rule out raw OR as a general merge operation.
+Duplicate fingerprints are not themselves invalid: correct cuckoo filters
+can retain repeated insertions. The protocol instead unions authoritative
+revocation IDs and rebuilds a local filter, handling insertion failure rather
+than silently losing a revocation. Figure~\ref{fig:anchor-cuckoo-inline}
+contrasts the two operations.
 
 \paragraph{Cuckoo filters in one paragraph.} A cuckoo filter is a compact probabilistic set: under successful insertion and correct deletion discipline it has false positives but no false negatives, while supporting deletion. Each inserted key is reduced to a fingerprint and placed in one of two candidate buckets; on collision, fingerprints are relocated until a slot opens or insertion fails. Lookups inspect both buckets. The expected lookup cost is $O(1)$ and the approximate false-positive probability for two buckets of size $B$ and $f$ fingerprint bits is at most about $2B/2^f$ in the low-collision model. High load increases insertion failures; the implementation rejects or rebuilds rather than silently dropping a revocation. Duplicate fingerprints require counted or authoritative-table-backed deletion so that removing one key does not reanimate another.
 
@@ -338,28 +354,43 @@ Capability tokens have a TTL, but natural expiry is not always sufficient. Two c
 
 \paragraph{Space.} At false-positive rate $p_{\mathrm{fp}}$, a cuckoo filter uses approximately $\log_2(1/p_{\mathrm{fp}}) + 3$ bits per entry. For $p_{\mathrm{fp}} = 10^{-3}$, $\approx 13$ bits per revoked card. A fleet retaining $10^{5}$ active revocations fits in $\approx 160$\,KB---trivially in memory, trivially gossiped.
 
-\begin{pdexample}{sizing the revocation filter}
-At $p_{\mathrm{fp}} = 10^{-3}$ the per-entry cost is $\log_2 1000 + 3 = 9.97 + 3
-\approx 13$ bits. A fleet holding $10^{5}$ live revocations therefore carries
-$1.3 \times 10^{6}$ bits $= 162{,}500$ bytes, about $160$\,KB, and a gossip round
-that ships the whole filter rather than a delta moves less than a small image. At
-$p_{\mathrm{fp}} = 10^{-6}$ the same fleet needs $\log_2 10^{6} + 3 \approx 23$
-bits per entry, $\approx 288$\,KB: three orders of magnitude fewer false positives
+\begin{pdexample}{Sizing the Revocation Filter}
+\setlength{\parskip}{4pt plus 1pt}
+At $p_{\mathrm{fp}} = 10^{-3}$ the per-entry cost is
+\[
+\log_2 1000 + 3 = 9.97 + 3 \approx 13 \text{ bits}.
+\]
+
+A fleet holding $10^{5}$ live revocations therefore carries
+\[
+1.3 \times 10^{6} \text{ bits} = 162{,}500 \text{ bytes},
+\]
+about $160$\,KB, and a gossip round
+that ships the whole filter rather than a delta moves less than a small image.
+
+At
+$p_{\mathrm{fp}} = 10^{-6}$ the same fleet needs
+\[
+\log_2 10^{6} + 3 \approx 23 \text{ bits per entry},
+\]
+$\approx 288$\,KB: three orders of magnitude fewer false positives
 for less than twice the space, which is why the filter's bound, not its size, is
 what the load ceiling protects. [internal]
 \end{pdexample}
 
-\begin{pdclaim}{Design invariant}{Revocation-augmented verification}
+\begin{pdclaim}{Design invariant}{Revocation-Augmented Verification}
+\setlength{\parskip}{4pt plus 1pt}
 \label{def:revocation}
 Let $R_t$ denote the authoritative Append-Only Event Log of revoked Harbor Card IDs at time $t$. Each daemon $d$ maintains a local, ephemeral cuckoo filter index $F_d \approx R_t$. Every Harbor Card verification additionally:
 \begin{enumerate}[nosep]
   \item Looks up the card's \texttt{kid} in $F_d$. If absent, admit.
   \item If present, query the local \texttt{revocations} table (authoritative). If genuinely revoked, reject with \texttt{revoked}; otherwise the filter is in the false-positive regime and the caller is admitted, with an asynchronous reconciliation job repopulating the filter.
 \end{enumerate}
+
 The two steps are an implementation discipline the daemon is built to keep --- the filter is only ever an index, never the authority --- and it is what makes a false positive a slower answer rather than a wrong one.
 \end{pdclaim}
 
-\paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize revocation deltas by anti-entropy gossip~\pdcite{demers1987epidemic}. Under a connected complete-overlay model with independent uniform peer selection and reliable rounds, epidemic dissemination is expected $\Theta(\log m)$ rounds. This is an expectation, not a deadline; partitions, message loss, topology, and scheduling change the constant or prevent global convergence until the partition heals. Security-critical revocations can additionally trigger best-effort immediate push. Figure~\ref{fig:anchor-revocation-gossip} illustrates propagation across five daemons; it is a trace, not a timing proof.
+\paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize revocation deltas by anti-entropy gossip~\pdcite{demers1987epidemic}. Under a connected complete-overlay model with independent uniform peer selection and reliable rounds, epidemic dissemination is expected $\Theta(\log m)$ rounds. This is an expectation, not a deadline; partitions, message loss, topology, and scheduling change the constant or prevent global convergence until the partition heals. Security-critical revocations can additionally trigger best-effort immediate push. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
 
 \input{figures/fig-anchor-revocation-gossip}
 
@@ -371,17 +402,27 @@ revocation identifier exists to stop a card being honoured, and a card that has
 expired is already refused by the expiry check before the filter is ever consulted,
 so the entry has no remaining work to do.
 
-\begin{pdclaim}{Design invariant}{Revocation-log truncation}\label{def:revocation-truncation}
-Let $T_{\max}$ be the longest lifetime any unexpired card in the fleet can still
-carry. An entry naming card \texttt{kid} may be dropped from the authoritative log
+\begin{pdclaim}{Design invariant}{Revocation-Log Truncation}\label{def:revocation-truncation}
+\setlength{\parskip}{4pt plus 1pt}
+Let $T_{\max}$ be an enforced upper bound on card lifetime. Assume card identifiers
+are never reused, descendant expiry never exceeds ancestor expiry, and all
+verifiers enforce expiry with a stated clock-skew allowance and no unchecked
+clock rollback.
+
+An entry naming card \texttt{kid} may be dropped from the active
+revocation log
 $R_t$ once every card that entry could name has expired --- that is, once
-$t$ exceeds the entry's recorded card expiry --- and correctness is unaffected:
-for every \emph{live} card, the filter rebuilt from the truncated log returns the
-same verdict as the filter rebuilt from the untruncated one. Because attenuation
+$t$ exceeds the entry's recorded card expiry plus that allowance --- without
+changing any live card's authoritative revocation status.
+
+Because attenuation
 only ever shrinks a lifetime (\S\ref{sec:architecture}), no descendant of a
 revoked card can outlive the entry that names it, so a dropped entry cannot be
-needed again by a chain derived from it. The log's steady-state size is therefore
-bounded by the revocations issued in the trailing window $T_{\max}$, not by the
+needed again by a chain derived from it.
+
+The log's steady-state size is therefore
+bounded by the revocations issued in the trailing window $T_{\max}$ plus the
+clock allowance, not by the
 fleet's lifetime history.
 \end{pdclaim}
 
@@ -389,40 +430,66 @@ This rule is specified here and the daemon does not yet apply it, which is the
 distinction the rest of this series marks between a design and a shipped mechanism,
 and it is the honest grade for this one. What would verify it is a property test
 rather than an argument --- generate a revocation log and a set of cards, truncate at an arbitrary
-cut, rebuild both filters, and assert the two agree on every card that is still live
-at the cut. A test that only checked total agreement would pass vacuously on an
+cut, rebuild both filters, and assert that neither loses any live revocation;
+authoritative checks must return the same decisions before and after compaction.
+Approximate-filter false positives need not be identical. A test with no live
+revocations would pass vacuously on an
 empty live set, so the live set is what the generator has to make non-trivial. Note
 the one thing the invariant does not buy: it bounds the log by a \emph{time} window,
 so a fleet that issues revocations faster than they expire still grows, and the load
 ceiling below, not this rule, is what holds that case.
 
+Compaction also needs a restart protocol: a returning peer must receive the
+current authenticated snapshot or epoch before serving checks, not interpret a
+truncated delta stream as complete history. Retiring active denial entries does
+not authorize deleting the archival evidence needed for disputes. A rebuilt
+probabilistic filter may change false positives on unrevoked cards; the invariant
+is no lost revocation of a live card, with authoritative lookup resolving hits,
+not bit-for-bit equality of every approximate-filter answer.
+
 \paragraph{Pollution as denial of revocation.} The load ceiling keeps the false-positive bound honest; it does not by itself defeat an attacker who submits many authenticated-looking revocation identifiers to push the filter out of its bound-holding regime, which turns the revocation path into a denial of service. The design requires three things of the daemon: a per-issuer insertion quota, an overflow record for every refused insertion, and lookups that consult the authoritative event log while a flooded filter rebuilds, so that flooding degrades revocation checks to slower, never to missed.
 
-\begin{pdclaim}{Design invariant}{Filter monotonicity over a TTL epoch}
+\begin{pdclaim}{Design invariant}{Filter Monotonicity over a TTL Epoch}
+\setlength{\parskip}{4pt plus 1pt}
 \label{prop:filter-mono}
-For any Harbor Card $c$ with issue time $t_0$ and TTL $\tau$, if $c \in R_t$ for some $t \in [t_0, t_0+\tau]$, then $c \in R_{t'}$ for all $t' \in [t, t_0+\tau]$. After $t_0+\tau$, $c$ may be removed from $R$ since the card has expired.
+For any Harbor Card $c$ with issue time $t_0$ and TTL $\tau$, if $c \in R_t$ for some $t \in [t_0, t_0+\tau]$, then $c \in R_{t'}$ for all $t' \in [t, t_0+\tau]$.
+
+After $t_0+\tau$, $c$ may be removed from $R$ since the card has expired.
 \end{pdclaim}
 
-\begin{pdclaim}{Design invariant}{No partial reanimation}
+\begin{pdclaim}{Design invariant}{No Partial Reanimation}
+\setlength{\parskip}{4pt plus 1pt}
 \label{prop:no-reanim}
-A revoked card cannot be un-revoked within its TTL. If an operator decides the revocation was erroneous, they must issue a new card.
+A revoked card cannot be un-revoked within its TTL.
+
+If an operator decides the revocation was erroneous, they must issue a new card.
 \end{pdclaim}
 
-\begin{pdclaim}{Theorem}{Conditional gossip expectation}
+\begin{pdclaim}{Theorem}{Conditional Gossip Expectation}
+\setlength{\parskip}{4pt plus 1pt}
 \label{prop:fresh}
-Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time. No finite worst-case freshness bound holds under an unbounded partition.
+Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.
+
+No finite worst-case freshness bound holds under an unbounded partition.
 \end{pdclaim}
 
-\begin{pdexample}{how many rounds until every daemon knows}
-Five daemons, one revocation, a round time $\Delta$ of two seconds. Epidemic
-dissemination reaches all $m$ peers in expected $\Theta(\log m)$ rounds; with
-$\log_2 5 = 2.32$ the expectation is between two and three rounds, so between
-four and six seconds, which is what Figure~\ref{fig:anchor-revocation-gossip}
-draws as the interval from $t$ to $t + 2\Delta$. Double the fleet to ten daemons
-and $\log_2 10 = 3.32$ adds one round, not five. Cut one daemon off from the
-others and no number of rounds reaches it: the expectation is conditional on
-the overlay staying connected, which is the sentence the theorem ends with.
-[internal]
+\begin{pdexample}{A Possible Trace Is Not a Deadline}
+\setlength{\parskip}{4pt plus 1pt}
+Take five daemons and two-second rounds. In a favorable push schedule, each
+informed daemon contacts one previously uninformed peer: the informed count
+can grow
+\[
+1\to2\to4\to5,
+\]
+reaching all five after three rounds, or six seconds.
+
+This is one possible trace, not the expected time of random gossip. Repeated
+contacts can take longer; the asymptotic expression $\Theta(\log m)$ does not
+specify its constants or an exact expectation for five peers.
+
+Isolate the fifth
+daemon and it receives nothing until delivery resumes, as in
+Figure~\ref{fig:anchor-revocation-gossip}. [internal; illustrative schedule]
 \end{pdexample}
 
 
@@ -433,9 +500,9 @@ the overlay staying connected, which is the sentence the theorem ends with.
 \paragraph{Privacy.} A Dolev-Yao adversary observing all gossip traffic learns the revoked-card IDs, leaking which agents have been disciplined. For an organization's own daemons, this is acceptable audit transparency. Stronger privacy is available by encoding revocations as salted hashes $H(\texttt{kid}, \texttt{salt})$ where the salt rotates daily, stored encrypted under a harbor session key.
 
 \begin{pdrecitation}
-\item Without looking: state the one property that must hold between every delegated Harbor Card and its parent, across all four phases.
-\item Why can two daemons not merge their cuckoo filters by OR-ing the bit arrays, and what do they gossip instead?
-\item Name the two circumstances that force a card's withdrawal before its TTL naturally expires.
+\item What must every delegated card preserve about its parent's authority?
+\item Why can't cuckoo filters be OR-merged? What is gossiped instead?
+\item Which events require withdrawal before expiry?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -446,11 +513,7 @@ Following the industry standard set by AWS (s2n-tls~\pdcite{aws2022s2n}) and Mic
 
 \begin{table}[H]
 \centering
-\caption{The assurance case, layer by layer. Obligations descend the rows: each layer
-hands the next a claim it cannot discharge itself. Evidence ascends them: each tool's
-output narrows what the layer above must assume. The last column names the two gaps
-that no tool closes; only a human asserts that the modeled protocol is this source, and
-that the inspected source is this running binary. [internal]}
+\caption{Tools discharge claims within each layer. Model-to-source correspondence and source-to-running-binary correspondence remain separate human assertions; none of these tools closes either gap. [internal]}
 \label{tab:anchor-verification-stack}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -473,38 +536,55 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 
 To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \textbf{ProVerif}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
 
-\begin{pdclaim}{Model-checked property}{Authentication correspondence in the modeled phase}
+\begin{pdclaim}{Model-checked property}{Authentication Correspondence in the Modeled Phase}
+\setlength{\parskip}{4pt plus 1pt}
 \label{thm:injective}
 For the modeled delegation phase, ProVerif confirmed the correspondence:
 \begin{align}
-\text{Accepted}(b, h, cap) \implies&(\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
+\text{Accepted}(b, h, cap) \implies{}&(\text{IssuedRoot}(a, h, cap) \nonumber\\
+&\quad \land \text{Delegated}(a, b, cap)) \nonumber\\
 & \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
+
 The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled issuance/delegation event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
 \end{pdclaim}
 
-All three protocol phases were independently verified in ProVerif 2.05. Table~\ref{tab:proverif-results} summarizes the results; full models are reproduced in Appendices~\ref{app:proverif}, \ref{app:phase2}, and~\ref{app:phase3}.
+The three baseline protocol phases were independently verified in ProVerif 2.05.
+Table~\ref{tab:proverif-results} adds two encoding tests for the algorithm-confusion
+boundary; full models are reproduced in Appendices~\ref{app:proverif},
+\ref{app:phase2}, and~\ref{app:phase3}.
 
 \begin{table}[H]
 \centering
-\caption{All five ProVerif queries return \textbf{TRUE} across the three
-modeled phases; the stated delegation-depth bound still applies.}
+\caption{Five baseline queries and two algorithm-confusion tests.
+Pinned verification passes; the naive verifier fails as intended.
+The delegation-depth bound still applies.}
 \label{tab:proverif-results}
-% Model column recut from plain l (which never wraps, so its widest
-% \texttt{} path forced the column to that path's full unbroken width and
-% squeezed the X column that holds the actual formulas) to a narrow fixed
-% p{} with \allowbreak at each path's underscore.
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{0.16\textwidth} l@{}}
+\small
+\renewcommand{\arraystretch}{1.12}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{2.4cm}@{}}
 \toprule
-\textbf{Query} & \textbf{Phase} & \textbf{Model} & \textbf{Result} \\
+\textbf{Query} & \textbf{Result} \\
 \midrule
-$\neg\;\text{attacker}(\mathit{master\_key})$ & v1 (HS256) & \texttt{v1\allowbreak\_refined.pv} & \textbf{TRUE} \\
-$\text{Accepted} \implies \text{Issued}$ & v1 (HS256) & \texttt{v1\allowbreak\_refined.pv} & \textbf{TRUE} \\
-$\neg\;\text{attacker}(\mathit{harbor\_sk})$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymm\allowbreak etric.pv} & \textbf{TRUE} \\
-$\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymm\allowbreak etric.pv} & \textbf{TRUE} \\
-$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\newline $\land\ \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\allowbreak\_deleg\allowbreak ation.pv} & \textbf{TRUE} \\
-$\text{AcceptedPinned}(m) \implies \text{Issued}_A(m)$ & encoding & \texttt{alg\allowbreak confus\allowbreak ion.pv} & \textbf{TRUE} \\
-$\text{AcceptedNaive}(m) \implies \text{Issued}_A(m)$ & encoding & \texttt{alg\allowbreak confus\allowbreak ion.pv} & \textbf{FALSE}\newline (intended) \\
+\multicolumn{2}{@{}l}{\textbf{Phase:} v1 (HS256) \enspace|\enspace \textbf{Model:} \texttt{v1\_refined.pv}} \\
+$\neg\;\text{attacker}(\mathit{master\_key})$ & \textbf{TRUE} \\
+$\text{Accepted} \implies \text{Issued}$ & \textbf{TRUE} \\
+\addlinespace[2pt]
+\multicolumn{2}{@{}l}{\textbf{Phase:} v2 (Ed25519) \enspace|\enspace \textbf{Model:} \texttt{v2\_asymmetric.pv}} \\
+$\neg\;\text{attacker}(\mathit{harbor\_sk})$ & \textbf{TRUE} \\
+$\text{Accepted} \implies \text{Issued}$ & \textbf{TRUE} \\
+\addlinespace[2pt]
+\multicolumn{2}{@{}l}{\textbf{Phase:} v3 (Delegation) \enspace|\enspace \textbf{Model:} \texttt{v3\_delegation.pv}} \\
+$\begin{aligned}
+  \text{Accepted}(b) \implies{}& (\text{IssuedRoot}(a)\\
+  & {}\land\ \text{Delegated}(a,b))\\
+  & {}\lor\ \text{IssuedRoot}(b)
+\end{aligned}$ & \textbf{TRUE} \\
+\addlinespace[2pt]
+\multicolumn{2}{@{}l}{\textbf{Algorithm-confusion tests:} encoding} \\
+\multicolumn{2}{@{}l}{\textbf{Model:} \texttt{algconfusion.pv}} \\
+$\text{AcceptedPinned}(m) \implies \text{Issued}_A(m)$ & \textbf{TRUE} \\
+$\text{AcceptedNaive}(m) \implies \text{Issued}_A(m)$ & \textbf{FALSE} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -540,14 +620,26 @@ Violations are logged and can trigger the ``man overboard'' salvage protocol: th
 
 A secure protocol is useless if the implementation contains buffer overflows or timing leaks. We extracted the critical JWT parsing and cryptographic comparison logic into a verified core.
 
-\begin{pdclaim}{Design invariant}{Memory safety within the harness bound}
+\begin{pdclaim}{Design invariant}{Memory Safety within the Harness Bound}
+\setlength{\parskip}{4pt plus 1pt}
 \label{inv:anchor-memory-safety}
-Using the \textbf{Kani} Rust Verifier~\pdcite{aws2022kani}, we bounded-model-check the token parser with key decoding, base64 decoding, and signature verification stubbed to return either outcome. For every 32-byte input that is valid UTF-8 and contains a dot, and within ten loop iterations, the parse path neither panics nor accesses memory out of bounds. The bound is the harness's, not the parser's: longer tokens and the real cryptographic primitives lie outside it.
+The \textbf{Kani} Rust Verifier~\pdcite{aws2022kani} harness bounds the token input to 32 bytes of valid UTF-8 containing a dot, with an unwind bound of 128.
+
+Key decoding returns a fixed key; base64 decoding returns either an error or 32 zero bytes; signature verification returns success or failure.
+
+The reported absence of panics and out-of-bounds accesses applies only to paths reached under these stubs.
+
+In particular, the zero-byte decoded payload is not valid claims JSON: this harness does not exercise successful card acceptance. Longer tokens and the real cryptographic primitives lie outside its claim.
 \end{pdclaim}
 
-\begin{pdclaim}{Design invariant}{Secret-independent source control flow}
+\begin{pdclaim}{Design invariant}{Secret-Independent Source Control Flow}
+\setlength{\parskip}{4pt plus 1pt}
 \label{inv:anchor-ct-source}
-The Rust comparator (\texttt{constant\_time\_compare}) folds the XOR of every byte pair into one accumulator and tests the accumulator once, so no source-level branch depends on secret bytes. That is a property of the source text, established by inspection; Kani's harness adds only that the comparator cannot panic on any pair of 16-byte inputs. Neither is a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside both.
+The Rust comparator (\texttt{constant\_time\_compare}) folds the XOR of every byte pair into one accumulator and tests the accumulator once, so no source-level branch depends on secret bytes.
+
+That is a property of the source text, established by inspection; Kani's harness adds only that the comparator cannot panic on any pair of 16-byte inputs.
+
+Neither is a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside both.
 \end{pdclaim}
 
 \subsection{The procedures, precisely}\label{sec:algorithms}
@@ -581,18 +673,24 @@ function Harbor.VerifyToken(tok, expected_harbor):
     return (a, h, j, cap)
 \end{lstlisting}
 
-\begin{pdexample}{counting the reads of the algorithm header}
+\begin{pdexample}{Counting the Reads of the Algorithm Header}
+\setlength{\parskip}{4pt plus 1pt}
 Take Algorithm~\ref{alg:symmetric}'s \texttt{Harbor.VerifyToken} and count, by
 hand, how often \texttt{alg\_header} appears after the line that unpacks it.
+
 It is bound once, in the destructuring of \texttt{tok}, and read zero times
 thereafter: the next line computes $\mathrm{HMAC\text{-}SHA256}(\mathit{msg},
 k_{\mathit{master}})$ under the algorithm fixed by policy and compares that
-against $\sigma$, and no branch below it consults the header at all. So an
+against $\sigma$, and no branch below it consults the header at all.
+
+So an
 attacker who rewrites the header from \texttt{hs256} to \texttt{none} --- the
 move the algorithm-confusion CVEs catalogued in Appendix~\ref{app:related} all
 make in one form or another --- has changed one field the
 procedure consults zero times, and still faces the same comparison, which
-needs $k_{\mathit{master}}$. One binding, zero reads. The naive verifier of
+needs $k_{\mathit{master}}$.
+
+One binding, zero reads. The naive verifier of
 \texttt{proofs/anchor/token-verify/}\allowbreak\texttt{algconfusion.pv} is the same procedure with
 that count changed to one, and the one read is what decides its whole
 verification. [internal]
@@ -681,12 +779,7 @@ function Harbor.VerifyChain(chain, pk_daemon):
 \section{The verified crate is the deployed crate}\label{sec:implementation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-An earlier edition of this chapter titled this section \emph{The verified code is the
-running code}, and that sentence is wrong as printed --- not under-hedged, wrong ---
-so it is withdrawn here rather than qualified downstream. The correction is
-\emph{global}: what fails is the headline claim itself, not a step on the way to it,
-and the claim that replaces it is a narrower one that happens to be true. What is
-shared between proof and deployment is the \textbf{crate}, not the coverage. The
+What is shared between proof and deployment is the \textbf{crate}, not the coverage. The
 open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library
 (\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's
 runtime-enforcement (Arbiter) module, and the Kani harnesses are compiled from that
@@ -786,7 +879,7 @@ Three bounded model checking proofs are defined in the same source file under \t
              stubs::decode_b64_stub)]
 #[kani::stub(HarborCardVerifier::internal_verify_sig,
              stubs::verify_sig_stub)]
-#[kani::unwind(10)]
+#[kani::unwind(128)]
 fn proof_verify_logic_only() {
     let pk_bytes: [u8; 32] = kani::any();
     if let Ok(verifier) = HarborCardVerifier::new(pk_bytes) {
@@ -820,25 +913,43 @@ fn proof_capability_attenuation() {
 }
 \end{lstlisting}
 
-\begin{pdexample}{what thirty-two symbolic bytes can and cannot hold}
+\begin{pdexample}{What Thirty-Two Symbolic Bytes Can and Cannot Hold}
+\setlength{\parskip}{4pt plus 1pt}
 Read the bounds off the harnesses themselves, since every one of them is a
 number in the source above. \texttt{proof\_verify\_logic\_only} draws
 \texttt{[u8;\,32]} for the token, keeps only the inputs that are valid UTF-8
-and contain a dot, and explores ten unwindings with three functions stubbed.
+and contain a dot, with an unwind bound of 128 and three functions stubbed.
+
 Now walk \texttt{verify} with those 32 bytes in hand: the first guard demands
 \texttt{parts.len() == 3}, so every admitted string with one dot, or with
 three, leaves at the first \texttt{return} --- and the survivors, the ones
-carrying exactly two dots, have $32 - 2 = 30$ bytes to spread across all three
+carrying exactly two dots, have
+\[
+32 - 2 = 30 \text{ bytes}
+\]
+to spread across all three
 segments of what is supposed to be a signed card --- too few, as the paragraph
-below records, to hold a real three-part card at all. That is the arithmetic
+below records, to hold a real three-part card at all.
+
+That is the arithmetic
 behind this chapter's reading of the harness: what it covers is the parser's
-refusal of malformed input, and the acceptance path is reached, when it is
-reached at all, only because the stubs say so. The other two bounds are just as small and just
+refusal of malformed input. Even when signature verification returns success,
+the decoder's zero bytes fail header JSON parsing, before payload and expiry
+checks.
+
+The other two bounds are just as small and just
 as visible: \texttt{[u8;\,16]} for the comparator, and two hard-coded vectors
 --- not a quantifier --- for the subset check. [internal]
 \end{pdexample}
 
-The stubbing strategy deserves explanation: \texttt{proof\allowbreak\_verify\allowbreak\_logic\allowbreak\_only} stubs out Ed25519 signature verification and base64 decoding (which involve curve arithmetic that Kani cannot symbolically execute within practical bounds) and explores the \emph{parsing and control flow logic}---the split-on-dots, payload extraction, expiry comparison, and error handling paths---for every 32-byte token the harness admits. Within that bound the logic surrounding the cryptographic primitives never panics and never accesses memory out of bounds, whichever outcome the stubbed cryptographic layer returns. The bound is a harness choice, and it has a consequence worth stating: a 32-byte input cannot hold a real three-part card, so what is exercised is the parser's rejection of malformed input, not its acceptance path. The third harness, \texttt{proof\_capability\_attenuation}, checks two concrete vectors and is a unit test in a proof's clothing; the every-hop attenuation property is established by the ProVerif model of \S\ref{sec:attn-soundness}, not by Kani.
+The stubs keep the symbolic search small, but also determine its reach.
+\texttt{proof\allowbreak\_verify\allowbreak\_logic\allowbreak\_only} checks
+token splitting, reachable stub-result handling, and rejection at header JSON
+parsing. It does not reach claims-payload parsing, expiry comparison, or successful
+acceptance. None of those paths can inherit its no-panic result. The separate
+\texttt{proof\_capability\_attenuation} harness checks two concrete vectors;
+the every-hop symbolic attenuation result belongs to the ProVerif model in
+\S\ref{sec:attn-soundness}, not to those two Kani examples.
 
 The three harnesses run under \texttt{cargo kani} in the repository's proof workflow; the run log, not a local build directory, is the evidence that they pass.
 
@@ -858,7 +969,7 @@ We assume a \textbf{Dolev-Yao adversary}~\pdcite{dolev1983security} who:
   \item May corrupt legitimate agents (but not all simultaneously)
 \end{itemize}
 
-This is the standard threat model for symbolic protocol analysis~\pdcite{blanchet2016modeling}. Every figure in this chapter that shows a message leaving daemon or verifier authority marks the region this adversary controls with the same dashed band (Figures~\ref{fig:anchor-alg-confusion}, \ref{fig:anchor-delegation-inline}, and~\ref{fig:anchor-revocation-gossip}); figures without a band --- the phase progression, the attenuation rings, the cuckoo mechanics, the card lifecycle, the verification stack --- show structure inside one trust domain, where the boundary would be decoration rather than a claim.
+This is the standard threat model for symbolic protocol analysis~\pdcite{blanchet2016modeling}. Figures~\ref{fig:anchor-alg-confusion} and~\ref{fig:anchor-delegation-inline} mark adversarial message boundaries with dashed bands. Figure~\ref{fig:anchor-revocation-gossip} shows a different boundary: local enforcement cannot guarantee delivery to a remote verifier. The remaining diagrams show their named checks or state transitions, not a claim that every surrounding channel is trusted.
 
 Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\ref{sec:problem}: each is named there, addressed somewhere in between, and carries a residual risk stated here rather than left for the reader to reconstruct.
 
@@ -893,7 +1004,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{The four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. The three Kani rows are bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed, a no-panic check of the comparator on 16-byte pairs, and two concrete vectors for the subset check. ``Deployed'' indicates the Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\caption{ProVerif checks the model. Kani checks bounded crate harnesses: a 32-byte parser with stubbed cryptography, a 16-byte comparator, and two subset vectors. Neither alone proves the deployed implementation correct.}
 \label{tab:properties}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll l@{}}
 \toprule
@@ -910,30 +1021,55 @@ Capability subset check & Two vectors & Kani & Yes (FFI) & \pdcite{birgisson2014
 \end{tabularx}
 \end{table}
 
+% Keep the threat/property tables with their discussion; a deferred table must
+% not interrupt the worked example's first sentence on its continuation page.
+\FloatBarrier
 \subsection{Where this stops}\label{sec:limitations}
 
 Four boundaries follow, and the third of them carries an arithmetic worth doing before the prose, because the size of the hole is the whole argument for closing it at the transport rather than in the protocol.
 
-\begin{pdexample}{fourteen minutes of somebody else's authority}
+\begin{pdexample}{Fourteen Minutes of Somebody Else's Authority}
+\setlength{\parskip}{4pt plus 1pt}
 A card is issued with a 15-minute TTL and sniffed off loopback at minute~1 by
 a process belonging to another user on the same build box. Subtract:
-$15 - 1 = 14$ minutes in which the sniffer holds the victim agent's full
+\[
+15 - 1 = 14 \text{ minutes}
+\]
+in which the sniffer holds the victim agent's full
 capability set, with every cryptographic check passing, because a bearer
-credential is exactly as usable to whoever holds the bytes. Revocation
-(\S\ref{sec:revocation}) does not shorten that 14 by much, and the reason is
-worth reading off the two clocks side by side: once a revocation is entered,
-the five-daemon fleet of Figure~\ref{fig:anchor-revocation-gossip} converges in
-four to six seconds, which rounds to nothing against fourteen minutes --- but
-the clock that actually runs is the one before anybody enters it, and this
-chapter puts no bound on that at all. The fix is therefore not a faster
-gossip; it is a socket the other user cannot open. [internal]
+credential is usable to whoever holds the bytes unless an additional binding
+rejects that holder.
+
+Revocation can shorten this window after the theft is
+noticed and the update reaches a verifier. Neither delay is bounded here;
+Figure~\ref{fig:anchor-revocation-gossip} shows why local revocation alone is
+not enough.
+
+Transport access control addresses the earlier failure: use a socket
+the other user cannot open. Faster gossip does not prevent credential theft.
+[internal]
 \end{pdexample}
 
 \begin{enumerate}
   \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, ``\texttt{chain-replay.pv}'') is machine-checked at the chain depth realized in deployment (depth~3); it is \emph{not} a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single authorization chain, which is a fixed structural bound in the modeled process. Extending the proof to unbounded depth (via recursive replication of the delegation process) is future work. The current depth bound is a \emph{spawn-time} policy check (\texttt{assessDelegation} in \texttt{lib/tube-spawner-router.ts}, \texttt{HARD\_MAX\_DELEGATION\_DEPTH}\,=\,8, default~4) applied when a spawn request arrives; it is \emph{not} a verification-time invariant. The cryptographic chain verifier (\texttt{lib/delegation-chain.ts}) accepts arbitrary chain depth, and the attenuation monitor (\texttt{lib/cap-attenuation-monitor.ts}) enforces only per-hop capability monotonicity---not total depth. Machine-enforced depth at verification time is a planned hardening item.
   \item \textbf{A program is not a person.} A Harbor Card authenticates a \emph{capability holder}, not a human and not, by itself, a process. The ``Ghost in the Harbor'' scenario of \S\ref{sec:problem} is really a PID-binding gap: nothing in the token cryptography stops a \emph{different} process from presenting a card whose original bearer has died, because the card says what may be done, not who is doing it. Port Daddy binds cards to the connecting process outside the token, via the daemon's socket-credential check at connection time (\texttt{SO\_PEERCRED} on Linux, \texttt{LOCAL\_PEERCRED}/\texttt{getpeereid} on macOS). Two consequences follow, and both are boundaries rather than guarantees. First, this is enforced by the operating system, not proved by ProVerif: the symbolic model has no notion of a process, so a daemon build that skips or mis-orders the check is unprotected regardless of card validity, and no query in Table~\ref{tab:proverif-results} would notice. Second, the check is only as strong as what it compares. Walk the concrete case: Agent~A holds a card and is running as PID~4021. It crashes at $t$. Three seconds later the OS reuses 4021 for an unrelated Agent~B, which presents A's card scavenged from a shared temp file. A credential check that compares \emph{only} the numeric PID admits B --- the numbers match. The deployed check therefore compares the peer credential against the socket-connection identity established at card issuance and re-validates process start-time, so a reused PID with a later start-time is rejected; a build that compares the bare PID has an open reuse race. That start-time comparison is a runtime conformance test, not a mechanized proof, and it is listed as such rather than as closed.
   \item \textbf{\texttt{localhost} is a real network.} \texttt{localhost} is not a trust boundary. On a shared or multi-user machine any local process --- including one belonging to a different user, or a browser page pointed at \texttt{127.0.0.1} --- can open a TCP connection to a loopback port, and a bearer token sent in the clear over loopback is exactly as interceptable as one sent over the open internet: the Dolev--Yao adversary of \S\ref{sec:threat-model} is not a hypothetical here but the account sharing your build box. Concretely, a card with a 15-minute TTL sniffed off loopback at minute~1 grants its holder fourteen minutes of the victim agent's full capability set, and revocation (\S\ref{sec:revocation}) can shorten that window only after somebody notices. The recommended deployment is a Unix domain socket whose parent directory is mode \texttt{0700} and owned by the daemon's own user, so that the filesystem, not the protocol, excludes other users; loopback TLS with a pinned daemon certificate is the alternative where cross-user sharing is genuinely required. The Anchor Protocol does not currently \emph{enforce} either: the daemon will speak to whatever transport it is configured with. This is therefore an operational obligation on the deployer, and one of the few places in this chapter where a wrong configuration silently voids a property the rest of the chapter proves.
-  \item \textbf{Algorithm confusion at the token-encoding layer.} The delegation models of \S\ref{sec:correct} target chain authenticity and capability-subset soundness; the attacks that have actually broken JWT deployments in the field target the encoding underneath, and RFC~8725 catalogues them~\pdcite{rfc8725jwtbcp}: the \texttt{alg:none} downgrade, and the confusion that hands a verifier an asymmetric \emph{public} key and talks it into treating that key as an HMAC secret. An earlier edition of this chapter disclaimed those attacks --- ruled out by construction, it said, since the verifier accepts one fixed algorithm and negotiates nothing --- and that disclaimer was too modest, because the model had already been written. \path{proofs/anchor/token-verify/algconfusion.pv} puts the two verifiers side by side and separates them, under an adversary who is handed the second algorithm's symmetric key outright (the worst case for the pinned verifier, and the one the CVEs exploit). \emph{Model-checked property:} a verifier pinned to $\mathsf{ALG}_A$ accepts a token only if an honest $\mathsf{ALG}_A$ issuer minted it --- \texttt{accepted\_pinned(m) $\implies$ issued\_A(m)} is TRUE. A naive verifier that reads the header and picks its verification routine from what it finds there fails the same query, and ProVerif hands back the counter-trace rather than a bare refutation: the attacker knows $k_B$, computes $\mathrm{hmac}_B(k_B,m)$ over a payload no issuer ever saw, wraps it as \texttt{tokenB(ALG\_B,\,m,\,\ldots)}, and the naive verifier fires \texttt{accepted\_naive(m)}. That is the whole attack, in four steps, and it's why ``pinned'' has to mean the algorithm comes from policy and the token is never consulted about it. What the model does \emph{not} buy is the decoder. It gives the signature slot two distinct types that cannot be silently coerced into one another --- which is precisely the type-safety a correct parser has to supply in real code, and which no query here checks. So this boundary has moved rather than closed: the pinning discipline is now mechanized, and the Rust that must implement it is still covered only by the bounded Kani harness of Table~\ref{tab:properties}.
+  \item \textbf{Algorithm confusion at the token-encoding layer.} The delegation models of \S\ref{sec:correct} target chain authenticity and capability-subset soundness; attacks on JWT deployments also target the encoding underneath. RFC~8725 catalogues the \texttt{alg:none} downgrade and the confusion that makes a verifier treat an asymmetric \emph{public} key as an HMAC secret~\pdcite{rfc8725jwtbcp}.
+  \path{proofs/anchor/token-verify/algconfusion.pv} compares a pinned and a naive
+  verifier under an adversary given the second algorithm's symmetric key.
+  \emph{Model-checked property:} a verifier pinned to $\mathsf{ALG}_A$ accepts a
+  token only if an honest $\mathsf{ALG}_A$ issuer minted it ---
+  \texttt{accepted\_pinned(m) $\implies$ issued\_A(m)} is TRUE.
+  The naive verifier lets the token select its verification routine and fails
+  the same query: the attacker knows $k_B$, computes $\mathrm{hmac}_B(k_B,m)$
+  over a payload no issuer signed, wraps it as
+  \texttt{tokenB(ALG\_B,\,m,\,\ldots)}, and triggers
+  \texttt{accepted\_naive(m)}. Pinning fixes the algorithm by policy rather than
+  by attacker-controlled input. The model does not verify the decoder: its
+  distinct signature types cannot be silently coerced into one another, and
+  real parsers must enforce that separation. The bounded Kani harness in
+  Table~\ref{tab:properties} checks only its reachable stubbed-input paths;
+  it does not discharge that decoder obligation.
 \end{enumerate}
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
@@ -945,28 +1081,38 @@ gossip; it is a socket the other user cannot open. [internal]
 
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Proofs are leverage, not decoration}\label{sec:conclusion}
+\section{What the verification covers}\label{sec:conclusion}
 % ═════════════════════════════════════════════════════════════════════════════
 
-A proof is decoration when it is about a model nobody deploys, or when its scope is quietly larger in the prose than in the tool output. It is leverage when it lets you delete a defensive check you would otherwise have had to write, and when the thing proved is the thing that runs. That is the test this chapter has tried to hold itself to: the Kani harnesses are bounded, say so, and run against the same \texttt{harbor-card-rs} crate the daemon loads at runtime; the ProVerif attenuation model was rewritten (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}) once a reviewer showed the original could not even \emph{express} the attack it claimed to exclude; and every claim whose mechanization is partial or absent is marked \Partial\ or \Open\ in Table~\ref{tab:anchor-status} rather than rounded up.
+A proof helps only where its model matches the implementation and its assumptions hold. A symbolic pinning proof does not remove the parser's validation obligations. The Kani harnesses are bounded and use the \texttt{harbor-card-rs} crate with the substitutions listed in Table~\ref{tab:properties}; the ProVerif attenuation model explicitly admits an insider's escalation attempt before checking that the verifier rejects it (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}). A model that cannot express the attempt cannot establish that boundary. Claims whose mechanization is partial or absent remain \Partial\ or \Open\ in Table~\ref{tab:anchor-status}.
 
-\begin{pdexample}{counting the guards in the deployed verifier}
-The leverage is countable, so count it. In the \texttt{verify} function of
-\S\ref{sec:implementation} --- the one the daemon actually loads --- there are
-six places control can leave with an error: the three-part length check, the
-base64 decode of the signature segment, the signature verification itself, the
-base64 decode of the payload, the JSON parse, and the expiry comparison against
-\texttt{now\_ts}. Now count the places it asks the token which algorithm to
-verify under: zero. There is no \texttt{alg} branch in that function at all,
-not a permissive one and not a strict one, because the verifier's algorithm and
-key were fixed when it was constructed. A seventh guard --- ``is the header's
-algorithm on the allowed list?'' --- is the check that Design
-invariant~\ref{prop:alg-pinning} makes unnecessary rather than merely correct,
-and a check you never write is a check that can never be written wrong.
+\begin{pdexample}{pinning is not skipping validation}
+\setlength{\parskip}{4pt plus 1pt}
+The Rust \texttt{verify} function first checks the token's three-part structure
+and verifies its signature with the fixed Ed25519 verifier. It then decodes
+the authenticated header and explicitly rejects
+\texttt{header.alg != SUPPORTED\_ALG}. This is validation against policy,
+not permission for the token to choose another verification algorithm.
+
+The payload must also decode, have the supported version, and pass the
+issued-at, expiry and applicable not-before checks.
+
+Channel authorization is
+an additional check in \texttt{verify\_for\_channel}; revocation belongs to
+the caller's store. An authentic, unexpired card is not necessarily authorized
+for this channel or still unrevoked.
+
+Design invariant~\ref{prop:alg-pinning} therefore does not justify deleting
+the header check.
+
+Nor does the bounded Kani harness exercise all these guards:
+its zero-byte decode reaches header JSON rejection before the algorithm or
+payload checks. This account is checked against the source, not a new runtime
+or model-checking result.
 [internal]
 \end{pdexample}
 
-The Anchor Protocol replaces several hope-based assumptions with explicit, checkable obligations. It combines:
+The assurance case combines:
 
 \begin{itemize}
   \item Symbolic protocol proofs (ProVerif~\pdcite{blanchet2016modeling})
@@ -974,7 +1120,7 @@ The Anchor Protocol replaces several hope-based assumptions with explicit, check
   \item Capability-based delegation (inspired by Macaroons~\pdcite{birgisson2014macaroons})
 \end{itemize}
 
-Together these artifacts support a bounded assurance case for the modeled and tested surfaces. They do not certify the entire daemon, every delegation depth, or every side channel --- and \S\ref{sec:limitations} says so in the same voice as the claims, because a boundary stated only in a footnote is decoration too.
+These artifacts support the modeled and tested surfaces. They do not certify the entire daemon, every delegation depth, or every side channel; \S\ref{sec:limitations} lists those limits.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -1111,7 +1257,7 @@ Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
 \newblock In \textit{ACM CoNEXT}, 2014.
 
 \bibitem{demers1987epidemic}
-Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
+Alan Demers et al.
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
 \newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
@@ -1150,16 +1296,25 @@ Agent Payments Protocol (AP2): Mandates.
 
 \paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
-\begin{pdexample}{adding up the ledger, and what one promotion would cost}
+\begin{pdexample}{Adding Up the Ledger, and What One Promotion Would Cost}
+\setlength{\parskip}{4pt plus 1pt}
 Count the rows of Table~\ref{tab:anchor-status} by tier: six \Closed, five
-\Partial, one \Open, and $6 + 5 + 1 = 12$, which is every claim the table
+\Partial, one \Open, and
+\[
+6 + 5 + 1 = 12,
+\]
+which is every claim the table
 carries --- a small enough number that a reader can check the caption against
-the body rather than take it. Then run the experiment the tiers exist for.
+the body rather than take it.
+
+Then run the experiment the tiers exist for.
 Promote one row, ``constant-time signature comparison,'' from \Partial\ to
 \Closed: the headline becomes seven of twelve, an improvement of one row and a
 claim of a side-channel result nobody in this chapter has --- the property is
 inherited from an audited library, and \S\ref{sec:limitations} says compiler,
-cache and microarchitecture stay outside it. That is the whole function of the
+cache and microarchitecture stay outside it.
+
+That is the whole function of the
 middle tier. It is where a claim sits when the honest verb is ``tested'' and
 the tempting one is ``proved.'' [internal]
 \end{pdexample}
@@ -1198,12 +1353,12 @@ Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate nar
 Constant-time signature comparison & audited \path{subtle::ConstantTimeEq} library & \Partial\ no side-channel proof; library trust documented & --- \\
 Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; seal not yet implemented & \path{ingress_hpke_secrecy.pv} \\
 Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \path{WebhookDelivery.tla} \\
-Card revocation finality under backup/restore (ADR-0018 Attack~2) & TLA+ / TLC & \Partial\ rollback attack + revocation-epoch mitigation both model-checked & \path{CardRevocation.tla} \\
+Card revocation finality when restoring pre-revocation state & TLA+ / TLC & \Partial\ rollback attack + revocation-epoch mitigation both model-checked & \path{CardRevocation.tla} \\
 \midrule
 Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics only~\pdcite{demers1987epidemic}; no partition deadline & --- \\
 \end{xltabular}}
 
-\paragraph{Limitations.} The transition to gossiping the Append-Only Event Log removes the unsound filter merge described in \S\ref{sec:revocation} (``Why filters cannot be merged bitwise''), but cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+\paragraph{Limitations.} Gossiping the Append-Only Event Log avoids the unsound filter merge described in \S\ref{sec:revocation} (``Why filters cannot be merged bitwise''), but cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These remain open obligations outside the present claims.
 
 \paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered. Replay-freedom is an ordering-sensitive, mutable-state property outside ProVerif's reach, so it is discharged separately in TLA+ (\texttt{proofs/relay/WebhookDelivery.tla}): a daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is model-checked at-most-once \emph{and} gap-free against an adversarial relay that reorders, duplicates, and redelivers, with the unguarded daemon as the model-checked counterexample (TLC exhibits a double-dispatch). The obligation it names: the daemon ingests webhooks over the relay's ordered \texttt{from\_seq} subscribe path, not the raw forward. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Two limits: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
@@ -1215,19 +1370,24 @@ Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics
 
 For completeness, we include the full ProVerif models used for verification. These correspond to the algorithms in Section~\ref{sec:algorithms}. Before reading the first one, it is worth counting its destructor rules, because that count is what separates a proof from a tautology.
 
-\begin{pdexample}{two rules offered, one rule used}
+\begin{pdexample}{Two Rules Offered, One Rule Used}
+\setlength{\parskip}{4pt plus 1pt}
 The v1 model below declares \texttt{verify\_generic} with two reduction rules:
 one that succeeds when the signature is $\mathrm{hs256}(m,k)$ and the header
 says \texttt{hs256\_alg}, and a second, \texttt{verify\_generic(m, none\_alg,
 m, k) = true}, which succeeds for \emph{any} message whose header says
 \texttt{none\_alg} and whose ``signature'' is the message itself. That second
 rule is the \texttt{alg:none} downgrade written into the model on purpose ---
-the attack is expressible here, not assumed away. Now count the rules the
+the attack is expressible here, not assumed away.
+
+Now count the rules the
 honest verifier actually calls: \texttt{SecureHarbor} invokes
 \texttt{check\_hs256}, which has exactly one rule and no header parameter at
 all, so the header it received is destructured and then never consulted. Two
 rules offered, one used, and the unused one is the one an attacker would
-need. The TRUE verdict in Table~\ref{tab:proverif-results} is therefore a
+need.
+
+The TRUE verdict in Table~\ref{tab:proverif-results} is therefore a
 statement about the verifier's structure rather than about a rule the model
 forgot to write down. [internal]
 \end{pdexample}
@@ -1284,19 +1444,26 @@ process
 
 The v2 model's secrecy result is carried by one keyword, and the quickest way to see that is to inventory what the main process hands the attacker.
 
-\begin{pdexample}{one keyword between a secret key and the attacker}
+\begin{pdexample}{One Keyword between a Secret Key and the Attacker}
+\setlength{\parskip}{4pt plus 1pt}
 Count the outputs in the model below. The main process performs exactly one
 \texttt{out} on the public channel \texttt{c} --- \texttt{out(c, harbor\_pk)},
 the public key, which the attacker is \emph{meant} to have --- and one
 replicated \texttt{out(k\_dist, secret\_key)}, which puts the private key on a
-channel in the clear. Count the destructors: there is one,
+channel in the clear.
+
+Count the destructors: there is one,
 \texttt{check\_sign}, and no rule anywhere inverts \texttt{pk($\cdot$)}, so
 from \texttt{harbor\_pk} the attacker derives nothing. So the query
 \texttt{attacker(secret\_key)} turns entirely on whether \texttt{k\_dist} is
 reachable, and the only thing making it unreachable is the word
-\texttt{[private]} in its declaration. No run is needed to see the
+\texttt{[private]} in its declaration.
+
+No run is needed to see the
 counterfactual: delete that one word and the replicated output publishes the
-key directly, and the secrecy query fails on the first step. A model can be
+key directly, and the secrecy query fails on the first step.
+
+A model can be
 this close to failing and still be sound --- what it cannot be is
 \emph{accidentally} sound, which is why the key-distribution channel is
 declared rather than assumed. [internal]
@@ -1436,18 +1603,25 @@ process
 
 \subsection{Soundness of the Attenuation Proof (v5)}\label{sec:attn-soundness}
 
-\begin{pdexample}{enumerating what the capability order can derive}
+\begin{pdexample}{Enumerating What the Capability Order Can Derive}
+\setlength{\parskip}{4pt plus 1pt}
 Take the v3 order --- one rule, \texttt{is\_subset(c1, c1) = true} --- and two
 capabilities, \texttt{cap\_read} and \texttt{cap\_write}. There are four
 ordered pairs to ask about, and the rule derives exactly two of them, both
 reflexive; neither of the two pairs relating \emph{distinct} capabilities is
-derivable, in either direction. So the verifier's guard
+derivable, in either direction.
+
+So the verifier's guard
 \texttt{is\_subset(sub\_cap, root\_cap)} can only ever pass on two identical
 terms, and an escalating delegation is not something the model rejects --- it
-is something the model cannot express. Now count again under v5, which adds
+is something the model cannot express.
+
+Now count again under v5, which adds
 \texttt{otherwise is\_subset(cap\_read, cap\_write) = true}: three of the four
 pairs derive, and the fourth, \texttt{is\_subset(cap\_write, cap\_read)}, is
-precisely the fact the insider adversary needs and cannot get. Two derivable
+precisely the fact the insider adversary needs and cannot get.
+
+Two derivable
 facts before, three after, one deliberately withheld --- and the gap between
 the two counts is the whole difference between a query that holds because the
 protocol works and a query that holds because nothing else was sayable.
@@ -1461,8 +1635,8 @@ Capabilities are opaque atoms with no order, so a delegated capability can only
 ever \emph{equal} its parent. Escalation---delegating more authority than you
 hold---is not blocked; it is \emph{inexpressible}. The no-escalation query
 therefore holds for a reason that has nothing to do with the protocol: there is
-no larger capability to delegate. A reviewer flagged this directly: \emph{``the
-model cannot witness escalation.''}
+no larger capability to delegate. A meaningful attenuation check needs a model
+in which an insider can actually attempt the forbidden delegation.
 
 \texttt{harbor\_card\_v5\_attenuation.pv} closes the obligation by enrichment,
 not by weakening the claim. It gives capabilities a real partial order
@@ -1497,13 +1671,19 @@ query a: id, r: capability, s: capability;
   event(EscalationAttempted(a, r, s)) ==> false.
 \end{lstlisting}
 
-\begin{pdclaim}{Model-checked property}{Attenuation soundness, mechanized}
+\begin{pdclaim}{Model-checked property}{Attenuation Soundness, Mechanized}
+\setlength{\parskip}{4pt plus 1pt}
 \label{thm:attn-sound}
+\raggedright
 In \texttt{harbor\_card\_v5\_attenuation.pv}, ProVerif~2.05 reports
 \texttt{Accepted(b, harbor, cap\_write, cap\_read)} unreachable
-(\textbf{Q1 = true}): no escalating delegation is ever accepted. Simultaneously
+(\textbf{Q1 = true}): no escalating delegation is ever accepted.
+
+Simultaneously
 \texttt{EscalationAttempted} is reachable (\textbf{Q2 = false-with-trace}):
-the attack is expressible, so Q1 is a real defense, not the v3 vacuum. A
+the attack is expressible, so Q1 is a real defense, not the v3 vacuum.
+
+A
 negative control that deletes the verifier's \texttt{is\_subset} guard flips
 Q1 to false-with-trace---ProVerif exhibits the read$\to$write escalation---
 confirming the guard is necessary.
@@ -1543,16 +1723,25 @@ than implied by the file names.
 
 The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. The third bullet's maturity gap is the easiest one to misread, so here it is as four numbers that do not agree with each other.
 
-\begin{pdexample}{four delegation depths, and the one that is not checked}
+\begin{pdexample}{Four Delegation Depths, and the One That Is Not Checked}
+\setlength{\parskip}{4pt plus 1pt}
 Line them up. The ProVerif mechanization runs at depth~3. The spawn-time
 policy check in \texttt{lib/tube-spawner-router.ts} defaults to~4 and caps
 at \texttt{HARD\_MAX\_DELEGATION\_DEPTH}~=~8. The cryptographic chain verifier
 in \texttt{lib/delegation-chain.ts} accepts any depth whatsoever, and the
-attenuation monitor checks per-hop monotonicity and nothing about length. Now
-take a chain of depth~5: $3 < 4 < 5 < 8$, so it is above what any model has
+attenuation monitor checks per-hop monotonicity and nothing about length.
+
+Now
+take a chain of depth~5:
+\[
+3 < 4 < 5 < 8,
+\]
+so it is above what any model has
 been checked at, above the spawn default, below the hard cap --- and if it
 reaches a verifier by any route other than a spawn request, it meets no depth
-check at all, because the verifier has none to meet. The gap a reader should
+check at all, because the verifier has none to meet.
+
+The gap a reader should
 carry away is not the distance between 4 and 8; it is that depth is enforced
 at spawn time and nowhere else, which makes it a policy the daemon applies
 rather than an invariant the verifier maintains. [internal]
@@ -1575,39 +1764,60 @@ This appendix traces the lineage the main text points at in \S\ref{sec:problem}.
 
 \subsection{Credential Formats in Agentic Commerce}\label{app:credential-formats}
 
-Since this protocol was first specified, the agentic-payments industry has
-converged on a concrete credential dialect: the Agent Payments
+The interoperability target is the credential profile used by the Agent Payments
 Protocol~\pdcite{ap2mandates2026}, adopted by the Universal Commerce
 Protocol~\pdcite{ucp2026} (Google/Shopify, 2026), carries its authorization
 mandates as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb for
 principal proof, JWS detached-content signatures (RFC~7515 Appendix~F) over
 JCS-canonicalized payloads (RFC~8785) for counterparty authorization, with
 ES256 as the recommended algorithm and keys published as JWK sets in a
-\texttt{/.well-known} profile. The reference implementation migrates the
-Harbor Card envelope to this profile (\texttt{hv:~3}, ADR-0094) so that
-external verifiers need no bespoke SDK. The migration is deliberately
-envelope-only: the delegation-chain semantics, the attenuation invariant of
-Property~\ref{thm:injective}, and the ProVerif obligations are independent of
-the serialization, though the key-binding construction of SD-JWT+kb adds a
-binding obligation the model must re-discharge. The JWT hardening below
-(strict algorithm whitelisting, key separation) transfers unchanged --- SD-JWT
-is a JWT profile, not a departure from one. The chapter's keywords name the
-protocol's JWT lineage; SD-JWT is where that lineage currently lands, not a
-departure from it.
+\texttt{/.well-known} profile. A proposed Harbor Card envelope
+(\texttt{hv:~3}, \Designed{}) would use this profile to support external verifiers
+without a bespoke SDK. It is not the deployed wire format: the Rust verifier in
+\texttt{core/harbor-card-rs/src/lib.rs} accepts \texttt{hv:~2}.
+The proposal changes the envelope, not the intended delegation-chain semantics
+or the attenuation invariant of Property~\ref{thm:injective}. Its serialization
+and SD-JWT+kb key binding still require implementation conformance and a matching
+proof obligation; the existing ProVerif results do not certify that envelope.
+Strict algorithm whitelisting and key separation remain requirements for the
+proposed JWT profile, not evidence that the format change has shipped.
 
 \subsection{Formal Verification of Security Protocols}
 
-Formal verification of cryptographic protocols has matured significantly over the past two decades. Following the seminal work by Lowe~\pdcite{lowe1997hierarchy} on authentication hierarchies and the Dolev-Yao model~\pdcite{dolev1983security}, several automated tools have been developed:
+Barbosa et al.~\pdcite{barbosa2021sok} survey the computer-aided-cryptography
+landscape and the symbolic/computational distinction used below.
+Formal verification of cryptographic protocols asks a narrower question than
+``is the implementation secure?'' It asks whether a stated property follows
+from a stated model of principals, messages, and an attacker. Lowe's work on
+authentication hierarchies~\pdcite{lowe1997hierarchy} supplies a vocabulary for
+that first question, while the Dolev--Yao model~\pdcite{dolev1983security}
+idealizes cryptography so that the analysis can concentrate on message flow.
+Those are modeling foundations, not evidence that the deployed daemon obeys
+their assumptions; the distinction matters for the bounded implementation
+claims made later in this chapter.
 
-\begin{itemize}
-  \item \textbf{ProVerif}~\pdcite{blanchet2016modeling}: An automatic symbolic protocol verifier supporting an unbounded number of sessions, used to verify TLS 1.3~\pdcite{cremers2017comprehensive}, Signal~\pdcite{kobeissi2017automated}, and WireGuard. The 2.05 series used here adds the lemma, induction, and subsumption machinery described by Blanchet et al.~\pdcite{blanchet2017proverif}.
+The ProVerif line of work asks whether correspondence and secrecy properties
+survive an unbounded number of symbolic sessions. ProVerif~\pdcite{blanchet2016modeling}
+supports this analysis; Kobeissi et al.~\pdcite{kobeissi2017automated} provide
+a secure-messaging case study connecting symbolic and computational analysis.
+These are precedents for protocol modeling rather than validation of Anchor. The
+2.05 series used here adds the lemma, induction, and subsumption machinery
+described by Blanchet et al.~\pdcite{blanchet2017proverif}; our result therefore
+speaks to the modeled message system and its stated queries, not to every
+transport path, implementation choice, or proposed credential envelope.
 
-  \item \textbf{Tamarin}~\pdcite{meier2013tamarin}: A state-of-the-art protocol verifier that supports equational properties and inductive proofs, used for analyzing 5G authentication~\pdcite{basin2018formal}.
-
-  \item \textbf{CryptoVerif}~\pdcite{blanchet2007cryptoverif}: A computationally-sound protocol verifier that provides proofs in the computational model rather than the symbolic model.
-\end{itemize}
-
-Our work builds on these foundations, applying established verification techniques to the novel domain of local multi-agent coordination. Barbosa et al.~\pdcite{barbosa2021sok} survey the wider computer-aided-cryptography landscape and, in particular, the gap between symbolic and computational guarantees that \S\ref{sec:limitations} declines to paper over.
+The Tamarin line asks a complementary question when state, algebraic
+equations, and inductive arguments are central. Tamarin~\pdcite{meier2013tamarin}
+supports equational properties and inductive proofs. The TLS~1.3 draft analysis
+by Cremers et al.~\pdcite{cremers2017comprehensive} uses Tamarin, as does the
+5G authentication analysis by Basin et al.~\pdcite{basin2018formal}.
+CryptoVerif~\pdcite{blanchet2007cryptoverif} changes the target again:
+it seeks computationally sound protocol proofs rather than only symbolic
+reachability. We do not treat one tool's success as interchangeable with the
+other's guarantee; \S\ref{sec:limitations} keeps the symbolic/computational
+gap explicit. Our contribution is to apply the
+appropriate bounded obligations to local multi-agent coordination, with each
+obligation named instead of promoted into a whole-system security claim.
 
 \subsection{Capability-Based Authorization}
 
@@ -1626,21 +1836,35 @@ Our protocol implements the defense recommended by the IETF JWT Best Current Pra
 \addcontentsline{toc}{section}{Review of the key ideas}
 One card, carried through three of the ideas below, before the ideas themselves:
 
-\begin{pdexample}{one card through attenuation, pinning and revocation}
+\begin{pdexample}{One Card through Attenuation, Pinning and Revocation}
+\setlength{\parskip}{4pt plus 1pt}
 A parent holds \texttt{fs:read} and \texttt{db:write} with ten minutes of
 lifetime left, and asks for a child with \texttt{db:write} for twenty minutes.
+
 Two coordinates, both checked: rights,
-$\{\texttt{db:write}\} \subseteq \{\texttt{fs:read},\texttt{db:write}\}$, which
-holds; and lifetime, $\min(20,10) = 10$, so the child that is issued carries
-ten minutes, not twenty (idea~2). An attacker who intercepts that child and
+\[
+\{\texttt{db:write}\} \subseteq \{\texttt{fs:read},\texttt{db:write}\},
+\]
+which
+holds; and lifetime,
+\[
+\min(20,10) = 10,
+\]
+so the child that is issued carries
+ten minutes, not twenty (idea~2).
+
+An attacker who intercepts that child and
 rewrites its header learns nothing, because the verifier takes the algorithm
 from policy and the count of header reads in its procedure is zero (idea~3).
+
 And when the child's \texttt{kid} is revoked at minute three, the five-daemon
 fleet with a two-second round time converges in four to six seconds --- so by
 minute three and six seconds the card is refused everywhere, with just under
 seven of its ten minutes left unspent, unless one daemon is partitioned away,
 in which case that daemon honors the card for the whole remaining seven
-(idea~4). Every number here is one the
+(idea~4).
+
+Every number here is one the
 chapter has already fixed; what the review adds is that they compose in a
 single trace. [internal]
 \end{pdexample}
@@ -1664,15 +1888,22 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 Several of the exercises below end in a quoted verdict line from a committed results file, and those lines are read backwards from the way a test report is read --- so here is one worked in full before the first exercise asks you to read another.
 
-\begin{pdexample}{two negations, one accepted attack}
+\begin{pdexample}{Two Negations, One Accepted Attack}
+\setlength{\parskip}{4pt plus 1pt}
 The committed output of \texttt{analyses/harbor\_card\_v6\_}\allowbreak\texttt{multihop\_attack.pv}
 reads \texttt{RESULT not event(Accepted(cc\_2, harbor\_id[], cap\_write)) is
-false.} Count the negations: there are two, and they are doing different jobs.
+false.}
+
+Count the negations: there are two, and they are doing different jobs.
 The first is in the query itself --- the model asks ProVerif to show that the
 event \emph{never} happens --- and the second is the verdict, which says that
-claim does not hold. Compose them and the sentence comes out as: the event
+claim does not hold.
+
+Compose them and the sentence comes out as: the event
 \texttt{Accepted($\cdot$, $\cdot$, cap\_write)} \emph{is} reachable, so the
-escalating chain was accepted, so the attack works. A ProVerif
+escalating chain was accepted, so the attack works.
+
+A ProVerif
 \texttt{false} on a safety query is a found attack, not a failed run, and the
 tool says so twice over by printing \texttt{A trace has been found} above it.
 Work that composition once here and every quoted verdict below reads at a
@@ -1713,7 +1944,7 @@ This is a different property from Property~\ref{thm:attn-sound}'s capability-sub
 For each of the three Kani harnesses above, state exactly what is proved and name one stronger claim a reader might wrongly draw from it.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-kani-scope}
-\texttt{proof\_verify\_logic\_only} stubs signature verification and base64 decoding and shows the surrounding parse and branch logic cannot panic on any 32-byte, dot-containing, UTF-8 input within ten unwindings --- a bounded absence-of-panic result under those stubs, not a proof that \texttt{verify} itself is correct. A 32-byte input cannot even hold a real three-part card, so only the \emph{rejection} path is exercised; a reader should not conclude the acceptance path was checked at all.
+\texttt{proof\_verify\_logic\_only} stubs key decoding, base64 decoding, and signature verification, using a 32-byte, dot-containing UTF-8 token and an unwind bound of 128. Its absence-of-panic result concerns only the paths these stubs reach, not correctness of \texttt{verify}. The base64 stub supplies zero bytes rather than valid claims JSON, so even a syntactically three-part input cannot reach successful acceptance. Neither real decoding nor the acceptance path was checked by this harness.
 
 \texttt{proof\_constant\_time\_behavior} calls the comparator once over symbolic 16-byte pairs and shows it cannot panic; it is not a two-run relational proof that the \emph{time} taken is independent of the secret, and Kani adds nothing here beyond the source-level argument already given by inspection (no early return on a secret byte). Compiler, cache, and microarchitectural timing stay entirely outside it --- a reader should not read ``Kani checked it'' as ``this is constant-time in the deployed binary.''
 
@@ -1740,7 +1971,7 @@ A valid signature proves exactly one thing: the holder of the signing key produc
 
 Because Harbor Cards are bearer credentials --- whoever presents the bytes gets the capability, with no further proof of possession --- a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
 
-A status table sharper than Table~\ref{tab:anchor-status}'s three tiers would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation memory and control-flow checks (what Kani proved); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two are asserted in prose (\S\ref{sec:implementation}, ``narrows the gap $\ldots$ to the compiler's'') rather than mechanized, and reading any result in this chapter as more than it is means collapsing exactly this distinction.
+A status table sharper than Table~\ref{tab:anchor-status}'s three tiers would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation memory and control-flow checks (what Kani proved); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

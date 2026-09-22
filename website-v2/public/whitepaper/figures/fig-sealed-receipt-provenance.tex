@@ -1,61 +1,35 @@
-% Fragment: fig-sealed-receipt-provenance.tex -- the receipt R's bound
-% fields as a provenance tree, one child flagged as reported, not true.
-%
-% Reader question: what does a receipt actually prove, and what does it
-% not prove about the answer inside it?
-% Claim: the receipt binds several named things by hash or value, and one
-% of them, the output ciphertext, is bound as WHAT WAS RELEASED, not as
-% proof the release was correct.
-% Evidence: the receipt formula R = Sign(H(C), H(attestation), H(inputs),
-% H(M), H(output ciphertext), labels, declassifications, counters, nonce,
-% epoch) and "The receipt proves what the measured system reported under
-% a policy; it does not prove the answer is true," website-v2/public/
-% whitepaper/sealed-harbor.tex, Sec. sealed-design.
-% Must distinguish: the five hash-bound fields that establish PROVENANCE
-% (what ran, under what policy, with what evidence) from the one field,
-% output ciphertext, whose presence in the receipt proves only that IT
-% was the thing released, not that its content is correct; the five
-% scalar policy/session fields (labels, declassifications, counters,
-% nonce, epoch) are bundled into one closing leaf since none of them,
-% individually, is this figure's claim -- only the flagged leaf is.
-% Grammar chosen: provenance tree, one root, one row of six children --
-% the register row's "receipt with its bound fields as children" as a
-% single level, not stacked rows, so a straight edge from the root never
-% has to cross a sibling to reach a child.
-% Grammar rejected: a full 3-row grid with all ten Sign() arguments drawn
-% separately -- geometrically forces every second- and third-row edge to
-% cross a first-row sibling's box, which no amount of styling fixes
-% honestly; a single flat row is the shape that has no such edge at all.
-% Five-second test: find the one dashed leaf, and read what it warns.
-% QA: beauty_lint warns B4 in swiss/maritime (the breach edge's dashed
-% pattern reads as an extra stroke weight against the ladder's three)
-% and B7 (sub-point alignment noise); justified, not fixed.
+% Book-native replacement for figures/fig-sealed-receipt-provenance.tex.
+% It shows cryptographic binding of recorded fields while keeping correctness
+% of the released output visibly outside what the receipt establishes.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\cx{2.20}
-  \node[pd focus state,minimum width=2.9cm] (R) at ({2.5*\cx},1.55) {receipt $R$};
-  \node[pd artifact,minimum width=2.05cm,align=center] (C1) at (0,0) {$H(C)$\\work order};
-  \node[pd artifact,minimum width=2.05cm,align=center] (C2) at (\cx,0) {$H(\text{attest.})$};
-  \node[pd artifact,minimum width=2.05cm,align=center] (C3) at ({2*\cx},0) {$H(\text{inputs})$};
-  \node[pd artifact,minimum width=2.05cm,align=center] (C4) at ({3*\cx},0) {$H(M)$\\model};
-  \node[pd breach state,minimum width=2.05cm,align=center] (C5) at ({4*\cx},0) {$H(\text{output}$\\$\text{ciphertext})$};
-  \node[pd artifact,align=center,text width=2.85cm]
-    (C6) at ({5.55*\cx},0) {labels, declassifications, counters, nonce, epoch};
-  \foreach \c in {C1,C2,C3,C4,C6}{
-    \draw[pd focus arrow] (R) -- (\c);}
-  \draw[pd breach arrow] (R) -- (C5);
-  \node[pd tag,text=pderror,anchor=north,yshift=-4pt] at (C5 |- C6.south) {proves reported, not true};
-\end{tikzpicture}
-\caption{The receipt $R=\mathrm{Sign}(\ldots)$ of Sec.~\ref{sec:sealed-design},
-drawn as a provenance tree. Four leaves are hashes that establish
-provenance: the work order, the attestation, the inputs, and the model.
-A fifth bundles the release's declared policy state -- labels,
-declassifications, counters, and the freshness pair nonce/epoch. The
-sixth leaf, dashed, is different in kind: the hash of the output
-ciphertext binds only \emph{what was released}, not that it was correct.
-A receipt proves what the measured system reported under a policy; it
-proves nothing about whether the answer inside it was true. [internal]}
+\SGMeasuredFigure{sealed-receipt-provenance}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Bind the reported run};
+  \SGDocument{sbprovwork}{(1,26)}{70}{38}{sgViolet!9}{work order $C$}
+  \node[sg/check,minimum width=70pt] (sbprovatt) at (110,45) {attestation};
+  \node[sg/check,minimum width=70pt] (sbprovinputs) at (196,45) {inputs $I$};
+  \node[sg/check,minimum width=70pt] (sbprovmodel) at (286,45) {model $M$};
+  \node[sg/hash,minimum width=132pt] (sbprovhashes) at (92,111)
+    {$H(C),H(\mathrm{attest.}),H(I),H(M)$};
+  \SGDocument{sbprovout}{(203,78)}{104}{48}{sgRed!7}{output ciphertext\\$H(\mathrm{out})$}
+  \draw[sg/arrow,draw=sgBlue] (sbprovwork.south)--(36,87)--(sbprovhashes.north west);
+  \draw[sg/arrow,draw=sgBlue] (sbprovatt.south)--(110,87)--(sbprovhashes.north);
+  \draw[sg/arrow,draw=sgBlue] (sbprovinputs.south)--(196,87)--(sbprovhashes.north east);
+  \draw[sg/arrow,draw=sgBlue] (sbprovmodel.south)--(286,68)--(158,68)--(sbprovhashes.north east);
+  \node[sg/check,minimum width=132pt] (sbprovstate) at (92,161)
+    {labels, declassifications,\\counters, nonce, epoch};
+  \SGDocument{sbprovreceipt}{(173,150)}{143}{44}{sgTeal!8}{signed receipt $R$\\
+    $\mathrm{Sign}(\ldots)$}
+  \draw[sg/arrow,draw=sgBlue] (sbprovhashes.south)--(174,142)--(sbprovreceipt.north west);
+  \draw[sg/arrow,draw=sgRed] (sbprovout.south)--(255,142)--(sbprovreceipt.north);
+  \draw[sg/arrow,draw=sgTeal] (sbprovstate.east)--(174,161)--(sbprovreceipt.west);
+  \node[draw=sgTeal,fill=sgTeal,text=white,minimum width=143pt,minimum height=29pt,
+    font=\SGType\bfseries] (sbprovreport) at (245,244) {provenance of report};
+  \draw[sg/arrow,draw=sgTeal] (sbprovreceipt.south)--(sbprovreport.north);
+  \node[anchor=east,text=sgRed,align=right] at (307,279)
+    {truth of output\\not proved};
+\end{tikzpicture}}
+\caption{Hashes and the signature bind the recorded work order, evidence, inputs, model, policy state, and released ciphertext. The receipt proves what was reported, not that the output is true.}
 \label{fig:sealed-receipt-provenance}
 \end{figure}

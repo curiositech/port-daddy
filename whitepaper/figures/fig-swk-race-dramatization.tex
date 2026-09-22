@@ -35,12 +35,6 @@
   \node[pd breach state,minimum width=3.3cm,text width=3.0cm,align=center] at (8.35,-1.55)
     {\texttt{DENIED} \texttt{(holder=Alice)}};
 \end{tikzpicture}
-\caption{Two racing \texttt{acquire(7421)} calls converge on one
-insert-commit point in the single daemon; the uniqueness constraint decides
-the winner. Alice's insert lands first and she is granted the port. Bob's
-insert is rejected atomically -- there is no moment at which both rows
-exist -- and the catch path reads the row back, handing Bob a named
-\texttt{DENIED(holder=Alice)} rather than a bare error, so he can pick
-another port, wait, or message Alice. [internal, alg:acquire]}
+\caption{The uniqueness constraint admits one racing acquisition. The loser receives the current holder's identity, not merely an error; both cannot own the port. [internal, alg:acquire]}
 \label{fig:swk-race-dramatization}
 \end{figure}

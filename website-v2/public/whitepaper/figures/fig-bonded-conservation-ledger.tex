@@ -85,13 +85,6 @@ $S_P := W_P + E_P + C_P$: before $4+6+0=10$, after $8+0+2=10$ --- unchanged.
 5 & slash$(\mathit{id},p)$ & $E_P \mathrel{-}= b$, $W_P \mathrel{+}= (b{-}p)$, $C_P \mathrel{+}= p$ & $0$ \\
 \bottomrule
 \end{tabularx}}
-\caption{The conservation ledger of Theorem~\ref{thm:conservation}: three
-buckets per project, joined by five named operations. Only \texttt{topUp}
-(gold) grows the supply $S_P$; the other four, including the two-way split
-that \texttt{slash} performs (red, dashed, two rails for one operation),
-only move money between buckets. The instance under each bucket is the
-chapter's own worked partial breach: before $(W_P,E_P,C_P)=(4,6,0)$, a
-slash of $p=2$ retires the full escrow, and after $(8,0,2)$ --- $S_P=10$
-both times. [internal, \texttt{Conservation.tla}]}
+\caption{Only top-up increases supply. A partial breach moves $(W_P,E_P,C_P)$ from $(4,6,0)$ to $(8,0,2)$: the full escrow closes, while total supply stays 10. [internal, \protect\path{Conservation.tla}]}
 \label{fig:bonded-conservation-ledger}
 \end{figure}

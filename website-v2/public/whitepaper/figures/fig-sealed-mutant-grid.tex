@@ -52,6 +52,9 @@
   \node[pd breach datum] at ({\cb+.55},{\ybot+\ch/2}) {};
   \node[pd label,anchor=west,align=left] at ({\cb+.95},{\ybot+\ch/2}) {caught\\3 steps};
 \end{tikzpicture}
-\caption{The two canonical atomicity breaks against the ledger's two invariants: spend-without-append (a release that adds to the balance without journaling it) and the torn write (a release that journals the wrong amount). Each marked cell gives the shortest trace that catches the break; the ledger's balance is the invariant both mutants break immediately, but only the torn write's deeper crime -- recorded spend past the contracted maximum -- takes three steps to show, and spend-without-append never exercises the cap at all. Model-checked instance: two concurrent clients racing programs $(2,2)$ and $(1,2)$ against a budget cap of $4$. All 15 reachable states (order-sensitive; 11 as a multiset) satisfy both invariants under every interleaving, and 2000 random instances of program, budget and interleaving show no violation; the torn write logs the correct amount but adds one unit less, so by 3 steps the recorded ledger reaches a total of $5$, over the cap of $4$ -- an auditable over-spend. Reverting either mutation restores both invariants and the 15 states [internal, \texttt{a3\_epsilon\_ledger.py}].}
+\caption{Both atomicity mutants break balance immediately. Only the torn
+write breaches the budget cap, after three steps in this two-client model.
+The intact model's 15 reachable states satisfy both invariants.
+[internal, \protect\path{a3_epsilon_ledger.py}]}
 \label{fig:sealed-mutant-grid}
 \end{figure}

@@ -1,51 +1,28 @@
-% Figure IV.new --- skill v2 lineage: ancestry proved, similarity discounted.
-% ch6-39 (register: could).
-%
-% Reader question: when a licensed skill ships a new version, how much of
-% its old track record should the new version inherit?
-% Claim: a v2 leaf's portfolio proof includes its v1 parent's leaf plus
-% v2's own evaluation root, and v2's reputation prior is initialized at a
-% predeclared discount gamma*n_v1 of v1's sample size, fixed before seeing
-% any v2 outcomes -- never a straight copy of v1's settled outcomes.
-% Evidence: ex:he-portfolio-version-binding, leaf tuple (skill_id, version,
-% content_hash, parent_hash, build/dependency hashes, license, evaluation
-% root); prior = gamma * n_v1, gamma predeclared in [0,1].
-% Must distinguish: the LINEAGE edge (proves ancestry, always true) from
-% the PRIOR the discount factor sets (a policy choice, not a proof of
-% behavioral similarity) -- gamma<1 exists precisely because ancestry does
-% not imply similarity.
-% Grammar chosen: provenance tree/DAG, time left to right (SKILL.md "what
-% derives from what"), the same idiom as fig-he-conflict-witness. Grammar
-% rejected: a state machine -- there is no transition, only one static
-% parent-child proof relationship.
-% Five-second test: a reader can see the edge names a discount, not a full
-% inheritance, and that v2 keeps its own evaluation root.
+% Book-native replacement for fig:he-skill-lineage. Shared Swiss language is preloaded.
+\newcommand{\AccSkillLineageDiagram}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (4,0) {ancestry};
+  \node[anchor=north west,font=\SGType\bfseries] at (197,0) {v2 evidence};
+  \draw[sg/grid,step=15pt] (4,23) grid (157,191);
+  \SGDocument{accVOneLeaf}{(4,31)}{100}{43}{sgViolet!9}{v1 signed leaf\\$h_1$, license}
+  \SGDocument{accVTwoLeaf}{(207,31)}{106}{43}{sgBlue!7}{v2 signed leaf\\parent $h_1$; root $E_2$}
+  \draw[sg/arrow,draw=sgViolet] (accVOneLeaf.east)--(accVTwoLeaf.west);
+  \node[anchor=south,text=sgViolet] at (156,42) {parent hash};
+  \SGDocument{accVOneHistory}{(4,99)}{100}{42}{sgViolet!7}{v1 settled history\\$n_{v1}=20$}
+  \node[sg/check,minimum width=100pt,draw=sgAmber,fill=sgAmber!9] (accGamma) at (54,170)
+    {$\gamma=0.4$ predeclared\\$0.4\times20=8$ prior};
+  \draw[sg/arrow,draw=sgViolet] (accVOneHistory.south)--(accGamma.north);
+  \SGDocument{accFreshVTwo}{(207,99)}{106}{42}{sgTeal!8}{fresh v2 record\\$n_{v2}=5$}
+  \node[sg/check,minimum width=106pt,draw=sgTeal,fill=sgTeal!7] (accEvidence) at (260,170)
+    {v2 evidence\\$5$ observations};
+  \draw[sg/arrow,draw=sgTeal] (accFreshVTwo.south)--(accEvidence.north);
+  \node[sg/check,minimum width=212pt,minimum height=31pt] (accAssessment) at (157,230)
+    {v2 assessment: discounted prior $8$ + fresh evidence $5$};
+  \draw[sg/arrow,draw=sgAmber] (accGamma.south)--(54,207)--(accAssessment.north west);
+  \draw[sg/arrow,draw=sgTeal] (accEvidence.south)--(260,207)--(accAssessment.north east);
+\end{tikzpicture}}
 \begin{figure}[H]
-\centering
-\pdfigurehue{pdgold}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west,text width=9.6cm] at (-0.20,2.55)
-    {ancestry is proved; behavioral similarity is only ever assumed by
-     a declared discount};
-  \node[pd state,minimum width=3.6cm,align=left,text width=3.2cm] (V1)
-    at (0,0) {\textbf{v1 leaf}\\content\_hash, license,\\evaluation root};
-  \node[pd focus state,minimum width=3.8cm,align=left,text width=3.4cm] (V2)
-    at (6.60,0) {\textbf{v2 leaf}\\parent\_hash $=$ v1,\\own evaluation root};
-  \draw[pd focus arrow] (V1) -- node[pd tag,align=center] {$\gamma$ discount} (V2);
-  \node[pd label,anchor=north,align=center,text width=8.4cm] at (3.30,-1.30)
-    {prior $=\gamma\, n_{v1}$, $\gamma\in[0,1]$ predeclared before any v2
-     outcome};
-  \node[pd note,anchor=north west,text width=9.6cm] at (-0.20,-2.70)
-    {lineage proves ancestry; it does not by itself prove behavioral
-     similarity, which is exactly what $\gamma<1$ discounts -- v2 never
-     simply inherits v1's settled outcomes};
-\end{tikzpicture}
-\caption{\textbf{A new version inherits a discounted prior, not a copied
-record.} The v2 portfolio leaf includes its v1 parent's leaf by hash, but
-opens its own evaluation root: v2's reputation prior is $\gamma\,n_{v1}$, a
-predeclared discount of v1's sample size fixed before any v2 outcome is
-observed. The edge names the discount, not a full inheritance, because
-ancestry alone does not establish that the new version behaves like the old
-one. [internal; hand-worked, no script]}
+\centering\SGMeasuredFigure{fig-he-skill-lineage}{\AccSkillLineageDiagram}
+\caption{A versioned skill document binds v2 to its v1 parent while retaining a separate v2 evaluation root. The displayed counts illustrate a predeclared discounted prior, not evidence that v2 behaves like v1. [internal; illustrative]}
 \label{fig:he-skill-lineage}
 \end{figure}

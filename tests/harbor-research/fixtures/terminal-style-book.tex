@@ -1,0 +1,33 @@
+% Actual Book preamble; recorded inputs are resolved at build time, not copied.
+\documentclass[11pt,twoside]{article}
+\def\pdedition{swiss}
+\input{coordination-papers-mega-volume-preamble.tex}
+\InputIfFileExists{terminal-mono-config.tex}{}{}
+\begin{document}
+\pagestyle{plain}
+\section{Recorded terminal passages}
+This proof uses the Book preamble and its margin allocator. The first listing
+is an existing recorded excerpt; the second is a fresh, read-only local
+inventory. Neither invokes a Port Daddy process.
+\input{figures/session-fh-rollback.tex}
+This paragraph follows the short transcript at normal body size. The source
+excerpt and its caption are unchanged.
+\begin{pdclaim}{Design invariant}{Direct margin-note specimen}
+\marginnote{Direct margin note from inside the frame. This checks the shared allocator, not the Book citation renderer.}
+This authored layout statement exercises a direct margin note from inside
+the shared frame. It does not test bibliographic citation rendering.
+\end{pdclaim}
+\section{One transcript across pages}
+The following listing contains the captured stdout of a local source inventory.
+Line breaks wrap to the inset measure at native 8.6pt. All 48 records remain
+in one numbered listing; no service or research experiment was run.
+\input{terminal-inventory-session.tex}
+This paragraph follows the last segment. The next listing verifies continued
+numbering; the synthetic records keep their separate feed-paper style.
+\input{terminal-completion-session.tex}
+\begin{pdsampledata}[synthetic; layout contrast only]
+owner: worker-a
+status: waiting
+\end{pdsampledata}
+The synthetic sample retains its original neutral feed-paper style.
+\end{document}

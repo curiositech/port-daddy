@@ -48,13 +48,6 @@
     \node[pd label,anchor=south,text width=3.2cm,align=center] at (0,\y+.22) {\gap};
   }
 \end{tikzpicture}
-\caption{The assurance case as a two-rail bridge, restating
-Table~\ref{tab:anchor-verification-stack} as one directed shape.
-Obligations descend from the protocol model to the Rust source to the
-deployed binary; evidence from each tool's own run climbs back up the
-right rail. The two amber gaps are the only places in the whole case where
-a human, not a tool, asserts a layer's claim carries to the next --- that
-the modeled protocol is this source, and that the inspected source is this
-running binary. [internal]}
+\caption{Obligations descend from model to source to binary; tool evidence returns upward. The two correspondence gaps still require human justification. [internal, Table~\ref{tab:anchor-verification-stack}]}
 \label{fig:anchor-verification-stack}
 \end{figure}

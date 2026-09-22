@@ -19,7 +19,7 @@
   \node[pd title,anchor=west] at (0,5.65) {remaining corrupt opportunity across audit levels};
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (9.10,0);
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (0.9,4.65);
-  \node[pd label,anchor=west] at (9.25,0) {audit level $k$};
+  \node[pd label,anchor=north east] at (9.10,-.75) {audit level $k$};
   \node[pd label,anchor=south,rotate=90,text width=2.6cm,align=center] at (0.20,2.30) {$G_k$ (log scale)};
   \foreach \x/\lab in {0.9/0,2.19/10,3.47/20,4.76/30,6.05/40,7.34/50,8.43/56} {
     \draw[pd tick] (\x,-.12) -- (\x,.12);
@@ -37,19 +37,13 @@
   \draw[pd warn fill] (0.9,-0.28) rectangle (9.10,0.95);
   \node[pd tag,anchor=center,text width=7.6cm,align=center,fill=pdpage,inner sep=2pt] at (5.0,0.42)
     {exogenously honest root required; the contraction theorem does not manufacture it};
-  \node[pd label,anchor=north west,text width=3.0cm] at (0.9,-0.85)
+  \node[pd label,anchor=north west,text width=3.0cm] at (0.9,-1.35)
     {$\rho d B\ge G_k$ at each level};
-  \node[pd label,anchor=north west,text width=4.6cm] at (4.10,-0.85)
+  \node[pd label,anchor=north west,text width=4.6cm] at (4.10,-1.35)
     {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
 \end{tikzpicture}
-\caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
-contracts.} The parameterized example plots the chapter's reported depths:
-heterogeneous sealed sampling across $C=8$ cliques reaches the honest-root boundary
-near level 27, while a monoculture ($C=1$) requires roughly 53 levels. More boxes
-or more height would not prove this result; the governing conditions are local
-deterrence $\rho dB\ge G_k$ and contraction
-$G_{k+1}=(1-\rho d)G_k$. The amber floor is deliberately separate: the imported
-theorem bounds the tower but does not supply its exogenously honest root or the
-telemetry that estimates $d$. [internal]}
+\caption{In this parameterized example, eight cliques reach the honest-root
+boundary near level 27; one clique needs roughly 53. The bound assumes an
+honest root---it does not create one. [internal]}
 \label{fig:rate-raters}
 \end{figure}

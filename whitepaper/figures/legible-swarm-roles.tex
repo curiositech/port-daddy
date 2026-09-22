@@ -57,12 +57,6 @@
     {\hyphenpenalty=10000\exhyphenpenalty=10000
      one grant; the daemon gates every act;\\only the operator overrides};
 \end{tikzpicture}
-\caption{The grant-and-gate sequence, three lifelines and four messages, no
-crossing. The operator grants once (message 1: scoped grant g). Agents act
-under that grant (message 2), and the daemon gates or escalates every such
-act (message 3) rather than granting again. The override (message 4) is the
-one edge running straight from operator to daemon, bypassing the agents
-entirely. Idealized to one representative act; a live fleet repeats messages
-2--3 per act, not per grant [internal].}
+\caption{The operator grants once; the daemon gates or escalates each subsequent act. Operator override bypasses agents. A live fleet repeats the act-and-check pair, not the grant. [internal]}
 \label{fig:roles}
 \end{figure}

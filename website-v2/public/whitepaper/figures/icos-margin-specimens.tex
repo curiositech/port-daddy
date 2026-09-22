@@ -1,0 +1,141 @@
+% Reusable ICOS margin specimens for the Harbor Book.
+%
+% Ground truth for meanings: the local International Code of Signals corpus
+% (Pub. 102, US ed. 1969, rev. 2003) in the ICOS skill data/signals.json.
+% The five fixed colors below follow the existing repository's real-flag SVG
+% renderer (website-v2/src/components/ui/SignalFlags.tsx).  These are flag
+% faces, not Port Daddy semantic status colors.
+%
+% A registered two-letter group is drawn as one signal: its two flags touch.
+% Separate signals in a longer hoist belong in \icosHoist and receive a
+% tackline.  This prevents visual adjacency from inventing sentence grammar.
+
+% The Book preamble already loads TikZ, xcolor, and the PGF libraries. This
+% fragment is intentionally preamble-neutral so the Book remains the proof
+% environment rather than a standalone font substitute.
+
+\definecolor{icosblue}{HTML}{003399}
+\definecolor{icosred}{HTML}{CC0000}
+\definecolor{icosyellow}{HTML}{FFD100}
+\definecolor{icosblack}{HTML}{000000}
+\definecolor{icosink}{HTML}{18212B}
+\definecolor{icosrule}{HTML}{8996A3}
+
+\newlength{\icosflagwidth}
+\newlength{\icosflagheight}
+\setlength{\icosflagwidth}{0.27in}
+\setlength{\icosflagheight}{0.18in}
+
+\newcommand{\icosFlagFrame}{%
+  \draw[icosrule, line width=.18pt] (0,0) rectangle (\icosflagwidth,\icosflagheight);%
+}
+
+\newcommand{\icosFaceA}{% Alpha: white hoist, blue fly, swallowtail notch.
+  \pgfmathsetlengthmacro{\anotch}{0.22*\fw}
+  \path[fill=white]
+    (0,0) -- (\fw,0) -- ({\fw-\anotch},\fh*.5) -- (\fw,\fh) -- (0,\fh) -- cycle;
+  \path[fill=icosblue]
+    (\fw*.5,0) -- (\fw,0) -- ({\fw-\anotch},\fh*.5) -- (\fw,\fh) -- (\fw*.5,\fh) -- cycle;}
+\newcommand{\icosFaceC}{% Charlie: blue-white-red-white-blue stripes.
+  \path[fill=icosblue] (0,0) rectangle (\fw,\fh*.2);
+  \path[fill=white] (0,\fh*.2) rectangle (\fw,\fh*.4);
+  \path[fill=icosred] (0,\fh*.4) rectangle (\fw,\fh*.6);
+  \path[fill=white] (0,\fh*.6) rectangle (\fw,\fh*.8);
+  \path[fill=icosblue] (0,\fh*.8) rectangle (\fw,\fh);}
+\newcommand{\icosFaceH}{% Hotel: vertically divided white and red.
+  \path[fill=white] (0,0) rectangle (\fw*.5,\fh);
+  \path[fill=icosred] (\fw*.5,0) rectangle (\fw,\fh);}
+\newcommand{\icosFaceK}{% Kilo: vertically divided yellow and blue.
+  \path[fill=icosyellow] (0,0) rectangle (\fw*.5,\fh);
+  \path[fill=icosblue] (\fw*.5,0) rectangle (\fw,\fh);}
+\newcommand{\icosFaceL}{% Lima: yellow and black quarters.
+  \path[fill=icosyellow] (0,\fh*.5) rectangle (\fw*.5,\fh);
+  \path[fill=icosblack] (\fw*.5,\fh*.5) rectangle (\fw,\fh);
+  \path[fill=icosblack] (0,0) rectangle (\fw*.5,\fh*.5);
+  \path[fill=icosyellow] (\fw*.5,0) rectangle (\fw,\fh*.5);}
+\newcommand{\icosFaceQ}{% Quebec: plain yellow field.
+  \path[fill=icosyellow] (0,0) rectangle (\fw,\fh);}
+\newcommand{\icosFaceS}{% Sierra: white field with blue square.
+  \path[fill=white] (0,0) rectangle (\fw,\fh);
+  \path[fill=icosblue] (\fw*.22,\fh*.16) rectangle (\fw*.78,\fh*.84);}
+\newcommand{\icosFaceX}{% X-ray: white field with blue cross.
+  \path[fill=white] (0,0) rectangle (\fw,\fh);
+  \path[fill=icosblue] (\fw*.42,0) rectangle (\fw*.58,\fh);
+  \path[fill=icosblue] (0,\fh*.38) rectangle (\fw,\fh*.62);}
+\newcommand{\icosFaceY}{% Yankee: yellow and red diagonal stripes.
+  \path[fill=icosyellow] (0,0) rectangle (\fw,\fh);
+  \begin{scope}
+    \clip (0,0) rectangle (\fw,\fh);
+    \foreach \x in {-12,-4,4,12,20,28,36} {
+      \path[fill=icosred] (\x,0) -- (\x+5,0) -- (\x+\fh+5,\fh) -- (\x+\fh,\fh) -- cycle;
+    }
+  \end{scope}}
+\newcommand{\icosFaceZ}{% Zulu: four triangles, yellow-blue-red-black.
+  \path[fill=icosyellow] (0,\fh) -- (\fw*.5,\fh*.5) -- (\fw,\fh) -- cycle;
+  \path[fill=icosblue] (\fw,\fh) -- (\fw*.5,\fh*.5) -- (\fw,0) -- cycle;
+  \path[fill=icosred] (\fw,0) -- (\fw*.5,\fh*.5) -- (0,0) -- cycle;
+  \path[fill=icosblack] (0,0) -- (\fw*.5,\fh*.5) -- (0,\fh) -- cycle;}
+
+\makeatletter
+\newcommand{\icosOutlineA}{%
+  \pgfmathsetlengthmacro{\anotch}{0.22*\fw}
+  \draw[icosrule, line width=.18pt]
+    (0,0) -- (\fw,0) -- ({\fw-\anotch},\fh*.5) -- (\fw,\fh) -- (0,\fh) -- cycle;
+}
+\newcommand{\icosFlag}[1]{%
+  \begingroup
+    % The Book preamble wraps PGF's picture boxing to center full-width
+    % artwork. Restore its saved raw boxer for these inline flag faces so each
+    % face keeps its native width inside the margin specimen.
+    \ifcsname pd@typesetpicturebox\endcsname
+      \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+    \fi
+  \begin{tikzpicture}[x=1pt,y=1pt,baseline=-.34ex]
+    \pgfmathsetlengthmacro{\fw}{\icosflagwidth}
+    \pgfmathsetlengthmacro{\fh}{\icosflagheight}
+    \csname icosFace#1\endcsname
+    \ifcsname icosOutline#1\endcsname
+      \csname icosOutline#1\endcsname
+    \else
+      \icosFlagFrame
+    \fi
+  \end{tikzpicture}%
+  \endgroup
+}
+\makeatother
+
+\newcommand{\icosRegisteredGroup}[1]{%
+  \ifcsname icosGroup#1\endcsname
+    \csname icosGroup#1\endcsname
+  \else
+    \icosFlag{#1}%
+  \fi
+}
+\newcommand{\icosGroupAS}{\icosFlag{A}\icosFlag{S}}
+\newcommand{\icosGroupCS}{\icosFlag{C}\icosFlag{S}}
+\newcommand{\icosGroupZL}{\icosFlag{Z}\icosFlag{L}}
+
+\newcommand{\icosTackline}{\hspace{.07in}\rule[-.02in]{.11in}{.35pt}\hspace{.07in}}
+
+% Separate signals use this macro; each comma-separated argument is a complete
+% signal and the tackline is the visual boundary.  Do not use it to invent a
+% two-letter meaning absent from the corpus.
+\newcommand{\icosHoist}[2]{\icosRegisteredGroup{#1}\icosTackline\icosRegisteredGroup{#2}}
+
+% Margin content only: the Book's pdmarginexhibit title/caption slots are
+% intentionally left empty in the integration patch. The flag, one exact
+% translation, and one concrete Book connection are the complete specimen.
+  \newcommand{\icosCompactSpecimen}[3]{%
+    \begingroup
+    % The Book's enclosing \marginfont supplies the native margin face and size.
+    % Keep this macro content-only so it can grow vertically instead of shrinking.
+    \raggedright
+  \centering\textbf{#1}\enspace\icosRegisteredGroup{#1}\par
+  \vspace{.045in}
+  \raggedright
+  \textit{#2}\par
+  \vspace{.04in}
+  #3\par
+  \endgroup
+}
+

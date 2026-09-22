@@ -1,60 +1,75 @@
-% Reader question: which control prevents a same-user bypass, and which controls only observe or respond after the effect?
-% Claim: only complete pre-effect mediation removes the capability; built in-band controls detect and remediate after an effect can already be durable.
-% Evidence: sec:enforcement-gap names guard/shim/hooks as built, push broker as designed, credential broker and OS/VM isolation as vision [internal].
-% Must distinguish: prevention before commit, the present direct bypass, detection after commit, and remediation that cannot erase durable history.
-% Grammar: UML component path with one bypass and a post-effect branch; rejected a maturity stack because it would hide when each layer acts.
-% Five-second test: the request reaches the protected effect only through mediation in the target design, while today's dashed bypass remains visible.
+% One source-contract candidate; see BRIEF.md and REPORT.md for limits.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\yflow{4.62}
-  \node[pd artifact,minimum width=1.65cm] (agent) at (.92,\yflow)
-    {agent};
+\SGMeasuredFigure{II/fig:swk-enforcement-layers}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=-1pt,
+  el text/.style={pd label,anchor=west,inner sep=0pt,outer sep=0pt,align=left},
+  el edge/.style={pd label,anchor=center,inner sep=0pt,outer sep=0pt},
+  el flow/.style={pd arrow,line width=.8pt}]
+  % An unchecked effect route remains outside the optional pre-effect check.
+  \node[el edge] (bypasslabel) at (156,7) {Unchecked same-user bypass};
+  \draw[el flow,draw=pdamber,dash pattern=on 3pt off 2pt]
+    (28,40)--(28,28)--(281,28)--(281,44);
+  \node[el text,text width=60pt] (agent) at (0,65) {Same-user\\process};
+  \draw[el flow,draw=pdteal] (70,65)--(102,65);
+  \node[el edge] (invoke) at (87,48) {invoke};
+  \draw[draw=pdteal,line width=.8pt,fill=pdteal!5] (110,44) rectangle (192,87);
+  \node[el text,font=\pdfiglabelbold] (check) at (122,57) {Guard / shim};
+  \node[el text] (optional) at (122,74) {if invoked};
+  \draw[el flow,draw=pdteal] (200,65)--(252,65);
+  \node[el edge] (allow) at (226,48) {allow};
+  \node[el text,font=\pdfiglabelbold] (effect) at (264,65) {Effect};
+  \node[el text] (example) at (264,82) {e.g. push};
+  % Conditional refusal ends this checked request, before its effect.
+  \draw[el flow] (151,95)--(151,113);
+  \draw[pd rule] (144,119)--(158,119);
+  \node[el text] (refuse) at (164,107) {refuse};
+  \node[el text] (preeffect) at (111,137) {before effect};
 
-  \node[pd uml component,pd focus outline,minimum width=4.85cm,
-        minimum height=2.72cm] (prevent) at (4.72,\yflow) {};
-  \pdumlicon{prevent}
-  \node[pd kind,anchor=west] at (2.53,5.48)
-    {prevent \textperiodcentered\ before effect};
-  \node[pd label,anchor=west,align=left,text width=3.95cm] at (2.53,4.73)
-    {push broker --- \textsc{designed}\\credential broker --- \textsc{vision}};
-  \node[pd climax state,minimum width=3.85cm,minimum height=.58cm]
-    at (4.72,3.72) {OS/VM boundary --- \textsc{vision}};
+  % Observation is a separate, conditional relation, not universal coverage.
+  \draw[el flow,draw=pdinkmuted,dash pattern=on 1pt off 2pt]
+    (282,96)--(282,158)--(37,158)--(37,170);
+  \node[el text] (witnessed) at (202,141) {if witnessed};
+  \draw[draw=pdinkmuted,line width=.7pt] (0,178) rectangle (102,222);
+  \node[el text,font=\pdfiglabelbold] (monitor) at (12,192) {Policy monitor};
+  \node[el text] (posteffect) at (12,209) {after effect};
+  \draw[el flow,draw=pdinkmuted] (110,200)--(151,200);
+  \node[el edge] (respond) at (132,183) {on violation};
+  \node[el text] (response) at (163,191) {Flag / halt / compensate};
+  \node[el text] (notprevent) at (163,210) {cannot prevent that effect};
+  \node[el text] (coverage) at (0,234)
+    {No promise that every bypass is witnessed.};
 
-  \node[pd focus state,minimum width=2.05cm] (effect) at (9.55,\yflow)
-    {protected\\effect};
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
-    (agent.east) -- (prevent.west);
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
-    (prevent.east) -- (effect.west);
+  % Mechanism grades do not imply this machine is running these mechanisms.
+  \node[el text,font=\pdfiglabelbold] (mechanismhead) at (0,251) {Mechanism};
+  \node[el text,font=\pdfiglabelbold] (statushead) at (245,251) {Source grade};
+  \draw[pd hairline] (0,264)--(320,264);
+  \node[el text] (guardrow) at (0,279) {Guard / git shim};
+  \node[el text] (guardgrade) at (245,279) {\Built};
+  \node[el text] (hookrow) at (0,298) {Hook harness};
+  \node[el text] (hookgrade) at (245,298) {\Designed};
+  \node[el text] (pushrow) at (0,317) {Branch protection + push broker};
+  \node[el text] (pushgrade) at (245,317) {\Designed};
+  \node[el text] (credentialrow) at (0,336) {Credential broker};
+  \node[el text] (credentialgrade) at (245,336) {\Vision};
+  \node[el text] (isolationrow) at (0,360) {OS/VM isolation + protected state};
+  \node[el text] (mediation) at (0,377) {\textbf{and} forced mediation};
+  \node[el text] (isolationgrade) at (245,368) {\Vision};
+  \node[el text] (cryptorow) at (0,401) {Macaroon cryptography};
+  \node[el text] (cryptograde) at (245,401) {\Built};
+  \node[el text] (notcompulsory) at (0,418)
+    {Authorization proof, not compulsory use.};
 
-  % The same-user path is present today and avoids the pre-effect component.
-  \draw[pd breach arrow,rounded corners=4pt,shorten <=3pt,shorten >=3pt]
-    (agent.south) -- ++(0,-1.26) -- ($(effect.south)+(0,-1.26)$) -- (effect.south);
-  \node[pd breach label,anchor=north] at (5.20,2.83)
-    {same-user bypass today};
-
-  \node[pd legible state,minimum width=4.10cm,minimum height=1.58cm,
-        align=left,text width=3.46cm]
-    (detect) at (2.72,.88)
-    {\pdfiglabelbold detect \textperiodcentered\ observe\\
-     guard \textperiodcentered\ shim \textperiodcentered\ hooks\\monitor};
-
-  \node[pd breach state,minimum width=4.10cm,minimum height=1.58cm,
-        align=left,text width=3.46cm]
-    (repair) at (7.87,.88)
-    {\pdfiglabelbold remediate \textperiodcentered\ respond\\
-     flag \textperiodcentered\ revoke \textperiodcentered\ halt\\compensate};
-
-  \draw[pd thin arrow,shorten >=3pt]
-    (effect.south) to[out=-90,in=25] (detect.north);
-  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
-    (detect.east) -- (repair.west);
-  \node[pd note,anchor=north] at (7.87,-.04)
-    {response cannot erase an already durable effect};
-\end{tikzpicture}
-\caption{Only the proposed OS/VM boundary prevents a same-user bypass; built
-controls detect or compensate after the effect. [internal]}
+  \foreach \name in {bypasslabel,agent,invoke,check,optional,allow,effect,
+    example,refuse,preeffect,witnessed,monitor,posteffect,respond,response,
+    notprevent,coverage,mechanismhead,statushead,guardrow,guardgrade,
+    hookrow,hookgrade,pushrow,pushgrade,credentialrow,credentialgrade,
+    isolationrow,mediation,isolationgrade,cryptorow,cryptograde,notcompulsory}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{EL-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}%
+}
+\caption{Refusal is not compulsory mediation. Grades are source-reported, not an independent runtime audit.}
 \label{fig:swk-enforcement-layers}
 \end{figure}

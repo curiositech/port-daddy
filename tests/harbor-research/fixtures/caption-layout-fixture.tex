@@ -1,0 +1,190 @@
+% Long caption; ordinary float; the caption is taller than the artwork.
+\begin{figure}[htbp]
+\centering
+\rule{180pt}{45pt}
+\caption[Long caption test]{A long caption must remain in the outer margin
+even when it is taller than the exhibit. The two columns flow independently.
+It must not silently return this paragraph to the main reading
+column, shrink its type, crop its final sentence, or overlap the paragraph that
+follows. This deliberately verbose test caption exceeds the former quarter-page
+limit. Its wording repeats the constraints so the test measures real wrapped
+prose rather than an artificial fixed-height box. The final sentence must be
+visible on the same page as the black rectangle, and the caption must remain
+on the right-hand side of this odd-numbered page.}
+\label{fixture:long}
+\end{figure}
+This paragraph must begin below the rectangle, alongside the tall caption.
+\marginnote{A second margin note must clear the caption without moving body text.}
+\clearpage
+% Caption before a table, nested inside center.
+\begin{table}[htbp]
+\begin{center}
+\caption{The caption belongs to a table even inside another environment.}
+\label{fixture:nested-table}
+\begin{tabular}{ll}
+\toprule Choice & Result\\\midrule Left & Outer margin\\\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+\clearpage
+% Source encountered on an odd page; shipped on the following even page.
+\noindent Source page.\par\vspace*{400pt}
+\begin{figure}[t]
+\centering\rule{180pt}{220pt}
+\caption{A moved float takes its caption with it, onto the next even page.}
+\label{fixture:moved}
+\end{figure}
+\clearpage
+% A figure* is still composed within the Book column, beside its caption.
+\begin{figure*}[htbp]
+\centering
+\begin{tikzpicture}
+\draw (0,0) rectangle (10.5,2);
+\end{tikzpicture}
+\caption{A starred figure keeps its caption beside its top, never below it.}
+\label{fixture:wide}
+\end{figure*}
+\clearpage
+% Starred captions are also marginal but do not increment the counter.
+\begin{figure}[htbp]
+\centering\rule{120pt}{40pt}
+\caption*{An unnumbered caption also belongs in the outer margin.}
+\end{figure}
+\clearpage
+\noindent A page-breaking table is encountered late on this odd page.
+\par\vspace*{380pt}
+\begin{xltabular}{\textwidth}{@{}lX@{}}
+\caption{A page-breaking table keeps its caption in the same outer margin.
+This caption is deliberately longer than the space left on its source page.
+The build measures its height and reserves that much space before starting
+the table on the next page. It must not cross the running foot, disappear,
+or become an ordinary heading above the rows. The column headings repeat
+when the table continues, but this caption and its number appear only once.
+Its last sentence must remain visible next to the first part of the table,
+on the left side of the even page that actually receives it.}
+\label{fixture:longtable}\\
+\toprule Choice & Result\\\midrule
+\endfirsthead
+\toprule Choice & Result\\\midrule
+\endhead
+\bottomrule\endlastfoot
+A & \rule{0pt}{80pt}The table rows remain in the main column.\\
+B & \rule{0pt}{80pt}The caption is not a heading above the table.\\
+C & \rule{0pt}{80pt}Its number and list entry are still generated once.\\
+D & \rule{0pt}{80pt}A tall row tests the page break.\\
+E & \rule{0pt}{80pt}Another row preserves its table heading.\\
+F & \rule{0pt}{80pt}No caption is repeated on the continuation.\\
+G & \rule{0pt}{80pt}The last page is still part of the same table.\\
+H & \rule{0pt}{80pt}The final row remains visible.\\
+\end{xltabular}
+\clearpage
+\begin{lstlisting}[caption={A short code listing still reserves its entire margin caption, even when the description is taller than its two lines of code.},label={fixture:listing}]
+acquire(file);
+commit();
+\end{lstlisting}
+This paragraph follows the listing, alongside its caption.
+\clearpage
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{.92\textwidth}
+\begin{lstlisting}[caption={A listing inside a narrow minipage and a float uses the page margin, not the minipage edge.},label={fixture:nested-listing}]
+release(file);
+\end{lstlisting}
+\end{minipage}
+\end{figure}
+\clearpage
+% A portrait-shaped margin object anchored near the foot must be raised as
+% a whole, including its description. Never crop it or push body text away.
+\noindent Portrait regression page.\par\vspace*{470pt}
+\noindent The portrait belongs with this sentence.\marginnote{%
+  \rule{\marginparwidth}{145pt}\par A complete portrait and its explanation.}
+\par Body text continues normally.
+\clearpage
+\begin{pdsession}[The first client holds the lock; the second must wait.]
+$ client-a acquire file.txt
+acquired
+$ client-b acquire file.txt
+held by client-a
+\end{pdsession}
+The terminal explanation is in the margin, not above the transcript.
+\clearpage
+% A deferred medium-height exhibit should share its next page with prose,
+% rather than qualify for an eager half-full float-only page.
+\noindent\rule{0pt}{290pt}Source text before a deferred exhibit.\par
+\begin{figure}[!htbp]
+\centering\rule{180pt}{350pt}
+\caption{A medium-height exhibit shares its page with continuing prose.}
+\label{fixture:shared-float-page}
+\end{figure}
+\newcount\pdflowtestcount\pdflowtestcount=0
+\loop
+  \advance\pdflowtestcount by1
+  \noindent Flow continuation. This ordinary paragraph is deliberately long
+  enough to keep the main text flowing around the deferred exhibit. It must
+  share the exhibit's page when space remains below the artwork, without
+  changing the caption size or borrowing its margin.\par
+\ifnum\pdflowtestcount<14\repeat
+\clearpage
+% A short table fits below this paragraph; the old 40%-page fallback did not.
+\noindent Short xltabular source.\par\vspace*{390pt}
+\begin{xltabular}{\textwidth}{@{}lX@{}}
+\caption{A short measured caption stays beside its table.}
+\label{fixture:short-xltabular}\\
+\toprule Field & Value\\\midrule\endfirsthead
+\toprule Field & Value\\\midrule\endhead
+\bottomrule\endlastfoot
+Probe & Short xltabular row.\\
+\end{xltabular}
+\clearpage
+\noindent Short longtable source.\par\vspace*{390pt}
+\begin{longtable}{@{}ll@{}}
+\caption{A directly authored longtable uses the same measured reservation.}
+\label{fixture:short-direct-longtable}\\
+\toprule Field & Value\\\midrule\endfirsthead
+\toprule Field & Value\\\midrule\endhead
+\bottomrule\endlastfoot
+Probe & Short longtable row.\\
+\end{longtable}
+\clearpage
+% A framed passage must split without mdframed's retry loop exhausting.
+\noindent Frame split source.\par\vspace*{390pt}
+\begin{pdexample}{A breakable passage}
+\pdflowtestcount=0
+\loop
+  \advance\pdflowtestcount by1
+  A worked example may continue over a page turn. Its full text must remain
+  visible, with readable line spacing and no oversized frame crossing the
+  footer. Strong paragraph preferences must not make the frame unsplittable.
+\ifnum\pdflowtestcount<12\repeat
+Frame split final sentence.
+\end{pdexample}
+\clearpage
+\noindent Short frame source.\par\vspace*{500pt}
+\begin{pdexample}{A short passage with a heading that wraps onto a second line}
+The full paragraph follows its heading onto a fresh page when there is not
+enough room to begin safely. It must not enter a failed split retry.
+Short frame final sentence.
+\end{pdexample}
+\clearpage
+\noindent Protocol split source.\par\vspace*{390pt}
+\begin{stpprotocol}[Page-breaking protocol]
+\label{fixture:split-protocol}
+\begin{enumerate}
+\pdflowtestcount=0
+\loop
+  \advance\pdflowtestcount by1
+  \item A protocol step explains the action and the conditions that make it
+  valid. A long protocol continues with the following steps on the next page,
+  rather than moving its whole rectangle and leaving this space empty.
+\ifnum\pdflowtestcount<8\repeat
+\end{enumerate}
+Protocol split final sentence.
+\end{stpprotocol}
+\clearpage
+\noindent Heading and example source.\par\vspace*{460pt}
+\subsection{Framed subsection}
+\begin{pdexample}{An example directly after its heading}
+First framed sentence. The heading and the start of this example must
+remain together, even when the example eventually continues on another page.
+\end{pdexample}
+\endinput

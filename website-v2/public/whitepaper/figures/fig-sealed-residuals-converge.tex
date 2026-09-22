@@ -1,55 +1,88 @@
-% Fragment: fig-sealed-residuals-converge.tex -- three residuals opened
-% earlier in the chapter, one q*b account that prices all of them.
-%
-% Reader question: why do three separate gaps opened earlier in the
-% chapter all get paid off by one number?
-% Claim: the laundering residual, the malicious-worker gap in the ledger,
-% and the arbitrary-telemetry channel are three faces of one debt, all
-% priced by the same q*b capacity account -- not three independent
-% problems needing three independent fixes.
-% Evidence: opening paragraph of Sec. sealed-budget, website-v2/public/
-% whitepaper/sealed-harbor.tex ("It is also where the chapter pays three
-% debts it took on earlier: the laundering residual...the malicious
-% worker...and the arbitrary-telemetry channel...All three are the same
-% debt seen from three sides, and it has one price.").
-% Must distinguish: three DIFFERENT sources (different sections, different
-% failure shapes) from one SHARED sink -- the figure must not suggest
-% three separate accounts that happen to look similar; there is exactly
-% one q*b bucket, filled from three pipes.
-% Grammar chosen: converging pipes into one bucket (S12's ledger
-% convention: asset pools are buckets joined by directed pipes) -- reused
-% here as three named residuals piping into the one leakage-budget bucket
-% introduced in fig-sealed-leakage-ledger, this row's own paired panel.
-% Grammar rejected: three separate small ledgers, one per residual --
-% that is the "three independent problems" misreading the chapter is
-% explicit about ruling out.
-% Five-second test: count the buckets -- one, fed by three pipes, not
-% three buckets side by side.
+% Book redraw: VIII/fig:sealed-residuals-converge.
+% Source-derived conceptual accounting flow; no fresh experiment, proof, model,
+% provider, runtime, or deployment evidence is claimed.
+% Owner boundary: website-v2/public/whitepaper/sealed-harbor.tex,
+% sec:sealed-budget. These are alternative worker-chosen output
+% representations entering one specified output envelope, not serial stages
+% and not three additive budgets.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % The explicit box leaves print-size air above the heavy first node. Without
-  % it, fragment cropping trims to that node's inferred top rule.
-  \path[use as bounding box] (-2.20,-0.62) rectangle (7.95,4.05);
-  \def\dy{1.45}
-  \node[pd title,anchor=south west] at (-2.05,3.55)
-    {three residuals, one account};
-  \node[pd breach state,minimum width=4.1cm,align=center] (R1) at (0,{2*\dy})
-    {laundering residual\\\pdfigsub worker computes $t=f(s)$};
-  \node[pd breach state,minimum width=4.1cm,align=center] (R2) at (0,{1*\dy})
-    {malicious worker\\\pdfigsub declares its own $\varepsilon_i$};
-  \node[pd breach state,minimum width=4.1cm,align=center] (R3) at (0,0)
-    {arbitrary telemetry\\\pdfigsub unconstrained prose channel};
-  \node[pd bucket,minimum width=3.0cm,minimum height=2.0cm,align=center]
-    (ACCT) at (6.35,{1*\dy}) {\\[6pt]the $q\cdot b$\\account};
-  \draw[pd focus pipe] (R1.east) -| (ACCT.north);
-  \draw[pd focus pipe] (R2.east) -- (ACCT.west);
-  \draw[pd focus pipe] (R3.east) -| (ACCT.south);
-\end{tikzpicture}
-\caption{Three named residuals converge on one leakage-capacity account. Each
-lets the worker choose bits that the noninterference property does not forbid,
-so all three are priced by the same $q\cdot b$ bound rather than by separate
-mechanisms. [internal]}
+\SGMeasuredFigure{VIII/fig:sealed-residuals-converge}{%
+\begin{tikzpicture}[sg/base]
+  % Native canvas: 316pt wide, deliberately below the 325.215pt Book column.
+  % Each lane has one concrete output artifact on the left, an adjacent
+  % categorical explanation, and a long route to the one common envelope.
+  \path[draw=sgGrid,line width=.35pt] (0,0)--(170,0);
+  \path[draw=sgGrid,line width=.35pt] (0,61)--(170,61);
+  \path[draw=sgGrid,line width=.35pt] (0,122)--(170,122);
+
+  % --- Output A: transformed-secret sheet -------------------------------
+  % The sheet is the output representation; the adjacent copy names the
+  % laundering mechanism without introducing a second process card.
+  \draw[draw=sgInk,fill=sgBlue!6,line width=.75pt]
+    (10,130)--(60,130)--(68,138)--(68,171)--(10,171)--cycle;
+  \draw[sgInk,line width=.6pt] (60,130)--(60,138)--(68,138);
+  \draw[sgBlue,line width=.8pt] (22,151)--(46,151)--(46,160)--(22,160)--cycle;
+  \draw[sgBlue,line width=.8pt] (28,160)--(28,164)
+    ..controls (28,169) and (40,169)..(40,164)--(40,160);
+  \node[font=\SGType\bfseries,text=sgBlue,align=center] at (39,146)
+    {$t=f(s)$};
+  \draw[sgBlue,line width=1.35pt] (78,169)--(170,169);
+  \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (78,163)
+    {laundering};
+  \node[anchor=north west,font=\SGType,align=left,text width=92pt] at (78,160)
+    {transformed secret};
+  \draw[sg/arrow] (172,151)--(211,151)--(228,132)--(236,132);
+
+  % --- Output B: release sheet plus attached cost tag -------------------
+  % The epsilon tag is visibly attached to the released artifact, while the
+  % adjacent qualifier says that self-declaration is not a DP certificate.
+  \draw[draw=sgInk,fill=sgViolet!6,line width=.75pt]
+    (10,69)--(60,69)--(68,77)--(68,110)--(10,110)--cycle;
+  \draw[sgInk,line width=.6pt] (60,69)--(60,77)--(68,77);
+  \node[font=\SGType\bfseries,text=sgViolet,align=center] at (35,91)
+    {release};
+  \draw[draw=sgViolet,fill=sgViolet!10,line width=.7pt]
+    (57,80)--(82,80)--(88,86)--(88,101)--(63,101)--(57,95)--cycle;
+  \node[font=\SGType\bfseries,text=sgViolet] at (72,90.5)
+    {$\varepsilon_i$};
+  \draw[sgViolet,line width=1.35pt] (92,108)--(170,108);
+  \node[anchor=west,font=\SGType\bfseries,text=sgViolet] at (92,102)
+    {self-declared $\varepsilon_i$};
+  \node[anchor=north west,font=\SGType,align=left,text width=78pt] at (92,99)
+    {claimed cost,\\not a DP\\guarantee};
+  \draw[sg/arrow] (172,90)--(236,90);
+
+  % --- Output C: terminal/text transcript -------------------------------
+  % This is arbitrary telemetry as a concrete text-bearing output, not a
+  % runtime observation or a claim that all host side channels are bounded.
+  \draw[draw=sgInk,fill=sgAmber!8,line width=.75pt]
+    (10,9) rectangle (70,50);
+  \draw[sgInk,line width=.6pt] (10,43)--(70,43);
+  \draw[sgAmber,line width=.9pt] (18,20)--(23,25)--(18,30);
+  \draw[sgAmber,line width=.65pt] (28,30)--(54,30) (18,35)--(58,35);
+  \node[font=\SGType\bfseries,text=sgAmber] at (40,15.5)
+    {text};
+  \draw[sgAmber,line width=1.35pt] (78,48)--(170,48);
+  \node[anchor=west,font=\SGType\bfseries,text=sgAmber] at (78,42)
+    {arbitrary telemetry};
+  \node[anchor=north west,font=\SGType,align=left,text width=92pt] at (78,39)
+    {free-form output};
+  \draw[sg/arrow] (172,30)--(211,30)--(228,54)--(236,54);
+
+  % One shared output envelope. Neutral body plus one teal role accent makes
+  % the common sink visually dominant without implying additive capacities.
+  \draw[draw=sgInk,fill=sgTeal!7,line width=.85pt]
+    (236,47) rectangle (315,139);
+  \draw[sgTeal,line width=1.25pt] (236,47)--(275.5,87)--(315,47);
+  \draw[sgInk,line width=.6pt] (236,139)--(267,107) (315,139)--(284,107);
+  \node[font=\SGType\bfseries,text=sgTeal,align=center] at (275.5,103)
+    {one shared\\output envelope};
+  \node[font=\SGType\bfseries,text=sgTeal,align=center] at (275.5,153)
+    {$q\ {\rm jobs}\times b\ {\rm bits}$};
+  \node[font=\SGType,align=center] at (275.5,172)
+    {specified alphabet\\before timing};
+\end{tikzpicture}}
+\caption{Alternative worker-chosen uses share one specified output envelope, not three allowances. The $q\cdot b$ account prices that envelope before timing; $\varepsilon$ is not bits, and the bound does not cover unmodeled host side channels. [internal, \S\ref{sec:sealed-budget}]}
 \label{fig:sealed-residuals-converge}
 \end{figure}

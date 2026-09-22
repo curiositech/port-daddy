@@ -34,12 +34,6 @@
       \draw[pd focus arrow] (i12.east) -- (\n.west);
       \node[pd label,anchor=north,text width=3.8cm,align=center] at (7.9,{3.65-\i*3.6}) {\d};}
 \end{tikzpicture}
-\caption{Complete I12 enforcement is a hard precondition for I7, I8 and I9:
-each is only as strong as its least-protected identity path. With I12
-\textsc{builtweak} (a bounded actor-soul gate, not yet universal write
-gating), a legacy path with a self-asserted identity lets a forged release
-clear a lock-owner check meant for someone else -- the monitor rule is
-correct relative to its input; I12 failed to authenticate the input.
-[internal]}
+\caption{I7--I9 depend on authenticated identity at every write path. A legacy path that accepts self-asserted identity can bypass otherwise correct owner checks; I12 remains partial. [internal]}
 \label{fig:swk-i12-dependency}
 \end{figure}

@@ -52,6 +52,13 @@
 % false branch (and, eventually, the conditional itself) is that wave's job.
 \newif\ifpdmargincolumn
 \pdmargincolumnfalse
+% The Book overrides this with an unnumbered, baseline-aligned margin aside.
+% Keep chapter sources independently compilable without duplicating prose.
+\providecommand{\pdsourceaside}[1]{\footnote{#1}}
+% An intentional body boundary: flush pending figures before a new margin
+% discussion. The generator strips legacy literal chapter-opening breaks,
+% but preserves this explicit editorial instruction. Never use it in frames.
+\newcommand{\pdmarginpagebreak}{\clearpage}
 \renewcommand*{\marginfont}{\footnotesize\raggedright\color{pdinkmuted}}
 % A small-caps head: set in the margin when the Book has a margin column,
 % otherwise run in at the start of the paragraph.
@@ -448,76 +455,217 @@
     }{}%
   \fi}
 
-% \pdmargincaption[short list entry]{one-sentence caption} -- the numbered
-% caption path for figures, diagrams, plots, pictures, and tables. In the Book
-% it uses the outer margin and the same collision-aware allocator as glosses
-% and evidence notes. Outside the Book it is exactly a normal caption.
-% A margin caption that grows beyond a quarter of the text block is no longer
-% concise; it falls back to the ordinary caption position instead of silently
-% overrunning the column. Call \label immediately after this macro, exactly as
-% with \caption.
+% Every Book caption belongs in the OUTER margin, including long captions.
+% Capture it separately and attach it at the exhibit's top. The Book's
+% pd-margin-layout override allocates the margin independently at shipout.
+% Wide artwork must be recomposed; captions never get a band below the art.
 \newsavebox{\pd@captionbox}
-% The caption package is loaded before this shared apparatus. Save its real
-% command once: the Book-level router below must be able to fall back without
-% calling itself, and research documents must retain ordinary captions.
+\newsavebox{\pd@floatcaptions}
+\newif\ifpd@captionfloat
+\newif\ifpd@captionwide
 \let\pd@inlinecaption\caption
+% A preceding Recall block can extend below its issuing line. It is outside
+% TeX's vertical list, so finish its occupied band before admitting a float;
+% otherwise the new caption would share that same margin space.
+\newcommand{\pd@clearcaptionband}{%
+  \par\pd@settle
+  \ifnum\pd@blockpage=\value{page}\relax
+    \ifdim\pd@blockbottom>\pagetotal
+      \ifdim\dimexpr\pd@blockbottom+8pt\relax>\pagegoal
+        \newpage
+      \else\vskip\dimexpr\pd@blockbottom-\pagetotal+8pt\relax\fi
+      \pd@settle
+    \fi
+  \fi}
+\newcommand{\pd@begincaptionfloat}{%
+  \ifpdmargincolumn
+    \pd@clearcaptionband
+    \pd@captionfloattrue
+    \global\pd@captionwidefalse
+    \global\setbox\pd@floatcaptions=\box\voidb@x
+  \fi}
+\AtBeginEnvironment{figure}{\pd@begincaptionfloat}
+\AtBeginEnvironment{figure*}{\pd@begincaptionfloat}
+\AtBeginEnvironment{table}{\pd@begincaptionfloat}
+\AtBeginEnvironment{table*}{\pd@begincaptionfloat}
+\newcommand{\pd@storecaption}[1]{%
+  \sbox{\pd@captionbox}{\begin{minipage}{\marginparwidth}\marginfont
+    #1\par\end{minipage}}%
+  \ifpd@captionfloat
+    \global\setbox\pd@floatcaptions=\vbox{%
+      \ifvoid\pd@floatcaptions\else
+        \unvbox\pd@floatcaptions\vskip6pt
+      \fi
+      \hbox{\usebox{\pd@captionbox}}}%
+  \else
+    % Non-floating captionof: preserve the outer-margin contract. The Book's
+    % page audit must still check the caller's reserved space.
+    \pd@placemargintop{\pd@captionbox}%
+  \fi}
 \newcommand{\pdmargincaption}[2][]{%
   \ifpdmargincolumn
     \ifx\@captype\@undefined
-      \PackageError{pd-pedagogy}{\string\pdmargincaption outside a float}%
-        {Use it inside figure, figure*, table, or table*.}%
+      \PackageError{pd-pedagogy}{\string\pdmargincaption needs a caption type}%
+        {Use figure, table, or captionof.}%
     \else
       \refstepcounter{\@captype}%
+      \ifpd@captionfloat
+        \xdef\pd@exhibitnumber{\@nameuse{the\@captype}}%
+        \xdef\pd@exhibitkind{\@captype}%
+      \fi
       \def\@currentlabelname{#2}%
       \def\pd@captionshort{#1}%
       \ifx\pd@captionshort\@empty\def\pd@captionshort{#2}\fi
       \edef\pd@captionext{\@nameuse{ext@\@captype}}%
       \addcontentsline{\pd@captionext}{\@captype}{%
         \protect\numberline{\@nameuse{the\@captype}}{\pd@captionshort}}%
-      \sbox{\pd@captionbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
-        {\bfseries\@nameuse{fnum@\@captype}.}\enspace #2\end{minipage}}%
-      \ifdim\dimexpr\ht\pd@captionbox+\dp\pd@captionbox\relax>.25\textheight
-        \typeout{PD-CAPTION-FALLBACK: \@captype\space \@nameuse{the\@captype}}%
-        \par\addvspace{\abovecaptionskip}%
-        \@makecaption{\@nameuse{fnum@\@captype}}{#2}%
-        \par\addvspace{\belowcaptionskip}%
-      \else
-        \pd@placemargin{\pd@captionbox}%
-      \fi
+      \pd@storecaption{{\bfseries\@nameuse{fnum@\@captype}.}\par\nobreak #2}%
+      \typeout{PD-MARGIN-CAPTION: \@captype\space \@nameuse{the\@captype}}%
     \fi
   \else
     \def\pd@captionshort{#1}%
     \ifx\pd@captionshort\@empty\pd@inlinecaption{#2}\else\pd@inlinecaption[#1]{#2}\fi
   \fi}
-
-% One caption path for the assembled Book. Figure and table fragments keep
-% writing ordinary \caption calls; in Book mode those calls become numbered
-% outer-margin captions, while long captions take the explicit inline fallback
-% above. Longtable and other specialist environments retain their own local
-% caption commands because this dispatcher only accepts the four real float
-% environments. This keeps numbering, labels and list entries centralized
-% without 200 per-fragment rewrites.
+% Route by caption TYPE, not the innermost environment: a caption inside a
+% minipage or center within a figure is still a figure caption.
 \newif\ifpd@routecaption
-\newcommand{\pd@captiondispatch}[2]{%
+\newcommand{\pd@captiontype}{%
   \pd@routecaptionfalse
-  \ifpdmargincolumn
-    \edef\pd@captionenv{\@currenvir}%
+  \ifpdmargincolumn\ifx\@captype\@undefined\else
+    \edef\pd@captionenv{\@captype}%
     \def\pd@captiontarget{figure}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
-    \def\pd@captiontarget{figure*}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
     \def\pd@captiontarget{table}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
-    \def\pd@captiontarget{table*}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
-  \fi
+  \fi\fi}
+\newcommand{\pd@captiondispatch}[2]{%
+  \pd@captiontype
   \ifpd@routecaption
-    \def\pd@captionshort{#1}%
-    \ifx\pd@captionshort\@empty\pdmargincaption{#2}\else\pdmargincaption[#1]{#2}\fi
+    \pdmargincaption[#1]{#2}%
   \else
     \def\pd@captionshort{#1}%
     \ifx\pd@captionshort\@empty\pd@inlinecaption{#2}\else\pd@inlinecaption[#1]{#2}\fi
   \fi}
-\newcommand{\pd@captionrouter}{\@ifnextchar[\pd@captionrouter@opt\pd@captionrouter@plain}
+\newcommand{\pd@captionstar}[1]{%
+  \pd@captiontype
+  \ifpd@routecaption\pd@storecaption{#1}\else\pd@inlinecaption*{#1}\fi}
+\newcommand{\pd@captionrouter}{\@ifstar\pd@captionstar{\@ifnextchar[\pd@captionrouter@opt\pd@captionrouter@plain}}
 \long\def\pd@captionrouter@opt[#1]#2{\pd@captiondispatch{#1}{#2}}
 \long\def\pd@captionrouter@plain#1{\pd@captiondispatch{}{#1}}
-\AtBeginDocument{\let\caption\pd@captionrouter}
+% Called INSIDE the finished float's box, so strict page checking measures
+% the shipped leaf, not the page on which TeX encountered the source.
+\newcommand{\pd@floatcaptionedge}{%
+  \checkoddpage
+  \ifoddpage
+    \rlap{\hskip\dimexpr\textwidth+\marginparsep\relax
+      \vtop{\vskip0pt\unvbox\pd@floatcaptions}}%
+  \else
+    \llap{\vtop{\vskip0pt\unvbox\pd@floatcaptions}\hskip\marginparsep}%
+  \fi}
+\newcommand{\pd@attachfloatcaption}{%
+  \ifpdmargincolumn\ifpd@captionfloat\ifvoid\pd@floatcaptions\else
+    \ifdim\wd\@currbox>\dimexpr\textwidth+1pt\relax
+      \PackageError{pd-pedagogy}{Exhibit exceeds the captioned text column}%
+        {Recompose the exhibit; do not shrink labels or put its caption below.}%
+    \fi
+    \global\setbox\@currbox=\vbox{%
+      \hbox to\textwidth{\pd@floatcaptionedge
+        \vtop{\vskip0pt\unvbox\@currbox}\hss}\vskip0pt}%
+    \ifdim\dimexpr\ht\@currbox+\dp\@currbox\relax>\textheight
+      \PackageError{pd-pedagogy}{Exhibit and margin caption exceed a Book page:
+        \@captype\space\@nameuse{the\@captype},
+        height \the\ht\@currbox}%
+        {Shorten the caption or split the exhibit; never shrink its type.}%
+    \fi
+  \fi\fi\fi}
+\AtBeginDocument{%
+  \let\caption\pd@captionrouter
+  \let\pd@endfloatbox\@endfloatbox
+  \def\@endfloatbox{\pd@endfloatbox\pd@attachfloatcaption}}
+
+% Page-breaking tables replace \caption internally, so the ordinary float
+% router cannot reach them. Keep longtable's own counters, list entries and
+% repeated column heads; change only the first caption cell's visual placement.
+% Reserve the measured caption height from the previous pass before the
+% table starts. Like page references, this converges with the Book build; a
+% fixed fraction of the page cannot protect an arbitrarily long caption.
+% Subsequent pages retain just column heads.
+\newcounter{pd@captiontable}
+\newcommand{\pdtablecaptionheight}[2]{%
+  \expandafter\gdef\csname pd@tablecaptionheight@#1\endcsname{#2}}
+\newcommand{\pd@begincaptiontable}{%
+  \ifpdmargincolumn
+    \pd@clearcaptionband
+    \stepcounter{pd@captiontable}%
+    \edef\pd@tablecaptionkey{\arabic{pd@captiontable}}%
+    \ifcsname pd@tablecaptionheight@\pd@tablecaptionkey\endcsname
+      \Needspace{\dimexpr\csname pd@tablecaptionheight@\pd@tablecaptionkey\endcsname+24pt\relax}%
+    \else\Needspace{.4\textheight}\fi
+  \fi}
+\AtBeginEnvironment{xltabular}{\pd@begincaptiontable}
+\AtBeginEnvironment{longtable}{%
+  \ifx\pd@tablecaptionkey\@undefined\pd@begincaptiontable\fi}
+\AtBeginDocument{%
+  \let\pd@LTmakecaption\LT@makecaption
+  \long\def\LT@makecaption#1#2#3{%
+    \ifpdmargincolumn
+      \LT@mcol\LT@cols{@{}l@{}}{%
+        \sbox{\pd@captionbox}{\begin{minipage}{\marginparwidth}\marginfont
+          #1{{\bfseries#2.}\endgraf\nobreak}#3\endgraf\end{minipage}}%
+        \ifdim\dimexpr\ht\pd@captionbox+\dp\pd@captionbox+24pt\relax>\textheight
+          \PackageError{pd-pedagogy}{Page-breaking table caption exceeds a Book page}%
+            {Shorten the caption; do not move it inline or shrink its type.}%
+        \fi
+        \immediate\write\@auxout{\string\pdtablecaptionheight
+          {\pd@tablecaptionkey}{\the\dimexpr\ht\pd@captionbox+\dp\pd@captionbox\relax}}%
+        \smash{\hbox to0pt{%
+          \checkoddpage
+          \ifoddpage\hskip\dimexpr\textwidth+\marginparsep\relax
+          \else\hskip-\dimexpr\marginparwidth+\marginparsep\relax\fi
+          \vtop{\vskip0pt\hbox{\usebox{\pd@captionbox}}}\hss}}}%
+    \else\pd@LTmakecaption#1{#2}{#3}\fi}}
+
+% listings has its own caption renderer and can break across pages. Preserve
+% its counters/list entries, but force the caption to the first page's margin.
+% Reserve the measured caption before the listing begins; after a short listing
+% clear its remaining occupied margin band before admitting more exhibits.
+\newsavebox{\pd@listingcaptionbox}
+\newcommand{\pd@makelistingcaption}[2]{%
+  \sbox{\pd@listingcaptionbox}{\begin{minipage}{\marginparwidth}\marginfont
+    {\bfseries#1.}\par\nobreak #2\par\end{minipage}}%
+  \pd@settle
+  \xdef\pd@blockpage{\number\value{page}}%
+  \global\pd@blockbottom=\dimexpr\pagetotal+\ht\pd@listingcaptionbox+\dp\pd@listingcaptionbox+8pt\relax
+  \nointerlineskip\hbox to\textwidth{%
+    \smash{\checkoddpage
+      \ifoddpage
+        \rlap{\hskip\dimexpr\textwidth+\marginparsep\relax
+          \vtop{\vskip0pt\hbox{\usebox{\pd@listingcaptionbox}}}}%
+      \else
+        \llap{\vtop{\vskip0pt\hbox{\usebox{\pd@listingcaptionbox}}}\hskip\marginparsep}%
+      \fi}\hfil}\nobreak}
+\AtBeginDocument{%
+  \let\pd@lstMakeCaption\lst@MakeCaption
+  \let\pd@lstmakecaption\lst@makecaption
+  \def\lst@MakeCaption#1{%
+    \ifpdmargincolumn
+      \ifx#1t%
+        \ifpd@captionfloat\else\ifx\lst@caption\@empty\else
+          \pd@clearcaptionband
+          \sbox{\pd@listingcaptionbox}{\begin{minipage}{\marginparwidth}\marginfont
+            {\bfseries Listing.}\par\nobreak\lst@caption\par\end{minipage}}%
+          \Needspace{\dimexpr\ht\pd@listingcaptionbox+\dp\pd@listingcaptionbox+24pt\relax}%
+        \fi\fi
+      \fi
+      \def\lst@captionpos{t}%
+    \fi
+    \pd@lstMakeCaption{#1}}%
+  \long\def\lst@makecaption#1#2{%
+    \ifpdmargincolumn
+      \ifpd@captionfloat
+        \pd@storecaption{{\bfseries#1.}\par\nobreak #2}%
+      \else\pd@makelistingcaption{#1}{#2}\fi
+    \else\pd@lstmakecaption{#1}{#2}\fi}%
+  \lst@AddToHook{DeInit}{\ifpdmargincolumn\ifpd@captionfloat\else\pd@clearcaptionband\fi\fi}}
+
 
 % ---------------------------------------------------------------------------
 % Marginalia (Wave 16): citations, provenance, and proved-on pointers at the
@@ -727,9 +875,10 @@
 \newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
 
 % ---------------------------------------------------------------------------
-% \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in
-% head "THEOREM 1.3  Title." in small caps and bold, short hairline below.
+% \pdkind, pdclaim -- a numbered statement in the shared Lucide frame.
 % ---------------------------------------------------------------------------
+\input{figures/pd-semantic-blocks}
+\makeatletter
 \newcommand{\pd@claim@kinds}{Theorem,Design invariant,Model-checked property,Empirical hypothesis}
 \newcommand{\pdkind}[1]{%
   \edef\pd@in@test{\noexpand\in@{,#1,}{,\pd@claim@kinds,}}%
@@ -738,21 +887,55 @@
     \PackageError{pd-pedagogy}{Unknown pdclaim kind '#1'}%
       {Use one of: Theorem, Design invariant, Model-checked property, Empirical hypothesis.}%
   \fi
-  {\scshape\bfseries #1}%
+  {\normalfont\bfseries
+    \ifstrequal{#1}{Model-checked property}{Model-Checked Property}{%
+      \ifstrequal{#1}{Empirical hypothesis}{Empirical Hypothesis}{%
+        \ifstrequal{#1}{Design invariant}{Design Invariant}{#1}}}}%
+}
+% Match amsthm's bold Kind N (Title). grammar. Both claims and worked
+% passages share the theorem sequence; step outside the font group so a
+% following label resolves to this statement, not the surrounding section.
+% Alias the register, not the public reference type. Delay until chapter
+% theorem declarations and optional cleveref loading have completed.
+\AtEndPreamble{%
+  \ifcsname c@theorem\endcsname
+    % Both names address the same TeX count register; section resets of
+    % theorem therefore reset worked examples without a second counter.
+    \let\c@pdworkedexample\c@theorem
+    \let\cl@pdworkedexample\cl@theorem
+    \let\p@pdworkedexample\p@theorem
+    \def\thepdworkedexample{\thetheorem}%
+    \def\theHpdworkedexample{\theHtheorem}%
+    \providecommand{\pdworkedexampleautorefname}{Numbers by Hand}%
+    \ifcsname crefname\endcsname
+      \crefname{pdworkedexample}{Numbers by Hand}{Numbers by Hand Examples}%
+      \Crefname{pdworkedexample}{Numbers by Hand}{Numbers by Hand Examples}%
+    \fi
+  \fi}
+\newcommand{\pd@numberedhead}[3][theorem]{%
+  \ifcsname c@#1\endcsname\refstepcounter{#1}\fi
+  \def\@currentlabelname{#3}%
+  {\raggedright\normalfont\bfseries #2%
+    \ifcsname c@theorem\endcsname~\thetheorem\fi
+    \ifstrempty{#3}{}{\hspace{.35em}(#3)}.\par}%
+  \pdblockheadingend
 }
 \newenvironment{pdclaim}[2]{%
-  \par\addvspace{10pt plus 2pt minus 1pt}%
-  \noindent{\color{pdink}\rule{\linewidth}{0.5pt}}\par\nobreak\vspace{4pt}%
+  % A final display can ship its page before the closing rule's nobreak.
+  % Keep post-display material attached; ordinary line breaks remain free.
+  % The environment group restores this penalty outside the claim.
+  \postdisplaypenalty=10000\relax
+  \pdblockbefore{#1}%
+  \def\pdblockclaimkind{#1}%
   \noindent
   % A claim is a numbered object: it steps the chapter's shared theorem
   % counter (every chapter and the Book define `theorem` within section), so a
   % \label placed right after \begin{pdclaim} refers to the claim, prints as
   % "Theorem 3.1" in prose, and links to this head.
-  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\bfseries\thetheorem}\else\pdkind{#1}\fi
-  \enspace{\bfseries #2.}\enspace\ignorespaces
+  \pdblockglyph{#1}%
+  \pd@numberedhead{\pdkind{#1}}{#2}%
 }{%
-  \par\nobreak\vspace{3pt}\noindent{\color{pdink}\rule{4em}{0.5pt}}\par
-  \addvspace{8pt plus 2pt minus 1pt}%
+  \pdblockafter{\pdblockclaimkind}%
 }
 
 % ---------------------------------------------------------------------------
@@ -760,15 +943,11 @@
 % head sits in the margin (Book) or runs in (standalone).
 % ---------------------------------------------------------------------------
 \newenvironment{pdboundary}{%
-  \par\pd@settle\addvspace{8pt plus 1pt}%
-  % An mdframed that does not fit is moved whole to the next page, and the
-  % head inside it has already recorded the page it was typeset on -- so it
-  % prints on the next page believing it is on the previous one, and the
-  % Recall block there clears a head that is not where it thinks ("WHERE
-  % THIS STOPS" 1.3 pt under "RECALL" on p. 252). Break first if fewer
-  % than four lines are left, so the frame starts where its head is recorded.
-  % \pagegoal is \maxdimen on an empty page, so this never fires at a top.
-  \ifdim\dimexpr\pagetotal+4\baselineskip\relax>\pagegoal \newpage\pd@settle\fi
+  % Let the page builder reserve the opening lines. A source-time
+  % pagetotal/pagegoal comparison followed by newpage could ship the old
+  % page while settling, then eject its two-line continuation as well.
+  % The Book's margin allocator follows shipped anchors, not this guess.
+  \par\if@nobreak\else\Needspace{4\baselineskip}\fi\addvspace{8pt plus 1pt}%
   \begin{mdframed}[linecolor=pdink,linewidth=1.2pt,leftline=true,topline=false,%
       rightline=false,bottomline=false,backgroundcolor=white,%
       innerleftmargin=9pt,innerrightmargin=0pt,innertopmargin=1pt,innerbottommargin=1pt,%
@@ -779,18 +958,19 @@
 }
 
 % ---------------------------------------------------------------------------
-% pdexample -- a worked, numbers-by-hand passage. Two hairlines, an italic
-% run-in head, and a small square in the margin.
+% pdexample -- a worked passage, calculator icon and ochre enclosing frame.
 % ---------------------------------------------------------------------------
 \newenvironment{pdexample}[1]{%
-  \par\addvspace{8pt plus 1pt}%
-  \begin{mdframed}[linecolor=pdinkmuted,linewidth=0.4pt,topline=true,%
-      bottomline=true,leftline=false,rightline=false,backgroundcolor=white,%
-      innerleftmargin=0pt,innerrightmargin=0pt,%
-      innertopmargin=5pt,innerbottommargin=5pt,skipabove=6pt,skipbelow=6pt]%
-  \noindent\pd@marginglyph{\itshape Numbers by hand --- #1.}\enspace\ignorespaces
+  % Reserve the heading and its first two lines, not the whole example.
+  % Starting a frame with less room sent mdframed's split retries past 100pt.
+  % A section heading has already reserved its first text lines. Do not
+  % force a second break immediately after it and strand the heading.
+  \par\if@nobreak\else\Needspace{6\baselineskip}\fi\addvspace{8pt plus 1pt}%
+  \pdblockbefore{Numbers by hand}%
+  \noindent\pdblockglyph{Numbers by hand}%
+  \pd@numberedhead[pdworkedexample]{Numbers by Hand}{#1}%
 }{%
-  \end{mdframed}%
+  \pdblockafter{Numbers by hand}%
 }
 
 % ---------------------------------------------------------------------------
@@ -799,6 +979,20 @@
 % standalone chapter they are a compact numbered list. No box either way.
 % ---------------------------------------------------------------------------
 \newsavebox{\pd@recallbox}
+% Long recall lists may use the body measure without disabling margin shipout.
+% Toggling \pdmargincolumnfalse around breakable content can lose an earlier
+% registered note when that content causes the page builder to ship a page.
+\NewEnviron{pdrecitationbody}{%
+  \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
+  \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%
+    \small\BODY
+  \end{enumerate}%
+  \ifx\pd@pendingpointer\@empty\else
+    \par{\small\itshape\pd@pendingpointer}%
+    \global\let\pd@pendingpointer\@empty
+  \fi
+  \addvspace{6pt}%
+}
 \NewEnviron{pdrecitation}{%
   \ifpdmargincolumn
     % Measured first, then RAISED so its last line sits on the line that issues
@@ -847,8 +1041,12 @@
     % use that measurement.  When the remaining column cannot hold the whole
     % block plus one line of breathing room, advance the section-ending Recall
     % to the next page before asking the shared allocator to place it.
-    \ifdim\dimexpr\pagetotal+\ht\pd@recallbox+\dp\pd@recallbox+\baselineskip\relax>\pagegoal
-      \newpage\penalty\@M\vskip\z@\fi
+    % The shipped-page margin allocator owns this box. Its height must not
+    % force a new main-text page (or create a page containing only Recall).
+    \ifdefined\pdmarginregister\else
+      \ifdim\dimexpr\pagetotal+\ht\pd@recallbox+\dp\pd@recallbox+\baselineskip\relax>\pagegoal
+        \newpage\penalty\@M\vskip\z@\fi
+    \fi
     \pd@placemargin{\pd@recallbox}%
     \global\let\pd@pendingpointer\@empty
   \else
@@ -905,9 +1103,9 @@
   \refstepcounter{pdexercise}%
   \label{#2}%
   \def\pdexercise@label{#2}%
-  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
+  \par\addvspace{7pt plus 1pt}\noindent
   \ifpdmargincolumn\marginnote{\itshape Solution p.\,\pageref{sol:#2}}\fi
-  {\bfseries\thepdexercise}\enspace{\footnotesize\scshape\pdexercise@kind}\,{\footnotesize\pdexercise@stars}\enspace\ignorespaces
+  {\bfseries\thepdexercise}\enspace{\footnotesize\scshape\pdexercise@kind}\,{\footnotesize\pdexercise@stars}\pdblockheadingend
 }{%
   \ifpdmargincolumn\par\else\space{\small\itshape(solution on page~\pageref{sol:\pdexercise@label})}\par\fi
   \addvspace{2pt}%
@@ -941,10 +1139,10 @@
 % \endFilesave has no such side effect, so the closing side calls it inline.
 % ---------------------------------------------------------------------------
 \newenvironment{pdSolution}[1]{%
-  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
+  \par\addvspace{7pt plus 1pt}\noindent
   \phantomsection\label{sol:#1}%
   \ifpdmargincolumn\marginnote{\itshape Exercise p.\,\pageref{#1}}\fi
-  {\bfseries\ref{#1}}\enspace\ifpdmargincolumn\else{\small\itshape(exercise on page~\pageref{#1})}\enspace\fi\ignorespaces
+  {\bfseries\ref{#1}}\ifpdmargincolumn\else\enspace{\small\itshape(exercise on page~\pageref{#1})}\fi\pdblockheadingend
 }{%
   \par\addvspace{2pt}%
 }
@@ -976,8 +1174,9 @@
 
 % ---------------------------------------------------------------------------
 % pdsession -- "At the terminal": a captured transcript (a pd session, a model
-% checker's output, a proof tool's trace), set in monospace between two
-% hairlines with the head in the margin (Book) or run in (standalone). The
+% checker's output, a proof tool's trace), set in native monospace inside a
+% continuous, breakable teal frame. The head is in the margin (Book) or run
+% in (standalone). The
 % optional argument is a short title. Transcripts are recorded by
 % scripts/harbor-research/record_sessions.sh and checked in, never typed.
 %   \begin{pdsession}[two clients, one claim]
@@ -987,45 +1186,54 @@
 % ---------------------------------------------------------------------------
 % The convention of Kernighan's books and every serious manual since: what
 % the reader types is bold (the prompt line), what the program prints is
-% regular; dense monospace, tight leading, no box.
+% regular. The official Lucide terminal icon identifies captured output.
+% The shared semantic frame retains a full thin perimeter and asymmetric
+% teal corner accents on every page segment, without implying a live connection.
+% Synthetic records retain their separate continuous-feed-paper apparatus.
 \lstdefinestyle{pdsession}{basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,columns=fullflexible,numbers=none,backgroundcolor={},
   keepspaces=true,breaklines=true,breakatwhitespace=false,breakindent=2em,frame=none,
   postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
   xleftmargin=0pt,aboveskip=4pt,belowskip=2pt,showstringspaces=false,
   language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
   moredelim=[l][\bfseries]{\$\ }}
+% Opt in per recorded excerpt; long unbroken rules still need the default character wrapping.
+\newif\ifpdsessionwordwrap
 \newlength{\pd@sessionwidth}
 \newlength{\pd@wideoffset}
 \newcommand{\pd@measurewidefield}{%
   \setlength{\pd@sessionwidth}{\linewidth}%
   \setlength{\pd@wideoffset}{0pt}%
-  \ifpdmargincolumn
-    \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
-    % Strict page checking resolves the physical leaf from the aux file.  The
-    % outer margin is right on rectos and left on versos, so a wide apparatus
-    % must move left by exactly the margin field on an even page.
-    \checkoddpage
-    \ifoddpage\else
-      \setlength{\pd@wideoffset}{-\dimexpr\marginparsep+\marginparwidth\relax}%
-    \fi
-  \fi}
+  % Terminal and sample-data blocks leave the margin free for explanation.
+}
 \lstnewenvironment{pdsession}[1][]{%
-  \endgraf\addvspace{8pt plus 1pt}%
-  \ifdefined\Needspace\Needspace{7\baselineskip}\fi
-  % In the Book a transcript runs across the column and the margin (6 in,
-  % 83 monospace characters), the full-width block of the page grammar.
-  % (through the listing's own width key: a nested environment would change
-  % \@currenvir and make listings look for the wrong end marker)
+  \endgraf
+  \begingroup
+  % Select the shared semantic frame's teal locally. Other families and the
+  % synthetic feed-paper listing retain their own colors and apparatus.
+  \let\pd@sessionfamily\pdblockfamily
+  \def\pdblockfamily##1{%
+    \pd@sessionfamily{##1}\def\pdblock@color{pdteal}}%
+  \pdblockbefore{Terminal transcript}%
+  % listings selects its verbatim terminator after this begin code. Restore
+  % the public environment name while the shared tcolorbox is open.
+  \def\@currenvir{pdsession}%
+  \noindent\raisebox{-2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/terminal.pdf}}%
+  \endgraf\nobreak
+  % Measure AFTER the shared frame has applied its inset. The outer frame
+  % stays at the Book's 4.5in measure; listings wraps at native 8.6pt inside.
   \pd@measurewidefield
-  \noindent\hspace*{\pd@wideoffset}%
-  \makebox[\pd@sessionwidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
-  \noindent\pd@marginhead{At the terminal}%
-  \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
-  \lstset{style=pdsession,linewidth=\pd@sessionwidth,xleftmargin=\pd@wideoffset}%
+  \lstset{style=pdsession,upquote=true,linewidth=\pd@sessionwidth,xleftmargin=0pt,
+    % Disable the Book's prose quote mapping only for actual transcripts.
+    % The native point size and leading remain unchanged; feed-paper does not
+    % inherit this environment-local override.
+    basicstyle=\ttfamily\ifdefined\addfontfeatures\addfontfeatures{Mapping=}\fi\fontsize{8.6}{10.6}\selectfont,
+    literate={-}{{\char45}}1,
+    caption={#1}}%
+  \ifpdsessionwordwrap\lstset{breakatwhitespace=true}\fi
 }{%
-  \endgraf\nobreak\noindent\hspace*{\pd@wideoffset}%
-  \makebox[\pd@sessionwidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
-  \addvspace{8pt plus 1pt}%
+  \def\@currenvir{tcolorbox}%
+  \pdblockafter{Terminal transcript}%
+  \endgroup
 }
 
 % ---------------------------------------------------------------------------
@@ -1046,7 +1254,7 @@
   frame=none}
 \newtcblisting{pdsampledata}[1][]{%
   enhanced,listing only,listing options={style=pdsampledata},
-  width=\ifpdmargincolumn\dimexpr\linewidth+\marginparsep+\marginparwidth\relax\else\linewidth\fi,
+  width=\linewidth,
   boxrule=.45pt,arc=0pt,outer arc=0pt,
   colframe=pdinkmuted!62,colback=pdinkmuted!5,
   left=16pt,right=16pt,top=5pt,bottom=5pt,
@@ -1191,11 +1399,15 @@
 % nothing breaks mid-flight; check_style_sections.py fails on new uses.
 % ---------------------------------------------------------------------------
 \AtBeginDocument{%
-  \long\def\keyidea#1{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Key idea}#1\par\addvspace{6pt plus 1pt}}%
-  \long\def\pitfall#1{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Pitfall}#1\par\addvspace{6pt plus 1pt}}%
-  \long\def\scene#1#2{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\enspace{\itshape #2}\par\addvspace{6pt plus 1pt}}%
+  % Optional heads name the actual consequence, not a generic teaching role.
+  % An unedited call remains ordinary prose; it never prints an empty label.
+  \RenewDocumentCommand\keyidea{O{} +m}{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\ifstrempty{#1}{}{\pd@marginhead{#1}}#2\par\addvspace{6pt plus 1pt}}%
+  \RenewDocumentCommand\pitfall{O{} +m}{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\ifstrempty{#1}{}{\pd@marginhead{#1}}#2\par\addvspace{6pt plus 1pt}}%
+  \long\def\scene#1#2{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\pdblockheadingend{\itshape #2}\par\addvspace{6pt plus 1pt}}%
   \long\def\xrefbox#1{\par\pd@settle\addvspace{4pt}\noindent\pd@marginhead{See also}{\small #1}\par\addvspace{4pt}}%
-  \long\def\pdthesis#1{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Thesis}#1\par\addvspace{6pt plus 1pt}}%
+  % A generic "Thesis" margin label does not identify which claim matters.
+  % Keep the prose; use an authored keyidea head only when it adds meaning.
+  \long\def\pdthesis#1{\par\pd@settle\addvspace{6pt plus 1pt}\noindent#1\par\addvspace{6pt plus 1pt}}%
   \long\def\pullquote#1{\pdthesis{#1}}%
 }
 \makeatother

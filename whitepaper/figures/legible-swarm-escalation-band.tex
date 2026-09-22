@@ -57,18 +57,6 @@
     {$A{=}3.3$: $[0.035,0.072]$};
 \end{axis}
 \end{tikzpicture}
-\caption{The escalation threshold feasible dismissal-debit band of
-Theorem~\ref{thm:escalation-threshold}, on attention budget $A$ (R3
-constants $C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$,
-$C_{\mathrm{fa}}{=}5$). The miss-loss wall $\delta_{\max}$ is fixed at
-$0.071975$; the alarm-load wall $\delta_{\min}(A)$ falls as the budget
-widens and reaches $0$ at $A{=}3.5$. The two walls cross at
-$A^\star{\approx}3.11$: below it $\delta_{\min}>\delta_{\max}$ and no debit
-satisfies both walls at once (the point named in the chapter text at
-$A{=}2.0$, where $\delta_{\min}{=}0.396$), and above it the tinted band is
-the feasible interval (the point named at $A{=}3.3$,
-$[0.035,0.072]$). An empty band is the honest diagnosis that the fix is
-capacity or evidence quality, not a better $\delta$. [verified closed
-forms, \texttt{b7\_escalation\_band.py}]}
+\caption{For the R3 constants, no dismissal debit meets both constraints below $A^\star\approx3.11$. At $A=3.3$, the feasible interval is $[0.035,0.072]$. An empty band requires more capacity or better evidence. [verified, \protect\path{b7_escalation_band.py}]}
 \label{fig:escalation-band}
 \end{figure}

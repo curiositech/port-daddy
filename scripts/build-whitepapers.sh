@@ -157,6 +157,8 @@ paper_sources() {
         "$srcdir/coordination-papers-mega-volume-seams.tex" \
         "$srcdir/coordination-papers-mega-volume-appendices.tex" \
         "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
+        "$srcdir/figures/pd-margin-layout.tex" "$srcdir/figures/pd-book-citations.tex" \
+        "whitepaper/citation-margin-entries.json" "whitepaper/citation-shortform-overrides.json" \
         "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
       # Art plates (jacket, part and chapter openers) are Book inputs too.
       if [ -d "$srcdir/plates" ]; then
@@ -229,6 +231,8 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
+  # Reference licensed fonts in place; never copy them into public/.
+  python3 scripts/prepare-book-fonts.py "$outdir" || return 1
 
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
@@ -259,6 +263,7 @@ build_one() {
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
   (
     cd "$srcdir"
+    export TEXINPUTS="$outdir:${TEXINPUTS:-}:"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
     # The Book sets its type through fontspec, so every reachable root in this
     # publication script uses XeLaTeX. Research-paper builds live in their own
@@ -271,8 +276,8 @@ build_one() {
       # BasicTeX can ship XeTeX without latexmk. The Book uses generated inputs
       # and an inline collated bibliography, so bounded XeLaTeX passes are the
       # fallback:
-      # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
-      # cover the rare long-TOC case that still reports changed labels.
+      # Labels, contents and saved margin positions must all settle. Keep a
+      # bounded fallback, but never promote its last unconverged iteration.
       if ! command -v "$engine" >/dev/null 2>&1; then
         echo "error: whitepaper build requires latexmk or $engine" >&2
         echo "       install a local TeX Live: see the 'Local TeX Live' section of" >&2
@@ -281,12 +286,13 @@ build_one() {
         exit 127
       fi
       local pass
-      for pass in 1 2 3 4; do
-        echo "$engine fallback pass $pass/4"
+      for pass in 1 2 3 4 5 6; do
+        echo "$engine fallback pass $pass/6"
         "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
                  -output-directory="$outdir" "$roottex" || exit $?
         if [ "$pass" -ge 2 ] && [ -f "$outdir/$base.log" ] \
-          && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
+          && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log" \
+          && grep -q 'PD-MARGIN-CONVERGENCE: complete' "$outdir/$base.log"; then
           break
         fi
       done
@@ -297,6 +303,14 @@ build_one() {
     echo "::error::latexmk failed for $roottex (rc=$rc)"
     # surface the tail of the log to the CI console
     [ -f "$outdir/$base.log" ] && tail -40 "$outdir/$base.log" || true
+    echo "::endgroup::"
+    return 1
+  fi
+  # An engine may reach its rerun limit while still producing a PDF. Geometry
+  # from an intermediate pass is never a publishable Book.
+  if ! grep -q 'PD-MARGIN-CONVERGENCE: complete' "$outdir/$base.log" \
+    || grep -q 'PD-MARGIN-CONVERGENCE: pending' "$outdir/$base.log"; then
+    echo "::error::Book margin positions did not converge; refusing to publish $roottex"
     echo "::endgroup::"
     return 1
   fi

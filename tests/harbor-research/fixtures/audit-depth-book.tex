@@ -1,0 +1,24 @@
+\documentclass[11pt,a4paper,twoside]{article}
+\input{coordination-papers-mega-volume-preamble.tex}
+\begin{document}
+\section*{Audit depth is conditional on the pool}
+\begin{pdexample}{Diversity and Audit Depth}
+\marginnote{\input{figures/spark-stp-audit-depth}\par
+The model's linear bribery phase delays geometric decay. All three traces
+stop below one unit; they are not measured audit performance.}
+Start at $G_0=400$, with bond $B=50$, bribery cost $\beta=10$ and
+conditional audit-and-detection probability $\rho d=.2$.
+Above $CB$, the model subtracts $C\beta$ per level; at or below $CB$, it
+multiplies residual value by $.8$ instead.
+
+With eight disjoint cliques, the geometric phase starts immediately and
+crosses below one unit after 27 levels. Two cliques require 15 linear
+steps and 21 geometric steps, for 36 levels. A single clique requires 35
+linear steps and 18 geometric steps, for 53 levels.
+
+The aligned traces retain a common logarithmic value scale and a common
+level axis. Their endpoints are exact recurrence crossings, not observations
+of agent performance. Changing model vendors alone does not establish the
+clique or conditional-detection assumptions used here.
+\end{pdexample}
+\end{document}

@@ -29,8 +29,8 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
 \begin{groupplot}[
-  group style={group size=2 by 1, horizontal sep=2.4cm},
-  pd axis,width=4.0cm,height=4.0cm,
+  group style={group size=2 by 1, horizontal sep=1.9cm},
+  pd axis,width=3.7cm,height=4.0cm,
   xmode=log,xmin=0.4,xmax=1400,
   xtick={0.5,5,50,500},
   xticklabels={0.5,5,50,500},
@@ -68,15 +68,9 @@
   \node[pd breach label,anchor=north west] at (axis cs:1,300) {$K{=}3$};
 \end{groupplot}
 \end{tikzpicture}
-\caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded
-ceiling. (a) Attacker net profit per 50-transaction trial stays positive
-across the entire tested deposit sweep ($B_{\mathrm{dep}}\in[0.5,1000]$
-USD) for both one and three colluding Sybil identities. (b) The commons'
-own deficit converges to zero once $B_{\mathrm{dep}}\approx200$ USD ---
-the protocol itself is fully reimbursed, but the attacker still profits
-because the deposit slash is capped at coverage $B_T=\mu(1+s)$. Closing A5
-requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating +
-per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably
-insufficient. [verified, proofs/bonded/pareto/simulation-sybil.mjs]}
+\caption{Reimbursing the commons does not eliminate attacker profit.
+Across the tested deposits, one or three Sybil identities remain profitable
+because slashing is capped by coverage.
+[verified, \protect\path{proofs/bonded/pareto/simulation-sybil.mjs}]}
 \label{fig:sybil-mc-inline}
 \end{figure}

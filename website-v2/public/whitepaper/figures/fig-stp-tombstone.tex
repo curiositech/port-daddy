@@ -50,12 +50,6 @@
   \node[pd note,anchor=north west,text width=9.3cm] at (0.65,-2.90)
     {the honest claim is a bounded window, not an instantaneous or history-deleting correction};
 \end{tikzpicture}
-\caption{\textbf{A tombstone changes score consumption without rewriting history.}
-The upper rail remains append-only: fraudulent outcome $o_3$, the overturning
-re-audit, and tombstone $t(o_3)$ are all preserved as distinct facts. The lower
-trace shows what does change. The fraudulent contribution remains spendable until
-the tombstone reaches an importing harbor, then falls to zero. The measured
-interval $\tau$ is the federation's revocation-convergence obligation; the
-protocol bounds that interval rather than pretending it never existed. [internal]}
+\caption{A tombstone removes a fraudulent contribution from future scoring without erasing history. Importing harbors remain exposed until it arrives; $\tau$ measures that convergence interval. [internal]}
 \label{fig:tombstone}
 \end{figure}

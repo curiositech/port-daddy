@@ -41,23 +41,23 @@
     {\textbf{Agent A}\\02:00 format cron\\\pdfigsub pointer claim};
   \node[operation] (AO) at (5.20,4.82)
     {set \texttt{formatOnSave}\\\texttt{false -> true}};
-  \node[pd ready state,result] (AR) at (9.80,4.82)
+  \node[pd ready state,result] (AR) at (9.30,4.82)
     {\textbf{benign}\\keywise merge\\valid JSON; all keys};
 
   \node[actor] (B) at (1.30,2.62)
     {\textbf{Agent B}\\02:01 PnP prototype\\\pdfigsub whole-file lock};
   \node[operation] (BO) at (5.20,2.62)
     {replace \texttt{tsdk}\\by raw text splice};
-  \node[pd breach state,result] (BR) at (9.80,2.62)
+  \node[pd breach state,result] (BR) at (9.30,2.62)
     {\textbf{immediate}\\comma lost\\parse fails at write};
 
   \node[actor] (C) at (1.30,0.42)
     {\textbf{Agent C}\\02:02 search cron\\\pdfigsub pointer claim};
   \node[operation] (CO) at (5.20,0.42)
     {add \texttt{**/fixtures}\\to \texttt{search.exclude}};
-  \node[pd warn state,result] (CR) at (9.80,0.42)
+  \node[pd warn state,result] (CR) at (9.30,0.42)
     {\textbf{delayed}\\valid JSON; tests 98\%\\settings path untested};
-  \node[pd breach state,result] (CL) at (9.80,-2.10)
+  \node[pd breach state,result] (CL) at (9.30,-2.10)
     {\textbf{next release}\\\texttt{fixtures/v1} unseen\\replay fails};
 
   \begin{scope}[on background layer]

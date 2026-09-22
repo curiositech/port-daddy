@@ -10,12 +10,15 @@
 % before the chapter's own first section begins.
 
 \newcommand{\pdbookrail}[2]{%
-  \par\vspace{0.5cm}%
+  \par\addvspace{12pt}%
+  % A short opening/handoff is one paragraph, not a page-turn destination
+  % for its last two lines. Keep the accent and its complete prose together.
+  \noindent\begin{minipage}{\linewidth}
   \noindent{\color{\pdcurrentchaptercolor}\rule{2.5em}{1.5pt}}\par
   \vspace{0.12cm}%
   \noindent{\small\scshape\bfseries\color{hhink}#1}\enspace
   {\small #2}\par
-  \vspace{0.45cm}%
+  \end{minipage}\par\addvspace{12pt}%
 }
 
 % ---- Part I: The Machine -------------------------------------------------
@@ -118,11 +121,9 @@
 
 \newcommand{\pdchapterhandoffstp}{%
   \pdbookrail{What \pdchapref{he}{The Harbor Economy} receives}{%
-    A successor can now inherit a bounded history without inheriting imaginary
-    credit or escaping old obligations. Continuity by itself creates no market:
-    it neither prices risk nor says whose funds may move. The next chapter turns
-    attributed work into exchange by separating value, collateral, evidence,
-    and settlement.}%
+    A successor inherits bounded history and obligations, not new credit.
+    The next chapter asks how that attributed work can be exchanged, and
+    separates value, collateral, evidence, and settlement.}%
 }
 
 % ---- Part IV: The Market -------------------------------------------------
@@ -155,10 +156,9 @@
 
 \newcommand{\pdchapterhandoffbonded}{%
   \pdbookrail{What \pdchapref{fh}{The Federated Harbor} receives}{%
-    One machine can now authorize, observe, adjudicate, and settle its own work.
-    A second machine introduces a different operator and a different source of
-    truth. The final chapter asks which capabilities and records may cross that
-    boundary without pretending that either local authority has become global.}%
+    One machine can authorize, observe, adjudicate, and settle work.
+    The final chapter asks which capabilities and records may cross to a
+    second operator without giving either machine authority over the other.}%
 }
 
 \newcommand{\pdchapteropeningfh}{%

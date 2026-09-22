@@ -82,13 +82,6 @@
 \bottomrule
 \end{tabular}
 \normalsize
-\caption{\textbf{Two announcements, then one decision.} Step 1 posts the bond
-at the escrow (message 1); step 2 is Harbor $B$ signed damage claim, sent
-independently whenever damage surfaces (message 2); step 3 is the only step
-where the escrow decides anything, checking the claim inclusion proof against
-the preconditions signed at step 1 and producing exactly one of two terminal
-outcomes, \textbf{clear} or \textbf{refuse} -- matching the two terminal
-transitions Design Invariant~\ref{thm:fh-escrow-bound} bounds. Neither
-announcement alone settles anything; only step 3 does. [internal]}
+\caption{Posting a bond and announcing damage do not settle it. Escrow checks the proof against the signed conditions, then makes one terminal decision: clear or refuse. [internal]}
 \label{fig:fh-settle-protocol}
 \end{figure}

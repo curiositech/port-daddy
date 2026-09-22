@@ -1,0 +1,76 @@
+% Wordless interstitial art for the Swiss Book, not numbered evidence figures.
+% Insert only at an authored paragraph boundary. On verso the plate faces
+% following text; on recto it faces preceding text. Never split an arbitrary
+% text page, paragraph, worked example, or proof to manufacture verso parity.
+\makeatletter
+\providecommand{\pdreflectionrecord}[2]{}
+\providecommand*{\toclevel@pdplate}{1}
+\definecolor{pdreflectionpanel}{HTML}{173942}
+% Interstitials have their own contents entry; they must not advance the
+% chapter-art counter used by the illustrated chapter contents.
+\newcommand{\pdreflectiontitle}[2]{%
+  \expandafter\def\csname pd@reflection@title@#1\endcsname{#2}}
+\pdreflectiontitle{the-unseen-boat}{What a summary leaves unseen}
+\pdreflectiontitle{the-waiting-body}{What survives the worker}
+\pdreflectiontitle{the-paper-crossing}{A commitment between independent shores}
+\pdreflectiontitle{the-controlled-opening}{The controlled opening}
+% Text-bearing plates declare their own reserved, opaque lower panel.
+% Existing wordless plates do not acquire generic captions or title bars.
+\newcommand{\pdreflectionbody}[2]{%
+  \expandafter\def\csname pd@reflection@body@#1\endcsname{#2}}
+\pdreflectionbody{the-controlled-opening}{%
+  A closed cabinet still has a slot. A confined agent still has an output.
+  The noninterference claim must name what that output may reveal and which
+  other channels the model excludes.}
+\newcommand{\pdreflectiontocentry}[2]{%
+  \begin{minipage}[c]{.19\linewidth}%
+    \includegraphics[width=\linewidth,height=.62in,keepaspectratio]{plates/interstitial/#1.png}%
+  \end{minipage}\hfill
+  \begin{minipage}[c]{.76\linewidth}\raggedright\small
+    Plate: #2%
+  \end{minipage}}
+\newcommand*{\l@pdplate}[2]{%
+  \par\addvspace{7pt}\noindent
+  \begin{minipage}[c]{.90\linewidth}#1\end{minipage}\hfill
+  \makebox[.07\linewidth][r]{\small #2}\par\addvspace{7pt}}
+\newcommand{\pd@reflection@render}[1]{%
+  \IfFileExists{plates/interstitial/#1.png}{%
+    \thispagestyle{empty}%
+    \ifcsname pd@reflection@title@#1\endcsname
+      \phantomsection\label{plate:#1}%
+      \addcontentsline{toc}{pdplate}{\protect\texorpdfstring{\protect\pdreflectiontocentry{#1}{\csname pd@reflection@title@#1\endcsname}}{Plate: \csname pd@reflection@title@#1\endcsname}}%
+    \else
+      \PackageError{pd-reflection-plates}{Missing contents title for #1}%
+        {Register this plate with pdreflectiontitle before placing it.}%
+    \fi
+    \protected@write\@auxout{}{\string\pdreflectionrecord{#1}{\thepage}}%
+    \AddToShipoutPictureBG*{\AtPageCenter{\makebox(0,0){%
+      \includegraphics[width=6in,height=9in,keepaspectratio]{plates/interstitial/#1.png}}}}%
+    \ifcsname pd@reflection@body@#1\endcsname
+      \AddToShipoutPictureFG*{\AtPageCenter{\makebox(0,0){\begingroup
+        % Page art is not a column figure. Undo the Book's centering wrapper,
+        % as the existing full-page cover renderer does.
+        \ifdefined\pd@typesetpicturebox\let\pgfsys@typesetpicturebox\pd@typesetpicturebox\fi
+        \begin{tikzpicture}[x=1in,y=1in]
+          \useasboundingbox (0,0) rectangle (6,9);
+          \fill[pdreflectionpanel] (0,0) rectangle (6,2.45);
+          \node[anchor=north west,inner sep=0,text=white,text width=5in,
+            font=\fontsize{17}{21}\selectfont\bfseries] at (.5,2.05)
+            {\csname pd@reflection@title@#1\endcsname};
+          \node[anchor=north west,inner sep=0,text=white,text width=5in,
+            font=\fontsize{11}{15}\selectfont,align=left] at (.5,1.5)
+            {\raggedright\hyphenpenalty=10000\csname pd@reflection@body@#1\endcsname};
+        \end{tikzpicture}\endgroup}}}%
+    \fi
+    \null\newpage
+  }{\PackageError{pd-reflection-plates}{Missing interstitial plate #1}%
+    {Restore plates/interstitial/#1.png and its provenance before building.}}%
+}
+\newcommand{\pd@reflection@place}[1]{%
+  \clearpage
+  \pd@reflection@render{#1}%
+}
+\newcommand{\pdreflectionplate}[1]{%
+  \ifpdswiss\pd@reflection@place{#1}\fi
+}
+\makeatother

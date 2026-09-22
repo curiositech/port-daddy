@@ -1,53 +1,44 @@
-% Brief (tikz-diagram-craft), register row ch4-48.
-% Reader question: as each readers critical set grows, how much worse than
-%   just doubling the single-reader floor does running two separate digest
-%   heads actually get?
-% Claim: the split penalty Floor(N,2k,m)/(2 Floor(N,k,m)) is always above 1
-%   and grows without bound in k, not a fixed band; at N=60,m=8 it runs
-%   1.029 to 1.224 over k=1..4, and at N=60,m=20 it reaches 1.392 by k=10.
-% Evidence: penalty(60,k,8) for k=1..4 = 1.029,1.067,1.122,1.224; and
-%   penalty(60,10,20)=1.392 [verified, closed form, this pass].
-% Must distinguish: the two review-budget curves (m=8, m=20); that neither
-%   curve ever returns to the naive-doubling ratio of 1.
-% Grammar chosen: measured-quantity plot, penalty ratio against k, two
-%   review-budget curves (m=8, m=20), a naive-doubling guide at ratio=1.
-% Grammar rejected: a bar chart at the named k values would state the
-%   numbers without showing the trend is monotone and unbounded in k, which
-%   is the theorems own content, not a property of five named points alone.
-% Five-second test: does the m=20 curve ever dip back toward the naive
-%   doubling line as k grows, or only move further from it?
+% Analytic finite slices; integer k only. Joining lines guide the eye.
+% Joint m-open lower bound / sum of two separate m-open lower bounds.
+% This is not an equal-total-open-budget or attained-cost comparison.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdteal}%
+\begingroup
+\definecolor{pdSplitEight}{HTML}{7445A5}
+\definecolor{pdSplitTwenty}{HTML}{087B80}
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=7.8cm,height=5.2cm,
-  xmin=0.7,xmax=11.3,ymin=0.98,ymax=1.43,
+  width=9.6cm,height=7.0cm,
+  xmin=.6,xmax=10.55,ymin=.98,ymax=1.46,
   xtick={1,2,3,4,5,6,7,8,9,10},
-  ytick={1.0,1.1,1.2,1.3,1.4},
-  xlabel={critical-set size $k$},
-  ylabel={split penalty ratio}]
-  \addplot[pd warn series,dashed,line width=.9pt,domain=0.7:11.3,samples=2] {1};
-  \node[pd label,anchor=south west] at (axis cs:7,1.0) {naive $2\times$: ratio $=1$};
-  \addplot[pd focus rule,line width=1.05pt,mark=*,mark size=1.5pt,mark options={fill=pdfocus}]
-    coordinates {(1,1.0290)(2,1.0670)(3,1.1221)(4,1.2240)};
-  \addplot[pd rule,line width=1.05pt,mark=*,mark size=1.5pt,mark options={fill=pdink}]
-    coordinates {(1,1.0157)(2,1.0332)(3,1.0529)(4,1.0754)(5,1.1015)(6,1.1323)
-                 (7,1.1698)(8,1.2175)(9,1.2830)(10,1.3922)};
-  \node[pd focus label,anchor=south east] at (axis cs:4,1.224) {$m{=}8$};
-  \node[pd label,anchor=west] at (axis cs:10.15,1.3922) {$m{=}20$};
-  \node[pd focus label,anchor=north west] at (axis cs:4.15,1.20) {1.224};
-  \node[pd label,anchor=south] at (axis cs:9.5,1.40) {1.392};
+  ytick={1,1.1,1.2,1.3,1.4},
+  xlabel={critical-set size per reader, $k$},
+  ylabel={joint floor / sum of single-reader floors},
+  ymajorgrids=true,grid style={draw=pdink!13,line width=.3pt},
+  axis line style={draw=pdink!65,line width=.5pt},
+  tick style={draw=pdink!65,line width=.5pt},
+  clip=false]
+  \addplot[draw=pdink!60,densely dotted,line width=.7pt,domain=.6:10.55,samples=2] {1};
+  \node[pd label,anchor=south east,inner sep=2pt] at (axis cs:10.4,1.002)
+    {equal floors: $R=1$};
+  \addplot[draw=pdSplitEight,line width=1.2pt,mark=square*,mark size=2pt,
+    mark options={fill=pdSplitEight,draw=pdSplitEight}]
+    coordinates {(1,1.028965)(2,1.067016)(3,1.122067)(4,1.224045)};
+  \addplot[draw=pdSplitTwenty,dashed,line width=1.2pt,mark=*,mark size=1.8pt,
+    mark options={fill=pdSplitTwenty,draw=pdSplitTwenty}]
+    coordinates {(1,1.015695)(2,1.033203)(3,1.052928)(4,1.075429)(5,1.101497)
+                 (6,1.132328)(7,1.169849)(8,1.217537)(9,1.282965)(10,1.392188)};
+  \node[pd label,text=pdSplitEight,anchor=west,align=left,inner sep=0pt]
+    at (axis cs:4.38,1.249) {$m=8$\quad $R=1.2240$\\ends at $k=4$};
+  \node[pd label,text=pdSplitTwenty,anchor=east,align=right,inner sep=0pt]
+    at (axis cs:9.5,1.416) {$m=20$\quad $R=1.3922$\\ends at $k=10$};
+  \node[pd label,anchor=north west,inner sep=0pt] at (rel axis cs:0,1.16)
+    {$N=60$\qquad integer $k\ge1$,\quad $2k\le m<N$};
 \end{axis}
 \end{tikzpicture}
-\caption{The super-additive split penalty of Theorem~\ref{thm:split-penalty},
-$\mathrm{Floor}(N,2k,m)/(2\,\mathrm{Floor}(N,k,m))$ at $N{=}60$, against
-critical-set size $k$, for two review budgets. Both curves stay strictly
-above the naive-doubling ratio of $1$ (dashed) and grow without bound in
-$k$: at $m{=}8$ the penalty runs from $1.029$ at $k{=}1$ to $1.224$ at
-$k{=}4$ (its domain ends there, since $2k\le m$), and at $m{=}20$ it
-reaches $1.392$ by $k{=}10$. Running two digest heads for disjoint readers
-therefore costs strictly more than twice one head, and increasingly more
-as each readers critical set grows. [verified, closed form]}
+\endgroup
+\caption{With $m$ opens in total, the joint floor exceeds the sum of two
+single-reader floors allowing $m$ opens each. These finite slices compare
+lower bounds, not achieved costs.}
 \label{fig:split-penalty}
 \end{figure}

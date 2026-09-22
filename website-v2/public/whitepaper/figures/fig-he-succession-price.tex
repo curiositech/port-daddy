@@ -1,64 +1,57 @@
-% Figure IV.new --- the succession price: a computed threshold/regime plot.
-% ch6-04 (register: must).
-%
-% Reader question: how much does the naive sum understate a mortal
-% specialist's true wait, and when does the specialist stop being worth it
-% at all, no matter how skilled?
-% Claim: the exact wait W_bd(mu_s) sits strictly above the naive sum at every
-% skill level (they converge only as mu_s to infinity), descending to an
-% unreachable floor W_infty; at this canary's mortality ratio that floor
-% already exceeds the pool's own cost K, so the pool wins at every skill
-% level, not just typical ones.
-% Evidence: thm:succession-price; canary mu_s=5, xi=0.5, eta=0.25: naive
-% predicts 4.17, truth is 8.17 (amplification mu_eff/(mu_eff-lambda)=2.5x);
-% W_infty=xi/(eta(xi+eta))=2.667; K=1.0362 at the program's worked pool
-% instance (verified, b8_specialization.py).
-% Must distinguish: the WRONG naive-sum curve from the TRUE W_bd curve (the
-% growing-then-closing gap between them is the point) from the pool's flat
-% cost line K.
-% Grammar chosen: threshold/regime plot, two computed series on one pd axis,
-% the canary point dropped to both curves (S11, fig-swk-marker-decay.tex
-% idiom). Grammar rejected: a static bar comparing D* to xi/eta -- it would
-% show the threshold crossing but hide the amplification-then-convergence
-% shape the proof sketch is actually about.
-% Five-second test: a reader can see the true curve sitting above the naive
-% one at mu_s=5, and both flattening toward a floor that still sits above
-% the pool's flat cost line.
-\begin{figure*}[t]
+% IV/fig:he-succession-price: analytical queue comparison, not measured data.
+% Inputs: lambda=1 task/h, xi=.5/h, eta=.25/h; stability requires mu_s>3.
+% Exact forms: W_bd=8/3+11/(mu_s-3), W_naive=8/3+3/(mu_s-3).
+% Read the canary at mu_s=5 and the common limiting floor above pool cost.
+% Right-hand labels have their own gutter; leaders never replace data marks.
+\begin{figure}[H]
 \centering
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=8.6cm,height=4.8cm,
-  xmin=4.2,xmax=20,ymin=0,ymax=11,
-  xtick={5,10,15,20},ytick={0,2,4,6,8,10},
-  xlabel={service rate $\mu_s$},
-  ylabel={expected wait $W$}]
-  % the pool's flat cost, and the unreachable floor -- both named in place
-  \addplot[pd muted series,mark=none,domain=4.2:20] {1.0362};
-  \node[pd label,anchor=west] at (axis cs:20.5,1.0362) {pool cost $K=1.04$};
-  \addplot[pd guide,mark=none,domain=4.2:20] {2.667};
-  \node[pd label,anchor=west] at (axis cs:20.5,2.667) {floor $W_\infty=2.667$};
-  % the naive sum (wrong) and the true breakdown wait (right)
-  \addplot[pd warn series,mark=none,domain=4.2:20,samples=80]
-    {1/((x/3)-1)+2.667};
-  \addplot[pd focus series,mark=none,domain=4.2:20,samples=80]
-    {(1+0.8889*x)/((x/3)-1)};
-  % the canary: mu_s=5, dropped to both curves and the tick
-  \draw[pd guide] (axis cs:5,8.17) -- (axis cs:5,0);
-  \node[pd focus datum] at (axis cs:5,8.17) {};
-  \node[pd datum] at (axis cs:5,4.17) {};
-  \node[pd focus label,anchor=west,align=left] at (axis cs:5.35,8.4) {$8.17$\\true};
+  scale only axis,width=6.5cm,height=5.1cm,
+  xmin=3,xmax=12,ymode=log,ymin=.8,ymax=256,
+  xtick={3,5,8,12},ytick={1,4,16,64,256},
+  yticklabels={1,4,16,64,256},
+  xlabel={service rate $\mu_s$ (tasks/h)},
+  ylabel={mean wait $W$ (h; log scale)},clip=false]
+  \addplot[pd muted series,mark=none,domain=3:12,samples=2] {1.0362};
+  \addplot[pd guide,mark=none,domain=3:12,samples=2] {8/3};
+  \addplot[pd warn series,mark=none,domain=3.05:12,samples=180]
+    {8/3+3/(x-3)};
+  \addplot[pd focus series,draw=pdteal,mark=none,domain=3.05:12,samples=180]
+    {8/3+11/(x-3)};
+  \draw[pd guide] (axis cs:5,.8)--(axis cs:5,49/6);
+  \node[pd focus datum,fill=pdteal,draw=pdteal] at (axis cs:5,49/6) {};
+  \node[pd datum] at (axis cs:5,25/6) {};
+  \node[pd label,anchor=west,align=left] at (axis cs:6,28)
+    {At $\mu_s=5$:\\correct $8.17$ h\\naive $4.17$ h};
+
+  % Independent label territory, with leaders starting at true endpoints.
+  \draw[pdteal,line width=.5pt] (axis cs:12,35/9)
+    --(axis description cs:1.08,.42);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.42) {correct mean};
+  \draw[pdamber,line width=.5pt,dashed] (axis cs:12,3)
+    --(axis description cs:1.08,.29);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.29) {naive sum};
+  \draw[pdinkmuted,line width=.5pt,dotted] (axis cs:12,8/3)
+    --(axis description cs:1.08,.16);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.16) {floor $2.67$ h};
+  \draw[pdinkmuted,line width=.5pt] (axis cs:12,1.0362)
+    --(axis description cs:1.08,.03);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.03) {pool cost $K$};
+
+  \node[pd note,anchor=south west,align=left,text width=9cm]
+    at (axis description cs:0,1.08)
+    {Both means diverge as $\mu_s\downarrow3$.\\
+     Curves shown for $3.05\le\mu_s\le12$.};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{The naive sum understates a mortal specialist's wait, and
-the gap closes only as skill grows.} At the canary $\mu_s=5$ of the succession-price theorem
-($\xi=0.5$, $\eta=0.25$), the true breakdown wait
-$W_{\mathrm{bd}}=8.17$ is $2.5\times$ the residual downtime the naive sum of
-two separate terms predicts ($4.17$): downtime also builds queue. Both curves
-descend toward the same unreachable floor $W_\infty=2.667$ as $\mu_s\to\infty$,
-and because that floor already exceeds the pool's own cost $K=1.04$ here
-($\xi/\eta=2.0\gg D^\star=0.3496$), the pool wins at every skill level, not
-just typical ones. [verified, \texttt{b8\_specialization.py}]}
+\caption{Chosen rates: $\lambda=1$ task/h, $\xi=.5$/h and $\eta=.25$/h.
+The limiting floor exceeds the pool's $K=1.04$ h-equivalent cost, so
+increased skill alone cannot win here. Analytic model, not measurements.}
 \label{fig:he-succession-price}
-\end{figure*}
+\end{figure}

@@ -29,7 +29,7 @@
 \centering
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west] at (-1.10,4.65)
+  \node[pd title,anchor=west,text width=9.6cm] at (-1.10,4.65)
     {a fact nowhere written down triggers an obligation and a prohibition};
   \node[pd state,minimum width=2.4cm] (F) at (0.10,2.30) {fact:\\agent\_deployed};
   \node[pd focus state,minimum width=2.6cm] (D) at (3.35,2.30) {derived:\\prod\_access};
@@ -44,8 +44,8 @@
   \node[pd breach datum] (C) at (8.65,2.30) {};
   \draw[pd breach rule] (O.east) -| (C.north);
   \draw[pd breach rule] (Fo.east) -| (C.south);
-  \node[pd breach label,anchor=west,align=left,text width=1.35cm]
-    at (8.95,2.30) {overlap\\$[5,10]$};
+  \node[pd breach label,anchor=west,align=left,text width=1.15cm]
+    at (8.65,2.30) {overlap\\$[5,10]$};
   \node[pd note,anchor=north west,text width=9.45cm] at (-1.10,-0.05)
     {a checker that skips Horn propagation never derives prod\_access:
      neither rule fires, and the conflict is invisible -- 100 of the 885

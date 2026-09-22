@@ -142,12 +142,12 @@ class AssembledBookContentsTests(unittest.TestCase):
         for title in ["References", "Image credits", "Result atlas", "Mechanized claims",
                       "One ledger, three different reputation keys",
                       "Which chapter owns which primitive",
-                      "Open problems, all three lists in one place"]:
+                      "Routes to the open problems"]:
             self.assertEqual(sum(title in entry for entry in titles), 1, title)
         self.assertEqual(sum(title.startswith("Chapter ") for title in titles), 8)
         images = {image[0] for index in range(self.first, self.last + 1)
                   for image in self.pdf[index].get_images()}
-        self.assertEqual(len(images), 4, "Each part reuses its existing plate once")
+        self.assertEqual(len(images), 12, "Four part plates and eight chapter plates")
 
     def test_contents_and_reader_spread_ink_stays_inside_trim(self):
         outside = []
@@ -169,14 +169,14 @@ class AssembledBookContentsTests(unittest.TestCase):
         left, right = self.reader["book:reader-left"], self.reader["book:reader-right"]
         self.assertEqual((left + 1) % 2, 0)
         self.assertEqual(right, left + 1)
-        for index, prose in [(left, "There are two ways through every result."),
+        for index, prose in [(left, "paragraph to locate a claim"),
                              (right, "Every important statement is labeled")]:
             page = self.pdf[index]
             paragraphs = page.search_for(prose)
             lane = page.search_for("INSTITUTIONAL")
             self.assertTrue(paragraphs and lane, (index + 1, prose))
             self.assertGreater(paragraphs[0].y0, max(rect.y1 for rect in lane))
-        self.assertNotIn("There are two ways", self.pdf[right].get_text())
+        self.assertNotIn("paragraph to locate a claim", self.pdf[right].get_text())
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.83cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.79cm,y=1cm]
   \def\xmin{0}
   \def\xmax{9.2}
   \foreach \y/\threat/\close in {
@@ -54,12 +54,6 @@
   }
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-.5) -- (\xmax+.3,-.5);
 \end{tikzpicture}
-\caption{Threat closure across the four protocol phases, restating
-Table~\ref{tab:anchor-four-phases} as one staircase. Each row is a threat;
-red is still open, the chapter hue is closed, and the datum marks the phase
-that closes it. The staircase itself is the claim a table cannot draw:
-closure moves strictly rightward, so no later phase reopens an earlier
-one -- each adds a check on the key or the chain, never removes one.
-[internal]}
+\caption{Each phase adds a check without removing earlier checks. The marked transition closes the named threat; later phases preserve that closure. [internal, Table~\ref{tab:anchor-four-phases}]}
 \label{fig:anchor-four-phases}
 \end{figure}

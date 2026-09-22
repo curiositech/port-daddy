@@ -1,0 +1,138 @@
+% Book-only citations. Load AFTER pd-margin-layout, before document.
+% No bibliography is printed; the source registry remains reproducible data.
+% Enabled by default in the assembled Book; standalone chapters are unchanged.
+% Public references are unnumbered. Registry integers are accounting data,
+% never superscript callouts or bold numerals in the reader's margin.
+\makeatletter
+\newif\ifpdbookinmargin
+\newif\ifpdbookcitereplay
+\newcommand{\pdbookmargincontext}[1]{\begingroup\pdbookinmargintrue #1\endgroup}
+\NewCommandCopy\pdbookoriginalmarginregister\pdmarginregister
+\RenewDocumentCommand\pdmarginregister{m +m}{%
+  \pdbookoriginalmarginregister{#1}{\pdbookmargincontext{#2}}}
+% Captions/portraits/exhibits are measured BEFORE they reach the allocator.
+% Mark that earlier measurement too: a citation belongs to its owning box.
+\let\pdbookoriginalstorecaption\pd@storecaption
+\renewcommand{\pd@storecaption}[1]{%
+  \pdbookmargincontext{\pdbookoriginalstorecaption{#1}}}
+\let\pdbookoriginalmarginfigure\pdmarginfigure
+\renewcommand{\pdmarginfigure}[2]{%
+  \pdbookmargincontext{\pdbookoriginalmarginfigure{#1}{#2}}}
+\NewCommandCopy\pdbookoriginalmarginexhibit\pdmarginexhibit
+\RenewDocumentCommand\pdmarginexhibit{m m +m +m}{%
+  \pdbookmargincontext{\pdbookoriginalmarginexhibit{#1}{#2}{#3}{#4}}}
+% A contents/figure-list replay must not consume first use or emit a note.
+\let\pdbookoriginalstarttoc\@starttoc
+\renewcommand{\@starttoc}[1]{%
+  \begingroup\pdbookcitereplaytrue\pdbookoriginalstarttoc{#1}\endgroup}
+% tabularx evaluates its body several times while finding column widths.
+% Its trial argument runs INSIDE the discarded trial box, so this flag is
+% local to measurement and cannot consume first use or register ghost notes.
+% https://github.com/latex3/latex2e/blob/develop/required/tools/tabularx.dtx
+\let\pdbookoriginalTXtrial\TX@trial
+\def\TX@trial#1{\pdbookoriginalTXtrial{\pdbookcitereplaytrue #1}}
+\providecommand{\pdbookcitationrecord}[4]{}
+\ExplSyntaxOn
+\prop_new:N \g_pd_book_cite_number_prop
+\prop_new:N \g_pd_book_cite_full_prop
+\prop_new:N \g_pd_book_cite_short_prop
+\prop_new:N \g_pd_book_cite_seen_prop
+\prop_new:N \g_pd_book_cite_page_prop
+\int_new:N \g_pd_book_cite_occurrence_int
+\tl_new:N \l_pd_book_cite_page_tl
+\clist_new:N \l_pd_book_cite_fresh_clist
+\bool_new:N \l_pd_book_cite_first_bool
+\cs_new_protected:Npn \pd_book_cite_require:n #1
+  {\prop_if_in:NnF \g_pd_book_cite_number_prop {#1}
+    {\PackageError{pd-book-citations}{Unregistered~source:~#1}
+      {Register~the~source.~Never~silently~drop~a~citation.}}}
+\NewDocumentCommand\pdbookreference{m m +m +m}
+  {\prop_if_in:NnTF \g_pd_book_cite_number_prop {#1}
+    {\PackageError{pd-book-citations}{Duplicate~source:~#1}
+      {Use~one~canonical~entry~per~source.}}
+    {\prop_gput:Nnn \g_pd_book_cite_number_prop {#1}{#2}
+     \prop_gput:Nnn \g_pd_book_cite_full_prop {#1}{#3}
+     \prop_gput:Nnn \g_pd_book_cite_short_prop {#1}{#4}}}
+\cs_new_protected:Npn \pd_book_cite_entry:n #1
+  {\pd_book_cite_require:n {#1}
+   \par\noindent
+   \prop_if_in:NnTF \g_pd_book_cite_seen_prop {#1}
+    {\hyperlink{pdbook-source-#1}{\prop_item:Nn \g_pd_book_cite_short_prop {#1}}
+     \iow_log:x {PD-BOOK-SOURCE:~key=#1,~form=repeat}}
+    {\hypertarget{pdbook-source-#1}{}%
+     \prop_item:Nn \g_pd_book_cite_full_prop {#1}
+     \prop_gput:Nnn \g_pd_book_cite_seen_prop {#1}{1}
+     \iow_log:x {PD-BOOK-SOURCE:~key=#1,~form=full}}}
+\cs_new_protected:Npn \pd_book_cite_text:nn #1#2
+  {\begingroup\mdseries\upshape
+   \let\newblock\space
+   \bool_set_true:N \l_pd_book_cite_first_bool
+   \clist_map_inline:nn {#2}
+     {\bool_if:NF \l_pd_book_cite_first_bool {\par\smallskip}
+      \bool_set_false:N \l_pd_book_cite_first_bool
+      \pd_book_cite_entry:n {##1}}
+   \tl_if_blank:nF {#1}{\par\nobreak\emph{Cited:~#1.}}
+   \par\endgroup}
+\cs_new_protected:Npn \pd_book_cite_record:nnn #1#2#3
+  {\int_gincr:N \g_pd_book_cite_occurrence_int
+   \exp_args:Nx \zsavepos {pdc-\int_use:N\g_pd_book_cite_occurrence_int}
+   \iow_log:x {PD-BOOK-CITE:~occurrence=\int_use:N\g_pd_book_cite_occurrence_int,
+      ~keys=\tl_to_str:n{#2},~context=#3,~locator=\tl_to_str:n{#1}}
+   \protected@write\@auxout{}
+     {\string\pdbookcitationrecord{\int_use:N\g_pd_book_cite_occurrence_int}
+       {#2}{#3}{\unexpanded{#1}}}}
+% Repeated marks on the same physical page share one readable margin source.
+% Use shipped positions from the prior pass, never the current page counter
+% (which is wrong inside a paragraph or delayed float). Locators get their own
+% note so consolidation cannot erase the specific passage being cited.
+\cs_new_protected:Npn \pd_book_cite_note:nn #1#2
+  {\tl_set:Nx \l_pd_book_cite_page_tl
+    {\zref@extractdefault{pdc-\int_use:N\g_pd_book_cite_occurrence_int}{abspage}{0}}
+   \clist_clear:N \l_pd_book_cite_fresh_clist
+   \clist_map_inline:nn {#2}
+    {\tl_set:Nx \l_tmpa_tl {\tl_use:N\l_pd_book_cite_page_tl / ##1}
+     \bool_set_false:N \l_tmpa_bool
+     \tl_if_eq:NnT \l_pd_book_cite_page_tl {0}{\bool_set_true:N\l_tmpa_bool}
+     \tl_if_blank:nF {#1}{\bool_set_true:N\l_tmpa_bool}
+     \prop_if_in:NVF \g_pd_book_cite_page_prop \l_tmpa_tl {\bool_set_true:N\l_tmpa_bool}
+     \bool_if:NT \l_tmpa_bool
+       {\clist_put_right:Nn \l_pd_book_cite_fresh_clist {##1}
+        \prop_gput:NVn \g_pd_book_cite_page_prop \l_tmpa_tl {1}}}
+   \clist_if_empty:NTF \l_pd_book_cite_fresh_clist
+     {\pdmarginreserveslot
+      \iow_log:x {PD-BOOK-CITE-SHARED:~occurrence=\int_use:N\g_pd_book_cite_occurrence_int}}
+     {\exp_args:NnV \pd_book_cite_register:nn {#1}\l_pd_book_cite_fresh_clist}}
+\cs_new_protected:Npn \pd_book_cite_register:nn #1#2
+  {\pdmarginregister{citation}{\pd_book_cite_text:nn{#1}{#2}}
+   \iow_log:x {PD-BOOK-CITE-BOX:~occurrence=\int_use:N\g_pd_book_cite_occurrence_int,
+     ~id=\pdmarginlastid,~keys=\tl_to_str:n{#2}}}
+\NewDocumentCommand\pdbookcite{O{} m}
+  {\ifpdbookcitereplay
+     \unskip
+   \else
+     \ifpdbookinmargin
+       \pd_book_cite_record:nnn{#1}{#2}{embedded}%
+       \par\smallskip\pd_book_cite_text:nn{#1}{#2}%
+     \else
+       % Existing sources use word~\cite{key}. Remove that obsolete gap so
+       % punctuation does not acquire an extra space when the callout vanishes.
+       \unskip
+       \pd_book_cite_record:nnn{#1}{#2}{body}%
+       \pd_book_cite_note:nn{#1}{#2}%
+     \fi
+   \fi}
+\AtEndDocument{\iow_log:x {PD-BOOK-CITE-SUMMARY:~occurrences=
+  \int_use:N\g_pd_book_cite_occurrence_int,~sources=
+  \prop_count:N\g_pd_book_cite_seen_prop,~registered=
+  \prop_count:N\g_pd_book_cite_number_prop}}
+\ExplSyntaxOff
+% An authored sidenote carries its own thought, not a displaced bibliography.
+% Sources inside it are credited in the same measured box. No nested note,
+% arbitrary public number or duplicate inline callout is created.
+\RenewDocumentCommand\pdsourceaside{+m}{\pdmarginregister{aside}{#1}}
+\AtBeginDocument{%
+  \typeout{PD-BOOK-CITE-CAPACITY: \the\textheight}%
+  \RenewDocumentCommand\pdcite{O{} m}{\pdbookcite[#1]{#2}}%
+  \RenewDocumentCommand\cite{O{} m}{\pdbookcite[#1]{#2}}%
+}
+\makeatother

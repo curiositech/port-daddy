@@ -1,97 +1,45 @@
-% Fragment: fig-sealed-laundering-fork.tex -- the laundering residual as a
-% forking-path comparison.
-%
-% Reader question: how could a worker defeat the "committed input" gate
-% honestly, and why can't the current checker catch it?
-% Claim: computing t=f(s) and submitting t lets the honest gate release
-% g(t) instead of g(s); the fork sits strictly before the one node
-% (submit) the checker's model can see, so the checker's search never
-% notices anything changed.
-% Evidence: the boundary after Theorem sealed-noninterference ("There is a
-% second residual...it does not cover a worker that launders...the
-% model's submit carries no payload") and Exercise sealed-launder's
-% solution (a compute(f) transition, and a gate that then releases
-% g(t)), website-v2/public/whitepaper/sealed-harbor.tex, Sec.
-% sealed-noninterference and Sec. sealed-exercises [internal -- no
-% script; the present mutation suite cannot exhibit this attack, which is
-% the boundary's own point].
-% Must distinguish: the honest path (gate reads committed s) from the
-% laundering path (worker computes t=f(s) first); the shared prefix
-% (load, read) and the shared honest gate (release: g(x)) from the one
-% thing that differs (what x is bound to); that the checker's "submit"
-% node is drawn identically in both lanes because it truly carries no
-% payload in the model.
-% Grammar chosen: paired paths on one grid (the before/after idiom, reused
-% from the sibling fig-sealed-two-worlds two lanes below each other),
-% divergence marked at the extra compute step the laundering lane detours
-% through before rejoining the shared submit column.
-% Grammar rejected: a single-lane flowchart with an if/else branch --
-% that draws a choice the checker's automaton actually models and could
-% in principle catch; the point is the reverse, that the checker's model
-% has no branch here at all, only two lanes a human can compare on paper
-% that the checker itself cannot.
-% Five-second test: at the submit column, do the two lanes look
-% different? They do not -- that is why the attack is priced, not caught.
-% QA: beauty_lint B2 (arrow tip 0.3pt from the compute box) and B7
-% (0.31pt sub-point centre offset between "release" and "g(x)") are the
-% same two warnings the sibling fig-sealed-two-worlds.tex carries and
-% leaves unfixed: an arrowhead meeting its node's edge, and a two-line
-% node's bold/math baselines, both below print resolution. Justified,
-% not fixed.
+% Arithmetic illustration of the declared laundering residual, not a C1 run.
+% Brief: exposition/figures/fig-sealed-laundering-fork.md.
+% Every displayed pair is ordered world A, world B. No elapsed-time encoding.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lx{0}      % load column
-  \def\rx{1.60}   % read column
-  \def\cx{3.20}   % compute column -- laundering lane only
-  \def\sx{4.85}   % submit column -- the checker's boundary
-  \def\gx{6.65}   % release column
-  \def\yH{3.35}   % honest lane
-  \def\yL{0.40}   % laundering lane
-  \node[pd title,anchor=east] at (-1.10,\yH) {honest path};
-  \node[pd title,anchor=east] at (-1.10,\yL) {laundering path};
-  % --- honest lane: load, read, submit s, release g(s) ----------------------
-  \node[pd state,minimum width=1.45cm] (H1) at (\lx,\yH) {load};
-  \node[pd state,minimum width=1.45cm] (H2) at (\rx,\yH) {read};
-  \node[pd state,minimum width=1.45cm] (H3) at (\sx,\yH) {submit};
-  \node[pd label,anchor=north] at (\sx,{\yH-.72}) {$x=s$};
-  \node[pd focus state,minimum width=1.75cm,align=center] (H4) at (\gx,\yH) {release\\$g(x)$};
-  \draw[pd focus arrow] (H1) -- (H2);
-  \draw[pd focus arrow] (H2) -- (H3);
-  \draw[pd focus arrow] (H3) -- (H4);
-  % --- laundering lane: load, read, compute t=f(s), submit t, release g(t) -
-  \node[pd state,minimum width=1.45cm] (L1) at (\lx,\yL) {load};
-  \node[pd state,minimum width=1.45cm] (L2) at (\rx,\yL) {read};
-  \node[pd breach state,minimum width=1.70cm,align=center] (L3) at (\cx,\yL) {compute\\$t=f(s)$};
-  \node[pd state,minimum width=1.45cm] (L4) at (\sx,\yL) {submit};
-  \node[pd label,anchor=south] at (\sx,{\yL+.72}) {$x=t$};
-  \node[pd focus state,minimum width=1.75cm,align=center] (L5) at (\gx,\yL) {release\\$g(x)$};
-  \draw[pd focus arrow] (L1) -- (L2);
-  \draw[pd breach arrow] (L2) -- (L3);
-  \draw[pd breach arrow] (L3) -- (L4);
-  \draw[pd focus arrow] (L4) -- (L5);
-  % --- the checker's boundary: the same "submit" node, no payload, either lane
-  \begin{scope}[on background layer]
-    \node[pd panel,fit={(H3)(L4)},inner xsep=9pt,inner ysep=11pt] (boundary) {};
-  \end{scope}
-  \node[pd title,anchor=south] at (boundary.north) {checker's boundary};
-  \node[pd note,anchor=north west,align=left,text width=4.5cm] at (\cx-0.85,-0.95)
-    {priced in the leakage budget, not caught by the checker};
-\end{tikzpicture}
-\caption{Two paths through the same honest gate, drawn as paired lanes. Above,
-the honest path submits the committed secret $s$ directly, so the gate's
-declared function releases $g(s)$. Below, the laundering path first computes
-$t=f(s)$ for a worker-chosen $f$ and submits $t$ instead, so the same honest
-gate releases $g(t)$ -- for a non-constant $f$ that maps an equal-parity pair
-to a different-parity pair, this differs from what the honest path would have
-released. The two lanes are drawn identically through \texttt{submit}, boxed
-as the checker's boundary, because the model's \texttt{submit} action carries
-no payload: the mutation suite that catches a leaky gate or a bypassed gate in
-Theorem~\ref{thm:sealed-noninterference} has no variable to quantify over
-here, so it cannot exhibit this attack at all. The residual is not eliminated;
-it is priced as channel capacity in Section~\ref{sec:sealed-budget} [internal;
-no script -- Exercise~\ref{ex:sealed-launder} states the model extension a
-checker would need].}
+\SGMeasuredFigure{sealed-laundering-fork}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \def\gateX{175}\def\outX{278}
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Gate input $(A,B)$};
+  \node[anchor=north,font=\SGType\bfseries] at (\gateX,0)
+    {Same gate};
+  \node[anchor=north,font=\SGType\bfseries] at (\outX,0)
+    {Erin sees $(A,B)$};
+
+  \node[anchor=north west] at (0,28) {Committed input};
+  \SGDocument{original}{(0,45)}{104}{42}{sgBlue!6}{$s$\\$(0,2)$}
+  \node[sg/check,minimum width=61pt,minimum height=34pt]
+    (directGate) at (\gateX,66) {$g(x)$\\$x\bmod2$};
+  \SGDocument{directOut}{(246,45)}{64}{42}{sgTeal!7}{$(0,0)$}
+  \draw[sg/arrow] (original.east)--(directGate.west);
+  \draw[sg/arrow,draw=sgTeal] (directGate.east)--(directOut.west);
+  \node[anchor=north,text=sgTeal] at (\outX,94) {$0=0$};
+
+  \draw[sg/grid] (0,123)--(310,123);
+  \node[anchor=north west] at (0,140) {Worker computes};
+  \node[anchor=north west,text=sgViolet] at (0,155)
+    {$t=f(s)=\lfloor s/2\rfloor$};
+  \SGDocument{transformed}{(0,178)}{104}{42}{sgViolet!7}{$t$\\$(0,1)$}
+  \node[sg/check,minimum width=61pt,minimum height=34pt]
+    (changedGate) at (\gateX,199) {$g(x)$\\$x\bmod2$};
+  \SGDocument{changedOut}{(246,178)}{64}{42}{sgRed!6}{$(0,1)$}
+  \draw[sg/arrow,draw=sgViolet] (transformed.east)--(changedGate.west);
+  \draw[sg/arrow,draw=sgRed] (changedGate.east)--(changedOut.west);
+  \node[anchor=north,text=sgRed] at (\outX,227) {$0\ne1$};
+
+  \fill[sgGrid!23] (0,259) rectangle (310,299);
+  \node[anchor=north west,text width=294pt,align=left] at (8,267)
+    {Current C1: \texttt{submit} has no payload;\\the gate reads committed $s$, not worker register $t$.};
+\end{tikzpicture}}
+\caption{The gate is unchanged; the worker changes its argument and reveals
+a distinction the original parity release hid. This arithmetic example is
+outside C1's committed-input model. [internal; Exercise~\ref{ex:sealed-launder}]}
 \label{fig:sealed-laundering-fork}
 \end{figure}

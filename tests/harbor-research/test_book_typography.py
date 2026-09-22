@@ -1,5 +1,6 @@
 """Pinned fonts and role routing are inputs to both Book and fragment builds."""
 import hashlib
+import importlib.util
 import json
 import os
 from collections import Counter
@@ -7,6 +8,8 @@ from pathlib import Path
 import re
 import unicodedata
 import unittest
+import tempfile
+from unittest.mock import patch
 
 try:
     import fitz
@@ -57,7 +60,57 @@ class BookTypographyTests(unittest.TestCase):
         self.assertIn(r"\AtEndPreamble{\pdsetbookmainfont}", source)
         self.assertIn(r"\newcommand{\pdsetbookmainfont}{\setmainfont", source)
         self.assertNotIn("SourceSerif4", source)
-        self.assertIn("RawFeature={-pnum,-onum}", source)
+        self.assertIn(r"\def\pdbookdatafeatures{-pnum,-onum}", source)
+
+    def test_suisse_uses_four_real_shapes_and_supported_numerals(self):
+        source = (BOOK / "coordination-papers-mega-volume-typography.tex").read_text()
+        for style in ("Regular", "RegularItalic", "Semibold", "SemiboldItalic"):
+            self.assertIn(f"SuisseIntl-{style}.otf", source)
+        self.assertIn(r"\def\pdbookdatafeatures{+tnum,+lnum}", source)
+        self.assertIn(r"\renewcommand{\scshape}{\upshape}", source)
+        self.assertIn("OPEN-FONT PROOF", source)
+        self.assertIn(r"font profile: \pdbookfontprofile", source)
+
+
+class PrivateBookFontTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location("book_fonts", ROOT / "scripts/prepare-book-fonts.py")
+        cls.module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.module)
+
+    def test_explicit_suisse_does_not_fall_back(self):
+        with self.assertRaisesRegex(ValueError, "no automatic substitution"):
+            self.module.configuration("suisse", "")
+        with self.assertRaises(ValueError):
+            self.module.configuration("unknown", "")
+
+    def test_open_proof_is_explicit_and_cannot_override_private_input(self):
+        source, receipt = self.module.configuration("open-proof", "")
+        self.assertIn("open-proof", source)
+        self.assertEqual(receipt, {"profile": "open-proof"})
+        with self.assertRaises(ValueError):
+            self.module.configuration("open-proof", "some/private/fonts")
+
+    def test_in_repository_fonts_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "outside the repository"):
+            self.module.configuration("suisse", str(BOOK / "fonts"))
+
+    def test_private_config_hashes_inputs_without_copying_fonts(self):
+        scratch = ROOT / ".cache" / "typography-tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temp:
+            folder = Path(temp)
+            with patch.object(self.module, "ROOT", folder / "repo"):
+                for style in self.module.STYLES:
+                    (folder / f"SuisseIntl-{style}.otf").write_bytes(b"OTTO-test-fixture")
+                source, receipt = self.module.configuration("suisse", str(folder))
+                self.assertIn(r"\detokenize{", source)
+                self.assertEqual(len(receipt["sha256"]), 4)
+                self.assertNotIn("directory", receipt)
+                (folder / "SuisseIntl-RegularItalic.otf").unlink()
+                with self.assertRaises(FileNotFoundError):
+                    self.module.configuration("suisse", str(folder))
 
 
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
@@ -67,6 +120,18 @@ class RenderedBookTypographyTests(unittest.TestCase):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
             families = {font[3] for page in book for font in page.get_fonts()}
             self.assertFalse(any("SourceSerif4" in name for name in families), families)
+
+    def test_expected_font_profile_is_actually_embedded(self):
+        expected = os.environ.get("BOOK_TYPOGRAPHY_FACE", "SourceSans3")
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            fonts = {font[3] for page in book for font in page.get_fonts()}
+            if expected == "SuisseIntl":
+                # The purchased filenames say Italic, but their actual
+                # PostScript names use It. Assert the embedded font names.
+                for style in ("Regular", "RegularIt", "Semibold", "SemiboldIt"):
+                    self.assertTrue(any(f"SuisseIntl-{style}" in name for name in fonts), fonts)
+                self.assertFalse(any("SourceSans3" in name for name in fonts), fonts)
+                self.assertIn("font profile: suisse", book.metadata["creator"])
 
     def test_four_part_opening_spreads_are_retained(self):
         manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
@@ -103,7 +168,65 @@ class RenderedBookTypographyTests(unittest.TestCase):
                     self.assertIn(letters(chapter["epigraph"]["text"]), actual)
                     self.assertIn(letters(chapter["epigraph"]["source"]), actual)
 
-    def test_actual_prose_uses_source_not_legacy_pagella(self):
+    def test_backmatter_replaces_chapter_headers_on_both_sides(self):
+        pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
+        aux = pdf.with_suffix('.aux').read_text()
+        with fitz.open(pdf) as book:
+            for label,title in [('book:solutions','Solutions to the exercises'),
+                                ('book:appendices','Appendices')]:
+                folio = re.search(r'\\newlabel\{' + re.escape(label)
+                                  + r'\}\{\{[^{}]*\}\{([^{}]+)\}',aux).group(1)
+                index = next(i for i,p in enumerate(book) if p.get_label()==folio)
+                for page in (book[index],book[index+1]):
+                    header = page.get_text(clip=fitz.Rect(0,0,page.rect.width,45))
+                    self.assertIn(title,header)
+                    self.assertNotIn('Chapter 8.',header)
+                    self.assertIn(page.get_label(),header)
+
+    def test_navigation_paragraph_stays_in_reader_guidance(self):
+        def normalized(text):
+            text = re.sub(r'[-\u2010\u2011]\n', '', text)
+            return ' '.join(text.replace('\u2010', '-').replace('\u2011', '-').split())
+        with fitz.open(os.environ['BOOK_TYPOGRAPHY_PDF']) as book:
+            pages = [i for i, page in enumerate(book)
+                     if 'Cross-references are live.' in normalized(page.get_text())]
+            self.assertEqual(len(pages), 1)
+            index = pages[0]
+            guidance = book[index].get_text() + book[max(0, index-1)].get_text()
+            self.assertIn('How to use this textbook', guidance)
+            self.assertIn('links back to its full entry.', normalized(book[index].get_text()))
+
+    def test_federated_conclusion_keeps_its_limitations_together(self):
+        pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
+        aux = pdf.with_suffix('.aux').read_text()
+        folio = re.search(r'\\newlabel\{fh:sec:fh-conclusion\}\{\{[^{}]*\}\{([^{}]+)\}', aux).group(1)
+        with fitz.open(pdf) as book:
+            page = next(page for page in book if page.get_label() == folio)
+            text = re.sub(r'[-\u2010\u2011]\n', '', page.get_text())
+            text = ' '.join(text.split())
+            for passage in ('Conclusion', 'The proposed federation',
+                            'What this chapter supplies', 'The remaining work',
+                            'partial mechanization.'):
+                self.assertIn(passage, text)
+
+    def test_evidence_records_preserve_every_manifest_identifier(self):
+        pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
+        aux = pdf.with_suffix('.aux').read_text()
+        manifest = json.loads((ROOT/'whitepaper/corpus.json').read_text())
+        with fitz.open(pdf) as book:
+            indices=[]
+            for label in ('app:mechanized','app:result-atlas'):
+                folio = re.search(r'\\newlabel\{' + re.escape(label)
+                                  + r'\}\{\{[^{}]*\}\{([^{}]+)\}',aux).group(1)
+                indices.append(next(i for i,p in enumerate(book) if p.get_label()==folio))
+            text=''.join(book[i].get_text() for i in range(indices[0],indices[1]+1))
+            compact=''.join(text.split()).replace('\u2011','-').replace('\u2010','-')
+            for record in manifest['formalArtifacts']+manifest['researchProgramArtifacts']:
+                # Continuation heads may repeat the identifier; its actual
+                # record, identified by the following Status field, is unique.
+                self.assertEqual(compact.count(record['id']+'Status'),1,record['id'])
+
+    def test_actual_prose_uses_selected_sans_not_legacy_pagella(self):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
             aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
             reader_pages = []
@@ -123,7 +246,8 @@ class RenderedBookTypographyTests(unittest.TestCase):
                         for span in line["spans"]:
                             fonts[span["font"]] += len(span["text"])
                 with self.subTest(page=index + 1):
-                    self.assertGreater(fonts["SourceSans3-Regular"], 250, fonts)
+                    expected = os.environ.get("BOOK_TYPOGRAPHY_FACE", "SourceSans3")
+                    self.assertGreater(fonts[expected + "-Regular"], 250, fonts)
                     self.assertEqual(sum(n for face, n in fonts.items()
                                          if face.startswith(("TeXGyrePagellaX", "SourceSerif4"))), 0, fonts)
 

@@ -1,47 +1,66 @@
-% Redraw of fig-sealed-composition-crossover to the v2 plot grammar.
+% Book redraw of VIII/fig:sealed-composition-crossover.
 %
 % Reader question: when does the advanced composition bound first pay?
-% Claim: at per-release epsilon=0.1 and delta'=10^-6, basic composition is
-% still smaller at k=32; the advanced bound first becomes smaller at k=35.
-% Evidence: the closed forms k*epsilon and sqrt(2 k ln(1/delta')) epsilon +
-% k epsilon (e^epsilon-1), verified by a3_epsilon_ledger.py.
-% Must distinguish: the two directly labelled curves; the first integer k at
-% which their ordering changes; the chapter's k=32 checkpoint.
-% Grammar chosen: a measured-quantity plot with a direct label on each series
-% and a guide at the first paying integer, k=35.
-% Grammar rejected: a legend plus a marker at k=32, which made that checkpoint
-% look like the crossing even though 3.31 is still above 3.20 there.
-% Five-second test: answer "k=35" and identify which curve is lower afterward.
+% Claim: with epsilon=0.1 and delta'=10^-6, the advanced curve is still
+% above basic at k=32 and first becomes lower at the positive integer k=35.
+% Representation: one analytical common-axis plot; direct labels carry the
+% delta distinction; only the focal integer is marked.
+% The advanced curve is .1*sqrt(2*k*ln(1e6)) + k*.1*expm1(.1); PGFPlots
+% spells expm1(.1) as exp(.1)-1 in the plotted expression below.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure]
-  \begin{axis}[pd axis,
-    width=9.6cm,height=5.6cm,
-    title={advanced composition first pays at $k=35$},
-    xmin=0,xmax=64,ymin=0,ymax=7,
-    xlabel={releases $k$ (per-release $\varepsilon=0.1$)},
-    ylabel={spent-budget bound},
-    xtick={0,16,32,35,48,64},
-    ytick={0,2,4,6}]
-    \addplot[domain=0:64,samples=120,pd series]
+\SGMeasuredFigure{VIII/fig:sealed-composition-crossover}{%
+\begin{tikzpicture}[pd figure,font=\SGType,
+  pd axis label/.append style={font=\SGType},
+  pd direct label/.append style={font=\SGType},
+  pd focus label/.append style={font=\SGType}]
+  \begin{axis}[
+    pd axis,
+    width=250pt,
+    height=150pt,
+    xmin=0,xmax=64,
+    ymin=0,ymax=7,
+    xlabel={release count $k$},
+    ylabel={bound $\varepsilon$},
+    xtick={0,16,35,48,64},
+    ytick={0,2,4,6},
+    xticklabel style={pd axis label},
+    yticklabel style={pd axis label},
+    xlabel style={pd axis label},
+    ylabel style={pd axis label},
+    axis background/.style={fill=pdinkmuted!4},
+    clip=false,
+    % The formulas are analytic; no sample markers imply measurements.
+    candidate basic/.style={draw=pdink,line width=1.05pt,mark=none},
+    candidate advanced/.style={draw=pdfocus,line width=1.45pt,mark=none},
+  ]
+    \addplot[candidate basic,domain=0:64,samples=2]
       {0.1*x};
-    \addplot[domain=0:64,samples=120,pd focus series]
-      {sqrt(2*x*ln(1/0.000001))*0.1 + x*0.1*(exp(0.1)-1)};
-    \draw[pd guide] (axis cs:35,0) -- (axis cs:35,3.50);
-    \node[pd focus datum] at (axis cs:35,3.489) {};
-    \node[pd tag,anchor=north west,align=left,text width=2.75cm,inner sep=3pt]
-      at (axis cs:37.0,2.15) {first smaller\\bound: $k=35$};
-    \node[pd label,anchor=south east] at (axis cs:63.5,6.62)
-      {basic bound};
-    \node[pd focus label,anchor=north east] at (axis cs:63.5,3.72)
-      {advanced bound};
+    \addplot[candidate advanced,domain=0:64,samples=160]
+      {0.1*sqrt(2*x*ln(1000000)) + x*0.1*(exp(0.1)-1)};
+
+    % The only marked integer is the first positive k where advanced is lower.
+    \addplot[only marks,mark=*,mark size=2.8pt,draw=pdfocus,fill=pdfocus]
+      coordinates {(35,3.47789843)};
+    \draw[pd guide] (axis cs:35,0) -- (axis cs:35,3.47789843);
+
+    % The basic label is above both curves. The advanced label is two short
+    % lines below both curves; its north-east anchor keeps its full box inside
+    % the plot without masking either path.
+    \node[pd direct label,anchor=east,align=left,text=pdink]
+      at (axis cs:63.5,6.90)
+      {basic $(\delta=0)$};
+    \node[pd focus label,anchor=north east,align=right]
+      at (axis cs:63.5,4.0)
+      {advanced\\$\delta'=10^{-6}$};
+
+    % Short focal note, entirely inside the plot box and below both curves.
+    \node[pd direct label,anchor=west,align=left,text=pdfocus!85!pdink]
+      at (axis cs:38,1.78)
+      {first lower $\varepsilon$:\\$k=35$};
   \end{axis}
-\end{tikzpicture}
-\caption{Basic and advanced composition bounds against release count. With
-per-release epsilon 0.1 and delta-prime one in a million, advanced first
-becomes smaller at $k=35$; at the chapter's $k=32$ checkpoint, basic is 3.20
-versus 3.31.
-[verified, \texttt{a3\_epsilon\_ledger.py}]}
+\end{tikzpicture}}
+\caption{Analytical comparison for per-release $\varepsilon=0.1$ and a fixed maximum horizon; queries may adapt. At $k=32$, basic is 3.20 versus advanced 3.31. Advanced first has lower $\varepsilon$ at $k=35$, but allows $\delta'=10^{-6}$; basic keeps $\delta=0$. Lower epsilon therefore trades guarantees, not uniformly stronger privacy.}
 \label{fig:sealed-composition-crossover}
 \end{figure}

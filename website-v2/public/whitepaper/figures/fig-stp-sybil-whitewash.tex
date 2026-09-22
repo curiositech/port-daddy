@@ -16,13 +16,13 @@
 \centering
 \pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\pw{3.70}  \def\ph{3.60}  \def\bx{5.70}
+  \def\pw{3.70}  \def\ph{3.60}  \def\bx{5.20}
   % ---- panel A: sanction persistence across respawns ------------------------
   \node[pd title,anchor=west] at (0,4.55) {A. sanction persistence};
   \node[pd note,anchor=west] at (0,4.18) {whitewashing across body leases};
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (\pw,0);
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (0,\ph);
-  \node[pd label,anchor=north west] at ({\pw+0.15},-.16) {respawns};
+  \node[pd label,anchor=north east] at (\pw,-.75) {respawns};
   \node[pd label,rotate=90,anchor=south] at (-.68,{\ph/2}) {penalty retained};
   \foreach \x/\lab in {1.15/1,2.30/2,3.45/3} {
     \draw[pd tick] (\x,0) -- (\x,-.12);
@@ -52,16 +52,11 @@
   \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
     \node[pd focus datum,inner sep=1.5pt] at (\x,1.40) {};
   \end{scope}
-  \node[pd note,anchor=north west,text width=10.4cm] at (0,-2.70)
+  \node[pd note,anchor=north west,text width=9.5cm] at (0,-2.70)
     {scope: one trusted daemon and one bound principal; federation still owes cross-operator attestation};
 \end{tikzpicture}
-\caption{\textbf{Non-forgeable identity changes the economics of both classic
-attacks.} In panel A, a self-asserted label drops a sanction by respawning; a
-principal-bound identity carries the penalty $\Delta$ across every body lease. In
-panel B, free labels turn aliases into quorum weight, while principal binding keeps
-one accountable weight constant. The claim is deliberately local: daemon minting
-and principal binding close these attacks inside one trusted domain; they do not
-solve cross-operator attestation. Newcomer friction applies to economic ceiling,
-not to the ability to perform work. [internal]}
+\caption{Binding identity to a principal preserves sanctions across restarts
+and prevents aliases from multiplying quorum weight. This protection is
+local to one trusted domain, not cross-operator attestation. [internal]}
 \label{fig:sybil}
 \end{figure*}

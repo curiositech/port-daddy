@@ -1,0 +1,792 @@
+{
+  "book_pages": 580,
+  "margin_registered": 0,
+  "margin_placed": 0,
+  "margin_issues": [],
+  "whitespace_review": [
+    {
+      "pdf_page": 6,
+      "folio": "iii",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 210.1,
+          "points": 148.9,
+          "position": "above"
+        },
+        {
+          "top": 502.7,
+          "bottom": 651.6,
+          "points": 148.9,
+          "position": "below"
+        }
+      ],
+      "text_sample": "The Harbor, the Person, and the Economy\niii\nPart I\nGround Truth\nPart II\nThe Cost of Seeing\n1 \u00b7 2 \u00b7 3\n4\nTHE PRAC-\nTITIONER\ndigest-with-zoom, consent\nTHE SYSTEMS\nENGINEER\nsingle-writer proof, attenuatio"
+    },
+    {
+      "pdf_page": 10,
+      "folio": "vii",
+      "gaps": [
+        {
+          "top": 200.6,
+          "bottom": 651.6,
+          "points": 451.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "The Harbor, the Person, and the Economy\nvii\nnot rewrite) shows a quantity, not its cause. Expert judgment shows an\nassessment under a named rubric and carries the assessor\u2019s error rate.\nBuyer preferen"
+    },
+    {
+      "pdf_page": 12,
+      "folio": "ix",
+      "gaps": [
+        {
+          "top": 228.5,
+          "bottom": 651.6,
+          "points": 423.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "The Harbor, the Person, and the Economy\nix\nFirst-edition numbering.\nThe standalone research papers and earlier\nprintings cite these chapters by the Roman numerals of the first edition,\nwhich followed "
+    },
+    {
+      "pdf_page": 16,
+      "folio": "xiii",
+      "gaps": [
+        {
+          "top": 407.8,
+          "bottom": 651.6,
+          "points": 243.8,
+          "position": "below"
+        }
+      ],
+      "text_sample": "The Harbor, the Person, and the Economy\nxiii\n8\nThe Federated Harbor\n410\n8.1\nIntroduction: The Two-Machine Problem . . . . . . . . . . . . 411\n8.2\nThe Federated Authority . . . . . . . . . . . . . . . "
+    },
+    {
+      "pdf_page": 18,
+      "folio": "xv",
+      "gaps": [
+        {
+          "top": 407.5,
+          "bottom": 651.6,
+          "points": 244.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "The Harbor, the Person, and the Economy\nxv\n8. Federation relays evidence, not sovereignty. Mutually distrustful\nmachines may exchange signed capabilities, revocations, witness\nroots, and settlement cl"
+    },
+    {
+      "pdf_page": 26,
+      "folio": "8",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 186.3,
+          "points": 125.1,
+          "position": "above"
+        },
+        {
+          "top": 527.3,
+          "bottom": 651.6,
+          "points": 124.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 1. The Single-Writer Kernel\n8\nTable 1.2: The seven subsystems, each the contract the daemon holds for the\nlayer above it, with the table that is its home where the chapter names one and\nits ma"
+    },
+    {
+      "pdf_page": 52,
+      "folio": "34",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 215.1,
+          "points": 153.9,
+          "position": "above"
+        },
+        {
+          "top": 503.6,
+          "bottom": 651.6,
+          "points": 148.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 1. The Single-Writer Kernel\n34\nthe trigger is witnessed at the mediation boundary\nno\nyes\nthe event is controllable: it\npasses through the daemon\nyes\nno\ndetect-only\na plan stated in the\nmodel\u2019s"
+    },
+    {
+      "pdf_page": 55,
+      "folio": "37",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 173.0,
+          "points": 111.8,
+          "position": "above"
+        },
+        {
+          "top": 539.0,
+          "bottom": 651.6,
+          "points": 112.6,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 1. The Single-Writer Kernel\n37\nOPEN\nattempt closure\nDONE\ntyped oracle\nreleased claim\nmerged commit\npassing test id\npolicy sub-check\nfree-text assertion\nrefused; remains open\ndeadline set by th"
+    },
+    {
+      "pdf_page": 87,
+      "folio": "69",
+      "gaps": [
+        {
+          "top": 480.0,
+          "bottom": 651.6,
+          "points": 171.6,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 1. The Single-Writer Kernel\n69\n1.17\nConclusion:\nsolid where local, provi-\nsional where it must grow\nThe kernel is a single-writer transactional reference monitor over a lo-\ncal SQLite/WAL data"
+    },
+    {
+      "pdf_page": 95,
+      "folio": "77",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 183.2,
+          "points": 122.0,
+          "position": "above"
+        },
+        {
+          "top": 530.4,
+          "bottom": 651.6,
+          "points": 121.2,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n77\nTable 2.1: The four phases as a lookup table, restating Figure 2.1\u2019s flow in row\nform. Threat closure is cumulative, not substitutive. Each phase closes one\nattack su"
+    },
+    {
+      "pdf_page": 96,
+      "folio": "78",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 208.7,
+          "points": 147.5,
+          "position": "above"
+        },
+        {
+          "top": 503.9,
+          "bottom": 651.6,
+          "points": 147.7,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n78\nremaining lifetime (min)\ncapability reach\ndb:write\n+ fs:read\n+ net:*\n5\n15\n60\nC0 root, 60 min\nC1, 15 min\nC2, 5 min\nattempted re-grant:\nnet:* at 60 min:\nrefused\nC2 \u2286C1 "
+    },
+    {
+      "pdf_page": 106,
+      "folio": "88",
+      "gaps": [
+        {
+          "top": 509.5,
+          "bottom": 651.6,
+          "points": 142.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n88\nwas erroneous, they must issue a new card.\nTHEOREM 2.2.5 Conditional gossip expectation.\nUnder the complete-\noverlay, uniform-peer, reliable-round model above, a revo"
+    },
+    {
+      "pdf_page": 108,
+      "folio": "90",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 178.3,
+          "points": 117.1,
+          "position": "above"
+        },
+        {
+          "top": 535.2,
+          "bottom": 651.6,
+          "points": 116.4,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n90\nTable 2.2: The assurance case, layer by layer. Obligations descend the rows:\neach layer hands the next a claim it cannot discharge itself. Evidence ascends\nthem: each"
+    },
+    {
+      "pdf_page": 110,
+      "folio": "92",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 206.4,
+          "points": 145.2,
+          "position": "above"
+        },
+        {
+          "top": 507.2,
+          "bottom": 651.6,
+          "points": 144.4,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n92\nTable 2.3: All five listed ProVerif queries return TRUE across the three mod-\neled protocol phases. Session replication is unbounded where the model uses\nreplication;"
+    },
+    {
+      "pdf_page": 119,
+      "folio": "101",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 177.7,
+          "points": 116.5,
+          "position": "above"
+        },
+        {
+          "top": 535.9,
+          "bottom": 651.6,
+          "points": 115.7,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n101\nTable 2.4: No mechanism in this chapter closes its threat completely: each of\nthe three failure modes of \u00a72.1 is closed somewhere below, but every row\u2019s\nresidual-ris"
+    },
+    {
+      "pdf_page": 120,
+      "folio": "102",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 190.0,
+          "points": 128.8,
+          "position": "above"
+        },
+        {
+          "top": 523.6,
+          "bottom": 651.6,
+          "points": 128.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n102\nTable 2.5: The four ProVerif properties hold of the protocol design, not, by\nthemselves, of the shipped code. The three Kani rows are bounded harnesses\nover the depl"
+    },
+    {
+      "pdf_page": 123,
+      "folio": "105",
+      "gaps": [
+        {
+          "top": 400.7,
+          "bottom": 651.6,
+          "points": 250.9,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n105\n2.6\nProofs are leverage, not decoration\nA proof is decoration when it is about a model nobody deploys, or when\nits scope is quietly larger in the prose than in the t"
+    },
+    {
+      "pdf_page": 136,
+      "folio": "118",
+      "gaps": [
+        {
+          "top": 397.4,
+          "bottom": 651.6,
+          "points": 254.2,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 2. The Anchor Protocol\n118\ncap\ud835\udc56\u2286cap\ud835\udc56\u22121 proves cap\ud835\udc58\u2286\u00b7 \u00b7 \u00b7 \u2286cap0, where checking only\ncap\ud835\udc56\u2286cap0 at each hop does not.\nSolution p. 470\n2.7 TRACE \u2605\u2605Read analyses/harbor_card_v6_multihop_attack.pv."
+    },
+    {
+      "pdf_page": 146,
+      "folio": "128",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 193.1,
+          "points": 131.9,
+          "position": "above"
+        },
+        {
+          "top": 525.3,
+          "bottom": 651.6,
+          "points": 126.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 3. The Sealed Harbor\n128\nWorld A\n\ud835\udc60= 0\nWorld B\n\ud835\udc60= 2\nload\nread\nsubmit\nload\nread\nsubmit\n\u2261\n\u2261\n\u2261\nErin\u2019s observed trace is identical here,\nunder every interleaving to depth 7\nthe slot\nrelease\n\ud835\udc54= 0\nre"
+    },
+    {
+      "pdf_page": 156,
+      "folio": "138",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 178.7,
+          "points": 117.5,
+          "position": "above"
+        },
+        {
+          "top": 539.8,
+          "bottom": 651.6,
+          "points": 111.8,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 3. The Sealed Harbor\n138\n1\n2\n3\n4\n5\n6\n7\n8\n0\n0.25\n0.5\n0.75\n1\n\ud835\udc58= 3: caught with probability 0.992\nsmuggled canaries \ud835\udc58(per-canary miss rate \ud835\udefd= 0.2)\ndetection probability\ndetection power climbs fas"
+    },
+    {
+      "pdf_page": 177,
+      "folio": "159",
+      "gaps": [
+        {
+          "top": 470.4,
+          "bottom": 651.6,
+          "points": 181.2,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n159\nProperty 4.3.1 (Verifiable-zoom). The canonical zoom target is an arti-\nfact the operator can check independently of the agent \u2014 the diff on disk,\nthe test result, the"
+    },
+    {
+      "pdf_page": 197,
+      "folio": "179",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 186.0,
+          "points": 124.8,
+          "position": "above"
+        },
+        {
+          "top": 526.3,
+          "bottom": 651.6,
+          "points": 125.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n179\n\ud835\udc41=60\n12.77\n5.98\n8.99 measured\nflat digest\nsplit digest\n20\n40\n60\n80\n100\n0\n5\n10\n15\nswarm size \ud835\udc41\nbits to locate\nFigure 4.6: Bits an operator must read to locate the criti"
+    },
+    {
+      "pdf_page": 208,
+      "folio": "190",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 171.7,
+          "points": 110.5,
+          "position": "above"
+        },
+        {
+          "top": 541.2,
+          "bottom": 651.6,
+          "points": 110.4,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n190\nTable 4.9: Push and pull evidence for the same capability claim. \u25e6is a self-\ndeclaration, \u2022 is residue produced while doing work for another purpose, \u00d7\nis a declared i"
+    },
+    {
+      "pdf_page": 213,
+      "folio": "195",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 204.2,
+          "points": 143.0,
+          "position": "above"
+        },
+        {
+          "top": 514.3,
+          "bottom": 651.6,
+          "points": 137.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n195\nrank by discovery\n(fit)\nrank by attention\n(regret)\n1\n1\n2\n2\n3\n3\n4\n4\nA\ncapable,\nsafe, calm\nA\ncapable,\nsafe, calm\nB\noff-topic,\nrisky, tense\nB\noff-topic,\nrisky, tense\nC\nst"
+    },
+    {
+      "pdf_page": 222,
+      "folio": "204",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 163.4,
+          "points": 102.2,
+          "position": "above"
+        },
+        {
+          "top": 548.7,
+          "bottom": 651.6,
+          "points": 102.9,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n204\nStrategy\nWhat it drops\nFailure\nif\nabused\nWhen it is the right\ntool\nRecursive sum-\nmary\nOlder prose, re-\nsummarized\nConfident\nfabrication\n(rung 3)\nNever\nas\nthe\nonly\nrec"
+    },
+    {
+      "pdf_page": 224,
+      "folio": "206",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 171.8,
+          "points": 110.6,
+          "position": "above"
+        },
+        {
+          "top": 540.6,
+          "bottom": 651.6,
+          "points": 111.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n206\noperator\nauthor\ndaemon\nactor\nagents\nmultitude\nscoped grant g\nact a1 under g\ngate / escalate\noverride: revoke g\none grant; the daemon gates every act;\nonly the operator"
+    },
+    {
+      "pdf_page": 235,
+      "folio": "217",
+      "gaps": [
+        {
+          "top": 419.5,
+          "bottom": 651.6,
+          "points": 232.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n217\nupdates do not ship. This layer is the outcome witness; the reputa-\ntion layer is the scorer. The split-ranker substrate (Thm. 4.7.1) and\nthe costly-escalation signal "
+    },
+    {
+      "pdf_page": 240,
+      "folio": "222",
+      "gaps": [
+        {
+          "top": 480.8,
+          "bottom": 651.6,
+          "points": 170.8,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 4. The Legible Swarm\n222\n4.B\nNotation and the nomenclature key\nTwo distinctions in this paper are easy to collapse and essential to keep\nseparate.\n\u2022 Capability vs. permission. Capability is ab"
+    },
+    {
+      "pdf_page": 250,
+      "folio": "232",
+      "gaps": [
+        {
+          "top": 551.1,
+          "bottom": 651.6,
+          "points": 100.5,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 5. From Spawn to Person\n232\nROLE: one slot, replaceable fillers\nPERSON: one identity, changing roles\nreviewer role\nobligation + capa-\nbility + authority\nA\nB\nC\nD\nthe slot survives; no outcome h"
+    },
+    {
+      "pdf_page": 291,
+      "folio": "273",
+      "gaps": [
+        {
+          "top": 415.6,
+          "bottom": 651.6,
+          "points": 236.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 5. From Spawn to Person\n273\n5.12\nRevocation, tombstones, and bounded\nmemory\nA reputation built on witnessed outcomes must answer two questions\nthe cheerful \u201creputation never ends\u201d framing dodg"
+    },
+    {
+      "pdf_page": 304,
+      "folio": "286",
+      "gaps": [
+        {
+          "top": 499.5,
+          "bottom": 651.6,
+          "points": 152.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 5. From Spawn to Person\n286\n(continued)\nComponent (paper\nconcept)\nMaturity\nStatus in the reference\nsystem\nCapability jail (capability \u2260\npermission)\nSPECIFIED\nPer-agent tool-allowlist and\nscope"
+    },
+    {
+      "pdf_page": 339,
+      "folio": "321",
+      "gaps": [
+        {
+          "top": 353.1,
+          "bottom": 651.6,
+          "points": 298.5,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 6. The Harbor Economy\n321\n2. Float-plan amendment under scope drift. The four states assume\nthe acceptance criteria were right. Mid-flight re-specification needs\na re-sign protocol with escrow"
+    },
+    {
+      "pdf_page": 347,
+      "folio": "329",
+      "gaps": [
+        {
+          "top": 253.5,
+          "bottom": 651.6,
+          "points": 398.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 6. The Harbor Economy\n329\nno settlement oracle, no reputation, no priced deterrent. The harbor\neconomy is a mechanism for exactly that layer; the retail protocols are\nevidence the layer below "
+    },
+    {
+      "pdf_page": 353,
+      "folio": "335",
+      "gaps": [
+        {
+          "top": 358.7,
+          "bottom": 651.6,
+          "points": 292.9,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 6. The Harbor Economy\n335\nRECALL\n1. Without looking:\nstate the Purchased\nAssurance Bound in\none line, and name\nthe one word in its\nhypothesis a real test\nmarket breaks first.\n2. What is the\ndi"
+    },
+    {
+      "pdf_page": 357,
+      "folio": "339",
+      "gaps": [
+        {
+          "top": 297.6,
+          "bottom": 651.6,
+          "points": 354.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 6. The Harbor Economy\n339\nmovement, oracle delay, fees, and slippage; those assumptions are not\nsupplied here.\nProof of Theorem 6.6.2 (the sacrificed corner). Restrict attention to a bilat-\ner"
+    },
+    {
+      "pdf_page": 362,
+      "folio": "344",
+      "gaps": [
+        {
+          "top": 394.3,
+          "bottom": 651.6,
+          "points": 257.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 7. The Bonded Commons\n344\nOstrom\u2019s fieldwork on fisheries,\npastures and irrigation showed\nthe tragedy of the commons is a\ndesign failure, not a law of\nnature.\nCommons governance.\nOstrom\u2019s eigh"
+    },
+    {
+      "pdf_page": 364,
+      "folio": "346",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 189.7,
+          "points": 128.5,
+          "position": "above"
+        },
+        {
+          "top": 523.9,
+          "bottom": 651.6,
+          "points": 127.7,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 7. The Bonded Commons\n346\nTable 7.2: Three layers answer three different questions about the same at-\ntempted act. An out-of-grant act ends at Layer 1 before shared state changes;\nevery admitt"
+    },
+    {
+      "pdf_page": 388,
+      "folio": "370",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 174.8,
+          "points": 113.6,
+          "position": "above"
+        },
+        {
+          "top": 537.9,
+          "bottom": 651.6,
+          "points": 113.7,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 7. The Bonded Commons\n370\nboth thresholds: \ud835\udeff\u2605= 0.3425 (\ud835\udc58= 3), 1/3 (grim)\nTLC finds the deviation here, at \ud835\udeff= 0.30\n\u22123.878\ngraduated trigger, \ud835\udc58= 3\ngrim trigger, \ud835\udc58\u2192\u221e\nbelow the line, defecting los"
+    },
+    {
+      "pdf_page": 420,
+      "folio": "402",
+      "gaps": [
+        {
+          "top": 87.6,
+          "bottom": 651.6,
+          "points": 564.0,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 7. The Bonded Commons\n402\nare auditable. The sovereign is legible. The advisor is bondable. The\nmarket is open for bids.\nThe Harbor, the Person, and the Economy \u00b7 Chapter 7 of 8\n"
+    },
+    {
+      "pdf_page": 427,
+      "folio": "409",
+      "gaps": [
+        {
+          "top": 125.0,
+          "bottom": 651.6,
+          "points": 526.6,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 7. The Bonded Commons\n409\nWHAT THE FEDERATED HARBOR RECEIVES One machine can now authorize,\nobserve, adjudicate, and settle its own work. A second machine introduces\na different operator and a"
+    },
+    {
+      "pdf_page": 439,
+      "folio": "421",
+      "gaps": [
+        {
+          "top": 61.2,
+          "bottom": 212.9,
+          "points": 151.7,
+          "position": "above"
+        },
+        {
+          "top": 504.9,
+          "bottom": 651.6,
+          "points": 146.7,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 8. The Federated Harbor\n421\nassurance advances only when a threat acquires an artifact or theorem\nidentity + replay\nrevocation\nequivocation\nsettlement\ncold-start admission\ncartel monitoring\nce"
+    },
+    {
+      "pdf_page": 475,
+      "folio": "457",
+      "gaps": [
+        {
+          "top": 150.3,
+          "bottom": 651.6,
+          "points": 501.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 8. The Federated Harbor\n457\nsion. The protocol and models make the missing implementation and\nservice-level assumptions explicit; they do not establish that arbitrary\nharbors can already inter"
+    },
+    {
+      "pdf_page": 478,
+      "folio": "460",
+      "gaps": [
+        {
+          "top": 280.7,
+          "bottom": 651.6,
+          "points": 370.9,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Chapter 8. The Federated Harbor\n460\n8.C\nTLA+ Specification (draft)\nThe full CrossHarborConservation.tla extends Bonded\u2019s Conserva-\ntion specification with per-harbor pools, an escrow pool, and an inte"
+    },
+    {
+      "pdf_page": 532,
+      "folio": "514",
+      "gaps": [
+        {
+          "top": 175.4,
+          "bottom": 651.6,
+          "points": 476.2,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Solutions to the exercises\n514\nversioned forecast, not truth, and a contradiction detector (the witness\nlog\u2019s equivocation check) produces evidence for a named principal or role\nto decide against, rat"
+    },
+    {
+      "pdf_page": 537,
+      "folio": "519",
+      "gaps": [
+        {
+          "top": 523.2,
+          "bottom": 651.6,
+          "points": 128.4,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n519\nTable A.5: Monte Carlo artifacts (1 wired, 3 retired).\nClaim\nArtifact\nCI\nStatus\nEvidence policy\npareto-\nsimula\ntion-\nbaseline-\nmonte-\ncarlo\nproofs/\nbonded/\npareto/\nsimulation.\nmjs\nretir"
+    },
+    {
+      "pdf_page": 542,
+      "folio": "524",
+      "gaps": [
+        {
+          "top": 392.1,
+          "bottom": 651.6,
+          "points": 259.5,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n524\n(continued)\nClaim\nArtifact\nCI\nStatus\nEvidence policy\nguidance-\nenvelope-\nv0-unsign\ned-vuln-\nproverif\nproofs/\ncoordination/\nguidance_\nenvelope_v0_\nunsigned_\nvuln.pv\nprover\nif-\nestate\nCUR"
+    },
+    {
+      "pdf_page": 546,
+      "folio": "528",
+      "gaps": [
+        {
+          "top": 520.4,
+          "bottom": 651.6,
+          "points": 131.2,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n528\n(continued)\nClaim\nArtifact\nCI\nStatus\nEvidence policy\nmacaroon-\ndischa\nrge-v1-\nproverif\nanalyses/\nmacaroon_\ndischarge_v1.\npv\nprover\nif-\nestate\nCURRENT\nchecked-in transc\nript regenerated\n"
+    },
+    {
+      "pdf_page": 547,
+      "folio": "529",
+      "gaps": [
+        {
+          "top": 373.2,
+          "bottom": 651.6,
+          "points": 278.4,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n529\n(continued)\nClaim\nArtifact\nCI\nStatus\nEvidence policy\nrelay-\ne2e-\nsecrecy-\nproverif\nanalyses/\nrelay_e2e_\nsecrecy.pv\nprover\nif-\nestate\nCURRENT\nchecked-in transc\nript regenerated\n2026-09-0"
+    },
+    {
+      "pdf_page": 554,
+      "folio": "536",
+      "gaps": [
+        {
+          "top": 482.3,
+          "bottom": 651.6,
+          "points": 169.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n536\nTable A.11: Primitive ownership. \u201cOwner\u201d defines it and proves what is\nproved about it; \u201ccites\u201d names the chapters that use it without redefining it.\nPrimitive\nOwner\nCites it\nAuthorizat"
+    },
+    {
+      "pdf_page": 578,
+      "folio": "560",
+      "gaps": [
+        {
+          "top": 468.3,
+          "bottom": 651.6,
+          "points": 183.3,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n560\n[269] J. Whitehouse, A. Ramdas, R. Rogers, and Z. S. Wu. Fully-\nadaptive composition in differential privacy. In Proc. 40th Inter-\nnational Conference on Machine Learning (ICML), PMLR 2"
+    },
+    {
+      "pdf_page": 580,
+      "folio": "562",
+      "gaps": [
+        {
+          "top": 313.5,
+          "bottom": 651.6,
+          "points": 338.1,
+          "position": "below"
+        }
+      ],
+      "text_sample": "Appendices\n562\nplate is cropped down to Wonham alone, then converted to duo-\ntone; the crop is small and enlarged for print, so definition is soft.\n\u2022 Abraham Wald:\nphotograph by Konrad Jacobs, Mathema"
+    }
+  ],
+  "scope": "All pages and all registered margin objects; whitespace requires visual review."
+}

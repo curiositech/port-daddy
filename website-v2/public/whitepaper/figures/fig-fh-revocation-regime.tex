@@ -47,11 +47,8 @@
   \node[pd note,anchor=north,text width=7.4cm,align=center] at (4,-2.60)
     {worked point: partition 6 + delivery 6 = 12; the card expires after 8 rounds};
 \end{tikzpicture}
-\caption{A regime plane for stale-card exposure after revocation. Below the
-diagonal, the partition and delivery guarantees add to a tighter operational
-bound; above it, only the card's eight-round expiry closes the window. The
-worked point $(6,6)$ is expiry-limited: the operational sum is 12 rounds, so
-the harbor fails closed at 8. Without a partition bound, only expiry remains.
-[internal; illustrative TTL]}
+\caption{Expiry closes the window when operational guarantees are weaker.
+Without a partition bound, only expiry remains. The eight-round TTL is
+illustrative, not a measured deployment setting.}
 \label{fig:fh-revocation-regime}
 \end{figure}

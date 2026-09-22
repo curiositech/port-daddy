@@ -222,6 +222,9 @@ def parse_authors(raw: str) -> str | None:
         first = raw[: et_al_match.start()].strip().rstrip(",")
         if not first:
             return None
+        # A partially expanded list may still end in "et al.". Select the
+        # FIRST listed author, not the last surname before that abbreviation.
+        first = re.split(r",\s*(?:and\s+)?|\s+and\s+|\s*\\&\s*|\s*&\s*", first, maxsplit=1)[0]
         return f"{last_word(first)} et al."
 
     # Split on ", and " / " and " / " \& " / ", " -- an Oxford-comma author
@@ -467,11 +470,14 @@ def main() -> int:
     textbook = load_textbook()
     all_shortforms: dict[str, str] = {}
     all_unparsed: list[tuple[str, str, str]] = []  # (chapter, key, reason)
+    known_keys: set[str] = set()
     conflicts: list[str] = []
 
     for chapter in textbook["chapters"]:
         path = os.path.join(REPO_ROOT, chapter["source"])
         shortforms, unparsed = parse_chapter(path)
+        known_keys.update(shortforms)
+        known_keys.update(key for key, _ in unparsed)
         for key, reason in unparsed:
             all_unparsed.append((chapter["source"], key, reason))
         for key, sf in shortforms.items():
@@ -482,6 +488,21 @@ def main() -> int:
                 )
                 continue
             all_shortforms.setdefault(key, sf)
+
+    # Authored exceptions for organizations, undated documentation, and keys
+    # the conservative prose parser cannot identify. Keep these outside the
+    # generated twins so a regeneration cannot erase a reviewed correction.
+    override_path = os.path.join(REPO_ROOT, "whitepaper/citation-shortform-overrides.json")
+    if os.path.isfile(override_path):
+        with open(override_path, encoding="utf-8") as source:
+            overrides = json.load(source)
+        for key, short in overrides.items():
+            if key not in known_keys:
+                raise ValueError(f"Authored short form has no source entry: {key}")
+            if not isinstance(short, str) or not short.strip():
+                raise ValueError(f"Invalid authored short form: {key}")
+            all_shortforms[key] = short
+        all_unparsed = [(chapter, key, reason) for chapter, key, reason in all_unparsed if key not in overrides]
 
     rendered = render(all_shortforms)
 

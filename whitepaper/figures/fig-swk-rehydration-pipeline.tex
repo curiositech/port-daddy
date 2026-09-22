@@ -37,14 +37,6 @@
   \node[pd breach label,anchor=center,text width=3.35cm,align=center] at (2.525,-1.725)
     {not restored: the model's inference state};
 \end{tikzpicture}
-\caption{Event-sourced rehydration (\textsc{designed}), as a pipeline with
-its own exclusion drawn in. Pinning the predecessor's commit and truncating
-the message log to the recorded failure point, then replaying it into a
-fresh agent, restores the durable half: a commit identifier, a message log,
-an open-claim and commitment set. The dashed box names what this does not
-restore -- a language model's inference state is bound to a particular
-model, sampler and session, so a replayed prefix reconstructs the inputs to
-that state, not the state itself. This is a direction for OP-4 with an
-unestablished completeness claim, not a closure of it. [internal]}
+\caption{Proposed replay restores recorded inputs and durable task state, not hidden model inference state. Completeness remains unestablished; OP-4 is not closed. [internal]}
 \label{fig:swk-rehydration-pipeline}
 \end{figure}

@@ -34,14 +34,6 @@
   \node[pd breach state,minimum width=4.2cm,text width=3.9cm,align=center] (rej) at (8.2,1.2) {rejected: carried epoch 0 is behind the resource's current epoch 1};
   \draw[pd breach arrow] (lateeffect) -- (rej);
 \end{tikzpicture}
-\caption{The epoch, not the lock, rejects the paused holder. A acquires a
-lease at epoch $e=0$; reassignment increments the resource's fencing epoch
-to $e=1$ and grants it to B. A's late effect still names a real lease it
-once held, but it carries the epoch $e=0$ it was issued -- the effect broker
-compares that carried epoch to the resource's current epoch and rejects it,
-independent of any deadline. This is guard~1 of the work-unit machine
-(admit-effect: current epoch only), whose shortest violating trace without
-it is exactly this four-step sequence [internal, Thm.~\ref{thm:exclusion},
-c0\_workunit.py].}
+\caption{Reassignment advances the fencing epoch. The broker rejects A's late effect because it carries the old epoch, even though A once held a valid lease. [internal, Theorem~\ref{thm:exclusion}, \protect\path{c0_workunit.py}]}
 \label{fig:swk-fencing-epoch}
 \end{figure}

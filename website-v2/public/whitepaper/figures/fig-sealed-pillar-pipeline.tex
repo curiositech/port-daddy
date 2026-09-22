@@ -1,98 +1,78 @@
-% Redraw of fig-sealed-pillar-pipeline to the tikz-diagram-craft v2 standard.
-%
-% Reader question: which fences and gates does one work order pass, and which
-% checker establishes each resulting property?
-% Claim: one work order moves left to right through two fences and then one of
-% two release gates; the fences establish enforceability, while the gates make
-% noninterference, conservation, and detection meaningful.
-% Evidence: the "two fences" / "whole-worker taint and two gates" paragraphs
-% and the four-links table, Sec.~sealed-design, in
-% website-v2/public/whitepaper/sealed-harbor.tex.
-% Must distinguish: fences from gates; the one property established by the
-% fences from the three properties that depend on gated release; mechanism
-% flow from checker provenance.
-% Grammar chosen: a full-width UML component/dataflow rail with paired release
-% gates and a compact property strip. The left-to-right direction is the
-% runtime order, while direct labels under the rail map properties to checkers.
-% Grammar rejected: the former top-to-bottom tree, which spent a full page on
-% a narrow stack and made three fan-out arrows look like three separate flows.
-% Five-second test: follow C left to right, then name the one fences property
-% and any one gates property with its checker.
-\begin{figure*}[t]
+% Proposed component/control-flow candidate; source contract in BRIEF.md.
+\begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\flowy{3.15}
-  \def\propy{0.02}
-  % --- the runtime rail ----------------------------------------------------
-  \node[pd artifact,minimum width=1.95cm] (WO) at (0.85,\flowy)
-    {work order $C$};
-  \node[pd uml component,minimum width=2.30cm,text width=1.72cm,align=center]
-    (MON) at (3.15,\flowy)
-    {in-guest\\monitor};
-  \node[pd uml component,minimum width=2.30cm,text width=1.72cm,align=center]
-    (GW) at (5.85,\flowy)
-    {outer\\gateway};
-  \node[pd uml component,minimum width=2.25cm,text width=1.70cm,align=center]
-    (DG) at (8.65,{\flowy+.66})
-    {Derek's gate};
-  \node[pd uml component,minimum width=2.25cm,text width=1.70cm,align=center]
-    (EG) at (8.65,{\flowy-.66})
-    {Erin's gate};
-  \node[pd climax state,minimum width=2.45cm,text width=1.90cm,align=center]
-    (OUT) at (12.20,\flowy)
-    {declared release};
-  \pdumlicon{MON}\pdumlicon{GW}\pdumlicon{DG}\pdumlicon{EG}
-  % Explicit split and merge junctions keep the branch topology visible and
-  % give each arrowhead a straight, readable approach at final Book size.
-  \coordinate (split) at (7.18,\flowy);
-  \coordinate (dg-in) at ($(DG.west)+(-.62,0)$);
-  \coordinate (eg-in) at ($(EG.west)+(-.62,0)$);
-  \coordinate (dg-out) at ($(DG.east)+(.58,0)$);
-  \coordinate (eg-out) at ($(EG.east)+(.58,0)$);
-  \coordinate (merge) at (10.25,\flowy);
-  \begin{scope}[on background layer]
-    \draw[pd focus arrow] (WO.east) -- (MON.west);
-    \draw[pd focus arrow] (MON.east) -- (GW.west);
-    \draw[pd focus rule] (GW.east) -- (split);
-    \draw[pd focus rule] (split) |- (dg-in);
-    \draw[pd focus rule] (split) |- (eg-in);
-    \draw[pd focus arrow] (dg-in) -- (DG.west);
-    \draw[pd focus arrow] (eg-in) -- (EG.west);
-    \draw[pd focus rule] (DG.east) -- (dg-out) -| (merge);
-    \draw[pd focus rule] (EG.east) -- (eg-out) -| (merge);
-    \draw[pd focus arrow] (merge) -- (OUT.west);
-  \end{scope}
-  \fill[pdfocus] (split) circle[radius=1.6pt];
-  \fill[pdfocus] (merge) circle[radius=1.6pt];
-  \begin{scope}[on background layer]
-    \node[pd panel,fit={(MON)(GW)},inner xsep=7pt,inner ysep=11pt] (FENCES) {};
-    \node[pd panel,fit={(DG)(EG)},inner xsep=7pt,inner ysep=7pt] (GATES) {};
-  \end{scope}
-  \node[pd title,anchor=south] at (FENCES.north) {two fences};
-  \node[pd title,anchor=south] at (GATES.north) {two gates};
+\SGMeasuredFigure{VIII/fig:sealed-pillar-pipeline}{%
+\begin{tikzpicture}[sg/base,y=-1pt,
+  sp label/.style={anchor=center,inner sep=0pt,outer sep=0pt,align=center},
+  sp flow/.style={sg/arrow},
+  sp binding/.style={draw=sgViolet,line width=.8pt,dash pattern=on 3pt off 2pt}]
+  % Folded work-order record. Configuration links are not output paths.
+  \draw[draw=sgInk,fill=sgViolet!6,line width=.85pt]
+    (90,0)--(217,0)--(224,7)--(224,64)--(90,64)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (217,0)--(217,7)--(224,7);
+  \node[sp label,font=\SGType\bfseries] (contract) at (157,16) {Signed work order $C$};
+  \node[sp label] (pins) at (157,33) {runtime + policy};
+  \node[sp label] (signers) at (157,50) {Derek + Erin sign};
+  \draw[sp binding] (138,72)--(138,115);
+  \draw[sp binding] (232,32)--(266,32)--(266,111);
 
-  % --- property-to-checker mapping, directly under the mechanism ----------
-  \node[pd kind,anchor=south] at (1.85,0.93) {from the fences};
-  \node[pd kind,anchor=south] at (9.25,0.93) {from gated release};
-  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PE) at (1.85,\propy)
-    {\textbf{Enforceability}};
-  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PN) at (5.55,\propy)
-    {\textbf{Noninterference}};
-  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PC) at (9.25,\propy)
-    {\textbf{Conservation}};
-  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PD) at (12.95,\propy)
-    {\textbf{Detection}};
-  \node[pd mono label,anchor=north] at (1.85,-0.52)
-    {b3\_controllability.py};
-  \node[pd mono label,anchor=north] at (5.55,-0.52)
-    {c1\_noninterference.py};
-  \node[pd mono label,anchor=north] at (9.25,-0.52)
-    {a3\_epsilon\_ledger.py};
-  \node[pd mono label,anchor=north] at (12.95,-0.52)
-    {a4\_canary\_sprt.py};
-\end{tikzpicture}
-\caption{One work order passes two fences and two gates; four property cards
-name the checker for each resulting claim. [internal]}
+  % Worker and first control are inside the guest; the gateway is outside.
+  \node[sp label,anchor=west,font=\SGType\bfseries] (guest) at (0,87) {In guest};
+  \draw[draw=sgInk,line width=.7pt] (0,101) rectangle (190,214);
+  \draw[draw=sgInk,line width=.85pt] (10,124) rectangle (67,164);
+  \draw[draw=sgInk,line width=.65pt] (10,133)--(67,133);
+  \node[sp label,font=\SGType\bfseries] (worker) at (38.5,148) {Worker};
+  \node[sp label] (handles) at (38.5,182) {handles only};
+  \draw[sp flow] (75,145)--(90,145);
+  \draw[draw=sgInk,fill=sgBlue!5,line width=.85pt] (98,123) rectangle (178,166);
+  \node[sp label,font=\SGType\bfseries] (monitor) at (138,135) {In-guest};
+  \node[sp label,font=\SGType\bfseries] (monitorname) at (138,153) {monitor};
+  \node[sp label] (labels) at (138,182) {labels, handles};
+  \node[sp label] (content) at (138,200) {encrypted content};
+  \draw[sp flow] (186,145)--(215,145);
+  \draw[draw=sgInk,fill=sgAmber!6,line width=.85pt] (223,119) rectangle (309,177);
+  \node[sp label] (controller) at (266,134) {Derek-controlled};
+  \node[sp label,font=\SGType\bfseries] (gateway) at (266,154) {Outer gateway};
+  \node[sp label] (netstore) at (266,195) {network, storage};
+  \node[sp label] (timedest) at (266,213) {timing, destination};
+  \node[sp label] (volume) at (266,231) {volume};
+
+  % Candidate leaves the controls via a reserved right-hand gutter.
+  \draw[sp flow] (317,145)--(321,145)--(321,251)--(160,251)--(160,263);
+  \draw[draw=sgInk,fill=white,line width=.85pt]
+    (103,271)--(210,271)--(217,278)--(217,301)--(103,301)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (210,271)--(210,278)--(217,278);
+  \node[sp label] (candidate) at (160,286) {Candidate $\{D,E\}$};
+
+  % Parallel authorization paths; no edge joins the two owners' gates.
+  \draw[draw=sgInk,line width=.85pt] (160,309)--(160,322);
+  \draw[sp flow,draw=sgViolet] (160,322)--(77,322)--(77,336);
+  \draw[sp flow,draw=sgTeal] (160,322)--(243,322)--(243,336);
+  \draw[draw=sgViolet,fill=sgViolet!5,line width=.85pt] (12,344) rectangle (142,392);
+  \draw[draw=sgTeal,fill=sgTeal!5,line width=.85pt] (178,344) rectangle (308,392);
+  \node[sp label,font=\SGType\bfseries] (derek) at (77,358) {Derek authorizes};
+  \node[sp label] (dropd) at (77,378) {$\{D,E\}\to\{E\}$};
+  \node[sp label,font=\SGType\bfseries] (erin) at (243,358) {Erin authorizes};
+  \node[sp label] (drope) at (243,378) {$\{D,E\}\to\{D\}$};
+  \draw[sp flow,draw=sgViolet] (77,400)--(77,416);
+  \draw[sp flow,draw=sgTeal] (243,400)--(243,416);
+  \draw[draw=sgInk,fill=sgViolet!4,line width=.85pt]
+    (13,424)--(134,424)--(141,431)--(141,474)--(13,474)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (134,424)--(134,431)--(141,431);
+  \draw[draw=sgInk,fill=sgTeal!4,line width=.85pt]
+    (179,424)--(300,424)--(307,431)--(307,474)--(179,474)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (300,424)--(300,431)--(307,431);
+  \node[sp label,font=\SGType\bfseries] (feedback) at (77,440) {Feedback to Erin};
+  \node[sp label] (feedbacklabel) at (77,458) {$\{E\}$};
+  \node[sp label,font=\SGType\bfseries] (result) at (243,440) {Rich result to Derek};
+  \node[sp label] (resultlabel) at (243,458) {$\{D\}$};
+
+  \foreach \name in {contract,pins,signers,guest,worker,handles,monitor,monitorname,
+    labels,content,controller,gateway,netstore,timedest,volume,candidate,
+    derek,dropd,erin,drope,feedback,feedbacklabel,result,resultlabel}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{SP-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}}
+\caption{Each owner authorizes removal of their own restriction. Dashed links bind controls to the signed work order; solid arrows carry outputs. Proposed control flow; public receipt omitted.}
 \label{fig:sealed-pillar-pipeline}
-\end{figure*}
+\end{figure}

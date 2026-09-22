@@ -43,12 +43,8 @@
    $1{,}013$ because some carry more than one kind -- $764$ carry exactly
    one, $114$ carry two, and $7$ carry all three co-occurring kinds};
 \end{tikzpicture}
-\caption{\textbf{Claim overlaps are the most common conflict, temporal
-cycles the second.} Counts from the $3{,}000$-policy sweep (seed
-$20260816$): a derivable $\bot$ ($121$), an obligation/prohibition clash
-($195$), an exclusive-claim overlap ($484$), and a negative-cycle deadline
-system ($213$). The four counts sum past the $885$ conflicting policies
-because a policy can carry more than one kind at once, most often exactly
-one. [verified, \texttt{b4\_deontic\_fragment.py}]}
+\caption{A policy can contain several conflicts: these counts are not disjoint
+shares. Synthetic sweep of $3{,}000$ policies, seed $20260816$;
+\protect\path{b4_deontic_fragment.py}.}
 \label{fig:he-conflict-kinds}
 \end{figure}

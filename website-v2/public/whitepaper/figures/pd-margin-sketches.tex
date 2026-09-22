@@ -1,0 +1,212 @@
+% Small exhibits drawn at their final 1.3-inch width, never scaled to fit.
+% All numerical curves below are analytic examples, not workload observations.
+% A single local coordinate system keeps the labels in the Book's normal voice.
+\tikzset{pd margin sketch/.style={pd figure,x=1pt,y=1pt,
+  every node/.style={font=\sffamily\footnotesize,inner sep=1pt}},
+  pd margin ink/.style={draw=pdfocus,line width=1pt},
+  pd margin comparison/.style={draw=pdink,dashed,line width=.7pt}}
+% Category colours are independent of the chapter accent. Endpoint shape and
+% direct labels repeat each distinction; hue never stands alone.
+\tikzset{
+  pd expiry card/.style={draw=pdviolet,line width=1.6pt},
+  pd expiry epoch/.style={draw=pdcobalt,line width=1.6pt},
+  pd expiry policy/.style={draw=pdrust,line width=1.6pt},
+  pd margin credit/.style={pd reputation state,minimum width=34pt,
+    minimum height=28pt,inner sep=5pt,font=\pdfiglabel}}
+
+% Reusable signed-record and ledger marks at final margin size.
+\newcommand{\pdmarginrecord}[3]{%
+  \begin{scope}[shift={(#1,0)}]
+    \draw[pd protocol,line width=.7pt] (0,0)--(0,39)--(27,39)
+      --(34,32)--(34,0)--cycle (27,39)--(27,32)--(34,32);
+    \node at (17,25) {$R_{#2}$};
+    \draw[pd hairline] (6,16)--(28,16);
+    \node at (17,7) {$\sigma_{#3}$};
+  \end{scope}}
+\newcommand{\pdmargincredit}[3]{%
+  \node[pd margin credit] (#1) at (#2) {#3};
+  \draw[pd reputation,line width=.5pt]
+    ([xshift=5pt,yshift=5pt]#1.south west)--
+    ([xshift=-5pt,yshift=5pt]#1.south east);}
+
+% Question: when is an acknowledged WAL write still exposed to power loss?
+% Claim: commit and durable sync are distinct events in NORMAL mode.
+% Evidence: the neighboring SQLite discussion; no wall-clock scale is asserted.
+% Distinction: acknowledgement is not an fsync; exact sync time is unspecified.
+% Grammar: interval, not a second transaction state machine.
+% Five-second test: point to the exposed interval.
+\newcommand{\pdcheckpointwindow}{%
+  \pdmarginexhibit{wal-exposure-window}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \draw[pd margin ink,<->] (9,9)--(83,9);
+      \draw[pd rule] (9,3)--(9,15) (83,3)--(83,15);
+      \draw[pd rule] (9,24)--(9,31)--(83,31)--(83,24);
+      \node[anchor=south] at (46,34) {?};
+      \node[anchor=north west] at (1,-1) {commit};
+      \node[anchor=north east] at (92,-1) {WAL sync};
+      \draw[pd arrow] (9,-26)--(87,-26);
+      \node[anchor=north] at (46,-29) {time};
+    \end{tikzpicture}
+  }{In NORMAL mode, a power loss can erase recent commits before WAL sync.
+    The bracketed span has no fixed duration.}}
+
+% Question: what does a missing heartbeat establish?
+% Claim: a deadline establishes suspicion, not a proof of process death.
+% Evidence: the continuity watchdog; schematic pulses, not a measured trace.
+% Distinction: observed messages versus an unobserved cause.
+% Grammar: one time trace; no crash icon asserting an unknown event.
+% Five-second test: identify where observation ends and inference begins.
+\newcommand{\pdheartbeatsketch}{%
+  \pdmarginexhibit{heartbeat-suspicion}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \foreach \x in {18,38,63,82}{
+        \draw[pd hairline,dashed] (\x,-7)--(\x,23);}
+      \node[anchor=south west] at (0,28) {possible samples};
+      \draw[pd margin ink] (0,0)--(6,0)--(6,13)--(9,13)--(9,0)
+        --(26,0)--(26,13)--(29,13)--(29,0)
+        --(46,0)--(46,13)--(49,13)--(49,0)--(55,0);
+      \draw[pd margin comparison] (55,0)--(90,0);
+      \draw[pd arrow] (0,-23)--(90,-23);
+      \node[anchor=north] at (45,-26) {time};
+    \end{tikzpicture}
+  }{Silence between heartbeats is normal. A missed deadline raises suspicion,
+    not proof of death: delay and failure can look alike.}}
+
+% Question: which actions satisfy a consent grant's two numerical bounds?
+% Claim: only the low-stakes, sufficiently reversible intersection qualifies.
+% Evidence: the consent-grant guard, with scope/expiry checked separately.
+% Distinction: permission is an intersection, not the union of favorable tests.
+% Grammar: eligibility region; no decorative nested boxes.
+% Five-second test: locate the allowed corner and the excluded high-stakes area.
+\newcommand{\pdconsentregion}{%
+  \pdmarginexhibit{consent-region}{Both bounds must hold}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \fill[pdfocus!14] (37,0) rectangle (78,29);
+      \draw[pd margin ink] (37,0)--(37,29)--(78,29);
+      \draw[pd arrow] (0,0)--(84,0);
+      \draw[pd arrow] (0,0)--(0,67);
+      \node[anchor=south west] at (1,68) {stakes};
+      \node[anchor=north] at (44,-21) {reversibility};
+      \node at (57,14) {allowed};
+      \node[anchor=east] at (35,31) {$s_{\max}$};
+      \node[anchor=north] at (37,-3) {$v_{\min}$};
+    \end{tikzpicture}
+  }{The shaded actions meet both bounds. Scope, expiry and revocation
+    still have to pass.}}
+
+% Question: what does a heavy tail look like at the same mean duration?
+% Claim: long durations can be much more likely without changing the mean.
+% Evidence: survival functions exp(-t) and (1+t/2)^(-3), both mean one.
+% Distinction: survival is not density; logarithmic y scale is explicit.
+% Grammar: computed survival curves, not an invented empirical histogram.
+% Five-second test: find which curve retains more probability far to the right.
+\newcommand{\pdheavytailsketch}{%
+  \pdmarginexhibit{heavy-tail-shape}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \draw[pd rule] (30,0)--(90,0) (30,0)--(30,94);
+      \foreach \y/\lab in {90/1,60/{.1},30/{.01}}{
+        \draw[pd rule] (28,\y)--(30,\y);
+        \node[anchor=east] at (25,\y) {\lab};}
+      \draw[pd margin ink,domain=0:6,samples=61]
+        plot ({30+9.5*\x},{90-90*ln(1+\x/2)/ln(10)});
+      \draw[pd margin comparison,domain=0:6,samples=61]
+        plot ({30+9.5*\x},{90-30*\x/ln(10)});
+      \foreach \x in {0,3,6}{
+        \node[anchor=north] at ({30+9.5*\x},-3) {$\x$};}
+      \node[rotate=90] at (1,47) {survival probability (log)};
+      \node[anchor=north] at (59,-19) {duration / mean};
+      \draw[pd margin ink] (2,-45)--(14,-45);
+      \node[anchor=west] at (20,-45) {Lomax};
+      \draw[pd margin comparison] (2,-60)--(14,-60);
+      \node[anchor=west] at (20,-60) {exponential};
+    \end{tikzpicture}
+  }{Both means are 1: solid $(1+t/2)^{-3}$; dashed $e^{-t}$.
+    Analytic examples, not measurements.}}
+
+% Question: can fission copy reputation into two full-strength successors?
+% Claim: a debit and discounted split cannot mint extra live credit.
+% Evidence: illustrative 100-unit source, 50/50 shares, discount 0.9.
+% Distinction: original is debited, not counted alongside the children.
+% Grammar: branching transfer with its arithmetic, not a portrait of identity.
+% Five-second test: add the two live successors and compare with the source.
+\newcommand{\pdnomintsketch}{%
+  \pdmarginexhibit{no-mint-split}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \pdmargincredit{source}{46,0}{100}
+      \node[anchor=south] at (46,19) {parent account};
+      \node (left) at (20,-45) {50};
+      \node (right) at (72,-45) {50};
+      \node at (46,-28) {$\div 2$};
+      \draw[pd arrow] (source.south west)--(left.north);
+      \draw[pd arrow] (source.south east)--(right.north);
+      \pdmargincredit{childa}{20,-104}{45}
+      \pdmargincredit{childb}{72,-104}{45}
+      \node[anchor=south] at (20,-88) {$A$};
+      \node[anchor=south] at (72,-88) {$B$};
+      \draw[pd arrow] (left.south)--(20,-71);
+      \draw[pd arrow] (right.south)--(72,-71);
+      \node at (46,-64) {$\times 0.9$};
+      \node[anchor=north] at (46,-126) {90 live};
+    \end{tikzpicture}
+  }{Reputation-credit example. The parent is debited once. Successors $A$ and
+    $B$ inherit 90 units total; 10 are not inherited.}}
+
+% Question: why does residual downtime cost more than its isolated duration?
+% Claim: queue amplification changes the chapter's canary from 4.17 to 8.17.
+% Evidence: 1.5 + 2.667 versus 1.5 + 2.5*2.667, rounded in the text.
+% Distinction: this analytic canary is not a runtime benchmark.
+% Grammar: aligned stacked lengths on one numerical scale.
+% Five-second test: compare the amplified waiting segment, not two totals alone.
+\newcommand{\pddowntimebars}{%
+  \pdmarginexhibit{downtime-amplification}{A queue amplifies downtime}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \node[anchor=west] at (0,11) {naive: 4.17};
+      \node[anchor=west] at (0,-30) {with queue: 8.17};
+      \foreach \y/\end in {0/41.67,-41/81.675}{
+        \draw[pd rule,fill=pdink!12] (0,\y) rectangle (15,\y-10);
+        \draw[pd margin ink,fill=pdfocus!18] (15,\y) rectangle (\end,\y-10);}
+      \draw[pd rule] (0,-61)--(82,-61);
+      \foreach \x in {0,4,8}{\node[anchor=north] at ({10*\x},-63) {$\x$};}
+    \end{tikzpicture}
+  }{Residual downtime is multiplied by 2.5: the longer segment grows,
+    while the first 1.5 units are unchanged.}}
+
+% Question: what evidence exposes equivocation?
+% Claim: two different signed roots for one issuer and epoch contradict.
+% Evidence: neighboring witness threat model; schematic symbols only.
+% Distinction: signature validity is compatible with issuer dishonesty.
+% Grammar: aligned signed records, not a global detection-time claim.
+% Five-second test: identify the pair the auditor must actually possess.
+\newcommand{\pdequivocationsketch}{%
+  \pdmarginexhibit{equivocation-pair}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \node[anchor=south] at (46,49) {issuer $I$, epoch $e$};
+      \pdmarginrecord{3}{a}{a}
+      \pdmarginrecord{55}{b}{b}
+      \draw[pd rule] (20,-6)--(20,-15)--(72,-15)--(72,-6);
+      \node[anchor=north,text=pderror] at (46,-22) {$R_a\ne R_b$};
+    \end{tikzpicture}
+  }{Both signatures verify. Together, the conflicting roots expose equivocation.
+    A partition can delay their comparison.}}
+
+% Question: which expiration cuts a certificate's usable lifetime short?
+% Claim: certificate, epoch and policy validity must overlap.
+% Evidence: federation admission definition; bars are schematic, not dates.
+% Distinction: nominal certificate expiry versus effective authority.
+% Grammar: aligned intervals, not a lifecycle flowchart.
+% Five-second test: find the earliest endpoint.
+\newcommand{\pdlifetimeintersection}{%
+  \pdmarginexhibit{certificate-lifetime}{}{%
+    \begin{tikzpicture}[pd margin sketch]
+      \foreach \y/\end/\lab in {0/83/card,-29/63/epoch,-58/39/policy}{
+        \node[anchor=south west] at (0,\y+2) {\lab};
+        \draw[pd expiry \lab] (0,\y)--(\end,\y);}
+      \fill[pdviolet] (83,0) circle[radius=2.5pt];
+      \fill[pdcobalt] (60.5,-31.5) rectangle (65.5,-26.5);
+      \fill[pdrust] (39,-54.5)--(35.5,-61)--(42.5,-61)--cycle;
+      \draw[pd margin comparison] (39,-5)--(39,-69);
+      \draw[pd arrow] (0,-76)--(87,-76);
+      \node[anchor=north] at (44,-79) {time};
+    \end{tikzpicture}
+  }{Policy expires first in this schematic. Later card and epoch dates
+    cannot extend the card's usable lifetime.}}

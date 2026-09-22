@@ -1,0 +1,9 @@
+% Deliberately broken regression witness. Never a publication target.
+\documentclass[11pt,twoside]{article}
+\input{coordination-papers-mega-volume-preamble.tex}
+% Mutation: remove only the active caption-height persistence call's effect.
+\renewcommand{\pdmarginpersisttableheight}{}
+\begin{document}
+\pagenumbering{arabic}
+\input{../../../tests/harbor-research/fixtures/caption-layout-fixture.tex}
+\end{document}

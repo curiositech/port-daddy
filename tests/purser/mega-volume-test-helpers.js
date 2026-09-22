@@ -52,6 +52,8 @@ export function makeFixture() {
   if (existsSync(resolve(subjectRoot, buildScriptRelative))) {
     cpSync(resolve(subjectRoot, buildScriptRelative), resolve(root, buildScriptRelative));
   }
+  cpSync(resolve(subjectRoot, 'scripts/prepare-book-fonts.py'),
+    resolve(root, 'scripts/prepare-book-fonts.py'));
   copyTexTree(resolve(subjectRoot, 'whitepaper'), resolve(root, 'whitepaper'));
   copyTexTree(
     resolve(subjectRoot, 'website-v2/public/whitepaper'),
@@ -139,7 +141,7 @@ function executableOnPath(name) {
 export function runFallbackBuild(root, { filter = 'coordination-papers-mega-volume', engine = 'xelatex' } = {}) {
   const bin = resolve(root, '.cache/fake-bin');
   mkdirSync(bin, { recursive: true });
-  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'wc']) {
+  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'python3', 'wc']) {
     symlinkSync(executableOnPath(name), resolve(bin, name));
   }
 

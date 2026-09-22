@@ -1,65 +1,78 @@
-% Reader question: why does inheritance have to debit the source, and what
-% does the copy-fork mutant mint? Claim: the budget-only phrasing lets every
-% derivation stay live and sums past the witnessed weight; transfer debits the
-% source so only the leaf is live; copy-fork, which forks the undebited
-% record, mints reputation the checker refuses. Evidence: one witnessed
-% episode of weight 1 at gamma=0.9, the three closures 2.439 / 0.729 / 8.2x,
-% from the chapter's worked example and a6_no_mint.py (seed 20260816). Must
-% distinguish: live (reputation-bearing) nodes from spent (debited) nodes, and
-% the refused copy-fork edges from the honest derivation edges. Grammar: three
-% small lineage DAGs, time top to bottom, rejected: a single abstract tree
-% (hides which nodes stay live) and a table of the three totals (states the
-% number but not the mechanism that produces it). Five-second test: a reader
-% points at panel C and says "eight live copies of one episode, refused."
+% III/fig:stp-nomint-lineage -- native three-row accounting comparison.
+% Reader: why debit a source instead of copying its inherited reputation?
+% One witnessed unit, gamma=.9 and full grants. Row 1 sums inherited priors
+% excluding the witness. Rows 2/3 sum current spendable balances, root included.
+% A6 Ledger rule and exact rational arithmetic; not a fresh randomized sweep.
+% Reject: counting the initial witness in 2.439; eight unit-valued children;
+% treating node area as magnitude; a finite case as deployment verification.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdviolet}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\pdfiglabel,fill=pdrust!24,draw=pdrust},
-  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\pdfiglabel,fill=pdpage,draw=pdinkmuted!70,text=pdinkmuted}]
-  % panel A: budget-only, refuted
-  \node[pd title,anchor=south,align=center,text width=2.9cm] at (0,2.55) {budget-only\\\pdfigsub refuted};
-  \node[live] (a0) at (0,1.6) {1};
-  \node[live] (a1) at (0,0.4) {.9};
-  \node[live] (a2) at (0,-0.8) {.81};
-  \node[live] (a3) at (0,-2.0) {.729};
-  \draw[pd arrow] (a0) -- node[pd label,right=2pt] {$\gamma=0.9$} (a1);
-  \draw[pd arrow] (a1) -- (a2);
-  \draw[pd arrow] (a2) -- (a3);
-  \node[pd note,anchor=north,align=center,text width=2.9cm] at (0,-2.7) {live total $2.439>1$\\three terms, one episode};
-  % panel B: transfer, the theorem
-  \begin{scope}[xshift=3.6cm]
-  \node[pd title,anchor=south,align=center,text width=2.9cm] at (0,2.55) {transfer\\\pdfigsub the theorem};
-  \node[spent] (b0) at (0,1.6) {0};
-  \node[spent] (b1) at (0,0.4) {0};
-  \node[spent] (b2) at (0,-0.8) {0};
-  \node[live] (b3) at (0,-2.0) {.729};
-  \draw[pd arrow] (b0) -- node[pd label,right=2pt] {debit $1$, grant $.9$} (b1);
-  \draw[pd arrow] (b1) -- node[pd label,right=2pt] {debit $.9$, grant $.81$} (b2);
-  \draw[pd arrow] (b2) -- node[pd label,right=2pt] {debit $.81$, grant $.729$} (b3);
-  \node[pd note,anchor=north,align=center,text width=2.9cm] at (0,-2.7) {live total $0.729\le 1$\\a supermartingale};
-  \end{scope}
-  % panel C: copy-fork mutant
-  \begin{scope}[xshift=8.6cm]
-  \node[pd title,anchor=south,align=center,text width=3.0cm] at (0,2.55) {copy-fork mutant\\\pdfigsub refused by the checker};
-  \node[live] (c0) at (0,1.6) {1};
-  \foreach \i/\x in {1/-1.95,2/-1.30,3/-0.65,4/0.00} {
-    \node[live,minimum size=5.0mm] (c\i) at (\x,-0.2) {1};
-    \draw[pd breach arrow] (c0) -- (c\i);
+\SGMeasuredFigure{stp-nomint-lineage}{%
+\begin{tikzpicture}[x=1pt,y=-1pt,line cap=butt,line join=miter,
+  every node/.style={pd label,inner sep=0pt,align=left},
+  nm live/.style={circle,draw=pdrust,fill=pdrust!12,line width=.85pt,
+    minimum size=36pt,inner sep=0pt,font=\pdfiglabel},
+  nm spent/.style={circle,draw=pdinkmuted,dashed,fill=white,line width=.75pt,
+    minimum size=36pt,inner sep=0pt,font=\pdfiglabel,text=pdinkmuted},
+  nm transfer/.style={circle,draw=pdteal,fill=pdteal!10,line width=1pt,
+    minimum size=36pt,inner sep=0pt,font=\pdfiglabel},
+  nm arrow/.style={-{Stealth[length=4.2pt,width=3.4pt]},line width=.75pt,draw=pdink},
+  nm copy arrow/.style={nm arrow,draw=pdrust,dashed}]
+  \node[anchor=north west] at (0,0)
+    {One witnessed unit; $\gamma=0.9$, full grants $w=1$};
+
+  \node[anchor=west,font=\pdfiglabelbold] at (0,29) {Budget-only};
+  \node[anchor=east,text=pdrust] at (320,29) {no debit \textperiodcentered\ refuted};
+  % Initial evidence is a paper record, NOT a fourth counted claim.
+  \path[draw=pdviolet,fill=pdviolet!5,line width=.85pt]
+    (10,49)--(35,49)--(42,56)--(42,79)--(10,79)--cycle;
+  \draw[pdviolet,line width=.65pt] (35,49)--(35,56)--(42,56);
+  \node at (26,64) {1};
+  \node[nm live] (aone) at (112,64) {.9};
+  \node[nm live] (atwo) at (198,64) {.81};
+  \node[nm live] (athree) at (284,64) {.729};
+  \draw[nm arrow] (47,64)--(aone.west);
+  \draw[nm arrow] (aone.east)--(atwo.west);
+  \draw[nm arrow] (atwo.east)--(athree.west);
+  \foreach \x in {69,155,241}{\node[anchor=south] at (\x,52) {$\times .9$};}
+  \node[anchor=north west,text=pdviolet] at (0,89) {evidence only};
+  \node[anchor=north east] at (320,89) {3 inherited priors counted};
+  \node[anchor=west] at (0,113) {Inherited closure: $.9+.81+.729=2.439>1$};
+
+  \node[anchor=west,font=\pdfiglabelbold] at (0,140) {Transfer};
+  \node[anchor=east,text=pdteal] at (320,140) {debit each source};
+  % Current balances after the three transfers: all source nodes are spent.
+  \node[nm spent] (bone) at (26,184) {0};
+  \node[nm spent] (btwo) at (112,184) {0};
+  \node[nm spent] (bthree) at (198,184) {0};
+  \node[nm transfer] (bfour) at (284,184) {.729};
+  \draw[nm arrow,draw=pdteal] (bone.east)--(btwo.west);
+  \draw[nm arrow,draw=pdteal] (btwo.east)--(bthree.west);
+  \draw[nm arrow,draw=pdteal] (bthree.east)--(bfour.west);
+  \node[anchor=south] at (69,170) {grant .9};
+  \node[anchor=south] at (155,170) {grant .81};
+  \node[anchor=south] at (241,170) {grant .729};
+  \node[anchor=north,align=center,text=pdinkmuted] at (26,210) {debit 1};
+  \node[anchor=north,align=center,text=pdinkmuted] at (112,210) {debit .9};
+  \node[anchor=north,align=center,text=pdinkmuted] at (198,210) {debit .81};
+  \node[anchor=north,align=center,text=pdteal] at (284,210) {live};
+  \node[anchor=west] at (0,239) {Live total: $0+0+0+.729=.729\le1$};
+
+  \node[anchor=west,font=\pdfiglabelbold] at (0,268) {Copy-fork mutant};
+  \node[anchor=east,text=pdrust] at (320,268) {no debit \textperiodcentered\ rejected};
+  % Root is STILL LIVE and counted. Eight children each inherit .9, not 1.
+  \node[nm live] (root) at (160,305) {1};
+  \node[anchor=west] at (188,305) {source still live};
+  \draw[pdrust,dashed,line width=.75pt] (root.south)--(160,333);
+  \draw[pdrust,dashed,line width=.75pt] (20,333)--(300,333);
+  \foreach \x in {20,60,100,140,180,220,260,300}{
+    \node[nm live,minimum size=28pt] (child\x) at (\x,363) {.9};
+    \draw[nm copy arrow] (\x,333)--(child\x.north);
   }
-  \node[pd label,anchor=west] at (0.30,-0.2) {$\ldots$};
-  \draw[pd breach arrow] (c0) -- (1.00,-0.2);
-  \node[pd note,anchor=north,align=center,text width=3.0cm] at (0,-1.0) {eight copies of one episode\\$8.2\times$ its quorum weight\\shortest crime: two operations};
-  \end{scope}
-\end{tikzpicture}
-\caption{Three lineages of one witnessed episode of weight $1$, derived at
-$\gamma=0.9$. Under the budget-only phrasing every derivation stays live and the
-closure sums to $0.9+0.81+0.729=2.439>1$: reputation minted from nothing, which is why
-that phrasing was refuted before proving. Under transfer each derivation grants the child
-$\gamma\,w_p$ and debits the source $w_p$, so only the leaf is live and the total never
-exceeds what was witnessed. The copy-fork mutant, which forks the undebited record,
-turns one episode into $8.2\times$ its quorum weight in two operations, and the checker
-refuses it. [verified for the chain by hand; internal, \texttt{a6\_no\_mint.py}, seed
-20260816]}
+  \node[anchor=west] at (0,401) {Live total: $1+8\times.9=8.2>1$};
+\end{tikzpicture}%
+}
+\caption{Transfer spends each source balance; an undebited copy retains it.
+The first row counts inherited priors, the others spendable balances.}
 \label{fig:stp-nomint-lineage}
 \end{figure}

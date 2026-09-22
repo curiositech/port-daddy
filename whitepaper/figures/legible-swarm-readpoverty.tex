@@ -1,86 +1,77 @@
-% Restyle of fig-readpoverty to the tikz-diagram-craft v2 standard (v1 names
-% and raw colours migrated to roles; the two closed-form curves are
-% unchanged, ch4.md 4.9).
+% Counting lower bounds for one reader, two separate readers, and their union.
 %
-% NOTE for the author: the atlas row (I/fig:readpoverty) prescribes two
-% aligned panels (search cost, L2 value) with distinct y-axes; this fragment
-% draws a single panel, the chapter's own Floor(N,k,m) bits-to-locate curves
-% for a flat versus split digest. The content here matches the chapter text
-% and caption it sits beside; the mismatch with the atlas description is
-% flagged for the author to reconcile, not resolved in this pass.
+% Stable atlas ID: I/fig:readpoverty (fig:readpoverty)
+% Reader question: how do the per-reader, summed, and joint counting bounds
+%   differ when the critical sets are disjoint?
 %
-% Reader question: how does a split digest's read cost compare to a flat
-% one, and by how much at the chapter's own worked size?
-% Claim: splitting the digest per reader roughly halves the bits needed, but
-% not exactly -- 2.13x at N=60, not the naive 2x.
-% Evidence: Thm.~lowerbound, Thm.~split-penalty, Floor(N,k,m) at m=8,
-% N=60: flat 12.77 bits, split 5.98 bits, whitepaper/legible-swarm.tex
-% [internal]. Overlay: Floor(N,k,m) recomputed at N in
-% {16,20,30,40,50,60,70,80,90,100} via a7_experiment.py's own log_choose,
-% committed as r1-floor.csv beside this fragment (this pass, register
-% row ch4-32's build-first instructions).
-% Must distinguish: the flat-digest curve from the split-digest curve; the
-% one worked point (N=60) marked on each from the rest of the curve.
-% Grammar chosen: measured-quantity plot (pgfplots), the worked point on
-% each curve, the two end labels naming the series.
-% Grammar rejected: a single ratio curve (split/flat) would hide the two
-% curves' own magnitudes, which the 12.77-versus-5.98 comparison needs.
-% Five-second test: at N=60, which digest costs fewer bits, and by how much?
+% Analytic source, not measurements or achieved costs:
+%   Floor(N,k,m) = log_2 binom(N,k) - log_2 binom(m,k), k <= m < N.
+%   The two-reader comparison additionally requires 2k <= m because the joint
+%   head uses Floor(N,2k,m); that condition is not part of the one-head floor.
+%   For the worked instance k=2,m=8 and integer N in [16,100],
+%   F_1 = log_2(N(N-1)/56) is one head per reader,
+%   2F_1 is the two reader-specific heads in total, and
+%   F_2 = log_2(N(N-1)(N-2)(N-3)/1680) is one joint head for both readers.
+%   At N=60: F_1=5.9822, 2F_1=11.9644, F_2=12.7662,
+%   F_2/(2F_1)=1.0670. The ratio F_2/F_1=2.1340 is not the two-head penalty.
+% Opening policy: each split head may open m=8 items independently; one joint
+% head may open m=8 items total. This is not an equal-total-opening benchmark.
+% Source: whitepaper/legible-swarm.tex:2531--2557; provenance a7_experiment.py.
+% The curves are authored analytic evaluations of the closed forms, not
+% empirical observations or simulation traces.
+
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,
   declare function={
-    split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
-    flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
+    perhead(\n) = ln(\n*(\n-1)/56)/ln(2);
+    joint(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3)/1680)/ln(2);
   }]
-\begin{axis}[
-  width=7.6cm,height=5.4cm,
-  axis lines=left,
-  axis line style={pd rule},
-  xmin=8,xmax=105,ymin=0,ymax=17.5,
-  xtick={20,40,60,80,100},ytick={0,5,10,15},
-  tick label style={font=\pdfiglabel,text=pdinkmuted},
+\begin{axis}[pd axis,
+  width=6.8cm,height=5.4cm,
+  xmin=16,xmax=100,ymin=0,ymax=17.5,
+  xtick={20,40,60,80,100},
+  ytick={0,5,10,15},
   xlabel={swarm size $N$},
-  ylabel={bits to locate},
-  every axis label/.style={font=\pdfiglabel,text=pdinkmuted},
-  clip=false,axis on top,
-  ]
-  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
-  \node[pd label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
+  ylabel={information floor (bits)},
+  axis on top,clip=false]
+  % One reserved numeric rail; the labels below are not placed on curves.
+  \node[pd label,anchor=south west,align=left,text width=6.6cm]
+    at (rel axis cs:0,1.03)
+    {$k{=}2$, $m{=}8$. At $N{=}60$: $F_1{=}5.982$/head;
+     $2F_1{=}11.964$ total;
+     $F_2{=}12.766$ joint; $F_2/(2F_1){=}1.067\times$.};
+  % Analytic integer-domain sweep; smooth=false preserves the authored
+  % integer evaluations instead of suggesting measured interpolation.
+  \addplot[pd rule,line width=.9pt,domain=16:100,samples=85,smooth=false]
+    {perhead(x)};
+  \addplot[pd focus rule,line width=1.05pt,domain=16:100,samples=85,smooth=false]
+    {2*perhead(x)};
+  \addplot[pd focus rule,densely dashed,line width=1.05pt,
+    domain=16:100,samples=85,smooth=false]
+    {joint(x)};
 
-  \addplot[pd rule,line width=1.05pt,domain=8:105,samples=100,smooth] {flat(x)};
-  \addplot[pd focus rule,line width=1.05pt,domain=8:105,samples=100,smooth] {split(x)};
+  % The source worked point and its honest architecture comparison.
+  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,13.55);
+  \node[pd datum] at (axis cs:60,{perhead(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{2*perhead(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{joint(60)}) {};
 
-  \node[pd datum] at (axis cs:60,{flat(60)}) {};
-  \node[pd focus datum] at (axis cs:60,{split(60)}) {};
-  \node[pd label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
-  \node[pd focus label,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
-
-  \node[pd label,anchor=west,text width=1.8cm] at (axis cs:87,{flat(87)+0.6}) {flat digest};
-  \node[pd focus label,anchor=west,text width=1.8cm] at (axis cs:87,{split(87)-0.6}) {split digest};
-  % measured overlay: floor_bits(N,k,m) computed directly via a7_experiment.py's
-  % log_choose (lgamma) implementation at a swept N, committed beside this
-  % fragment as r1-floor.csv -- confirms the closed-form curves pointwise
-  % rather than asserting them.
-  \addplot[pd datum,only marks,mark=o,mark options={scale=0.85}]
-    coordinates {(16,4.7004)(20,6.1130)(30,8.6129)(40,10.3505)(50,11.6839)
-                 (70,13.6771)(80,14.4637)(90,15.1557)(100,15.7736)};
-  \addplot[pd focus datum,only marks,mark=o,mark options={scale=0.85}]
-    coordinates {(16,2.0995)(20,2.7625)(30,3.9575)(40,4.8000)(50,5.4512)
-                 (70,6.4305)(80,6.8184)(90,7.1602)(100,7.4659)};
+  % True outside-plot gutter: each label is reached by an endpoint leader and
+  % cannot be crossed by its own curve or mistaken for a point annotation.
+  \draw[pd rule] (axis cs:100,{perhead(100)}) -- (axis cs:104,7.75);
+  \node[pd label,anchor=west] at (axis cs:104.5,7.75) {one head $F_1$};
+  \draw[pd focus rule] (axis cs:100,{2*perhead(100)}) -- (axis cs:104,14.20);
+  \node[pd focus label,anchor=west] at (axis cs:104.5,14.20)
+    {two heads $2F_1$};
+  \draw[pd focus rule,densely dashed] (axis cs:100,{joint(100)}) -- (axis cs:104,16.45);
+  \node[pd focus label,anchor=west] at (axis cs:104.5,16.45)
+    {joint head $F_2$};
 \end{axis}
 \end{tikzpicture}
-\caption{Bits an operator must read to locate the critical artifact, at the
-lower bound of Thm.~\ref{thm:lowerbound} with $m{=}8$, $k{=}2$. One flat
-digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
-split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
-$N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
-a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
-predict. The open circles are $\mathrm{Floor}(N,k,m)$ computed directly from
-\texttt{a7\_experiment.py}'s own log-choose implementation at a swept $N$
-(committed beside this fragment as \texttt{r1-floor.csv}), landing exactly on
-the closed-form curves; the $N{=}60$ values worked by hand are marked
-separately. [internal, \texttt{a7\_experiment.py}]}
+\caption{Separate readers may each open eight items; the joint reader may
+open eight total. The comparison changes the total opening allowance.
+These counting lower bounds are not achieved implementation costs.}
 \label{fig:readpoverty}
 \end{figure}

@@ -1,0 +1,236 @@
+% Shared approved Swiss evidence drawing primitives. Keep both chapter roots identical.
+\ifdefined\pdSwissEvidenceLoaded\else
+\def\pdSwissEvidenceLoaded{1}
+% Real ink-box gate; no declared coordinate envelope can substitute for this.
+\newsavebox{\sgEvidenceBox}
+\newcommand{\SGMeasuredFigure}[2]{%
+  \sbox{\sgEvidenceBox}{#2}%
+  \typeout{SG-GEOMETRY: #1,width=\the\wd\sgEvidenceBox,height=\the\dimexpr\ht\sgEvidenceBox+\dp\sgEvidenceBox\relax}%
+  \ifdim\wd\sgEvidenceBox>325.215pt
+    \PackageError{swiss-evidence}{Figure #1 exceeds the Book column}{Recompose at native text size; do not scale.}%
+  \fi
+  \usebox{\sgEvidenceBox}}
+% Parent redraws after rejection of lab specimens 01,04,06.
+% All coordinates are physical TeX points; no resizebox or transformed fonts.
+\usetikzlibrary{arrows.meta,calc}
+\definecolor{sgBlue}{HTML}{003FB8}
+\definecolor{sgTeal}{HTML}{006B5F}
+\definecolor{sgViolet}{HTML}{743F91}
+\definecolor{sgAmber}{HTML}{9B6700}
+\definecolor{sgRed}{HTML}{B3262D}
+\definecolor{sgInk}{HTML}{191919}
+\definecolor{sgGrid}{HTML}{DBDAD3}
+\newcommand{\SGType}{\sffamily\fontsize{9}{11}\selectfont}
+\tikzset{sg/base/.style={x=1pt,y=1pt,line cap=butt,line join=miter,
+  every node/.style={font=\SGType,inner sep=0pt,text=sgInk}},
+  sg/arrow/.style={-{Stealth[length=4.5pt,width=3.6pt]},draw=sgInk,line width=.85pt},
+  sg/grid/.style={draw=sgGrid,line width=.3pt},
+  sg/hash/.style={draw=sgBlue,fill=sgBlue!7,line width=1pt,minimum width=53pt,
+    minimum height=27pt,inner sep=4pt,align=center},
+  sg/sibling/.style={draw=sgAmber,fill=sgAmber!10,line width=1pt,minimum width=51pt,
+    minimum height=27pt,inner sep=4pt,align=center},
+  sg/check/.style={draw=sgInk,fill=white,line width=1pt,minimum width=92pt,
+    minimum height=30pt,inner sep=5pt,align=center}}
+
+% A folded record, not an undifferentiated rounded node. Width/height are pt.
+\newcommand{\SGDocument}[6]{%
+  \begin{scope}[shift={#2}]
+    \path[draw=sgInk,fill=#5,line width=.85pt]
+      (0,0)--({#3-7},0)--(#3,7)--(#3,#4)--(0,#4)--cycle;
+    \draw[sgInk,line width=.65pt] ({#3-7},0)--({#3-7},7)--(#3,7);
+    \node[minimum width=#3pt,minimum height=#4pt,text width=\dimexpr#3pt-12pt\relax,
+      align=center] (#1) at ({#3/2},{#4/2}) {#6};
+  \end{scope}}
+
+\newcommand{\SGSurvival}{%
+\begin{tikzpicture}[sg/base]
+  % Three complete probability decades, percentages rather than tiny exponents.
+  \foreach \x in {0,1,...,6}{\draw[sg/grid] ({35+30*\x},20)--({35+30*\x},140);}
+  \foreach \y/\lab in {20/{0.1\%},60/{1\%},100/{10\%},140/{100\%}}{%
+    \draw[sg/grid] (35,\y)--(215,\y);
+    \draw[sgInk,line width=.65pt] (32,\y)--(35,\y);
+    \node[anchor=east] at (28,\y) {\lab};}
+  \draw[sgInk,line width=.85pt] (35,140)--(35,20)--(215,20);
+  \foreach \x in {0,2,4,6}{%
+    \draw[sgInk,line width=.65pt] ({35+30*\x},20)--({35+30*\x},17);
+    \node[anchor=north] at ({35+30*\x},12) {$\x$};}
+  \node[rotate=90] at (-9,80) {jobs still running (log scale)};
+  \node[anchor=north] at (125,-5) {duration / mean duration};
+  \draw[sgBlue,line width=1.5pt,domain=0:6,samples=100]
+    plot ({35+30*\x},{140-120*ln(1+\x/2)/ln(10)});
+  \draw[sgViolet,line width=1.2pt,dash pattern=on 4pt off 2.5pt,domain=0:6,samples=100]
+    plot ({35+30*\x},{140-40*\x/ln(10)});
+  % Endpoint leaders have allocated space; text does not lie on a curve.
+  \draw[sgBlue,line width=.8pt] (215,67.75)--(224,67.75);
+  \node[anchor=west,text=sgBlue,font=\SGType\bfseries] at (230,73) {Lomax};
+  \node[anchor=west,text=sgBlue] at (230,60) {1.56\%};
+  \draw[sgViolet,line width=.8pt,dashed] (215,35.77)--(224,35.77);
+  \node[anchor=west,text=sgViolet,font=\SGType\bfseries] at (230,40) {exponential};
+  \node[anchor=west,text=sgViolet] at (230,27) {0.248\%};
+\end{tikzpicture}}
+
+\newcommand{\SGTiming}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  % This bracket spans COMMIT TO SYNC. It is not a range of hypothetical syncs.
+  \fill[sgAmber!9] (39,19) rectangle (253,49);
+  \draw[sgAmber,line width=1pt] (39,18)--(39,9)--(253,9)--(253,18);
+  \node[anchor=south,text=sgAmber,font=\SGType\bfseries] at (146,5) {?};
+  \draw[sgInk,line width=.9pt] (39,27)--(39,45) (253,27)--(253,45);
+  \draw[{Stealth[length=4.5pt,width=3.6pt]}-{Stealth[length=4.5pt,width=3.6pt]},
+    sgAmber,line width=1.3pt] (40,36)--(252,36);
+  \node[anchor=north,font=\SGType\bfseries] at (39,52) {commit};
+  \node[anchor=north,font=\SGType\bfseries] at (253,52) {WAL sync};
+  \node[anchor=west] at (0,86) {heartbeats received};
+  \foreach \x/\label in {57/{s_1},117/{s_2},194/{s_3},278/{s_4}}{%
+    \draw[sgViolet!70,dashed,line width=.55pt] (\x,104)--(\x,145);
+    \node[anchor=south,text=sgViolet] at (\x,101) {$\label$};}
+  \fill[sgAmber!9] (158,108) rectangle (243,142);
+  \draw[sg/grid] (0,139)--(306,139);
+  \draw[sgTeal,line width=1.4pt]
+    (0,132)--(25,132)--(25,116)--(33,116)--(33,132)
+    --(85,132)--(85,116)--(93,116)--(93,132)
+    --(145,132)--(145,116)--(153,116)--(153,132)--(306,132);
+  \draw[sgRed,line width=1pt] (243,106)--(243,145);
+  \node[anchor=north,text=sgRed] at (243,149) {deadline};
+  \draw[sg/arrow] (0,174)--(306,174);
+  \node[anchor=north east] at (306,179) {time};
+\end{tikzpicture}}
+
+\newcommand{\SGInclusion}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  % Two independent inputs: a supplied proof and an issuer-authenticated root.
+  \node[anchor=north west,font=\SGType\bfseries,text width=158pt,align=left] at (0,0)
+    {Recompute from the receipt};
+  \node[anchor=north west,font=\SGType\bfseries,text width=118pt,align=left] at (193,0)
+    {Authenticate\\the checkpoint};
+  \draw[sg/grid,step=15pt] (0,29) grid (175,194);
+  \SGDocument{receipt}{(4,35)}{49}{34}{sgViolet!9}{receipt $P$}
+  \node[sg/hash] (leaf) at (29,103) {$a=H_L(P)$};
+  \node[sg/sibling] (sibone) at (108,103) {sibling $b$};
+  \node[sg/hash] (inner) at (68,146) {$u=H_N(a,b)$};
+  \node[sg/sibling] (sibtwo) at (146,146) {subtree $c$};
+  \node[sg/hash,fill=sgBlue,text=white,minimum width=100pt] (computed) at (107,190)
+    {$R'=H_N(u,c)$};
+  \draw[sg/arrow,draw=sgViolet] (receipt.south)--(leaf.north);
+  \draw[sg/arrow,draw=sgBlue] (leaf.south)--(inner.north west);
+  \draw[sg/arrow,draw=sgAmber] (sibone.south)--(inner.north east);
+  \draw[sg/arrow,draw=sgBlue] (inner.south)--(computed.north west);
+  \draw[sg/arrow,draw=sgAmber] (sibtwo.south)--(computed.north east);
+  \SGDocument{checkpoint}{(211,37)}{85}{48}{sgTeal!8}{signed root $R^*$\\size $n=4$\\signature $\sigma$}
+  % The trusted key is an external input, not something the prover supplies.
+  \draw[sgInk,line width=1pt] (218,113) circle (3.5pt);
+  \draw[sgInk,line width=1pt] (221.5,113)--(233,113) (230,113)--(230,117) (233,113)--(233,117);
+  \node[anchor=west] at (239,113) {trusted $pk_I$};
+  \node[sg/check,minimum width=84pt] (verify) at (260,158) {verify $\sigma$\\result $A$};
+  \draw[sg/arrow,draw=sgTeal] (checkpoint.east)--(311,61)--(311,158)--(verify.east);
+  \draw[sg/arrow] (247,123)--(247,138)--(verify.north);
+  \node[sg/check,minimum width=112pt,minimum height=34pt] (compare) at (164,245)
+    {$A\ \land\ (R'=R^*)$};
+  \draw[sg/arrow,draw=sgBlue] (computed.south)--(107,220)--(compare.north west);
+  \draw[sg/arrow,draw=sgTeal] (verify.south)--(260,214)--(compare.north east);
+  \node[anchor=east,text=sgTeal] at (250,204) {$R^*,A$};
+  \node[draw=sgTeal,fill=sgTeal,text=white,minimum width=90pt,
+    minimum height=27pt,font=\SGType\bfseries] (accept) at (76,299) {accept inclusion};
+  \node[draw=sgRed,fill=white,text=sgRed,line width=1.2pt,minimum width=90pt,
+    minimum height=27pt,font=\SGType\bfseries] (reject) at (256,299) {reject proof};
+  \draw[sg/arrow,draw=sgTeal] (compare.south west)--(108,279)--(76,279)--(accept.north);
+  \draw[sg/arrow,draw=sgRed] (compare.south east)--(220,279)--(256,279)--(reject.north);
+  \node[anchor=south,text=sgTeal] at (82,275) {true};
+  \node[anchor=south,text=sgRed] at (248,275) {false};
+\end{tikzpicture}}
+
+% Reusable geometry; load after swiss-redraws.tex. Real points, no scaling.
+\newcommand{\SGDatabase}[4]{%
+  \begin{scope}[shift={#2}]
+    \path[draw=#3,fill=#3!7,line width=.9pt]
+      (0,4)--(0,32) arc[start angle=180,end angle=360,x radius=24pt,y radius=5pt]
+      --(48,4) arc[start angle=0,end angle=-180,x radius=24pt,y radius=5pt];
+    \draw[draw=#3,fill=#3!7,line width=.9pt] (24,4) ellipse[x radius=24pt,y radius=5pt];
+    \node[minimum width=48pt,minimum height=37pt,align=center] (#1) at (24,18) {#4};
+  \end{scope}}
+
+\newcommand{\SGWriterSequence}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \foreach \x/\label in {22/Alice,153/{one writer},285/Bob}{
+    \node[anchor=south,font=\SGType\bfseries] at (\x,0) {\label};
+    \draw[sg/grid] (\x,9)--(\x,229);}
+  % Both invocations precede the first commit: overlapping client requests.
+  \draw[sg/arrow,draw=sgViolet] (22,29)--(153,29);
+  \node[anchor=south,text=sgViolet] at (81,24) {request $A$};
+  \draw[sg/arrow,draw=sgAmber] (285,57)--(153,57);
+  \node[anchor=south,text=sgAmber] at (221,52) {request $B$};
+  \fill[sgBlue!9] (149,67) rectangle (157,206);
+  \SGDocument{commitA}{(115,76)}{76}{34}{sgBlue!8}{commit 1\\record $A$}
+  \draw[sg/arrow,draw=sgViolet,dash pattern=on 3pt off 2pt] (153,126)--(22,126);
+  \node[anchor=south,text=sgViolet] at (81,121) {reply $A$};
+  \SGDocument{commitB}{(115,151)}{76}{34}{sgBlue!8}{commit 2\\record $B$}
+  \draw[sg/arrow,draw=sgAmber,dash pattern=on 3pt off 2pt] (153,205)--(285,205);
+  \node[anchor=south,text=sgAmber] at (221,200) {reply $B$};
+  \draw[sg/arrow] (3,20)--(3,220);
+  \node[anchor=west] at (9,224) {time};
+\end{tikzpicture}}
+
+\newcommand{\SGRecoveryAdmission}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \draw[sgInk!55,dash pattern=on 3pt off 2pt,line width=.7pt]
+    (0,0) rectangle (307,120);
+  \node[anchor=north,font=\SGType\bfseries,align=center] at (48,10) {1. Replay\\WAL};
+  \node[anchor=north,font=\SGType\bfseries,align=center] at (153,10) {2. Check\\integrity};
+  \node[anchor=north,font=\SGType\bfseries,align=center] at (258,10) {3. Verify\\audit chain};
+  \SGDocument{walback}{(23,50)}{42}{34}{sgViolet!7}{}
+  \SGDocument{walfront}{(29,56)}{42}{34}{sgViolet!7}{log}
+  \SGDatabase{db}{(129,53)}{sgBlue}{DB}
+  \foreach \x in {235,252,269}{
+    \draw[sgTeal,line width=1pt,rounded corners=2pt] (\x,63) rectangle ({\x+14},79);}
+  \draw[sgTeal,line width=1pt] (245,71)--(256,71) (262,71)--(273,71);
+  \draw[sg/arrow] (77,71)--(120,71);
+  \draw[sg/arrow] (186,71)--(225,71);
+  \node[anchor=north] at (48,100) {recover state};
+  \node[anchor=north] at (153,100) {check pages};
+  \node[anchor=north] at (258,100) {check links};
+  \node[sg/check,minimum width=130pt,minimum height=30pt] (admit) at (153,155)
+    {critical checks pass?};
+  \draw[sg/arrow] (153,120)--(admit.north);
+  \node[draw=sgTeal,fill=sgTeal,text=white,minimum width=90pt,minimum height=28pt,
+    font=\SGType\bfseries] (serve) at (63,226) {admit requests};
+  \node[draw=sgRed,fill=white,text=sgRed,line width=1pt,minimum width=90pt,
+    minimum height=28pt,font=\SGType\bfseries] (refuse) at (252,226) {do not serve};
+  \draw[sg/arrow,draw=sgTeal] (admit.south west)--(88,190)--(63,190)--(serve.north);
+  \draw[sg/arrow,draw=sgRed] (admit.south east)--(218,190)--(252,190)--(refuse.north);
+  \node[anchor=south,text=sgTeal] at (61,188) {yes};
+  \node[anchor=south,text=sgRed] at (251,188) {no};
+\end{tikzpicture}}
+
+% Named bands and their audiences; the dashed floor is NOT a fifth layer.
+\newcommand{\SGStackLayers}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \foreach \y/\level/\name/\audience/\evidence/\hue in {
+    0/3/Economy/{Between operators}/{settlement and reputation}/sgAmber,
+    51/2/Legibility/{For the operator}/{summaries linked to evidence}/sgTeal,
+    102/1/Coordination/{Between agents}/{permissions and commitments}/sgViolet,
+    153/0/Substrate/{On one machine}/{ordered writes and records}/sgBlue}{
+    \path[draw=\hue,fill=\hue!8,line width=1pt] (17,\y) rectangle (142,{\y+38});
+    \node[anchor=west,font=\SGType\bfseries,text=\hue] at (26,{\y+13}) {L\level};
+    \node[anchor=west,font=\SGType\bfseries] at (26,{\y+27}) {\name};
+    \node[anchor=north west,font=\SGType\bfseries] at (158,{\y+2}) {\audience};
+    \node[anchor=north west,text width=149pt,align=left] at (158,{\y+17}) {\evidence};}
+  \foreach \y in {153,102,51}{\draw[sg/arrow] (79,\y)--(79,{\y-13});}
+  \draw[sgBlue,line width=2.4pt] (7,154)--(7,190);
+  \draw[sgInk!60,dashed,line width=.7pt] (17,204) rectangle (307,243);
+  \node[anchor=west,font=\SGType\bfseries] at (26,216) {Machine floor};
+  \node[anchor=west] at (26,231) {file lock, clock, socket, supervisor};
+  \draw[sg/arrow] (79,204)--(79,192);
+\end{tikzpicture}}
+
+% Compact counterpart for future chapter-by-chapter marginal navigation.
+% A named current-layer argument changes emphasis, never the layer order.
+\newcommand{\SGMarginLadder}[1]{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \foreach \y/\n/\name/\hue in {0/3/Economy/sgAmber,37/2/Legibility/sgTeal,74/1/Coordination/sgViolet,111/0/Substrate/sgBlue}{
+    \draw[\hue,line width=.7pt] (0,\y)--(91,\y);
+    \node[anchor=north west,text=\hue,font=\SGType\bfseries] at (4,{\y+3}) {L\n};
+    \node[anchor=north west] at (4,{\y+16}) {\name};
+    \ifnum\n=#1\relax\draw[\hue,line width=2pt] (0,{\y+3})--(0,{\y+29});\fi}
+\end{tikzpicture}}
+
+\fi

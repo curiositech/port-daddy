@@ -15,6 +15,7 @@ import {
   namespaceLabels,
   renderChapter,
   renderCiteShortformAliases,
+  renderMarginReferenceRegistry,
   renderContents,
   renderSolutions,
   renderTextbookMap,
@@ -38,6 +39,43 @@ const seamsSource = readFileSync(
   resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex'),
   'utf8',
 );
+
+test('margin references preserve full metadata, stable numbers and URL targets', () => {
+  const registry = renderMarginReferenceRegistry([
+    { key: 'mega009', body: 'A. Author. Full title. Journal, 2020. \\url{https://example.org/long/path}' },
+    { key: 'mega001', body: 'B. Writer. Another title. 2021.' },
+  ], '\\pdciteshort{mega009}{Author, Full title (2020).}\n\\pdciteshort{mega001}{Writer, Another title (2021).}');
+  assert.match(registry, /\\pdbookreference\{mega009\}\{1\}/);
+  assert.match(registry, /\\pdbookreference\{mega001\}\{2\}/);
+  assert.ok(registry.includes('A. Author. Full title. Journal, 2020.'));
+  assert.ok(registry.includes('\\href{https://example.org/long/path}{Online source}'));
+  assert.ok(registry.includes('{Writer, Another title (2021).}'));
+});
+
+test('an unidentified margin repeat fails generation instead of printing a raw key', () => {
+  assert.throws(() => renderMarginReferenceRegistry([
+    { key: 'mega009', body: 'A. Author. Full title. 2020.' },
+  ], ''), /mega009 has no short form/);
+});
+
+test('reviewed margin editing cannot drift away from its original source', () => {
+  const refs = [{ key: 'mega001', body: 'Author. Full work title. Publisher, 2020.' }];
+  const aliases = '\\pdciteshort{mega001}{Author 2020, \\textit{Full work title}}';
+  const edits = [{ key: 'local-source', original: refs[0].body, margin: 'Author. Full work title. 2020.' }];
+  const rendered = renderMarginReferenceRegistry(refs, aliases, edits);
+  assert.ok(rendered.includes('{Author. Full work title. 2020.}{Author 2020}'));
+  assert.throws(() => renderMarginReferenceRegistry([{ ...refs[0], body: 'Changed work. 2021.' }], aliases, edits), /Stale/);
+  assert.throws(() => renderMarginReferenceRegistry(refs, aliases, [...edits, ...edits]), /Duplicate/);
+});
+
+test('Locke on consent and Locke on identity retain different source identities', () => {
+  const shortforms = loadCiteShortforms();
+  assert.match(shortforms.get('locke1689'), /Second Treatise/);
+  assert.match(shortforms.get('locke1689identity'), /Essay Concerning/);
+  const identityChapter = readFileSync(resolve('website-v2/public/whitepaper/spawn-to-person.tex'), 'utf8');
+  assert.doesNotMatch(identityChapter, /\\(?:pd)?cite\{locke1689\}/);
+  assert.match(identityChapter, /\\bibitem\{locke1689identity\}/);
+});
 
 test('the Book generator inserts prefix-keyed prose seams and no editorial plates', () => {
   assert.match(generatorSource, /pdchapteropening\$\{paper\.prefix\}/);
@@ -446,7 +484,7 @@ test('one complete contents renderer decorates the live ToC with metadata, witho
   }
   assert.equal((contents.match(/\\pdtableofcontents/g) ?? []).length, 1);
   assert.doesNotMatch(contents, /pdcontentsspread|pdcontentschapter\{|The argument, chapter by chapter/);
-  assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+  assert.match(contents, /\\pdchapref\{swk\}/);
   assert.doesNotMatch(collectedVolumeSource, /\\tableofcontents\b/);
   assert.equal((collectedVolumeSource.match(/mega-volume-contents\.tex/g) ?? []).length, 1);
 });
@@ -470,7 +508,10 @@ test('solutions add navigable per-chapter entries and the reader guide starts on
   assert.ok(leftProse > map.indexOf('\\label{book:reader-left}'));
   assert.ok(leftProse < map.indexOf('\\clearpage', leftProse));
   assert.ok(map.indexOf('\\clearpage', leftProse) < rightPage);
-  assert.match(collectedVolumeSource, /\\newcommand\{\\pdreaderleftprose\}\{%\s*There are two ways/);
+  assert.match(collectedVolumeSource, /\\newcommand\{\\pdreaderleftprose\}\{%\s*\S/);
+  assert.match(collectedVolumeSource, /\\textsf\{\[verified\]\}/);
+  assert.match(collectedVolumeSource, /\\textsf\{\[internal\]\}/);
+  assert.match(solutions, /\\pdbackmatterheaders\{Solutions to the exercises\}/);
 });
 
 test('retained unnumbered headings enter the ToC without duplicating authored entries or code examples', () => {
@@ -764,6 +805,15 @@ test('one paper cannot map a bibliography key to two references', () => {
 
 // --- pd-pedagogy: exercises and their deferred solutions in the Book -------
 
+test('explicit margin-page boundary survives legacy page-break cleanup', () => {
+  const source = '\\section{Argument}\nBefore.\n\\clearpage\n\\pdmarginpagebreak\nAfter.';
+  const cleaned = cleanStandaloneChrome(source);
+  assert.doesNotMatch(cleaned, /\\clearpage\b/);
+  assert.match(cleaned, /Before\.\s*\\pdmarginpagebreak\s*After\./);
+  const pedagogy = readFileSync(resolve('whitepaper/figures/pd-pedagogy.tex'), 'utf8');
+  assert.ok(pedagogy.includes('\\newcommand{\\pdmarginpagebreak}{\\clearpage}'));
+});
+
 test('cleanStandaloneChrome strips the standalone solution-file open/print lines', () => {
   const source = [
     '\\begin{document}',
@@ -847,6 +897,16 @@ test('renderSolutions lists every chapter with exercises under its own heading, 
   assert.match(escaped, /Chapter 2: A \\& B/);
 });
 
+test('solution exhibits retain their owning chapter with distinct counters and anchors', () => {
+  const rendered = renderSolutions([{ number: 6, prefix: 'he', title: 'Economy' }]);
+  for (const kind of ['figure', 'table', 'lstlisting']) {
+    assert.ok(rendered.includes(`\\setcounter{${kind}}{0}`));
+    assert.ok(rendered.includes(`\\renewcommand{\\the${kind}}{6.S\\arabic{${kind}}}`));
+    assert.ok(rendered.includes(`\\renewcommand{\\theH${kind}}{solution.he.\\arabic{${kind}}}`));
+  }
+  assert.ok(rendered.indexOf('solution.he.') < rendered.indexOf('\\input{book-sol-he}'));
+});
+
 // ---------------------------------------------------------------------------
 // The collated bibliography: sorted by the name a reader looks up, and one
 // entry per work however a chapter chose to write it.
@@ -911,6 +971,13 @@ test('two genuinely different papers by the same authors in the same year stay d
 });
 
 // --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
+
+test('the assembled Book enables margin references without a special driver', () => {
+  const root = readFileSync(resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'), 'utf8');
+  const enabled = root.indexOf('\\providecommand{\\pdEnableMarginCitations}{1}');
+  const renderer = root.indexOf('\\input{figures/pd-book-citations.tex}');
+  assert.ok(enabled >= 0 && renderer > enabled, 'default Book must enable margin sources before loading the renderer');
+});
 
 test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preserving the command name', () => {
   const citationMap = new Map([['lampson1974', 'mega002'], ['saltzer1975protection', 'mega003']]);

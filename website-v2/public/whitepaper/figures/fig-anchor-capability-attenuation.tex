@@ -1,74 +1,40 @@
-% Brief (grammar: nested sets on two real axes; atlas V/fig:anchor-capability-attenuation).
-% Reader question: how do rights and TTL shrink together across delegation?
-% Claim: every delegated capability sits strictly inside its parent on BOTH
-%   the rights axis and the lifetime axis at once -- attenuation is conjunctive,
-%   not a trade between the two.
-% Evidence: C0 root (db:write+fs:read+net:*, 60 min) narrowing to C1
-%   (db:write+fs:read, 15 min) to C2 (db:write, 5 min); the worked example
-%   (parent fs:read+db:write, 10 min left) beside it in prose (anchor-protocol-
-%   whitepaper.tex around the capability-attenuation paragraph and pdexample
-%   "a child card under a parent with ten minutes left") [internal].
-% Must distinguish: a child's own envelope (nested, focus-tinted) from a
-%   re-grant attempt that widens either axis (breach, refused, own mark).
-% Grammar chosen: nested sets (tpl-nested-sets), matching the atlas row.
-%   Rejected: a table of C0/C1/C2 x {rights, TTL} -- the two real axes already
-%   let a reader read off both quantities by position, so a table would repeat
-%   data the geometry already shows (Tufte: redundant ink only when it earns
-%   its keep).
-% Five-second test: "C2 is inside C1 is inside C0, on both axes; the red mark
-%   directly above C0's own net:* row is the one request that is not
-%   narrower and is refused."
+% Book-native replacement for figures/fig-anchor-capability-attenuation.tex.
+% Drop-in fragment: preserve its figure label and make both attenuation bounds
+% visible.  Coordinates are TeX points; labels are native 9pt, never scaled.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.113cm,y=.97cm]
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (62,0);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
-  \node[pd label,anchor=north,align=center,text width=3.6cm] at (30,-.75)
-    {remaining lifetime (min)};
-  \node[pd label,anchor=south,rotate=90,align=center,text width=1.1cm]
-    at (-1.7,4.15) {capability reach};
-
-  \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
-    \draw[pd guide] (0,\y) -- (62,\y);
-    \node[pd label,anchor=east] at (-.4,\y) {\rightname};
-  }
-  \foreach \x/\tickname in {5/5,15/15,60/60} {
-    \draw[pd tick] (\x,0) -- (\x,-.12);
-    \node[pd label,anchor=north] at (\x,-.18) {\tickname};
-  }
-
-  % ---- the root, subordinate: the given container, not the subject --------
-  \path[pd artifact] (0,0) rectangle (60,3.1);
-  \draw[pd rule] (0,0) rectangle (60,3.1);
-  % ---- C1, C2: the subject of the chapter, nested tint deepens with depth -
-  \path[pd focus fill] (0,0) rectangle (15,2.2);
-  \draw[pd focus rule] (0,0) rectangle (15,2.2);
-  \path[pd focus fill] (0,0) rectangle (5,1.3);
-  \draw[pd focus rule] (0,0) rectangle (5,1.3);
-
-  \node[pd tag,anchor=north east] at (59.4,2.55)
-    {\textbf{C0} root, 60 min};
-  \draw[pd hairline] (15,2.1) -- (21,2.1);
-  \node[pd focus label,anchor=west] at (22,2.1)
-    {\textbf{C1}, 15 min};
-  \draw[pd hairline] (5,.85) -- (18,1.5);
-  \node[pd focus label,anchor=west] (c2lab) at (18,1.5)
-    {\textbf{C2}, 5 min};
-
-  % ---- the refused re-grant: a short tag directly above its own datum -----
-  \node[pd breach datum] (bad) at (60,3) {};
-  \node[pd tag,text=pderror,anchor=south] at (60,3.42) {refused};
-
-  \node[pd note,anchor=west,text width=4.5cm,align=left] at (18,.45)
-    {C2 $\subseteq$ C1 $\subseteq$ C0\\and T2 $<$ T1 $<$ T0};
-\end{tikzpicture}
-\caption{Nested rectangles for the capability envelope C0 (root, 60 min), C1
-(15 min) and C2 (5 min): each child rectangle sits strictly inside its parent
-on both axes. The red mark sits directly above C0's own \texttt{net:*} row,
-at the full 60-minute root lifetime: it is a re-grant attempt that asks for
-\texttt{net:*} at that full lifetime rather than a narrower child envelope,
-and the verifier refuses it because attenuation is conjunctive on rights and
-time together, not a trade between them. [internal]}
+\SGMeasuredFigure{capability-attenuation}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Compare independent candidates with $C_0$};
+  \SGDocument{sbcapparent}{(95,26)}{126}{52}{sgViolet!9}{\textbf{parent reference $C_0$}\\
+    rights \{\textsf{fs:read}, \textsf{db:write}\}\\expires $t+10$}
+  \node[anchor=north west,font=\SGType\bfseries] at (0,91)
+    {Three distinct candidate paths};
+  \SGDocument{sbcapshort}{(1,111)}{98}{48}{sgTeal!8}{candidate $C_a$\\
+    \{\textsf{db:write}\}\\expires $t+8$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapshortcheck) at (50,181)
+    {rights are a subset\\$t+8\leq t+10$};
+  \SGDocument{sbcapshortok}{(1,207)}{98}{43}{sgTeal!8}{\textbf{issued $C_a$}\\
+    shorter expiry}
+  \draw[sg/arrow,draw=sgTeal] (sbcapshort.south)--(sbcapshortcheck.north);
+  \draw[sg/arrow,draw=sgTeal] (sbcapshortcheck.south)--(sbcapshortok.north);
+  \SGDocument{sbcaplongreq}{(109,111)}{98}{48}{sgViolet!9}{request $C_b$\\
+    \{\textsf{db:write}\}\\requests $t+20$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapclamp) at (158,181)
+    {clamp before\\signing $C_b$};
+  \SGDocument{sbcaplongok}{(109,207)}{98}{43}{sgTeal!8}{\textbf{issued $C_b$}\\
+    expires $t+10$}
+  \draw[sg/arrow,draw=sgViolet] (sbcaplongreq.south)--(sbcapclamp.north);
+  \draw[sg/arrow,draw=sgTeal] (sbcapclamp.south)--(sbcaplongok.north);
+  \SGDocument{sbcapbad}{(217,111)}{98}{48}{sgRed!7}{candidate $C_c$\\
+    \{\textsf{db:write}, \textsf{net:*}\}\\expires $t+8$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapbadcheck) at (266,181)
+    {rights are not a subset\\$t+8\leq t+10$};
+  \SGDocument{sbcapbadout}{(217,207)}{98}{43}{sgRed!7}{\textbf{refused $C_c$}\\
+    added right}
+  \draw[sg/arrow,draw=sgRed] (sbcapbad.south)--(sbcapbadcheck.north);
+  \draw[sg/arrow,draw=sgRed] (sbcapbadcheck.south)--(sbcapbadout.north);
+\end{tikzpicture}}
+\caption{Every hop checks a rights subset and an expiry bound. A child may inherit its parent’s expiry when a longer lifetime is requested; it may never gain a new right.}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

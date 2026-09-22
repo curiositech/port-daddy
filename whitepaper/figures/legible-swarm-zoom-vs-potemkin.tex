@@ -1,74 +1,115 @@
-% Restyle of fig-zoom-vs-potemkin to the tikz-diagram-craft v2 standard (v1
-% names and raw colours migrated to roles; layout unchanged, ch4.md 4.3).
-% Fixes the T4 "resolves to" labels: they now sit beside the fan-out gutter
-% in clear space rather than on the vertical line the arrows share.
-%
-% Reader question: can each claim a digest makes reach reviewable evidence?
-% Claim: two summaries of identical shape differ entirely in whether their
-% claims resolve to anything -- one is an index, the other terminates early.
-% Evidence: PR 123's three claims (auth refactor, tests pass, one critique)
-% each resolving to a named artifact, versus a same-shaped "ALL GREEN"
-% summary resolving to nothing, whitepaper/legible-swarm.tex [internal].
-% Must distinguish: a claim that resolves to a named artifact (solid arrow,
-% pd state box) from a claim that resolves to nothing (dashed arrow, pd
-% breach datum), holding the tree shape identical between the two trees.
-% Grammar chosen: two claim trees, aligned (S1-style before/after) -- the
-% same shape twice is the whole point; a single annotated tree would hide
-% that a Potemkin digest can advertise the same claim count.
-% Grammar rejected: a Venn of worlds or a prose list would lose the tree's
-% own claim-to-evidence edges, which are the fact being compared.
-% Five-second test: which tree's leaves are things an operator can open?
+% Book redraw: I/fig:zoom-vs-potemkin.
+% Source-derived conceptual legibility comparison; no fresh experiment, proof, model,
+% provider, runtime, or deployment evidence is claimed.
+% Owner boundary: whitepaper/legible-swarm.tex, sec:flatten / sec:zoom.
+% Two claim trees of identical shape: digest as lens with total zoom zeta
+% resolving to concrete reviewable artifacts vs digest as facade terminating in empty stops.
+\providecommand{\varnothing}{\emptyset}
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure,x=0.78cm,y=0.86cm]
-  % ---------------- top tree: digest as lens ----------------
-  \node[pd title,anchor=west] at (0,7.95) {digest as lens};
-  \node[pd label,anchor=south] (lroot) at (4.0,7.15) {PR 123: 3 claims};
+\SGMeasuredFigure{I/fig:zoom-vs-potemkin}{%
+\begin{tikzpicture}[sg/base]
+  % Native canvas: 316pt wide, comfortably below the 325.215pt Book column.
+  % Top: Digest as lens (PR 123 with verifiable zoom to concrete reviewable artifacts).
+  % Bottom: Digest as facade (ALL GREEN terminating in empty stops).
 
-  \node[pd label,anchor=south,align=center] (lc1) at (1.0,5.35) {auth refactor};
-  \node[pd label,anchor=south,align=center] (lc2) at (4.0,5.35) {tests pass};
-  \node[pd label,anchor=south,align=center] (lc3) at (7.0,5.35) {1 critique};
+  % --- Section 1: Digest as lens (top) ----------------------------------
+  \node[anchor=west,font=\SGType\bfseries,text=sgTeal] at (0,230) {digest as lens};
+  \node[anchor=east,font=\SGType,text=sgInk!70] at (316,230) {total zoom $\zeta$};
+  \draw[sgTeal,line width=1.2pt] (0,224)--(316,224);
 
-  \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (1.0,6.55) -- (lc1.north);
-  \draw[pd focus arrow] (lroot.south) -- (lc2.north);
-  \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (7.0,6.55) -- (lc3.north);
-  \node[pd label,anchor=west] at (4.35,6.28) {claims};
+  % Root summary card
+  \draw[draw=sgInk,fill=sgTeal!8,line width=.85pt] (108,202) rectangle (208,220);
+  \node[font=\SGType\bfseries,text=sgTeal] at (158,211) {PR 123: 3 claims};
 
-  \node[pd state,text width=2.1cm] (ll1) at (1.0,3.9) {diff a1c\ldots};
-  \node[pd state,text width=2.1cm] (ll2) at (4.0,3.9) {run \#4812};
-  \node[pd state,text width=2.1cm] (ll3) at (7.0,3.9) {comment \#7};
+  % Conduit distributor to 3 claims
+  \draw[sg/arrow] (158,202)--(158,194)--(56,194)--(56,184);
+  \draw[sg/arrow] (158,194)--(158,184);
+  \draw[sg/arrow] (158,194)--(260,194)--(260,184);
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (163,194) {claims};
 
-  \draw[pd focus arrow] (lc1.south) -- (ll1.north);
-  \draw[pd focus arrow] (lc2.south) -- (ll2.north);
-  \draw[pd focus arrow] (lc3.south) -- (ll3.north);
-  \node[pd focus label,anchor=south west] at (7.55,4.85) {resolves to};
+  % 3 Claim cards
+  \draw[draw=sgInk,fill=white,line width=.75pt] (18,166) rectangle (94,184);
+  \node[font=\SGType\bfseries,text=sgInk] at (56,175) {auth refactor};
 
-  % ---------------- bottom tree: digest as facade ----------------
-  \node[pd title,anchor=west] at (0,2.45) {digest as facade};
-  \node[pd label,anchor=south] (rroot) at (4.0,1.65) {ALL GREEN};
+  \draw[draw=sgInk,fill=white,line width=.75pt] (120,166) rectangle (196,184);
+  \node[font=\SGType\bfseries,text=sgInk] at (158,175) {tests pass};
 
-  \node[pd label,anchor=south,inner sep=7pt] (rc1) at (1.0,-0.15) {\ldots};
-  \node[pd label,anchor=south,inner sep=7pt] (rc2) at (4.0,-0.15) {\ldots};
-  \node[pd label,anchor=south,inner sep=7pt] (rc3) at (7.0,-0.15) {\ldots};
+  \draw[draw=sgInk,fill=white,line width=.75pt] (222,166) rectangle (298,184);
+  \node[font=\SGType\bfseries,text=sgInk] at (260,175) {1 critique};
 
-  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (1.0,0.95) -- (rc1.north);
-  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (rc2.north);
-  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (7.0,0.95) -- (rc3.north);
-  \node[pd label,anchor=west] at (4.35,0.45) {claims};
+  % Conduits resolving to concrete artifacts
+  \draw[sg/arrow] (56,166)--(56,154);
+  \draw[sg/arrow] (158,166)--(158,154);
+  \draw[sg/arrow] (260,166)--(260,154);
+  \node[anchor=west,font=\SGType\bfseries,text=sgTeal] at (266,160) {resolves to};
 
-  \node[pd breach datum] (rl1) at (1.0,-1.55) {};
-  \node[pd breach datum] (rl2) at (4.0,-1.55) {};
-  \node[pd breach datum] (rl3) at (7.0,-1.55) {};
-  \node[pd label,anchor=north] at (1.0,-1.75) {none};
-  \node[pd label,anchor=north] at (4.0,-1.75) {none};
-  \node[pd label,anchor=north] at (7.0,-1.75) {none};
+  % 3 Folded document cards (reviewable artifacts)
+  \draw[draw=sgInk,fill=sgTeal!6,line width=.75pt]
+    (18,128)--(94,128)--(94,147)--(87,154)--(18,154)--cycle;
+  \draw[sgInk,line width=.55pt] (87,154)--(87,147)--(94,147);
+  \node[font=\SGType\bfseries,text=sgTeal] at (56,144) {\texttt{diff a1c\ldots}};
+  \node[font=\SGType,text=sgInk!70] at (56,134) {commit diff};
 
-  \draw[pd breach arrow] (rc1.south) -- (rl1.north);
-  \draw[pd breach arrow] (rc2.south) -- (rl2.north);
-  \draw[pd breach arrow] (rc3.south) -- (rl3.north);
-  \node[pd label,anchor=south west,text=pderror] at (7.55,-1.05) {resolves to};
-\end{tikzpicture}
+  \draw[draw=sgInk,fill=sgTeal!6,line width=.75pt]
+    (120,128)--(196,128)--(196,147)--(189,154)--(120,154)--cycle;
+  \draw[sgInk,line width=.55pt] (189,154)--(189,147)--(196,147);
+  \node[font=\SGType\bfseries,text=sgTeal] at (158,144) {\texttt{run \#4812}};
+  \node[font=\SGType,text=sgInk!70] at (158,134) {test run};
+
+  \draw[draw=sgInk,fill=sgTeal!6,line width=.75pt]
+    (222,128)--(298,128)--(298,147)--(291,154)--(222,154)--cycle;
+  \draw[sgInk,line width=.55pt] (291,154)--(291,147)--(298,147);
+  \node[font=\SGType\bfseries,text=sgTeal] at (260,144) {\texttt{comment \#7}};
+  \node[font=\SGType,text=sgInk!70] at (260,134) {review note};
+
+  % --- Divider ---------------------------------------------------------
+  \path[draw=sgGrid,line width=.4pt] (0,116)--(316,116);
+
+  % --- Section 2: Digest as facade (bottom) -----------------------------
+  \node[anchor=west,font=\SGType\bfseries,text=sgRed] at (0,103) {digest as facade};
+  \node[anchor=east,font=\SGType,text=sgInk!70] at (316,103) {absent zoom ($\zeta = \varnothing$)};
+  \draw[sgRed,line width=1.2pt] (0,97)--(316,97);
+
+  % Root summary card (identical shape)
+  \draw[draw=sgInk,fill=sgRed!8,line width=.85pt] (108,75) rectangle (208,93);
+  \node[font=\SGType\bfseries,text=sgRed] at (158,84) {ALL GREEN};
+
+  % Conduit distributor to 3 ungrounded claims
+  \draw[sgInk!60,line width=.75pt,-{Stealth[length=4.5pt,width=3.6pt]}]
+    (158,75)--(158,67)--(56,67)--(56,57);
+  \draw[sgInk!60,line width=.75pt,-{Stealth[length=4.5pt,width=3.6pt]}]
+    (158,67)--(158,57);
+  \draw[sgInk!60,line width=.75pt,-{Stealth[length=4.5pt,width=3.6pt]}]
+    (158,67)--(260,67)--(260,57);
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (163,67) {claims};
+
+  % 3 Ungrounded claim cards (dashed border, identical dimensions)
+  \draw[draw=sgInk!50,dashed,line width=.75pt,fill=sgRed!3] (18,39) rectangle (94,57);
+  \node[font=\SGType,text=sgInk!70] at (56,48) {auth refactor};
+
+  \draw[draw=sgInk!50,dashed,line width=.75pt,fill=sgRed!3] (120,39) rectangle (196,57);
+  \node[font=\SGType,text=sgInk!70] at (158,48) {tests pass};
+
+  \draw[draw=sgInk!50,dashed,line width=.75pt,fill=sgRed!3] (222,39) rectangle (298,57);
+  \node[font=\SGType,text=sgInk!70] at (260,48) {1 critique};
+
+  % Conduits resolving to empty stops
+  \draw[draw=sgRed,dashed,line width=.85pt] (56,39)--(56,21);
+  \draw[draw=sgRed,dashed,line width=.85pt] (158,39)--(158,21);
+  \draw[draw=sgRed,dashed,line width=.85pt] (260,39)--(260,21);
+  \node[anchor=west,font=\SGType\bfseries,text=sgRed] at (266,30) {resolves to};
+
+  % Red bar stops (empty set terminal)
+  \draw[draw=sgRed,line width=1.8pt] (40,21)--(72,21);
+  \node[font=\SGType\bfseries,text=sgRed,align=center] at (56,9) {$\varnothing$\\\textnormal{no diff}};
+
+  \draw[draw=sgRed,line width=1.8pt] (142,21)--(174,21);
+  \node[font=\SGType\bfseries,text=sgRed,align=center] at (158,9) {$\varnothing$\\\textnormal{no run}};
+
+  \draw[draw=sgRed,line width=1.8pt] (244,21)--(276,21);
+  \node[font=\SGType\bfseries,text=sgRed,align=center] at (260,9) {$\varnothing$\\\textnormal{no note}};
+\end{tikzpicture}}
 \caption{Two claim trees of identical shape. Top: the legible digest's three
 named claims each resolve to one artifact --- a diff, a test run, a review
 comment. Bottom: a same-shaped summary whose three claims resolve to nothing

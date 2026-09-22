@@ -28,26 +28,20 @@
   \node[pd state,text width=2.4cm] (S2) at (4.40,4.20) {surface in\\queue};
   \node[pd focus state,text width=2.4cm] (S3) at (7.90,4.20) {operator\\zooms?};
   \node[pd breach state,minimum width=2.6cm] (FA) at (5.30,1.30) {rubber-stamp failure};
-  \node[pd ready state,minimum width=2.6cm]  (FB) at (9.30,1.30) {vigilant detection};
+  \node[pd ready state,minimum width=2.6cm]  (FB) at (8.80,1.30) {vigilant detection};
   \draw[pd focus arrow] (S1) -- (S2);
   \draw[pd focus arrow] (S2) -- (S3);
   \draw[pd breach arrow] (S3) -- (FA);
   \draw[pd ready arrow] (S3) -- (FB);
   \node[pd label,anchor=east,text width=1.7cm,align=right] at (5.15,2.55) {approves; diff not expanded};
-  \node[pd label,anchor=west,text width=1.7cm,align=left] at (9.45,2.55) {zooms; identifies and rejects};
+  \node[pd label,anchor=west,text width=1.5cm,align=left] at (8.90,2.55) {zooms; identifies and rejects};
   \node[pd label,anchor=north,text width=3.0cm,align=center,text=pderror] at (5.30,0.35)
     {halt pre-commit;\\tighten autonomy lease};
-  \node[pd focus label,anchor=north,text width=3.0cm,align=center] at (9.30,0.35)
+  \node[pd focus label,anchor=north,text width=3.0cm,align=center] at (8.80,0.35)
     {log Canary Defeated;\\widen autonomy grant};
 \end{tikzpicture}
-\caption{The Inception Canary protocol of Protocol~\ref{prot:canary}. A
-known, already-fixed defect is replayed into a sandboxed past work item at
-the disclosed rate $\rho_{\mathrm{canary}}$ and surfaced in the attention
-queue indistinguishably from live traffic. If the operator approves without
-expanding the forced-zoom diff, the daemon halts pre-commit and tightens
-the autonomous policy lease; if the operator zooms, identifies the flaw,
-and rejects it, the daemon widens the autonomy grant instead. A missed
-canary costs vigilance points, never production correctness, since every
-probe is a replay against known ground truth. [internal]}
+\caption{A sandbox replay tests whether the operator catches a known defect.
+Missing it tightens the autonomy grant; rejecting it widens the grant.
+The probe cannot alter production. [internal]}
 \label{fig:inception-canary}
 \end{figure}

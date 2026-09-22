@@ -109,9 +109,11 @@ class BookFigureContactSheetTests(unittest.TestCase):
                 self.assertIn("SWISS", first)
                 self.assertIn("MARITIME", first)
                 self.assertIn("TECHNICAL", first)
-                self.assertIn("PASS | warn B2 | ink 4.48 in", first)
-                self.assertIn("FIGURE FAIL", second)
-                self.assertIn("FAIL | fail T4 | ink 4.48 in", second)
+                self.assertIn("Checks clear | warn B2 | ink 4.48 in", first)
+                self.assertIn("DESIGN UNREVIEWED", first)
+                self.assertNotIn("FIGURE PASS", first)
+                self.assertIn("DESIGN UNREVIEWED", second)
+                self.assertIn("Checks failed | fail T4 | ink 4.48 in", second)
                 self.assertEqual([item[1] for item in review.get_toc()], ["fig-alpha", "fig-beta"])
 
     def test_missing_edition_is_explicit_instead_of_dropping_the_figure(self) -> None:
@@ -127,7 +129,7 @@ class BookFigureContactSheetTests(unittest.TestCase):
             self.assertIn("missing panels 2", result.stdout)
             with fitz.open(output) as review:
                 text = review[0].get_text()
-                self.assertIn("FIGURE FAIL", text)
+                self.assertIn("DESIGN UNREVIEWED", text)
                 self.assertEqual(text.count("MISSING EDITION ARTIFACT"), 2)
 
     def test_stale_passing_qa_without_a_render_is_not_reported_as_pass(self) -> None:
@@ -144,7 +146,7 @@ class BookFigureContactSheetTests(unittest.TestCase):
             self.assertIn("missing panels 3", result.stdout)
             with fitz.open(output) as review:
                 text = review[0].get_text()
-                self.assertIn("FIGURE FAIL", text)
+                self.assertIn("DESIGN UNREVIEWED", text)
                 self.assertEqual(text.count("MISSING | QA PASS | no rendered artifact"), 3)
 
     def test_direct_rendered_media_is_accepted_and_marked_unassessed(self) -> None:
@@ -159,7 +161,7 @@ class BookFigureContactSheetTests(unittest.TestCase):
             self.assertIn("UNASSESSED 1", result.stdout)
             with fitz.open(output) as review:
                 text = review[0].get_text()
-                self.assertIn("FIGURE UNASSESSED", text)
+                self.assertIn("DESIGN UNREVIEWED", text)
                 self.assertEqual(text.count("UNASSESSED | rendered artifact only"), 3)
 
     def test_matching_shared_qa_entry_is_deduplicated(self) -> None:

@@ -1,43 +1,64 @@
-% Shared Book typography. Fonts are vendored, unmodified OFL releases: see
-% fonts/README.md. No system-font discovery and no per-figure face selection.
-% Swiss uses one humanist sans across prose, navigation and diagrams. Hierarchy
-% comes from real weights and shared roles, not unrelated per-figure families.
+% Shared Book typography. Suisse files stay outside the repository; the build
+% supplies pd-book-font-config.tex through its private input directory. See
+% fonts/README.md. An unlicensed checkout can only make an open-font proof.
 \ifXeTeX\ifpdswiss
-  \newcommand{\pdsetbookmainfont}{\setmainfont{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,Numbers=Proportional]}
+  \InputIfFileExists{pd-book-font-config.tex}{}{}
+  \providecommand{\pdbookfontprofile}{open-proof}
+  \ifdefstring{\pdbookfontprofile}{suisse}{%
+    \ifdefined\pdbookfontdir\else
+      \PackageError{pd-book-fonts}{Suisse requires a private font directory}{Run scripts/prepare-book-fonts.py with PD_BOOK_FONT_DIR set.}
+    \fi
+    \def\pdbookregular{SuisseIntl-Regular.otf}
+    \def\pdbookbold{SuisseIntl-Semibold.otf}
+    \def\pdbookitalic{SuisseIntl-RegularItalic.otf}
+    \def\pdbookbolditalic{SuisseIntl-SemiboldItalic.otf}
+    \def\pdbookdatafeatures{+tnum,+lnum}
+    % These four purchased cuts have no small-cap glyph set. Legacy small-cap
+    % requests retain the real upright face and current weight, never a fake
+    % small-cap transform or an unrelated serif fallback.
+    \renewcommand{\scshape}{\upshape}
+    \typeout{BOOK FONT PROFILE: suisse (privately supplied, licensed files)}
+  }{%
+    \ifdefstring{\pdbookfontprofile}{open-proof}{}{%
+      \PackageError{pd-book-fonts}{Unknown font profile}{Choose suisse or open-proof.}}
+    \def\pdbookfontdir{fonts/source-sans/}
+    \def\pdbookregular{SourceSans3-Regular.otf}
+    \def\pdbookbold{SourceSans3-Semibold.otf}
+    \def\pdbookitalic{SourceSans3-It.otf}
+    \def\pdbookbolditalic{SourceSans3-SemiboldIt.otf}
+    % Source Sans defaults to tabular lining numerals; it has no tnum feature.
+    \def\pdbookdatafeatures{-pnum,-onum}
+    \PackageWarningNoLine{pd-book-fonts}{OPEN-FONT PROOF: Source Sans 3, not Suisse. Page breaks and diagram clearance are not Suisse evidence}
+  }
+  \newcommand{\pdsetbookmainfont}{\setmainfont{\pdbookregular}[
+    Path=\pdbookfontdir,Extension=.otf,
+    BoldFont=\pdbookbold,ItalicFont=\pdbookitalic,
+    BoldItalicFont=\pdbookbolditalic,Ligatures=TeX,Numbers=Proportional]}
   \pdsetbookmainfont
   % newpxtext selects Pagella in its earlier AtEndPreamble hook. Use the
   % public fontspec selector afterwards, so its NFSS and microtype state stay
   % coherent as well as the visible family. Merely changing rmdefault is not
   % enough: fontspec also maintains the small-cap and feature-bearing faces.
   \AtEndPreamble{\pdsetbookmainfont}
-  \newfontfamily\pdtextface{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,
-    Numbers=Proportional,NFSSFamily=pdsource]
-  \newfontfamily\pddisplayface{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,Numbers=Proportional]
-  % Source Sans has lining, equal-width figures by default. Explicitly turn
-  % off its proportional/oldstyle alternates; do not request nonexistent tnum
-  % or lnum features. Prose can use proportional figures; tables and axes cannot.
-  \newfontfamily\pdcaptionface{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,
-    RawFeature={-pnum,-onum},NFSSFamily=pdsourcedata]
-  \setsansfont{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Scale=MatchLowercase]
-  \newfontfamily\pdinterfaceface{SourceSans3-Regular.otf}[
-    Path=fonts/source-sans/,Extension=.otf,
-    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
-    BoldItalicFont=SourceSans3-SemiboldIt.otf,Scale=MatchLowercase,NFSSFamily=pdsourcesans]
+  \newfontfamily\pdtextface{\pdbookregular}[
+    Path=\pdbookfontdir,Extension=.otf,
+    BoldFont=\pdbookbold,ItalicFont=\pdbookitalic,
+    BoldItalicFont=\pdbookbolditalic,Ligatures=TeX,
+    Numbers=Proportional,NFSSFamily=pdbooktext]
+  \let\pddisplayface\pdtextface
+  \newfontfamily\pdcaptionface{\pdbookregular}[
+    Path=\pdbookfontdir,Extension=.otf,
+    BoldFont=\pdbookbold,ItalicFont=\pdbookitalic,
+    BoldItalicFont=\pdbookbolditalic,Ligatures=TeX,
+    RawFeature={\pdbookdatafeatures},NFSSFamily=pdbookdata]
+  \setsansfont{\pdbookregular}[
+    Path=\pdbookfontdir,Extension=.otf,
+    BoldFont=\pdbookbold,ItalicFont=\pdbookitalic,
+    BoldItalicFont=\pdbookbolditalic,Scale=MatchLowercase]
+  \newfontfamily\pdinterfaceface{\pdbookregular}[
+    Path=\pdbookfontdir,Extension=.otf,
+    BoldFont=\pdbookbold,ItalicFont=\pdbookitalic,
+    BoldItalicFont=\pdbookbolditalic,Scale=MatchLowercase,NFSSFamily=pdbookinterface]
   % Re-match the code face after setting the body face. Real italic and
   % semibold shapes are explicit throughout; no synthesized bold or slant.
   \setmonofont{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
@@ -46,12 +67,12 @@
   % Keep the proven newpx mathematical symbol/Greek fonts. Textual operators,
   % numerals, and explicit text alphabets match the sans prose. Replacing the
   % math engine is a separate, proof-sensitive change, not a font fallback.
-  \SetSymbolFont{operators}{normal}{TU}{pdsourcedata}{m}{n}
-  \SetSymbolFont{operators}{bold}{TU}{pdsourcedata}{b}{n}
-  \SetMathAlphabet{\mathrm}{normal}{TU}{pdsource}{m}{n}
-  \SetMathAlphabet{\mathbf}{normal}{TU}{pdsource}{b}{n}
-  \SetMathAlphabet{\mathit}{normal}{TU}{pdsource}{m}{it}
-  \SetMathAlphabet{\mathsf}{normal}{TU}{pdsourcesans}{m}{n}
+  \SetSymbolFont{operators}{normal}{TU}{pdbookdata}{m}{n}
+  \SetSymbolFont{operators}{bold}{TU}{pdbookdata}{b}{n}
+  \SetMathAlphabet{\mathrm}{normal}{TU}{pdbooktext}{m}{n}
+  \SetMathAlphabet{\mathbf}{normal}{TU}{pdbooktext}{b}{n}
+  \SetMathAlphabet{\mathit}{normal}{TU}{pdbooktext}{m}{it}
+  \SetMathAlphabet{\mathsf}{normal}{TU}{pdbookinterface}{m}{n}
   % Compatibility for existing shared headers. New work uses semantic roles.
   \renewcommand{\pdgrotesk}{\pdtextface}
   \renewcommand{\pdpartface}{\pddisplayface}
@@ -59,6 +80,7 @@
   % combination real leading; changing face must not squeeze adjacent lines.
   \DeclareCaptionFont{pdbookcaption}{\pdcaptionface\linespread{1.16}\selectfont}
   \AtBeginDocument{%
+    \hypersetup{pdfcreator={Book shared typography; font profile: \pdbookfontprofile}}%
     \captionsetup{font={small,pdbookcaption},labelfont=bf}%
     \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}
 \fi\fi

@@ -22,7 +22,7 @@
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\x0{1.55}   \def\dd{2.72}   \def\rh{0.42}
-  \node[pd title,anchor=north west,text width=10.6cm,align=left] at (0,4.45)
+  \node[pd title,anchor=north west,text width=10.0cm,align=left] at (0,4.45)
     {the spendable window closes when the local authority synchronizes};
 
   % ---- epoch-root commit points (concrete, auditable) --------------------
@@ -30,7 +30,7 @@
   \node[pd focus datum] (e1) at (\x0+\dd,3.05) {};
   \node[pd focus datum] (e2) at (\x0+2*\dd,3.05) {};
   \draw[pd focus rule] (e0) -- (e2);
-  \node[pd focus label,anchor=west,text width=3.5cm,align=left] at (\x0+2*\dd+0.55,3.05)
+  \node[pd focus label,anchor=west,text width=2.8cm,align=left] at (\x0+2*\dd+0.55,3.05)
     {signed epoch roots};
 
   % ---- row A: Alice refuses immediately, no stale window ------------------
@@ -57,18 +57,13 @@
      \node[pd label,anchor=north] at (\x0+\k*\dd,-0.20-\rh-0.75) {\lab};}
   \node[pd label,anchor=west] at (\x0+3*\dd+0.30,-0.20-\rh-0.55) {time};
 
-  \node[pd note,anchor=north west,text width=9.2cm] at (\x0-0.20,-2.35)
+  \node[pd note,anchor=north west,text width=8.9cm] at (\x0-0.20,-2.35)
     {gold marks a harbor that has synchronized and refuses the card on its
     own authority; red marks the window in which that card is still spendable
     at that harbor};
 \end{tikzpicture}
-\caption{\textbf{Revocation propagation is a moving, per-harbor staleness
-frontier.} In this illustrated execution Alice (harbor $A$) refuses
-immediately; $B$ remains stale until $\Delta$ and $C$ until $2\Delta$. The red
-band is exactly where a revoked capability can still be admitted by the named
-local authority; the gold epoch-root commits mark synchronization, not a
-global clock. Expected $\Theta(\log m)$ dissemination (Theorem~\ref{thm:fh-conv})
-requires connected reliable rounds; a partition can extend the red window
-without bound and therefore destroys any finite deadline. [internal]}
+\caption{Revocation reaches each harbor separately: here $A$ refuses
+immediately, $B$ after $\Delta$, and $C$ after $2\Delta$. A partition can
+extend staleness without bound. [internal]}
 \label{fig:fh-revocation}
 \end{figure}

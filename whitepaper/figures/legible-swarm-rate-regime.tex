@@ -1,26 +1,24 @@
-% Brief (tikz-diagram-craft), register row ch4-32.
-% Reader question: once some misses are tolerated, how cheap can the digest
-%   get, and where does that price collapse to zero?
-% Claim: the two-constraint rate R(delta,f) is fully pinned only in a wedge
-%   of the (delta,f) plane -- below it the miss budget is infeasible, above
-%   the line f=1-delta/p an independent flagger already meets the miss
-%   budget and the true rate is exactly 0; the zero-miss corner (delta=0,
-%   f=p) recovers the source's full entropy.
-% Evidence: p=0.05; R(0,0.05)=0.2864 bits (corner=H(p)); R(0,0.10)=0.1864;
-%   R(0.04,0.06)=0.0087 [internal, b1_frontier.py, run this pass]; boundary
-%   lines f=p-delta and f=1-delta/p from Thm.~pinned-joint's closed form.
-% Must distinguish: the infeasible strip (f<p-delta) from the priced wedge
-%   (pinned joint, R>0) from the zero-rate region (f>=1-delta/p); the corner
-%   value from the two interior worked points.
-% Grammar chosen: phase-boundary/regime plot on (delta,f) axes, the priced
-%   wedge tinted between the two boundary lines, three marked data points.
-% Grammar rejected: a single R-vs-f curve at fixed delta=0 would state the
-%   corner and one slice but hide the two-dimensional feasibility structure
-%   -- in particular that the *zero-rate* region is reached by moving f, not
-%   only by moving delta, which is the chapter's own point about the digest
-%   going to bits=0.
-% Five-second test: "does the marked (delta,f) point sit in the priced
-%   wedge, and if so, how close is it to the zero-rate line?"
+% Analytic phase plot; not deployment measurements.
+% Provenance: pinned-joint theorem and b1_frontier.py worked values.
+% Boundary/polygon regression: scripts/harbor-research/check_rate_regime.py.
+%
+% Figure brief
+% Stable ID: IV/fig:rate-regime (fig:rate-regime)
+% Reader question: for tolerated miss mass delta and flag budget f, is the
+%   point infeasible, positively priced, or already zero-rate?
+% Claim: the positive-rate wedge is bounded by f=p-delta and
+%   f=1-delta/p; the zero-rate boundary is shown only where it lies inside
+%   the panel, with its continuation above the panel explicitly marked.
+% Relation: quantitative threshold/phase boundary.
+% Required evidence: infeasible strip, positive-rate wedge, in-frame portion
+%   of the zero-rate boundary, continuation cue, and the three worked values.
+% Counter-reading: the top of the panel is not itself the zero-rate boundary;
+%   for delta<.03 the true boundary is above f=.4.
+% Visual grammar: source-owned phase plot; a single dashed continuation cue is
+%   used outside the panel, never as data.
+% Rejected alternative: min(1-delta/p,.4) as one plotted curve, because its
+%   horizontal clipping creates a false threshold at f=.4.
+
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
@@ -32,24 +30,38 @@
   ytick={0,0.05,0.10,0.20,0.30,0.40},
   xlabel={tolerated miss mass $\delta$},
   ylabel={flag budget $f$},
-  axis on top]
-  % the two closed-form boundaries (Thm.~pinned-joint)
-  \addplot[name path=lower,draw=none,forget plot,domain=0:0.05,samples=2] {0.05-x};
-  \addplot[name path=upper,draw=none,forget plot,domain=0:0.05,samples=60] {min(1-x/0.05,0.4)};
-  \addplot[name path=bottomedge,draw=none,forget plot,domain=0:0.05,samples=2] {0};
-  % priced wedge: between the infeasibility floor and the zero-rate line
-  \addplot[pd focus fill,forget plot] fill between[of=lower and upper];
-  % infeasible strip: below the floor f=p-delta (pd hatch's Lines pattern
-  % leaves a stray sub-page-corner mark in the maritime/technical editions --
-  % reported to the lead; pd neutral fill avoids it and still reads as
-  % excluded/neutral ground per S5).
-  \addplot[pd neutral fill,forget plot] fill between[of=bottomedge and lower];
+  axis on top,clip=false]
+  % p=.05. The infeasibility floor is f=p-delta.
+  % Explicit closed region polygons. Their x-domains and vertices match the
+  % theorem geometry; draw=none prevents fill edges from becoming fake data.
+  \path[fill=pdfocus!24,draw=none]
+    (axis cs:0,0.05) -- (axis cs:0,0.4) --
+    (axis cs:0.03,0.4) -- (axis cs:0.03,0.02) -- cycle;
+  \path[fill=pdfocus!24,draw=none]
+    (axis cs:0.03,0.02) -- (axis cs:0.03,0.4) --
+    (axis cs:0.05,0) -- cycle;
+  \path[fill=pdinkmuted!7,draw=none]
+    (axis cs:0.03,0.4) -- (axis cs:0.05,0.4) --
+    (axis cs:0.05,0) -- cycle;
+  \path[fill=pdinkmuted!12,draw=none]
+    (axis cs:0,0) -- (axis cs:0,0.05) --
+    (axis cs:0.05,0) -- cycle;
+
+  % Boundary strokes. The zero-rate boundary is drawn only where it is in
+  % frame; its short dashed continuation follows the true slope above-left.
   \addplot[pd rule,line width=.9pt,domain=0:0.05,samples=2] {0.05-x};
-  \addplot[pd focus rule,line width=1.05pt,domain=0:0.05,samples=60] {min(1-x/0.05,0.4)};
+  \addplot[pd focus rule,line width=1.05pt,domain=0.03:0.05,samples=60]
+    {1-x/0.05};
+  \draw[pd focus rule,dash pattern=on 2pt off 1.8pt,->]
+    (axis cs:0.03,0.4) -- (axis cs:0.028,0.44);
+  \node[pd focus label,anchor=south west]
+    at (axis cs:0.005,0.405) {continues above};
+
   \node[pd label,anchor=west] at (axis cs:0.001,0.022) {infeasible};
   \node[pd label,anchor=west] at (axis cs:0.006,0.28) {$R(\delta,f)>0$};
-  \node[pd focus label,anchor=north east] at (axis cs:0.049,0.34) {rate $=0$};
-  % the three worked points, all from the running b1_frontier.py sweep
+  \node[pd focus label,anchor=north west] at (axis cs:0.037,0.35) {rate $=0$};
+
+  % The three worked values, retained from the active source.
   \node[pd focus datum] at (axis cs:0,0.05) {};
   \node[pd focus label,anchor=south west] at (axis cs:0.0015,0.075) {$H(p){=}0.2864$};
   \node[pd datum] at (axis cs:0,0.10) {};
@@ -59,17 +71,8 @@
   \node[pd label,anchor=south west] at (axis cs:0.021,0.095) {$R{=}0.0087$};
 \end{axis}
 \end{tikzpicture}
-\caption{The two-constraint digest rate $R(\delta,f)$ of
-Theorem~\ref{thm:pinned-joint} on tolerated miss mass $\delta$ against flag
-budget $f$, at the chapter's Bernoulli rate $p=0.05$. The tinted wedge is
-where both constraints bind and the joint is fully pinned; below the floor
-$f=p-\delta$ (shaded) no digest can meet the miss budget at all, and above
-the line $f=1-\delta/p$ an $X$-independent flagger already meets it on its
-own, so the true rate is exactly $0$. The zero-miss, tightest-flag corner
-$(\delta,f){=}(0,p)$ recovers the source's full entropy, $H(0.05)=0.2864$
-bits; tolerating $\delta=0$ but widening the flag budget to $f=0.10$ drops
-the price to $0.1864$ bits, and tolerating $\delta=0.04$ at $f=0.06$ drops it
-to $0.0087$ bits, a hundredth of the zero-miss corner. [internal,
-\texttt{b1\_frontier.py}]}
+\caption{At $p=.05$, the positive-rate wedge lies between
+$f=p-\delta$ and $f=1-\delta/p$; the zero-rate boundary enters at
+$(.03,.4)$ and continues above-left outside the panel.}
 \label{fig:rate-regime}
 \end{figure}

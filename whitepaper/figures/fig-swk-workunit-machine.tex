@@ -27,7 +27,7 @@
   \def\dy{1.12}  % phase pitch
   \def\sx{3.95}  % spine
   \def\rx{5.35}  % any-phase rail
-  \def\tx{10.15} % write targets clear the transition labels and panel edge
+  \def\tx{9.30} % write targets clear the transition labels and panel edge
   \def\gx{2.02}  % gutter: right edge of the transition names
   \def\bx{2.46}  % gutter: guard badges
   \def\ox{0.30}  % off-ramp
@@ -91,13 +91,9 @@
 5 & settle: owner-funded $\wedge$ verified $\wedge$ receipted & the wrong-principal payout (I6) & 7 \\
 \bottomrule
 \end{tabularx}}
-\caption{The work-unit machine. Five phases run down the spine to a
-settlement record; a witnessed unit may instead be contested. Admit-effect
-is the one write only an executing unit may make; external-op, delegate and
-reassign-role may happen in any phase. Five guards, numbered on the edge they
-guard and keyed in the table, are each essential: with all five on, all 536
-reachable states of the two-principal instance satisfy the six invariants;
-with any one off, the checker finds the crime in the number of steps shown
-[internal, \texttt{c0\_workunit.py}].}
+\caption{Five guards protect the work-unit lifecycle. In the two-principal
+model, all 536 reachable states satisfy six invariants; removing any guard
+exposes the counterexample listed below. [internal,
+\protect\path{c0_workunit.py}]}
 \label{fig:swk-workunit-machine}
 \end{figure}

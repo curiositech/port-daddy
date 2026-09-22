@@ -26,20 +26,15 @@
   \node[pd title,anchor=west,text width=4.4cm,align=left] at (0.00,3.15) {cooperative release: designed, covered};
   \node[pd state,minimum width=2.0cm] (q1) at (1.15,1.55) {queued (head)};
   \node[pd focus state,minimum width=2.0cm] (h1) at (4.30,1.55) {held};
-  \draw[pd focus arrow] (q1) -- (h1) node[pd tag,midway,above=4pt,text width=2.0cm,align=center] {FIFO grant};
+  \draw[pd focus arrow] (q1) -- (h1) node[pd tag,midway,above=12pt,text width=2.0cm,align=center] {FIFO grant};
 
   \node[pd title,anchor=west,text width=4.4cm,align=left] at (5.75,3.15) {TTL sweep: still open (OP-1)};
   \node[pd focus state,minimum width=2.0cm] (h2) at (6.60,1.55) {held};
   \node[pd state,minimum width=2.0cm] (f2) at (9.75,1.55) {free};
-  \draw[pd breach arrow] (h2) -- (f2) node[pd tag,midway,above=1pt,text width=2.5cm,align=center] {no ticket consulted};
+  \draw[pd breach arrow] (h2) -- (f2) node[pd tag,midway,above=12pt,text width=2.5cm,align=center] {no ticket consulted};
 \end{tikzpicture}
-\caption{The Stigmergic Ticket-Lock's coverage, drawn as a delta on the
-shipped claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}), not a second
-machine. Left: a cooperative release grants FIFO to the head of the ticket
-queue in one atomic transaction, closing the starvation gap. Right: a holder
-that never releases -- crashed, or simply expired -- still returns through
-the lazy TTL sweep, which consults no ticket queue. Bounded wait would hold
-on the left exit and fail on the right one, so OP-1 stays \Open{} until the
-sweep and the queue are the same code path. [internal, sec:op1]}
+\caption{The proposed ticket queue covers cooperative release, but expiry
+still bypasses it. Bounded waiting remains unproved until both paths consult
+the queue (\S\ref{sec:op1}). [internal]}
 \label{fig:swk-ticket-lock-delta}
 \end{figure}

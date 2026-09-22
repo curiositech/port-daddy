@@ -48,16 +48,7 @@
 \end{axis}
 \end{tikzpicture}
 {\linespread{1.18}\selectfont
-\caption{Cumulative audit spend over $T=200$ periods, at $G=10$, $d=0.8$,
-$B=50$, $a=1$, $\rho^*=0.25$. A flat rate spends $\Theta(T)$, reaching
-$50.00$. Letting the audit rate fall
-as accumulated stake $v t$ grows (model A) spends $\Theta(\log T)$, reaching
-only $25.58$. Letting cheats also surface on their own at rate $r=0.05$
-(model B) spends $35.08$ by $T{=}200$ but is bounded: the audit rate hits
-zero at $t^*=G/(rv)=333$ and total spend converges to
-$aG^2/(2dBrv)=41.67$. The three curves are different asymptotic classes, not
-a ranking: model B is eventually the cheapest schedule in total, but model A
-is cheaper at the horizon this chapter actually reports. [verified;
-\texttt{b2\_tower.py}, seed 20260816]}
+\caption{Model A's audit rate falls, but its cumulative bill has no finite
+ceiling. [verified, \protect\path{b2_tower.py}, seed 20260816]}
 \label{fig:stp-audit-amortization}}
 \end{figure}

@@ -1,46 +1,32 @@
-% Reader question: when does each verifier stop accepting a revoked card, and what assumption makes any convergence statement possible?
-% Claim: each lane closes its own stale interval when gossip arrives; connected gossip has expected logarithmic rounds, while a partition has no finite deadline.
-% Evidence: five-daemon trace, round time Delta=2 seconds, expected Theta(log m) rounds, and the 4--6 second m=5 example [internal].
-% Must distinguish: this illustrative connected trace from a deterministic bound, and the partitioned regime from every finite point on the trace axis.
-% Grammar: compact swimlane timeline plus a separate outlined regime card; rejected a finite partition marker because it falsely assigns a deadline.
-% Five-second test: every connected lane turns informed by t+2Delta, while the detached partition card says no finite deadline until healing.
+% Book-native replacement for figures/fig-anchor-revocation-gossip.tex.
+% The missing-delivery branch intentionally remains exposed: gossip is not a
+% global kill switch. Coordinates are TeX points; labels are native 9pt.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.92cm,y=.62cm]
-  \def\xzero{1.08}
-  \def\xend{10.08}
-  \def\xroundtwo{7.18}
-
-  \node[pd title,anchor=west] at (.06,6.30) {connected-overlay trace};
-  \draw[pd neutral fill]
-    (\xzero,.62) rectangle (\xroundtwo,4.92);
-  \node[pd label,anchor=south west] at (\xzero+.10,5.00)
-    {possible stale acceptance};
-
-  \foreach \y/\peer/\wake in {4.44/A/1.08,3.62/B/3.86,2.80/C/7.18,1.98/D/4.66,1.16/E/7.18} {
-    \node[pd row label] at (.72,\y) {\peer};
-    \draw[pd warn rule] (\xzero,\y) -- (\wake,\y);
-    \draw[pd focus rule] (\wake,\y) -- (\xend,\y);
-    \node[pd focus datum,minimum size=4.5pt,inner sep=0pt] at (\wake,\y) {};
-  }
-
-  \draw[pd rule,->] (\xzero,.26) -- (\xend,.26);
-  \foreach \x/\lab in {1.08/$t$,3.86/$t+\Delta$,7.18/$t+2\Delta$} {
-    \draw[pd tick] (\x,.37) -- (\x,.15);
-    \node[pd label,anchor=north] at (\x,.04) {\lab};
-  }
-  \node[pd label,anchor=west] at (\xend,.26) {rounds};
-
-  % A categorical assumption failure, deliberately outside the time axis.
-  \node[pd panel,minimum width=10.25cm,minimum height=1.02cm,
-        text width=9.55cm,align=left] at (5.48,-2.02)
-    {\pdfiglabelbold Partitioned overlay.\quad
-     No finite deadline exists until connectivity returns.};
-\end{tikzpicture}
-\caption{Five verifier lanes show one connected gossip trace reaching every
-daemon by $t+2\Delta$. The protocol promises expected $\Theta(\log m)$ rounds
-under its connectivity assumptions; the separate partition regime has no
-finite deadline. [internal]}
+\SGMeasuredFigure{revocation-gossip}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Local stop is immediate};
+  \node[sg/check,fill=sgViolet!9,minimum width=91pt,minimum height=35pt] (sbrevcard) at (48,42)
+    {Harbor Card\\\textsf{kid = r\_42}};
+  \node[sg/check,draw=sgRed,minimum width=91pt,minimum height=29pt] (sbrevlog) at (48,112)
+    {local log\\$r\_42$ revoked};
+  \node[sg/check,draw=sgTeal,fill=sgTeal,text=white,minimum width=91pt,
+    font=\SGType\bfseries] (sbrevreject) at (48,162) {reject locally};
+  \draw[sg/arrow,draw=sgRed] (sbrevcard.south)--(sbrevlog.north);
+  \draw[sg/arrow,draw=sgRed] (sbrevlog.south)--(sbrevreject.north);
+  \node[anchor=north west,font=\SGType\bfseries] at (167,0)
+    {Remote: delivery missing};
+  \node[sg/check,fill=sgViolet!9,minimum width=125pt,minimum height=35pt] (sbrevremote) at (240,42)
+    {same card arrives at\\remote verifier $B$};
+  \node[sg/check,minimum width=125pt,minimum height=29pt] (sbrevstale) at (240,112)
+    {local log lacks $r\_42$};
+  \node[sg/check,draw=sgAmber,minimum width=125pt,minimum height=29pt] (sbrevexposed) at (240,162)
+    {may accept before update};
+  \draw[sg/arrow,draw=sgViolet] (sbrevremote.south)--(sbrevstale.north);
+  \draw[sg/arrow,draw=sgAmber] (sbrevstale.south)--(sbrevexposed.north);
+  \node[draw=sgRed,fill=white,line width=.85pt,minimum width=104pt,minimum height=26pt,
+    align=center] at (148,77) {gossip delta $r\_42$\\not delivered};
+\end{tikzpicture}}
+\caption{The issuing daemon stops a revoked card locally. A remote verifier can still accept while its revocation update is undelivered; gossip convergence is not a global kill switch.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

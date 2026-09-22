@@ -1,0 +1,29 @@
+% Exact two-regime recurrence from the adjacent worked example.
+% G0=400, B=50, beta=10, rho*d=.2. Counts are model levels, not field data.
+% Each curve stops at the first integer k with G_k<1; common axes in all rows.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=74pt,y=23pt,font=\fontsize{8}{9}\selectfont]
+  \node[anchor=west,inner sep=0pt] at (0,5.95) {Remaining value $G_k$};
+  \node[anchor=west,inner sep=0pt] at (0,5.35) {log scale: $400\to1$};
+  \foreach \C/\L/\N/\Y/\shade/\pattern in
+    {8/0/27/3.5/pdteal/solid,2/15/36/1.75/pdviolet/dashed,1/35/53/0/pdgold/dotted}{%
+    \begin{scope}[shift={(0,\Y)}]
+      \node[anchor=west,inner sep=0pt] at (0,1.22) {$C=\C$: $\N$ levels};
+      \draw[pdinkmuted!40,line width=.35pt] (0,0)--(1,0);
+      \ifnum\L>0
+        \draw[\shade,\pattern,line width=.8pt] plot[domain=0:\L,samples=\L+1]
+          ({\x/60},{ln(400-10*\C*\x)/ln(400)});
+      \fi
+      \draw[\shade,\pattern,line width=.8pt] plot[domain=\L:\N,samples=\N-\L+1]
+        ({\x/60},{ln(50*\C*pow(.8,\x-\L))/ln(400)});
+      \fill[\shade] ({\N/60},{ln(50*\C*pow(.8,\N-\L))/ln(400)}) circle[radius=1.2pt];
+    \end{scope}}
+  \foreach \k in {0,20,40,60}{%
+    \draw[pdinkmuted!40,line width=.35pt] ({\k/60},0)--({\k/60},-.12);
+    \node[anchor=north,inner sep=2pt] at ({\k/60},-.12) {\k};}
+  \node[anchor=north,inner sep=0pt] at (.5,-.7) {Audit level $k$};
+\end{tikzpicture}
+\makeatother\endgroup

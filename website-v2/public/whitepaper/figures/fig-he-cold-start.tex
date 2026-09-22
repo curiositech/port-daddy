@@ -20,7 +20,7 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\trig{3.70}
-  \node[pd title,anchor=west,text width=10.4cm] at (-0.30,7.90)
+  \node[pd title,anchor=west,text width=9.7cm] at (-0.30,7.90)
     {the regime changes when observed depth crosses $\lambda^\star$, not when
      time passes};
   % ---- upper panel: measured market state ----------------------------------
@@ -51,12 +51,8 @@
     {if liquidity never crosses the threshold, the subsidized state remains
      active and recoverable};
 \end{tikzpicture}
-\caption{\textbf{Cold start separates the measured market state from the
-policy schedule.} The upper trace is realized liquidity over settled outcomes
-(gold). The lower trace is the supplier-price regime applied to that state:
-seed supply below zero, credit imported work at zero, then charge only after
-liquidity crosses $\lambda^\star$. The shared vertical trigger (spine) makes
-the dependency explicit. Calendar time is absent, and a market that never
-crosses the threshold does not silently advance to the charging regime. [internal]}
+\caption{Supplier pricing follows realized liquidity, not calendar time.
+Charging begins only above $\lambda^\star$; a market that never crosses the
+threshold never enters that regime. [internal]}
 \label{fig:he-cold-start}
 \end{figure}

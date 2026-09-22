@@ -1,52 +1,8 @@
-% Brief (tikz-diagram-craft).
-% Reader question: what are the layers of the coordination stack, what does
-%   each hand the one above it, and which layer is this paper?
-% Claim: four bands, substrate the second from the floor, each band handing a
-%   named set of things upward; the machine floor beneath is a dependency, not
-%   a layer of the system.
-% Evidence: whitepaper/single-writer-kernel.tex sec:where-this-paper-sits, the
-%   four-layer stack description (substrate, coordination, legibility,
-%   economy) and its per-layer contents.
-% Must distinguish: which band is this chapter; that the floor is a dependency
-%   boundary, not a fifth layer; what each layer hands the one above it.
-% Grammar: block stack, full-width bands of equal height, a brace naming this
-%   chapter's band. Rejected: a nested-sets diagram, which would suggest the
-%   layers contain one another rather than each resting on the one below.
-% Five-second test: "four bands stacked on a dashed floor band; the bottom
-%   one is shaded -- that's this chapter".
+% Swiss object-based redraw; geometry lives in shared reusable functions.
+% Evidence: corresponding single-writer-kernel.tex section; schematic, not a runtime trace.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\w{9.95}  \def\h{0.98}
-  \foreach \i/\name/\gives/\s in {%
-    3/{economy and federation}/{settlement, reputation, cross-machine federation}/{pd neutral fill},
-    2/{legibility}/{digest with zoom, review, operator surface}/{pd neutral fill},
-    1/{coordination}/{typed acts, commitments, delegation, policy observation}/{pd neutral fill},
-    0/{substrate}/{one writer, claims, sessions, bus, memory}/{pd focus fill}}{
-      \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
-      \node[pd title,anchor=west] at (0.22,{\i*\h+\h/2}) {\name};
-      \node[pd label,anchor=east,text width=5.6cm,align=right]
-        at ({\w-.22},{\i*\h+\h/2}) {\gives};}
-  % the floor: not a layer of the system, a dependency the system assumes.
-  % Dashed edge, not a PGF pattern fill: patterns.meta's tile registration
-  % left a sub-point speck near the page corner under XeTeX in the
-  % maritime/technical editions, which figcheck's T5 read as ink outside the
-  % MediaBox (report to the lead as a tooling gap; --all was not re-run to
-  % confirm scope).
-  \draw[pd neutral fill,dash pattern=on 2.6pt off 2pt] (0,-\h) rectangle (\w,0);
-  \node[pd title,anchor=west] at (0.22,{-\h/2}) {machine floor};
-  \node[pd label,anchor=east,text width=5.6cm,align=right] at ({\w-.22},{-\h/2})
-    {a file lock, a clock, a socket, a supervisor};
-  \draw[pd focus rule,decorate,decoration={brace,amplitude=4pt,mirror,raise=3pt}]
-    ({\w+.12},{0*\h}) -- ({\w+.12},{1*\h});
-  \node[pd label,rotate=90,anchor=center] at ({\w+.66},{0.5*\h}) {this chapter};
-\end{tikzpicture}
-\caption{An architectural section through the four-layer coordination stack.
-Each band names a layer and what that layer hands the one above it; the
-shaded band is this chapter's, the layer that rests directly on the machine
-floor. The dashed floor band is not a layer of the system but the narrow
-dependency boundary the substrate assumes: a file lock, a clock, a socket
-and a supervisor. [internal]}
+\SGMeasuredFigure{fig-swk-stack-map}{\SGStackLayers}
+\caption{Read upward from L0. Higher layers depend on the records beneath them, but introduce their own assumptions. The blue tick identifies this chapter. The dashed machine floor is a dependency, not a fifth layer.}
 \label{fig:swk-stack-map}
 \end{figure}

@@ -6,8 +6,8 @@
 % tests/harbor-research/test_legible_swarm_split_ranker.py; no measured scores.
 % Must distinguish: readers (left/right) from alternative cases (top/bottom);
 % rank 1 is highest on BOTH sides. Only the briefing/attention pair reverses.
-% Grammar: paired slopegraphs, identical geometry and direct endpoint labels.
-% Reject: before/after, raw fit-versus-loss units, or an invented unified score.
+% Grammar: Tufte classical slopegraph, identical geometry and direct baseline labels.
+% Reject: oversized geometric marker badges, raw fit-versus-loss units, or unified scores.
 % Five-second test: Maya puts attention.ts first while the router puts
 % briefing.ts first; resurrection.ts remains third for both.
 % Width: the 4.5-inch Book column, unscaled. All type inherits shared roles.
@@ -18,43 +18,85 @@
 \centering
 \pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lx{3.45}
+  \def\lx{3.55}
   \def\rx{7.65}
-  \def\rankpitch{0.84}
-  \def\panelpitch{3.70}
-  % artifact / routing rank / Maya agreement rank / Maya dispute rank /
-  % shared line role / shared endpoint role. These ranks are illustrative.
+  \def\rankpitch{0.82}
+  \def\panelpitch{3.55}
+  % artifact / routing rank / Maya agreement rank / Maya dispute rank / role tag
   \def\pdRankSamples{%
-    briefing.ts/1/1/2/pd focus rule/pd focus datum,
-    attention.ts/2/2/1/pd rule/pd datum,
-    resurrection.ts/3/3/3/pd hairline/pd datum}
-
-  \node[pd label,anchor=west,inner sep=0pt] at (0,1.65)
+    briefing.ts/1/1/2/briefing,
+    attention.ts/2/2/1/attention,
+    resurrection.ts/3/3/3/resurrection}
+  \node[pd label,anchor=west,inner sep=0pt] at (0,1.55)
     {Synthetic ordinal ranks; 1 is highest on both sides};
-
   \foreach \panel/\heading in {
     0/{Agreement: one order serves both},
     1/{Dispute: the top choices conflict}}{
     \begin{scope}[yshift=-\panel*\panelpitch cm]
-      \node[pd title,anchor=west,inner sep=0pt] at (0,1.02) {\heading};
-      \node[pd label,anchor=east,inner sep=0pt] at (\lx-.22,.46)
-        {Routing agent: fit};
-      \node[pd label,anchor=west,inner sep=0pt] at (\rx+.22,.46)
-        {Maya: regret if ignored};
-
-      \foreach \artifact/\route/\agreement/\dispute/\stroke/\mark in \pdRankSamples {
+      \draw[pd hairline] (0,1.18) -- (11.2,1.18);
+      \node[pd title,anchor=west,inner sep=0pt] at (0,0.85) {\heading};
+      % Column headers above vertical spines
+      \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lx,0.38)
+        {\textbf{Routing agent}\\\textcolor{pdinkmuted}{fit}};
+      \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rx,0.38)
+        {\textbf{Maya}\\\textcolor{pdinkmuted}{regret if ignored}};
+      % Subtle vertical guide spines behind coordinates
+      \draw[draw=pdink!15,line width=0.4pt] (\lx,0.18) -- (\lx,-1.85);
+      \draw[draw=pdink!15,line width=0.4pt] (\rx,0.18) -- (\rx,-1.85);
+      \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
         \pgfmathtruncatemacro{\readerRank}{ifthenelse(\panel==0,\agreement,\dispute)}
-        % Both ends use the same downward ordinal scale; no arrow implies time.
-        \draw[\stroke] (\lx,{-(\route-1)*\rankpitch})
-          -- (\rx,{-(\readerRank-1)*\rankpitch});
-        \node[\mark] at (\lx,{-(\route-1)*\rankpitch}) {};
-        \node[\mark] at (\rx,{-(\readerRank-1)*\rankpitch}) {};
-        \node[pd label,anchor=east,align=right,text width=3.15cm,inner sep=0pt]
-          at (\lx-.22,{-(\route-1)*\rankpitch})
-          {\texttt{\artifact}\quad\route};
-        \node[pd label,anchor=west,align=left,text width=3.15cm,inner sep=0pt]
-          at (\rx+.22,{-(\readerRank-1)*\rankpitch})
-          {\readerRank\quad\texttt{\artifact}};
+        \pgfmathsetmacro{\yL}{-(\route-1)*\rankpitch}
+        \pgfmathsetmacro{\yR}{-(\readerRank-1)*\rankpitch}
+        % Styling hierarchy: in Agreement, clean neutral lines;
+        % in Dispute, subtle teal for crossing item, cobalt for router, muted for unchanged.
+        \ifnum\panel=0\relax
+          \draw[draw=pdink!55,line width=0.75pt] (\lx,\yL) -- (\rx,\yR);
+          \node[circle,fill=pdink!60,inner sep=0.9pt] at (\lx,\yL) {};
+          \node[circle,fill=pdink!60,inner sep=0.9pt] at (\rx,\yR) {};
+          \node[pd label,anchor=east,align=right,text width=3.30cm,inner sep=0pt]
+            at ({\lx-0.18},\yL)
+            {\texttt{\artifact}\quad\textbf{\route}};
+          \node[pd label,anchor=west,align=left,text width=3.30cm,inner sep=0pt]
+            at ({\rx+0.18},\yR)
+            {\textbf{\readerRank}\quad\texttt{\artifact}};
+        \else
+          \ifnum\route=1\relax
+            % briefing.ts in dispute: Router #1 -> Maya #2
+            \draw[draw=pdcobalt,line width=1.15pt] (\lx,\yL) -- (\rx,\yR);
+            \node[circle,fill=pdcobalt,inner sep=1.1pt] at (\lx,\yL) {};
+            \node[circle,fill=pdcobalt,inner sep=1.1pt] at (\rx,\yR) {};
+            \node[pd label,anchor=east,align=right,text width=3.30cm,inner sep=0pt]
+              at ({\lx-0.18},\yL)
+              {\texttt{\artifact}\quad\textcolor{pdcobalt}{\textbf{\route}}};
+            \node[pd label,anchor=west,align=left,text width=3.30cm,inner sep=0pt]
+              at ({\rx+0.18},\yR)
+              {\textcolor{pdcobalt}{\textbf{\readerRank}}\quad\texttt{\artifact}};
+          \else
+            \ifnum\route=2\relax
+              % attention.ts in dispute: Router #2 -> Maya #1 (crossing accent)
+              \draw[draw=pdteal,line width=1.25pt] (\lx,\yL) -- (\rx,\yR);
+              \node[circle,fill=pdteal,inner sep=1.1pt] at (\lx,\yL) {};
+              \node[circle,fill=pdteal,inner sep=1.1pt] at (\rx,\yR) {};
+              \node[pd label,anchor=east,align=right,text width=3.30cm,inner sep=0pt]
+                at ({\lx-0.18},\yL)
+                {\texttt{\artifact}\quad\textcolor{pdteal}{\textbf{\route}}};
+              \node[pd label,anchor=west,align=left,text width=3.30cm,inner sep=0pt]
+                at ({\rx+0.18},\yR)
+                {\textcolor{pdteal}{\textbf{\readerRank}}\quad\texttt{\artifact}};
+            \else
+              % resurrection.ts: unchanged rank 3 -> 3
+              \draw[draw=pdink!30,line width=0.6pt,dash pattern=on 3pt off 2.5pt] (\lx,\yL) -- (\rx,\yR);
+              \node[circle,fill=pdink!35,inner sep=0.8pt] at (\lx,\yL) {};
+              \node[circle,fill=pdink!35,inner sep=0.8pt] at (\rx,\yR) {};
+              \node[pd label,anchor=east,align=right,text width=3.30cm,inner sep=0pt,text=pdinkmuted]
+                at ({\lx-0.18},\yL)
+                {\texttt{\artifact}\quad\textbf{\route}};
+              \node[pd label,anchor=west,align=left,text width=3.30cm,inner sep=0pt,text=pdinkmuted]
+                at ({\rx+0.18},\yR)
+                {\textbf{\readerRank}\quad\texttt{\artifact}};
+            \fi
+          \fi
+        \fi
       }
     \end{scope}
   }

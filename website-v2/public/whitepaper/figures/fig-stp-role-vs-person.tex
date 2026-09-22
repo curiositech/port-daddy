@@ -13,11 +13,11 @@
 \begin{figure*}[t]
 \centering
 \pdfigurehue{pdviolet}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.75cm,y=1cm]
   \def\x0{3.00}  \def\xe{13.00}
   % ---- ROLE panel: a slot, refilled by unrelated bodies --------------------
   \node[pd title,anchor=west] at (0.00,7.40) {role: one slot, replaceable fillers};
-  \node[pd label,anchor=east,align=right,text width=2.65cm] at ({\x0-.20},6.10)
+  \node[pd label,anchor=east,align=right,text width=2.0cm] at ({\x0-.20},6.10)
     {reviewer role\\obligation, capability, authority};
   \foreach \x/\body in {4.25/A,6.75/B,9.25/C,11.75/D} {
     \draw[pd rule] (\x,6.55) -- (\x,6.475);
@@ -29,34 +29,28 @@
   \draw[pd hairline,line width=2.4pt] (rB.east) -- (rC.west);
   \draw[pd hairline,line width=2.4pt] (rC.east) -- (rD.west);
   \draw[pd hairline,line width=2.4pt] (rD.east) -- (\xe,6.10);
-  \node[pd note,anchor=west,text width=10.0cm,align=left] at (\x0,5.10)
+  \node[pd note,anchor=west,text width=7.2cm,align=left] at (\x0,5.10)
     {the slot survives; no outcome history moves between fillers};
   % ---- PERSON panel: one identity crossing role boundaries -----------------
   \node[pd title,anchor=west] at (0.00,4.45) {person: one identity, changing roles};
-  \node[pd focus label,anchor=east,align=right,text width=2.65cm] at ({\x0-.20},3.10)
+  \node[pd focus label,anchor=east,align=right,text width=2.0cm] at ({\x0-.20},3.10)
     {$\kappa_7$\\non-forgeable identity};
   \draw[pd focus rule,line width=2.0pt] (\x0,3.10) -- (\xe,3.10);
   \foreach \x in {3.00,5.50,8.00,10.50,13.00} \draw[pd guide] (\x,3.00) -- (\x,1.95);
   \foreach \a/\role in {4.25/navigator,6.75/cartographer,9.25/reviewer,11.75/lookout}
-    \node[pd label,anchor=north] at (\a,2.80) {\role};
+    \node[pd label,anchor=north,text width=1.7cm,align=center] at (\a,2.80) {\role};
   \foreach \x/\mark in {3.625/$o_1$,4.875/$o_2$,6.125/$o_3$,7.375/$o_4$,8.625/$o_5$,
                         9.875/$o_6$,11.125/$o_7$,12.375/$o_8$} {
     \draw[pd focus rule] (\x,3.25) -- (\x,2.95);
     \node[pd label,anchor=north] at (\x,1.75) {\mark};
   }
-  \node[pd focus label,anchor=west,text width=10.0cm,align=left] at (\x0,0.80)
+  \node[pd focus label,anchor=west,text width=7.2cm,align=left] at (\x0,0.80)
     {witnessed outcomes accumulate on the identity across every role change};
   % ---- one shared time axis --------------------------------------------------
   \draw[pd rule,-{Stealth[length=1.9mm,width=1.2mm]}] (\x0,-0.15) -- (\xe,-0.15);
   \node[pd label,anchor=east] at ({\x0-.15},-0.15) {earlier};
-  \node[pd label,anchor=west] at ({\xe+.15},-0.15) {later};
+  \node[pd label,anchor=north east] at (\xe,-0.30) {later};
 \end{tikzpicture}
-\caption{\textbf{A role is a slot; a person is a longitudinal record.} The upper
-track holds one reviewer role constant while unrelated bodies fill it in sequence:
-the slot has obligations, capability, and authority, but no reputation of its own.
-The lower track follows one identity $\kappa_7$ through four role intervals while
-witnessed outcomes $o_1\ldots o_8$ accumulate on the same thread. A respawn may
-replace the body, and a reassignment may replace the role, without replacing the
-accountable person. [internal]}
+\caption{A role stays while its occupants change. A person's witnessed record stays while bodies and roles change. Reputation belongs to that continuing identity, not the slot. [internal]}
 \label{fig:role-person}
 \end{figure*}

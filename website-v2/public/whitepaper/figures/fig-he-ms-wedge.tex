@@ -27,33 +27,31 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=7.6cm,height=6.4cm,
+  width=8.3cm,height=7.2cm,
   xmin=0,xmax=90,ymin=0,ymax=90,
-  xtick={0,30,60,90},ytick={0,30,60,90},
-  xlabel={Bob's value $v$},
-  ylabel={Alice's cost $c$}]
-  \addplot[name path=upper,draw=none,forget plot,domain=0:90,samples=60] {x};
-  \addplot[name path=lower,draw=none,forget plot,domain=0:90,samples=60]
-    {max(x-22.5,0)};
-  \addplot[pd warn fill,forget plot] fill between[of=upper and lower];
+  xtick={0,30,70,90},ytick={0,30,60,90},
+  xlabel={Bob's value $v$ (cr)},
+  ylabel={Alice's cost $c$ (cr)}]
+  % Explicit clipped band: only 0 < v-c < 22.5 is efficient but refused.
+  % No stroked polygon edge may create a fictitious decision boundary.
+  \path[fill=pdamber!18,draw=none]
+    (axis cs:0,0) -- (axis cs:90,90) -- (axis cs:90,67.5)
+    -- (axis cs:22.5,0) -- cycle;
   \addplot[pd guide,mark=none,domain=0:90,samples=2] {x};
-  \addplot[pd focus series,mark=none,domain=22.5:90,samples=2] {x-22.5};
-  \node[pd label,anchor=west] at (axis cs:18,34) {$v=c$};
-  \node[pd focus label,anchor=west,align=left,text width=2.1cm] at (axis cs:91,{90-22.5})
-    {trade iff $v-c\ge M/4$};
-  \node[pd label,anchor=west,align=left,text width=2.3cm] at (axis cs:8,44)
-    {efficient but refused: $7/32$};
+  \addplot[pd value series,mark=none,domain=22.5:90,samples=2] {x-22.5};
+  \node[pd label,anchor=west,align=left] at (axis cs:7,79)
+    {no positive surplus\\$v<c$};
+  \node[pd value label,align=left] at (axis cs:53,12)
+    {trade\\$v-c\ge22.5$};
+  \node[pd label,anchor=west,align=left] at (axis cs:3,45)
+    {efficient, refused\\$7/32$ of all draws};
+  \draw[pd rule,line width=.5pt] (axis cs:29,37) -- (axis cs:38,28);
   \draw[pd guide] (axis cs:70,0) -- (axis cs:70,60) -- (axis cs:0,60);
-  \node[pd focus datum] at (axis cs:70,60) {};
-  \node[pd focus label,anchor=south west] at (axis cs:73,66) {$(70,60)$};
+  \node[pd datum] at (axis cs:70,60) {};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{The double auction refuses more than one efficient trade in
-five.} Above the diagonal $v=c$ every draw has a real surplus; the mechanism
-only trades it when $v-c\ge M/4=22.5$ (gold line). The band between the two
-lines is efficient but refused, $7/32\approx21.9\%$ of the square, the same
-fraction at every $M$. At the chapter's own worked point, Bob values the
-rental at $70$ and Alice's cost is $60$: a $10$-cr surplus sits on the
-table, but $10<22.5$, so no trade happens. [internal; algebra shown]}
+\caption{Independent uniform values and costs on $[0,90]$\,cr are an
+illustrative prior, not market data. The marked rental offers $10$\,cr of
+surplus, below this equilibrium's $22.5$\,cr trade threshold.}
 \label{fig:he-ms-wedge}
 \end{figure}

@@ -89,6 +89,7 @@ def export_review(source, destination):
         proof.set_toc(bookmarks)
         proof.set_page_labels(labels)
         proof.set_metadata({"title": "Book sans, contents, and Maya — visual proof",
+                            "creator": book.metadata.get("creator", ""),
                             "subject": "Excerpt from the assembled Book; use the full Book for navigation links."})
         proof.save(destination, garbage=4, deflate=True)
         for key, index in [("reader-left", left), ("contents-first", toc_start),

@@ -329,7 +329,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. proofs/** is in proverif-estate's glob and path filter; lib/agent-harbor/suggestibility-authority.ts parses this transcript as the ADR-0096 suggestibility gate, so a drifted file caps that axis at C0.",
+      "evidencePolicy": "Recorded verification: the checked-in transcript was regenerated on 2026-09-06 with ProVerif 2.05, and its RESULT lines matched byte-for-byte. The model is included in the proverif-estate check. The guidance-acceptance authority reads this transcript; a mismatch restricts that authority to C0. This is model and transcript evidence, not proof of a deployed enforcement path.",
       "ci": {
         "status": "wired",
         "job": [
@@ -347,7 +347,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. A negative control that must keep failing: both agreement queries are committed 'is false.', the filename still matches the runner's *_vuln*.pv glob, and a green run here would mean the check went vacuous.",
+      "evidencePolicy": "Recorded verification: the checked-in transcript was regenerated on 2026-09-06 with ProVerif 2.05, and its RESULT lines matched byte-for-byte. This unsigned-envelope negative control must fail both agreement queries. A result claiming agreement would invalidate the control, not establish protocol security.",
       "ci": {
         "status": "wired",
         "job": [
@@ -533,7 +533,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "CI artifact per run (three .tlc.log files); no prior checked-in snapshot -- this model never ran before wave-p1/proof-estate. CardRevocation_rollback.cfg is a negative control asserted to violate RevocationFinal (ADR-0018 Attack Vector 2, backup/restore)",
+      "evidencePolicy": "Evidence is recorded in three .tlc.log artifacts per CI run, not a checked-in transcript. CardRevocation_rollback.cfg is the negative control: restoring an older database must produce a counterexample to RevocationFinal. The baseline and epoch configurations are checked separately; these bounded models do not establish that every deployment survives rollback.",
       "ci": {
         "status": "wired",
         "job": [
