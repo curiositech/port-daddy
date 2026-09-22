@@ -62,11 +62,13 @@ separate authorities.
 
 ## Halt Gate
 
-A design, schema, fixture, or diagram is not a run lease. If the operator has
-halted Port Daddy or any subject runtime, remain at static tier T0:
+A design, schema, fixture, reducer, or diagram is not a run lease. If the
+operator has halted Port Daddy or any subject runtime, dynamic proof remains at
+static tier T0 even when ordinary source implementation continues:
 
 - inspect source and immutable evidence;
-- edit documents, schemas, validators, fixtures, and inert UI artifacts;
+- edit source, documents, schemas, validators, fixtures, and inert UI artifacts
+  in a dedicated worktree;
 - run only ordinary source validators that cannot start the subject;
 - do not invoke the halted CLI, daemon, apps, hooks, agents, providers, or MCP;
 - label dynamic gates `BLOCKED` or `NOT_PROVISIONED`, never PASS.
@@ -264,6 +266,14 @@ Keep four topologies explicit instead of forcing every concern into the DAG:
 - manager-driven rounds assign workers and independent reviewers;
 - an append-only event stream feeds deterministic operator projections.
 
+The source-present H1 reducer lives in
+`../../lib/drydock/hypertree-execution-reducer.ts`. It is a pure,
+controller-local TypeScript state machine because ADR-0120 keeps fast-changing
+product policy out of the Rust kernel. HTML, Swift, and Rust clients consume
+controller-produced `ProjectionUpdateV1` snapshots through
+`../../lib/drydock/hypertree-execution-stream.ts`; they never reduce raw
+lifecycle events or acquire command authority from the read stream.
+
 Load `references/hypertree-execution-observatory.md` when specifying node
 input/output contracts, reviewer tiers, rework bounds, or shared HTML, Swift,
 and Rust execution views. Validate the inert review-loop fixture with:
@@ -332,7 +342,8 @@ Before calling the packet complete:
 3. Validate the execution fixture against `schemas/hypertree-execution.schema.json`
    and `scripts/validate-hypertree-execution.mjs`; require exact plan binding,
    distinct producer/reviewer/manager identities, complete outputs, bounded
-   rework, and identical HTML/Swift/Rust projections.
+   rework, and identical controller-produced projections decoded by HTML,
+   Swift, and Rust clients.
 4. Run positive and negative activation cases in `tests/activation.md`.
 5. Prove every local source link in `references/knowledge-map.md` exists.
 6. Confirm no canonical checkout or raw credential appears in an executable input.
@@ -358,9 +369,16 @@ Load only what the current decision requires:
 - `examples/INDEX.md` — example and executable-plan routing.
 - `schemas/drydock-resurrection-hypertree.schema.json` — structural contract.
 - `schemas/hypertree-execution.schema.json` — closed execution/event/review contract.
+- `schemas/hypertree-execution-projection.schema.json` — closed read-only
+  controller projection, including honest zero-cursor state.
+- `schemas/hypertree-execution-projection-update.schema.json` — closed,
+  cursor-bound projection-only client envelope.
 - `scripts/validate-drydock-resurrection-hypertree.mjs` — semantic DAG/digest checks.
 - `scripts/validate-hypertree-execution.mjs` — semantic event, identity, review,
   rework, and projection checks.
+- `scripts/seal-hypertree-execution-fixtures.ts` — deterministically reseal the
+  inert execution fixture and every golden projection prefix; use `--check` in
+  review and CI.
 - `scripts/audit-drydock-program-skill.mjs` — bundle, links, diagrams, routing, and moved-source audit.
 - `scripts/INDEX.md` — validator loading and invocation map.
 - `templates/architecture-packet.md` — final deliverable shape.

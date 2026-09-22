@@ -58,7 +58,7 @@ describe('Drydock program architecture skill', () => {
     expect(JSON.parse(audit.stdout)).toMatchObject({
       valid: true,
       errors: [],
-      counts: { requiredFiles: 24, diagrams: 17 },
+      counts: { requiredFiles: 26, diagrams: 17 },
     });
   });
 
@@ -133,6 +133,14 @@ describe('Drydock program architecture skill', () => {
     expect(validate.errors).toEqual(expect.arrayContaining([
       expect.objectContaining({ keyword: 'const' }),
     ]));
+
+    const offsetTimestamp = structuredClone(execution);
+    offsetTimestamp.events[1].occurredAt = '2026-09-14T12:00:01+00:00';
+    resealExecution(offsetTimestamp);
+    expect(validate(offsetTimestamp)).toBe(false);
+    expect(validate.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ keyword: 'pattern' }),
+    ]));
   });
 
   test('the execution reducer proves the complete bad-to-good review cycle', () => {
@@ -172,7 +180,7 @@ describe('Drydock program architecture skill', () => {
     );
   });
 
-  test('green checks cannot approve an output that omits a required artifact', () => {
+  test('an output that omits a required artifact fails before checks or review', () => {
     const execution = JSON.parse(text(executionPath));
     execution.events[7].payload.artifacts = execution.events[7].payload.artifacts.filter(
       (artifact) => artifact.kind !== 'responsive rules',
@@ -182,7 +190,7 @@ describe('Drydock program architecture skill', () => {
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout).errors).toContain(
-      'DD-070 approval requires exactly the declared output artifact kinds',
+      'DD-070 candidate output must exactly satisfy the declared artifact kinds before checks or review',
     );
   });
 
@@ -212,16 +220,16 @@ describe('Drydock program architecture skill', () => {
 
   test('a low-cost reviewer cannot exceed its reserved or policy-capped native units', () => {
     const execution = JSON.parse(text(executionPath));
-    execution.events[9].payload.reservedUnits = 21;
-    execution.events[9].payload.usedUnits = 22;
+    execution.events[9].payload.capacityReservation.reservedUnits = 21;
+    execution.events[9].payload.capacitySettlement.usedUnits = 22;
     resealExecution(execution);
     const result = validateExecution(execution);
     const errors = JSON.parse(result.stdout).errors;
 
     expect(result.status).toBe(1);
     expect(errors).toEqual(expect.arrayContaining([
-      'DD-070 review exceeds its reserved native units',
       'DD-070 review reservation exceeds low-cost-independent policy',
+      'DD-070 low-cost-independent settlement used more than reserved',
     ]));
   });
 
@@ -234,6 +242,7 @@ describe('Drydock program architecture skill', () => {
 
     expect(result.status).toBe(1);
     expect(errors).toEqual(expect.arrayContaining([
+      'DD-070 reviewer class low-cost-independent is already filled',
       'DD-070 manager decision requires AWAITING_MANAGER state',
       'DD-070 manager approval requires every declared reviewer class',
     ]));
@@ -249,7 +258,7 @@ describe('Drydock program architecture skill', () => {
 
     expect(result.status).toBe(1);
     expect(errors).toEqual(expect.arrayContaining([
-      'DD-070 manager may not be a reviewer',
+      'DD-070 manager may not have produced or reviewed any attempt',
       'DD-070 manager may not bypass gates',
     ]));
   });
