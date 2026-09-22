@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""chapter_lint.py -- report a LaTeX chapter's structure against the
+r"""chapter_lint.py -- report a LaTeX chapter's structure against the
 textbook-craft template's floors.
 
 A DO-CONFIRM checklist (Gawande, references/canon.md), not a READ-DO
@@ -11,7 +11,8 @@ prose quality -- only mechanically checkable structure:
   - sections and subsections (title, line range)
   - worked examples per section (pdexample envs, plus the legacy `example`
     amsthm environment if the chapter defines one), against the floor of
-    >=1 per top-level section (Axler / SICP / Pierce; canon.md)
+    >=1 per body section (Axler / SICP / Pierce; canon.md). Apparatus
+    exclusions require explicit --apparatus declarations, never title guesses
   - exercise clusters (old-style `\exercises{...}` macro calls and new-style
     `\pdexercisesfor`/`\pdexercise`), and whether each sits inside a
     chapter-end "Exercises" section or interrupts the body mid-argument
@@ -70,9 +71,10 @@ it can measure (titled interludes) is only part of the rule it is named
 after, so a clean count is reported REVIEW -- "this is what was measured",
 not "this chapter is fine". See floor_status.
 
-Exit code: 0 always, unless --strict is given and at least one BLOCKING
-floor is violated (then 1), or a chapter file cannot be found/read/parsed
-(then 2). stdlib only.
+Exit code: 0 in report-only mode; 1 when --strict finds a blocking failure
+or --max-blocking N is exceeded; 2 for invalid metadata or unreadable input.
+The count budget reports existing debt; it does not certify chapter quality.
+Stdlib only.
 """
 from __future__ import annotations
 
@@ -245,6 +247,8 @@ class Section:
     end: int = -1  # char offset of next same-or-higher-level heading, or EOF
     title_end: int = -1  # char offset just past the heading's own closing brace
     parent_section_idx: int = -1  # index into sections list of enclosing \section, for a subsection
+    labels: tuple = ()
+    role: str = "body"
 
 
 @dataclass
@@ -270,6 +274,7 @@ class ChapterReport:
     total_lines: int
     sections: list = field(default_factory=list)
     claims: list = field(default_factory=list)
+    section_metrics: list = field(default_factory=list)
     examples_per_section: dict = field(default_factory=dict)  # section title -> count
     session_count: int = 0
     exercise_clusters: list = field(default_factory=list)
@@ -286,8 +291,14 @@ def parse_sections(text: str):
     for m in pat.finditer(text):
         kind = m.group(1)
         title, title_end = balanced_brace_arg(text, m.end() - 1)
-        title = re.sub(r"\\label\{[^}]*\}", "", title or "").strip()
-        sections.append(Section(kind=kind, title=title, start=m.start(), line=line_of(text, m.start()), title_end=title_end))
+        raw_title = title or ""
+        labels = re.findall(r"\\label\{([^}]*)\}", raw_title)
+        after = title_end
+        while match := re.match(r"\s*\\label\{([^}]*)\}", text[after:]):
+            labels.append(match.group(1))
+            after += match.end()
+        title = re.sub(r"\\label\{[^}]*\}", "", raw_title).strip()
+        sections.append(Section(kind=kind, title=title, start=m.start(), line=line_of(text, m.start()), title_end=title_end, labels=tuple(labels)))
     # A \section's span runs to the NEXT \section (its own subsections nest
     # inside it and must not truncate it); a \subsection's span runs to the
     # next heading of either kind. Record each subsection's enclosing
@@ -304,6 +315,72 @@ def parse_sections(text: str):
             s.parent_section_idx = last_section_idx
             s.end = sections[i + 1].start if i + 1 < len(sections) else len(text)
     return sections
+
+
+APPARATUS_ROLES = frozenset({"front-matter", "review", "exercises", "references", "appendix"})
+
+
+def apply_apparatus_declarations(sections, declarations):
+    """Apply author-declared selectors; never infer an exemption from prose.
+
+    Labels must belong to the heading itself, not an equation or subsection
+    later in its body. Exact titles support existing unlabelled headings.
+    A stale, ambiguous or repeated selector is an input error, not a waiver.
+    """
+    if not isinstance(declarations, list):
+        raise ValueError("apparatus declarations must be a list")
+    assigned = set()
+    for entry in declarations:
+        if not isinstance(entry, dict):
+            raise ValueError("each apparatus declaration must be an object")
+        selectors = set(entry) & {"label", "title"}
+        if len(selectors) != 1 or set(entry) != selectors | {"role", "reason"}:
+            raise ValueError("declaration requires exactly one label/title, role and reason")
+        selector = next(iter(selectors))
+        if any(not isinstance(entry[k], str) or not entry[k].strip() for k in entry):
+            raise ValueError("apparatus values must be nonempty strings")
+        if entry["role"] not in APPARATUS_ROLES:
+            raise ValueError(f"unknown apparatus role: {entry['role']}")
+        matches = [s for s in sections if s.kind == "section" and (
+            entry["label"] in s.labels if selector == "label" else entry["title"] == s.title
+        )]
+        if len(matches) != 1:
+            raise ValueError(f"apparatus {selector} {entry[selector]!r} matched {len(matches)} top-level sections")
+        section = matches[0]
+        if section.start in assigned:
+            raise ValueError(f"repeated apparatus declaration for {section.title!r}")
+        assigned.add(section.start)
+        section.role = entry["role"]
+
+
+def load_apparatus(path: Path, repo_root: Path):
+    """Load explicit per-source declarations, allowing canonical symlink aliases."""
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate apparatus JSON key: {key}")
+            result[key] = value
+        return result
+
+    data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_keys)
+    if not isinstance(data, dict) or set(data) != {"version", "chapters"} or type(data["version"]) is not int or data["version"] != 1:
+        raise ValueError("apparatus metadata requires version 1 and chapters")
+    if not isinstance(data["chapters"], dict):
+        raise ValueError("apparatus chapters must be an object keyed by repository-relative source")
+    root = repo_root.resolve()
+    result = {}
+    for source, declarations in data["chapters"].items():
+        relative = Path(source)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"apparatus source must be repository-relative: {source}")
+        resolved = (root / relative).resolve()
+        if not resolved.is_relative_to(root) or not resolved.is_file() or resolved in result:
+            raise ValueError(f"missing, outside-repository or duplicate apparatus source: {source}")
+        # Validate every chapter even when the caller selects only one.
+        apply_apparatus_declarations(parse_sections(strip_comments(resolved.read_text(encoding="utf-8"))), declarations)
+        result[resolved] = declarations
+    return result
 
 
 def enclosing_top_section_obj(sections, pos: int):
@@ -522,7 +599,11 @@ def citation_spread(text: str, sections):
     n_bibitems = len(set(_BIBITEM_RE.findall(text)))
     per_key_sections: dict[str, set] = {}
     for m in _CITE_RE.finditer(text, 0, bib_start):
-        where = enclosing_top_section(sections, m.start())
+        section = enclosing_top_section_obj(sections, m.start())
+        # Titles are display text, not identity: two identically titled
+        # sections are distinct citation sites; their subsections roll up
+        # to the enclosing top-level span. None is the preamble site.
+        where = section.start if section is not None else None
         for key in m.group(1).split(","):
             key = key.strip()
             if key:
@@ -663,11 +744,16 @@ def check_chapter_close(text: str, sections):
     return result
 
 
-def build_report(path: Path) -> ChapterReport:
+def build_report(path: Path, apparatus=()) -> ChapterReport:
     raw = path.read_text(encoding="utf-8", errors="replace")
     text = strip_comments(raw)
     sections = parse_sections(text)
     top_sections = [s for s in sections if s.kind == "section"]
+    apply_apparatus_declarations(sections, list(apparatus))
+    body_sections = [s for s in top_sections if s.role == "body"]
+    section_metrics = [{"title": s.title, "line": s.line, "labels": list(s.labels), "role": s.role,
+                        "worked_examples": len(re.findall(r"\\begin\{(?:pdexample|example)\}", text[s.title_end:s.end]))}
+                       for s in top_sections]
 
     claims = find_claims(text, sections)
     examples_per_section, session_count = find_examples(text, sections)
@@ -680,6 +766,7 @@ def build_report(path: Path) -> ChapterReport:
         path=str(path),
         total_lines=raw.count("\n") + 1,
         sections=[{"kind": s.kind, "title": s.title, "line": s.line} for s in sections],
+        section_metrics=section_metrics,
         claims=[c.__dict__ for c in claims],
         examples_per_section=examples_per_section,
         session_count=session_count,
@@ -692,18 +779,20 @@ def build_report(path: Path) -> ChapterReport:
 
     # ---- Floors -----------------------------------------------------
     sections_with_zero_examples = [
-        s.title for s in top_sections if examples_per_section.get(s.title, 0) == 0
+        row["title"] for row in section_metrics if row["role"] == "body" and row["worked_examples"] == 0
     ]
     report.floors["worked_example_per_section"] = {
-        "ok": not sections_with_zero_examples,
+        "ok": bool(body_sections) and not sections_with_zero_examples,
         "detail": (
-            f"{len(sections_with_zero_examples)}/{len(top_sections)} top-level sections have zero "
+            f"{len(sections_with_zero_examples)}/{len(body_sections)} body sections have zero "
             "worked examples (pdexample/example): "
             + "; ".join(sections_with_zero_examples[:8])
             + (" ..." if len(sections_with_zero_examples) > 8 else "")
         )
         if sections_with_zero_examples
-        else f"all {len(top_sections)} top-level sections have >=1 worked example",
+        else (f"all {len(body_sections)} body sections have >=1 worked example" if body_sections else "no body sections found; cannot satisfy the worked-example floor"),
+        "body_sections": len(body_sections),
+        "apparatus_sections": len(top_sections) - len(body_sections),
     }
 
     # Advisory (item 4): the template's rule is the chapter's closing-
@@ -822,7 +911,7 @@ def build_report(path: Path) -> ChapterReport:
     # never a cold table or claim, AND every claim-like environment to
     # carry a kind tag. Advisory because today's corpus does not comply
     # with the opener rule at all (no chapter yet calls an epigraph macro).
-    opener_kind = find_opener_kind(text, top_sections)
+    opener_kind = find_opener_kind(text, body_sections)
     opener_ok = opener_kind in ("prose", "epigraph")
     report.floors["chapter_opener_and_claim_labeling"] = {
         "ok": opener_ok and not untagged,
@@ -830,10 +919,10 @@ def build_report(path: Path) -> ChapterReport:
         "detail": (
             (
                 "opener: " + (
-                    "no top-level \\section found"
+                    "no body \\section found"
                     if opener_kind is None
-                    else f"first \\section starts with a {opener_kind}" if opener_kind in ("table", "claim")
-                    else f"first \\section opens with {opener_kind} -- OK"
+                    else f"first body \\section starts with a {opener_kind}" if opener_kind in ("table", "claim")
+                    else f"first body \\section opens with {opener_kind} -- OK"
                 )
             )
             + f"; claim labeling: {len(untagged)}/{len(claims)} claim-like environments carry no kind tag"
@@ -895,6 +984,11 @@ def build_report(path: Path) -> ChapterReport:
         ),
     }
 
+    apparatus_rows = [r for r in section_metrics if r["role"] != "body"]
+    report.floors["worked_example_per_section"]["detail"] += (
+        f"; {len(apparatus_rows)} explicitly declared apparatus section(s) excluded"
+        + (": " + "; ".join(f"{r['title']} [{r['role']}]" for r in apparatus_rows) if apparatus_rows else "")
+    )
     return report
 
 
@@ -927,6 +1021,7 @@ def render_text(report: ChapterReport) -> str:
                  f"{sum(1 for s in report.sections if s['kind']=='section')} sections, "
                  f"{sum(1 for s in report.sections if s['kind']=='subsection')} subsections)")
     lines.append(f"  imports figures/pd-pedagogy: {report.imports_pd_pedagogy}")
+    lines.append("  section roles: " + "; ".join(f"line {r['line']}: {r['role']} ({r['title']})" for r in report.section_metrics))
     lines.append("")
     lines.append("Floors:")
     for name, f in report.floors.items():
@@ -1052,11 +1147,21 @@ def main(argv=None) -> int:
                      help="Path(s) to .tex chapter file(s); default: every chapter in whitepaper/textbook.json")
     ap.add_argument("--json", action="store_true", help="Emit a JSON report instead of text")
     ap.add_argument("--md", action="store_true", help="Emit a markdown report instead of text")
-    ap.add_argument("--strict", action="store_true", help="Exit 1 if any BLOCKING floor is violated (advisory floors never trigger this)")
+    gates = ap.add_mutually_exclusive_group()
+    gates.add_argument("--strict", action="store_true", help="Exit 1 if any BLOCKING floor is violated")
+    gates.add_argument("--max-blocking", type=int, help="Exit 1 if blocking floor count exceeds this nonnegative budget; reports still show every failure")
+    ap.add_argument("--apparatus", type=Path, help="Explicit version-1 apparatus declarations; absent declarations mean body, never title inference")
     ap.add_argument("--table", action="store_true", help="Force the one-table consolidated report even for a single chapter")
     ap.add_argument("--repo-root", type=Path, default=REPO_ROOT,
                      help="Repository root used to resolve the default chapter list (default: inferred from this script's location)")
     args = ap.parse_args(argv)
+    if args.max_blocking is not None and args.max_blocking < 0:
+        ap.error("--max-blocking must be nonnegative")
+    try:
+        apparatus = load_apparatus(args.apparatus, args.repo_root) if args.apparatus else {}
+    except (OSError, ValueError, TypeError) as exc:
+        print(f"error: could not read apparatus declarations: {exc}", file=sys.stderr)
+        return 2
 
     if args.chapters:
         chapters = args.chapters
@@ -1075,7 +1180,7 @@ def main(argv=None) -> int:
     reports = []
     for c in chapters:
         try:
-            reports.append(build_report(c))
+            reports.append(build_report(c, apparatus.get(c.resolve(), [])))
         except Exception as exc:  # pragma: no cover - defensive
             print(f"error: could not parse {c}: {exc}", file=sys.stderr)
             return 2
@@ -1097,8 +1202,8 @@ def main(argv=None) -> int:
         else:
             print(render_text(report))
 
-    any_blocking = any(is_blocking(f) for r in reports for f in r.floors.values())
-    if args.strict and any_blocking:
+    blocking = sum(is_blocking(f) for r in reports for f in r.floors.values())
+    if (args.strict and blocking) or (args.max_blocking is not None and blocking > args.max_blocking):
         return 1
     return 0
 

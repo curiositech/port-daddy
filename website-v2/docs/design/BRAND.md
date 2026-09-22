@@ -55,6 +55,32 @@ for the dogfooded coordination vocabulary.
 | `--print-swiss-red` | `#da291c` | Signal red — the Book's Swiss edition, one reserved mark (print only; Pantone 485 C) |
 | `--print-maritime-gold` | `#805a14` | Antique gold — the Book's maritime edition, trim and rules (print only; a flat stand-in for a metallic gold pass, Pantone 872 C). 5.35:1 on `--surface-base` #f2eee6 and 5.80:1 on the plate paper #fbf7ef, and ΔE2000 15.6 from `--story-gold`, which it never sits beside: gold-the-ink is plate trim and opener ornament, gold-the-story-colour is the market. |
 
+### Book semantic blocks
+
+The semantic-block helper has its own nine-role edge vocabulary. These tokens
+are independent of the Port Daddy brand/story palette and are used only for a
+full-strength perimeter around a block plus the helper's two-percent role tint;
+they never carry body text. The two `pd-semantic-blocks.tex` copies are bound
+to this registry by `check-figure-palette.mjs`, including exact role names,
+values, and byte-identical mirrors.
+
+| Token | Hex | Edge role |
+|---|---|---|
+| `--book-block-proof` | `#b33f35` | Proof, theorem, lemma, proposition, corollary |
+| `--book-block-property` | `#7048a5` | Property |
+| `--book-block-hypothesis` | `#427a26` | Empirical hypothesis |
+| `--book-block-calculation` | `#946000` | Numbers by hand |
+| `--book-block-invariant` | `#233a76` | Design invariant |
+| `--book-block-definition` | `#3d454b` | Definition |
+| `--book-block-checked` | `#006ea0` | Model-checked property |
+| `--book-block-protocol` | `#007d73` | Protocol |
+| `--book-block-neutral` | `#363b40` | Unclassified or neutral block |
+
+The guard measures these as nontext edge inks against the page, white, and the
+actual two-percent role field. Icons, labels, and block geometry remain
+necessary meaning cues; the colors are not a confidence scale and are not a
+print or color-vision certification.
+
 ### Dark theme
 
 | Token | Hex | Role |

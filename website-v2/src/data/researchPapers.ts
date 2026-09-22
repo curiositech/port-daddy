@@ -80,7 +80,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 451,
+    sizeKb: 452,
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
@@ -122,7 +122,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Inspection Games for Agent Economies',
     pdfPath: '/research/paper3.pdf',
     pages: 12,
-    sizeKb: 343,
+    sizeKb: 345,
     claim:
       'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
     pullQuote:
@@ -146,7 +146,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
     pages: 17,
-    sizeKb: 406,
+    sizeKb: 408,
     claim:
       'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
     pullQuote:
@@ -170,7 +170,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
     pages: 14,
-    sizeKb: 325,
+    sizeKb: 327,
     claim:
       'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
     pullQuote:
@@ -194,7 +194,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
     pages: 14,
-    sizeKb: 419,
+    sizeKb: 422,
     claim:
       'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
     pullQuote:
@@ -233,6 +233,30 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
       summary:
         'The one citation flagged as possibly fabricated turned out to be real but irrelevant — excluded on relevance, not fraud — and Herlihy–Shavit plus three more foundational citations were added to close a real omission.',
       findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
+    },
+  },
+  {
+    id: 'active-sheaf-cohomology-for-swarms',
+    number: '8',
+    title: 'The Cohomology of Swarms',
+    subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
+    pdfPath: '/research/paper8.pdf',
+    pages: 23,
+    sizeKb: 552,
+    claim:
+      'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
+    pullQuote:
+      'L(g) = ||h||² / (||h||² + ||δ₁* ψ||²) separates micro-triad bugs from macro-network splits in < 2 ms without LLM calls, and greedy min-cut repair drives residual r → 0 in at most β₁(G) rounds.',
+    resultTags: ['CR-1', 'CR-2', 'CR-3', 'CR-4', 'CR-5'],
+    tone: 'primary',
+    icon: Layers3,
+    chapterRef: 'legible-swarm',
+    chapterWhy: 'provides the active control closed-loop, higher-order 2-complex triage, and polynomial-time repair for the fleet',
+    priorArtDive: {
+      verdict: 'CLEAR',
+      summary:
+        'Robinson (2014) established static sensor sheaves; Bodnar et al. (2022) established continuous GNN sheaf diffusion. Neither addressed autonomous LLM swarms, triadic review contracts, or active cycle-matroid repair.',
+      findingsPath: 'paper8-active-sheaf-cohomology/findings.md',
     },
   },
 ]

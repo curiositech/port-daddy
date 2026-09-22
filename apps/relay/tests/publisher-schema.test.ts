@@ -10,6 +10,10 @@ const migration = readFileSync(
   new URL('../migrations/2026-09-14-publisher-grants-v2.sql', import.meta.url),
   'utf8',
 );
+const recoveryMigration = readFileSync(
+  new URL('../migrations/2026-09-17-fleetbot-receipt-recovery.sql', import.meta.url),
+  'utf8',
+);
 
 function tableInfo(db: ReturnType<typeof makeDb>, table: string): unknown[] {
   return db.raw.prepare(`PRAGMA table_info(${table})`).all();
@@ -117,6 +121,48 @@ function publisherCounts(db: ReturnType<typeof makeDb>): Record<string, number> 
 }
 
 describe('publisher storage migration and schema parity', () => {
+  it('keeps legacy intents nullable while validating new recovery bindings', () => {
+    const validBinding = JSON.stringify({
+      grantId: `pdg_${'ab'.repeat(16)}`,
+      grantEpoch: 1,
+      repository: 'curiositech/port-daddy',
+      operation: 'pull-request.enqueue',
+      baseBranch: 'main',
+      baseSha: 'a'.repeat(40),
+      headSha: 'b'.repeat(40),
+      sessionId: 'session-1',
+      requestHash: 'c'.repeat(64),
+      idempotencyKey: 'pd-gh-recovery-test',
+    });
+
+    for (const db of [makeDb(applyAllMigrations()), makeDb(schema)]) {
+      seedPublisherAccount(db, 'u_recovery');
+      expect(db.raw.prepare(
+        'SELECT recovery_binding_json FROM github_publisher_intents WHERE idempotency_key = ?',
+      ).get('intent-1')).toEqual({ recovery_binding_json: null });
+      expect(() => db.raw.prepare(
+        'UPDATE github_publisher_intents SET recovery_binding_json = ? WHERE idempotency_key = ?',
+      ).run(validBinding, 'intent-1')).not.toThrow();
+      expect(() => db.raw.prepare(
+        'UPDATE github_publisher_intents SET recovery_binding_json = ? WHERE idempotency_key = ?',
+      ).run('{"grantId":"pdg_incomplete"}', 'intent-1')).toThrow(/CHECK constraint failed/);
+      expect(() => db.raw.prepare(
+        'UPDATE github_publisher_intents SET recovery_binding_json = ? WHERE idempotency_key = ?',
+      ).run('{not-json', 'intent-1')).toThrow(/malformed JSON|CHECK constraint failed/);
+    }
+  });
+
+  it('adds only the nullable recovery binding to the existing intent table', () => {
+    const before = makeDb(applyAllMigrations().replace(recoveryMigration, ''));
+    expect(tableInfo(before, 'github_publisher_intents')).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'recovery_binding_json' }),
+    ]));
+    before.raw.exec(recoveryMigration);
+    expect(tableInfo(before, 'github_publisher_intents')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'recovery_binding_json', notnull: 0, dflt_value: null }),
+    ]));
+  });
+
   it('keeps the scope trigger deployable by Wrangler D1', () => {
     const start = migration.indexOf(
       'CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope',

@@ -434,9 +434,13 @@ digests read the file on **disk**, so a restored Book reproduces the committed
 values and `check-whitepaper-metadata` stays green (it compares the record
 against the artifact, never against the `.tex`).
 
-Per-chapter PDFs are deliberately still committed per PR: they are chapter-
-scoped, so two PRs collide on one only by editing the same chapter — a real
-conflict a person should see, not a derived-artifact race.
+The Book is the only published whitepaper edition (ADR-0143). Do not restore
+the retired per-chapter PDFs, thumbnails, or catalog entries in a chapter PR.
+Keep the chapter sources and their independent compilation paths for scoped
+validation; attach resulting local or CI proofs without publishing a separate
+chapter edition. Source validation and accepted Book publication remain separate
+steps, with the committed Book and its metadata refreshed together through the
+reviewed artifact path above.
 
 Two corollaries when you hit a stuck whitepaper PR:
 - **`mergeable: true` does not mean it will land.** That field reports a

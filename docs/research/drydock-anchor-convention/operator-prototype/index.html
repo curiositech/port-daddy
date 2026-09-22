@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drydock Control Room — static prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f0e7;
+      --paper-hi: #fbf8f1;
+      --ink: #17191d;
+      --muted: #666a68;
+      --quiet: #9a9c98;
+      --line: color-mix(in srgb, var(--ink) 24%, transparent);
+      --line-soft: color-mix(in srgb, var(--ink) 13%, transparent);
+      --cobalt: #3557c8;
+      --emerald: #147665;
+      --amber: #a46516;
+      --amethyst: #6a50a7;
+      --garnet: #a33b48;
+      --focus: #0e5bd8;
+      --sans: "Recursive", "Avenir Next", "Segoe UI", sans-serif;
+      --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+      --mono: "Recursive Mono", "SFMono-Regular", Consolas, monospace;
+      --hairline: .5px;
+      --section: .75px;
+      --authority: 1.5px;
+      --emergency: 2px;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--paper); font-family: var(--sans); font-size: 16px; color: var(--ink); }
+    body { margin: 0; min-width: 320px; }
+    button, a { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, a:focus-visible, dialog:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .skip { position: fixed; left: 1rem; top: -5rem; z-index: 99; background: var(--ink); color: white; padding: .7rem 1rem; }
+    .skip:focus { top: 1rem; }
+
+    .shell { min-height: 100vh; display: grid; grid-template-rows: auto auto 1fr auto; }
+    .shell > *, .masthead > *, .workspace > *, .authority-footer > * { min-width: 0; }
+    .prototype-rail {
+      display: flex; justify-content: space-between; gap: 1rem; align-items: center;
+      padding: .5rem 1rem; background: var(--ink); color: var(--paper-hi);
+      border-bottom: var(--authority) solid var(--amethyst); font: 700 .875rem/1.25 var(--mono); letter-spacing: .04em;
+    }
+    .prototype-rail strong { color: #d3c8ff; }
+    .masthead { display: grid; grid-template-columns: 15rem 1fr auto; align-items: stretch; border-bottom: var(--section) solid var(--line); }
+    .brand { padding: 1rem 1.2rem; border-right: var(--section) solid var(--line); }
+    .brand h1 { margin: 0; font: 720 1.65rem/.95 var(--display); letter-spacing: .015em; text-transform: uppercase; }
+    .brand p { margin: .42rem 0 0; color: var(--muted); font-size: .875rem; }
+    .view-tabs { display: flex; align-items: stretch; overflow-x: auto; }
+    .view-tabs button {
+      border: 0; border-right: var(--hairline) solid var(--line); background: transparent; padding: .85rem 1.15rem;
+      min-width: 8rem; text-align: left; cursor: pointer;
+    }
+    .view-tabs button[aria-selected="true"] { box-shadow: inset 0 -3px var(--cobalt); background: color-mix(in srgb, var(--cobalt) 7%, transparent); }
+    .view-tabs small { display: block; color: var(--muted); margin-top: .25rem; font-size: .875rem; }
+    .needs { padding: .8rem 1.1rem; display: grid; align-content: center; border-left: var(--section) solid var(--line); min-width: 14rem; }
+    .needs strong { color: var(--amber); font-size: .875rem; }
+    .needs span { font-size: .875rem; margin-top: .2rem; }
+
+    .workspace { display: grid; grid-template-columns: 15rem minmax(26rem, 1fr) 20rem; min-height: 0; }
+    .runs, .evidence { background: color-mix(in srgb, var(--paper-hi) 62%, var(--paper)); }
+    .runs { border-right: var(--section) solid var(--line); }
+    .evidence { border-left: var(--section) solid var(--line); }
+    .panel-head { padding: .8rem 1rem; border-bottom: var(--hairline) solid var(--line); display: flex; justify-content: space-between; align-items: baseline; }
+    .panel-head h2 { margin: 0; font: 720 .98rem/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+    .panel-head span { color: var(--muted); font: .875rem var(--mono); }
+
+    .run-list { list-style: none; padding: 0; margin: 0; }
+    .run-list button { width: 100%; border: 0; border-bottom: var(--hairline) solid var(--line-soft); background: transparent; padding: .9rem 1rem; text-align: left; cursor: pointer; }
+    .run-list button[aria-current="true"] { background: var(--paper-hi); box-shadow: inset 3px 0 var(--cobalt); }
+    .run-name { display: flex; gap: .5rem; align-items: baseline; font-weight: 690; }
+    .run-meta { display: block; color: var(--muted); font: .875rem/1.4 var(--mono); margin: .35rem 0 0 1.1rem; }
+    .dot { font-size: 1rem; line-height: 1; }
+    .observed { color: var(--emerald); }
+    .pending { color: var(--amber); }
+    .proposed { color: var(--amethyst); }
+    .blocked, .failed { color: var(--garnet); }
+    .unknown, .stale { color: var(--muted); }
+
+    main { min-width: 0; overflow: auto; background: var(--paper-hi); }
+    .view { display: none; }
+    .view.active { display: block; }
+    .view[hidden] { display: none !important; }
+    .hero { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; padding: 1.5rem 1.7rem 1.2rem; border-bottom: var(--section) solid var(--line); }
+    .eyebrow { color: var(--cobalt); font: 720 .875rem/1.2 var(--mono); letter-spacing: .07em; text-transform: uppercase; }
+    .hero h2 { margin: .45rem 0 .55rem; font: 760 clamp(1.7rem, 3vw, 2.8rem)/.98 var(--display); letter-spacing: .01em; max-width: 17ch; }
+    .hero p { max-width: 62ch; margin: 0; color: var(--muted); line-height: 1.5; }
+    .truth-block { align-self: start; min-width: 11rem; border: var(--authority) solid var(--amethyst); padding: .75rem; background: color-mix(in srgb, var(--amethyst) 6%, transparent); }
+    .truth-block strong { display: block; color: var(--amethyst); font: 760 .875rem var(--mono); }
+    .truth-block span { display: block; margin-top: .35rem; font-size: .875rem; line-height: 1.35; }
+
+    .content { padding: 1.3rem 1.7rem 2.5rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+    .section { margin-top: 1.4rem; }
+    .section:first-child { margin-top: 0; }
+    .section h3 { margin: 0 0 .7rem; font: 720 1.04rem var(--display); text-transform: uppercase; letter-spacing: .035em; }
+    .card { border: var(--section) solid var(--line); background: var(--paper); padding: 1rem; min-width: 0; }
+    .card strong { display: block; margin-bottom: .35rem; }
+    .card p { margin: .3rem 0 0; color: var(--muted); line-height: 1.45; }
+    .label { color: var(--muted); font: .875rem var(--mono); text-transform: uppercase; letter-spacing: .055em; }
+    .mono { font-family: var(--mono); overflow-wrap: anywhere; }
+    .scope-list, .timeline, .chat, .result-list { list-style: none; margin: 0; padding: 0; }
+    .scope-list li { padding: .45rem 0; border-bottom: var(--hairline) solid var(--line-soft); }
+    .scope-list li:last-child { border-bottom: 0; }
+
+    .authority-chain { display: grid; grid-template-columns: repeat(7, minmax(5.4rem, 1fr)); gap: .35rem; overflow-x: auto; padding-bottom: .4rem; }
+    .authority-chain div { border-top: 3px solid var(--cobalt); padding: .55rem .5rem; background: var(--paper); min-height: 5.2rem; }
+    .authority-chain div:nth-child(2n) { border-color: var(--amethyst); }
+    .authority-chain strong { font-size: .875rem; }
+    .authority-chain span { display: block; color: var(--muted); font-size: .875rem; margin-top: .3rem; }
+
+    .capacity { border-top: 3px solid var(--emerald); }
+    .capacity b { font: 760 1.35rem var(--mono); }
+    .capacity small { display: block; color: var(--muted); margin-top: .25rem; }
+    .capacity.unknown-cap { border-color: var(--muted); }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+    .btn { border: var(--authority) solid var(--ink); background: var(--ink); color: var(--paper-hi); padding: .68rem .9rem; cursor: pointer; }
+    .btn.secondary { background: transparent; color: var(--ink); }
+    .btn.danger { border-width: var(--emergency); border-color: var(--garnet); background: transparent; color: var(--garnet); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .local-only { font-size: .875rem; color: var(--muted); align-self: center; }
+
+    .step-box { border-left: 4px solid var(--emerald); padding: .2rem 0 .2rem 1rem; }
+    .step-box h3 { margin: .2rem 0 .4rem; font-size: 1.25rem; }
+    .chat li { padding: .8rem 0; border-bottom: var(--hairline) solid var(--line-soft); line-height: 1.45; }
+    .chat b { color: var(--cobalt); font: .875rem var(--mono); }
+    .porthole { aspect-ratio: 16 / 9; border: var(--section) solid var(--line); background: #121418; color: #e8e6df; padding: 1rem; display: grid; align-content: space-between; }
+    .porthole pre { margin: 0; font: .875rem/1.45 var(--mono); white-space: pre-wrap; }
+    .porthole .frame { color: #8a91a0; font-size: .875rem; display: flex; justify-content: space-between; }
+
+    .timeline li { display: grid; grid-template-columns: 1.1rem 1fr auto; gap: .55rem; align-items: baseline; padding: .55rem 0; border-bottom: var(--hairline) solid var(--line-soft); }
+    .timeline time { color: var(--muted); font: .875rem var(--mono); }
+    .timeline .not-witnessed { color: var(--muted); }
+
+    .result-list li { display: grid; grid-template-columns: 1fr auto; gap: 1rem; padding: .65rem 0; border-bottom: var(--hairline) solid var(--line-soft); }
+    .result-list b { font: 730 .875rem var(--mono); overflow-wrap: anywhere; }
+    .status-pass { color: var(--emerald); }
+    .status-hold { color: var(--garnet); }
+    .status-unknown { color: var(--muted); }
+
+    .evidence-list { padding: .4rem 1rem 1rem; }
+    .evidence-item { border-bottom: var(--hairline) solid var(--line-soft); padding: .8rem 0; }
+    .evidence-item button { border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; font-weight: 690; }
+    .evidence-item p { margin: .25rem 0 0; color: var(--muted); font-size: .875rem; line-height: 1.4; }
+    .receipt { margin: 1rem; border: var(--section) dashed var(--line); padding: .8rem; font: .875rem/1.45 var(--mono); color: var(--muted); }
+
+    .authority-footer { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; border-top: var(--authority) solid var(--cobalt); padding: .7rem 1rem; background: var(--paper); font-size: .875rem; }
+    .authority-footer strong { color: var(--cobalt); }
+    .authority-footer code { font: .875rem var(--mono); overflow-wrap: anywhere; }
+
+    dialog { max-width: 42rem; width: calc(100% - 2rem); border: var(--authority) solid var(--ink); background: var(--paper-hi); color: var(--ink); padding: 0; box-shadow: 0 1rem 4rem #0004; }
+    dialog::backdrop { background: #17191d99; }
+    .dialog-head { padding: 1rem 1.2rem; border-bottom: var(--section) solid var(--line); display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+    .dialog-head h2 { margin: 0; font: 730 1.4rem var(--display); text-transform: uppercase; }
+    .dialog-body { padding: 1.2rem; }
+    .dialog-body dl { display: grid; grid-template-columns: 8rem 1fr; gap: .6rem 1rem; margin: 0; }
+    .dialog-body dt { color: var(--muted); font: .875rem var(--mono); text-transform: uppercase; }
+    .dialog-body dd { margin: 0; line-height: 1.45; }
+    .icon-btn { border: 0; background: transparent; cursor: pointer; font-size: 1.2rem; }
+
+    @media (max-width: 1040px) {
+      .workspace { grid-template-columns: 12rem minmax(0, 1fr); }
+      .evidence { grid-column: 1 / -1; border-left: 0; border-top: var(--section) solid var(--line); }
+      .evidence-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      .masthead { grid-template-columns: 12rem 1fr; }
+      .needs { display: none; }
+    }
+    @media (max-width: 720px) {
+      .prototype-rail { align-items: start; flex-direction: column; }
+      .masthead { grid-template-columns: 1fr; }
+      .brand { border-right: 0; border-bottom: var(--hairline) solid var(--line); }
+      .workspace { grid-template-columns: 1fr; }
+      .runs { border-right: 0; border-bottom: var(--section) solid var(--line); }
+      .run-list { display: flex; overflow-x: auto; }
+      .run-list li { min-width: 13rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .hero { grid-template-columns: 1fr; padding: 1.2rem; }
+      .content { padding: 1.1rem 1.2rem 2rem; }
+      .evidence-list { grid-template-columns: 1fr; }
+      .authority-footer { grid-template-columns: 1fr; }
+      .dialog-body dl { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+    @media (forced-colors: active) {
+      :root { --line: CanvasText; --line-soft: CanvasText; }
+      .dot, .eyebrow, .truth-block strong, .needs strong, .authority-footer strong { color: CanvasText; }
+      .card, .truth-block, .porthole { border: 1px solid CanvasText; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to current view</a>
+  <div class="shell">
+    <div class="prototype-rail">
+      <span><strong>STATIC PROTOTYPE</strong> · No runtime, provider, daemon, network, or command channel</span>
+      <span id="prototype-truth">Truth: T0_STATIC_WITH_T1_MODEL_FIXTURE · Anchor: 6c2c30d7… · Evidence age: fixture</span>
+    </div>
+
+    <header class="masthead">
+      <div class="brand">
+        <h1>Drydock</h1>
+        <p>Control Room · one bounded run</p>
+      </div>
+      <nav class="view-tabs" aria-label="Control Room views" role="tablist">
+        <button id="tab-proposal" type="button" role="tab" aria-controls="panel-proposal" data-view-button="proposal" aria-selected="true" tabindex="0">Proposal<small>inspect before assent</small></button>
+        <button id="tab-work" type="button" role="tab" aria-controls="panel-work" data-view-button="work" aria-selected="false" tabindex="-1">Workroom<small>follow and intervene</small></button>
+        <button id="tab-review" type="button" role="tab" aria-controls="panel-review" data-view-button="review" aria-selected="false" tabindex="-1">Review<small>evidence and dissent</small></button>
+      </nav>
+      <div class="needs">
+        <strong>◐ NEEDS YOU · 1</strong>
+        <span>Target changed after draft</span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="runs" aria-label="Run projections">
+        <div class="panel-head"><h2>Runs</h2><span>projection only</span></div>
+        <ul class="run-list">
+          <li><button type="button" aria-current="true"><span class="run-name"><span class="dot proposed">○</span> Provenance repair</span><span class="run-meta">PROPOSED · no body</span></button></li>
+          <li><button type="button"><span class="run-name"><span class="dot observed">●</span> Fixture replay</span><span class="run-meta">OBSERVED · model only</span></button></li>
+          <li><button type="button"><span class="run-name"><span class="dot blocked">⊘</span> Live canary</span><span class="run-meta">BLOCKED_BY_HALT</span></button></li>
+        </ul>
+        <div class="receipt">Changing this selection has no wake, lifecycle, workspace, lease, or capability effect.</div>
+      </aside>
+
+      <main id="main" tabindex="-1">
+        <section id="panel-proposal" class="view active" data-view="proposal" role="tabpanel" aria-labelledby="tab-proposal">
+          <div class="hero">
+            <div>
+              <div class="eyebrow">○ Proposed · no body · no authority</div>
+              <h2 id="proposal-title">Repair dispatch provenance in one repository</h2>
+              <p>An exact, no-network test attempt over immutable source. Your assent records only the proposal shown here. A separate gate may still deny admission.</p>
+            </div>
+            <div class="truth-block"><strong>T0_STATIC</strong><span>Contract and fixture evidence only. No containment or operator-control claim.</span></div>
+          </div>
+          <div class="content">
+            <section class="section">
+              <h3>Exact scope</h3>
+              <div class="grid-2">
+                <div class="card"><span class="label">Repository / target</span><strong class="mono">curiositech/port-daddy</strong><p class="mono">origin/main · 6c2c30d74b88…</p></div>
+                <div class="card"><span class="label">Worktree policy</span><strong>Flawless origin snapshot</strong><p>Read-only source mount. Writes may land only in a controller-created linked worktree.</p></div>
+              </div>
+              <ul class="scope-list card" style="margin-top:.75rem">
+                <li><strong>May inspect:</strong> repository source, declared skills, proposal fixtures.</li>
+                <li><strong>May write:</strong> one isolated linked worktree after independent admission.</li>
+                <li><strong>May not:</strong> touch main checkout, network, credentials, provider billing, daemon, or live Port Daddy.</li>
+                <li><strong>Success:</strong> exact tests and review evidence; no merge authority.</li>
+              </ul>
+            </section>
+
+            <section class="section">
+              <h3>Authority path</h3>
+              <div class="authority-chain" aria-label="Proposed authority path">
+                <div><strong>Capture</strong><span>proposal bytes frozen</span></div>
+                <div><strong>Review</strong><span>critical fields shown</span></div>
+                <div><strong>Assent</strong><span>non-executable assertion</span></div>
+                <div><strong>Adjudicate</strong><span>policy may deny</span></div>
+                <div><strong>Reserve</strong><span>native capacity</span></div>
+                <div><strong>Admit</strong><span>one-use lease</span></div>
+                <div><strong>Witness</strong><span>independent evidence</span></div>
+              </div>
+            </section>
+
+            <section class="section">
+              <h3>Capacity · native units</h3>
+              <div class="grid-3">
+                <div class="card capacity"><span class="label">Attempts</span><b>1</b><small>hard ceiling · no retry</small></div>
+                <div class="card capacity"><span class="label">Wall time</span><b>20 min</b><small>includes 3 min Stop reserve</small></div>
+                <div class="card capacity unknown-cap"><span class="label">Subscription allowance</span><b>UNKNOWN</b><small>included but scarce · admission blocked</small></div>
+              </div>
+            </section>
+
+            <section class="section">
+              <h3>Critical comparison</h3>
+              <div class="card">
+                <span class="label">Changed after first draft</span>
+                <p><strong>Target moved:</strong> <span class="mono">c93c250… → 6c2c30d…</span></p>
+                <p><strong>Authority narrowed:</strong> network changed from proposed allowlist to none.</p>
+                <p><strong>Unknown preserved:</strong> provider allowance cannot yet be measured.</p>
+                <div class="cta-row">
+                  <button class="btn" type="button" data-evidence="proposal">Inspect exact proposal</button>
+                  <button class="btn secondary" type="button" data-local-assent>Preview assent receipt</button>
+                  <span class="local-only">Prototype only · emits no command</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="panel-work" class="view" data-view="work" role="tabpanel" aria-labelledby="tab-work" hidden>
+          <div class="hero">
+            <div>
+              <div class="eyebrow">● Observed fixture · model execution</div>
+              <h2 id="work-title">One attempt, legible while it moves</h2>
+              <p>The Workroom projects conversation, claimed scope, diff motion, tests, spend uncertainty, and the staged Stop lifecycle without manufacturing live authority.</p>
+            </div>
+            <div class="truth-block"><strong>T1_MODEL</strong><span>Deterministic fake. Runtime and human axes remain blocked.</span></div>
+          </div>
+          <div class="content">
+            <div class="grid-2">
+              <section class="section">
+                <div class="step-box">
+                  <span class="label">Current step · 4 of 7</span>
+                  <h3>Mutate lost-acknowledgement fixture</h3>
+                  <p class="mono">tests/drydock/admission-replay.test.ts</p>
+                </div>
+                <ul class="chat" aria-label="Agent activity transcript">
+                  <li><b>12:43:11 · ACTOR</b><br>Bound the mutation to attempt-1 and preserved reservation-1.</li>
+                  <li><b>12:43:13 · RECORDER</b><br>Raw trace committed before minimization.</li>
+                  <li><b>12:43:16 · ORACLE</b><br>Expected predicate detected: retry authority remained absent.</li>
+                </ul>
+              </section>
+              <section class="section">
+                <h3>Porthole · fixture frame 18</h3>
+                <div class="porthole" role="img" aria-label="Static terminal fixture showing a lost acknowledgement test completing without retry">
+                  <pre>$ trial-basin replay fixture-17
+schedule  sha256:8b12…
+fault     lost-ack after dispatch
+effect    AMBIGUOUS
+retry     DENIED
+capacity  HELD
+result    PASS_MODEL_ONLY</pre>
+                  <div class="frame"><span>source: committed fixture</span><span>not live capture</span></div>
+                </div>
+              </section>
+            </div>
+
+            <section class="section">
+              <h3>Motion and proof</h3>
+              <div class="grid-3">
+                <div class="card"><span class="label">Claimed scope</span><strong>2 files / 3 symbols</strong><p>No whole-repository claim.</p></div>
+                <div class="card"><span class="label">Diff motion</span><strong>+34 / −8</strong><p>Last observed fixture append 7s ago.</p></div>
+                <div class="card"><span class="label">Tests</span><strong class="observed">● 17 passed</strong><p>Containment remains unknown.</p></div>
+              </div>
+            </section>
+
+            <section class="section">
+              <h3>Switchboard preview</h3>
+              <div class="card" style="border-left:var(--emergency) solid var(--garnet)">
+                <span class="label">Consequential request path</span>
+                <p>Selection is inert. A real Stop would require a signed request, host delivery, acknowledgement, fence, process termination, lease closure, effect reconciliation, and teardown witness.</p>
+                <div class="cta-row">
+                  <button class="btn danger" type="button" data-preview-stop>Preview Stop sequence</button>
+                  <span class="local-only">No host request will be sent</span>
+                </div>
+                <ol class="timeline" id="stop-timeline" aria-live="polite" style="margin-top:.75rem">
+                  <li><span class="dot pending">◐</span><span>Request prepared locally</span><time>fixture</time></li>
+                  <li><span class="dot unknown">?</span><span class="not-witnessed">Delivery not witnessed</span><time>—</time></li>
+                  <li><span class="dot unknown">?</span><span class="not-witnessed">Fence / process / lease / effects / teardown not witnessed</span><time>—</time></li>
+                </ol>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="panel-review" class="view" data-view="review" role="tabpanel" aria-labelledby="tab-review" hidden>
+          <div class="hero">
+            <div>
+              <div class="eyebrow">◐ Review candidate · subordinate truth retained</div>
+              <h2 id="review-title">Evidence without the reassuring lie</h2>
+              <p>Each axis stands on its own witness class. Model success does not pull containment, accessibility, provider behavior, or demand into green.</p>
+            </div>
+            <div class="truth-block"><strong>NO RELEASE</strong><span>Static and model evidence may promote fixtures only.</span></div>
+          </div>
+          <div class="content">
+            <section class="section">
+              <h3>Result vector</h3>
+              <div class="card">
+                <ul class="result-list">
+                  <li><span>Schema and digest joins</span><b class="status-pass">● PASS_STATIC</b></li>
+                  <li><span>Modeled admission conservation</span><b class="status-pass">● PASS_MODEL</b></li>
+                  <li><span>Runtime containment</span><b class="status-hold">⊘ BLOCKED_BY_HALT</b></li>
+                  <li><span>Provider cancellation and spend refusal</span><b class="status-unknown">? UNKNOWN</b></li>
+                  <li><span>Keyboard / screen-reader operability</span><b class="status-unknown">? UNTESTED_HUMAN</b></li>
+                  <li><span>Demand and willingness to pay</span><b class="status-unknown">? UNKNOWN</b></li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="section">
+              <h3>Dissent that survives</h3>
+              <div class="grid-2">
+                <div class="card"><strong>Product dissent</strong><p>Native provider controls may satisfy the buyer's job. If so, do not broaden the product to manufacture differentiation.</p></div>
+                <div class="card"><strong>Design dissent</strong><p>Two actions improves discoverability but does not prove accessibility or least-disclosure behavior.</p></div>
+                <div class="card"><strong>Engineering dissent</strong><p>A deterministic fake cannot prove complete mediation, cancellation, or external-effect finality.</p></div>
+                <div class="card"><strong>Political-economy dissent</strong><p>Conservation arithmetic cannot settle who deserves pay, owns output, or bears moral status.</p></div>
+              </div>
+            </section>
+
+            <section class="section" id="primary-evidence" tabindex="-1">
+              <h3>Primary evidence destination</h3>
+              <div class="card">
+                <span class="label">Exact fixture record</span>
+                <p class="mono">sha256:5c3abfa1ee4d073555b5570e06a8de7fb650c93501e08241c089d6dddc493911</p>
+                <p>The endpoint is a committed static packet. Runtime evidence is represented by an explicit unavailable-evidence receipt, not a spinner.</p>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <aside class="evidence" aria-label="Evidence summaries">
+        <div class="panel-head"><h2>Evidence</h2><span>≤2 activations</span></div>
+        <div class="evidence-list">
+          <div class="evidence-item"><button type="button" data-evidence="proposal">○ Exact proposal</button><p>Digest-bound scope, target, exclusions, and capacity.</p></div>
+          <div class="evidence-item"><button type="button" data-evidence="trace">● Raw trace</button><p>Committed before minimization; model-only witness class.</p></div>
+          <div class="evidence-item"><button type="button" data-evidence="unavailable">⊘ Runtime containment</button><p>Unavailable while the local runtime halt remains in force.</p></div>
+        </div>
+        <div class="receipt">Projection age: fixture<br>Authority: none<br>Network: none<br>Primary evidence: local static packet</div>
+      </aside>
+    </div>
+
+    <footer class="authority-footer">
+      <strong>○ NO EXECUTION AUTHORITY</strong>
+      <code>principal=prototype · scope=local-static · generation=0 · policy=halt · use=0</code>
+      <span>Selection never wakes work</span>
+    </footer>
+  </div>
+
+  <dialog id="evidence-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head">
+      <div><span class="label">Evidence summary · activation 1 of 2</span><h2 id="dialog-title">Exact proposal</h2></div>
+      <button class="icon-btn" type="button" aria-label="Close evidence summary" data-close-dialog>×</button>
+    </div>
+    <div class="dialog-body">
+      <dl id="dialog-fields"></dl>
+      <div class="cta-row">
+        <button class="btn" type="button" data-open-primary>Open primary evidence</button>
+        <button class="btn secondary" type="button" data-close-dialog>Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const views = [...document.querySelectorAll('[data-view]')];
+    const tabs = [...document.querySelectorAll('[data-view-button]')];
+    function showView(name) {
+      views.forEach(view => {
+        const active = view.dataset.view === name;
+        view.classList.toggle('active', active);
+        view.hidden = !active;
+      });
+      tabs.forEach(tab => {
+        const active = tab.dataset.viewButton === name;
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+      });
+    }
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => showView(tab.dataset.viewButton));
+      tab.addEventListener('keydown', event => {
+        const offsets = {ArrowRight: 1, ArrowLeft: -1, Home: -index, End: tabs.length - index - 1};
+        if (!(event.key in offsets)) return;
+        event.preventDefault();
+        const next = (index + offsets[event.key] + tabs.length) % tabs.length;
+        showView(tabs[next].dataset.viewButton);
+        tabs[next].focus();
+      });
+    });
+
+    const dialog = document.querySelector('#evidence-dialog');
+    const title = document.querySelector('#dialog-title');
+    const fields = document.querySelector('#dialog-fields');
+    const evidence = {
+      proposal: {
+        title: 'Exact proposal',
+        claim: 'One no-network attempt may be considered for an isolated worktree.',
+        truth: 'PROPOSED',
+        authority: 'None; operator assent is non-executable.',
+        witness: 'Static packet digest',
+        age: 'Fixture',
+        limitation: 'Admission, containment, and provider allowance remain unproved.',
+        digest: 'sha256:proposal-6c2c30d7'
+      },
+      trace: {
+        title: 'Raw model trace',
+        claim: 'The sealed reducer model retained capacity and denied retry after lost acknowledgement.',
+        truth: 'PASS_MODEL',
+        authority: 'None',
+        witness: 'External recorder fixture',
+        age: 'Fixture frame 18',
+        limitation: 'No OS, process, network, provider, or human behavior was exercised.',
+        digest: 'sha256:raw-trace-8b12'
+      },
+      unavailable: {
+        title: 'Unavailable runtime evidence',
+        claim: 'Complete mediation and live Stop convergence are not established.',
+        truth: 'BLOCKED_BY_HALT',
+        authority: 'No runtime launch authority',
+        witness: 'Absence receipt',
+        age: 'Current policy fixture',
+        limitation: 'Requires explicit halt lift and independently witnessed contained canary.',
+        digest: 'receipt:no-runtime-evidence'
+      }
+    };
+    document.querySelectorAll('[data-evidence]').forEach(button => button.addEventListener('click', () => {
+      const item = evidence[button.dataset.evidence];
+      title.textContent = item.title;
+      fields.replaceChildren();
+      for (const [key, value] of Object.entries(item).filter(([entryKey]) => entryKey !== 'title')) {
+        const term = document.createElement('dt');
+        const description = document.createElement('dd');
+        term.textContent = key;
+        description.textContent = value;
+        fields.append(term, description);
+      }
+      dialog.showModal();
+    }));
+    document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => dialog.close()));
+    document.querySelector('[data-open-primary]').addEventListener('click', () => {
+      dialog.close();
+      showView('review');
+      const primary = document.querySelector('#primary-evidence');
+      primary.scrollIntoView({block: 'center'});
+      primary.focus();
+    });
+    document.querySelector('[data-local-assent]').addEventListener('click', event => {
+      event.currentTarget.textContent = 'Local receipt previewed · no authority';
+    });
+    document.querySelector('[data-preview-stop]').addEventListener('click', event => {
+      event.currentTarget.textContent = 'Stop preview prepared · not delivered';
+      document.querySelector('#stop-timeline li:first-child span:nth-child(2)').textContent = 'Request prepared locally; no host channel exists';
+    });
+  </script>
+</body>
+</html>

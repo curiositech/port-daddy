@@ -66,11 +66,11 @@ jobs:
       - name: Render the harbor-research corpus
         run: make -C docs/harbor-research docs
 
-      - name: Publish the seven papers + execution reports for the site
+      - name: Publish the eight papers + execution reports for the site
         run: |
           set -euo pipefail
           mkdir -p website-v2/public/research
-          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 exec4 exec5; do
+          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 paper8 exec4 exec5; do
             cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
           done
 

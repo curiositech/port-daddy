@@ -71,4 +71,19 @@ describe('Fleetbot publisher route', () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({ code: 'WORKLOAD_PROOF_INVALID' });
   });
+
+  it('routes receipt recovery only as a bounded signed POST', async () => {
+    const response = await worker.fetch(new Request(
+      'https://relay.example/v1/fleetbot/publisher-receipts/recover',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' },
+    ), env(), ctx);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: 'WORKLOAD_PROOF_INVALID' });
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+
+    const get = await worker.fetch(new Request(
+      'https://relay.example/v1/fleetbot/publisher-receipts/recover',
+    ), env(), ctx);
+    expect(get.status).toBe(404);
+  });
 });

@@ -8,13 +8,20 @@ import {
   sign,
   verify,
 } from 'node:crypto'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
+import { decodePublicationPackage, hydratePublicationPackage, validatePublicationPackage } from './fleetbot-publication.mjs'
+import { stampPullRequestBody } from '../lib/github-publisher-stamp.mjs'
 
 export const ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1'
 export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
 export const GRANT_READ_SCHEMA = 'port-daddy.publisher-grant-read.v1'
+export const RECEIPT_READ_SCHEMA = 'port-daddy.publisher-receipt-read.v1'
 export const RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2'
+export const RECOVERY_MANIFEST_SCHEMA = 'port-daddy.fleetbot-recovery-manifest.v1'
 export const DEFAULT_AUDIENCE = 'https://github.com/curiositech'
+export const RECEIPT_RECOVERY_PATH = '/v1/fleetbot/publisher-receipts/recover'
+const MAX_BODY_BYTES = 1_000_000
+const IDENTIFIER_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/
 
 export function stableJson(value) {
   function normalize(input) {
@@ -55,6 +62,12 @@ export function signDigestHex(privateKey, preimage) {
   return sign(null, digest, privateKey).toString('hex')
 }
 
+function verifyDigestHex(publicKey, preimage, signatureHex) {
+  return typeof signatureHex === 'string'
+    && /^[0-9a-f]{128}$/i.test(signatureHex)
+    && verify(null, Buffer.from(hashHex(preimage), 'hex'), publicKey, Buffer.from(signatureHex, 'hex'))
+}
+
 function ed25519PublicKey(publicKeyHex) {
   const raw = Buffer.from(requireHex(publicKeyHex, 32, 'Relay receipt public key'), 'hex')
   const spkiPrefix = Buffer.from('302a300506032b6570032100', 'hex')
@@ -72,13 +85,15 @@ export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expect
       || receipt.repository !== request.repository
       || receipt.idempotencyKey !== request.idempotencyKey
       || receipt.sessionId !== request.sessionId
+      || receipt.actorId !== request.authorship?.actorId
+      || receipt.agentId !== request.authorship?.agentId
+      || receipt.roadmapItem !== request.authorship?.roadmapItem
       || receipt.authorizedBy?.grantId !== snapshot.grantId
       || receipt.authorizedBy?.grantEpoch !== snapshot.grantEpoch
       || receipt.authorizedBy?.surface !== 'publisher'
       || receipt.admission !== 'standing-publisher-grant'
-      || receipt.result !== 'observed'
-      || receipt.resourceNumber !== request.payload.pullRequestNumber
-      || receipt.githubHeadSha !== request.payload.expectedGithubHeadSha
+      || !expectedReceiptResults(request.operation).includes(receipt.result)
+      || !receiptMatchesTarget(receipt, request)
       || receipt.tokenCleanup !== 'confirmed'
       || receipt.relayPublicKey !== trustedRelayPublicKey
       || receipt.receiptId !== expectedReceiptId
@@ -92,6 +107,34 @@ export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expect
     throw new Error('Relay publisher receipt signature is invalid')
   }
   return receipt
+}
+
+/** New publication receives a new App commit and branch, not the local SHA. */
+function receiptMatchesTarget(receipt, request) {
+  if (request.operation !== 'pull-request.publish') {
+    return receipt.resourceNumber === request.payload.pullRequestNumber
+      && receipt.githubHeadSha === request.payload.expectedGithubHeadSha
+      && receipt.publishedBranch === request.authorship?.sourceBranch
+  }
+  const name = request.authorship.agentId.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 44) || 'agent'
+  const scope = hashHex(`${receipt.accountUserId}:${request.idempotencyKey}`).slice(0, 12)
+  return receipt.appSlug === 'port-daddy'
+    && typeof receipt.accountUserId === 'string' && receipt.accountUserId.length > 0
+    && Number.isSafeInteger(receipt.resourceNumber) && receipt.resourceNumber > 0
+    && receipt.resourceUrl === `https://github.com/${request.repository}/pull/${receipt.resourceNumber}`
+    && receipt.sourceHeadSha === request.payload.sourceHeadSha
+    && /^[0-9a-f]{40}$/.test(receipt.githubHeadSha ?? '')
+    && receipt.publishedBranch === `pd-agent/${name}-${scope}`
+}
+
+function expectedReceiptResults(operation) {
+  if (operation === 'pull-request.publish') return ['created', 'reused']
+  if (operation === 'pull-request.inspect') return ['observed']
+  if (operation === 'pull-request.comment' || operation === 'pull-request.review-reply') return ['created', 'reused']
+  if (operation === 'pull-request.ready'
+      || operation === 'pull-request.request-reviewers'
+      || operation === 'pull-request.enqueue') return ['updated', 'reused']
+  return []
 }
 
 async function jsonFetch(url, options = {}, fetchImpl = fetch) {
@@ -159,20 +202,235 @@ export async function readGrantSnapshot({ relayUrl, key, grantId, fetchImpl = fe
   return body
 }
 
-export function buildInspectRequest({ key, snapshot, repository, pullRequest, runId, runAttempt, now = Math.floor(Date.now() / 1000), nonce = randomBytes(32).toString('hex') }) {
-  const operation = 'pull-request.inspect'
+export function actionInputDigest(command, env) {
+  return hashHex(stableJson({
+    operation: command,
+    pullRequest: env.FLEETBOT_PULL_REQUEST_NUMBER ?? '',
+    commentBody: env.FLEETBOT_COMMENT_BODY ?? '',
+    reviewCommentId: env.FLEETBOT_REVIEW_COMMENT_ID ?? '',
+    reviewersJson: env.FLEETBOT_REVIEWERS_JSON ?? '[]',
+    teamReviewersJson: env.FLEETBOT_TEAM_REVIEWERS_JSON ?? '[]',
+    actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
+    agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
+    sessionId: env.FLEETBOT_SESSION_ID ?? '',
+    purpose: env.FLEETBOT_PURPOSE ?? `Perform ${command} through the protected Fleetbot workload.`,
+    roadmapItem: env.FLEETBOT_ROADMAP_ITEM ?? '',
+    sidequestReason: env.FLEETBOT_SIDEQUEST_REASON ?? '',
+    worktreeId: env.FLEETBOT_WORKTREE_ID ?? '',
+    // Bind the exact transported bytes, not a URL or a mutable artifact name.
+    publicationPackage: env.FLEETBOT_PUBLICATION_PACKAGE ?? '',
+  }))
+}
+
+export function buildRecoveryBinding(request) {
+  return {
+    grantId: request.capability.grantId,
+    grantEpoch: request.capability.grantEpoch,
+    repository: request.repository,
+    operation: request.operation,
+    baseBranch: request.capability.baseBranch,
+    baseSha: request.capability.baseSha,
+    headSha: request.capability.headSha,
+    sessionId: request.sessionId,
+    requestHash: request.capability.requestHash,
+    idempotencyKey: request.idempotencyKey,
+  }
+}
+
+function receiptVerificationRequest(request) {
+  return {
+    operation: request.operation,
+    repository: request.repository,
+    idempotencyKey: request.idempotencyKey,
+    sessionId: request.sessionId,
+    authorship: {
+      actorId: request.authorship.actorId,
+      agentId: request.authorship.agentId,
+      roadmapItem: request.authorship.roadmapItem,
+      sourceBranch: request.authorship.sourceBranch,
+    },
+    payload: {
+      pullRequestNumber: request.payload.pullRequestNumber,
+      expectedGithubHeadSha: request.payload.expectedGithubHeadSha,
+      ...(request.operation === 'pull-request.publish' ? {
+        sourceHeadSha: request.payload.sourceHeadSha,
+        sourceTreeSha: request.payload.sourceTreeSha,
+      } : {}),
+    },
+    capability: {
+      grantId: request.capability.grantId,
+      grantEpoch: request.capability.grantEpoch,
+      baseBranch: request.capability.baseBranch,
+      baseSha: request.capability.baseSha,
+      headSha: request.capability.headSha,
+      requestHash: request.capability.requestHash,
+    },
+  }
+}
+
+export function buildRecoveryManifest({ key, request, snapshot, repository, workflow, workflowRef, workflowSha, eventName, runId, command, pullRequestNumber, inputDigest, createdAt = Math.floor(Date.now() / 1000) }) {
+  const unsigned = {
+    schema: RECOVERY_MANIFEST_SCHEMA,
+    repository,
+    workflow: requireBoundedText(workflow, 'GITHUB_WORKFLOW', 255),
+    workflowRef: requireBoundedText(workflowRef, 'GITHUB_WORKFLOW_REF', 1_024),
+    workflowSha: requireHex(workflowSha, 20, 'GITHUB_SHA'),
+    eventName: requireIdentifier(eventName, 'GITHUB_EVENT_NAME'),
+    runId: requireIdentifier(runId, 'GITHUB_RUN_ID'),
+    command,
+    pullRequestNumber: request.operation === 'pull-request.publish'
+      ? null : requirePositiveInteger(pullRequestNumber, 'FLEETBOT_PULL_REQUEST_NUMBER'),
+    inputDigest: requireHex(inputDigest, 32, 'workflow input digest'),
+    workloadFingerprint: key.fingerprint,
+    signingKeyGeneration: snapshot.signingKeyGeneration,
+    createdAt,
+    binding: buildRecoveryBinding(request),
+    receiptRequest: receiptVerificationRequest(request),
+  }
+  return { ...unsigned, manifestSignature: signDigestHex(key.privateKey, stableJson(unsigned)) }
+}
+
+export function verifyRecoveryManifest(manifest, { key, repository, workflow, workflowRef, workflowSha, eventName, runId, command, pullRequestNumber, inputDigest }) {
+  if (!manifest || typeof manifest !== 'object') throw new Error('Fleetbot recovery manifest is malformed')
+  const { manifestSignature, ...unsigned } = manifest
+  if (manifest.schema !== RECOVERY_MANIFEST_SCHEMA
+      || manifest.repository !== repository
+      || manifest.workflow !== workflow
+      || manifest.workflowRef !== workflowRef
+      || manifest.workflowSha !== workflowSha
+      || manifest.eventName !== eventName
+      || manifest.runId !== runId
+      || manifest.command !== command
+      || manifest.pullRequestNumber !== pullRequestNumber
+      || manifest.inputDigest !== inputDigest
+      || manifest.workloadFingerprint !== key.fingerprint
+      || !Number.isSafeInteger(manifest.signingKeyGeneration)
+      || !verifyDigestHex(createPublicKey(key.privateKey), stableJson(unsigned), manifestSignature)) {
+    throw new Error('Fleetbot recovery manifest does not match this immutable workflow invocation')
+  }
+  if (stableJson(manifest.binding) !== stableJson(buildRecoveryBinding(manifest.receiptRequest))
+      || manifest.receiptRequest.repository !== repository
+      || (manifest.receiptRequest.payload?.pullRequestNumber ?? null) !== pullRequestNumber) {
+    throw new Error('Fleetbot recovery manifest binding does not match its publish request')
+  }
+  return manifest
+}
+
+/** Verify an original-run artifact from a distinct protected recovery run. */
+export function verifyRecoveryManifestForRecovery(manifest, { key, repository, workflow, runId }) {
+  if (!manifest || typeof manifest !== 'object') throw new Error('Fleetbot recovery manifest is malformed')
+  const { manifestSignature, ...unsigned } = manifest
+  if (manifest.schema !== RECOVERY_MANIFEST_SCHEMA
+      || manifest.repository !== repository
+      || manifest.workflow !== workflow
+      || manifest.runId !== runId
+      || manifest.workloadFingerprint !== key.fingerprint
+      || !Number.isSafeInteger(manifest.signingKeyGeneration)
+      || !verifyDigestHex(createPublicKey(key.privateKey), stableJson(unsigned), manifestSignature)) {
+    throw new Error('Fleetbot recovery manifest does not match the selected source run')
+  }
+  if (stableJson(manifest.binding) !== stableJson(buildRecoveryBinding(manifest.receiptRequest))
+      || manifest.receiptRequest.repository !== repository
+      || (manifest.receiptRequest.payload?.pullRequestNumber ?? null) !== manifest.pullRequestNumber) {
+    throw new Error('Fleetbot recovery manifest binding does not match its publish request')
+  }
+  return manifest
+}
+
+export function buildReceiptRecoveryEnvelope({ key, manifest, now = Math.floor(Date.now() / 1000), nonce = randomBytes(32).toString('hex') }) {
+  const proof = {
+    schema: RECEIPT_READ_SCHEMA,
+    method: 'POST',
+    path: RECEIPT_RECOVERY_PATH,
+    daemonFingerprint: key.fingerprint,
+    signingKeyGeneration: manifest.signingKeyGeneration,
+    issuedAt: now,
+    nonce: requireHex(nonce, 32, 'receipt-read nonce'),
+    binding: manifest.binding,
+  }
+  return { proof, proofSignature: signDigestHex(key.privateKey, stableJson(proof)) }
+}
+
+export async function recoverPublisherReceipt({ relayUrl, key, manifest, expectedRelayPublicKey, fetchImpl = fetch, now, nonce }) {
+  const recoveryEnvelope = buildReceiptRecoveryEnvelope({ key, manifest, now, nonce })
+  const envelope = await jsonFetch(new URL(RECEIPT_RECOVERY_PATH, relayUrl), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recoveryEnvelope),
+  }, fetchImpl)
+  return verifyPublisherReceiptEnvelope(envelope, {
+    request: manifest.receiptRequest,
+    snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
+    expectedRelayPublicKey,
+  })
+}
+
+function requireIdentifier(value, name) {
+  if (typeof value !== 'string' || !IDENTIFIER_RE.test(value)) {
+    throw new Error(`${name} is missing or malformed`)
+  }
+  return value
+}
+
+function requireBoundedText(value, name, maxBytes) {
+  if (typeof value !== 'string' || value.trim().length === 0 || Buffer.byteLength(value, 'utf8') > maxBytes) {
+    throw new Error(`${name} must be non-empty and at most ${maxBytes} UTF-8 bytes`)
+  }
+  return value
+}
+
+function requirePositiveInteger(value, name) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`)
+  return value
+}
+
+function requireReviewerNames(value, name) {
+  if (!Array.isArray(value) || value.length > 20 || value.some((entry) => typeof entry !== 'string' || !IDENTIFIER_RE.test(entry))) {
+    throw new Error(`${name} must be an array of at most 20 safe identifiers`)
+  }
+  return [...new Set(value.map((entry) => entry.toLowerCase()))].sort()
+}
+
+export function parseReviewerJson(value, name) {
+  if (typeof value !== 'string') throw new Error(`${name} must be a JSON array`)
+  let parsed
+  try { parsed = JSON.parse(value) } catch { throw new Error(`${name} must be a JSON array`) }
+  return requireReviewerNames(parsed, name)
+}
+
+function buildExistingRequest({
+  key,
+  snapshot,
+  repository,
+  pullRequest,
+  operation,
+  payload = {},
+  authorship,
+  runId,
+  runAttempt,
+  now = Math.floor(Date.now() / 1000),
+  nonce = randomBytes(32).toString('hex'),
+}) {
   if (!Array.isArray(snapshot.operations) || !snapshot.operations.includes(operation)) {
     throw new Error(`Grant ${snapshot.grantId} does not authorize ${operation}`)
   }
   if (!Array.isArray(snapshot.repositories) || !snapshot.repositories.includes(repository)) {
     throw new Error(`Grant ${snapshot.grantId} does not authorize ${repository}`)
   }
-  const sessionId = `gha-${runId}-${runAttempt}`
+  const sessionId = requireIdentifier(authorship?.sessionId ?? `gha-${runId}-${runAttempt}`, 'authorship.sessionId')
+  const roadmapItem = authorship?.roadmapItem ?? null
+  const sidequestReason = authorship && Object.hasOwn(authorship, 'sidequestReason')
+    ? authorship.sidequestReason
+    : (roadmapItem ? null : 'Protected workload actuator operation')
+  if ((roadmapItem === null) === (sidequestReason === null)) {
+    throw new Error('authorship requires exactly one roadmap item or sidequest reason')
+  }
   const request = {
     schema: ACTION_SCHEMA,
     operation,
     repository,
     payload: {
+      ...payload,
       baseBranch: pullRequest.base.ref,
       baseSha: pullRequest.base.sha,
       pullRequestNumber: pullRequest.number,
@@ -180,14 +438,14 @@ export function buildInspectRequest({ key, snapshot, repository, pullRequest, ru
     },
     sessionId,
     authorship: {
-      actorId: 'github-actions',
-      agentId: 'fleetbot-workload',
+      actorId: requireIdentifier(authorship?.actorId ?? 'github-actions', 'authorship.actorId'),
+      agentId: requireIdentifier(authorship?.agentId ?? 'fleetbot-workload', 'authorship.agentId'),
       sessionId,
-      purpose: 'Verify the standing publisher grant with a read-only pull request inspection.',
+      purpose: requireBoundedText(authorship?.purpose ?? 'Exercise the standing publisher grant through the protected workload.', 'authorship.purpose', 2_000),
       identityProject: repository,
-      roadmapItem: null,
-      sidequestReason: 'Protected workload identity and publisher grant smoke test',
-      worktreeId: null,
+      roadmapItem: roadmapItem === null ? null : requireIdentifier(roadmapItem, 'authorship.roadmapItem'),
+      sidequestReason: sidequestReason === null ? null : requireBoundedText(sidequestReason, 'authorship.sidequestReason', 1_000),
+      worktreeId: authorship?.worktreeId ? requireIdentifier(authorship.worktreeId, 'authorship.worktreeId') : null,
       sourceBranch: pullRequest.head.ref,
     },
   }
@@ -215,6 +473,205 @@ export function buildInspectRequest({ key, snapshot, repository, pullRequest, ru
   return request
 }
 
+export function buildInspectRequest(options) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.inspect',
+    authorship: {
+      purpose: 'Verify the standing publisher grant with a read-only pull request inspection.',
+      sidequestReason: 'Protected workload identity and publisher grant smoke test',
+      ...options.authorship,
+    },
+  })
+}
+
+export function buildCommentRequest({ body, ...options }) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.comment',
+    payload: { body: requireBoundedText(body, 'FLEETBOT_COMMENT_BODY', MAX_BODY_BYTES) },
+  })
+}
+
+export function buildReviewReplyRequest({ body, commentId, ...options }) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.review-reply',
+    payload: {
+      body: requireBoundedText(body, 'FLEETBOT_COMMENT_BODY', MAX_BODY_BYTES),
+      commentId: requirePositiveInteger(commentId, 'FLEETBOT_REVIEW_COMMENT_ID'),
+    },
+  })
+}
+
+export function buildReadyRequest(options) {
+  return buildExistingRequest({ ...options, operation: 'pull-request.ready' })
+}
+
+export function buildRequestReviewersRequest({ reviewers, teamReviewers, ...options }) {
+  const parsedReviewers = requireReviewerNames(reviewers, 'FLEETBOT_REVIEWERS_JSON')
+  const parsedTeamReviewers = requireReviewerNames(teamReviewers, 'FLEETBOT_TEAM_REVIEWERS_JSON')
+  if (parsedReviewers.length + parsedTeamReviewers.length === 0) {
+    throw new Error('at least one reviewer or team reviewer is required')
+  }
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.request-reviewers',
+    payload: { reviewers: parsedReviewers, teamReviewers: parsedTeamReviewers },
+  })
+}
+
+export function buildEnqueueRequest(options) {
+  return buildExistingRequest({ ...options, operation: 'pull-request.enqueue' })
+}
+
+/** Sign a data-only source package with the existing protected workload identity. */
+export function buildPublishRequest({ publicationPackage, ...options }) {
+  const publication = validatePublicationPackage(publicationPackage)
+  if (publication.repository !== options.repository) throw new Error('Publication repository does not match the workload repository')
+  if (!options.snapshot?.baseBranches?.includes(publication.payload.baseBranch)) throw new Error('Publisher grant does not authorize the publication base branch')
+  // Current Relay tokens omit workflows:write. No workload input may assert
+  // that permission; its future admission requires a separately reviewed proof.
+  if (publication.payload.changes.some(change => change.path.startsWith('.github/workflows/'))) {
+    throw new Error('Workflow-file publication requires verified protected Workflows write authority; current Relay publication cannot dispatch this package')
+  }
+  const a = options.authorship
+  const trailers = [...publication.payload.body.matchAll(/^Roadmap-Item\s*:\s*(.+)$/gim)].map(m => m[1].trim())
+  const expectedTrailer = a?.roadmapItem || `none — ${a?.sidequestReason}`
+  if (trailers.length !== 1 || trailers[0] !== expectedTrailer) throw new Error('Publication roadmap trailer does not match its authorship')
+  // Reuse one canonical authority/signature builder; the synthetic PR selector
+  // is removed before the publication preimage is signed.
+  const request = buildExistingRequest({
+    ...options,
+    operation: 'pull-request.publish',
+    pullRequest: { base: { ref: publication.payload.baseBranch, sha: publication.payload.baseSha }, head: { ref: publication.sourceBranch, sha: publication.payload.sourceHeadSha } },
+  })
+  request.payload = publication.payload
+  const unsigned = { schema: request.schema, operation: request.operation, repository: request.repository, payload: request.payload, sessionId: request.sessionId, authorship: request.authorship }
+  const requestHash = hashHex(stableJson(unsigned))
+  request.idempotencyKey = `pd-gh-${requestHash}`
+  request.capability.requestHash = requestHash
+  request.capabilitySignature = signDigestHex(options.key.privateKey, stableJson(request.capability))
+  return request
+}
+
+/** Read the created PR and commit using a read-only token; never retry a write. */
+export async function verifyPublicationReadback({ request, receipt, token, fetchImpl = fetch }) {
+  const pull = await githubPullRequest({ repository: request.repository, number: receipt.resourceNumber, token, fetchImpl })
+  const commit = await jsonFetch(`https://api.github.com/repos/${request.repository}/git/commits/${receipt.githubHeadSha}`, { headers: githubReadHeaders(token) }, fetchImpl)
+  if (pull.number !== receipt.resourceNumber || pull.html_url !== receipt.resourceUrl
+      || pull.state !== 'open' || pull.draft !== false
+      || pull.user?.login !== 'port-daddy[bot]'
+      || pull.head?.repo?.full_name?.toLowerCase() !== request.repository
+      || pull.base?.repo?.full_name?.toLowerCase() !== request.repository
+      || pull.head?.ref !== receipt.publishedBranch || pull.head?.sha !== receipt.githubHeadSha
+      || pull.base?.ref !== request.payload.baseBranch || pull.base?.sha !== request.payload.baseSha
+      || pull.title !== request.payload.title
+      || pull.body !== stampPullRequestBody({ body: request.payload.body, authorship: request.authorship, receiptId: receipt.receiptId, sourceHeadSha: request.payload.sourceHeadSha })
+      || commit.sha !== receipt.githubHeadSha || commit.tree?.sha !== request.payload.sourceTreeSha
+      || commit.parents?.length !== 1 || commit.parents[0].sha !== request.payload.baseSha) {
+    throw new Error('Published PR/commit did not read back at the exact approved source tree; recover the receipt, never retry publication')
+  }
+  return receipt
+}
+
+function githubReadHeaders(token) {
+  if (!token) throw new Error('A read-only Actions token is required for provider readback')
+  return { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'port-daddy-fleetbot-workload' }
+}
+
+async function githubPublicationBlob({ repository, sha, token }) {
+  const blob = await jsonFetch(`https://api.github.com/repos/${repository}/git/blobs/${sha}`, { headers: githubReadHeaders(token) })
+  if (blob.sha !== sha || blob.encoding !== 'base64' || typeof blob.content !== 'string'
+      || !Number.isSafeInteger(blob.size) || blob.size < 0 || blob.size > 4 * 1024 * 1024
+      || blob.content.length > 6 * 1024 * 1024) {
+    throw new Error('Publication base blob did not read back within its exact identity and byte bounds')
+  }
+  const encoded = blob.content.replace(/\n/g, '')
+  const bytes = Buffer.from(encoded, 'base64')
+  if (bytes.toString('base64') !== encoded || bytes.length !== blob.size) {
+    throw new Error('Publication base blob has malformed content or a mismatched size')
+  }
+  return bytes
+}
+
+function publicationTreeHash(entries) {
+  const children = new Map()
+  for (const [path, entry] of entries) {
+    const slash = path.lastIndexOf('/')
+    const parent = slash < 0 ? '' : path.slice(0, slash)
+    if (parent && entries.get(parent)?.type !== 'tree') throw new Error('Publication base tree has a missing or non-directory parent')
+    const row = { ...entry, path, name: path.slice(slash + 1) }
+    if (!children.has(parent)) children.set(parent, [])
+    children.get(parent).push(row)
+  }
+  const hashDirectory = path => {
+    const rows = (children.get(path) ?? []).sort((left, right) => Buffer.compare(
+      Buffer.from(left.name + (left.type === 'tree' ? '/' : '')),
+      Buffer.from(right.name + (right.type === 'tree' ? '/' : '')),
+    ))
+    const content = Buffer.concat(rows.map(row => Buffer.concat([
+      Buffer.from(`${row.type === 'tree' ? '40000' : row.mode} ${row.name}\0`),
+      Buffer.from(row.type === 'tree' ? hashDirectory(row.path) : row.sha, 'hex'),
+    ])))
+    return createHash('sha1').update(`tree ${content.length}\0`).update(content).digest('hex')
+  }
+  return hashDirectory('')
+}
+
+export function validatePublicationBaseTree(tree, expectedSha) {
+  if (tree.sha !== expectedSha || tree.truncated !== false || !Array.isArray(tree.tree) || tree.tree.length > 100_000) {
+    throw new Error('Publication requires the complete exact admitted base tree')
+  }
+  const entries = new Map()
+  for (const entry of tree.tree) {
+    if (typeof entry.path !== 'string' || Buffer.byteLength(entry.path) > 4096
+        || entry.path.includes('\0') || Buffer.from(entry.path).toString() !== entry.path
+        || entry.path.split('/').some(part => !part || part === '.' || part === '..')
+        || entries.has(entry.path) || !/^[0-9a-f]{40}$/.test(entry.sha ?? '')
+        || !((entry.type === 'tree' && entry.mode === '040000')
+          || (entry.type === 'blob' && ['100644', '100755', '120000'].includes(entry.mode))
+          || (entry.type === 'commit' && entry.mode === '160000'))) {
+      throw new Error('Publication base tree contains malformed or duplicate entries')
+    }
+    entries.set(entry.path, { mode: entry.mode, type: entry.type, sha: entry.sha })
+  }
+  if (publicationTreeHash(entries) !== expectedSha) throw new Error('Publication base tree object hash does not match the admitted base')
+  return entries
+}
+
+export function verifyPublicationSourceTree(publication, baseEntries) {
+  validatePublicationPackage(publication)
+  const entries = new Map(baseEntries)
+  for (const change of publication.payload.changes.filter(change => change.delete)) {
+    if (entries.get(change.path)?.type !== 'blob') throw new Error('Publication deletion is not an existing base blob')
+    entries.delete(change.path)
+    let parent = change.path.slice(0, change.path.lastIndexOf('/'))
+    while (change.path.includes('/') && parent) {
+      if ([...entries.keys()].some(path => path.startsWith(`${parent}/`))) break
+      entries.delete(parent)
+      const slash = parent.lastIndexOf('/')
+      parent = slash < 0 ? '' : parent.slice(0, slash)
+    }
+  }
+  for (const change of publication.payload.changes.filter(change => !change.delete)) {
+    const current = entries.get(change.path)
+    if (current && current.type !== 'blob') throw new Error('Publication cannot replace a base directory or submodule')
+    const parts = change.path.split('/')
+    for (let index = 1; index < parts.length; index += 1) {
+      const parent = parts.slice(0, index).join('/')
+      const existing = entries.get(parent)
+      if (existing && existing.type !== 'tree') throw new Error('Publication path conflicts with an existing base blob')
+      if (!existing) entries.set(parent, { mode: '040000', type: 'tree', sha: '' })
+    }
+    const bytes = Buffer.from(change.contentBase64, 'base64')
+    entries.set(change.path, { mode: change.mode, type: 'blob', sha: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') })
+  }
+  if (publicationTreeHash(entries) !== publication.payload.sourceTreeSha) {
+    throw new Error('Reconstructed publication tree does not match the approved source tree')
+  }
+}
+
 async function githubPullRequest({ repository, number, token, fetchImpl = fetch }) {
   return jsonFetch(`https://api.github.com/repos/${repository}/pulls/${number}`, {
     headers: {
@@ -232,36 +689,195 @@ function appendOutput(name, value) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const command = argv[0]
-  if (command !== 'enroll' && command !== 'inspect') throw new Error('usage: fleetbot-workload.mjs <enroll|inspect>')
+  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'ready', 'request-reviewers', 'enqueue', 'prepare', 'publish-manifest', 'recover-manifest']
+  if (!commands.includes(command)) throw new Error(`usage: fleetbot-workload.mjs <${commands.join('|')}>`)
   const relayUrl = env.FLEETBOT_RELAY_URL ?? 'https://relay.portdaddy.dev'
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
   if (!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(repository)) throw new Error('GITHUB_REPOSITORY is missing or malformed')
   const key = workloadKey(env.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX)
-  const oidcToken = await githubOidcToken({
-    requestUrl: env.ACTIONS_ID_TOKEN_REQUEST_URL,
-    requestToken: env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
-    audience: env.FLEETBOT_OIDC_AUDIENCE ?? DEFAULT_AUDIENCE,
-  })
-  await enrollWorkload({ relayUrl, oidcToken, key })
   appendOutput('workload_fingerprint', key.fingerprint)
   if (command === 'enroll') {
+    const oidcToken = await githubOidcToken({
+      requestUrl: env.ACTIONS_ID_TOKEN_REQUEST_URL,
+      requestToken: env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+      audience: env.FLEETBOT_OIDC_AUDIENCE ?? DEFAULT_AUDIENCE,
+    })
+    await enrollWorkload({ relayUrl, oidcToken, key })
     console.log(`Workload enrolled for ${repository}. Fingerprint: ${key.fingerprint}`)
     console.log('An account administrator must now create a bounded publisher grant in Relay Ship controls.')
     return
   }
+  const manifestPath = env.FLEETBOT_MANIFEST_PATH ?? 'fleetbot-recovery-manifest.json'
+  const requestPath = env.FLEETBOT_REQUEST_PATH ?? 'fleetbot-publish-request.json'
+  const workflow = env.GITHUB_WORKFLOW ?? 'Fleetbot actuator'
+  if (command === 'recover-manifest') {
+    const sourceRunId = requireIdentifier(env.FLEETBOT_SOURCE_RUN_ID, 'FLEETBOT_SOURCE_RUN_ID')
+    const sourceWorkflow = requireBoundedText(
+      env.FLEETBOT_SOURCE_WORKFLOW ?? 'Fleetbot actuator',
+      'FLEETBOT_SOURCE_WORKFLOW',
+      255,
+    )
+    const manifest = verifyRecoveryManifestForRecovery(JSON.parse(readFileSync(manifestPath, 'utf8')), {
+      key,
+      repository,
+      workflow: sourceWorkflow,
+      runId: sourceRunId,
+    })
+    const receipt = await recoverPublisherReceipt({
+      relayUrl,
+      key,
+      manifest,
+      expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+    })
+    console.log(`Recovered Relay receipt: ${receipt.receiptId}`)
+    return
+  }
+  const usesRecoveryManifest = command === 'prepare' || command === 'publish-manifest'
+  const workflowRef = usesRecoveryManifest
+    ? requireBoundedText(env.GITHUB_WORKFLOW_REF, 'GITHUB_WORKFLOW_REF', 1_024)
+    : ''
+  const workflowSha = usesRecoveryManifest ? requireHex(env.GITHUB_SHA, 20, 'GITHUB_SHA') : ''
+  const eventName = usesRecoveryManifest ? requireIdentifier(env.GITHUB_EVENT_NAME, 'GITHUB_EVENT_NAME') : ''
+  const runId = requireIdentifier(env.GITHUB_RUN_ID, 'GITHUB_RUN_ID')
+  const dispatchedCommand = env.FLEETBOT_OPERATION ?? command
+  const publishing = dispatchedCommand === 'publish'
+  if (publishing && (!usesRecoveryManifest || env.GITHUB_RUN_ATTEMPT !== '1'
+      || env.GITHUB_REF !== 'refs/heads/main' || eventName !== 'workflow_dispatch'
+      || workflowRef !== `${repository}/.github/workflows/fleetbot-actuator.yml@refs/heads/main`)) {
+    throw new Error('Publication requires the first attempt of the protected main workflow; recover lost responses without rerunning')
+  }
+  const prNumber = publishing ? null : requirePositiveInteger(Number(env.FLEETBOT_PULL_REQUEST_NUMBER), 'FLEETBOT_PULL_REQUEST_NUMBER')
+  if (publishing && env.FLEETBOT_PULL_REQUEST_NUMBER) throw new Error('New publication must not select an existing PR')
+  if (publishing) {
+    requireHex(env.FLEETBOT_RELAY_PUBLIC_KEY_HEX, 32, 'FLEETBOT_RELAY_PUBLIC_KEY_HEX')
+    githubReadHeaders(env.GITHUB_TOKEN)
+  }
+  const inputDigest = actionInputDigest(dispatchedCommand, env)
+  if (command === 'publish-manifest') {
+    const manifest = verifyRecoveryManifest(JSON.parse(readFileSync(manifestPath, 'utf8')), {
+      key,
+      repository,
+      workflow,
+      workflowRef,
+      workflowSha,
+      eventName,
+      runId,
+      command: dispatchedCommand,
+      pullRequestNumber: prNumber,
+      inputDigest,
+    })
+    const publishRequest = JSON.parse(readFileSync(requestPath, 'utf8'))
+    const requestHash = hashHex(stableJson({
+      schema: publishRequest.schema,
+      operation: publishRequest.operation,
+      repository: publishRequest.repository,
+      payload: publishRequest.payload,
+      sessionId: publishRequest.sessionId,
+      authorship: publishRequest.authorship,
+    }))
+    if (stableJson(buildRecoveryBinding(publishRequest)) !== stableJson(manifest.binding)
+        || stableJson(receiptVerificationRequest(publishRequest)) !== stableJson(manifest.receiptRequest)
+        || requestHash !== publishRequest.capability?.requestHash
+        || publishRequest.idempotencyKey !== `pd-gh-${requestHash}`) {
+      throw new Error('Fleetbot publish request does not match the uploaded recovery manifest')
+    }
+    const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(publishRequest),
+    })
+    const receipt = verifyPublisherReceiptEnvelope(envelope, {
+      request: publishRequest,
+      snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
+      expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+    })
+    if (publishing) await verifyPublicationReadback({ request: publishRequest, receipt, token: env.GITHUB_TOKEN })
+    console.log(`Relay receipt: ${receipt.receiptId}`)
+    if (publishing) console.log(`Published ${receipt.resourceUrl} at ${receipt.githubHeadSha} (source tree ${publishRequest.payload.sourceTreeSha}).`)
+    return
+  }
   const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
-  const prNumber = Number(env.FLEETBOT_PULL_REQUEST_NUMBER)
-  if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error('FLEETBOT_PULL_REQUEST_NUMBER must be a positive integer')
   const snapshot = await readGrantSnapshot({ relayUrl, key, grantId })
-  const pullRequest = await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
-  const request = buildInspectRequest({
+  let publicationPackage = publishing ? decodePublicationPackage(env.FLEETBOT_PUBLICATION_PACKAGE) : null
+  if (publishing) {
+    if (publicationPackage.repository !== repository) throw new Error('Publication repository does not match the workload repository')
+    const base = await jsonFetch(`https://api.github.com/repos/${repository}/git/ref/heads/${encodeURIComponent(publicationPackage.payload.baseBranch)}`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
+    if (base.object?.sha !== publicationPackage.payload.baseSha) throw new Error('Publication base moved; rebuild the package from the current base')
+    const commit = await jsonFetch(`https://api.github.com/repos/${repository}/git/commits/${publicationPackage.payload.baseSha}`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
+    if (commit.sha !== publicationPackage.payload.baseSha || !/^[0-9a-f]{40}$/.test(commit.tree?.sha ?? '')) {
+      throw new Error('Publication base commit did not read back exactly')
+    }
+    const tree = await jsonFetch(`https://api.github.com/repos/${repository}/git/trees/${commit.tree.sha}?recursive=1`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
+    const baseEntries = validatePublicationBaseTree(tree, commit.tree.sha)
+    publicationPackage = await hydratePublicationPackage(publicationPackage, {
+      readBaseBlob: (sha, path) => {
+        const entry = baseEntries.get(path)
+        if (entry?.type !== 'blob' || entry.sha !== sha) throw new Error('Publication delta base blob does not belong to its admitted base path')
+        return githubPublicationBlob({ repository, sha, token: env.GITHUB_TOKEN })
+      },
+    })
+    verifyPublicationSourceTree(publicationPackage, baseEntries)
+  }
+  const pullRequest = publishing ? null : await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
+  const common = {
     key,
     snapshot,
     repository,
     pullRequest,
-    runId: env.GITHUB_RUN_ID,
+    runId,
     runAttempt: env.GITHUB_RUN_ATTEMPT ?? '1',
-  })
+  }
+  const authorship = {
+    actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
+    agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
+    sessionId: env.FLEETBOT_SESSION_ID,
+    purpose: env.FLEETBOT_PURPOSE ?? `Perform ${command} through the protected Fleetbot workload.`,
+    roadmapItem: env.FLEETBOT_ROADMAP_ITEM || null,
+    sidequestReason: env.FLEETBOT_ROADMAP_ITEM ? null : (env.FLEETBOT_SIDEQUEST_REASON ?? `Protected Fleetbot ${command} requested without a linked roadmap item`),
+    worktreeId: env.FLEETBOT_WORKTREE_ID || null,
+  }
+  const builders = {
+    publish: () => buildPublishRequest({ ...common, authorship, publicationPackage }),
+    inspect: () => buildInspectRequest(common),
+    comment: () => buildCommentRequest({ ...common, authorship, body: env.FLEETBOT_COMMENT_BODY }),
+    'review-reply': () => buildReviewReplyRequest({
+      ...common,
+      authorship,
+      body: env.FLEETBOT_COMMENT_BODY,
+      commentId: Number(env.FLEETBOT_REVIEW_COMMENT_ID),
+    }),
+    ready: () => buildReadyRequest({ ...common, authorship }),
+    'request-reviewers': () => buildRequestReviewersRequest({
+      ...common,
+      authorship,
+      reviewers: parseReviewerJson(env.FLEETBOT_REVIEWERS_JSON ?? '[]', 'FLEETBOT_REVIEWERS_JSON'),
+      teamReviewers: parseReviewerJson(env.FLEETBOT_TEAM_REVIEWERS_JSON ?? '[]', 'FLEETBOT_TEAM_REVIEWERS_JSON'),
+    }),
+    enqueue: () => buildEnqueueRequest({ ...common, authorship }),
+  }
+  const requestBuilder = builders[command === 'prepare' ? dispatchedCommand : command]
+  if (!requestBuilder) throw new Error('FLEETBOT_OPERATION is not a publishable Fleetbot operation')
+  const request = requestBuilder()
+  if (command === 'prepare') {
+    const manifest = buildRecoveryManifest({
+      key,
+      request,
+      snapshot,
+      repository,
+      workflow,
+      workflowRef,
+      workflowSha,
+      eventName,
+      runId,
+      command: dispatchedCommand,
+      pullRequestNumber: prNumber,
+      inputDigest,
+    })
+    writeFileSync(manifestPath, `${stableJson(manifest)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    writeFileSync(requestPath, `${stableJson(request)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    console.log(`Prepared immutable Fleetbot recovery manifest for ${request.operation}${publishing ? ` from source ${request.payload.sourceHeadSha}` : ` on PR #${prNumber}`}.`)
+    return
+  }
   const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -272,7 +888,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     snapshot,
     expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
   })
-  console.log(`Publisher grant ${snapshot.grantId} epoch ${snapshot.grantEpoch} inspected PR #${prNumber}.`)
+  console.log(`Publisher grant ${snapshot.grantId} epoch ${snapshot.grantEpoch} completed ${request.operation} on PR #${prNumber}.`)
   console.log(`Relay receipt: ${receipt.receiptId}`)
 }
 

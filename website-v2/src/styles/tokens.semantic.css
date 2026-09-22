@@ -96,6 +96,21 @@
   --story-gold: #666a00;            /* L3 economy/value — the market */
   --story-gold-on-tint: #4d5000;
   --story-gold-foreground: #fbf7ef;
+
+  /* Book semantic-block edge inks. These are a separate vocabulary from the
+     Port Daddy brand/story palette: they mark the perimeter of a named block
+     and are never text colors. The palette guard binds the nine exact roles
+     to both committed pd-semantic-blocks.tex mirrors. */
+  --book-block-proof: #b33f35;
+  --book-block-property: #7048a5;
+  --book-block-hypothesis: #427a26;
+  --book-block-calculation: #946000;
+  --book-block-invariant: #233a76;
+  --book-block-definition: #3d454b;
+  --book-block-checked: #006ea0;
+  --book-block-protocol: #007d73;
+  --book-block-neutral: #363b40;
+
   /* Print inks for the Book's Swiss edition (docs/harbor-research/exposition/
      SWISS-BRIEF.md, B): a press blue and a violet with ink weight, and one
      reserved red. Print only; they take no web role. */
