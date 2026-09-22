@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "subject": {
+    "repo": "https://github.com/curiositech/port-daddy.git",
+    "commit": "6c2c30d74b889b4d8037ce5d43b265bfbf21a686",
+    "buildDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "boundaryId": "agent-harbor-action-adjudication-phase0"
+  },
+  "claim": {
+    "level": "VERIFIER_TESTED",
+    "statement": "The static verifier rejects the declared invalid evidence relationships exercised by the named unit fixture.",
+    "truthState": "BLOCKED_BY_HALT",
+    "scope": "Static source and fixture only; no runtime mediation claim."
+  },
+  "proposal": {
+    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "requester": "fixture-requester",
+    "principal": "fixture-principal",
+    "bodyGeneration": 1,
+    "repo": "curiositech/port-daddy",
+    "harbor": "port-daddy",
+    "operation": "github.pull_request.force_merge",
+    "targetDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "parametersDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "expiresAt": "2026-09-16T20:00:00.000Z",
+    "idempotencyKey": "fixture-deny-1"
+  },
+  "authority": {
+    "receiptDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "proposalDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "issuer": "fixture-authority-verifier",
+    "audience": "fixture-adjudicator",
+    "scopeDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "verified": true,
+    "revocationChecked": true
+  },
+  "decision": {
+    "receiptDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "proposalDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "authorityReceiptDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "policyDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+    "stateDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "adjudicator": "fixture-adjudicator",
+    "verdict": "DENY",
+    "reasonCodes": ["admin_bypass_forbidden"],
+    "issuedBeforeEffect": true
+  },
+  "effect": {
+    "channelOwner": "fixture-controller",
+    "permitDigest": null,
+    "redemptionState": "NOT_APPLICABLE",
+    "intentRecordedBeforeEffect": false,
+    "executionState": "NOT_EXECUTED",
+    "effectReceiptDigest": null,
+    "reconciliationState": "NOT_REQUIRED"
+  },
+  "mediationInventory": [
+    {
+      "effectClass": "declared-governance-verifier",
+      "boundary": "static verifier function",
+      "owner": "source module",
+      "coverage": "SOURCE_PRESENT",
+      "witnessId": "static-runner",
+      "bypassCases": ["self-adjudication", "post-effect decision", "untrusted policy"]
+    },
+    {
+      "effectClass": "all-force-merge-paths",
+      "boundary": "unknown runtime channels",
+      "owner": "unknown",
+      "coverage": "UNKNOWN",
+      "witnessId": null,
+      "bypassCases": ["direct GitHub API", "credentialed shell", "operator UI"]
+    }
+  ],
+  "bypassTests": [
+    {
+      "id": "phase0-invalid-relationships",
+      "mutation": "self adjudication, post-effect decision, and untrusted policy fixtures",
+      "expected": "verifier returns invalid",
+      "observed": "named static unit fixture asserts invalid classifications",
+      "passed": true,
+      "witnessId": "static-runner"
+    }
+  ],
+  "witnesses": [
+    {
+      "id": "static-runner",
+      "class": "VERIFIER_RUNNER",
+      "principal": "source-audit-process",
+      "independentOf": ["fixture-requester"],
+      "evidenceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "unknowns": [
+    "No dynamic evidence that every force-merge channel is mediated.",
+    "No runtime controller or provider reconciliation evidence under the operator halt."
+  ],
+  "status": "BLOCKED"
+}

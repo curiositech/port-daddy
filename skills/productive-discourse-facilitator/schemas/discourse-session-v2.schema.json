@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/discourse-session-v2.schema.json",
+  "title": "DiscourseSessionV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sessionId", "topic", "objective", "participants", "gate", "mode", "claims", "steelmanCertificates", "critiques", "exchangeRounds", "integrityEvents", "dissent", "terminal", "truthEffect", "authorityEffect"],
+  "properties": {
+    "schemaVersion": {"const": "2.0.0"}, "sessionId": {"type": "string"}, "topic": {"type": "string"},
+    "objective": {"enum": ["UNDERSTAND", "TEST_CLAIMS", "CHOOSE_OPTION"]},
+    "participants": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/participant"}},
+    "gate": {"$ref": "#/$defs/gate"}, "mode": {"$ref": "#/$defs/mode"},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "steelmanCertificates": {"type": "array", "items": {"$ref": "#/$defs/certificate"}},
+    "critiques": {"type": "array", "items": {"$ref": "#/$defs/critique"}},
+    "exchangeRounds": {"type": "array", "items": {"$ref": "#/$defs/round"}},
+    "integrityEvents": {"type": "array", "items": {"$ref": "#/$defs/integrity"}},
+    "dissent": {"type": "array", "items": {"$ref": "#/$defs/dissent"}},
+    "terminal": {"$ref": "#/$defs/terminal"}, "truthEffect": {"const": "NONE"}, "authorityEffect": {"const": "NONE"}
+  },
+  "$defs": {
+    "participant": {"type": "object", "additionalProperties": false, "required": ["participantId", "voice", "consent", "withdrawal", "standing"], "properties": {"participantId": {"type": "string"}, "voice": {"enum": ["DIRECT", "ATTRIBUTED_RECORD_ONLY", "ABSENT"]}, "consent": {"enum": ["YES", "NO", "WITHDRAWN", "UNKNOWN", "NOT_APPLICABLE"]}, "withdrawal": {"enum": ["FREE", "KNOWN_PENALTY", "UNKNOWN", "NOT_APPLICABLE"]}, "standing": {"enum": ["DECLARED_PEER", "IMBALANCED", "UNKNOWN", "NOT_APPLICABLE"]}}},
+    "gate": {"type": "object", "additionalProperties": false, "required": ["safety", "decisionAuthority", "outcome", "reasonCodes"], "properties": {"safety": {"enum": ["NO_BLOCKER_DECLARED", "BLOCKER_REPORTED", "UNKNOWN"]}, "decisionAuthority": {"enum": ["NOT_APPLICABLE", "SHARED_DECLARED", "EXTERNAL_DECLARED", "UNKNOWN"]}, "outcome": {"enum": ["ELIGIBLE", "PAUSE", "OUT_OF_SCOPE"]}, "reasonCodes": {"type": "array", "items": {"type": "string"}}}},
+    "mode": {"type": "object", "additionalProperties": false, "required": ["kind", "consentParticipantIds", "modeSwitchCount"], "properties": {"kind": {"enum": ["DIALOGUE", "DEBATE", "DELIBERATION", "NONE"]}, "consentParticipantIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "modeSwitchCount": {"type": "integer", "minimum": 0, "maximum": 1}}},
+    "claim": {"type": "object", "additionalProperties": false, "required": ["claimId", "ownerId", "proposition", "kind", "evidenceRefs", "changeCondition", "status"], "properties": {"claimId": {"type": "string"}, "ownerId": {"type": "string"}, "proposition": {"type": "string"}, "kind": {"enum": ["EMPIRICAL", "PREDICTION", "DEFINITIONAL", "NORMATIVE", "VALUE", "PREFERENCE"]}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}, "changeCondition": {"type": "string"}, "status": {"enum": ["ASSERTED", "REVISED", "WITHDRAWN", "UNRESOLVED"]}}},
+    "certificate": {"type": "object", "additionalProperties": false, "required": ["certificateId", "claimId", "holderId", "restaterId", "attempt", "restatement", "strongestObjection", "changeCondition", "holderVerdict"], "properties": {"certificateId": {"type": "string"}, "claimId": {"type": "string"}, "holderId": {"type": "string"}, "restaterId": {"type": "string"}, "attempt": {"type": "integer", "minimum": 1, "maximum": 2}, "restatement": {"type": "string"}, "strongestObjection": {"type": "string"}, "changeCondition": {"type": "string"}, "holderVerdict": {"enum": ["ACCEPTED", "REPAIR_REQUESTED", "DISPUTED_AFTER_REPAIR"]}}},
+    "critique": {"type": "object", "additionalProperties": false, "required": ["critiqueId", "claimId", "criticId", "steelmanCertificateId", "target", "statement", "changeCondition"], "properties": {"critiqueId": {"type": "string"}, "claimId": {"type": "string"}, "criticId": {"type": "string"}, "steelmanCertificateId": {"type": "string"}, "target": {"enum": ["PREMISE", "EVIDENCE", "INFERENCE", "SCOPE", "TRADEOFF"]}, "statement": {"type": "string"}, "changeCondition": {"type": "string"}}},
+    "round": {"type": "object", "additionalProperties": false, "required": ["claimId", "roundNumber", "critiqueIds", "outcome"], "properties": {"claimId": {"type": "string"}, "roundNumber": {"type": "integer", "minimum": 1, "maximum": 2}, "critiqueIds": {"type": "array", "items": {"type": "string"}}, "outcome": {"enum": ["REVISED", "UNCHANGED", "WITHDRAWN", "NEEDS_EVIDENCE", "DISSENT"]}}},
+    "integrity": {"type": "object", "additionalProperties": false, "required": ["eventId", "participantId", "code", "evidenceRefs", "status", "disposition", "motiveClaimed"], "properties": {"eventId": {"type": "string"}, "participantId": {"type": "string"}, "code": {"enum": ["FABRICATED_LOCATOR", "EVIDENCE_TAMPERING", "REPEATED_MISREPRESENTATION_AFTER_CORRECTION", "OTHER_PROTOCOL_VIOLATION"]}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}, "status": {"enum": ["ALLEGED", "CONTESTED", "DOCUMENTED"]}, "disposition": {"enum": ["REPAIRED", "OPEN", "TERMINATED"]}, "motiveClaimed": {"const": false}}},
+    "dissent": {"type": "object", "additionalProperties": false, "required": ["dissentId", "participantId", "scope", "statement", "status"], "properties": {"dissentId": {"type": "string"}, "participantId": {"type": "string"}, "scope": {"enum": ["CLAIM", "CRUX", "SYNTHESIS", "DECISION", "PROTOCOL"]}, "statement": {"type": "string"}, "status": {"const": "PRESERVED"}}},
+    "terminal": {"type": "object", "additionalProperties": false, "required": ["state", "statement", "assent", "dissentIds", "nextStep"], "properties": {"state": {"enum": ["SYNTHESIS_ACCEPTED", "DISSENT_RECORDED", "DECISION_ESCALATED", "EVIDENCE_INSUFFICIENT", "PAUSED_FOR_SAFETY", "TERMINATED_BAD_FAITH", "OUT_OF_SCOPE"]}, "statement": {"type": "string"}, "assent": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["participantId", "status"], "properties": {"participantId": {"type": "string"}, "status": {"enum": ["ASSENT", "DISSENT", "ABSTAIN", "NOT_REQUESTED"]}}}, "dissentIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "nextStep": {"enum": ["NONE", "OBTAIN_EVIDENCE", "REFER_TO_DECISION_AUTHORITY", "SEEK_OUT_OF_SCOPE_SUPPORT", "RESTART_ONLY_WITH_NEW_CONSENT"]}}}
+  }
+}
+}

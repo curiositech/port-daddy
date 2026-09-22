@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordId": "attempt-record-1",
+  "identity": {
+    "planDigest": "sha256:plan",
+    "planRevision": 1,
+    "nodeId": "node-1",
+    "attemptId": "attempt-1",
+    "bodyGeneration": 0,
+    "principalId": "actor-1",
+    "authorityEpoch": 1,
+    "repository": "https://github.com/example/repo.git",
+    "targetDigest": "sha256:target",
+    "route": "fake:no-effect",
+    "providerProfile": "fake-provider-v1",
+    "policyDigest": "sha256:policy"
+  },
+  "authorities": {
+    "scheduler": "scheduler-key",
+    "capacityBroker": "capacity-key",
+    "admissionWriter": "admission-key",
+    "effectBoundary": "effect-key",
+    "settlementAuthority": "settlement-key"
+  },
+  "dimensions": [
+    {
+      "name": "attempts",
+      "unit": "attempt",
+      "source": "static-fixture",
+      "opening": 1,
+      "granted": 0,
+      "available": 0,
+      "reserved": 0,
+      "consumed": 1,
+      "held": 0,
+      "released": 0,
+      "settled": 0,
+      "stopProtected": 0
+    },
+    {
+      "name": "wall-time",
+      "unit": "second",
+      "source": "static-fixture",
+      "opening": 10,
+      "granted": 0,
+      "available": 7,
+      "reserved": 0,
+      "consumed": 2,
+      "held": 0,
+      "released": 1,
+      "settled": 0,
+      "stopProtected": 1
+    }
+  ],
+  "eligibility": {
+    "commitId": "eligibility-1",
+    "attemptId": "attempt-1",
+    "status": "ELIGIBLE",
+    "schedulerId": "scheduler-key"
+  },
+  "reservation": {
+    "commitId": "reservation-1",
+    "attemptId": "attempt-1",
+    "brokerId": "capacity-key",
+    "status": "CONSUMED",
+    "oneUse": true,
+    "expiresAt": "2030-01-01T00:00:00Z",
+    "idempotencyKey": "attempt-1/reservation"
+  },
+  "admission": {
+    "writerId": "admission-key",
+    "eligibilityCommitId": "eligibility-1",
+    "reservationCommitId": "reservation-1",
+    "status": "ADMITTED",
+    "leaseId": "lease-1",
+    "dispatchIntentDurable": true
+  },
+  "effects": [
+    {
+      "effectId": "no-effect-completion",
+      "reservationCommitId": "reservation-1",
+      "status": "CLOSED",
+      "retryAuthority": false,
+      "capacityHeld": false,
+      "closureReceiptRef": "receipt:effect-closed",
+      "closureAuthorityId": "effect-key",
+      "handoffId": null
+    }
+  ],
+  "settlement": {
+    "profile": "NO_SETTLEMENT",
+    "authorityId": "settlement-key",
+    "outboxId": null,
+    "status": "NOT_REQUIRED",
+    "compensationEffectRef": null
+  },
+  "truthEffect": "NONE",
+  "runtimeAuthority": "NONE"
+}

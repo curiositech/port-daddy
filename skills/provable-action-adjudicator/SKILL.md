@@ -1,181 +1,204 @@
 ---
 name: provable-action-adjudicator
-version: 0.1.0
-description: >
-  A runtime reference monitor that intercepts every proposed agent action,
-  evaluates it against a policy DAG compiled from natural-language axioms, and
-  returns a verified permit or deny verdict before execution proceeds. Policy
-  axioms are authored in natural language, auto-formalized offline into Datalog
-  (for relational/provenance policies) or Lean 4 decidable-arithmetic proofs
-  (for numeric constraints), then evaluated at sub-millisecond to microsecond
-  latency via aspect-woven join points at tool-call boundaries. The adjudicator
-  is the provable containment layer for multi-agent systems: complete mediation,
-  isolation, and formal correctness are the three non-negotiable properties.
-author: soma-jury_rig-graft
-tags: [formal-verification, policy-enforcement, reference-monitor, lean4, datalog, active-inference, agent-safety, containment]
-pairs-with: []
+description: >-
+  Audits and designs evidence-bound pre-effect action-adjudication contracts:
+  typed proposals, policy- and authority-bound decisions, one-use permits,
+  effect receipts, and a claim ladder that separates verifier correctness from
+  complete mediation. Use for a concrete consequential-action boundary, threat
+  model, bypass inventory, or adjudication evidence packet. NOT for claiming a
+  deployed reference monitor, generic policy-language authoring, generic Lean or
+  Datalog work, prompt safety, post-hoc log analysis, or production latency
+  claims without local reproducible evidence.
 license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
+allowed-tools: Read,Write,Edit,Grep,Glob,Bash(node:*)
 metadata:
+  category: Agent Safety & Authority
+  tags:
+    - action-adjudication
+    - pre-effect
+    - capability
+    - evidence
+    - threat-model
   provenance:
-    kind: imported
-    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: agent-control-command-contract
+      reason: Defines typed intent and command boundaries.
+    - skill: mcp-trust-broker
+      reason: Defines authority attenuation and external tool custody.
+    - skill: agent-work-receipt-designer
+      reason: Defines attributable effect and settlement receipts.
+    - skill: sandboxed-adversarial-test-harness
+      reason: Exercises bypasses and escaped-effect paths.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: effect-boundary-and-threat-model
+        format: markdown-or-json
+      - kind: source-and-runtime-evidence
+        format: markdown-or-json
+    produces:
+      - kind: adjudication-audit
+        format: json
+      - kind: claim-and-bypass-ledger
+        format: markdown
 ---
 
 # Provable Action Adjudicator
 
-## When to Use
+This skill does not make an adjudicator provable by naming formal methods. It
+forces each claim onto the highest rung its evidence actually supports.
 
-- An agent (or agent swarm) will invoke tools, write files, call APIs, or modify
-  shared state, and you need a machine-checkable guarantee — not a heuristic
-  filter — that those actions satisfy a stated policy before they execute.
-- You are building a containment story for a multi-agent system: the orchestrator
-  assigns tasks, but no individual agent should be trusted to self-police; a
-  tamper-resistant interceptor must own the verdict.
-- Natural-language policy documents (data-handling requirements, access controls,
-  deontic obligations like "must log every PII read") need to be compiled into
-  checkable axioms that survive iteration of the policy text without manual
-  re-coding of enforcement logic.
+## Halt and effect gate
 
-NOT for:
-- Post-hoc auditing or logging where actions have already executed — this skill
-  is strictly preventive (and optionally corrective for soft constraints).
-- Policies that require full LTL model checking over an unbounded state space at
-  runtime — that is PSPACE-complete; offline model checking is the right tool.
-- Replacing prompt-level safety instructions or RLHF alignment — the adjudicator
-  operates on structured action objects at the tool-call boundary, not on token
-  streams.
+A static contract, schema, fixture, signature, or passing verifier is not a
+runtime interception proof. When the subject runtime is halted:
 
-## Core Concepts
+- inspect source and immutable evidence only;
+- build schemas, fixtures, validators, and threat models;
+- label dynamic mediation claims `BLOCKED_BY_HALT`;
+- never launch the subject to improve the evidence tier.
 
-**Reference monitor (RM):** The Anderson (1972) abstraction: a tamper-resistant
-interceptor that is (1) always invoked before every security-relevant action,
-(2) isolated from the agents it monitors, and (3) verifiable — its policy
-evaluation logic must be auditable. In the agentic context, "always invoked"
-means aspect-oriented join points woven at the tool-call boundary of the agent
-framework (LangChain, AutoGen, or a custom harness). The RM suspends the action,
-queries the policy engine, then resumes or aborts.
+## Claim ladder
 
-**Policy DAG:** A directed acyclic graph of policy axioms where edges encode
-logical entailment or dependency. Each node is a rule in Datalog-with-stratified-
-negation (Soufflé dialect). The DAG structure enables static analysis at
-compilation time: contradiction detection (a rule that both permits and denies
-the same action type), redundancy elimination, and subsumption checking (rule A
-already covers rule B). The DAG is the compiled artifact; natural language is
-the source.
+Rungs are cumulative, never interchangeable:
 
-**Autoformalization pipeline:** The offline process that translates natural-
-language policy statements into Datalog rules or Lean 4 theorems. An LLM drafts
-the formal representation; a static analyzer checks coverage (does the formal
-rule entail every case the NL sentence intends?) and flags edge cases for human
-review. This is research-grade for general NL but production-viable for
-constrained policy domains (access control, arithmetic thresholds). The
-compilation is expensive; the runtime evaluation of the compiled rules is cheap.
+| Rung | Claim | Minimum evidence |
+|---|---|---|
+| `CONTRACT_PARSED` | The proposal and receipts match a closed schema. | Schema validation and negative field/type cases. |
+| `VERIFIER_TESTED` | The verifier rejects declared invalid relationships. | Exact code digest, mutation corpus, and observed results. |
+| `AUTHORITY_BOUND` | Decision inputs bind current principal, scope, policy, and time. | Independent authority receipt and stale/scope/replay tests. |
+| `PRE_EFFECT_BOUND` | A permit is consumed before one exact effect path opens. | Intent-before-send and one-use redemption evidence. |
+| `MEDIATION_INVENTORIED` | Every declared effect class has an identified enforcement boundary. | Enumerated channels, owners, bypasses, and unknowns. |
+| `MEDIATION_WITNESSED` | Independent witnesses observed all in-scope bypass attempts fail. | Exact-build dynamic evidence from outside requester/actuator. |
 
-**Proof generation vs. proof checking:** For Lean 4 / decidable-arithmetic
-policies (e.g. "amount < 10000 AND recipient in approved_set"), the Lean kernel
-checks a pre-compiled proof in ~5µs (benchmarked on AWS Cedar). Proof
-*generation* via tactic search takes seconds to minutes and must happen offline
-during policy compilation. This separation is the architectural key to µs-latency
-formal verification: never generate proofs at runtime.
+Only the final rung may support a bounded complete-mediation claim, and only for
+the enumerated subject, build, effects, policy, environment, and observation
+window. It never proves all possible effects in an open system.
 
-**Deontic operators:** Beyond binary permit/deny, real policies encode
-obligations (O: the agent *must* do X), permissions (P: the agent *may* do X),
-and prohibitions (F: the agent *must not* do X). Deontic logic also admits
-dispensations (waiving an obligation in a specific context) and conflict
-resolution ordering (when O(A) and F(A) conflict, which wins). Conventional
-engines (XACML, Rego, Cedar) model only P and F; obligation lifecycle requires
-a deontic layer on top.
+## Authority separation
 
-## Implementation Pattern
+Keep these roles independently attestable:
 
-```
-OFFLINE (policy compilation):
-  for each NL policy statement s:
-    draft ← LLM.formalize(s, target_language="datalog")
-    coverage_gaps ← static_analyzer.check_entailment(draft, s)
-    if coverage_gaps:
-      human_review(draft, coverage_gaps)
-    policy_dag.add_rule(draft)
-  policy_dag.check_contradictions()          # abort if unsatisfiable
-  policy_dag.check_redundancy()              # warn on subsumptions
-  compiled_policy ← souffle.compile(policy_dag)   # produces native binary
-  # For arithmetic constraints: also compile Lean 4 decide-proofs
-  for each arithmetic_constraint c in policy_dag:
-    lean_proof[c] ← lean4.compile_decide(c)  # ~µs at runtime
+1. **Requester** creates a typed `ActionProposal`.
+2. **Approver**, when policy requires a person, attests informed assent to an
+   immutable review envelope. Approval is not a permit.
+3. **Authority verifier** proves current principal, scope, audience, expiry,
+   revocation, and resource binding.
+4. **Policy adjudicator** returns `ALLOW`, `DENY`, or `INDETERMINATE` for exact
+   proposal, authority, policy, and state digests.
+5. **Controller/effect broker** owns the channel and accepts one exact permit.
+6. **Actuator** performs at most the permitted effect.
+7. **Witness/reconciler** observes provider or target truth independently.
 
-RUNTIME (per agent action):
-  action ← agent.propose_action()           # suspended, not yet executed
-  verdict ← reference_monitor.evaluate(action, compiled_policy, provenance_dag)
-  if verdict == DENY:
-    agent.receive_denial(reason=verdict.explanation)
-    return                                   # action never executes
-  if verdict == PERMIT_WITH_OBLIGATION:
-    action.add_postcondition(verdict.obligation)   # e.g. "log this read"
-  execute(action)
-  provenance_dag.record(action, verdict, timestamp)
+No component may request, approve, adjudicate, execute, and certify the same
+consequential transition. Process names are not separation; keys, custody,
+release boundaries, and failure domains matter.
 
-reference_monitor.evaluate(action, policy, dag):
-  # Build Datalog substrate from current state + provenance dag
-  substrate ← {
-    "agent_id": action.agent,
-    "action_type": action.type,
-    "target": action.target,
-    "caller_chain": dag.ancestors(action.agent),
-    "prior_actions": dag.recent(window=policy.lookback),
-  }
-  # Evaluate compiled Soufflé binary against substrate
-  result ← compiled_policy.query("permit(Action)", substrate)
-  if result.is_arithmetic_constrained:
-    result.formal_check ← lean_kernel.check(lean_proof[result.constraint], substrate)
-  return result.verdict
+## Pre-effect protocol
 
-LATENCY TARGETS:
-  Datalog/Soufflé evaluation:    < 1ms   (FORGE benchmark)
-  Lean 4 arithmetic check:       ~ 5µs   (Cedar benchmark)
-  AgentSpec rule evaluation:     1–10ms  (AgentSpec benchmark)
-  Behavioral contract check:     < 10ms  (AgentBC benchmark)
-  Acceptable total overhead:     12–38% end-to-end task time (FORGE on τ²-Bench)
+```mermaid
+sequenceDiagram
+  participant R as Requester
+  participant A as Authority verifier
+  participant J as Adjudicator
+  participant C as Protected controller
+  participant E as External effect
+  participant W as Independent witness
+
+  R->>A: proposal digest + current authority
+  A-->>J: verified authority receipt
+  J-->>C: exact decision receipt
+  alt DENY or INDETERMINATE
+    C-->>R: refusal; channel remains closed
+  else ALLOW
+    C->>C: atomically redeem one-use permit
+    C->>E: record intent, then transmit exact effect
+    E-->>W: provider/target observation
+    W-->>C: effect or ambiguity receipt
+  end
 ```
 
-**Enforcement modes (minimum two):**
-- *Preventive:* Block before execution. Default for hard constraints and all
-  prohibitions.
-- *Corrective:* Allow execution but immediately trigger a compensating action
-  (e.g. revoke a credential after a policy-violating write). Default for soft
-  constraints and obligation violations where rollback is possible.
+`DENY` and `INDETERMINATE` make execution unreachable. Compensation is a new
+effect requiring a new proposal and permit; it is never preventive mediation.
 
-**State substrate and provenance DAG:** The policy engine is stateful. "Agent X
-accessed Y because agent Z delegated to it" is a relational fact the Datalog
-engine needs. Maintain a provenance DAG of (action, agent, timestamp, causal
-predecessor) tuples. This is the substrate Datalog rules query for transitive
-dependency checks. Every action record must be immutable once written.
+## Audit procedure
 
-## Key References
+1. Freeze subject commit/build, policy digest, environment, actor/body
+   generation, repository/harbor, and exact effect classes.
+2. Enumerate every route to those effects: tools, filesystem, sockets, child
+   processes, inherited descriptors, raw credentials, provider sessions,
+   plugins, hooks, and out-of-band UI or API paths.
+3. Identify the owner and witness of each channel. Mark anything requester- or
+   guest-controlled as untrusted.
+4. Trace proposal → authority → policy → decision → permit → redemption → intent
+   → effect → reconciliation. Missing joins become `UNKNOWN`, never implied.
+5. Mutate every bound axis, replay nonce, policy/state digest, order, and witness.
+6. Record escaped or unmediated paths even if the declared tool boundary works.
+7. Emit `schemas/adjudication-audit.schema.json` and validate it with
+   `scripts/validate-adjudication-audit.mjs`.
 
-1. **FORGE** — "Formal Policy Enforcement for Real-World Agentic Systems,"
-   arxiv:2602.16708 (May 2026). Datalog/Soufflé reference monitor with aspect-
-   woven interception for LangChain/AutoGen/VS Code Copilot. Sub-millisecond
-   median authorization latency, tens of thousands of decisions per second,
-   12–38% end-to-end overhead on τ²-Bench across GPT-5.2/Claude Opus/Gemini 3
-   Pro. Includes formal correctness theorem and proof sketch. Two real-world
-   deployments. **Current production baseline.**
+## Required bypass tests
 
-2. **AgentSpec** — Wang et al., arxiv:2503.18666, ICSE 2026. Three-tuple rule
-   DSL (triggering event, predicate set, enforcement function sequence). Multi-
-   domain: code-execution agents, embodied agents, autonomous vehicles. >90%
-   prevention of unsafe code agent actions, 100% AV compliance, millisecond-
-   level per-action overhead. Peer-reviewed at ICSE.
+At minimum test stale generation, wrong actor, wrong repo/harbor, wrong target or
+parameters, expired/revoked authority, changed policy/state, duplicate
+redemption, decision after effect, requester self-adjudication, `DENY` execution,
+unbound compensation, raw credential/socket/process bypass, missing witness,
+lost acknowledgement, and ambiguous provider state.
 
-3. **Agent Behavioral Contracts (AgentBC)** — arxiv:2602.22302. ContractSpec
-   YAML DSL with hard/soft constraint separation, drift monitoring via Ornstein-
-   Uhlenbeck dynamics (formal bounding theorem), and recovery mechanisms. 1,980
-   sessions across 7 models from 6 vendors. <10ms per-action overhead, 88–100%
-   hard constraint compliance.
+## Anti-patterns
 
-4. **Lean-Agent Protocol** — arxiv:2604.01483, github:arkanemystic/lean-agent-
-   protocol. Lean 4 `decide` tactic for arithmetic constraints; AWS Cedar
-   benchmark shows ~5µs kernel evaluation on warm cache. Establishes the proof-
-   generation-offline / proof-checking-at-runtime architecture. Working
-   open-source prototype; WebAssembly sandboxing and cryptographic audit
-   signatures listed as future work.
+### Framework hook equals reference monitor
+
+**Novice:** every normal tool call passes one callback, so mediation is complete.
+**Expert:** inventory every effect channel and independently test bypasses.
+**Detection:** an effect can occur through shell, child process, inherited
+descriptor, direct network, credential, plugin, or human UI without the hook.
+
+### Signed means true
+
+**Novice:** a valid signature proves policy compliance or effect success.
+**Expert:** signatures prove authorship/integrity; witness class determines what
+the signer could know.
+**Detection:** the same component signs both assertion and acceptance.
+
+### Deny then compensate
+
+**Novice:** execute a denied operation and repair it afterward.
+**Expert:** deny leaves the channel closed; compensation has separate authority.
+**Detection:** any `DENY` trace contains an effect or actuator receipt.
+
+### Benchmark inheritance
+
+**Novice:** publish another system's latency as this system's target.
+**Expert:** record external results as context and benchmark the exact local path.
+**Detection:** a performance number lacks artifact, machine, command, workload,
+sample distribution, and raw result locators.
+
+## Output and validation
+
+The JSON audit is the primary deliverable. It reports one bounded claim, all
+unknowns, the mediation inventory, mutation results, and a terminal status of
+`PASS`, `FAIL`, or `BLOCKED`. `PASS` at `MEDIATION_WITNESSED` requires dynamic,
+independent evidence; static packets normally terminate `BLOCKED` at a lower
+rung.
+
+```bash
+node skills/provable-action-adjudicator/scripts/validate-adjudication-audit.mjs <audit.json>
+node skills/provable-action-adjudicator/scripts/test-bundle.mjs
+```
+
+## Load on demand
+
+| File | Load when |
+|---|---|
+| `references/repository-status.md` | Distinguishing current Port Daddy contracts from deployed enforcement. |
+| `references/claim-ladder-and-threat-model.md` | Building a mediation inventory or adversarial claim. |
+| `references/source-ledger.md` | Citing external definitions, standards, or research. |
+| `references/benchmark-protocol.md` | Making any latency, throughput, or overhead claim. |
+| `diagrams/01-claim-ladder.md` | Explaining evidence maturity. |
+| `diagrams/02-pre-effect-sequence.md` | Reviewing role separation and execution order. |
+| `examples/static-verifier-audit.json` | Starting a static, explicitly blocked audit packet. |
+| `scripts/test-bundle.mjs` | Running the positive and adversarial validator corpus. |
+| `tests/activation.md` | Testing skill routing. |
