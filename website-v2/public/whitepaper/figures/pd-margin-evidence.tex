@@ -1,0 +1,92 @@
+% Native-size evidence for the Book's outer column. These are analytic
+% examples, never observations of deployed agents. No resizebox or floats.
+\input{figures/pd-margin-sketches.tex}
+\newcommand{\pdevidencetable}[2]{%
+  {\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.12}%
+   \begin{tabular}{@{}#1@{}}#2\end{tabular}}}
+
+\newcommand{\pdprobationcapacity}{%
+  \pdmarginexhibit{probation-capacity}{Four periods cannot deter 17}{%
+    \pdevidencetable{lr}{
+      Last period & Capacity\\\hline
+      0 & 9\\1 & 13.5\\2 & 15.75\\3 & 16.875\\
+      Infinite & 18}
+  }{With $L=9$ and discount $1/2$, four dates buy 16.875.
+    A gain of 17 is infeasible.}}
+
+\newcommand{\pdassurancevalues}{%
+  \pdmarginexhibit{assurance-values}{How many reviewers?}{%
+    \pdevidencetable{rr}{
+      $k$ & Miss probability\\\hline
+      1 & 40\%\\2 & 16\%\\3 & 6.4\%\\4 & 2.56\%\\
+      5 & 1.024\%\\\bfseries6 & \bfseries0.4096\%}
+  }{Independent detection, $d=0.6$. Six reviewers, not five, put $0.4^k$ below 1\%.}}
+
+\newcommand{\pdpairwisecounterexample}{%
+  \pdmarginexhibit{joint-misses}{Same pairs, different risk}{%
+    \pdevidencetable{cc}{
+      Panel A & Panel B\\\hline
+      \textbf{000} & 111\\011 & 100\\101 & 010\\110 & 001\\\hline
+      $1/4$ & $0$}
+  }{Each column lists four equally likely outcomes; 1 means detection.
+    Both have zero pairwise correlation. Only A can miss everything.}}
+
+\newcommand{\pdtreecounterexample}{%
+  \pdmarginexhibit{tree-residual}{Connected, but no loop}{%
+    \begin{tikzpicture}[pd figure,x=32pt,y=20pt]
+      \draw[pd rule] (0,0)--(1,0)--(2,0);
+      \foreach \x in {0,1,2}{
+        \node[pd focus datum] at (\x,0) {};
+        \node[pd label,anchor=south] at (\x,.2) {$\x$};}
+      \node[pd label,anchor=north] at (.5,-.15) {$+1$};
+      \node[pd label,anchor=north] at (1.5,-.15) {$+1$};
+    \end{tikzpicture}\par
+    Spectrum: $0,1,3$.\par Residual: $0$.
+  }{Node potentials $0,1,2$ explain both edge differences. A positive spectral
+    gap does not guarantee a cycle-space alarm.}}
+
+\newcommand{\pdbondrecipientexample}{%
+  \pdmarginexhibit{bond-recipients}{One status; two payees}{%
+    \begin{tikzpicture}[pd figure,x=1pt,y=1pt]
+      \node[pd label] (bond) at (40,0) {\$100 cleared};
+      \node[pd label] (pay) at (18,-34) {\$80};
+      \node[pd label] (back) at (66,-34) {\$20};
+      \draw[pd arrow] (bond.south) -- (pay.north);
+      \draw[pd arrow] (bond.south) -- (back.north);
+    \end{tikzpicture}\par
+    \pdevidencetable{lr}{Counterparty & \$80\\Return to $A$ & \$20}
+  }{The entire bond has cleared. Its recipient ledger splits the payment;
+    it does not split the bond between status buckets.}}
+
+\newsavebox{\pdanalogybox}
+\newcommand{\pdmarginanalogy}[4]{%
+  \sbox{\pdanalogybox}{%
+    \IfFileExists{plates/margin-evidence/#3.png}{%
+      \includegraphics[width=\linewidth]{plates/margin-evidence/#3.png}%
+    }{\PackageError{pd-margin-layout}{Missing margin illustration #3}%
+      {Generate and inspect the artwork before including it.}}}%
+  \pdmarginexhibit{#1}{#2}{%
+    \ifdim\ht\pdanalogybox>0.22\textheight
+      \includegraphics[height=0.22\textheight]{plates/margin-evidence/#3.png}%
+    \else
+      \usebox{\pdanalogybox}%
+    \fi
+  }{#4}}
+
+% \pdwrapanalogy[placement][width]{id}{title}{asset-stem}{caption}
+% Embeds a transparent specimen drawing wrapped into body text (2x-3x larger)
+% with text flowing naturally around the linework.
+\NewDocumentCommand\pdwrapanalogy{O{r} O{0.40\textwidth} m m m +m}{%
+  \begin{wrapfigure}{#1}{#2}%
+    \centering\vspace{-4pt}%
+    \IfFileExists{plates/margin-evidence/#5.png}{%
+      \includegraphics[width=\linewidth,keepaspectratio]{plates/margin-evidence/#5.png}%
+    }{\PackageError{pd-margin-layout}{Missing illustration #5}%
+      {Generate and inspect the artwork before including it.}}%
+    \if\relax\detokenize{#4}\relax\else\caption{#4}\fi
+    \if\relax\detokenize{#6}\relax\else\vspace{2pt}\par\noindent\small\textit{#6}\fi
+    \label{fig:#3}%
+    \vspace{-4pt}%
+  \end{wrapfigure}%
+}
+

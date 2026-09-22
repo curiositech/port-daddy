@@ -92,20 +92,46 @@
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usepackage{float}
+\usepackage{wrapfig}
 % Page discipline for the Book. Every figure and table in the chapter sources
 % asks for [H]; at a 7 x 10 trim that strands a third of a page whenever the
 % next exhibit does not fit. In the Book an [H] becomes [!htbp]: the exhibit
 % is still set here when it fits and otherwise floats to the top of the next
-% page while the text flows on, and a FloatBarrier at every section keeps it
-% inside its section. Headings need room for three lines beneath them.
-\usepackage[section]{placeins}
+% page while the text flows on. Headings need room for three lines beneath them.
+% Chapter boundaries already flush floats. Section barriers unnecessarily
+% split short exhibits and their surrounding prose across nearly empty pages.
+\usepackage{placeins}
 \makeatletter
 \let\pd@orig@xfloat\@xfloat
 \def\@xfloat#1[#2]{\edef\@tempa{#2}\def\@tempb{H}%
   \ifx\@tempa\@tempb\pd@orig@xfloat#1[!htbp]\else\pd@orig@xfloat#1[#2]\fi}
+% Float-only pages start at the text top, never vertically centred in a void.
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{16pt}
 \makeatother
+% A half-full figure must not eagerly consume a whole page while prose waits.
+% Reserve float-only pages for substantial exhibits; ordinary diagrams share
+% a page with text. Chapter/part boundaries still flush their own float queues.
+\renewcommand{\floatpagefraction}{.8}
+\renewcommand{\dblfloatpagefraction}{.8}
+\renewcommand{\topfraction}{.85}
+\renewcommand{\dbltopfraction}{.85}
+\renewcommand{\textfraction}{.1}
+% Keep at least two lines of a paragraph together across a page turn, and
+% never split a hyphenated word between pages. Float reflow must not strand
+% a run-in heading or a lone final syllable at the foot/head of adjacent pages.
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\brokenpenalty=10000
 \usepackage{needspace}
 \usepackage{etoolbox}
+% Breakable frames use \vsplit, whose retry loop cannot resolve an infinite
+% penalty at the only usable split. Keep strong preferences inside frames,
+% but allow the split; ordinary body paragraphs retain the strict rules above.
+\AtBeginEnvironment{mdframed}{%
+  \clubpenalty=9000 \widowpenalty=9000
+  \displaywidowpenalty=9000 \brokenpenalty=9000}
 % The reservation has to cover the heading's own apparatus before it covers any
 % prose: a \section spends roughly 3.5 baselines on beforeskip, the heading line
 % at \Large and afterskip, so 6 left about 2.5 lines of text under it -- right on
@@ -168,7 +194,7 @@
 % The technical edition's accents are the brand's own Seventies trio: amber
 % (mustard), rust (brown) and gold (avocado); no colour outside the palette.
 \geometry{paperwidth=7in,paperheight=10in,inner=0.8in,outer=1.7in,%
-  top=0.85in,bottom=0.95in,marginparsep=0.2in,marginparwidth=1.3in}
+  top=0.85in,bottom=0.95in,marginparsep=0.2in,marginparwidth=1.3in,headheight=14pt}
 \normalmarginpar
 % Preserve the authored vertical cadence. Flush-bottom composition stretches
 % theorem and paragraph skips unpredictably on pages with fixed-height art.
@@ -202,6 +228,8 @@
 \input{figures/pd-palette}
 \input{figures/pd-textbook-map}
 \input{figures/pd-pedagogy}
+\input{figures/pd-margin-layout}
+\input{figures/pd-margin-evidence}
 \pdmargincolumntrue
 \input{figures/pd-figure-language}
 \ifpdswiss
@@ -214,6 +242,7 @@
   \colorlet{pdcobalt}{pdswissblue}\colorlet{pdviolet}{pdswissviolet}
   \input{coordination-papers-mega-volume-swiss-plates}
 \fi
+\input{figures/pd-reflection-plates}
 
 % The maturity, guarantee, proof-obligation and claim-evidence vocabularies --
 % \Built, \BuiltWeak, \Designed, \Vision, their uppercase aliases, \NotGuar,
@@ -310,20 +339,21 @@
 \lstset{style=pdcode}
 
 % Fixed, restrained theorem skips keep theorem/prose transitions on the same
-% baseline cadence. amsthm's class defaults carry highly stretchable vertical
+% baseline cadence. A block heading is separate from its first body paragraph.
+% amsthm's class defaults carry highly stretchable vertical
 % glue, which produced visibly unrelated gaps at page breaks in chapter 7.
 \newtheoremstyle{pddefinition}% name
   {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
   {\normalfont}{}% body / indent
-  {\bfseries}{.}{0.5em}{}% head
+  {\bfseries}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
 \newtheoremstyle{pdplain}% name
   {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
   {\itshape}{}% body / indent
-  {\bfseries}{.}{0.5em}{}% head
+  {\bfseries}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
 \newtheoremstyle{pdremark}% name
   {6pt plus 1pt minus 1pt}{6pt plus 1pt minus 1pt}% above / below
   {\normalfont}{}% body / indent
-  {\itshape}{.}{0.5em}{}% head
+  {\itshape}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
 \theoremstyle{pddefinition}
 \newtheorem{definition}{Definition}[section]
 \newtheorem{property}{Property}[section]
@@ -336,26 +366,60 @@
 \newtheorem{conjecture}{Conjecture}[section]
 \theoremstyle{pdremark}
 \newtheorem*{remark}{Remark}
+% Flush amsthm's deferred label into its own paragraph before body tokens.
+% A head-separator newline alone leaves an opening list's marker on the head.
+\makeatletter
+\patchcmd{\@begintheorem}{\ignorespaces}{\leavevmode\pdblockheadingend}{}%
+  {\PackageError{pd-book}{Theorem heading paragraph patch failed}{Check the amsthm heading definition.}}
+\makeatother
+% Keep the usual proof/QED machinery, but separate the proof heading too.
+\expandafter\patchcmd\csname\string\proof\endcsname
+  {\ignorespaces}{\leavevmode\pdblockheadingend}{}%
+  {\PackageError{pd-book}{Proof heading paragraph patch failed}{Check the amsthm proof definition.}}
+% Adornment hooks preserve the original amsthm environments and counters.
+\BeforeBeginEnvironment{definition}{\pdblockbefore{Definition}}
+\AfterEndEnvironment{definition}{\pdblockafter{Definition}}
+\BeforeBeginEnvironment{property}{\pdblockbefore{Property}}
+\AfterEndEnvironment{property}{\pdblockafter{Property}}
+\BeforeBeginEnvironment{theorem}{\pdblockbefore{Theorem}}
+\AfterEndEnvironment{theorem}{\pdblockafter{Theorem}}
+\BeforeBeginEnvironment{lemma}{\pdblockbefore{Lemma}}
+\AfterEndEnvironment{lemma}{\pdblockafter{Lemma}}
+\BeforeBeginEnvironment{proposition}{\pdblockbefore{Proposition}}
+\AfterEndEnvironment{proposition}{\pdblockafter{Proposition}}
+\BeforeBeginEnvironment{corollary}{\pdblockbefore{Corollary}}
+\AfterEndEnvironment{corollary}{\pdblockafter{Corollary}}
+\BeforeBeginEnvironment{conjecture}{\pdblockbefore{Conjecture}}
+\AfterEndEnvironment{conjecture}{\pdblockafter{Conjecture}}
+\BeforeBeginEnvironment{protocol}{\pdblockbefore{Protocol}}
+\AfterEndEnvironment{protocol}{\pdblockafter{Protocol}}
+
 
 \newcounter{lsprotocol}[section]
 \renewcommand{\thelsprotocol}{\thesection.\arabic{lsprotocol}}
+% Protocol prose is not a drawing: a TikZ/minipage wrapper made the whole
+% passage indivisible and left half-pages empty. Both chapter variants now
+% share one breakable frame while keeping their counters and labels intact.
+\newenvironment{pdbookprotocol}[2]{%
+  \pdblockbefore{Protocol}%
+  % The destination belongs inside the frame, after its start reservation.
+  \refstepcounter{#1}%
+  \noindent{\raggedright\normalfont\bfseries\color{hhink}\pdblockglyph{Protocol}%
+    Protocol~\csname the#1\endcsname\ifblank{#2}{}{\hspace{.35em}(#2)}.\par}%
+  \small\pdblockheadingend
+}{\pdblockafter{Protocol}}
 \newenvironment{lsprotocol}[1]{%
-  \par\vspace{8pt}\refstepcounter{lsprotocol}\noindent\begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
-  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
-  {\scshape\bfseries\color{hhink}Protocol~\thelsprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}\small
-}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+  \begin{pdbookprotocol}{lsprotocol}{#1}%
+}{\end{pdbookprotocol}}
 \newcounter{stpprotocol}[section]
 \renewcommand{\thestpprotocol}{\thesection.\arabic{stpprotocol}}
 \newenvironment{stpprotocol}[1][]{%
-  \par\vspace{8pt}\refstepcounter{stpprotocol}\noindent\begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
-  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
-  {\scshape\bfseries\color{hhink}Protocol~\thestpprotocol.}%
-  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}\small
-}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+  \begin{pdbookprotocol}{stpprotocol}{#1}%
+}{\end{pdbookprotocol}}
 \theoremstyle{pddefinition}
 \newtheorem{heprotocol}{Protocol}[section]
+\BeforeBeginEnvironment{heprotocol}{\pdblockbefore{Protocol}}
+\AfterEndEnvironment{heprotocol}{\pdblockafter{Protocol}}
 
 \tikzset{
   stp box/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,inner sep=7pt,align=center,minimum height=10mm},
@@ -375,6 +439,12 @@
 \fancyfoot[C]{\footnotesize\color{hhgray} Textbook Edition \textperiodcentered\ \pdeditiondate}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
+% Backmatter replaces all chapter heads on both sides of the spread.
+\newcommand{\pdbackmatterheaders}[1]{%
+  \fancyhead{}%
+  \fancyhead[LE,RO]{\small\color{hhgray}\thepage}%
+  \fancyhead[RE,LO]{\small\itshape\color{hhgray} #1}%
+  \fancyfoot[C]{\footnotesize\color{hhgray}\pdeditiontitle\ \textperiodcentered\ #1}}
 
 % ---- Chapters, parts, and the front-matter map ----------------------------
 % Chapter numbers are Arabic and come from whitepaper/textbook.json via the
@@ -584,7 +654,7 @@
 \newsavebox{\pdepigraphbox}\newsavebox{\pdopenerplatebox}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
-  \cleardoublepage
+  \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%
   \renewcommand{\pdchapterprefix}{#3}%
   \renewcommand{\pdcurrentchaptercolor}{#4}%
@@ -816,7 +886,7 @@
 
 % ---------------------------------------------------------------------------
 % One complete illustrated ToC. Entries and destinations belong to LaTeX's
-% .toc; textbook.json supplies only the part art key, hue and chapter summaries.
+% .toc; textbook.json supplies the part/chapter art keys, hue and summaries.
 % Prose inherits \rmfamily; heading roles come from the shared typography module.
 % The six-inch navigation field has room for real subsection titles; no heading
 % is abbreviated or thrown away to make the contents look short.
@@ -826,9 +896,10 @@
   \expandafter\def\csname pd@tocpartart@#1\endcsname{#2}%
   \expandafter\def\csname pd@tocpartcolor@#1\endcsname{#3}%
   \expandafter\def\csname pd@tocpartblurb@#1\endcsname{#4}}
-\newcommand{\pdcontentschaptermeta}[3]{%
+\newcommand{\pdcontentschaptermeta}[4]{%
   \expandafter\def\csname pd@tocchapterclaim@#1\endcsname{#2}%
-  \expandafter\def\csname pd@tocchapternote@#1\endcsname{#3}}
+  \expandafter\def\csname pd@tocchapternote@#1\endcsname{#3}%
+  \expandafter\def\csname pd@tocchapterart@#1\endcsname{#4}}
 \newcount\pd@tocpart
 \newcount\pd@tocchapter
 \newif\ifpd@tocafterpart
@@ -838,6 +909,17 @@
   \ifpdtechnical\def\pd@tocplatepath{plates/technical/part-#1.jpg}\else
   \def\pd@tocplatepath{plates/part-#1.jpg}\fi\fi
   \includegraphics[width=\linewidth,height=1.42in,keepaspectratio]{\pd@tocplatepath}}
+% Chapter plates use the same edition and key as their chapter openers.
+% A missing image is a build error, not an empty visual locator.
+\newcommand{\pd@tocchapterplate}[1]{%
+  \ifpdswiss\def\pd@tocplatepath{plates/swiss/chapter-#1.jpg}\else
+  \ifpdtechnical\edef\pd@tocplatepath{plates/technical/chapter-\the\pd@tocchapter.jpg}\else
+  \def\pd@tocplatepath{plates/chapter-#1.jpg}\fi\fi
+  \IfFileExists{\pd@tocplatepath}{%
+    \typeout{PD-TOC-CHAPTER-PLATE: #1}%
+    \hyperref[chap:#1]{\includegraphics[width=\linewidth,height=0.92in,keepaspectratio]{\pd@tocplatepath}}%
+  }{\PackageError{pd-book-contents}{Missing chapter plate \pd@tocplatepath}%
+    {Restore the chapter's edition-specific plate before building the Book.}}}
 % A fresh page for a part keeps its existing art and the first chapter together.
 % The image is a visual locator for the same part plate encountered in the body.
 \renewcommand*\l@part[2]{%
@@ -873,6 +955,10 @@
     \Needspace*{15\baselineskip}\addvspace{22pt}%
   \fi
   \advance\pd@tocchapter\@ne
+  \noindent\begin{minipage}[t]{0.23\linewidth}\vspace{0pt}%
+    \expandafter\pd@tocchapterplate\expandafter{\csname pd@tocchapterart@\the\pd@tocchapter\endcsname}%
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.72\linewidth}\vspace{0pt}%
   \begingroup
     \pdtextface\large\bfseries\color{\pd@toccolor}%
     \parindent\z@\rightskip 2.5em\parfillskip -2.5em
@@ -886,7 +972,7 @@
     \expandafter\ifx\csname\pd@tocnotename\endcsname\@empty\else
       \vspace{3pt}{\itshape\csname\pd@tocnotename\endcsname\par}%
     \fi}%
-  \nobreak\vspace{10pt}}
+  \end{minipage}\par\nobreak\vspace{10pt}}
 \newcommand{\pd@tocchapternumber}[1]{#1\enspace}
 % A quiet number gutter and one aligned page column. Subsections indent only
 % their numbers; long titles keep a generous measure and wrap as hanging text.
@@ -941,11 +1027,11 @@
 \pdbooktrue
 
 % ---------------------------------------------------------------------------
-% Overflow safety net. A tikzpicture wider than the text column is set over the
-% column and the outer margin (the full-width figure, 6 in); one wider still is
-% scaled to that width and logged. No figure can leave the page. The real fix
-% for a figure this wide is a redraw to the column (scripts/harbor-research/
-% page_overflow.py reports every page that still needs one).
+% Captioned exhibits must fit the text column: the outside margin is reserved
+% for their captions. Record true ink width and warn on overflow; the matching
+% PDF audit rejects it. Never hide an oversized figure by shrinking its type
+% or moving its caption below it. The legacy spill/scale path below applies
+% only to non-floating inline artwork and remains separately reviewable.
 % ---------------------------------------------------------------------------
 \usepackage{changepage}
 \strictpagecheck
@@ -980,11 +1066,28 @@
   \fi
   % the box has no width of its own yet; pgf sets it from the bounding box
   \@tempdima=\dimexpr\pgf@picmaxx-\pgf@picminx\relax
-  \ifdim\@tempdima>\linewidth
+  \ifpd@captionfloat
+    \ifdim\@tempdima>\pd@exhibitinkwidth
+      \global\pd@exhibitinkwidth=\@tempdima\fi
+  \fi
+  \ifdim\@tempdima>\dimexpr\linewidth+1pt\relax
+    \ifpd@captionfloat
+      % The outer margin belongs to the caption. Preserve the bad geometry
+      % for the audit; never conceal it by shrinking type or dropping captions.
+      \PackageWarning{pd-book}{PD-EXHIBIT-WIDE: \@captype\space
+        \@nameuse{the\@captype}; width=\the\@tempdima; limit=\the\linewidth}%
+      \makebox[\linewidth][c]{\usebox{\pd@picbox}}%
+    \else
     \ifdim\linewidth<\dimexpr\textwidth-1pt\relax
+      \ifpdmarginevidence
+        \PackageError{pd-book}{Margin evidence exceeds its native width}%
+          {Redraw to marginparwidth; shrinking labels is not permitted.}%
+        \usebox{\pd@picbox}%
+      \else
       % inside a minipage, a margin note or a table cell: fit the box we are in
       \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box}%
       \resizebox{\linewidth}{!}{\usebox{\pd@picbox}}%
+      \fi
     \else
       \ifdim\wd\pd@picbox>\pdfullwidth
         \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to the full width}%
@@ -1002,6 +1105,7 @@
       \else
         \makebox[\textwidth][r]{\usebox{\pd@picbox}}%
       \fi
+    \fi
     \fi
   \else
     \usebox{\pd@picbox}%

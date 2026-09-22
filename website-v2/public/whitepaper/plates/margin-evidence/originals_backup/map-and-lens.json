@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. An unfolded small street map and one large magnifying glass over a junction. The map contains only a few strong road lines; inside the lens the same junction reveals smaller paths, drawn in cobalt. All roads join consistently across the lens boundary. Plain white ground, tightly framed. Analogy for a summary that retains a route to detail.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "976cb7275bbd2c83b97a7b222c6d59bddf12d90ae01730ebc7b0fb8be3434c00",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

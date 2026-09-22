@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. A compact canal lock in a clear three-quarter cutaway. Two sturdy end gates and a boat contained in the central chamber; the far gate is closed, the near gate also closed, water cobalt and walls black crosshatching. Tight white-ground composition. A physical analogy for custody during a transfer, not a literal computer protocol.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "c03492d987040054266600b16a69439eb17fe67a77423843501787d118d12735",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

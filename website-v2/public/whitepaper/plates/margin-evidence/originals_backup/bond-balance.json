@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. An old equal-arm balance, front view, simple heavy black outlines. A small cobalt ingot in the left pan and three plain unmarked black weights in the right pan; the pans are level. Tight framing on pure white. An editorial analogy for weighing gain against expected loss, not a numerical diagram; all weight surfaces are unlettered.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "511171cc542216cbd5013f20c230cbbe709b887b8222ce1dffe6039958a7488e",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}
