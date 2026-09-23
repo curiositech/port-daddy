@@ -309,44 +309,44 @@ of $C$, specifying the exact security guarantee enforced by each field alongside
 concrete production values.
 
 \begin{table}[p]
-\centering
-\small
-\renewcommand{\arraystretch}{1.22}
+\centering\footnotesize
 \caption{The thirteen elements of Work Order Contract $C$. Mutual non-disclosure between data owner Derek and model owner Erin is enforced by pinning cryptographic measurements, execution permissions, output schemas, resource ceilings, and economic remedies before any decryption key is released.}
 \label{tab:sealed-work-order-elements}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.06}
 \begin{tabularx}{\textwidth}{@{}
-  >{\raggedright\arraybackslash}p{2.3cm}
-  >{\raggedright\arraybackslash}p{1.6cm}
+  >{\raggedright\arraybackslash}p{1.7cm}
+  >{\raggedright\arraybackslash}p{2.0cm}
   >{\raggedright\arraybackslash}X
-  >{\raggedright\arraybackslash\ttfamily\scriptsize}p{3.2cm}@{}}
+  >{\raggedright\arraybackslash\ttfamily\scriptsize}p{2.85cm}@{}}
 \toprule
 \textbf{Element} & \textbf{Role} & \textbf{Security Specification \& Guarantee} & \normalfont\textbf{Example Value} \\
 \midrule
-$H(\text{manifest})$ & Pins & Cryptographic digest over the dataset chunks, schema layout, volume, and provenance records. Guarantees that only Derek's approved data is read by the guest. & sha256:7f83b165... \newline s3://derek-vault/ \newline q3-ledger.parquet \\
-\addlinespace[3pt]
-$H(\text{agent})$ & Pins & Digest of agent model weights, tokenizer, prompt AST, tool implementations, and dependencies. Guarantees Erin's proprietary agent is unmodified. & sha256:c0ffee4b... \newline weights.safetensors \newline + agent-v4.2.tar \\
-\addlinespace[3pt]
-$H(\text{runtime})$ & Pins & Measured guest enclave launch digest (AMD SEV-SNP launch digest / Intel TDX MRTD) verifying kernel, monitor binary, and memory before execution. & mrtd:e4a8109d... \newline pcr[0..4]:8b72... \newline (Linux 6.8 + monitor) \\
-\addlinespace[3pt]
-$H(\text{policy})$ & Pins & Digest of the declassification lattice rules, label propagation logic, sanitization filters, and differential privacy noise parameters. & sha256:5b91df... \newline lattice: Myers-Liskov \newline eps=0.5, delta=1e-6 \\
+$H(\text{manifest})$ & Pins & Cryptographic digest over dataset chunks, schema layout, and provenance. Guarantees guest reads only approved data. & sha256:7f83b165... \newline s3://derek/q3.parquet \\
+\addlinespace[2pt]
+$H(\text{agent})$ & Pins & Digest of model weights, tokenizer, prompt AST, and tools. Guarantees Erin's proprietary agent is unmodified. & sha256:c0ffee4b... \newline weights.safetensors \\
+\addlinespace[2pt]
+$H(\text{runtime})$ & Pins & Measured guest enclave launch digest (SEV-SNP / TDX MRTD) verifying kernel and monitor before execution. & mrtd:e4a8109d... \newline (Linux 6.8 + monitor) \\
+\addlinespace[2pt]
+$H(\text{policy})$ & Pins & Digest of declassification lattice rules, label propagation logic, and differential privacy noise parameters. & sha256:5b91df... \newline eps=0.5, delta=1e-6 \\
 \midrule
-$\text{function}$ & Permissions & Whitelisted top-level entrypoint symbol and signature. Restricts the agent from executing arbitrary subroutines or unvetted scripts inside the guest. & portfolio\_stress\_test \newline (portfolio\_id: str, \newline \enspace shock\_bps: int) \\
-\addlinespace[3pt]
-$\text{tools}$ & Permissions & Closed whitelist of in-guest tool capability handles. Direct external network access is disabled; all calls route through the attested monitor. & ["yield\_curve\_oracle", \newline \enspace "fx\_spot\_lookup"] \newline (no raw sockets) \\
+$\text{function}$ & Permissions & Whitelisted top-level entrypoint symbol. Restricts agent from executing arbitrary subroutines or unvetted scripts. & portfolio\_stress\_test \newline (portfolio\_id: str) \\
+\addlinespace[2pt]
+$\text{tools}$ & Permissions & Closed whitelist of in-guest tool capability handles. Direct sockets disabled; all calls route through monitor. & ["yield\_oracle", "spot"] \newline (no raw sockets) \\
 \midrule
-$\text{recipients}$ & Recipients & Authorized recipient identities and public keys for each egress channel. Derek receives primary results; Erin receives only aggregate performance telemetry. & derek: did:key:z6MkuD.. \newline erin:  did:key:z6MkuE.. \newline (per-principal keys) \\
-\addlinespace[3pt]
-$\text{schemas}$ & Recipients & Strongly-typed schema definition (Cap'n Proto / JSON Schema) for declassified outputs. Enforces exact numeric ranges and forbids free-form payloads. & RiskReportV1 \{ \newline \enspace var95: f64, \newline \enspace max\_dd: f64, \newline \enspace flag: bool \} \\
+$\text{recipients}$ & Recipients & Authorized recipient identities and public keys for each egress channel. Derek gets results; Erin gets telemetry. & derek: did:key:z6M.. \newline erin:  did:key:z6M.. \\
+\addlinespace[2pt]
+$\text{schemas}$ & Recipients & Strongly-typed schema definition (Cap'n Proto / JSON Schema) for declassified outputs. Forbids free-form payloads. & RiskReportV1 \{ \newline \enspace var95: f64, flag: bool \} \\
 \midrule
-$\text{budgets}$ & Bounds & Hard resource and leakage ceilings: maximum declassification bits ($q \cdot b$), CPU time, memory footprint, query counts, and wall-clock execution deadline. & b=64 bits, q=1 exit, \newline max\_cpu=300s, \newline max\_ram=32GB, \newline timeout=600s \\
-\addlinespace[3pt]
-$\text{retention}$ & Bounds & Ephemeral session lifetime and zeroization policy. Enclave volatile memory is cryptographically wiped upon job completion or fault; zero NVRAM persistence. & zeroize\_on\_exit; \newline no\_swap; no\_nvram; \newline max\_ttl=900s \\
+$\text{budgets}$ & Bounds & Hard resource and leakage ceilings: maximum declassification bits ($q \cdot b$), CPU time, memory, and timeout. & b=64 bits, q=1 exit, \newline max\_cpu=300s, 32GB \\
+\addlinespace[2pt]
+$\text{retention}$ & Bounds & Ephemeral session lifetime and zeroization policy. Volatile memory cryptographically wiped upon exit; no NVRAM. & zeroize\_on\_exit; \newline no\_swap; max\_ttl=900s \\
 \midrule
-$\text{validators}$ & Remedies & Independent appraisal rules for attestation evidence (IETF RATS format) and third-party arbitration endpoints for cryptographic dispute resolution. & rats\_profile: v1.2; \newline arbitrator: \newline did:key:z6MkuArb... \\
-\addlinespace[3pt]
-$\text{payment}$ & Remedies & Consideration terms, escrow identifiers, and conditional release mechanisms. Payment unlocks only upon verifiable delivery of a dual-signed release receipt. & 250.00 USDC in \newline Escrow\#0x8f2a...; \newline release\_on: receipt \\
-\addlinespace[3pt]
-$\text{liability}$ & Remedies & Liquidated damages, penalty covenants, and bonded stake forfeiture in the event of an attested invariant breach or canary leakage receipt. & 10,000 USDC bond; \newline forfeit\_on\_leak: \newline canary\_receipt\_valid \\
+$\text{validators}$ & Remedies & Independent appraisal rules for attestation evidence (IETF RATS) and third-party arbitration endpoints. & rats\_profile: v1.2; \newline arbitrator: did:key:.. \\
+\addlinespace[2pt]
+$\text{payment}$ & Remedies & Consideration terms, escrow identifiers, and conditional release mechanisms upon verified receipt delivery. & 250.00 USDC in \newline Escrow\#0x8f2a... \\
+\addlinespace[2pt]
+$\text{liability}$ & Remedies & Liquidated damages, penalty covenants, and bonded stake forfeiture on attested breach or canary leak receipt. & 10,000 USDC bond; \newline forfeit\_on\_leak: canary \\
 \bottomrule
 \end{tabularx}
 \end{table}
