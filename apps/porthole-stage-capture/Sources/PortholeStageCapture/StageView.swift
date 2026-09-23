@@ -18,6 +18,8 @@ protocol StagePresentationModel: ObservableObject {
     var cursors: [CursorEvent] { get }
     var proofReceipt: PortholeProofReceipt? { get }
     var proofConfiguration: ProofConfiguration? { get }
+    var lastSavedRecordingURL: URL? { get }
+    var lastSavedScreenshotURL: URL? { get }
     var statusMessage: String { get }
     var selectedApprovalCanEnterStage: Bool { get }
     var canPauseCapture: Bool { get }
@@ -30,6 +32,8 @@ protocol StagePresentationModel: ObservableObject {
     func startCapture() async
     func pauseCapture() async
     func stopCapture() async
+    @discardableResult
+    func captureScreenshot() -> URL?
 }
 
 extension StageCaptureController: StagePresentationModel {}
@@ -390,9 +394,39 @@ struct StageView<Model: StagePresentationModel>: View {
             }
 
             Button {
+                controller.captureScreenshot()
+            } label: {
+                Label("Screenshot", systemImage: "camera.fill")
+            }
+            .buttonStyle(.bordered)
+            .disabled(controller.latestImage == nil)
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            .help("Save PNG to ~/Pictures/Porthole and copy to clipboard (Cmd+Shift+S)")
+
+            if let savedRec = controller.lastSavedRecordingURL {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([savedRec])
+                } label: {
+                    Label("Show Video", systemImage: "film")
+                }
+                .buttonStyle(.bordered)
+                .help("Reveal saved recording in Finder: \(savedRec.path)")
+            }
+
+            if let savedShot = controller.lastSavedScreenshotURL {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([savedShot])
+                } label: {
+                    Label("Show Shot", systemImage: "photo")
+                }
+                .buttonStyle(.bordered)
+                .help("Reveal saved screenshot in Finder: \(savedShot.path)")
+            }
+
+            Button {
                 Task { await controller.stopCapture() }
             } label: {
-                Label("Stop & Clear", systemImage: "stop.fill")
+                Label(controller.persistenceGate.allowed ? "Stop & Save" : "Stop & Clear", systemImage: "stop.fill")
             }
             .buttonStyle(.bordered)
             .disabled(![.live, .paused].contains(controller.lifecycle))
