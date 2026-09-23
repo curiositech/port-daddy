@@ -51,6 +51,14 @@ PUB="website-v2/public/whitepaper"
 # directory therefore makes otherwise identical PDFs differ on every build.
 # Keep the ignored build path stable across PR and main runners.
 BUILD_DIR="$REPO_ROOT/.cache/whitepaper-build"
+if [ -z "${PD_BOOK_FONT_DIR:-}" ]; then
+  for candidate in "$HOME/coding/tmp/book-private-fonts/suisse-intl-20260918/Suisse Intl/OTF" "/Users/erichowens/coding/tmp/book-private-fonts/suisse-intl-20260918/Suisse Intl/OTF"; do
+    if [ -d "$candidate" ]; then
+      export PD_BOOK_FONT_DIR="$candidate"
+      break
+    fi
+  done
+fi
 clean_build_dir() {
   [ -d "$BUILD_DIR" ] || return 0
   find "$BUILD_DIR" -depth -mindepth 1 -delete
@@ -321,6 +329,17 @@ build_one() {
   if ! grep -q 'PD-MARGIN-CONVERGENCE: complete' "$outdir/$base.log" \
     || grep -q 'PD-MARGIN-CONVERGENCE: pending' "$outdir/$base.log"; then
     echo "::error::Book margin positions did not converge; refusing to publish $roottex"
+    echo "::endgroup::"
+    return 1
+  fi
+  # Fail closed if a specified font could not be used
+  if grep -q 'OPEN-FONT PROOF' "$outdir/$base.log"; then
+    echo "::error::Build used OPEN-FONT PROOF fallback instead of specified production fonts; failing closed (exit 1)" >&2
+    echo "::endgroup::"
+    return 1
+  fi
+  if grep -E -q 'Font .* not found|cannot be found' "$outdir/$base.log"; then
+    echo "::error::A specified font could not be found; failing closed (exit 1)" >&2
     echo "::endgroup::"
     return 1
   fi

@@ -50,7 +50,15 @@ def main():
     parser.add_argument("build_dir", type=Path)
     args = parser.parse_args()
     folder = os.environ.get("PD_BOOK_FONT_DIR", "")
-    profile = os.environ.get("PD_BOOK_FONT_PROFILE", "suisse" if folder else "open-proof")
+    if not folder:
+        for candidate in [
+            Path.home() / "coding/tmp/book-private-fonts/suisse-intl-20260918/Suisse Intl/OTF",
+            Path("/Users/erichowens/coding/tmp/book-private-fonts/suisse-intl-20260918/Suisse Intl/OTF"),
+        ]:
+            if candidate.is_dir():
+                folder = str(candidate)
+                break
+    profile = os.environ.get("PD_BOOK_FONT_PROFILE", "suisse")
     try:
         source, receipt = configuration(profile, folder)
         target = args.build_dir.resolve()

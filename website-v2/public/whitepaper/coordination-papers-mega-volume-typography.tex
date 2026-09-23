@@ -3,7 +3,7 @@
 % fonts/README.md. An unlicensed checkout can only make an open-font proof.
 \ifXeTeX\ifpdswiss
   \InputIfFileExists{pd-book-font-config.tex}{}{}
-  \providecommand{\pdbookfontprofile}{open-proof}
+  \providecommand{\pdbookfontprofile}{suisse}
   \ifdefstring{\pdbookfontprofile}{suisse}{%
     \ifdefined\pdbookfontdir\else
       \PackageError{pd-book-fonts}{Suisse requires a private font directory}{Run scripts/prepare-book-fonts.py with PD_BOOK_FONT_DIR set.}
