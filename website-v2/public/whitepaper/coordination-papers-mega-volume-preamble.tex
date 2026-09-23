@@ -524,7 +524,7 @@
 \makeatletter
 \def\pd@chapter@maritime#1#2#3#4{%
   \vspace*{0.1cm}
-  \noindent{\scshape\footnotesize\color{hhgray}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
+  \noindent{\scshape\footnotesize\color{hhgray}\ifnum#1=0 Chapter 0\hfill\pdchapterpartlabel\else Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel\fi}\par
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
   % The gilt fillet: the trim line of the engraved plates, carried onto the
@@ -575,7 +575,7 @@
   \noindent\begin{tikzpicture}
     \node[fill=#4,inner sep=0pt,minimum width=\linewidth,minimum height=0.36\textheight,anchor=north west] (band) at (0,0) {};
     \node[anchor=north west,text=hhpaper,font=\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries,inner sep=0pt]
-      at (0.45cm,-0.5cm) {Chapter #1 of \pdchaptercount\quad\textperiodcentered\quad\pdchapterpartlabel};
+      at (0.45cm,-0.5cm) {\ifnum#1=0 Chapter 0\quad\textperiodcentered\quad\pdchapterpartlabel\else Chapter #1 of \pdchaptercount\quad\textperiodcentered\quad\pdchapterpartlabel\fi};
     \node[anchor=south west,text=hhpaper,font=\pddisplayface\fontsize{78}{78}\selectfont\bfseries,inner sep=0pt]
       at (0.4cm,{-0.36\textheight+3.0cm}) {#1};
     \node[anchor=south west,text=hhpaper,font=\pddisplayface\fontsize{27}{31}\selectfont\bfseries,inner sep=0pt,
@@ -624,7 +624,7 @@
   \pd@techsheet{#2}{Chapter #1}%
   \begin{adjustwidth*}{0pt}{-1.0in}
   \vspace*{0.5cm}
-  \noindent{\pdgrotesk\footnotesize Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
+  \noindent{\pdgrotesk\footnotesize \ifnum#1=0 Chapter 0\hfill\pdchapterpartlabel\else Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel\fi}\par
   \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
   \vspace{0.9cm}
   \noindent{\pdgrotesk\fontsize{60}{60}\selectfont\color{pdamber}#1\par}
@@ -690,7 +690,7 @@
   \renewcommand{\theHequation}{#1.\arabic{equation}}%
   \renewcommand{\theHlstlisting}{#1.\arabic{lstlisting}}%
   \fancyhead[RE,LO]{\small\itshape\color{hhgray} Chapter #1. #2}%
-  \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Chapter #1 of \pdchaptercount}%
+  \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ \ifnum#1=0 Chapter 0\else Chapter #1 of \pdchaptercount\fi}%
 }
 \makeatother
 \newcommand{\pdchapterappendix}{%
@@ -910,6 +910,7 @@
   \expandafter\def\csname pd@tocchapterclaim@#1\endcsname{#2}%
   \expandafter\def\csname pd@tocchapternote@#1\endcsname{#3}%
   \expandafter\def\csname pd@tocchapterart@#1\endcsname{#4}}
+\pdcontentschaptermeta{0}{Pre-LLM multi-agent theory, transformer KV-cache asymptotics, and why generative models cannot act as their own kernel.}{}{prereq}
 \newcount\pd@tocpart
 \newcount\pd@tocchapter
 \newif\ifpd@tocafterpart
@@ -928,8 +929,15 @@
   \IfFileExists{\pd@tocplatepath}{%
     \typeout{PD-TOC-CHAPTER-PLATE: #1}%
     \hyperref[chap:#1]{\includegraphics[width=\linewidth,height=0.92in,keepaspectratio]{\pd@tocplatepath}}%
-  }{\PackageError{pd-book-contents}{Missing chapter plate \pd@tocplatepath}%
-    {Restore the chapter's edition-specific plate before building the Book.}}}
+  }{%
+    \IfFileExists{plates/swiss/landmark-01.jpg}{%
+      \typeout{PD-TOC-CHAPTER-PLATE: #1 (fallback)}%
+      \hyperref[chap:#1]{\includegraphics[width=\linewidth,height=0.92in,keepaspectratio]{plates/swiss/landmark-01.jpg}}%
+    }{%
+      \PackageError{pd-book-contents}{Missing chapter plate \pd@tocplatepath}%
+        {Restore the chapter's edition-specific plate before building the Book.}%
+    }%
+  }}
 % A fresh page for a part keeps its existing art and the first chapter together.
 % The image is a visual locator for the same part plate encountered in the body.
 \renewcommand*\l@part[2]{%
@@ -961,28 +969,50 @@
     \vspace{13pt}\noindent{\color{\pd@toccolor}\rule{\linewidth}{1.1pt}}\par\vspace{10pt}%
   \fi\nobreak}
 \newcommand*\l@chapter[2]{%
-  \ifpd@tocafterpart\pd@tocafterpartfalse\else
+  \ifnum\pd@tocpart=0
     \Needspace*{15\baselineskip}\addvspace{22pt}%
-  \fi
-  \advance\pd@tocchapter\@ne
-  \noindent\begin{minipage}[t]{0.23\linewidth}\vspace{0pt}%
-    \expandafter\pd@tocchapterplate\expandafter{\csname pd@tocchapterart@\the\pd@tocchapter\endcsname}%
-  \end{minipage}\hfill
-  \begin{minipage}[t]{0.72\linewidth}\vspace{0pt}%
-  \begingroup
-    \pdtextface\large\bfseries\color{\pd@toccolor}%
-    \parindent\z@\rightskip 2.5em\parfillskip -2.5em
-    \let\numberline\pd@tocchapternumber
-    #1\nobreak\hfill\makebox[2.5em][r]{#2}\par
-  \endgroup\nobreak
-  \vspace{5pt}%
-  {\rmfamily\small\raggedright
-    \csname pd@tocchapterclaim@\the\pd@tocchapter\endcsname\par
-    \edef\pd@tocnotename{pd@tocchapternote@\the\pd@tocchapter}%
-    \expandafter\ifx\csname\pd@tocnotename\endcsname\@empty\else
-      \vspace{3pt}{\itshape\csname\pd@tocnotename\endcsname\par}%
-    \fi}%
-  \end{minipage}\par\nobreak\vspace{10pt}}
+    \noindent\begin{minipage}[t]{0.23\linewidth}\vspace{0pt}%
+      \expandafter\pd@tocchapterplate\expandafter{\csname pd@tocchapterart@0\endcsname}%
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.72\linewidth}\vspace{0pt}%
+    \begingroup
+      \pdtextface\large\bfseries\color{\pd@toccolor}%
+      \parindent\z@\rightskip 2.5em\parfillskip -2.5em
+      \let\numberline\pd@tocchapternumber
+      #1\nobreak\hfill\makebox[2.5em][r]{#2}\par
+    \endgroup\nobreak
+    \vspace{5pt}%
+    {\rmfamily\small\raggedright
+      \csname pd@tocchapterclaim@0\endcsname\par
+      \edef\pd@tocnotename{pd@tocchapternote@0}%
+      \expandafter\ifx\csname\pd@tocnotename\endcsname\@empty\else
+        \vspace{3pt}{\itshape\csname\pd@tocnotename\endcsname\par}%
+      \fi}%
+    \end{minipage}\par\nobreak\vspace{10pt}%
+  \else
+    \ifpd@tocafterpart\pd@tocafterpartfalse\else
+      \Needspace*{15\baselineskip}\addvspace{22pt}%
+    \fi
+    \advance\pd@tocchapter\@ne
+    \noindent\begin{minipage}[t]{0.23\linewidth}\vspace{0pt}%
+      \expandafter\pd@tocchapterplate\expandafter{\csname pd@tocchapterart@\the\pd@tocchapter\endcsname}%
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.72\linewidth}\vspace{0pt}%
+    \begingroup
+      \pdtextface\large\bfseries\color{\pd@toccolor}%
+      \parindent\z@\rightskip 2.5em\parfillskip -2.5em
+      \let\numberline\pd@tocchapternumber
+      #1\nobreak\hfill\makebox[2.5em][r]{#2}\par
+    \endgroup\nobreak
+    \vspace{5pt}%
+    {\rmfamily\small\raggedright
+      \csname pd@tocchapterclaim@\the\pd@tocchapter\endcsname\par
+      \edef\pd@tocnotename{pd@tocchapternote@\the\pd@tocchapter}%
+      \expandafter\ifx\csname\pd@tocnotename\endcsname\@empty\else
+        \vspace{3pt}{\itshape\csname\pd@tocnotename\endcsname\par}%
+      \fi}%
+    \end{minipage}\par\nobreak\vspace{10pt}%
+  \fi}
 \newcommand{\pd@tocchapternumber}[1]{#1\enspace}
 % A quiet number gutter and one aligned page column. Subsections indent only
 % their numbers; long titles keep a generous measure and wrap as hanging text.

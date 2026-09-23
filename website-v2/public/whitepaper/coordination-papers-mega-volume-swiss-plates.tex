@@ -27,8 +27,19 @@
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/part-#1.jpg}{Generate the Swiss part plate render and place it at plates/swiss/part-#1.jpg before building.}}}
 \newcommand{\pdswissplate}[2]{% #1 chapter prefix, #2 width
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
-    \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
-    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
+    \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}%
+  }{%
+    \ifstrequal{#1}{prereq}{%
+      \IfFileExists{plates/swiss/landmark-01.jpg}{%
+        \includegraphics[width=#2]{plates/swiss/landmark-01.jpg}%
+      }{%
+        \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/landmark-01.jpg}{Generate the Swiss landmark 01 render and place it at plates/swiss/landmark-01.jpg before building.}%
+      }%
+    }{%
+      \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}%
+    }%
+  }%
+}
 \providecolor{pdswissred}{HTML}{DA291C}
 \providecolor{pdcobalt}{HTML}{001489}
 \providecolor{hhink}{HTML}{1B1712}

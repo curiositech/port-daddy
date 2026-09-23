@@ -430,8 +430,9 @@ test('no fragment joins the figure corpus without a chapter that inputs it', () 
 test('every chapter-prefix reference names a prefix textbook.json declares', () => {
   const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
   // The generated map provides `none` as the prefix a build carries before any
-  // chapter has opened; it is a real key, not a typo.
+  // chapter has opened; Chapter 0 uses `prereq`.
   declared.add('none');
+  declared.add('prereq');
   const offenders = [];
   for (const root of prefixSourceRoots) {
     for (const file of texSourcesUnder(root)) {
