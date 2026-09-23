@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Cohomology of Swarms: Triadic Simplicial Sheaf Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0c0e14;
+            --panel-bg: #121620;
+            --border-color: #1e2638;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --cyan: #38bdf8;
+            --teal: #14b8a6;
+            --orange: #f97316;
+            --red: #ef4444;
+            --purple: #a855f7;
+            --blue: #3b82f6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            padding: 12px 24px;
+            background: rgba(18, 22, 32, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-sub {
+            font-size: 0.75rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: var(--text-secondary);
+            margin-left: 12px;
+            background: rgba(255,255,255,0.06);
+            padding: 3px 8px;
+            border-radius: 999px;
+        }
+        .telemetry-badges {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.8rem;
+            font-family: ui-monospace, monospace;
+        }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-color);
+            font-weight: 700;
+        }
+        .badge.alert { border-color: rgba(239, 68, 68, 0.6); color: var(--red); }
+        .badge.ok { border-color: rgba(20, 184, 166, 0.6); color: var(--teal); }
+        .badge.info { border-color: rgba(56, 189, 248, 0.6); color: var(--cyan); }
+
+        #stage-cue-bar {
+            padding: 8px 24px;
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.15), rgba(168, 85, 247, 0.1));
+            border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #main-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+        #canvas-pane {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        #svg-canvas {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Bottom Controls */
+        #scrubber-bar {
+            padding: 12px 24px;
+            background: rgba(18, 22, 32, 0.85);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ctrl-btn {
+            background: none;
+            border: none;
+            color: var(--cyan);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .ctrl-btn:disabled { color: var(--text-secondary); opacity: 0.3; cursor: not-allowed; }
+        input[type=range] {
+            flex: 1;
+            accent-color: var(--cyan);
+            cursor: pointer;
+        }
+        #turn-indicator {
+            font-family: ui-monospace, monospace;
+            font-weight: 800;
+            font-size: 0.9rem;
+            width: 120px;
+            text-align: right;
+        }
+
+        /* Right Inspector Panel */
+        #inspector-pane {
+            width: 420px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.2);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: var(--cyan);
+            border-bottom-color: var(--cyan);
+            background: rgba(56, 189, 248, 0.05);
+        }
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* Visual Elements */
+        .grid-line { stroke: rgba(255,255,255,0.04); stroke-width: 1px; }
+        .simplex-face {
+            transition: fill 0.3s, stroke 0.3s;
+            cursor: pointer;
+        }
+        .simplex-face:hover { fill-opacity: 0.35; }
+        .edge-line {
+            stroke-linecap: round;
+            cursor: pointer;
+            transition: stroke 0.3s, stroke-width 0.3s;
+        }
+        .edge-line.diverged {
+            stroke: var(--orange);
+            stroke-dasharray: 8 4;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -12; }
+        }
+        .node-card { cursor: pointer; }
+        .thought-bubble {
+            background: rgba(18, 22, 32, 0.95);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 0.75rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-width: 250px;
+            pointer-events: none;
+        }
+
+        /* Inspector Cards */
+        .info-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .info-card h4 {
+            margin: 0 0 6px 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+        .code-box {
+            font-family: ui-monospace, monospace;
+            font-size: 0.75rem;
+            background: rgba(0,0,0,0.4);
+            padding: 8px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: #cbd5e1;
+        }
+        .stalk-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            margin-bottom: 6px;
+        }
+        .stalk-label { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
+        .stalk-bar-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+        .stalk-bar-fill { height: 100%; transition: width 0.3s; }
+        .stalk-val { width: 36px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display:flex; align-items:center;">
+            <div class="header-title">The Cohomology of Swarms</div>
+            <div class="header-sub">Theorems CR-1 through CR-5 • Owens 2026</div>
+        </div>
+        <div class="telemetry-badges">
+            <div id="badge-residual" class="badge ok">r = 0.0</div>
+            <div id="badge-legibility" class="badge info">L(g) = 0.00</div>
+            <div id="badge-status" class="badge">Consensual</div>
+        </div>
+    </header>
+
+    <div id="stage-cue-bar">
+        <span id="stage-cue-text">Loading Swarm Complex...</span>
+    </div>
+
+    <div id="main-container">
+        <div id="canvas-pane">
+            <svg id="svg-canvas"></svg>
+            <div id="scrubber-bar">
+                <button class="ctrl-btn" id="btn-prev">⏮</button>
+                <button class="ctrl-btn" id="btn-play">▶</button>
+                <button class="ctrl-btn" id="btn-next">⏭</button>
+                <input type="range" id="time-slider" min="1" max="12" value="4" step="1">
+                <div id="turn-indicator">Turn 4 / 12</div>
+            </div>
+        </div>
+
+        <div id="inspector-pane">
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="setTab('hodge')">Hodge & Triad</button>
+                <button class="tab-btn" onclick="setTab('restriction')">Restriction ρ</button>
+                <button class="tab-btn" onclick="setTab('stalk')">Stalk F(v)</button>
+                <button class="tab-btn" onclick="setTab('transcripts')">Log & Tools</button>
+            </div>
+            <div class="tab-content" id="tab-content-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let sheafData = null;
+        let currentTurn = 4;
+        let isPlaying = false;
+        let currentTab = 'hodge';
+        let selectedItem = { type: 'simplex', id: 'tau_wcag' };
+        let timer = null;
+
+        const nodeCoordinates = {
+            'PM':     { x: 0.50, y: 0.16 },
+            'Design': { x: 0.20, y: 0.52 },
+            'Dev':    { x: 0.80, y: 0.52 },
+            'Critic': { x: 0.50, y: 0.86 }
+        };
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderInspector();
+        }
+
+        async function init() {
+            try {
+                const res = await fetch('../transcripts/sheaf_swarm_grounded.json');
+                sheafData = await res.json();
+                document.getElementById('time-slider').max = sheafData.timeseries.length;
+                render();
+            } catch (e) {
+                console.error("Failed to load JSON:", e);
+                document.getElementById('stage-cue-text').textContent = "Error loading sheaf_swarm_grounded.json";
+            }
+        }
+
+        function render() {
+            if (!sheafData) return;
+            const turnData = sheafData.timeseries[currentTurn - 1];
+
+            // Header Telemetry
+            const res = turnData.residuals.total;
+            const bRes = document.getElementById('badge-residual');
+            bRes.textContent = `Residual r: ${res.toFixed(1)}`;
+            bRes.className = res > 0 ? 'badge alert' : 'badge ok';
+
+            const leg = turnData.hodge.legibilityRatio;
+            const bLeg = document.getElementById('badge-legibility');
+            bLeg.textContent = `Legibility L(g): ${leg.toFixed(2)}`;
+
+            const bStat = document.getElementById('badge-status');
+            bStat.textContent = turnData.hodge.classification;
+            bStat.className = res > 0 ? 'badge alert' : 'badge ok';
+
+            // Stage Cue
+            document.getElementById('stage-cue-text').textContent = turnData.stage_cue;
+            document.getElementById('turn-indicator').textContent = `Turn ${currentTurn} / ${sheafData.timeseries.length}`;
+            document.getElementById('time-slider').value = currentTurn;
+
+            // Render Canvas
+            renderCanvas(turnData);
+            renderInspector();
+        }
+
+        function renderCanvas(turnData) {
+            const svg = d3.select("#svg-canvas");
+            svg.selectAll("*").remove();
+
+            const width = document.getElementById('canvas-pane').clientWidth;
+            const height = document.getElementById('canvas-pane').clientHeight - 60;
+
+            const getPos = (id) => ({
+                x: nodeCoordinates[id].x * width,
+                y: nodeCoordinates[id].y * height
+            });
+
+            // Grid lines
+            const gridG = svg.append("g");
+            for (let x = 0; x < width; x += 40) {
+                gridG.append("line").attr("x1", x).attr("y1", 0).attr("x2", x).attr("y2", height).attr("class", "grid-line");
+            }
+            for (let y = 0; y < height; y += 40) {
+                gridG.append("line").attr("x1", 0).attr("y1", y).attr("x2", width).attr("y2", y).attr("class", "grid-line");
+            }
+
+            // 1. Render 2-Simplices (Faces)
+            const simplexG = svg.append("g").attr("class", "simplices");
+            sheafData.metadata.simplices.forEach(simp => {
+                const pts = simp.agents.map(getPos);
+                const pointsStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+                const simpRes = turnData.simplices[simp.id];
+                const curl = simpRes ? simpRes.curl : 0;
+                const hasConflict = curl > 0.05;
+                const isSel = selectedItem.type === 'simplex' && selectedItem.id === simp.id;
+
+                simplexG.append("polygon")
+                    .attr("points", pointsStr)
+                    .attr("class", "simplex-face")
+                    .attr("fill", hasConflict ? "#f97316" : "#14b8a6")
+                    .attr("fill-opacity", isSel ? 0.35 : (hasConflict ? 0.22 : 0.10))
+                    .attr("stroke", hasConflict ? "#f97316" : "#14b8a6")
+                    .attr("stroke-width", isSel ? 2.5 : 1)
+                    .attr("stroke-dasharray", hasConflict ? "6,4" : "none")
+                    .on("click", () => {
+                        selectedItem = { type: 'simplex', id: simp.id };
+                        currentTab = 'hodge';
+                        render();
+                    });
+
+                // Centroid Badge with intelligent offset
+                let cx = (pts[0].x + pts[1].x + pts[2].x) / 3;
+                let cy = (pts[0].y + pts[1].y + pts[2].y) / 3;
+                if (simp.id === 'tau_sitemap') { cy -= 18; }
+                if (simp.id === 'tau_wcag') { cx -= 45; }
+                if (simp.id === 'tau_ui') { cy += 18; }
+
+                const badge = simplexG.append("g").attr("transform", `translate(${cx},${cy})`);
+                badge.append("rect")
+                    .attr("x", -70).attr("y", -14).attr("width", 140).attr("height", 28)
+                    .attr("rx", 6).attr("fill", "rgba(18,22,32,0.92)").attr("stroke", hasConflict ? "#f97316" : "#14b8a6").attr("stroke-width", 1);
+                badge.append("text")
+                    .attr("text-anchor", "middle").attr("y", -2).attr("fill", "#f8fafc").attr("font-size", "10px").attr("font-weight", "700")
+                    .text(`τ: ${simp.name.split(' ')[0]}`);
+                badge.append("text")
+                    .attr("text-anchor", "middle").attr("y", 9).attr("fill", hasConflict ? "#f97316" : "#94a3b8").attr("font-size", "9px").attr("font-family", "monospace")
+                    .text(`δ₁g: ${curl.toFixed(1)}`);
+            });
+
+            // 2. Render 1-Simplices (Edges)
+            const edgeG = svg.append("g").attr("class", "edges");
+            sheafData.metadata.edges.forEach(edge => {
+                const uPos = getPos(edge.u);
+                const vPos = getPos(edge.v);
+                const edgeKey = `${edge.u}-${edge.v}`;
+                const res = turnData.residuals.edgeResiduals[edgeKey] || 0;
+                const hasConflict = res > 0.05;
+                const isSel = selectedItem.type === 'edge' && selectedItem.id === edgeKey;
+
+                edgeG.append("line")
+                    .attr("x1", uPos.x).attr("y1", uPos.y).attr("x2", vPos.x).attr("y2", vPos.y)
+                    .attr("class", `edge-line ${hasConflict ? 'diverged' : 'aligned'}`)
+                    .attr("stroke", hasConflict ? "#ef4444" : "#3b82f6")
+                    .attr("stroke-width", isSel ? 4 : (hasConflict ? 3 : 1.5))
+                    .attr("stroke-opacity", 0.7)
+                    .on("click", () => {
+                        selectedItem = { type: 'edge', id: edgeKey };
+                        currentTab = 'restriction';
+                        render();
+                    });
+
+                // Midpoint Pill
+                const mx = (uPos.x + vPos.x) / 2;
+                const my = (uPos.y + vPos.y) / 2;
+                const pill = edgeG.append("g").attr("transform", `translate(${mx},${my})`);
+                pill.append("rect")
+                    .attr("x", -45).attr("y", -10).attr("width", 90).attr("height", 20)
+                    .attr("rx", 10).attr("fill", "rgba(18,22,32,0.92)").attr("stroke", hasConflict ? "#ef4444" : "#38bdf8").attr("stroke-width", isSel ? 1.5 : 0.8);
+                pill.append("text")
+                    .attr("text-anchor", "middle").attr("y", 3).attr("fill", hasConflict ? "#ef4444" : "#38bdf8").attr("font-size", "8.5px").attr("font-family", "monospace").attr("font-weight", "700")
+                    .text(`‖gₑ‖²: ${res.toFixed(1)}`);
+            });
+
+            // 3. Render 0-Simplices (Nodes)
+            const nodeG = svg.append("g").attr("class", "nodes");
+            ['PM', 'Design', 'Dev', 'Critic'].forEach(agentId => {
+                const pos = getPos(agentId);
+                const isActive = turnData.active_agent === agentId;
+                const isSel = selectedItem.type === 'node' && selectedItem.id === agentId;
+                const state = turnData.states[agentId] || [];
+                const dims = sheafData.metadata.agents[agentId] || [];
+                const role = sheafData.metadata.agentRoles[agentId] || "Agent";
+
+                const cardW = 210;
+                const cardH = 34 + dims.length * 16;
+                const card = nodeG.append("g")
+                    .attr("transform", `translate(${pos.x - cardW/2},${pos.y - cardH/2})`)
+                    .attr("class", "node-card")
+                    .on("click", () => {
+                        selectedItem = { type: 'node', id: agentId };
+                        currentTab = 'stalk';
+                        render();
+                    });
+
+                // Card background
+                card.append("rect")
+                    .attr("width", cardW).attr("height", cardH)
+                    .attr("rx", 12).attr("fill", "rgba(18,22,32,0.92)")
+                    .attr("stroke", isSel ? "#38bdf8" : (isActive ? "#06b6d4" : "rgba(255,255,255,0.12)"))
+                    .attr("stroke-width", isSel ? 2.5 : (isActive ? 2 : 1))
+                    .style("filter", isActive ? "drop-shadow(0 0 12px rgba(6, 182, 212, 0.4))" : "none");
+
+                // Header
+                card.append("text")
+                    .attr("x", 12).attr("y", 18).attr("fill", "#f8fafc").attr("font-weight", "800").attr("font-size", "13px")
+                    .text(agentId);
+
+                if (isActive) {
+                    card.append("rect").attr("x", cardW - 74).attr("y", 8).attr("width", 62).attr("height", 14).attr("rx", 7).attr("fill", "#06b6d4");
+                    card.append("text").attr("x", cardW - 43).attr("y", 18).attr("text-anchor", "middle").attr("fill", "#000").attr("font-size", "7.5px").attr("font-weight", "900").text("SPEAKING");
+                }
+
+                card.append("text")
+                    .attr("x", 12).attr("y", 28).attr("fill", "#94a3b8").attr("font-size", "8.5px")
+                    .text(role);
+
+                // Stalk dimensions
+                dims.forEach((dIdx, i) => {
+                    const dName = sheafData.metadata.dimensions[dIdx];
+                    const val = state[i] || 0;
+                    const y = 44 + i * 16;
+
+                    card.append("text")
+                        .attr("x", 12).attr("y", y).attr("fill", "#94a3b8").attr("font-size", "8.5px")
+                        .text(dName.split(' ')[0]);
+
+                    card.append("rect")
+                        .attr("x", 75).attr("y", y - 7).attr("width", 95).attr("height", 5).attr("rx", 2.5).attr("fill", "rgba(255,255,255,0.08)");
+                    card.append("rect")
+                        .attr("x", 75).attr("y", y - 7).attr("width", (val / 100) * 95).attr("height", 5).attr("rx", 2.5)
+                        .attr("fill", val >= 90 ? "#14b8a6" : (val < 50 ? "#f97316" : "#3b82f6"));
+
+                    card.append("text")
+                        .attr("x", cardW - 12).attr("y", y).attr("text-anchor", "end").attr("fill", val === 100 ? "#14b8a6" : "#f8fafc").attr("font-size", "8.5px").attr("font-family", "monospace").attr("font-weight", "700")
+                        .text(`${val}%`);
+                });
+
+                // Thought Bubble
+                if (isActive) {
+                    const bubble = svg.append("g").attr("transform", `translate(${pos.x + 115},${pos.y - 40})`);
+                    const fo = bubble.append("foreignObject").attr("width", 240).attr("height", 120);
+                    fo.append("xhtml:div").attr("class", "thought-bubble")
+                        .html(`<strong>💭 ${agentId}'s Thoughts:</strong><br><em style="color:#cbd5e1;">${turnData.thought_bubble}</em>`);
+                }
+            });
+        }
+
+        function renderInspector() {
+            if (!sheafData) return;
+            const turnData = sheafData.timeseries[currentTurn - 1];
+            const area = document.getElementById('tab-content-area');
+
+            if (currentTab === 'hodge') {
+                const simpId = selectedItem.type === 'simplex' ? selectedItem.id : 'tau_wcag';
+                const simpDef = sheafData.metadata.simplices.find(s => s.id === simpId) || sheafData.metadata.simplices[0];
+                const curl = turnData.simplices[simpId] ? turnData.simplices[simpId].curl : 0;
+
+                area.innerHTML = `
+                    <div class="info-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.1rem; color:var(--cyan);">${simpDef.name}</h3>
+                                <div style="font-size:0.8rem; color:var(--text-secondary);">Triad τ = [${simpDef.agents.join(', ')}]</div>
+                            </div>
+                            <div class="badge ${curl > 0 ? 'alert' : 'ok'}">δ₁g = ${curl.toFixed(1)}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Triadic Boundary Operator</h4>
+                        <div class="code-box">∂₂τ = e₀₁ + e₁₂ - e₀₂\n(δ₁g)_τ = g₀₁ + g₁₂ - g₀₂ ∈ ℝᵈ</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px;">Measures non-zero circulation (Escher staircase curl) around review loop.</div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Simplicial Hodge 1-Laplacian (Theorem CR-5)</h4>
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; color:var(--blue);">
+                                <span>Gauge Gradient im(δ₀)</span>
+                                <span>‖·‖² = ${turnData.hodge.gradientEnergy.toFixed(1)}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">Benign turn latency • Curl-free</div>
+                        </div>
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; color:var(--text-secondary);">
+                                <span>Harmonic Cavity ℋ¹(X)</span>
+                                <span>‖·‖² = ${turnData.hodge.harmonicEnergy.toFixed(1)}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">Macro network partition • Zero curl & divergence</div>
+                        </div>
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; color:var(--orange);">
+                                <span>Triadic Curl im(δ₁*)</span>
+                                <span>‖·‖² = ${turnData.hodge.triadicCurlEnergy.toFixed(1)}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">Local review bug • Divergence-free</div>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="background:rgba(234, 179, 8, 0.08); border-color:rgba(234, 179, 8, 0.3);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="color:#eab308; margin:0;">Swarm Legibility Ratio L(g)</h4>
+                            <span style="font-size:1.1rem; font-weight:800; color:#eab308; font-family:monospace;">${turnData.hodge.legibilityRatio.toFixed(2)}</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Formula: ‖h‖² / (‖h‖² + ‖δ₁*ψ‖²)</div>
+                        <div style="font-size:0.85rem; font-weight:700; color:${turnData.hodge.legibilityRatio > 0.6 ? '#ef4444' : (turnData.hodge.triadicCurlEnergy > 0 ? '#f97316' : '#14b8a6')}; margin-top:6px;">
+                            Triage Verdict: ${turnData.hodge.classification}
+                        </div>
+                    </div>
+                `;
+            } else if (currentTab === 'restriction') {
+                const edgeKey = selectedItem.type === 'edge' ? selectedItem.id : 'Design-Critic';
+                const cochain = turnData.cochains[edgeKey] || Object.values(turnData.cochains)[0];
+                const res = turnData.residuals.edgeResiduals[edgeKey] || 0;
+                const [u, v] = edgeKey.split('-');
+                const edgeDef = sheafData.metadata.edges.find(e => e.u === u && e.v === v);
+
+                let dimsHtml = '';
+                if (edgeDef && cochain) {
+                    edgeDef.sharedDims.forEach((dimIdx, i) => {
+                        const dName = sheafData.metadata.dimensions[dimIdx];
+                        const uVal = cochain.u_proj[i];
+                        const vVal = cochain.v_proj[i];
+                        const diff = cochain.diff[i];
+                        dimsHtml += `
+                            <div class="stalk-bar-row">
+                                <span class="stalk-label" title="${dName}">${dName}</span>
+                                <span style="font-family:monospace; color:var(--purple); font-size:0.75rem;">${u}: ${uVal}%</span>
+                                <span style="font-family:monospace; color:${diff === 0 ? 'var(--teal)' : 'var(--red)'}; font-weight:700; font-size:0.75rem;">Δ = ${diff}</span>
+                                <span style="font-family:monospace; color:var(--blue); font-size:0.75rem;">${v}: ${vVal}%</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                area.innerHTML = `
+                    <div class="info-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.1rem; color:var(--cyan);">Restriction: ${u} ⟷ ${v}</h3>
+                                <div style="font-size:0.8rem; color:var(--text-secondary);">Edge Stalk F(e) on Shared Dims [${edgeDef ? edgeDef.sharedDims.join(', ') : ''}]</div>
+                            </div>
+                            <div class="badge ${res > 0 ? 'alert' : 'ok'}">‖gₑ‖² = ${res.toFixed(1)}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Cellular Restriction Operators</h4>
+                        <div class="code-box">P_${u}: F(${u}) ⟶ F(e)\n${cochain ? cochain.restriction_u : ''}\n\nP_${v}: F(${v}) ⟶ F(e)\n${cochain ? cochain.restriction_v : ''}</div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Local Section Projections & Discrepancies</h4>
+                        ${dimsHtml}
+                    </div>
+
+                    <div class="info-card" style="background:${res > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(20,184,166,0.1)'}; border-color:${res > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(20,184,166,0.3)'};">
+                        <div style="font-size:0.8rem; font-weight:600; color:${res > 0 ? '#ef4444' : '#14b8a6'};">
+                            ${res > 0 ? '⚠️ Theorem CR-1: Contradiction Detected across edge. No global section explains this gossip.' : '✅ Theorem CR-1: Zero residual. Complete harmonic consensus.'}
+                        </div>
+                    </div>
+                `;
+            } else if (currentTab === 'stalk') {
+                const agentId = selectedItem.type === 'node' ? selectedItem.id : turnData.active_agent;
+                const dims = sheafData.metadata.agents[agentId] || [];
+                const state = turnData.states[agentId] || [];
+                const role = sheafData.metadata.agentRoles[agentId];
+
+                let dimsHtml = '';
+                dims.forEach((dIdx, i) => {
+                    const dName = sheafData.metadata.dimensions[dIdx];
+                    const val = state[i] || 0;
+                    dimsHtml += `
+                        <div class="stalk-bar-row">
+                            <span class="stalk-label" title="${dName}">Dim ${dIdx}: ${dName}</span>
+                            <div class="stalk-bar-bg">
+                                <div class="stalk-bar-fill" style="width:${val}%; background:${val >= 90 ? 'var(--teal)' : (val < 50 ? 'var(--orange)' : 'var(--blue)')}"></div>
+                            </div>
+                            <span class="stalk-val" style="color:${val === 100 ? 'var(--teal)' : 'var(--text-primary)'}">${val}%</span>
+                        </div>
+                    `;
+                });
+
+                area.innerHTML = `
+                    <div class="info-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.1rem; color:var(--cyan);">Agent Stalk F(${agentId})</h3>
+                                <div style="font-size:0.8rem; color:var(--text-secondary);">${role}</div>
+                            </div>
+                            <div class="badge info">ℝ${dims.length}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Observed Stalk Dimensions</h4>
+                        ${dimsHtml}
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Executed Tool Action</h4>
+                        <div style="font-weight:700; color:var(--cyan); font-family:monospace; font-size:0.85rem; margin-bottom:4px;">${turnData.tool_call.toolName}</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:2px;">Arguments:</div>
+                        <div class="code-box" style="margin-bottom:6px;">${JSON.stringify(turnData.tool_call.args, null, 2)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:2px;">Result:</div>
+                        <div class="code-box" style="color:var(--teal);">${JSON.stringify(turnData.tool_call.result, null, 2)}</div>
+                    </div>
+                `;
+            } else if (currentTab === 'transcripts') {
+                let html = '<h4>Swarm Action & Tool History</h4>';
+                const turns = sheafData.timeseries.slice(0, currentTurn);
+                turns.reverse().forEach(t => {
+                    html += `
+                        <div class="info-card">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:4px;">
+                                <span style="color:var(--cyan);">Turn ${t.turn} • ${t.active_agent}</span>
+                                <span style="font-family:monospace; color:var(--text-secondary);">${t.tool_call.toolName}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:#f8fafc; margin-bottom:4px;">${t.stage_cue}</div>
+                            <div style="font-size:0.75rem; font-style:italic; color:var(--text-secondary); margin-bottom:4px;">💭 ${t.thought_bubble}</div>
+                            <div style="font-size:0.75rem; color:#e2e8f0; background:rgba(0,0,0,0.3); padding:6px; border-radius:6px;">💬 "${t.message_to_team}"</div>
+                        </div>
+                    `;
+                });
+                area.innerHTML = html;
+            }
+        }
+
+        // Controls
+        document.getElementById('time-slider').addEventListener('input', (e) => {
+            currentTurn = parseInt(e.target.value);
+            render();
+        });
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if (currentTurn > 1) { currentTurn--; render(); }
+        });
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if (sheafData && currentTurn < sheafData.timeseries.length) { currentTurn++; render(); }
+        });
+        document.getElementById('btn-play').addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            document.getElementById('btn-play').textContent = isPlaying ? '⏸' : '▶';
+            if (isPlaying) {
+                timer = setInterval(() => {
+                    if (currentTurn < sheafData.timeseries.length) {
+                        currentTurn++;
+                        render();
+                    } else {
+                        isPlaying = false;
+                        document.getElementById('btn-play').textContent = '▶';
+                        clearInterval(timer);
+                    }
+                }, 2500);
+            } else {
+                clearInterval(timer);
+            }
+        });
+
+        window.addEventListener('resize', () => { if (sheafData) render(); });
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

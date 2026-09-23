@@ -1,0 +1,2671 @@
+{
+  "metadata": {
+    "project": "Web App Swarm: Sheaf Cohomology & Triadic Hodge Visualizer",
+    "theory": "Theorems CR-1 through CR-5 (Owens 2026)",
+    "dimensions": {
+      "0": "Sitemap Completeness",
+      "1": "Requirements Clarity",
+      "2": "Theme Consistency (Dark/Light)",
+      "3": "WCAG Compliance Score",
+      "4": "Visual Asset Readiness",
+      "5": "Code Coverage / Implementation",
+      "6": "UI Polish Score"
+    },
+    "agents": {
+      "PM": [
+        0,
+        1,
+        3
+      ],
+      "Design": [
+        0,
+        2,
+        3,
+        4,
+        6
+      ],
+      "Dev": [
+        0,
+        2,
+        4,
+        5,
+        6
+      ],
+      "Critic": [
+        1,
+        2,
+        3,
+        5,
+        6
+      ]
+    },
+    "agentRoles": {
+      "PM": "System Architect & Product Manager",
+      "Design": "UI/UX Designer & Design System Lead",
+      "Dev": "Frontend & Fullstack Engineer",
+      "Critic": "QA Auditor & WCAG Accessibility Lead"
+    },
+    "edges": [
+      {
+        "u": "PM",
+        "v": "Design",
+        "sharedDims": [
+          0,
+          3
+        ]
+      },
+      {
+        "u": "PM",
+        "v": "Dev",
+        "sharedDims": [
+          0
+        ]
+      },
+      {
+        "u": "PM",
+        "v": "Critic",
+        "sharedDims": [
+          1,
+          3
+        ]
+      },
+      {
+        "u": "Design",
+        "v": "Dev",
+        "sharedDims": [
+          0,
+          2,
+          4,
+          6
+        ]
+      },
+      {
+        "u": "Design",
+        "v": "Critic",
+        "sharedDims": [
+          2,
+          3,
+          6
+        ]
+      },
+      {
+        "u": "Dev",
+        "v": "Critic",
+        "sharedDims": [
+          2,
+          5,
+          6
+        ]
+      }
+    ],
+    "simplices": [
+      {
+        "id": "tau_sitemap",
+        "name": "Architecture Review Triad",
+        "agents": [
+          "PM",
+          "Design",
+          "Dev"
+        ],
+        "sharedDims": [
+          0
+        ]
+      },
+      {
+        "id": "tau_wcag",
+        "name": "Accessibility Review Triad",
+        "agents": [
+          "PM",
+          "Design",
+          "Critic"
+        ],
+        "sharedDims": [
+          3
+        ]
+      },
+      {
+        "id": "tau_ui",
+        "name": "Design-Code Review Triad",
+        "agents": [
+          "Design",
+          "Dev",
+          "Critic"
+        ],
+        "sharedDims": [
+          2,
+          6
+        ]
+      }
+    ]
+  },
+  "timeseries": [
+    {
+      "turn": 1,
+      "active_agent": "PM",
+      "stage_cue": "🎬 Turn 1: PM scaffolds Product Spec and specifies initial Web & Mobile sitemap hierarchy.",
+      "thought_bubble": "I need to lay down a rock-solid sitemap for both desktop and mobile viewports, defining our 6 core pages: Home, Pricing, Docs, Dashboard, Settings, and Auth. I will also lock the acceptance criteria: AA WCAG compliance is mandatory.",
+      "message_to_team": "Team: I have initialized the repository spec. Our sitemap requires 6 distinct route trees with mobile navigation drawers. Design, please establish our token palette; Critic, prepare the automated contrast test harness.",
+      "tool_call": {
+        "toolName": "pm_scaffold_sitemap",
+        "args": {
+          "routes": [
+            "/",
+            "/pricing",
+            "/docs",
+            "/dashboard",
+            "/settings",
+            "/auth"
+          ],
+          "viewports": [
+            "mobile-390px",
+            "desktop-1440px"
+          ]
+        },
+        "result": {
+          "status": "COMMITTED",
+          "sitemapVersion": "1.0.0",
+          "routeCount": 6,
+          "completeness": 50
+        }
+      },
+      "states": {
+        "PM": [
+          50,
+          70,
+          0
+        ],
+        "Design": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Dev": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Critic": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 99,
+        "edgeResiduals": {
+          "PM-Design": 25,
+          "PM-Dev": 25,
+          "PM-Critic": 49,
+          "Design-Dev": 0,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            50,
+            0
+          ],
+          "v_proj": [
+            0,
+            0
+          ],
+          "diff": [
+            -50,
+            0
+          ],
+          "normSq": 25,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            50
+          ],
+          "v_proj": [
+            0
+          ],
+          "diff": [
+            -50
+          ],
+          "normSq": 25,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            70,
+            0
+          ],
+          "v_proj": [
+            0,
+            0
+          ],
+          "diff": [
+            -70,
+            0
+          ],
+          "normSq": 49,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "v_proj": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            0,
+            0,
+            0
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            0,
+            0,
+            0
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 74.3,
+        "harmonicEnergy": 24.7,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 2,
+      "active_agent": "Design",
+      "stage_cue": "🎬 Turn 2: Design exports token system and dark/light palettes with initial Nano Banana visual assets.",
+      "thought_bubble": "I will establish CSS design tokens for Dark and Light themes. Let’s pick modern slate neutrals and electric cyan accents. I will also export SVG hero illustrations. Note: I am setting primary button text to #8892b0 on dark background.",
+      "message_to_team": "I have checked in the design system tokens in tokens.json! Dark mode (#0f172a base) and Light mode (#f8fafc base) are fully specified. Dev can begin consuming the token variables.",
+      "tool_call": {
+        "toolName": "design_export_tokens",
+        "args": {
+          "themeModes": [
+            "light",
+            "dark"
+          ],
+          "primaryColor": "#38bdf8",
+          "secondaryColor": "#8892b0",
+          "assetFormat": "svg"
+        },
+        "result": {
+          "tokensExported": 48,
+          "assetCount": 6,
+          "themeConsistency": 80,
+          "assetReadiness": 70
+        }
+      },
+      "states": {
+        "PM": [
+          50,
+          70,
+          0
+        ],
+        "Design": [
+          50,
+          80,
+          80,
+          70,
+          60
+        ],
+        "Dev": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Critic": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 476,
+        "edgeResiduals": {
+          "PM-Design": 64,
+          "PM-Dev": 25,
+          "PM-Critic": 49,
+          "Design-Dev": 174,
+          "Design-Critic": 164,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            50,
+            0
+          ],
+          "v_proj": [
+            50,
+            80
+          ],
+          "diff": [
+            0,
+            80
+          ],
+          "normSq": 64,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            50
+          ],
+          "v_proj": [
+            0
+          ],
+          "diff": [
+            -50
+          ],
+          "normSq": 25,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            70,
+            0
+          ],
+          "v_proj": [
+            0,
+            0
+          ],
+          "diff": [
+            -70,
+            0
+          ],
+          "normSq": 49,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            50,
+            80,
+            70,
+            60
+          ],
+          "v_proj": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            -50,
+            -80,
+            -70,
+            -60
+          ],
+          "normSq": 174,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            80,
+            80,
+            60
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            -80,
+            -80,
+            -60
+          ],
+          "normSq": 164,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            0,
+            0,
+            0
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 357,
+        "harmonicEnergy": 119,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 3,
+      "active_agent": "Dev",
+      "stage_cue": "🎬 Turn 3: Dev scaffolds Next.js App Router structure and integrates Tailwind v4 token system.",
+      "thought_bubble": "Reading the sitemap from PM and tokens from Design. I am scaffolding the layout.tsx and all 6 page routes with responsive breakpoints. The sitemap structure is now 100% matched in code.",
+      "message_to_team": "Routes scaffolded! All 6 paths are created with dynamic layout wrappers for mobile drawer and desktop navbar. Design tokens are mapped into Tailwind CSS.",
+      "tool_call": {
+        "toolName": "dev_scaffold_routes",
+        "args": {
+          "framework": "Next.js App Router",
+          "routesCreated": 6,
+          "tokenBindings": 48
+        },
+        "result": {
+          "tscExitCode": 0,
+          "routesOperational": 6,
+          "sitemapCoverage": 100,
+          "codeCoverage": 35
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          70,
+          0
+        ],
+        "Design": [
+          100,
+          80,
+          80,
+          70,
+          60
+        ],
+        "Dev": [
+          100,
+          80,
+          70,
+          35,
+          50
+        ],
+        "Critic": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 379.3,
+        "edgeResiduals": {
+          "PM-Design": 64,
+          "PM-Dev": 0,
+          "PM-Critic": 49,
+          "Design-Dev": 1,
+          "Design-Critic": 164,
+          "Dev-Critic": 101.3
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            0
+          ],
+          "v_proj": [
+            100,
+            80
+          ],
+          "diff": [
+            0,
+            80
+          ],
+          "normSq": 64,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            70,
+            0
+          ],
+          "v_proj": [
+            0,
+            0
+          ],
+          "diff": [
+            -70,
+            0
+          ],
+          "normSq": 49,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            80,
+            70,
+            60
+          ],
+          "v_proj": [
+            100,
+            80,
+            70,
+            50
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            -10
+          ],
+          "normSq": 1,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            80,
+            80,
+            60
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            -80,
+            -80,
+            -60
+          ],
+          "normSq": 164,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            80,
+            35,
+            50
+          ],
+          "v_proj": [
+            0,
+            0,
+            0
+          ],
+          "diff": [
+            -80,
+            -35,
+            -50
+          ],
+          "normSq": 101.3,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 284.5,
+        "harmonicEnergy": 94.8,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 4,
+      "active_agent": "Critic",
+      "stage_cue": "⚠️ Turn 4: Critic runs automated axe-core accessibility audit; flags critical WCAG contrast failure on theme tokens.",
+      "thought_bubble": "Audit time. Let’s run axe-core against Design’s tokens. Look at this: text color #8892b0 against #0f172a gives a contrast ratio of only 3.2:1! WCAG AA requires minimum 4.5:1 for body and 3.0:1 for large text. Design claimed WCAG was 80%, but this fails compliance hard!",
+      "message_to_team": "BLOCKER: Axe-core audit failed on Dark Mode tokens. Secondary text (#8892b0 on #0f172a) yields 3.2:1 contrast ratio, violating WCAG AA 1.4.3. Design must bump luminosity to at least #94a3b8.",
+      "tool_call": {
+        "toolName": "critic_axe_core_audit",
+        "args": {
+          "standard": "WCAG-2.1-AA",
+          "foreground": "#8892b0",
+          "background": "#0f172a",
+          "targetRatio": 4.5
+        },
+        "result": {
+          "measuredRatio": 3.22,
+          "compliant": false,
+          "violations": [
+            "1.4.3 Contrast (Minimum)"
+          ],
+          "wcagScore": 35
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          85,
+          40
+        ],
+        "Design": [
+          100,
+          80,
+          85,
+          70,
+          60
+        ],
+        "Dev": [
+          100,
+          80,
+          70,
+          40,
+          50
+        ],
+        "Critic": [
+          85,
+          80,
+          35,
+          40,
+          50
+        ]
+      },
+      "residuals": {
+        "total": 47.6,
+        "edgeResiduals": {
+          "PM-Design": 20.3,
+          "PM-Dev": 0,
+          "PM-Critic": 0.3,
+          "Design-Dev": 1,
+          "Design-Critic": 26,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            40
+          ],
+          "v_proj": [
+            100,
+            85
+          ],
+          "diff": [
+            0,
+            45
+          ],
+          "normSq": 20.3,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            85,
+            40
+          ],
+          "v_proj": [
+            85,
+            35
+          ],
+          "diff": [
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            80,
+            70,
+            60
+          ],
+          "v_proj": [
+            100,
+            80,
+            70,
+            50
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            -10
+          ],
+          "normSq": 1,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            80,
+            85,
+            60
+          ],
+          "v_proj": [
+            80,
+            35,
+            50
+          ],
+          "diff": [
+            0,
+            -50,
+            -10
+          ],
+          "normSq": 26,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            80,
+            40,
+            50
+          ],
+          "v_proj": [
+            80,
+            40,
+            50
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 35.7,
+        "harmonicEnergy": 11.9,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 5,
+      "active_agent": "Design",
+      "stage_cue": "🛠️ Turn 5: Design patches token palette to #cbd5e1, elevating contrast ratio to 7.1:1 (AAA compliance).",
+      "thought_bubble": "Critic is completely right. My secondary neutral was too dim. I am updating secondaryColor to #cbd5e1 which delivers a 7.1:1 ratio. Re-exporting tokens.json now.",
+      "message_to_team": "Patched! I have revised tokens.json: secondary neutral is now #cbd5e1, which delivers 7.1:1 contrast against #0f172a. Critic, please re-run the verification.",
+      "tool_call": {
+        "toolName": "design_patch_tokens",
+        "args": {
+          "secondaryColor": "#cbd5e1",
+          "testTarget": "#0f172a"
+        },
+        "result": {
+          "expectedRatio": 7.14,
+          "level": "AAA",
+          "tokensReplaced": 12,
+          "wcagConfidence": 95
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          85,
+          80
+        ],
+        "Design": [
+          100,
+          95,
+          95,
+          85,
+          75
+        ],
+        "Dev": [
+          100,
+          80,
+          70,
+          45,
+          50
+        ],
+        "Critic": [
+          85,
+          80,
+          35,
+          40,
+          50
+        ]
+      },
+      "residuals": {
+        "total": 78.2,
+        "edgeResiduals": {
+          "PM-Design": 2.3,
+          "PM-Dev": 0,
+          "PM-Critic": 20.3,
+          "Design-Dev": 10.8,
+          "Design-Critic": 44.5,
+          "Dev-Critic": 0.3
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            80
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            15
+          ],
+          "normSq": 2.3,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            85,
+            80
+          ],
+          "v_proj": [
+            85,
+            35
+          ],
+          "diff": [
+            0,
+            -45
+          ],
+          "normSq": 20.3,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            95,
+            85,
+            75
+          ],
+          "v_proj": [
+            100,
+            80,
+            70,
+            50
+          ],
+          "diff": [
+            0,
+            -15,
+            -15,
+            -25
+          ],
+          "normSq": 10.8,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            95,
+            95,
+            75
+          ],
+          "v_proj": [
+            80,
+            35,
+            50
+          ],
+          "diff": [
+            -15,
+            -60,
+            -25
+          ],
+          "normSq": 44.5,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            80,
+            45,
+            50
+          ],
+          "v_proj": [
+            80,
+            40,
+            50
+          ],
+          "diff": [
+            0,
+            -5,
+            0
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 58.7,
+        "harmonicEnergy": 19.5,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 6,
+      "active_agent": "Critic",
+      "stage_cue": "✅ Turn 6: Critic re-verifies contrast tokens; certifies WCAG AAA compliance and clears triadic review curl.",
+      "thought_bubble": "Testing the updated token file. Contrast ratio is 7.14:1! Clean pass across both dark (#0f172a) and light (#ffffff) backdrops. WCAG score is now verified at 95. Triadic residual with Design drops to 0.",
+      "message_to_team": "Axe audit PASSED! Contrast verified at 7.14:1. All color tokens are certified WCAG AAA compliant. Dev has green light to finalize component theming.",
+      "tool_call": {
+        "toolName": "critic_verify_tokens",
+        "args": {
+          "file": "tokens.json",
+          "standard": "WCAG-2.1-AAA"
+        },
+        "result": {
+          "status": "CERTIFIED",
+          "measuredRatio": 7.14,
+          "violations": [],
+          "wcagScore": 95
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          90,
+          95
+        ],
+        "Design": [
+          100,
+          95,
+          95,
+          85,
+          75
+        ],
+        "Dev": [
+          100,
+          80,
+          70,
+          50,
+          50
+        ],
+        "Critic": [
+          90,
+          95,
+          95,
+          50,
+          70
+        ]
+      },
+      "residuals": {
+        "total": 17.4,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 10.8,
+          "Design-Critic": 0.3,
+          "Dev-Critic": 6.3
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            90,
+            95
+          ],
+          "v_proj": [
+            90,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            95,
+            85,
+            75
+          ],
+          "v_proj": [
+            100,
+            80,
+            70,
+            50
+          ],
+          "diff": [
+            0,
+            -15,
+            -15,
+            -25
+          ],
+          "normSq": 10.8,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            95,
+            95,
+            75
+          ],
+          "v_proj": [
+            95,
+            95,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            80,
+            50,
+            50
+          ],
+          "v_proj": [
+            95,
+            50,
+            70
+          ],
+          "diff": [
+            15,
+            0,
+            20
+          ],
+          "normSq": 6.3,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 13.1,
+        "harmonicEnergy": 4.3,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 7,
+      "active_agent": "Dev",
+      "stage_cue": "🎬 Turn 7: Dev implements Theme Provider, Navigation Drawer, and Vitest component suites.",
+      "thought_bubble": "Integrating the patched tokens into our theme toggle component and navigation drawer. Writing automated tests using Vitest and React Testing Library. Code coverage is climbing to 75%.",
+      "message_to_team": "Theme toggle (light/dark with system preference fallback) and responsive mobile drawer are wired up. 24 unit tests passing in Vitest.",
+      "tool_call": {
+        "toolName": "dev_run_vitest",
+        "args": {
+          "suites": [
+            "ThemeToggle.test.tsx",
+            "NavDrawer.test.tsx"
+          ],
+          "coverageThreshold": 70
+        },
+        "result": {
+          "testsPassed": 24,
+          "testsFailed": 0,
+          "coveragePercentage": 76.5,
+          "tscErrors": 0
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          90,
+          95
+        ],
+        "Design": [
+          100,
+          95,
+          95,
+          85,
+          75
+        ],
+        "Dev": [
+          100,
+          95,
+          85,
+          75,
+          70
+        ],
+        "Critic": [
+          90,
+          95,
+          95,
+          75,
+          70
+        ]
+      },
+      "residuals": {
+        "total": 0.6,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 0.3,
+          "Design-Critic": 0.3,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            90,
+            95
+          ],
+          "v_proj": [
+            90,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            95,
+            85,
+            75
+          ],
+          "v_proj": [
+            100,
+            95,
+            85,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            95,
+            95,
+            75
+          ],
+          "v_proj": [
+            95,
+            95,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            95,
+            75,
+            70
+          ],
+          "v_proj": [
+            95,
+            75,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 0.5,
+        "harmonicEnergy": 0.1,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 8,
+      "active_agent": "Design",
+      "stage_cue": "⚠️ Turn 8: DIVERGENCE INJECTED — Design secretly switches font family from Inter to Outfit, creating an uncoordinated style skew.",
+      "thought_bubble": "I want a fresher look for the brand! I just changed font-family in Figma to Outfit and altered the letter-spacing tokens, but I haven’t posted to the team chat yet. My UI Polish is 95, but Dev is still on Inter (UI Polish 70).",
+      "message_to_team": "Visual assets are 100% complete with custom SVG illustrations for Docs and Pricing! I also polished the card elevation shadows.",
+      "tool_call": {
+        "toolName": "design_update_typography",
+        "args": {
+          "fontFamily": "Outfit, sans-serif",
+          "letterSpacing": "-0.02em",
+          "announced": false
+        },
+        "result": {
+          "fontTokensUpdated": 8,
+          "noticeSent": false,
+          "designUiPolish": 95
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          90,
+          95
+        ],
+        "Design": [
+          100,
+          100,
+          95,
+          100,
+          95
+        ],
+        "Dev": [
+          100,
+          95,
+          85,
+          75,
+          70
+        ],
+        "Critic": [
+          90,
+          95,
+          95,
+          75,
+          70
+        ]
+      },
+      "residuals": {
+        "total": 15.3,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 8.8,
+          "Design-Critic": 6.5,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            90,
+            95
+          ],
+          "v_proj": [
+            90,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            100,
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95,
+            85,
+            70
+          ],
+          "diff": [
+            0,
+            -5,
+            -15,
+            -25
+          ],
+          "normSq": 8.8,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            100,
+            95,
+            95
+          ],
+          "v_proj": [
+            95,
+            95,
+            70
+          ],
+          "diff": [
+            -5,
+            0,
+            -25
+          ],
+          "normSq": 6.5,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            95,
+            75,
+            70
+          ],
+          "v_proj": [
+            95,
+            75,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 11.5,
+        "harmonicEnergy": 3.8,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 9,
+      "active_agent": "Critic",
+      "stage_cue": "⚡ Turn 9: Critic detects typography token drift via visual regression test; Sheaf Cohomology isolates circulation curl.",
+      "thought_bubble": "Playwright visual snapshot test flagged a 18% pixel difference on heading elements! Dev is rendering Inter, but Design’s token bundle has Outfit. The residual on the Design-Dev edge spikes! Triadic curl on tau_ui is active.",
+      "message_to_team": "ALERT: Visual regression discrepancy detected between Design tokens and Dev build. Font mismatch: Outfit vs Inter causing layout shift on /pricing. Dev needs to update @font-source.",
+      "tool_call": {
+        "toolName": "critic_visual_regression",
+        "args": {
+          "routes": [
+            "/pricing",
+            "/dashboard"
+          ],
+          "threshold": 0.05
+        },
+        "result": {
+          "diffPercentage": 18.2,
+          "mismatchedToken": "font-heading",
+          "reportedTo": "Dev"
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          90,
+          95
+        ],
+        "Design": [
+          100,
+          100,
+          95,
+          100,
+          95
+        ],
+        "Dev": [
+          100,
+          95,
+          85,
+          75,
+          70
+        ],
+        "Critic": [
+          90,
+          95,
+          95,
+          75,
+          70
+        ]
+      },
+      "residuals": {
+        "total": 15.3,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 8.8,
+          "Design-Critic": 6.5,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            90,
+            95
+          ],
+          "v_proj": [
+            90,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            100,
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95,
+            85,
+            70
+          ],
+          "diff": [
+            0,
+            -5,
+            -15,
+            -25
+          ],
+          "normSq": 8.8,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            100,
+            95,
+            95
+          ],
+          "v_proj": [
+            95,
+            95,
+            70
+          ],
+          "diff": [
+            -5,
+            0,
+            -25
+          ],
+          "normSq": 6.5,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            95,
+            75,
+            70
+          ],
+          "v_proj": [
+            95,
+            75,
+            70
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 11.5,
+        "harmonicEnergy": 3.8,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 10,
+      "active_agent": "Dev",
+      "stage_cue": "🔧 Turn 10: Dev imports Outfit webfont via next/font; aligns typography tokens and restores cycle consistency.",
+      "thought_bubble": "Pulling the font tokens from Design and configuring next/font/google with Outfit. Running visual regression test locally: 0.0% pixel delta. Rebuilding production bundle.",
+      "message_to_team": "Typography aligned! Loaded Outfit font via next/font with zero layout shift. Visual regression now shows 0.0% diff.",
+      "tool_call": {
+        "toolName": "dev_sync_typography",
+        "args": {
+          "font": "Outfit",
+          "subsets": [
+            "latin"
+          ],
+          "optimization": "next/font"
+        },
+        "result": {
+          "visualDiff": 0,
+          "buildStatus": "OPTIMIZED",
+          "codeCoverage": 90,
+          "uiPolish": 95
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          95,
+          95
+        ],
+        "Design": [
+          100,
+          100,
+          95,
+          100,
+          95
+        ],
+        "Dev": [
+          100,
+          100,
+          100,
+          90,
+          95
+        ],
+        "Critic": [
+          95,
+          100,
+          95,
+          90,
+          95
+        ]
+      },
+      "residuals": {
+        "total": 0,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 0,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            95,
+            95
+          ],
+          "v_proj": [
+            95,
+            95
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            100,
+            100,
+            95
+          ],
+          "v_proj": [
+            100,
+            100,
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            100,
+            95,
+            95
+          ],
+          "v_proj": [
+            100,
+            95,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            100,
+            90,
+            95
+          ],
+          "v_proj": [
+            100,
+            90,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 0,
+        "harmonicEnergy": 0,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 0,
+        "classification": "Consensual Alignment"
+      }
+    },
+    {
+      "turn": 11,
+      "active_agent": "PM",
+      "stage_cue": "📋 Turn 11: PM audits final sitemap deliverables, acceptance criteria, and mobile touch targets.",
+      "thought_bubble": "Verifying all requirements against our original spec: 6 responsive routes, dark/light theme toggle, AAA WCAG contrast, Outfit typography, and 90%+ test coverage. All requirements satisfied.",
+      "message_to_team": "PM review complete: Every requirement in our spec is fulfilled. Mobile touch targets exceed 48x48px, all routes hydrate cleanly. Critic, run final deployment gate.",
+      "tool_call": {
+        "toolName": "pm_spec_audit",
+        "args": {
+          "checklist": [
+            "sitemap",
+            "wcag",
+            "theme",
+            "assets",
+            "tests"
+          ]
+        },
+        "result": {
+          "allChecksPassed": true,
+          "specCoverage": 100
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          100,
+          100
+        ],
+        "Design": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "Dev": [
+          100,
+          100,
+          100,
+          95,
+          95
+        ],
+        "Critic": [
+          100,
+          100,
+          100,
+          95,
+          95
+        ]
+      },
+      "residuals": {
+        "total": 0.6,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 0.3,
+          "Design-Critic": 0.3,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            100,
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100,
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            100,
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            -5
+          ],
+          "normSq": 0.3,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            100,
+            95,
+            95
+          ],
+          "v_proj": [
+            100,
+            95,
+            95
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 0.5,
+        "harmonicEnergy": 0.1,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 1,
+        "classification": "Macro Partition Cavity"
+      }
+    },
+    {
+      "turn": 12,
+      "active_agent": "Critic",
+      "stage_cue": "🚀 Turn 12: Critic certifies 100% consensus across all stalks; Sheaf completion residual vanishes (r = 0.00).",
+      "thought_bubble": "Full test suite passing: 32 unit tests, 6 Playwright E2E flows, 0 axe-core violations, zero lint errors. All stalks across all agents are in exact algebraic consensus. Total Sheaf Residual = 0.0.",
+      "message_to_team": "FINAL CERTIFICATION: Swarm consensus is 100.0%. Total Cohomological Residual r = 0.00 across all 6 edges. All 3 triadic review contracts have zero curl. Ready for production release!",
+      "tool_call": {
+        "toolName": "critic_final_gate",
+        "args": {
+          "testSuites": "ALL",
+          "targetResidual": 0
+        },
+        "result": {
+          "e2ePassed": 6,
+          "unitPassed": 32,
+          "wcagPassed": true,
+          "globalResidual": 0,
+          "status": "RELEASE_APPROVED"
+        }
+      },
+      "states": {
+        "PM": [
+          100,
+          100,
+          100
+        ],
+        "Design": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "Dev": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "Critic": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "residuals": {
+        "total": 0,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 0,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "cochains": {
+        "PM-Design": {
+          "u_proj": [
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0, 2] -> F(e)",
+          "restriction_v": "P_Design maps indices [0, 2] -> F(e)"
+        },
+        "PM-Dev": {
+          "u_proj": [
+            100
+          ],
+          "v_proj": [
+            100
+          ],
+          "diff": [
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [0] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0] -> F(e)"
+        },
+        "PM-Critic": {
+          "u_proj": [
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_PM maps indices [1, 2] -> F(e)",
+          "restriction_v": "P_Critic maps indices [0, 2] -> F(e)"
+        },
+        "Design-Dev": {
+          "u_proj": [
+            100,
+            100,
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100,
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [0, 1, 3, 4] -> F(e)",
+          "restriction_v": "P_Dev maps indices [0, 1, 2, 4] -> F(e)"
+        },
+        "Design-Critic": {
+          "u_proj": [
+            100,
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Design maps indices [1, 2, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 2, 4] -> F(e)"
+        },
+        "Dev-Critic": {
+          "u_proj": [
+            100,
+            100,
+            100
+          ],
+          "v_proj": [
+            100,
+            100,
+            100
+          ],
+          "diff": [
+            0,
+            0,
+            0
+          ],
+          "normSq": 0,
+          "restriction_u": "P_Dev maps indices [1, 3, 4] -> F(e)",
+          "restriction_v": "P_Critic maps indices [1, 3, 4] -> F(e)"
+        }
+      },
+      "simplices": {
+        "tau_sitemap": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Dev",
+            "PM-Dev"
+          ],
+          "description": "Architecture Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_wcag": {
+          "curl": 0,
+          "boundaryEdges": [
+            "PM-Design",
+            "Design-Critic",
+            "PM-Critic"
+          ],
+          "description": "Accessibility Review Triad: curl (delta_1 g) = 0"
+        },
+        "tau_ui": {
+          "curl": 0,
+          "boundaryEdges": [
+            "Design-Dev",
+            "Dev-Critic",
+            "Design-Critic"
+          ],
+          "description": "Design-Code Review Triad: curl (delta_1 g) = 0"
+        }
+      },
+      "hodge": {
+        "gradientEnergy": 0,
+        "harmonicEnergy": 0,
+        "triadicCurlEnergy": 0,
+        "legibilityRatio": 0,
+        "classification": "Consensual Alignment"
+      }
+    }
+  ]
+}
