@@ -274,6 +274,13 @@ contrasts that clamped request with a shorter eight-minute child and an attempte
 
 The symmetric profile uses HS256 (HMAC-SHA256). One attack on JWT verification is ``Algorithm Confusion'' (CVE-2015-9235~\pdcite{cve20159235}, CVE-2023-48238~\pdcite{cve202348238}), where an attacker modifies the token header to \texttt{\{"alg": "none"\}} or symmetric HS256 while using an asymmetric public key as the HMAC secret.
 
+\ifdefined\pdswisslandmarkplate
+\begin{figure}[p]
+  \centering
+  \pdswisslandmarkplate{06}{\linewidth}
+\end{figure}
+\fi
+
 \begin{pdclaim}{Design invariant}{Algorithmic Pinning}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:alg-pinning}

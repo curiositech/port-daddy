@@ -252,6 +252,14 @@ The two guarantees require different qualifications:
   compensated within a bounded window. These are different guarantees and we will
   never conflate them.
 \end{enumerate}
+
+\ifdefined\pdswisslandmarkplate
+\begin{figure}[p]
+  \centering
+  \pdswisslandmarkplate{05}{\linewidth}
+\end{figure}
+\fi
+
 \subsection{Why ``reference monitor,'' and why \emph{not} consensus}
 The right mental model is the \textbf{reference monitor} of Anderson and
 Lampson~\pdcite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
@@ -797,6 +805,13 @@ The conspicuous gap in the claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}
 the absence of a \textsc{queued} state. Locks have a time-to-live, but acquisition is
 racy first-come, so a fast agent churning a hot file can starve a slow agent
 indefinitely.
+
+\ifdefined\pdswisslandmarkplate
+\begin{figure}[p]
+  \centering
+  \pdswisslandmarkplate{12}{\linewidth}
+\end{figure}
+\fi
 
 The design that would close OP-1 without dragging a background scheduler into the
 kernel is a \textbf{Stigmergic Ticket-Lock}. It is \Designed{} --- specified here in
