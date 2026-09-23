@@ -619,20 +619,38 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     public static let recordingsDirectoryDefaultsKey = "porthole.recordingsDirectory"
     public static let screenshotsDirectoryDefaultsKey = "porthole.screenshotsDirectory"
 
-    public var effectiveRecordingsDirectory: URL {
-        if let customRecordingsDirectory {
-            return customRecordingsDirectory
+    nonisolated public static func resolveRecordingsDirectory(
+        custom: URL? = nil,
+        cliArguments: [String] = CommandLine.arguments,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        userDefaults: UserDefaults = .standard
+    ) -> URL {
+        if let custom {
+            return custom
         }
-        if let env = ProcessInfo.processInfo.environment["PORTHOLE_RECORDINGS_DIR"],
+        if let idx = cliArguments.firstIndex(of: "--recordings-dir"), idx + 1 < cliArguments.count {
+            let val = cliArguments[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !val.isEmpty && !val.hasPrefix("--") {
+                return URL(fileURLWithPath: (val as NSString).expandingTildeInPath, isDirectory: true)
+            }
+        }
+        if let idx = cliArguments.firstIndex(of: "--output-dir"), idx + 1 < cliArguments.count {
+            let val = cliArguments[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !val.isEmpty && !val.hasPrefix("--") {
+                let base = URL(fileURLWithPath: (val as NSString).expandingTildeInPath, isDirectory: true)
+                return base.appendingPathComponent("recordings", isDirectory: true)
+            }
+        }
+        if let env = environment["PORTHOLE_RECORDINGS_DIR"],
            !env.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return URL(fileURLWithPath: (env as NSString).expandingTildeInPath, isDirectory: true)
         }
-        if let envOutput = ProcessInfo.processInfo.environment["PORTHOLE_OUTPUT_DIR"],
+        if let envOutput = environment["PORTHOLE_OUTPUT_DIR"],
            !envOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let base = URL(fileURLWithPath: (envOutput as NSString).expandingTildeInPath, isDirectory: true)
             return base.appendingPathComponent("recordings", isDirectory: true)
         }
-        if let stored = UserDefaults.standard.string(forKey: Self.recordingsDirectoryDefaultsKey),
+        if let stored = userDefaults.string(forKey: recordingsDirectoryDefaultsKey),
            !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return URL(fileURLWithPath: (stored as NSString).expandingTildeInPath, isDirectory: true)
         }
@@ -640,25 +658,51 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
     }
 
-    public var effectiveScreenshotsDirectory: URL {
-        if let customScreenshotsDirectory {
-            return customScreenshotsDirectory
+    nonisolated public static func resolveScreenshotsDirectory(
+        custom: URL? = nil,
+        cliArguments: [String] = CommandLine.arguments,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        userDefaults: UserDefaults = .standard
+    ) -> URL {
+        if let custom {
+            return custom
         }
-        if let env = ProcessInfo.processInfo.environment["PORTHOLE_SCREENSHOTS_DIR"],
+        if let idx = cliArguments.firstIndex(of: "--screenshots-dir"), idx + 1 < cliArguments.count {
+            let val = cliArguments[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !val.isEmpty && !val.hasPrefix("--") {
+                return URL(fileURLWithPath: (val as NSString).expandingTildeInPath, isDirectory: true)
+            }
+        }
+        if let idx = cliArguments.firstIndex(of: "--output-dir"), idx + 1 < cliArguments.count {
+            let val = cliArguments[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !val.isEmpty && !val.hasPrefix("--") {
+                let base = URL(fileURLWithPath: (val as NSString).expandingTildeInPath, isDirectory: true)
+                return base.appendingPathComponent("screenshots", isDirectory: true)
+            }
+        }
+        if let env = environment["PORTHOLE_SCREENSHOTS_DIR"],
            !env.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return URL(fileURLWithPath: (env as NSString).expandingTildeInPath, isDirectory: true)
         }
-        if let envOutput = ProcessInfo.processInfo.environment["PORTHOLE_OUTPUT_DIR"],
+        if let envOutput = environment["PORTHOLE_OUTPUT_DIR"],
            !envOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let base = URL(fileURLWithPath: (envOutput as NSString).expandingTildeInPath, isDirectory: true)
             return base.appendingPathComponent("screenshots", isDirectory: true)
         }
-        if let stored = UserDefaults.standard.string(forKey: Self.screenshotsDirectoryDefaultsKey),
+        if let stored = userDefaults.string(forKey: screenshotsDirectoryDefaultsKey),
            !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return URL(fileURLWithPath: (stored as NSString).expandingTildeInPath, isDirectory: true)
         }
         return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
             ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+    }
+
+    public var effectiveRecordingsDirectory: URL {
+        Self.resolveRecordingsDirectory(custom: customRecordingsDirectory)
+    }
+
+    public var effectiveScreenshotsDirectory: URL {
+        Self.resolveScreenshotsDirectory(custom: customScreenshotsDirectory)
     }
 
     public func setCustomRecordingsDirectory(_ url: URL, persist: Bool = true) {

@@ -65,6 +65,94 @@ final class ConfigurableOutputDirectoryTests: XCTestCase {
         XCTAssertNil(UserDefaults.standard.string(forKey: StageCaptureController.screenshotsDirectoryDefaultsKey))
     }
 
+    func testCLIArgumentsOverrideDefaults() {
+        let recPath = tempRootDir.appendingPathComponent("cli-recordings", isDirectory: true)
+        let shotPath = tempRootDir.appendingPathComponent("cli-screenshots", isDirectory: true)
+
+        let resolvedRec = StageCaptureController.resolveRecordingsDirectory(
+            cliArguments: ["PortholeStageCapture", "--recordings-dir", recPath.path]
+        )
+        let resolvedShot = StageCaptureController.resolveScreenshotsDirectory(
+            cliArguments: ["PortholeStageCapture", "--screenshots-dir", shotPath.path]
+        )
+
+        XCTAssertEqual(resolvedRec, recPath)
+        XCTAssertEqual(resolvedShot, shotPath)
+
+        // Unified --output-dir flag
+        let outBase = tempRootDir.appendingPathComponent("unified-output", isDirectory: true)
+        let unifiedRec = StageCaptureController.resolveRecordingsDirectory(
+            cliArguments: ["PortholeStageCapture", "--output-dir", outBase.path]
+        )
+        let unifiedShot = StageCaptureController.resolveScreenshotsDirectory(
+            cliArguments: ["PortholeStageCapture", "--output-dir", outBase.path]
+        )
+
+        XCTAssertEqual(unifiedRec, outBase.appendingPathComponent("recordings", isDirectory: true))
+        XCTAssertEqual(unifiedShot, outBase.appendingPathComponent("screenshots", isDirectory: true))
+    }
+
+    func testEnvironmentVariablesOverrideDefaults() {
+        let recPath = tempRootDir.appendingPathComponent("env-recordings", isDirectory: true)
+        let shotPath = tempRootDir.appendingPathComponent("env-screenshots", isDirectory: true)
+
+        let resolvedRec = StageCaptureController.resolveRecordingsDirectory(
+            cliArguments: [],
+            environment: ["PORTHOLE_RECORDINGS_DIR": recPath.path]
+        )
+        let resolvedShot = StageCaptureController.resolveScreenshotsDirectory(
+            cliArguments: [],
+            environment: ["PORTHOLE_SCREENSHOTS_DIR": shotPath.path]
+        )
+
+        XCTAssertEqual(resolvedRec, recPath)
+        XCTAssertEqual(resolvedShot, shotPath)
+
+        // Unified PORTHOLE_OUTPUT_DIR
+        let outBase = tempRootDir.appendingPathComponent("env-unified", isDirectory: true)
+        let unifiedRec = StageCaptureController.resolveRecordingsDirectory(
+            cliArguments: [],
+            environment: ["PORTHOLE_OUTPUT_DIR": outBase.path]
+        )
+        let unifiedShot = StageCaptureController.resolveScreenshotsDirectory(
+            cliArguments: [],
+            environment: ["PORTHOLE_OUTPUT_DIR": outBase.path]
+        )
+
+        XCTAssertEqual(unifiedRec, outBase.appendingPathComponent("recordings", isDirectory: true))
+        XCTAssertEqual(unifiedShot, outBase.appendingPathComponent("screenshots", isDirectory: true))
+    }
+
+    func testPrecedenceOrderIsPreserved() {
+        let custom = tempRootDir.appendingPathComponent("p-custom", isDirectory: true)
+        let cli = tempRootDir.appendingPathComponent("p-cli", isDirectory: true)
+        let env = tempRootDir.appendingPathComponent("p-env", isDirectory: true)
+
+        // 1. Custom overrides CLI and Env
+        let res1 = StageCaptureController.resolveRecordingsDirectory(
+            custom: custom,
+            cliArguments: ["app", "--recordings-dir", cli.path],
+            environment: ["PORTHOLE_RECORDINGS_DIR": env.path]
+        )
+        XCTAssertEqual(res1, custom)
+
+        // 2. CLI overrides Env
+        let res2 = StageCaptureController.resolveRecordingsDirectory(
+            custom: nil,
+            cliArguments: ["app", "--recordings-dir", cli.path],
+            environment: ["PORTHOLE_RECORDINGS_DIR": env.path]
+        )
+        XCTAssertEqual(res2, cli)
+
+        // 3. Env used when CLI absent
+        let res3 = StageCaptureController.resolveRecordingsDirectory(
+            custom: nil,
+            cliArguments: [],
+            environment: ["PORTHOLE_RECORDINGS_DIR": env.path]
+        )
+        XCTAssertEqual(res3, env)
+    }
+
     @MainActor
     func testScreenshotCapturesIntoCustomConfiguredDirectory() throws {
         let controller = StageCaptureController(proofConfiguration: nil)
