@@ -42,6 +42,12 @@
 \input{figures/pd-pedagogy}
 \input{figures/pd-figure-language}
 
+\providecommand{\keyidea}[1]{}
+\providecommand{\pitfall}[1]{}
+\providecommand{\scene}[2]{}
+\providecommand{\xrefbox}[1]{}
+\providecommand{\pullquote}[1]{}
+
 \title{\textbf{Chapter 0: Foundations and Prerequisites}\\
 \large Pre-LLM Multi-Agent Theory, Transformer Mechanics, and the Kernel Gap}
 \author{The Port Daddy Authors}
@@ -177,7 +183,7 @@ The harness operates as a deterministic finite-state machine driving an indeterm
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Pre-Invocation:} The harness assembles the system prompt, environment variables, tool schemas, and recent message history.
   \item \textbf{Inference:} The prompt is transmitted to the inference provider (local or remote). Tokens are streamed until an end-of-turn or tool-use stop token is encountered.
-  \item \textbf{Interception \& Validation:} The harness extracts the tool call arguments (e.g., `bash`, `write_file`, `http_request`). Before execution, the harness verifies permission parameters against local policies.
+  \item \textbf{Interception \& Validation:} The harness extracts the tool call arguments (e.g., \texttt{bash}, \texttt{write\_file}, \texttt{http\_request}). Before execution, the harness verifies permission parameters against local policies.
   \item \textbf{Execution:} The command executes inside an operating sandbox or local process.
   \item \textbf{Observation Injection:} The raw stdout/stderr output is sanitized, truncated if necessary to respect budget bounds, formatted as a tool-result block, and appended to the context.
   \item \textbf{Evaluation:} The harness inspects whether terminal conditions (objective satisfied, unrecoverable crash, or budget exhaustion) are reached; if not, the cycle repeats.
