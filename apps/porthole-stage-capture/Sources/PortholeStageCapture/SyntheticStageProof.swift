@@ -24,6 +24,11 @@ private final class SyntheticStageModel: StagePresentationModel {
     let proofConfiguration: ProofConfiguration? = nil
     let lastSavedRecordingURL: URL? = nil
     let lastSavedScreenshotURL: URL? = nil
+    let effectiveRecordingsDirectory: URL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+    let effectiveScreenshotsDirectory: URL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+    func setCustomRecordingsDirectory(_ url: URL, persist: Bool) {}
+    func setCustomScreenshotsDirectory(_ url: URL, persist: Bool) {}
+    func resetOutputDirectoriesToDefault() {}
     let statusMessage = "Synthetic UI proof · no capture or transport exercised"
     let selectedApprovalCanEnterStage = false
     let canPauseCapture = false

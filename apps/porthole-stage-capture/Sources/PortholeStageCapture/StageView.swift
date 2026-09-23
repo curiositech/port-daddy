@@ -32,6 +32,11 @@ protocol StagePresentationModel: ObservableObject {
     func startCapture() async
     func pauseCapture() async
     func stopCapture() async
+    var effectiveRecordingsDirectory: URL { get }
+    var effectiveScreenshotsDirectory: URL { get }
+    func setCustomRecordingsDirectory(_ url: URL, persist: Bool)
+    func setCustomScreenshotsDirectory(_ url: URL, persist: Bool)
+    func resetOutputDirectoriesToDefault()
     @discardableResult
     func captureScreenshot() -> URL?
 }
@@ -423,6 +428,43 @@ struct StageView<Model: StagePresentationModel>: View {
                 .help("Reveal saved screenshot in Finder: \(savedShot.path)")
             }
 
+            Menu {
+                Button {
+                    chooseFolder(title: "Choose Folder for Video Recordings", initial: controller.effectiveRecordingsDirectory) { url in
+                        controller.setCustomRecordingsDirectory(url, persist: true)
+                    }
+                } label: {
+                    Label("Set Video Folder...", systemImage: "film")
+                }
+
+                Button {
+                    chooseFolder(title: "Choose Folder for Screenshots", initial: controller.effectiveScreenshotsDirectory) { url in
+                        controller.setCustomScreenshotsDirectory(url, persist: true)
+                    }
+                } label: {
+                    Label("Set Screenshot Folder...", systemImage: "camera")
+                }
+
+                Divider()
+
+                Button("Reset Folders to Default") {
+                    controller.resetOutputDirectoriesToDefault()
+                }
+
+                Divider()
+
+                Button("Show Video Folder in Finder") {
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: controller.effectiveRecordingsDirectory.path)
+                }
+                Button("Show Screenshot Folder in Finder") {
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: controller.effectiveScreenshotsDirectory.path)
+                }
+            } label: {
+                Label("Folders", systemImage: "folder")
+            }
+            .buttonStyle(.bordered)
+            .help("Configure video and screenshot output locations.\nVideo: \(controller.effectiveRecordingsDirectory.path)\nScreenshots: \(controller.effectiveScreenshotsDirectory.path)")
+
             Button {
                 Task { await controller.stopCapture() }
             } label: {
@@ -435,6 +477,19 @@ struct StageView<Model: StagePresentationModel>: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .background(panel)
+    }
+
+    private func chooseFolder(title: String, initial: URL, onSelected: @escaping (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.title = title
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = initial
+        if panel.runModal() == .OK, let url = panel.url {
+            onSelected(url)
+        }
     }
 
     private var stateColor: Color {

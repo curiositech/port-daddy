@@ -613,6 +613,74 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     @Published public private(set) var proofReceipt: PortholeProofReceipt?
     @Published public private(set) var lastSavedRecordingURL: URL?
     @Published public private(set) var lastSavedScreenshotURL: URL?
+    @Published public var customRecordingsDirectory: URL?
+    @Published public var customScreenshotsDirectory: URL?
+
+    public static let recordingsDirectoryDefaultsKey = "porthole.recordingsDirectory"
+    public static let screenshotsDirectoryDefaultsKey = "porthole.screenshotsDirectory"
+
+    public var effectiveRecordingsDirectory: URL {
+        if let customRecordingsDirectory {
+            return customRecordingsDirectory
+        }
+        if let env = ProcessInfo.processInfo.environment["PORTHOLE_RECORDINGS_DIR"],
+           !env.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: (env as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        if let envOutput = ProcessInfo.processInfo.environment["PORTHOLE_OUTPUT_DIR"],
+           !envOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let base = URL(fileURLWithPath: (envOutput as NSString).expandingTildeInPath, isDirectory: true)
+            return base.appendingPathComponent("recordings", isDirectory: true)
+        }
+        if let stored = UserDefaults.standard.string(forKey: Self.recordingsDirectoryDefaultsKey),
+           !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: (stored as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
+            ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+    }
+
+    public var effectiveScreenshotsDirectory: URL {
+        if let customScreenshotsDirectory {
+            return customScreenshotsDirectory
+        }
+        if let env = ProcessInfo.processInfo.environment["PORTHOLE_SCREENSHOTS_DIR"],
+           !env.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: (env as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        if let envOutput = ProcessInfo.processInfo.environment["PORTHOLE_OUTPUT_DIR"],
+           !envOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let base = URL(fileURLWithPath: (envOutput as NSString).expandingTildeInPath, isDirectory: true)
+            return base.appendingPathComponent("screenshots", isDirectory: true)
+        }
+        if let stored = UserDefaults.standard.string(forKey: Self.screenshotsDirectoryDefaultsKey),
+           !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: (stored as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
+            ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+    }
+
+    public func setCustomRecordingsDirectory(_ url: URL, persist: Bool = true) {
+        customRecordingsDirectory = url
+        if persist {
+            UserDefaults.standard.set(url.path, forKey: Self.recordingsDirectoryDefaultsKey)
+        }
+    }
+
+    public func setCustomScreenshotsDirectory(_ url: URL, persist: Bool = true) {
+        customScreenshotsDirectory = url
+        if persist {
+            UserDefaults.standard.set(url.path, forKey: Self.screenshotsDirectoryDefaultsKey)
+        }
+    }
+
+    public func resetOutputDirectoriesToDefault() {
+        customRecordingsDirectory = nil
+        customScreenshotsDirectory = nil
+        UserDefaults.standard.removeObject(forKey: Self.recordingsDirectoryDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: Self.screenshotsDirectoryDefaultsKey)
+    }
 
     public let proofConfiguration: ProofConfiguration?
 
@@ -941,8 +1009,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 if let proofConfiguration {
                     outputURL = proofConfiguration.outputDirectory.appendingPathComponent("stage-source.mov")
                 } else {
-                    let baseDir = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
-                        ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+                    let baseDir = effectiveRecordingsDirectory
                     try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
                     let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
                     outputURL = baseDir.appendingPathComponent("porthole-\(timestamp).mov")
@@ -1056,8 +1123,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
               let png = rep.representation(using: .png, properties: [:])
         else { return nil }
 
-        let picturesDir = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
-            ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+        let picturesDir = effectiveScreenshotsDirectory
         try? FileManager.default.createDirectory(at: picturesDir, withIntermediateDirectories: true)
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let fileURL = picturesDir.appendingPathComponent("porthole-\(timestamp).png")
