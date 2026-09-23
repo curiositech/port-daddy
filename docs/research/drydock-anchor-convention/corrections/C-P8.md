@@ -1,0 +1,15 @@
+# C-P8 — Externalize trace custody and adjudication
+
+## Steel-man
+
+P2's strongest critique is that P8's deterministic harness may reproducibly expose real failures yet still launder its own observations into authority unless a controller-owned recorder outside the subject fixes the pre-action evidence boundary and a separately keyed adjudicator derives only a bounded verdict from independently admissible evidence and a distinct evaluation envelope.
+
+## Correction ledger
+
+- **Disposition:** `ACCEPT`
+- **Exact claim delta:** Before releasing the subject, an external controller-owned recorder MUST durably commit a trace prelude containing the sealed manifest and evaluation-envelope digest, subject/build identity, recorder identity and key scope, initial chain head, trace schema, oracle/invariant versions, schedule and fault envelope, seed/virtual-time policy, and required witness classes; no durable recorder-armed receipt means no execution. During execution, the harness may schedule, execute, and emit observations, but the recorder append-commits the raw trace and terminal checkpoint before minimization, oracle alteration, fixture promotion, or replay certification. The harness may emit candidate minimized fixtures and candidate replay results; it may neither seal its own evidence nor issue a terminal verdict. A separately keyed adjudicator, independent of subject, harness, recorder, controller, and UI, checks witness admissibility, oracle identity, checkpoint consistency, raw/minimized predicate equivalence, and `EvaluationEnvelopeV1`. It reports provenance integrity and evaluation adequacy as separate typed axes, never one synthesized `PASS`.
+- **Preserved invariants:** No unqualified green verdict; determinism proves only controlled repeatability; negative controls and oracle mutation remain mandatory; raw evidence precedes minimization; heterogeneous claims remain a visible result vector; evidence grants no execution authority; host, provider, replay, model, and scheduler witnesses do not silently compose.
+- **Retained dissent:** A controller-owned recorder proves custody and ordering only within its observation boundary; it cannot establish absence of escaped effects, provider settlement, or evaluation sufficiency without corresponding witnesses. Even an authentic trace may support only `INCOMPLETE` or `UNKNOWN` when coverage or oracle adequacy is weak.
+- **Evidence locators:** `positions/P8-deterministic-evaluation-and-formal-limits.md`; `reviews/P2-reviews-P8.md`; `positions/P2-anchor-evidence-and-verification.md`; `corrections/C-P2.md`; `synthesis/manager-extraction-r1.md`.
+- **Truth labels:** The critique, concession, and synthesis are `SOURCE_PRESENT`; pre-action trace prelude, recorder-armed receipt, external persistence path, and independent adjudication protocol are `PROPOSED`; completeness, crash safety, key separation, and omission resistance are `UNKNOWN`; dynamic tests are `BLOCKED_BY_HALT`.
+- **Consensus-kernel impact:** No kernel change. This makes the existing separation and pre-action linearization requirement explicit.
