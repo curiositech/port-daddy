@@ -23,3 +23,12 @@ non-reproducible agent evaluation as threats to downstream usefulness:
 [AI Agents That Matter, 2024](https://arxiv.org/abs/2407.01502). This is a
 methodological reference, not a claim that any given harness satisfies these
 conditions.
+
+
+## Worked example: what the WinDAGs graft result can and cannot identify
+
+A paired WinDAGs Q&A study reports positive composite-graft preference evidence: 50 unique pairs and 100 answers, randomized presentation, one Sonnet 4.6 model identifier with a 32,768-token maximum per call, and preference counts of 35 graft / 6 vanilla / 9 ties with Opus and 29 / 20 / 1 with GPT-5.5. Both judges preferred vanilla for hallucination avoidance. See [Skills actually help: the numbers](https://windags.ai/blog/skills-actually-help-the-numbers) and the pinned public-export and script details in the [WinDAGs efficacy audit](../../../docs/research/skills-reconciliation-20260923/windags-efficacy-evidence.md).
+
+The graft included extra tools, four skill bodies, four adjacent skill descriptions, and a protocol; vanilla was a single call. The observed comparison evaluates that versioned composite treatment in this Q&A setting. It does not establish an individual-skill effect, equal-budget efficiency, general task execution quality, or a production outcome.
+
+The next confirmatory design should separately evaluate the product-default composite, component ablations, and equal-total-resource comparisons. Hold non-treatment context fixed for ablations; preregister the equalized resources for resource-matched arms, while permitting tool access to differ when it is the treatment. Score held-out executed tasks with an independent oracle and analyse paired differences for useful completion, hallucination or unsafe effects, rework, and total team cost.
