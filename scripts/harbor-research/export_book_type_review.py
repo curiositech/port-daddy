@@ -60,7 +60,10 @@ def export_review(source, destination):
 
         toc_start = next(row[2] - 1 for row in outline if row[1] == "Contents")
         intro = next(row[2] - 1 for row in outline
-                     if row[1] == "1 Introduction: the unit of account is the work")
+                     if "Introduction: The Unit of Account" in row[1]
+                     or "Introduction: the unit of account" in row[1]
+                     or "Part I" in row[1]
+                     or row[1].startswith("0 Foundations"))
         chapter = page_for_label("chap:swk")
         maya = page_for_label("ls:fig:split-ranker")
         left, right = (page_for_label("book:reader-" + side) for side in ("left", "right"))

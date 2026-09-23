@@ -23,7 +23,7 @@
   pdftitle={\pdeditiontitle: \pdeditionsubtitle},
   pdfauthor={Erich Owens},
   pdfsubject={Eight chapters, in dependency order, on accountable autonomous work},
-  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
+  pdfkeywords={supervisory control, multi-agent systems, capability security, coordination, accountability, federation}
 }
 
 \begin{document}
@@ -385,82 +385,6 @@ question of any dashboard: which channel, and what can it not show.
 
 \cleartoleftpage
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{complete contents}
-
-\section{Introduction: the unit of account is the work}
-
-\pdmarginfigure{hobbes}{Thomas Hobbes framed the sovereign Commonwealth as an artificial man; autonomous software requires the same institutional structure to prevent destructive races.}%
-Agentic software is usually measured by the agent: capability, runtime, tool
-access, and parallel copies. That is the wrong unit of account. A process may
-disappear, rename itself, summarize its mistakes, or hand work off. The durable
-object must be the work: its authorization, permitted effects, evidence, open
-obligations, and liability for the outcome.
-
-This book develops that claim in eight propositions, one per chapter, in the
-order the book is read.
-
-\begin{enumerate}[leftmargin=2.1em,itemsep=2pt,topsep=4pt]
-  \item \textbf{Prevention begins at the effect boundary.} Rules can be enforced
-  before an act only when the system controls the channel through which the act
-  occurs. Local effects therefore pass through one serial authority; semantic
-  failures that no gate can decide remain matters of detection and remedy.
-
-  \item \textbf{Delegation only narrows.} Every child capability is a strict
-  subset of its parent's authority and lifetime. Authentication says who signed;
-  attenuation says what the signature may authorize. Both are needed at every
-  hop.
-
-  \item \textbf{Confinement is a property of the room, not of the tenant.}
-  Two owners who trust neither each other nor the venue can still take one
-  answer out of a sealed room when its only exit is a metered slot: silence
-  except through the slot, a gate on the only enforceable boundary, a budget
-  that conserves, and canaries for what the gate cannot prove. What the room
-  cannot promise is stated as a limit, at the same prominence as the claims.
-
-  \item \textbf{Supervision has an information cost.} \pdmarginfigure{shannon}{Claude Shannon derived the mathematical bounds on information transmission; human supervision cannot compress fleet telemetry below its entropy rate.}%
-  A digest cannot guarantee
-  that a human will notice any one of many relevant events unless it spends
-  enough bits, attention, or artifact openings to distinguish them. A summary
-  is therefore an index into evidence, not a substitute for it.
-
-  \item \textbf{Accountability must outlive the process.} A task acquires a
-  durable principal, capability history, evidence record, obligations, and
-  outcome. Restarting an agent or choosing a new name must not erase that case
-  file or refill the resources it already consumed.
-
-  \item \textbf{Exchange requires separated instruments.} Payment rewards the
-  requested work. Collateral prices a bounded failure. Evidence supports a
-  claim. Settlement closes it exactly once. Combining those functions in one
-  score or token makes each of them less trustworthy.
-
-  \item \textbf{Uncertainty needs an institution.} Some harms cannot be
-  prevented and some outcomes cannot be judged mechanically. Witnesses,
-  randomized audits, bounded bonds, appeals, and conservation rules turn that
-  residual uncertainty into a process that can be inspected and contested.
-
-  \item \textbf{Federation relays evidence, not sovereignty.} Mutually
-  distrustful machines may exchange signed capabilities, revocations, witness
-  roots, and settlement claims without sharing a database or accepting a global
-  ruler. Transport can carry evidence; it cannot decide what either machine is
-  permitted to do with it.
-\end{enumerate}
-
-Read these as a dependency chain: each chapter uses earlier mechanisms and
-states what they cannot guarantee.
-
-\subsection{What counts as knowing}
-\pdmarginfigure{lovelace}{Ada Lovelace observed that analytical engines have no pretensions to originate anything; they execute what we know how to order them to perform.}%
-Every consequential statement has a status and a boundary. Derivations establish
-relations under named assumptions. Finite checks exhaust a stated state space,
-not every deployment. Simulations estimate behavior under a stated generator;
-repository tests exercise named paths; running code proves availability, not
-universal mediation. Counterexamples remain in the record because they mark
-claims the research killed rather than conclusions it merely failed to prove.
-
-\Cref{app:volume-status} gives the implementation boundary;
-\cref{app:result-atlas} records the results and their limits. The companion
-\path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
-result's source, status, conditions, boundary, chapter home, and verification
-artifact. The chapters stand alone; the book's claim is the chain they make.
 
 % The first part is a verso/recto spread. Align the physical leaf before
 % resetting the counter; a recto reset followed by another verso clear used
