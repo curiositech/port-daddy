@@ -46,10 +46,11 @@
     % which put 9pt type over a halftone photograph that is 37% lighter than
     % luminance 140 -- neither black nor reversed white reads on that.
     \node[anchor=north west,inner sep=0pt,text width=145mm,align=left] at (14,14) {%
-      {\pdcovergrotesk\fontsize{36}{40}\selectfont\bfseries\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
-       The Harbor,\\the Person,\\and the Economy\par}%
-      \vspace{6mm}%
-      {\pdcovergrotesk\fontsize{12}{15}\selectfont\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
+      {\pdcovergrotesk\fontsize{28}{33}\selectfont\bfseries\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
+       Governing AI Agents:\\[1.5mm]%
+       The Harbor, the Person,\\and the Economy\par}%
+      \vspace{5mm}%
+      {\pdcovergrotesk\fontsize{11}{14}\selectfont\color{hhink}\spaceskip=0pt\xspaceskip=0pt%
        \pdeditionsubtitle\par}%
       \vspace{4mm}%
       {\pdcovergrotesk\fontsize{8.5}{11}\selectfont\color{hhgray}\spaceskip=0pt\xspaceskip=0pt%
@@ -63,7 +64,7 @@
   \begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)},x=1in,y=1in]
     \IfFileExists{plates/technical/cover.jpg}{%
       \node[anchor=south,inner sep=0pt] at (3.5,1.55) {\includegraphics[height=4.55in]{plates/technical/cover.jpg}};}{}
-    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{30}{34}\selectfont,text=hhink] at (0.9,9.15) {The Harbor, the Person, and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{24}{28}\selectfont,text=hhink] at (0.9,9.15) {\pdeditiontitle};
     \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{11}{14}\selectfont,text=hhink] at (0.9,7.8) {\pdeditionsubtitle};
     \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (0.9,7.35) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
   \end{tikzpicture}
@@ -73,7 +74,7 @@
   \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
 \vspace*{1.2cm}
 \noindent\begin{minipage}{0.88\textwidth}
-{\pdpartface\fontsize{38}{46}\selectfont\raggedright The Harbor,\\ the Person,\\ and the Economy\par}
+{\pdpartface\fontsize{30}{36}\selectfont\raggedright Governing AI Agents:\\[2mm] The Harbor, the Person,\\ and the Economy\par}
 \vspace{0.6cm}
 \noindent{\color{pdcobalt}\rule{0.24\textwidth}{1pt}}\par
 \vspace{0.45cm}

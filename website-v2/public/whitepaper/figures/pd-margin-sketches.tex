@@ -81,15 +81,15 @@
 \newcommand{\pdconsentregion}{%
   \pdmarginexhibit{consent-region}{Both bounds must hold}{%
     \begin{tikzpicture}[pd margin sketch]
-      \fill[pdfocus!14] (37,0) rectangle (78,29);
-      \draw[pd margin ink] (37,0)--(37,29)--(78,29);
+      \fill[pdfocus!14] (37,0) rectangle (78,28);
+      \draw[pd margin ink] (37,0)--(37,28)--(78,28);
       \draw[pd arrow] (0,0)--(84,0);
-      \draw[pd arrow] (0,0)--(0,67);
-      \node[anchor=south west] at (1,68) {stakes};
-      \node[anchor=north] at (44,-21) {reversibility};
+      \draw[pd arrow] (0,0)--(0,46);
+      \node[anchor=south west] at (1,47) {stakes};
+      \node[anchor=north] at (44,-13) {reversibility};
       \node at (57,14) {allowed};
-      \node[anchor=east] at (35,31) {$s_{\max}$};
-      \node[anchor=north] at (37,-3) {$v_{\min}$};
+      \node[anchor=east] at (35,28) {$s_{\max}$};
+      \node[anchor=north] at (37,-2) {$v_{\min}$};
     \end{tikzpicture}
   }{The shaded actions meet both bounds. Scope, expiry and revocation
     still have to pass.}}

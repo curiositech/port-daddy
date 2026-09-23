@@ -1,8 +1,8 @@
 {
   "$schema": "./textbook.schema.json",
   "edition": {
-    "title": "The Harbor, the Person, and the Economy: The Matter, Form and Power of a Commonwealth Agentic",
-    "subtitle": "On Multi-Agent Coordination, Cryptographic Standards, and Federated Marketplaces",
+    "title": "Governing AI Agents: The Harbor, the Person, and the Economy",
+    "subtitle": "A Textbook of Concurrency, Identity, and Accountable Autonomous Work",
     "version": "4.0 (Textbook Edition)",
     "date": "September 2026",
     "pdf": "coordination-papers-mega-volume.pdf",
