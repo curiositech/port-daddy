@@ -52,8 +52,8 @@ import {
 export interface SpawnerHarborBridge {
   /** Register the spawned agent as an Agent Harbor node (C0 self-claim; the
    *  real level is granted later, purely from the probe result). */
-  registerNode(agentId: string, identity: string | null, startedAt: number): void;
-  /** Append one lifecycle fact, chained per-agent (sessionId = agentId). */
+  registerNode(agentId: string, identity: string | null, startedAt: number, binding: { sessionId: string; runId: string }): void;
+  /** Append one lifecycle fact, chained under the admitted session binding. */
   appendTranscriptEvent(
     agentId: string,
     kind: string,
@@ -76,31 +76,32 @@ export function createSpawnerHarborBridge(
   db: DatabaseInstance,
   deps: ContextContinuityCoordinatorDeps = {},
 ): SpawnerHarborBridge {
-  // Per-agent local sequence counter for transcript-event facts. Fresh per
-  // process/agentId is correct here: a spawner agentId is minted once per
-  // spawn (lib/spawner.ts:1776) and never reused across runs, so there is no
-  // cross-process resume case within this bridge's scope to reconcile.
-  const seqByAgent = new Map<string, number>();
+  // Sequence by admitted session, never by a guessed agent/session equivalence.
+  // A fresh bridge reads the durable head before appending its first event.
+  const seqBySession = new Map<string, number>();
+  const bindings = new Map<string, { sessionId: string; runId: string }>();
   const messageSeqByTranscript = new Map<string, number>();
   const continuity = createContextContinuityCoordinator(db, deps);
 
-  function nextSeq(agentId: string): number {
-    let current = seqByAgent.get(agentId);
+  function nextSeq(sessionId: string): number {
+    let current = seqBySession.get(sessionId);
     if (current === undefined) {
       const row = db.prepare(`
         SELECT MAX(sequence) AS max_sequence
         FROM harbor_events
         WHERE stream_type = 'transcript-event' AND session_id = ?
-      `).get(agentId) as { max_sequence: number | null };
+      `).get(sessionId) as { max_sequence: number | null };
       current = row.max_sequence ?? 0;
     }
     const n = current + 1;
-    seqByAgent.set(agentId, n);
+    seqBySession.set(sessionId, n);
     return n;
   }
 
-  function registerNode(agentId: string, identity: string | null, startedAt: number): void {
+  function registerNode(agentId: string, identity: string | null, startedAt: number, binding: { sessionId: string; runId: string }): void {
     try {
+      if (!binding.sessionId || !binding.runId) throw new Error('Exact session/run binding is required');
+      bindings.set(agentId, binding);
       appendEvent(db, {
         streamType: 'agent-node',
         payload: {
@@ -117,6 +118,7 @@ export function createSpawnerHarborBridge(
           // — no follow-up agent-node re-claim is needed or attempted here.
           complianceLevel: 'C0',
           status: 'active',
+          currentSessionId: binding.sessionId, currentRunId: binding.runId,
           createdAt: new Date(startedAt).toISOString(),
         },
       });
@@ -133,18 +135,21 @@ export function createSpawnerHarborBridge(
   ): string | null {
     try {
       const eventId = `evt_${randomUUID()}`;
+      const binding = bindings.get(agentId);
+      if (!binding) return null;
+      const sessionId = binding.sessionId;
       appendEvent(db, {
         streamType: 'transcript-event',
         payload: {
           eventId,
-          sessionId: agentId,
+          sessionId,
           agentNodeId: agentId,
-          sequence: nextSeq(agentId),
+          sequence: nextSeq(sessionId),
           occurredAt: new Date(occurredAt).toISOString(),
           schemaVersion: 1,
           kind,
           visibility: 'operator',
-          payloadJson,
+          payloadJson: { ...payloadJson, runId: binding.runId },
         },
       });
       return eventId;
@@ -208,7 +213,7 @@ export function createSpawnerHarborBridge(
       // The coordinator appends after this bridge's last lifecycle event.
       // Re-read the head before any hypothetical late event to avoid a stale
       // in-memory sequence after compaction appended its own packet.
-      seqByAgent.delete(sample.agentNodeId);
+      seqBySession.delete(sample.sessionId);
       return result;
     } catch (err) {
       console.error(`[agent-harbor] spawner-bridge recordContext failed agent=${sample.agentNodeId}: ${String(err)}`);
@@ -218,7 +223,9 @@ export function createSpawnerHarborBridge(
 
   async function runProbeAndRecord(agentId: string): Promise<void> {
     try {
-      const target = makeSpawnerProbeTarget(db, agentId);
+      const binding = bindings.get(agentId);
+      if (!binding) return;
+      const target = makeSpawnerProbeTarget(db, agentId, binding.sessionId);
       const probe = await runComplianceProbe(target, { agentNodeId: agentId });
       appendEvent(db, {
         streamType: 'compliance-probe-result',
@@ -244,7 +251,7 @@ export function createSpawnerHarborBridge(
  * complianceCeiling: 'C1') is the actual enforcement point — these answers
  * are honest reporting, not the thing doing the capping.
  */
-function makeSpawnerProbeTarget(db: DatabaseInstance, agentId: string): ProbeTarget {
+function makeSpawnerProbeTarget(db: DatabaseInstance, agentId: string, sessionId: string): ProbeTarget {
   const descriptor: AdapterDescriptor = {
     adapterKind: 'spawner-child',
     launchMode: 'native',
@@ -261,8 +268,8 @@ function makeSpawnerProbeTarget(db: DatabaseInstance, agentId: string): ProbeTar
     },
 
     async emitVerifiedTranscript() {
-      const events = readEvents(db, { streamType: 'transcript-event', sessionId: agentId });
-      const broken = verifySessionChain(db, agentId);
+      const events = readEvents(db, { streamType: 'transcript-event', sessionId });
+      const broken = verifySessionChain(db, sessionId);
       return { events: events.length, hashChainValid: events.length > 0 && broken === null };
     },
 

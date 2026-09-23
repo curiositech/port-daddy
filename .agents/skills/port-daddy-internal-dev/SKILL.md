@@ -365,6 +365,34 @@ message naming the gaps and link the follow-up issue. Lookout is the role
 that watches for release-surface drift; making the drift visible is your
 job, fixing it is theirs (or future-yours).
 
+## One-body WorkIntent reliability
+
+The `/spawn` intake uses `lib/agent-harbor/work-intent-spawn.ts`; never restore a
+route-to-spawner fallback. Capture intent, executable single-node plan and run
+admission atomically; the Conductor remains the actuator. Bind AgentNode and
+AgentRun to the exact managed session and transcript after admission and before
+the backend turn. The earlier `onStarted` callback has no managed session yet.
+Keep body options on the explicit Conductor allowlist, and keep environment
+values out of durable intent/plan payloads.
+
+`executionKind: single-body` owns one receipt and cannot also become a Dispatch.
+Receipt-store recovery belongs at daemon composition, never per request. Replay
+before dynamic preflight; test changed requests, concurrency and restart-unknown
+without relaunch. Query the result through canonical WorkIntent projections and
+`/spawn/receipts/:id`, including missing/failed/canceled evidence. The run receipt
+is not a sealed WorkReceipt and cannot manufacture live PID evidence.
+
+Test stop during backend execution and delayed success/failure, transcript
+open/append/finalize errors, canonical binding refusal, and managed completion
+refusal. When a known agent is halted, its reservation is already released;
+the continuation must preserve halted state without releasing another lineage's
+reserved budget. Inert adapters and in-memory SQLite suffice under a runtime halt.
+
+Bind the Harbor transcript timeline to the admitted session and canonical run
+before copying its first prompt; an agent ID is not a session receipt. Exercise
+halt during delayed harbor admission as well as during the backend turn. A late
+start witness must preserve halt and refuse the backend immediately.
+
 ## PR Finish Line Discipline
 
 For Port Daddy repo PRs, local validation is not the finish line. Before

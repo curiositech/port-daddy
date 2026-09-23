@@ -6,7 +6,9 @@
  * DELETE /spawn/:id  — kill a spawned agent
  */
 
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import type { WorkIntentSpawn, WorkIntentSpawnResult } from '../lib/agent-harbor/work-intent-spawn.js';
+import { AgentRunIdempotencyConflictError } from '../lib/agent-run-receipts.js';
 import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
@@ -15,7 +17,8 @@ import { validateChannel } from '../shared/validators.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 
 interface SpawnRouteDeps {
-  spawner: Spawner;
+  spawner: Pick<Spawner, 'list' | 'kill'>;
+  workIntentSpawn?: WorkIntentSpawn;
   costTracker?: CostTracker;
   metrics: { errors: number };
   logger: {
@@ -49,6 +52,17 @@ function requestedModelFromRequest(
   if (typeof model === 'string' && model.trim()) return model;
   if (!isFleetModelTier(modelTier)) return undefined;
   return resolveFleetAgentRuntime({ backend, modelTier }).model ?? undefined;
+}
+
+function sendExecution(reply: FastifyReply, execution: WorkIntentSpawnResult) {
+  const { result, runReceipt, duplicate } = execution;
+  if (!result) {
+    const pending = ['accepted', 'starting', 'live', 'unknown'].includes(runReceipt.status);
+    reply.code(duplicate ? (pending ? 202 : 200) : 409);
+    return { success: runReceipt.status === 'completed', code: duplicate ? 'WORK_INTENT_REPLAY' : 'WORK_INTENT_REFUSED',
+      duplicate, runReceipt, error: runReceipt.error };
+  }
+  return { ...result, success: runReceipt.status === 'completed', runReceipt, duplicate };
 }
 
 // ==========================================================================
@@ -192,6 +206,17 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         }
       }
 
+      const idempotencyKey = request.headers['idempotency-key'];
+      if (idempotencyKey !== undefined && (typeof idempotencyKey !== 'string'
+        || !idempotencyKey.trim() || Buffer.byteLength(idempotencyKey, 'utf8') > 400)) {
+        reply.code(400);
+        return { success: false, code: 'VALIDATION_ERROR', error: 'Invalid Idempotency-Key header' };
+      }
+      if (idempotencyKey && opts.deps.workIntentSpawn) {
+        const replay = await opts.deps.workIntentSpawn.replay(idempotencyKey, request.body);
+        if (replay) return sendExecution(reply, replay);
+      }
+
       const parsedBudgetUsd = typeof rawBudgetUsd === 'number'
         ? rawBudgetUsd
         : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
@@ -271,7 +296,16 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         purpose: spec.purpose || null,
       });
 
-      const result = await spawner.spawn(spec);
+      if (!opts.deps.workIntentSpawn) {
+        reply.code(503);
+        return { success: false, code: 'WORK_INTENT_RUNTIME_UNAVAILABLE',
+          error: 'Canonical WorkIntent materialization is unavailable; no body was started' };
+      }
+      const execution = await opts.deps.workIntentSpawn.run(spec, {
+        idempotencyKey, request: request.body,
+      });
+      const { result } = execution;
+      if (!result) return sendExecution(reply, execution);
 
       logger.info('spawn_complete', {
         agentId: result.agentId,
@@ -279,12 +313,25 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         status: result.status,
       });
 
-      return { success: result.status === 'completed', ...result };
+      return sendExecution(reply, execution);
     } catch (error) {
       metrics.errors++;
+      if (error instanceof AgentRunIdempotencyConflictError) {
+        reply.code(409);
+        return { success: false, code: 'WORK_INTENT_IDEMPOTENCY_CONFLICT', receiptId: error.receiptId, error: error.message };
+      }
       logger.error('spawn_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
+  });
+
+  fastify.get('/spawn/receipts/:id', async (request, reply) => {
+    if (!opts.deps.workIntentSpawn) {
+      reply.code(503); return { success: false, code: 'WORK_INTENT_RUNTIME_UNAVAILABLE' };
+    }
+    const receipt = opts.deps.workIntentSpawn.get(String((request.params as { id: string }).id));
+    if (!receipt) { reply.code(404); return { success: false, code: 'RUN_RECEIPT_NOT_FOUND' }; }
+    return { success: true, runReceipt: receipt };
   });
 
   // GET /spawn — List active spawned agents
@@ -315,7 +362,8 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       return {
         success: true,
         agentId: id,
-        message: `Agent ${id} killed`,
+        status: 'requested',
+        message: `Stop requested for agent ${id}; terminal receipt confirms the outcome`,
       };
     } catch (error) {
       metrics.errors++;

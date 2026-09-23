@@ -27,6 +27,9 @@ import { CORE_SCHEMA_SQL } from '../../lib/db.ts';
 import { createTranscripts, type Transcripts } from '../../lib/transcripts.ts';
 import { createSpawner } from '../../lib/spawner.ts';
 import { spawnPlugin } from '../../routes/spawn.ts';
+import { createConductor } from '../../lib/fleet/conductor.ts';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.ts';
+import { createWorkIntentSpawn } from '../../lib/agent-harbor/work-intent-spawn.ts';
 
 const LAUNCHD_RESTRICTED_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
 
@@ -113,6 +116,11 @@ async function startHarness(): Promise<Harness> {
   const transcripts = createTranscripts(db);
   const spawner = createSpawner({
     transcripts,
+    managedSessionLifecycle: {
+      admit: async () => ({ success: true, sessionId: 'provider-fixture-session', credential: 'synthetic', worktreeBinding: { cwd: null } }),
+      bind: async () => ({ success: true, worktreeBinding: { cwd: null }, validateBeforeLaunch: async () => ({ success: true }) }),
+      complete: async () => ({ success: true }), abort: async () => ({ success: true }),
+    },
     enforceTranscriptPolicy: true,
     enforceTelemetryPolicy: false,
     telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -122,6 +130,7 @@ async function startHarness(): Promise<Harness> {
   await app.register(spawnPlugin, {
     deps: {
       spawner,
+      workIntentSpawn: createWorkIntentSpawn({ db, workIntentService: createWorkIntentService({ db }), conductor: createConductor({ db, spawner }) }),
       costTracker: {
         budgetStatus: () => ({
           project: 'port-daddy',

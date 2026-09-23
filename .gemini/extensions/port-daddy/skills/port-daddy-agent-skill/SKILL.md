@@ -703,6 +703,17 @@ Treat the daemon as the local single-writer control plane. Stable, dev-latest,
 and branch berths may all run at once, but they do not share a SQLite file and
 they are not interchangeable evidence.
 
+For source versions with canonical one-body intake, a spawn result includes a
+`runReceipt` joining its WorkIntent, WorkPlan, Conductor launch, managed session
+and transcript. Read it through `GET /spawn/receipts/:id` or the SDK's
+`getSpawnReceipt(receiptId)`. WorkIntent queries expose the same observation.
+A stop acknowledgment means requested; only terminal evidence confirms stopped
+or failed. `unknown` after interruption is not permission to relaunch. HTTP
+callers may use an `Idempotency-Key`; matching retries return the prior receipt
+without repeating work, and conflicting requests are rejected. A receipt-only
+replay has no fabricated output. These run receipts are not signed WorkReceipts;
+verify the installed surface before relying on this source contract.
+
 The Agent Harbor runtime refactor target (ADR-0100) is intentionally
 destructive: one Surface Gateway owns official command, query, and event
 envelopes; WorkIntent is the launch-shaped runtime primitive; old routes,

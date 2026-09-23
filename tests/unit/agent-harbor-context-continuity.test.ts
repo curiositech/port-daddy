@@ -51,7 +51,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
       timestamp: 1_002,
     });
 
-    bridge.registerNode(agentId, 'port-daddy:test:context', 1_000);
+    bridge.registerNode(agentId, 'port-daddy:test:context', 1_000, { sessionId: agentId, runId: 'fixture-run' });
     bridge.appendTranscriptEvent(agentId, 'session_started', 1_000, { transcriptId });
     expect(bridge.syncTranscript(agentId, transcriptId)).toBe(2);
     bridge.appendTranscriptEvent(agentId, 'session_end', 1_003, { transcriptId, status: 'completed' });
@@ -184,7 +184,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
       started_at: 2_000,
     });
     transcripts.appendMessage(transcriptId, { role: 'user', content: 'Small task.', timestamp: 2_001 });
-    bridge.registerNode(agentId, null, 2_000);
+    bridge.registerNode(agentId, null, 2_000, { sessionId: agentId, runId: 'fixture-run' });
     bridge.syncTranscript(agentId, transcriptId);
 
     const result = bridge.recordContext({
@@ -224,7 +224,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
       tool_calls: [{ name: 'large-result', result: { output: 'x'.repeat(4_000) } }],
       timestamp: 3_001,
     });
-    bridge.registerNode(agentId, null, 3_000);
+    bridge.registerNode(agentId, null, 3_000, { sessionId: agentId, runId: 'fixture-run' });
     bridge.syncTranscript(agentId, transcriptId);
 
     const result = bridge.recordContext({
@@ -257,7 +257,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
       trigger: 'test', backend: 'cli:codex', model: 'gpt-5', started_at: 4_000,
     });
     transcripts.appendMessage(transcriptId, { role: 'user', content: 'Continue safely.', timestamp: 4_001 });
-    bridge.registerNode(agentId, null, 4_000);
+    bridge.registerNode(agentId, null, 4_000, { sessionId: agentId, runId: 'fixture-run' });
     bridge.syncTranscript(agentId, transcriptId);
 
     const first = bridge.recordContext({

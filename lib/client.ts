@@ -24,6 +24,7 @@ import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
 import { generateBeginIdempotencyKey } from './begin-idempotency.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
+import type { AgentRunReceipt } from './agent-run-receipts.js';
 import type { SalvageQueueStatus } from './resurrection.js';
 
 // =============================================================================
@@ -3285,6 +3286,11 @@ class PortDaddy {
     return this._request('POST', '/spawn', spec as unknown as Record<string, unknown>) as Promise<SpawnResult>;
   }
 
+  /** Read the durable result of one canonical spawn without starting work. */
+  async getSpawnReceipt(receiptId: string): Promise<{ success: boolean; runReceipt: AgentRunReceipt }> {
+    return this._request('GET', `/spawn/receipts/${encodeURIComponent(receiptId)}`) as Promise<{ success: boolean; runReceipt: AgentRunReceipt }>;
+  }
+
   /**
    * List all active (and recently completed) spawned agents.
    */
@@ -4050,6 +4056,7 @@ interface SpawnSpec {
 
 interface SpawnResult {
   success: boolean;
+  runReceipt: AgentRunReceipt;
   agentId: string;
   name?: string;
   backend: SpawnSpec['backend'];
@@ -4098,6 +4105,7 @@ interface ListSpawnedResponse {
 
 interface KillSpawnedResponse {
   success: boolean;
+  status: 'requested';
   agentId: string;
   message: string;
 }
