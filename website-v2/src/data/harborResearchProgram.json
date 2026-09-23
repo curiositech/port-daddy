@@ -1,8 +1,8 @@
 {
   "$schema": "./program.schema.json",
   "version": 1,
-  "updated": "2026-09-08",
-  "statement": "The Harbor research program is the part of the whitepaper that has to be proved, measured, or openly admitted unsolved rather than argued for. Seven conference-form papers carry the theorems; a results index says where each executed result lives in the book; a manifest names every mechanized artifact and whether it still runs in CI; pre-registered studies take on the questions the book can't settle from its own results; and a ledger keeps every review objection alongside what was done about it. This file is what the website renders, and it is checked against the index, the manifest, the ledger, and the repository on every pull request — so the page can't drift from the program without the build going red.",
+  "updated": "2026-09-23",
+  "statement": "The Harbor research program is the part of the whitepaper that has to be proved, measured, or openly admitted unsolved rather than argued for. Eight conference-form papers carry the theorems; a results index says where each executed result lives in the book; a manifest names every mechanized artifact and whether it still runs in CI; pre-registered studies take on the questions the book can't settle from its own results; and a ledger keeps every review objection alongside what was done about it. This file is what the website renders, and it is checked against the index, the manifest, the ledger, and the repository on every pull request — so the page can't drift from the program without the build going red.",
   "checker": "scripts/harbor-research/check_research_program.py",
   "mirror": "website-v2/src/data/harborResearchProgram.json",
   "papers": [
@@ -40,6 +40,11 @@
       "number": 7,
       "siteId": "the-cohomology-of-equivocation",
       "tex": "docs/harbor-research/tex/paper7.tex"
+    },
+    {
+      "number": 8,
+      "siteId": "active-sheaf-cohomology-for-swarms",
+      "tex": "docs/harbor-research/tex/paper8.tex"
     }
   ],
   "deepDives": [
@@ -657,6 +662,36 @@
         "internal": 0
       },
       "mechanized": true
+    },
+    {
+      "id": "lem:chain",
+      "kind": "lemma",
+      "title": "Fundamental simplicial identity",
+      "oneBreath": "The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "def:cellular-sheaf",
+      "kind": "definition",
+      "title": "Cellular sheaf on a simplicial complex",
+      "oneBreath": "A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
     }
   ],
   "estate": {

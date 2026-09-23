@@ -18,7 +18,7 @@ metadata:
     - cost-optimization
   pairs-with:
     - skill: comfyui-mastery
-      reason: ComfyUI is the load-bearing target for many of these deployments
+      reason: ComfyUI is the main target for many of these deployments
     - skill: generative-video-2026
       reason: Video models (Wan/Hunyuan/LTX) are the heaviest to host
     - skill: generative-music-audio

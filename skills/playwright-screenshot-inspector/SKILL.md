@@ -1,4 +1,6 @@
 ---
+name: playwright-screenshot-inspector
+description: Plan and review Playwright screenshot workflows for visual regression, rendered-content checks, and human-auditable UI findings.
 license: Apache-2.0
 category: Code Quality & Testing
 tags:

@@ -340,5 +340,5 @@ Complete specification includes:
 
 These preserved source files add depth when their stated topic is needed.
 
-- [diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md](diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md) — Log Replication Protocol: Happy Path vs. Edge Cases.
-- [diagrams/03_mindmap_decomposition_hierarchy:_raft'.md](diagrams/03_mindmap_decomposition_hierarchy:_raft'.md) — Decomposition Hierarchy: Raft's Independent Subproblems.
+- [diagrams/02_sequenceDiagram_log_replication_protocol-_happ.md](diagrams/02_sequenceDiagram_log_replication_protocol-_happ.md) — Log Replication Protocol: Happy Path vs. Edge Cases.
+- [diagrams/03_mindmap_decomposition_hierarchy-_raft'.md](diagrams/03_mindmap_decomposition_hierarchy-_raft'.md) — Decomposition Hierarchy: Raft's Independent Subproblems.

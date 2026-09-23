@@ -271,7 +271,7 @@ Anthropic's behavioral round has distinctive characteristics. See `references/an
 | What they evaluate | Leadership principles checklist | Genuine self-awareness |
 | Right answer | Demonstrated LP alignment | No single right answer; authenticity |
 | Ethics questions | Rare | Central |
-| "Why here?" weight | Moderate | Very high; mission alignment is load-bearing |
+| "Why here?" weight | Moderate | Very high; mission alignment is central |
 
 ### Themes That Recur in Anthropic Values Rounds
 

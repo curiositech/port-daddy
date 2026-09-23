@@ -1,0 +1,2137 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "docs/research/skills-reconciliation-20260923/PR-BODY.md",
+      "sha256": "6ef93e29274c87903490d501eb0c54f5599ed34ac0e6bcebd1bc4398fbff4e57"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/README.md",
+      "sha256": "07b3e869ee99d5ed4d7a335cd13276c292474f119e3760563415ea9747ab8e80"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/a-m-inventory.json",
+      "sha256": "da663d8b54d61306b1ea0e064d6e21cd97f0a28bf414a3a2f4ae37994b4f892e"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/coverage-final.json",
+      "sha256": "4bb2aed8bb27799efd629dfe5359dc11b8605a507951d966de4c7573de084329"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/coverage-repair.json",
+      "sha256": "c0b56c83e2a492611a7210fcac0802c7b6fd7e05770dea6fcf83e8007f6d7904"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/followup-validation.json",
+      "sha256": "21056e33fdc9bbdc2b12714a8e338ca57298c5cd3db686ebfa43678ad1e951c0"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/hygiene-final.json",
+      "sha256": "b3b674d10d1e98102e30fb3be095c21555e9c9bc8cae946ba13fc56d84cf759a"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/hygiene-repair.json",
+      "sha256": "145a298771945d6abe1f3a649203b3e0205d7e660899b803c98bebff15f5c779"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/manuscript-field-gaps.md",
+      "sha256": "d5496bdd4eb512d381d92dc54f45ea561a563f0af860e6dec0943b0ae272db88"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-audit.json",
+      "sha256": "7d8cadccd3a1b0353ab8f312e5752728363d36180645b3e7cbe1a49011d057c5"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-coverage-final.json",
+      "sha256": "48d5b956418092d11a28524159ea86c4465a9da7d26242154b3fee43e664972c"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-divergences.json",
+      "sha256": "b1c5a0a87148b26ec3b2acff658725996ba6826bc2946fef9c412a50d1709685"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-final-hygiene-repairs.json",
+      "sha256": "36b64f99c6092b3548e02a44818ad99db0cc6ead035bf42ce51a9f96988c58ee"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-hygiene-after.json",
+      "sha256": "54bb29857f6db9cefc21a8950f17a6588a97230d1303c809516f285a364342e7"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-hygiene-final.json",
+      "sha256": "67dbf140f736831f28f9c5a7835da268640b84740ffda852e829fdb0ecae768d"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-hygiene-repairs.json",
+      "sha256": "7efce8844ddd62ee33028cf649adb13345bfaa9ea43564c802c1e59f60eeca59"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-hygiene.json",
+      "sha256": "3cd2c4bc80bf1e82fb3c1a5301557072800f27182f19bdffcf311706b93c08d5"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-inventory.json",
+      "sha256": "ddd0e1c16c11a59fe7773fdc93f00eef5aaf4f3a1809a858374a26e0cb606f1c"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-merge-reasoning.md",
+      "sha256": "843642401b1683cf7152d2e1ca89e242ff5ac40d2b8f5dfebed9b7561ce9eb26"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/n-z-substantive-merge-map.md",
+      "sha256": "0b3e4613440f73f3f3882b0a0965f28a098f71f6ccf894d4f0f89bf5a48fc20c"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/publication-authorization.md",
+      "sha256": "b304833088599299d4ee0623d7d2ec1d1c42ee3fba5499a9a4a71a13345660cf"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/repair-contracts.md",
+      "sha256": "0cdd472c298f58ad8dce3591a7caabce0c7012cbc8aa136a502e042c67f74cf3"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/skill-catalog.csv",
+      "sha256": "03bba91714a294869b6f1353a1748b7ef6582ea1eb05bf6553bc11c9bfecfcd8"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/source-path-mappings.json",
+      "sha256": "a0cfafcb7f5e90b310aea3b2fefc48dd2f346642a85dc188acfb85dfed10bcfa"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/validation-final.json",
+      "sha256": "a9447db192b3de5075eeb89351027f970b121571fb06476948251e8c41ffb5a5"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/whitespace-disposition.json",
+      "sha256": "3a97da62ddadc88a2e6043650b85bf17b43f7d78b1b358550531b2a000b96064"
+    },
+    {
+      "path": "docs/research/skills-reconciliation-20260923/windags-efficacy-evidence.md",
+      "sha256": "0e372dc2ccbec7f823b625f96c84770790e7b7f533b38b51c6ce66dabc6087e2"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/_raw_response.md",
+      "sha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/coordination-failure-modes-in-multi-agent-crisis-systems.md",
+      "sha256": "544b47373969d378fab80fa01059285676f621acb41fd8c6f827c5b8bf93d6fc"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/crisis-decision-pathologies-in-complex-systems.md",
+      "sha256": "8e05f5e3edf0a04c499db182b92426f788abb4de088bc3cc61c603d0b55c74fc"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/epistemic-uncertainty-and-information-triage-in-crisis-systems.md",
+      "sha256": "2d0f94ade38356528efd0d52e4328c9251ea85c47539825b9d479788652497e0"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/generalisation-discrimination-and-expertise-boundaries.md",
+      "sha256": "e9699fa90b17aa6719ee9d1e98a392c56d8f58e10de85983c1300e4b8e241177"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/novice-to-expert-progression-in-agent-capability.md",
+      "sha256": "b099b5fcc20da92c1d7415dd90ce5bc408a861a477b6fd1f778d384164937362"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "7847d5ef23184d8b9b39ec8e24fa652ecc024eefd3d0186bd4e2339db1c60ac6"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/skill-rule-knowledge-behavior-hierarchy.md",
+      "sha256": "e82cde3ad9bb379980fb660ad088d87287eb8bac31e695d33d6c620c11176cb1"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/the-knowing-doing-gap-in-crisis-management.md",
+      "sha256": "bd1e4cf667226581c842f18dadeccbe16473f13a10f0aa80159a0315bf729197"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/the-retrospective-distortion-problem-for-agent-learning.md",
+      "sha256": "7870b0189888b65ea92625f10827b0eb5ba7f3adf03ac12f4aedcea4e17f974f"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/the-theory-practice-gap-in-crisis-decision-research.md",
+      "sha256": "dc6a67edde278680662314bdccc39ba27e7d9cf31284ce70d7557f5abaa1cf12"
+    },
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/references/three-behavior-levels-for-agent-routing.md",
+      "sha256": "fc0be8ba00c44c6e62097dff993ae93ef7475e9d31866c609babe0d3503df87d"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/_raw_response.md",
+      "sha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/references/maximal-non-conflicting-subsets-for-action-selection.md",
+      "sha256": "0994d9b48ff5659b090659f8ea05a053bd330406a4fa4177159c0ee6da0dc099"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/references/norm-instantiation-through-belief-grounding.md",
+      "sha256": "2114d3f33f026bcf02b8a59b169c25187f6ac4c6a4b3e39b455b07b9cf4813c2"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/references/normative-conflict-resolution-through-consequence-ranking.md",
+      "sha256": "d0051ab84afc9731344bf6fdc88a6b82c0350c79541bd8fa91699cd38dc9b4d7"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/references/separation-of-norm-recognition-and-norm-internalization.md",
+      "sha256": "e1996719901a858debcc44b6d2b09b9b1f8ec6d8dfcf901015a310579c456b54"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/references/three-types-of-consistency-for-norm-adoption.md",
+      "sha256": "3eb3c4b5d6f05a9ff1d170d42aff2a2fa1058c3f842c9b905d460c0b824c4f80"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/_raw_response.md",
+      "sha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/references/critical-cue-inventories-for-agent-perception.md",
+      "sha256": "a07c0d3a42b73c9c0a4e4e8b1c2265b4a738ab390ba6b9a7fd1a1e53b223b2b2"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/references/expert-knowledge-two-layers.md",
+      "sha256": "b2164feba9ea809b218bd787c1ef215390ad147d5b91bf4a22d49e402807f435"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/references/goms-task-decomposition-for-agent-systems.md",
+      "sha256": "5de116710cf6109ba17c0bafde692870df6018f7e03f89162a51d90281b098e7"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/references/knowledge-elicitation-methodology-for-agent-capability-building.md",
+      "sha256": "e1d785da4bb88ffbe4bd4320c5afae76be7efcff71e212c32d461b0b278f306c"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md",
+      "sha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md",
+      "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agentspeak-and-multi-agent-coordination.md",
+      "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-architecture-for-agent-orchestration.md",
+      "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-mental-architecture-for-agent-systems.md",
+      "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/belief-management-and-world-modeling.md",
+      "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md",
+      "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md",
+      "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md",
+      "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md",
+      "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/proof-theory-and-verifiable-agent-behavior.md",
+      "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-agent-policy.md",
+      "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-policy-locus.md",
+      "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/SKILL.md",
+      "sha256": "6329d16f34ad2e40d220d1b551d33f568f83d1aefa3a0929d85619969d3fec91"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/_raw_response.md",
+      "sha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md",
+      "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md",
+      "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/bdi-architecture-for-agent-orchestration.md",
+      "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/bdi-mental-architecture-for-agent-systems.md",
+      "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/belief-management-and-world-modeling.md",
+      "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md",
+      "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md",
+      "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md",
+      "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md",
+      "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/proof-theory-and-verifiable-agent-behavior.md",
+      "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/selection-functions-as-agent-policy.md",
+      "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/references/selection-functions-as-policy-locus.md",
+      "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
+    },
+    {
+      "path": "skills/ai-introduction-educator/SKILL.md",
+      "sha256": "c9a2f2f702c68eabf47b0caa3f47ecd6efccdbf2228060e97ed8bf6b8f586303"
+    },
+    {
+      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/_raw_response.md",
+      "sha256": "1d1ab7958ce088692f765b05cfc44da7819d2a06bcff4c34c02fc0e4e47dd0d7"
+    },
+    {
+      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/environment-characterization-drives-architecture.md",
+      "sha256": "0b4c756b18559a5b7c617c67359863239263c15d652485040520a53cf69267fa"
+    },
+    {
+      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/grounded-epistemic-logic-for-distributed-agents.md",
+      "sha256": "62bd9717113e6536e078279715410a865b06edc85822134eea787b252714ae26"
+    },
+    {
+      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/hybrid-architectures-and-realtime-adaptation.md",
+      "sha256": "45563a7be6ba2db5399611d87ac3137de7a474326d58e8cdb30a6d0d384ed278"
+    },
+    {
+      "path": "skills/allen-cacm1983/_raw_response.md",
+      "sha256": "fd3b0ec2568cfe6419628cc83f96fffa099f64bcd271574a79089eb8b9441a40"
+    },
+    {
+      "path": "skills/allen-cacm1983/references/grain-of-reasoning-and-context-sensitivity.md",
+      "sha256": "47e18b4ff508a517e9ddc3e58bf327c96f1c018af2b9b6d3e7d1c416eab3df49"
+    },
+    {
+      "path": "skills/allen-cacm1983/references/reference-intervals-and-hierarchical-reasoning-scope.md",
+      "sha256": "944a74964adce61fb8d7753a9b9eedf6fcc79a7fc6481786bd7d2349776c8ee5"
+    },
+    {
+      "path": "skills/allen-cacm1983/references/temporal-knowledge-in-planning-and-process-modeling.md",
+      "sha256": "8fce5616030d8caa355ffe51345133fd8c0850318a340395c73cb7b7f3508d10"
+    },
+    {
+      "path": "skills/app-sound-design/SKILL.md",
+      "sha256": "cd15ea6e7a7cdbd0597661d22be7d75d453d90b41507668a66c1ae5b10db8e8e"
+    },
+    {
+      "path": "skills/argumentative-lineage/CHANGELOG.md",
+      "sha256": "3349ce2b1d3858bed4ef3db56d88f77ea1197f4fe0de2a48351965cb9e0bf05a"
+    },
+    {
+      "path": "skills/argumentative-lineage/SKILL.md",
+      "sha256": "7b0575a9f133760bf8d68692464f458bd4a918d3a4599912ddb18cf3a0a848ac"
+    },
+    {
+      "path": "skills/argumentative-lineage/affordance-scorecard.json",
+      "sha256": "5e0d646e2f155a91d089837eb79e459b10a8bf12a2f08dff2fa03ef6f91b1ed2"
+    },
+    {
+      "path": "skills/argumentative-lineage/references/digest-with-zoom.md",
+      "sha256": "664401b97c85dec6002f1b74d2ec2d031631f7d875d59afc91b2bb5566e3181c"
+    },
+    {
+      "path": "skills/argumentative-lineage/references/swarm-tracer-implementation.md",
+      "sha256": "8f9c8b7d922b34059e3beb48227c4d1c7dccea3830f5c98647934f8b89348a20"
+    },
+    {
+      "path": "skills/argumentative-lineage/references/toulmin-argument-structure.md",
+      "sha256": "d29af4f0065c2bf5d859b1854a98d92bc6a1785df332a31e864f4153830e97e1"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/CHANGELOG.md",
+      "sha256": "f91156cfc7c4229e6a4ba16eee37fe9d2f4722bbfd3fbf10f2e15487c2a72312"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/SKILL.md",
+      "sha256": "b740fb4cc843b114bb3d02b9d1137439144bf70d9f40e09c9a39113a4d9ef17c"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/affordance-scorecard.json",
+      "sha256": "7fe0c57111d2b07ce87e5abd4311356bba8e019b46a19bbe74a6ea8a57b92c3c"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/references/attribution-knn-signal.md",
+      "sha256": "e2d9aecb606d94f2c60af350ba98fbbe6079e1942620d673a1fa52c9d7528c4b"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/references/cross-operator-attestation.md",
+      "sha256": "7ac567ee9f550c70621fc85893a56179401f8bf0e7004d94c22dca3fc9d83451"
+    },
+    {
+      "path": "skills/attestable-skill-quality-signal/references/why-thompson-fails.md",
+      "sha256": "62b682404d8b233df9d5cdacc28ab3d4269840887ba52b06df69d57381bcacc6"
+    },
+    {
+      "path": "skills/backend-authoritative-runtime-refactor/SKILL.md",
+      "sha256": "593d25d478852015351c80a7c0f6b36f8008dfeb3cbfd9dcc8604f67f675fca0"
+    },
+    {
+      "path": "skills/backend-authoritative-runtime-refactor/references/INDEX.md",
+      "sha256": "220748e429bbb007f5fbe881fe29cbaa7f27e519318ff9f11b288b9c4a098c14"
+    },
+    {
+      "path": "skills/backend-authoritative-runtime-refactor/references/windags-lessons.md",
+      "sha256": "64896bf9b7da002363c41256dc648e651ce4931098965366008ee8884a634bca"
+    },
+    {
+      "path": "skills/bdi-agents-a-soft-model-for-organisation/_raw_response.md",
+      "sha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
+    },
+    {
+      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/accommodations-over-consensus-coordination-without-agreement.md",
+      "sha256": "59c3881bc6dbb061737c867a0342c73a31199e6d4a377bed6ea0052ff427cc2b"
+    },
+    {
+      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/discourse-to-action-emergence-of-organizational-desires.md",
+      "sha256": "aa68b6f8ede9546f0d02be8aa695bd4d75e26d78e7fd6129265d4c9ed70aab66"
+    },
+    {
+      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/intention-as-commitment-bounds-deliberation.md",
+      "sha256": "d1c58bd61dbe6998a6047a0b9d4c2c1722a266b558ba1a873c2133514ff5790c"
+    },
+    {
+      "path": "skills/bdi-soft-model-for-organisations/_raw_response.md",
+      "sha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
+    },
+    {
+      "path": "skills/bdi-soft-model-for-organisations/references/accommodations-over-consensus-coordination-without-agreement.md",
+      "sha256": "59c3881bc6dbb061737c867a0342c73a31199e6d4a377bed6ea0052ff427cc2b"
+    },
+    {
+      "path": "skills/bdi-soft-model-for-organisations/references/discourse-to-action-emergence-of-organizational-desires.md",
+      "sha256": "aa68b6f8ede9546f0d02be8aa695bd4d75e26d78e7fd6129265d4c9ed70aab66"
+    },
+    {
+      "path": "skills/bdi-soft-model-for-organisations/references/intention-as-commitment-bounds-deliberation.md",
+      "sha256": "d1c58bd61dbe6998a6047a0b9d4c2c1722a266b558ba1a873c2133514ff5790c"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/_raw_response.md",
+      "sha256": "ffb2f450977f2785c5588c3bb84b5cfe787a1dc582cd9f35127503ef54cac621"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/references/cognitive-cost-of-reasoning-chain-length.md",
+      "sha256": "fb57cb68c695162f3878c4c01aa3af5dea221582acf0eaa3263a21da05d8a8a4"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/references/coordination-without-central-control.md",
+      "sha256": "40018660a8b03cb1fb29e8afa72aa6fb9f0c323ef28fd21d5ef9f9d0d0b454fe"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/references/decomposition-rules-as-generalized-knowledge.md",
+      "sha256": "f57d45854322bff5183845a102883271e6f651a5b2ae47462175280cc372f06a"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/references/the-gap-between-planning-and-execution.md",
+      "sha256": "ad373a29b1d84d617b550da71a319c98fe86bfdbb24a58706113b1f86b3170a7"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/_raw_response.md",
+      "sha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/algorithms-vs-human-judgment-when-to-use-which.md",
+      "sha256": "991494758ec5ad41b0d20e0ab91e6027ca023987cb0ba14bfb8b2e7a90de9892"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/algorithms-vs-intuition-routing-framework.md",
+      "sha256": "7b609b06f94065dc89db012e1fbb15240f9b024d1168f565be17531269d5d0b6"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/environmental-validity-as-trust-signal.md",
+      "sha256": "24d94b8245b0aa26ad6fa710fe84c5c0807276a5157a57db96090ad0d47bd863"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/fractionated-expertise-and-scope-boundaries.md",
+      "sha256": "91c9268fd4223117bb951eadcd57c9e11a5617fdb13749c265221463991f1151"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/fractured-expertise-and-domain-boundary-detection.md",
+      "sha256": "8c7d4df9e5748d52ea6960e7a3a5ea611877a513111a91c53561766b27bc808f"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/recognition-primed-decision-as-agent-architecture.md",
+      "sha256": "e0d8a45cf755329a1f9edff6f9aa7167b02deb103ce0d7065b62959274ed0bb8"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "55be57d5aa6a2306527313b43aecd0fcf075d529a0d3d5c578f51e1ee9dc9849"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/system1-system2-and-dual-mode-agent-architecture.md",
+      "sha256": "34cafe2a55114f406ca7c7e8347c5dfc628fc31537ae629dc0743d6fff34f51d"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/the-boundary-problem-knowing-when-not-to-trust-yourself.md",
+      "sha256": "867923e0ec108c8960d11df2e36088f6de95cc26a46574d3901c7eb4c9d8ca04"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/two-systems-in-orchestration.md",
+      "sha256": "2b1129c528a15596d185bccf9b1d44a5b33c780f0bbf6a4ed1ef036c1fcc17e2"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/references/validity-environment-and-agent-trust.md",
+      "sha256": "58353712e4b53cbc6c95fcc3fd4568318d547c33b7a8d1af1af17f297d895ece"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/_raw_response.md",
+      "sha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/algorithms-vs-human-judgment-when-to-use-which.md",
+      "sha256": "991494758ec5ad41b0d20e0ab91e6027ca023987cb0ba14bfb8b2e7a90de9892"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/algorithms-vs-intuition-routing-framework.md",
+      "sha256": "7b609b06f94065dc89db012e1fbb15240f9b024d1168f565be17531269d5d0b6"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/environmental-validity-as-trust-signal.md",
+      "sha256": "24d94b8245b0aa26ad6fa710fe84c5c0807276a5157a57db96090ad0d47bd863"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/fractionated-expertise-and-scope-boundaries.md",
+      "sha256": "91c9268fd4223117bb951eadcd57c9e11a5617fdb13749c265221463991f1151"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/fractured-expertise-and-domain-boundary-detection.md",
+      "sha256": "8c7d4df9e5748d52ea6960e7a3a5ea611877a513111a91c53561766b27bc808f"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/recognition-primed-decision-as-agent-architecture.md",
+      "sha256": "e0d8a45cf755329a1f9edff6f9aa7167b02deb103ce0d7065b62959274ed0bb8"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "55be57d5aa6a2306527313b43aecd0fcf075d529a0d3d5c578f51e1ee9dc9849"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/system1-system2-and-dual-mode-agent-architecture.md",
+      "sha256": "34cafe2a55114f406ca7c7e8347c5dfc628fc31537ae629dc0743d6fff34f51d"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/the-boundary-problem-knowing-when-not-to-trust-yourself.md",
+      "sha256": "867923e0ec108c8960d11df2e36088f6de95cc26a46574d3901c7eb4c9d8ca04"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/two-systems-in-orchestration.md",
+      "sha256": "2b1129c528a15596d185bccf9b1d44a5b33c780f0bbf6a4ed1ef036c1fcc17e2"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/references/validity-environment-and-agent-trust.md",
+      "sha256": "58353712e4b53cbc6c95fcc3fd4568318d547c33b7a8d1af1af17f297d895ece"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/_raw_response.md",
+      "sha256": "18ce8c246b9ebe76f535f885da3b4089ac6fa2c01c5e06eaf039309a342b80ce"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/communication-paths-solution-space.md",
+      "sha256": "431a7fce0ba8794ebc8e24f91d37ecc6436f3aec3025e64c4e9ca835cdbcef19"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/conway-homomorphism-agent-orchestration.md",
+      "sha256": "50713e9f21927b503a66d156615b4579169ee8e4153261ef6f145c4afcb54600"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/delegation-as-commitment-task-decomposition.md",
+      "sha256": "43e610d25597210b0cb8f4a3ae4b85b3f4b3bd461bd14682a084bc03d6e404c5"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/linearity-fallacy-resource-allocation.md",
+      "sha256": "db75e732ffb9a6672fae532110a64fdf1590269d84f0f1f36c3cca565d4c6ea0"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/preliminary-design-organizational-commitment.md",
+      "sha256": "6eb525f0130057631eb558d5b04461a7caa9a31835b36fd8914c7d9c2ded5d5e"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/references/system-disintegration-failure-modes.md",
+      "sha256": "3ecf9bf5723c646bdd4d599d08932e030e6b6a44cae54621938ae428935cdf15"
+    },
+    {
+      "path": "skills/cse-design-process/_raw_response.md",
+      "sha256": "d52993165525491bb0cd03b52cdca82b0b077a32becd1915f765ad4611bc5074"
+    },
+    {
+      "path": "skills/cse-design-process/references/cognitive-requirements-are-invisible.md",
+      "sha256": "10df7d1d4b1b9f6f2af3efdb4973b94125367acda8a4f93bc324d710224880c0"
+    },
+    {
+      "path": "skills/cse-design-process/references/cse-concept-map-for-agent-architecture.md",
+      "sha256": "cf52a4bad5ab14602958b8bef137e33bcc7b3bd6bc6a389575770e433de85e00"
+    },
+    {
+      "path": "skills/cse-design-process/references/expertise-recognition-and-tacit-knowledge.md",
+      "sha256": "d171cdf7ebda8d1ee49d6ca6b3cedc1c1e7a8e51a54f6f6c991107693151fe34"
+    },
+    {
+      "path": "skills/cse-design-process/references/invisible-cognitive-layer-in-system-design.md",
+      "sha256": "3c9b725c342292ecc267c2e981b21ee67432b4013c32b8d9b4902e8d4e2d5d1f"
+    },
+    {
+      "path": "skills/cse-design-process/references/joint-cognitive-systems-and-distributed-cognition.md",
+      "sha256": "59a9a348ea463656172f2ad13ba7c8da683db50830e41ae0281bbc11a38b4c82"
+    },
+    {
+      "path": "skills/cse-design-process/references/joint-cognitive-systems-distributed-cognition.md",
+      "sha256": "52453d21f38a6a5347d963d0cb15ee8082f30903e36dbf8097e976d0a5244eea"
+    },
+    {
+      "path": "skills/cse-design-process/references/problem-framing-as-the-critical-design-act.md",
+      "sha256": "571bf43bbd84445463f88d1e5e78bb5607fb74f4f07ce6b133132b667451ffb6"
+    },
+    {
+      "path": "skills/cse-design-process/references/problem-reframing-as-highest-leverage-intervention.md",
+      "sha256": "6f212debdfc7ab599b1fbacc5add91eeb27f53c1d61d73e3fc2fbad3f40ab997"
+    },
+    {
+      "path": "skills/cse-design-process/references/value-case-and-invisible-contributions.md",
+      "sha256": "2ee080b8acfde72e810070c93970e34649ac841e903a7f4e5e1b6da6d2f1655d"
+    },
+    {
+      "path": "skills/cse-state-of-practice/references/cognition-distribution-coordination-without-central-control.md",
+      "sha256": "b0d10b063e6acbd7e93bc3c2df37b52c3efcde9bf3c985d764ab8ce6607bb321"
+    },
+    {
+      "path": "skills/cse-state-of-practice/references/linear-decomposition-failure-modes.md",
+      "sha256": "7229d9d7012c468aa5927e397c7d378850d01647cdd713cf34f4e8610b0242c6"
+    },
+    {
+      "path": "skills/cycle-analysis-of-directed-acyclic-graph/_raw_response.md",
+      "sha256": "da4c7691dd5cbaa9008ebfacf5c4edd70678d880a1d50ed260e259e4c158af19"
+    },
+    {
+      "path": "skills/cycle-analysis-of-directed-acyclic-graph/references/antichains-and-hierarchical-coordinates.md",
+      "sha256": "0f878b868562d04427979d24e0c86ef984d6a1e16f4a642e2d5a79098d13f2da"
+    },
+    {
+      "path": "skills/cycle-analysis-of-directed-acyclic-graph/references/dag-decomposition-for-hierarchical-reasoning.md",
+      "sha256": "0ce825276fe461c4a929cd864b5609c90ddf3b69f0c6d08d09867de846a199a3"
+    },
+    {
+      "path": "skills/cycle-analysis-of-directed-acyclic-graph/references/transitive-reduction-information-minimization.md",
+      "sha256": "327a9841bb235bcf503d94d482ff0844a4794e68a392d7d38b1e3ab9861253d2"
+    },
+    {
+      "path": "skills/decision-models-from-the-field/references/mental-simulation-as-evaluation-method.md",
+      "sha256": "d11dc44f25779cf7ad10b9aaddcf66690d4d647e9b2b1091ce2cb6eb60eadb80"
+    },
+    {
+      "path": "skills/decision-models-from-the-field/references/the-cognitive-continuum-and-strategy-selection.md",
+      "sha256": "559a95b697f539457a3cd1d79ba22e186ef4495aa7a8e8cba03d6cbd52b97d3e"
+    },
+    {
+      "path": "skills/decision-models-from-the-field/references/the-gap-between-laboratory-and-field-decision-making.md",
+      "sha256": "d986c123f0a0f01cf45a2073fd2a0968bc9bacf552cb1daee5318eef0dadeb7d"
+    },
+    {
+      "path": "skills/decision-models-some-lessons-from-the-fi/references/mental-simulation-as-evaluation-method.md",
+      "sha256": "d11dc44f25779cf7ad10b9aaddcf66690d4d647e9b2b1091ce2cb6eb60eadb80"
+    },
+    {
+      "path": "skills/decision-models-some-lessons-from-the-fi/references/the-cognitive-continuum-and-strategy-selection.md",
+      "sha256": "559a95b697f539457a3cd1d79ba22e186ef4495aa7a8e8cba03d6cbd52b97d3e"
+    },
+    {
+      "path": "skills/decision-models-some-lessons-from-the-fi/references/the-gap-between-laboratory-and-field-decision-making.md",
+      "sha256": "d986c123f0a0f01cf45a2073fd2a0968bc9bacf552cb1daee5318eef0dadeb7d"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/_raw_response.md",
+      "sha256": "675742d28d0638e272825e627b782de0f2afff3360c9f1770e053220ff1a894b"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/references/consistency-models-and-coordination-costs.md",
+      "sha256": "055a53f7aee0b2f255c1edc9f80562d068a570a83b4501b703d720ed328656f7"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/references/distributed-transactions-and-coordination.md",
+      "sha256": "2f4e41cc1aecaeafeb2aa32940470c8aedc22236ea450a10b8c21e495f8f457b"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/references/immutability-determinism-and-debuggability.md",
+      "sha256": "5461969b9b378f0fd6174a653243d9d930153a89445b385ec982c4dd79d62fbf"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/references/load-parameters-and-scalability.md",
+      "sha256": "3910cf79e67fcb8cc2479ecf24469e6226145cabaa9f72faae2cb98087e6db43"
+    },
+    {
+      "path": "skills/desktop-window-layout-architect/CHANGELOG.md",
+      "sha256": "35e18bf65f1ef1168a11683d57966fc6a8a4a056fea9ccda0a67caaf5df28c30"
+    },
+    {
+      "path": "skills/desktop-window-layout-architect/SKILL.md",
+      "sha256": "279cd95a7869e03d6edae796e5b4bf33ff15bd29e9eda33cdacec96428b15011"
+    },
+    {
+      "path": "skills/desktop-window-layout-architect/examples/windags-review-workspace.md",
+      "sha256": "4b746267206ed9552a4560d717651eefe135a9b767a106c4bf7d741f17f2cdbb"
+    },
+    {
+      "path": "skills/empirical-systems-evaluation/references/evaluation-validity.md",
+      "sha256": "97b35e0a503cb1fa1ca91c4f937a78b24be642a6550886d589abc872eea4f2c4"
+    },
+    {
+      "path": "skills/epistemic-coverage-scan/CHANGELOG.md",
+      "sha256": "d2e98fcb1f26a0b7365064c0825b1f59aaa76b0f14511e618f568f288a322798"
+    },
+    {
+      "path": "skills/epistemic-coverage-scan/SKILL.md",
+      "sha256": "95e880f72311fdc8b304a7b927902cd038909c993c15ef5352f63f6e177e6ade"
+    },
+    {
+      "path": "skills/epistemic-coverage-scan/affordance-scorecard.json",
+      "sha256": "ec422fde28c0c37d0def34fca71f805c7451d96a6d1a12474431bdea98ba8c76"
+    },
+    {
+      "path": "skills/evaluating-rapport-based-approach/references/information-extraction-as-indirect-problem.md",
+      "sha256": "152ffdb776a01352006868dc7e16cc77ad1e050a14fe38d0f1d0e626f3d26ef6"
+    },
+    {
+      "path": "skills/evaluating-the-benefits-of-a-rapport-bas/references/information-extraction-as-indirect-problem.md",
+      "sha256": "152ffdb776a01352006868dc7e16cc77ad1e050a14fe38d0f1d0e626f3d26ef6"
+    },
+    {
+      "path": "skills/expected-free-energy-action-selection/CHANGELOG.md",
+      "sha256": "c4d6f376e4dbd3a041bce77bbc74b072162b5a820bd7434314a36b3c972875c3"
+    },
+    {
+      "path": "skills/expected-free-energy-action-selection/SKILL.md",
+      "sha256": "4767b36f57b1a1bff90bb883534db4638857177a74f0d5f5c219899ef347d5c5"
+    },
+    {
+      "path": "skills/expected-free-energy-action-selection/affordance-scorecard.json",
+      "sha256": "3deeb52cd4338158c05923806751215bb2e831bf1eff6d065d376ac1c7cfb146"
+    },
+    {
+      "path": "skills/helm-liang-2022/_raw_response.md",
+      "sha256": "96132a7fcf6267b8ccf859fb4ea4ef947b04a274835385d3e3e99ca6a7d6f506"
+    },
+    {
+      "path": "skills/helm-liang-2022/references/helm-benchmark-as-social-artifact.md",
+      "sha256": "c6a7fb2a672d20ef3e9f480cf910c8c453eb7dcd3cde2e32d75c79b520ab5596"
+    },
+    {
+      "path": "skills/helm-liang-2022/references/helm-multi-metric-evaluation-framework.md",
+      "sha256": "395be7b53b92e082ae6cad714237125f00dc4cd1d7b556e84cb1dcb51bec13e1"
+    },
+    {
+      "path": "skills/helm-liang-2022/references/helm-standardization-comparability.md",
+      "sha256": "f262d95390349f237e363dfb22fe13b06ed77571c23a8b963e745c63eaaa8897"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/_raw_response.md",
+      "sha256": "efc7bc0dd6c20b9397712b54bf9999ec30450335d0e36ad6b78b40199f9978df"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/bayesian-affordance-models-for-action-selection.md",
+      "sha256": "9f855421f43cd89462f8ab6797a3907e0be0b686a1d3f8591db83750e49cdd35"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/control-affordances-as-knowledge-representation.md",
+      "sha256": "3dc6e28df2ffede50d5388e61987c4fba17ada128c35c51cff04b3d0c78fd9c5"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/hierarchical-abstraction-for-problem-decomposition.md",
+      "sha256": "78088c0d3980cb8de96ce9a3772193f7a2eb86a10c0b88e4fbf8d474a42ea223"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/hierarchical-composition-and-nullspace-projection.md",
+      "sha256": "423ecf19d4ee98b93a22b7615954d8bf93f041a9bf588331d9c9d5d27f40c7b2"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/information-theoretic-action-selection-under-uncertainty.md",
+      "sha256": "ba897788cbbf0e7bc3b2359a4e8ec0494c7109bd1edc728eea4579dfda794e14"
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/references/intrinsic-motivation-for-skill-acquisition.md",
+      "sha256": "c47b17fcbb0344d7c5dc76ff1143a926b2751d9c85c494eb885c292fcf891b5f"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/_raw_response.md",
+      "sha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/attention-as-the-primary-yield-driver.md",
+      "sha256": "cbeb0f041e22d64a5e492abb3704794b2ebfc760c3854018b0cfb0b244a99153"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/attention-dominates-yield-active-processing-over-warmth.md",
+      "sha256": "189495ac503bd803bd60ce8ce6ab2ee6ae76eaf5e6202f61393ae1da67492ae9"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/coordination-shared-goal-structure-enables-transfer.md",
+      "sha256": "6eee6d96b1f796ee6c8d920e32b0d7f2f7d3d3a37694164d8bedd92e44836506"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "sha256": "f913f578c11f2aaf5125ba7cee0050c639100d22ca9bfb7b889e052c9d0d8a93"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/objective-measurement-vs-subjective-rating.md",
+      "sha256": "290743e58fc9d17dacd6e2f66a169a7326205aeba40a8f6eae190789dc20770a"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/rapport-as-behavioral-frequency-not-feeling.md",
+      "sha256": "d5890f3ff57eed0572c509803a6a4688e1f71094cbf27c8735db7b2077bc1c66"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/rapport-decomposition-and-differential-impact.md",
+      "sha256": "3cc4e4ee8b164dff352d249f59b5822998ad3403fa80b2469420bfee71c268a4"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/self-report-gap-behavioral-auditing-vs-perceived-practice.md",
+      "sha256": "8993576a48faa3c3dc1393559e27f8681e70249fff8745a7cabed9dd4ff10998"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/references/self-report-vs-behavior-gap.md",
+      "sha256": "057a565c094fd8d8654a580d8cac3cea903c5262f035410dff14b46ae70314b4"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/_raw_response.md",
+      "sha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/coordination-failure-modes-in-multi-agent-crisis-systems.md",
+      "sha256": "544b47373969d378fab80fa01059285676f621acb41fd8c6f827c5b8bf93d6fc"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/crisis-decision-pathologies-in-complex-systems.md",
+      "sha256": "8e05f5e3edf0a04c499db182b92426f788abb4de088bc3cc61c603d0b55c74fc"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/epistemic-uncertainty-and-information-triage-in-crisis-systems.md",
+      "sha256": "2d0f94ade38356528efd0d52e4328c9251ea85c47539825b9d479788652497e0"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/generalisation-discrimination-and-expertise-boundaries.md",
+      "sha256": "e9699fa90b17aa6719ee9d1e98a392c56d8f58e10de85983c1300e4b8e241177"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/novice-to-expert-progression-in-agent-capability.md",
+      "sha256": "b099b5fcc20da92c1d7415dd90ce5bc408a861a477b6fd1f778d384164937362"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "7847d5ef23184d8b9b39ec8e24fa652ecc024eefd3d0186bd4e2339db1c60ac6"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/skill-rule-knowledge-behavior-hierarchy.md",
+      "sha256": "e82cde3ad9bb379980fb660ad088d87287eb8bac31e695d33d6c620c11176cb1"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/the-knowing-doing-gap-in-crisis-management.md",
+      "sha256": "bd1e4cf667226581c842f18dadeccbe16473f13a10f0aa80159a0315bf729197"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/the-retrospective-distortion-problem-for-agent-learning.md",
+      "sha256": "7870b0189888b65ea92625f10827b0eb5ba7f3adf03ac12f4aedcea4e17f974f"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/the-theory-practice-gap-in-crisis-decision-research.md",
+      "sha256": "dc6a67edde278680662314bdccc39ba27e7d9cf31284ce70d7557f5abaa1cf12"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/references/three-behavior-levels-for-agent-routing.md",
+      "sha256": "fc0be8ba00c44c6e62097dff993ae93ef7475e9d31866c609babe0d3503df87d"
+    },
+    {
+      "path": "skills/incident-command-decisions/_raw_response.md",
+      "sha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/coordination-failure-modes-in-multi-agent-crisis-systems.md",
+      "sha256": "544b47373969d378fab80fa01059285676f621acb41fd8c6f827c5b8bf93d6fc"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/crisis-decision-pathologies-in-complex-systems.md",
+      "sha256": "8e05f5e3edf0a04c499db182b92426f788abb4de088bc3cc61c603d0b55c74fc"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/epistemic-uncertainty-and-information-triage-in-crisis-systems.md",
+      "sha256": "2d0f94ade38356528efd0d52e4328c9251ea85c47539825b9d479788652497e0"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/generalisation-discrimination-and-expertise-boundaries.md",
+      "sha256": "e9699fa90b17aa6719ee9d1e98a392c56d8f58e10de85983c1300e4b8e241177"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/novice-to-expert-progression-in-agent-capability.md",
+      "sha256": "b099b5fcc20da92c1d7415dd90ce5bc408a861a477b6fd1f778d384164937362"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "7847d5ef23184d8b9b39ec8e24fa652ecc024eefd3d0186bd4e2339db1c60ac6"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/skill-rule-knowledge-behavior-hierarchy.md",
+      "sha256": "e82cde3ad9bb379980fb660ad088d87287eb8bac31e695d33d6c620c11176cb1"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/the-knowing-doing-gap-in-crisis-management.md",
+      "sha256": "bd1e4cf667226581c842f18dadeccbe16473f13a10f0aa80159a0315bf729197"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/the-retrospective-distortion-problem-for-agent-learning.md",
+      "sha256": "7870b0189888b65ea92625f10827b0eb5ba7f3adf03ac12f4aedcea4e17f974f"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/the-theory-practice-gap-in-crisis-decision-research.md",
+      "sha256": "dc6a67edde278680662314bdccc39ba27e7d9cf31284ce70d7557f5abaa1cf12"
+    },
+    {
+      "path": "skills/incident-command-decisions/references/three-behavior-levels-for-agent-routing.md",
+      "sha256": "fc0be8ba00c44c6e62097dff993ae93ef7475e9d31866c609babe0d3503df87d"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/_raw_response.md",
+      "sha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/algorithms-vs-human-judgment-when-to-use-which.md",
+      "sha256": "991494758ec5ad41b0d20e0ab91e6027ca023987cb0ba14bfb8b2e7a90de9892"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/algorithms-vs-intuition-routing-framework.md",
+      "sha256": "7b609b06f94065dc89db012e1fbb15240f9b024d1168f565be17531269d5d0b6"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/environmental-validity-as-trust-signal.md",
+      "sha256": "24d94b8245b0aa26ad6fa710fe84c5c0807276a5157a57db96090ad0d47bd863"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/fractionated-expertise-and-scope-boundaries.md",
+      "sha256": "91c9268fd4223117bb951eadcd57c9e11a5617fdb13749c265221463991f1151"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/fractured-expertise-and-domain-boundary-detection.md",
+      "sha256": "8c7d4df9e5748d52ea6960e7a3a5ea611877a513111a91c53561766b27bc808f"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/recognition-primed-decision-as-agent-architecture.md",
+      "sha256": "e0d8a45cf755329a1f9edff6f9aa7167b02deb103ce0d7065b62959274ed0bb8"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/recognition-primed-decision-making-for-agents.md",
+      "sha256": "55be57d5aa6a2306527313b43aecd0fcf075d529a0d3d5c578f51e1ee9dc9849"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/system1-system2-and-dual-mode-agent-architecture.md",
+      "sha256": "34cafe2a55114f406ca7c7e8347c5dfc628fc31537ae629dc0743d6fff34f51d"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/the-boundary-problem-knowing-when-not-to-trust-yourself.md",
+      "sha256": "867923e0ec108c8960d11df2e36088f6de95cc26a46574d3901c7eb4c9d8ca04"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/two-systems-in-orchestration.md",
+      "sha256": "2b1129c528a15596d185bccf9b1d44a5b33c780f0bbf6a4ed1ef036c1fcc17e2"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/references/validity-environment-and-agent-trust.md",
+      "sha256": "58353712e4b53cbc6c95fcc3fd4568318d547c33b7a8d1af1af17f297d895ece"
+    },
+    {
+      "path": "skills/kephart-chess-2003-autonomic-computing/_raw_response.md",
+      "sha256": "81943e3b0cc1633242f6e07b8b2368a2d657a4b99f6e14d4d874fc6f02ab8bc2"
+    },
+    {
+      "path": "skills/kephart-chess-2003-autonomic-computing/references/blame-attribution-and-system-accountability.md",
+      "sha256": "7cba83a13dbd4147fb633a6fe407f0383feac9637c0a587aabb1d408c7554992"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/_raw_response.md",
+      "sha256": "74b88598c56c45e2801eb80b5eeeb7da21ecacbb2914ef90365622827b7ba9f8"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/bootstrapping-through-trace-analysis.md",
+      "sha256": "ec18e6f74b5d3df38c9427bd0dae9dd36dd915a02b1817ef0c9bb785dd649ebb"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/compiler-based-optimization-for-pipelines.md",
+      "sha256": "f24ce618368e554630baebed45456e793ddd33596fc47932d53d1ff378822c89"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/declarative-signatures-vs-imperative-prompts.md",
+      "sha256": "1022c721a763f5aaa8f5b5c7cdfad02260069d706d018660cb86855bce839530"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/failure-modes-and-recovery-strategies.md",
+      "sha256": "1cae183b7627d193952aad81db030f6c066bba77f8e3111713b1cc2327f59823"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/knowledge-vs-execution-gap.md",
+      "sha256": "8c213bfe8b19708e3bed066899566bf4c519c02d383cdd851658284ff46932d9"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/references/modular-composition-in-complex-systems.md",
+      "sha256": "64203ff0855471ff3d133d3b02d01f82416dda76db5e05b8e4cb460bc670c1ce"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/_raw_response.md",
+      "sha256": "675742d28d0638e272825e627b782de0f2afff3360c9f1770e053220ff1a894b"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/references/consistency-models-and-coordination-costs.md",
+      "sha256": "055a53f7aee0b2f255c1edc9f80562d068a570a83b4501b703d720ed328656f7"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/references/distributed-transactions-and-coordination.md",
+      "sha256": "2f4e41cc1aecaeafeb2aa32940470c8aedc22236ea450a10b8c21e495f8f457b"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/references/immutability-determinism-and-debuggability.md",
+      "sha256": "5461969b9b378f0fd6174a653243d9d930153a89445b385ec982c4dd79d62fbf"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/references/load-parameters-and-scalability.md",
+      "sha256": "3910cf79e67fcb8cc2479ecf24469e6226145cabaa9f72faae2cb98087e6db43"
+    },
+    {
+      "path": "skills/knowledge-distillation-a-survey/_raw_response.md",
+      "sha256": "68e81a41cab8225b8ac26ce35bd0c93ba34bc10e94f7c89b26d8445b7cca98df"
+    },
+    {
+      "path": "skills/knowledge-distillation-a-survey/references/failure-modes-in-knowledge-transfer.md",
+      "sha256": "0fcc37253513f1ae875a33919b675c9d02ac29ccb7817653f83a2b5ad81fc839"
+    },
+    {
+      "path": "skills/knowledge-distillation-a-survey/references/knowledge-types-for-intelligent-decomposition.md",
+      "sha256": "7c65bb000f050b712c7a84594e17721efb2582fd49adeed90ebe28b0a2f02b26"
+    },
+    {
+      "path": "skills/knowledge-distillation-a-survey/references/self-distillation-and-internal-refinement.md",
+      "sha256": "fea5770cfd9d0d845633625e881e76ef215cae59ef2eeb44662d6df2f372cd74"
+    },
+    {
+      "path": "skills/knowledge-distillation-survey/_raw_response.md",
+      "sha256": "68e81a41cab8225b8ac26ce35bd0c93ba34bc10e94f7c89b26d8445b7cca98df"
+    },
+    {
+      "path": "skills/knowledge-distillation-survey/references/failure-modes-in-knowledge-transfer.md",
+      "sha256": "0fcc37253513f1ae875a33919b675c9d02ac29ccb7817653f83a2b5ad81fc839"
+    },
+    {
+      "path": "skills/knowledge-distillation-survey/references/knowledge-types-for-intelligent-decomposition.md",
+      "sha256": "7c65bb000f050b712c7a84594e17721efb2582fd49adeed90ebe28b0a2f02b26"
+    },
+    {
+      "path": "skills/knowledge-distillation-survey/references/self-distillation-and-internal-refinement.md",
+      "sha256": "fea5770cfd9d0d845633625e881e76ef215cae59ef2eeb44662d6df2f372cd74"
+    },
+    {
+      "path": "skills/knowledge-elicitation-of-recognition-pri/references/decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "sha256": "8371b41b5a47c5c2388a8f4846f1ad79a82ba3f716f67377f3aa4e87cc4e71cd"
+    },
+    {
+      "path": "skills/knowledge-elicitation-of-recognition-primed-decisions/references/decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "sha256": "8371b41b5a47c5c2388a8f4846f1ad79a82ba3f716f67377f3aa4e87cc4e71cd"
+    },
+    {
+      "path": "skills/lakatos-degeneracy-detector/CHANGELOG.md",
+      "sha256": "74c6952c1ee5840dff119941610d1ef03a46e961d72f50965faf627c44b21a25"
+    },
+    {
+      "path": "skills/lakatos-degeneracy-detector/SKILL.md",
+      "sha256": "3f1482e6c23dafc0bf08bf6e418b3180de0003ea7f20d3d10eba378cf04d0757"
+    },
+    {
+      "path": "skills/lakatos-degeneracy-detector/affordance-scorecard.json",
+      "sha256": "9336e9e7978fea97daacdcfa6b25f8c3dac486c1ac44a10af00e77b30ba97142"
+    },
+    {
+      "path": "skills/lakatos-degeneracy-detector/references/operationalizing-degeneracy.md",
+      "sha256": "98d46cbcb44dcb6008a332a90bcafcd03aca896ae3c37082d30d71ac05d1a1d5"
+    },
+    {
+      "path": "skills/lakatos-degeneracy-detector/references/selection-pressure-for-skills.md",
+      "sha256": "7c9eb91ee21862793e71fb8caedb17fa8c8659e82493a5bb584ec0fb256a0add"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/_book_identity.json",
+      "sha256": "f4b3a3268a31466a13eb52ce851fa094950bae065ba98f69453a7e6b47252331"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/_raw_response.md",
+      "sha256": "6468ac0dbd24a0f6d4989780fff99a146117a509b45473a2ebd1f1d6bd3e94cc"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/benchmark-complementarity-evaluation-design.md",
+      "sha256": "3903fccea3375a7b7346b9440f22185354d9d2f24992d97223a44b7abb9c0e31"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/crowdsourced-vs-controlled-evaluation.md",
+      "sha256": "c385fa274975374ef65905bd96ac9ec528a747de4b99e26735376ab8f30321ef"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/failure-modes-in-automated-evaluation-systems.md",
+      "sha256": "8d4df63a06ac74282e69d0292b5287a0f4d967395f9ec54bdda84e27ce682bfb"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/judge-vs-solve-capability-gap.md",
+      "sha256": "edf3f7468b1727ce6e2fd9cd76902f4979528041ef35be3ca9c354c9b14e9a36"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/llm-judge-bias-taxonomy.md",
+      "sha256": "52d70704662a6079efdfb6e8f9f5cb6278bca61d95479fe42e7aead8967fecef"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/scalable-explainable-evaluation-architecture.md",
+      "sha256": "d1774a6e51448b16e151f7d8136bf1323b632e8db782d591542fd57eeb4c9045"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/references/the-quality-gap-between-raw-capability-and-aligned-output.md",
+      "sha256": "7e2e2ca13c2fd6cdcf6b5c0b6b9d235daa64f0118fefe4965e6eb903711d8750"
+    },
+    {
+      "path": "skills/llm-evaluation-harness/references/skill-efficacy.md",
+      "sha256": "81b214806e9034a738a0e198e7902f3164a311f4eb6620073d57abf43c82d57d"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neura/_raw_response.md",
+      "sha256": "a60eb2237d591482abc3c50e0b79d5c1215eff0b0957836bc0a27c5dbb75c1f7"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neura/references/asynchronous-heterogeneous-architecture.md",
+      "sha256": "05a7a6f44611eeaed13dd99d08ebf490bcff2012165c62569a73a6e1ae81fb3c"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neura/references/cascading-approximation-architecture.md",
+      "sha256": "6b0cbce901b991c9ebff112edc654a2f5e5f56a9b7dda277d9644b166b75aa78"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neural-networks/_raw_response.md",
+      "sha256": "a60eb2237d591482abc3c50e0b79d5c1215eff0b0957836bc0a27c5dbb75c1f7"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neural-networks/references/asynchronous-heterogeneous-architecture.md",
+      "sha256": "05a7a6f44611eeaed13dd99d08ebf490bcff2012165c62569a73a6e1ae81fb3c"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neural-networks/references/cascading-approximation-architecture.md",
+      "sha256": "6b0cbce901b991c9ebff112edc654a2f5e5f56a9b7dda277d9644b166b75aa78"
+    },
+    {
+      "path": "skills/mediator-expertise-live-interview-meli/references/community-of-practice-design-for-agent-coordination.md",
+      "sha256": "c7419421d71f85e3c02dcc1cf75dd321f890c5e3c1091e2586abe0d0fa772e68"
+    },
+    {
+      "path": "skills/mediator-expertise-live-interview-method/references/community-of-practice-design-for-agent-coordination.md",
+      "sha256": "c7419421d71f85e3c02dcc1cf75dd321f890c5e3c1091e2586abe0d0fa772e68"
+    },
+    {
+      "path": "skills/mermaid-graph-writer/references/diagram-types.md",
+      "sha256": "8e8ea8d2dd728771ae65de642a342bb4d1242176dcb0a0293ecc01dc11591e74"
+    },
+    {
+      "path": "skills/mythical-man-month/_raw_response.md",
+      "sha256": "b93fdd685b61891b19437b74ecc2c5bf3bfc72e2e7e5809a3f650f89a58f22e9"
+    },
+    {
+      "path": "skills/mythical-man-month/references/communication-overhead-and-the-mythical-man-month.md",
+      "sha256": "bad232ba3bd8fcbd1856a7f4790bdcd59d7b6af3a0bc292d3077d1b22af27652"
+    },
+    {
+      "path": "skills/mythical-man-month/references/surgical-team-model-for-agent-coordination.md",
+      "sha256": "e2cfc2080ef01ae4aa54cce264447377db843b83e0112b727adb6ae0a63d2d35"
+    },
+    {
+      "path": "skills/nasa-2017-systems-engineering-handbook/_raw_response.md",
+      "sha256": "e53f6a94244f0f6495c61c62b185c266f7f654294c19a40dc59dcdce22173a4c"
+    },
+    {
+      "path": "skills/nasa-2017-systems-engineering-handbook/references/configuration-management-as-cognitive-infrastructure.md",
+      "sha256": "d5a10a1b3f35dfc97532c63cba164871b9fc08314c2d32475c4200ff81174b97"
+    },
+    {
+      "path": "skills/nasa-2017-systems-engineering-handbook/references/recursive-decomposition-engine.md",
+      "sha256": "9a5f5a60cf2dc221da4656acb277c58be0f7d6a7c3098f3963c375b3d982d828"
+    },
+    {
+      "path": "skills/nasa-2017-systems-engineering-handbook/references/tailoring-as-governance.md",
+      "sha256": "a5b6b86e6884358eff6ca7c12549b9645e8cf4bf3e20f8958e9cccdfcadbb308"
+    },
+    {
+      "path": "skills/naturalistic-decision-making/_raw_response.md",
+      "sha256": "b1ae8cff1b0fcbdf8be598b3e459bd7ab97c2c6dfffa724c379c7c8a600e0c75"
+    },
+    {
+      "path": "skills/naturalistic-decision-making/references/experience-accumulation-expert-knowledge-architecture.md",
+      "sha256": "327e0ba164c31c27d88b0ac207c3b34541ceec951c245f3687bf27a4a521d306"
+    },
+    {
+      "path": "skills/naturalistic-decision-making/references/team-coordination-without-central-control.md",
+      "sha256": "84be5a121fcd8c858b5ae103fb9c8a1c52dd0e204fa3078f480eced9f474da80"
+    },
+    {
+      "path": "skills/ndm-decision-models/references/mental-simulation-as-evaluation-method.md",
+      "sha256": "d11dc44f25779cf7ad10b9aaddcf66690d4d647e9b2b1091ce2cb6eb60eadb80"
+    },
+    {
+      "path": "skills/ndm-decision-models/references/the-cognitive-continuum-and-strategy-selection.md",
+      "sha256": "559a95b697f539457a3cd1d79ba22e186ef4495aa7a8e8cba03d6cbd52b97d3e"
+    },
+    {
+      "path": "skills/ndm-decision-models/references/the-gap-between-laboratory-and-field-decision-making.md",
+      "sha256": "d986c123f0a0f01cf45a2073fd2a0968bc9bacf552cb1daee5318eef0dadeb7d"
+    },
+    {
+      "path": "skills/next-move-customer-persona/SKILL.md",
+      "sha256": "696a11954f7751ab46953a598590e2242825348eeabc02f5ef5d036a9dc9ae55"
+    },
+    {
+      "path": "skills/next-move-marketing/SKILL.md",
+      "sha256": "e8d80bc4e2b5cf0e13facb97b970f17a99d7e38befeca001b74cced85d662a17"
+    },
+    {
+      "path": "skills/next-move/CHANGELOG.md",
+      "sha256": "0b4ad7ee9b4327e92185732f579048e772a516ff102eaaa85f82788e537fd402"
+    },
+    {
+      "path": "skills/next-move/INDEX.md",
+      "sha256": "4ba54fcc3ce0fa8572f9b7d4c37d0c6940903619e74d4b4356d87cc970ad1b80"
+    },
+    {
+      "path": "skills/next-move/affordance-scorecard.json",
+      "sha256": "1c9d262666794977038d854ed1d49013c76e75c0ccd41404aa0305049f1415c4"
+    },
+    {
+      "path": "skills/next-move/agents/INDEX.md",
+      "sha256": "1dc2a9d1da63a178461c62db1b7be0ec2557819e4ecfb92285a190325d40b0a1"
+    },
+    {
+      "path": "skills/next-move/agents/decomposer.md",
+      "sha256": "3485a882435a8b2bd58e99116f7246b41e62ba2a5dda129b74dbbd26e1444573"
+    },
+    {
+      "path": "skills/next-move/agents/premortem.md",
+      "sha256": "19273cd782b9c2f58167d91e8af79308915e916fdc4de0ef3e542ec3191f8df1"
+    },
+    {
+      "path": "skills/next-move/agents/sensemaker.md",
+      "sha256": "b676ee4a28da3fc1bd478b2897c99dfded7f29a28ca8e581df33e35c018b5647"
+    },
+    {
+      "path": "skills/next-move/agents/skill-selector.md",
+      "sha256": "d02dd27b42f7a5e6fdf9e9744e30501f619c74eeb42a20dd4bb835116a7e2f90"
+    },
+    {
+      "path": "skills/next-move/examples/01-feature-delivery-happy-path.md",
+      "sha256": "6048dcc6ba6909260730995ae35988b3405e1b7db79f93c50ef0e9e2a8bdbc8e"
+    },
+    {
+      "path": "skills/next-move/references/INDEX.md",
+      "sha256": "79b6a6885a872ee2bdbb8cbe64e89eaa41f3809e189217c5f56b587a9d67e58b"
+    },
+    {
+      "path": "skills/next-move/references/failure-modes.md",
+      "sha256": "914794c211701b5a48ddf210522d6c7383e23e4d7f25839b7f6c3f532f707e93"
+    },
+    {
+      "path": "skills/next-move/references/halt-gate-discipline.md",
+      "sha256": "e65271466ec808dd7409529fb3f5a721073b33081bdd003395174714cbd260b5"
+    },
+    {
+      "path": "skills/next-move/references/runtime-honesty.md",
+      "sha256": "74e60c6c3402d74b81645a911246dbd1c6d65e125bd390395abe024d4a392d68"
+    },
+    {
+      "path": "skills/next-move/references/triple-feedback-loop.md",
+      "sha256": "1443a037d4254ea6f75dc13c485efc7c18716faeffd454a7774570f1f53882e8"
+    },
+    {
+      "path": "skills/next-move/schemas/INDEX.md",
+      "sha256": "297ee09568c4591c887ee2d072c6778df23473f988a832818f84a4c24c5165c8"
+    },
+    {
+      "path": "skills/next-move/schemas/decomposer-output.schema.json",
+      "sha256": "561a3e51fb7d219723cedf566830a011963f815270c509bdacfc87af100bb1ce"
+    },
+    {
+      "path": "skills/next-move/schemas/human-feedback.schema.json",
+      "sha256": "250f8a8fa3b1afb641f8c2befcaaf8e7810b49ef1880366babf4fe6c0f0e73c6"
+    },
+    {
+      "path": "skills/next-move/schemas/predicted-dag.schema.json",
+      "sha256": "8ae797aa18abbbd8eb25b9ec0305947d3cb8713d2dbf6ee136366bcd62e18b1f"
+    },
+    {
+      "path": "skills/next-move/schemas/premortem-output.schema.json",
+      "sha256": "a3c82c9db8b595d90e1232f09aeb2269889da0635d0408ca91761ef15a3ffaf3"
+    },
+    {
+      "path": "skills/next-move/schemas/sensemaker-output.schema.json",
+      "sha256": "e3a370e7636ec9f7a419bd231de04e1830060a641fc7e97a06f78071b599fca2"
+    },
+    {
+      "path": "skills/next-move/schemas/triple.schema.json",
+      "sha256": "fff4d90104502b96745afada3b51de4c90ac3b378197daf46db3c20bcc680f3d"
+    },
+    {
+      "path": "skills/next-move/scripts/dump-attribution.ts",
+      "sha256": "5528db1a696a017581b73a1f2b4e7f2b9fba66265ef32aa99e52fe314b84fa32"
+    },
+    {
+      "path": "skills/next-move/scripts/replay-triple.sh",
+      "sha256": "f47a7d6a2d64ece5748d092bb8e4b053a77190c877c220b2a846a0b7c08e64f9"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/_raw_response.md",
+      "sha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/references/maximal-non-conflicting-subsets-for-action-selection.md",
+      "sha256": "0994d9b48ff5659b090659f8ea05a053bd330406a4fa4177159c0ee6da0dc099"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/references/norm-instantiation-through-belief-grounding.md",
+      "sha256": "2114d3f33f026bcf02b8a59b169c25187f6ac4c6a4b3e39b455b07b9cf4813c2"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/references/normative-conflict-resolution-through-consequence-ranking.md",
+      "sha256": "d0051ab84afc9731344bf6fdc88a6b82c0350c79541bd8fa91699cd38dc9b4d7"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/references/separation-of-norm-recognition-and-norm-internalization.md",
+      "sha256": "e1996719901a858debcc44b6d2b09b9b1f8ec6d8dfcf901015a310579c456b54"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/references/three-types-of-consistency-for-norm-adoption.md",
+      "sha256": "3eb3c4b5d6f05a9ff1d170d42aff2a2fa1058c3f842c9b905d460c0b824c4f80"
+    },
+    {
+      "path": "skills/nygard-2018-release-it-2nd-edition/_raw_response.md",
+      "sha256": "d154ed927e59cd606989113c417a4df916a2496ea3c382b4a7ca483c504ca02a"
+    },
+    {
+      "path": "skills/nygard-2018-release-it-2nd-edition/references/failure-propagation-mechanics.md",
+      "sha256": "0c2b32311f34b91737c442878b761d3132f5b40e04dd834faf84e4b515518e60"
+    },
+    {
+      "path": "skills/nygard-2018-release-it-2nd-edition/references/production-scale-antipatterns.md",
+      "sha256": "5b57d9ec5a6ef4d16b23f53eb8f5db43e15a2e536f5a73b8d31aa930775de0bc"
+    },
+    {
+      "path": "skills/nygard-2018-release-it-2nd-edition/references/zero-downtime-deployment-architecture.md",
+      "sha256": "47b1823455c3cb49c6800ff0a8a9d353cf2c783ea9a3b7c4a870d44d949faf79"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/CHANGELOG.md",
+      "sha256": "c823f982b82b4eef8e48faae8a6a871a3157770bb8ad5c3a346767d752e6935e"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/SKILL.md",
+      "sha256": "37083bb897659beb8434510216a54fffbd103b0ada56ef47d446ed56cf909d8c"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/affordance-scorecard.json",
+      "sha256": "722d7be480c419cb59207bab0683b6ca96c27349fb74cbd794780c07949d65d9"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/agents/default-agent.md",
+      "sha256": "ab5d58a681755a773185fd051657c0b7842db053758d407b96aadd34bbdf1a4c"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/diagrams/01_flowchart_decision-points.md",
+      "sha256": "0d685960454b465225dc5d38a95debd2e9085845b5405aee27ea9d8b164e4ec6"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/examples/01_worked_example.md",
+      "sha256": "73b7b6a4fe1cdf311813e31950fb4538badd08a7fd763d7eaa8828353b793fc3"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/references/bonds-require-well-defined-problems.md",
+      "sha256": "67689a777399f73e4637b9fdd2dbac1f3161a8a1f56bf68270e84f3ad66dc47d"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/references/halt-gate-implementation.md",
+      "sha256": "b14985b7bcc78500811eb7fa5f859089ecc0627b8fdee3a823989bb5583ba59b"
+    },
+    {
+      "path": "skills/pre-federation-halt-gate/references/polya-principal-parts.md",
+      "sha256": "330f6ece8c12b2183b058bb3bfb6d5f12c426e58f0480a41c1d272d6077b5728"
+    },
+    {
+      "path": "skills/rapport-based-elicitation/references/information-extraction-as-indirect-problem.md",
+      "sha256": "152ffdb776a01352006868dc7e16cc77ad1e050a14fe38d0f1d0e626f3d26ef6"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/_raw_response.md",
+      "sha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/attention-as-the-primary-yield-driver.md",
+      "sha256": "cbeb0f041e22d64a5e492abb3704794b2ebfc760c3854018b0cfb0b244a99153"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/attention-dominates-yield-active-processing-over-warmth.md",
+      "sha256": "189495ac503bd803bd60ce8ce6ab2ee6ae76eaf5e6202f61393ae1da67492ae9"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/coordination-shared-goal-structure-enables-transfer.md",
+      "sha256": "6eee6d96b1f796ee6c8d920e32b0d7f2f7d3d3a37694164d8bedd92e44836506"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "sha256": "f913f578c11f2aaf5125ba7cee0050c639100d22ca9bfb7b889e052c9d0d8a93"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/objective-measurement-vs-subjective-rating.md",
+      "sha256": "290743e58fc9d17dacd6e2f66a169a7326205aeba40a8f6eae190789dc20770a"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/rapport-as-behavioral-frequency-not-feeling.md",
+      "sha256": "d5890f3ff57eed0572c509803a6a4688e1f71094cbf27c8735db7b2077bc1c66"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/rapport-decomposition-and-differential-impact.md",
+      "sha256": "3cc4e4ee8b164dff352d249f59b5822998ad3403fa80b2469420bfee71c268a4"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/self-report-gap-behavioral-auditing-vs-perceived-practice.md",
+      "sha256": "8993576a48faa3c3dc1393559e27f8681e70249fff8745a7cabed9dd4ff10998"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/references/self-report-vs-behavior-gap.md",
+      "sha256": "057a565c094fd8d8654a580d8cac3cea903c5262f035410dff14b46ae70314b4"
+    },
+    {
+      "path": "skills/resolution-trace-damping/CHANGELOG.md",
+      "sha256": "0ee4aeb089c4837e6f1c3c047b2aa81e84553d1f91afee8fdfbc3d32264f0a15"
+    },
+    {
+      "path": "skills/resolution-trace-damping/SKILL.md",
+      "sha256": "de9ea6828730cdfb3ddcfc099f924df9524ed862e238ff31c9c35227cdb31082"
+    },
+    {
+      "path": "skills/resolution-trace-damping/affordance-scorecard.json",
+      "sha256": "5b71936bc37e7ff2c1aeeebeb4b2eb056913e20dc75f2449bd2990b5c08a8a58"
+    },
+    {
+      "path": "skills/rpd-knowledge-elicitation/references/decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "sha256": "8371b41b5a47c5c2388a8f4846f1ad79a82ba3f716f67377f3aa4e87cc4e71cd"
+    },
+    {
+      "path": "skills/runtime-task-overlap-detector/CHANGELOG.md",
+      "sha256": "0b6a3cde2eab6677657f03909de7f0674138453c1b5cf65cc508f0831d50aad9"
+    },
+    {
+      "path": "skills/runtime-task-overlap-detector/SKILL.md",
+      "sha256": "2350aa1061d189a1ea4a081298feb6e6cbf5c488e2b62e8b5b5f84fbcaaaa241"
+    },
+    {
+      "path": "skills/runtime-task-overlap-detector/affordance-scorecard.json",
+      "sha256": "5403ff6ec9c67feabae5599c3d64661c56868a3c0175a807cfb250193bc46bd7"
+    },
+    {
+      "path": "skills/self-adaptive-systems/_raw_response.md",
+      "sha256": "835c2253fb52282dec07ca4495bbe266997fbcc62ddfa2357412a8022be44675"
+    },
+    {
+      "path": "skills/self-adaptive-systems/references/formal-adaptation-goals.md",
+      "sha256": "2ca843975384a0d5d14b54cf748573accce6312f883fa1c5d93ab1fc310161f9"
+    },
+    {
+      "path": "skills/self-adaptive-systems/references/hierarchical-feedback-loops.md",
+      "sha256": "0edbab4bce3971d3fda3f4c466ad5287e6236d7e44e8d0d31657dca64f8e206c"
+    },
+    {
+      "path": "skills/seo-content-blogging/SKILL.md",
+      "sha256": "2ae2545c91996d3458bdccddbe4fa2e626688526836fc83c25f53bbaf7e700ae"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/_raw_response.md",
+      "sha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/calibration-driven-learning-for-agent-systems.md",
+      "sha256": "9ea4861343a5931b9c31eae0dcb3aa7df601834d06d42d5b0942a6eec2617609"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/constraint-as-cognitive-forcing-function.md",
+      "sha256": "5dfc4c69541c61405e4e260f516dcdc4ee96ae3283212b81c54575fdad251112"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/expert-consensus-without-ground-truth.md",
+      "sha256": "8dcf6871dae270157f87888647fbbbecce8982ec1ff9b4f5ee0e98e4f6cd2f0e"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/multi-dimensional-cognitive-assessment.md",
+      "sha256": "93f85146c5dcfcfec40c5bfd4af46408ad69bef4fe98a3ebb41c9e76135154e9"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/progressive-revelation-and-commitment.md",
+      "sha256": "dee1775e550ea416cb1569280bce2f4143cd5a6976302eec6e3812362b88a86d"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/references/scenario-based-expertise-transfer.md",
+      "sha256": "9d8732a3173eaa99ef5f6ca328c03f69160f625caa8d5575ee179e7891375220"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/_raw_response.md",
+      "sha256": "518719d68b3111df917f740cf1d11ef67dbc8134d61eccc681364d8f2e5eaf81"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/references/learning-and-problem-space-construction.md",
+      "sha256": "273991322eeca186684940a92d8f11ee1719f928e620a60b1a6641e9ba260ada"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/references/means-ends-analysis-as-special-case.md",
+      "sha256": "3522a6358acf1118d2ea10b1b3579f75d966066b4a77d19aca3ad833d036bcd9"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/references/selective-search-as-intelligence.md",
+      "sha256": "147e1bac229e6775f0850b6e0cda440dbd2726deec67dac2ed55e47e8093d903"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/references/serial-processing-constraints-shape-behavior.md",
+      "sha256": "17e1c9224472070c11ad663a437dc4852c68be3ee0204eb60c504f114c96de1f"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/references/task-environment-vs-problem-space.md",
+      "sha256": "dda820dc3ce2a972c4419a8c8bd76c1e9fbcd9c1c96c8b741b80df459b66ea83"
+    },
+    {
+      "path": "skills/skill-grader/references/efficacy-evaluation.md",
+      "sha256": "500ee4fb35346d4de08bf42553b125dc32cba57e0084d5ab79a6a60f7b10869a"
+    },
+    {
+      "path": "skills/someclaudeskills-strategy/CHANGELOG.md",
+      "sha256": "7bb9d9a244a27fe3ead84bea30a7f10f91fd8877e145417142dbeb90c6abd5fa"
+    },
+    {
+      "path": "skills/someclaudeskills-strategy/SKILL.md",
+      "sha256": "55a86df9fa3b266249a34564abd8bcd2336499def7996794675afacda3248bce"
+    },
+    {
+      "path": "skills/someclaudeskills-strategy/affordance-scorecard.json",
+      "sha256": "3f59272e05f5878588bbe3a1d1c3e4b91a047dbebb5dc5e7e36a598d30901659"
+    },
+    {
+      "path": "skills/state-of-cognitive-systems-engineering/references/cognition-distribution-coordination-without-central-control.md",
+      "sha256": "b0d10b063e6acbd7e93bc3c2df37b52c3efcde9bf3c985d764ab8ce6607bb321"
+    },
+    {
+      "path": "skills/state-of-cognitive-systems-engineering/references/linear-decomposition-failure-modes.md",
+      "sha256": "7229d9d7012c468aa5927e397c7d378850d01647cdd713cf34f4e8610b0242c6"
+    },
+    {
+      "path": "skills/tacit-expertise-elicitation/references/community-of-practice-design-for-agent-coordination.md",
+      "sha256": "c7419421d71f85e3c02dcc1cf75dd321f890c5e3c1091e2586abe0d0fa772e68"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
+      "sha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/references/critical-cue-inventories-for-agent-perception.md",
+      "sha256": "a07c0d3a42b73c9c0a4e4e8b1c2265b4a738ab390ba6b9a7fd1a1e53b223b2b2"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/references/expert-knowledge-two-layers.md",
+      "sha256": "b2164feba9ea809b218bd787c1ef215390ad147d5b91bf4a22d49e402807f435"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/references/goms-task-decomposition-for-agent-systems.md",
+      "sha256": "5de116710cf6109ba17c0bafde692870df6018f7e03f89162a51d90281b098e7"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/references/knowledge-elicitation-methodology-for-agent-capability-building.md",
+      "sha256": "e1d785da4bb88ffbe4bd4320c5afae76be7efcff71e212c32d461b0b278f306c"
+    },
+    {
+      "path": "skills/tech-launch-channels/SKILL.md",
+      "sha256": "17d135ba3d827afebfdba291dd42d4f223ed74ceb445a8537dbf5f2ac883d76a"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/_raw_response.md",
+      "sha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/attention-as-the-primary-yield-driver.md",
+      "sha256": "cbeb0f041e22d64a5e492abb3704794b2ebfc760c3854018b0cfb0b244a99153"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/attention-dominates-yield-active-processing-over-warmth.md",
+      "sha256": "189495ac503bd803bd60ce8ce6ab2ee6ae76eaf5e6202f61393ae1da67492ae9"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/coordination-shared-goal-structure-enables-transfer.md",
+      "sha256": "6eee6d96b1f796ee6c8d920e32b0d7f2f7d3d3a37694164d8bedd92e44836506"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "sha256": "f913f578c11f2aaf5125ba7cee0050c639100d22ca9bfb7b889e052c9d0d8a93"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/objective-measurement-vs-subjective-rating.md",
+      "sha256": "290743e58fc9d17dacd6e2f66a169a7326205aeba40a8f6eae190789dc20770a"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/rapport-as-behavioral-frequency-not-feeling.md",
+      "sha256": "d5890f3ff57eed0572c509803a6a4688e1f71094cbf27c8735db7b2077bc1c66"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/rapport-decomposition-and-differential-impact.md",
+      "sha256": "3cc4e4ee8b164dff352d249f59b5822998ad3403fa80b2469420bfee71c268a4"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/self-report-gap-behavioral-auditing-vs-perceived-practice.md",
+      "sha256": "8993576a48faa3c3dc1393559e27f8681e70249fff8745a7cabed9dd4ff10998"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/references/self-report-vs-behavior-gap.md",
+      "sha256": "057a565c094fd8d8654a580d8cac3cea903c5262f035410dff14b46ae70314b4"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/_raw_response.md",
+      "sha256": "d52993165525491bb0cd03b52cdca82b0b077a32becd1915f765ad4611bc5074"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/cognitive-requirements-are-invisible.md",
+      "sha256": "10df7d1d4b1b9f6f2af3efdb4973b94125367acda8a4f93bc324d710224880c0"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/cse-concept-map-for-agent-architecture.md",
+      "sha256": "cf52a4bad5ab14602958b8bef137e33bcc7b3bd6bc6a389575770e433de85e00"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/expertise-recognition-and-tacit-knowledge.md",
+      "sha256": "d171cdf7ebda8d1ee49d6ca6b3cedc1c1e7a8e51a54f6f6c991107693151fe34"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/invisible-cognitive-layer-in-system-design.md",
+      "sha256": "3c9b725c342292ecc267c2e981b21ee67432b4013c32b8d9b4902e8d4e2d5d1f"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/joint-cognitive-systems-and-distributed-cognition.md",
+      "sha256": "59a9a348ea463656172f2ad13ba7c8da683db50830e41ae0281bbc11a38b4c82"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/joint-cognitive-systems-distributed-cognition.md",
+      "sha256": "52453d21f38a6a5347d963d0cb15ee8082f30903e36dbf8097e976d0a5244eea"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/problem-framing-as-the-critical-design-act.md",
+      "sha256": "571bf43bbd84445463f88d1e5e78bb5607fb74f4f07ce6b133132b667451ffb6"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/problem-reframing-as-highest-leverage-intervention.md",
+      "sha256": "6f212debdfc7ab599b1fbacc5add91eeb27f53c1d61d73e3fc2fbad3f40ab997"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/references/value-case-and-invisible-contributions.md",
+      "sha256": "2ee080b8acfde72e810070c93970e34649ac841e903a7f4e5e1b6da6d2f1655d"
+    },
+    {
+      "path": "skills/the-state-of-cognitive-systems-engineeri/references/cognition-distribution-coordination-without-central-control.md",
+      "sha256": "b0d10b063e6acbd7e93bc3c2df37b52c3efcde9bf3c985d764ab8ce6607bb321"
+    },
+    {
+      "path": "skills/the-state-of-cognitive-systems-engineeri/references/linear-decomposition-failure-modes.md",
+      "sha256": "7229d9d7012c468aa5927e397c7d378850d01647cdd713cf34f4e8610b0242c6"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/_raw_response.md",
+      "sha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/calibration-driven-learning-for-agent-systems.md",
+      "sha256": "9ea4861343a5931b9c31eae0dcb3aa7df601834d06d42d5b0942a6eec2617609"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/constraint-as-cognitive-forcing-function.md",
+      "sha256": "5dfc4c69541c61405e4e260f516dcdc4ee96ae3283212b81c54575fdad251112"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/expert-consensus-without-ground-truth.md",
+      "sha256": "8dcf6871dae270157f87888647fbbbecce8982ec1ff9b4f5ee0e98e4f6cd2f0e"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/multi-dimensional-cognitive-assessment.md",
+      "sha256": "93f85146c5dcfcfec40c5bfd4af46408ad69bef4fe98a3ebb41c9e76135154e9"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/progressive-revelation-and-commitment.md",
+      "sha256": "dee1775e550ea416cb1569280bce2f4143cd5a6976302eec6e3812362b88a86d"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/references/scenario-based-expertise-transfer.md",
+      "sha256": "9d8732a3173eaa99ef5f6ca328c03f69160f625caa8d5575ee179e7891375220"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/_raw_response.md",
+      "sha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/calibration-driven-learning-for-agent-systems.md",
+      "sha256": "9ea4861343a5931b9c31eae0dcb3aa7df601834d06d42d5b0942a6eec2617609"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/constraint-as-cognitive-forcing-function.md",
+      "sha256": "5dfc4c69541c61405e4e260f516dcdc4ee96ae3283212b81c54575fdad251112"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/expert-consensus-without-ground-truth.md",
+      "sha256": "8dcf6871dae270157f87888647fbbbecce8982ec1ff9b4f5ee0e98e4f6cd2f0e"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/multi-dimensional-cognitive-assessment.md",
+      "sha256": "93f85146c5dcfcfec40c5bfd4af46408ad69bef4fe98a3ebb41c9e76135154e9"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/progressive-revelation-and-commitment.md",
+      "sha256": "dee1775e550ea416cb1569280bce2f4143cd5a6976302eec6e3812362b88a86d"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/references/scenario-based-expertise-transfer.md",
+      "sha256": "9d8732a3173eaa99ef5f6ca328c03f69160f625caa8d5575ee179e7891375220"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-ana/_raw_response.md",
+      "sha256": "ffa619b9e6d8080811d2ed48f4ce9f970496675428c3b8d7999b3dd5b1333093"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-ana/references/expert-knowledge-automation-gap.md",
+      "sha256": "3dd0212b9c130d5509a37cacf89ab4c62300bc6eee034bf93272e9f5b7b107dd"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-ana/references/skill-selection-as-cognitive-task-analysis-problem.md",
+      "sha256": "6346bf145f976a0be6a2ba7e6963da1c85037943ffb8890133c07fc6391db1ac"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-ana/references/taxonomy-progress-and-classification-failure.md",
+      "sha256": "7f642bf38b4cdf158fe893f5e9adaccf4e916f65e34507c7894b84f40a9ff721"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-analysis/_raw_response.md",
+      "sha256": "ffa619b9e6d8080811d2ed48f4ce9f970496675428c3b8d7999b3dd5b1333093"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-analysis/references/expert-knowledge-automation-gap.md",
+      "sha256": "3dd0212b9c130d5509a37cacf89ab4c62300bc6eee034bf93272e9f5b7b107dd"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-analysis/references/skill-selection-as-cognitive-task-analysis-problem.md",
+      "sha256": "6346bf145f976a0be6a2ba7e6963da1c85037943ffb8890133c07fc6391db1ac"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-analysis/references/taxonomy-progress-and-classification-failure.md",
+      "sha256": "7f642bf38b4cdf158fe893f5e9adaccf4e916f65e34507c7894b84f40a9ff721"
+    },
+    {
+      "path": "skills/wang-2023-voyager/_raw_response.md",
+      "sha256": "1b2eb6a41c41a202da0e554bc049e4fb725ded831d9289e3089e2cbb1a3f87ad"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/automatic-curriculum-as-frontier-discovery.md",
+      "sha256": "9b692e24653d47358891a058668dffa55642fc8101108a9a11b9103db2ff2eae"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/code-as-action-space-advantages.md",
+      "sha256": "fc3da0df9cb84078976032a59cde00a60acdab655cafe9be30130332fca491e7"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/curriculum-skill-verification-trinity.md",
+      "sha256": "c52923f7bd29eb536ef87d12c95cfa61a8245a8797a3ef2c6346d617d1a2c09e"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/failure-modes-in-llm-agents.md",
+      "sha256": "88638675867e4dca36e8763ea32003a0b3f2f72843e4f8d86e7585a94c346a73"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/iterative-prompting-as-error-driven-refinement.md",
+      "sha256": "cb18b3fdbbf2fbb7380895531bddd56f8bf8e040271587b315e626e99813f482"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/self-verification-without-ground-truth.md",
+      "sha256": "059916346c7fa3256874868f3af516c0ff4303e9bdf9344f4ceb5b91d55fc80d"
+    },
+    {
+      "path": "skills/wang-2023-voyager/references/skill-library-as-compositional-memory.md",
+      "sha256": "eefac0cfee2f3f9752de21d7e0d5e479dafeb76b2015d2db7cd2641ee87563eb"
+    },
+    {
+      "path": "skills/wei-2022-chain-of-thought/_raw_response.md",
+      "sha256": "acb688261ed2dc55f9f67b2565fb4368de6cacc5afde38147a2ce54e8f66e270"
+    },
+    {
+      "path": "skills/wei-2022-chain-of-thought/references/emergent-capabilities-and-decomposition-thresholds.md",
+      "sha256": "3057a6c819831d3c201e79dd0e16949552aed754fb4cb10bca9c6a5d49ab8724"
+    },
+    {
+      "path": "skills/wei-2022-chain-of-thought/references/variable-compute-and-structured-reasoning.md",
+      "sha256": "c8a5a730e3f5503445db58a0fc42b584fc692ca31d0760e6843e53918af9745d"
+    },
+    {
+      "path": "skills/windags-architect/CHANGELOG.md",
+      "sha256": "7b094e31dcb7af3770bc55a498bee952fd4c42549eb3e49ffd15cd74335e853c"
+    },
+    {
+      "path": "skills/windags-architect/SKILL.md",
+      "sha256": "9076c0c4d37d5de55a4475ef666f622c4b6433095ca47ba2ea6ea0e532c8b050"
+    },
+    {
+      "path": "skills/windags-architect/references/INDEX.md",
+      "sha256": "3864b3e23ce7c04864dca1c5b5edf47f3fd69deb515fc12e4e2030897fbf8ee3"
+    },
+    {
+      "path": "skills/windags-architect/references/business-model.md",
+      "sha256": "7b008b618d28d51c6800e4708eedd35925ebad4cab4bf94dcafe3bb53f123367"
+    },
+    {
+      "path": "skills/windags-architect/references/execution-engines.md",
+      "sha256": "d81aaa1941dd2f8b79d7a2c1e49bbbb94b507bb8fbd3c391a289dd50958b6995"
+    },
+    {
+      "path": "skills/windags-architect/references/llm-routing.md",
+      "sha256": "8eeb8e211b6163d3d62f71e902dc89324a48a1441ffe551a423d8766df981cf2"
+    },
+    {
+      "path": "skills/windags-architect/references/observability-and-testing.md",
+      "sha256": "15740955dbe80af530adf3453dde983642d945673ac2e87adc541123b3361520"
+    },
+    {
+      "path": "skills/windags-architect/references/progressive-revelation.md",
+      "sha256": "f9f60f584168adc5333039ecd553ba21b592cb87cf905bf26e17ff77994ee637"
+    },
+    {
+      "path": "skills/windags-architect/references/sdk-implementation.md",
+      "sha256": "2dc05e78327dbef6d8ce0935459a4553e4912f623f151fea5fe663a1c7a2e012"
+    },
+    {
+      "path": "skills/windags-architect/references/skill-gap-analysis.md",
+      "sha256": "b89ca2794c8cc3f9af340dc2f763fc82bb8c5d607f57c0ef9e6b89ddc0af8d37"
+    },
+    {
+      "path": "skills/windags-architect/references/skill-lifecycle.md",
+      "sha256": "2e2c365a9da59956b8cbec322193dfb49791f1c8dc58bf723e1a456ad952db96"
+    },
+    {
+      "path": "skills/windags-architect/references/skills-vs-research.md",
+      "sha256": "b98db86278a35b9673ea304965cc5b4b2922cecd7f020b1701e282b27b92bb8c"
+    },
+    {
+      "path": "skills/windags-architect/references/user-experience.md",
+      "sha256": "819da9ccc1723b69c8f9e40e05feed333730ac1238c69379a79d1780ac33d558"
+    },
+    {
+      "path": "skills/windags-architect/references/visualization-research.md",
+      "sha256": "a3ad64c091af78557d1ecbf7f47bfa94ee281fbebf87899c7bb031d8fc1de8a6"
+    },
+    {
+      "path": "skills/windags-avatar/SKILL.md",
+      "sha256": "87c2fa8a5d6bdba27061d0bfcd30e0087f11ee21efab064538d09ae6569f4f16"
+    },
+    {
+      "path": "skills/windags-avatar/references/AMENDMENT-001-skill-selection-cascade.md",
+      "sha256": "f41ee4eff10ba7d5b010fcc0c87ad9cab6020cdbcb59acfd5e0aa97de5f80cf5"
+    },
+    {
+      "path": "skills/windags-avatar/references/INDEX.md",
+      "sha256": "a390b4bff85f59a4950abb3c2e016b70cf67b6ae61f3b8daa298187919208c4c"
+    },
+    {
+      "path": "skills/windags-avatar/references/amendment-framework.md",
+      "sha256": "0b062b498ce58fefdc83f4c8d1ec971006fa6980aff6ce3dbc1ec143c3cb6225"
+    },
+    {
+      "path": "skills/windags-avatar/references/amendments-from-v2.md",
+      "sha256": "98287521e67d31c71d67cf91aceb4ab2f163c6f879e0f0fa0bfe88cab993c840"
+    },
+    {
+      "path": "skills/windags-avatar/references/behavioral-contracts.md",
+      "sha256": "26975958946869bf12f5ecc603ac6ada46d0dc5650f15b5a0a79ec9796c28a28"
+    },
+    {
+      "path": "skills/windags-avatar/references/build-roadmap.md",
+      "sha256": "5107028a0706a80bc44155bb8f1094a724a1dec75fc690d2459941a7fbff6e63"
+    },
+    {
+      "path": "skills/windags-avatar/references/business-model.md",
+      "sha256": "7c3b70521b64411e9575507972c4d5abd020767ad4ad6b58c0ebb88bfb834d4d"
+    },
+    {
+      "path": "skills/windags-avatar/references/design-ux-roadmap.md",
+      "sha256": "3bfb6facfff4e729989e972ffb939cd8ec8c02405574841c8b50e9fea0daf86d"
+    },
+    {
+      "path": "skills/windags-avatar/references/marketing-positioning.md",
+      "sha256": "e3450946eb7269a5e5d487b7d6f40019a57734b0fd2c5462fc8f4c47f79b85d0"
+    },
+    {
+      "path": "skills/windags-avatar/references/oss-strategy.md",
+      "sha256": "160275085cafc47693fe0867993c09781b435887b995e86dd80e2b1159c73223"
+    },
+    {
+      "path": "skills/windags-avatar/references/review-concerns.md",
+      "sha256": "4c103044fdbc31567a23adc4d773e7175d767d19419f2839b6649ec65cf0bf3b"
+    },
+    {
+      "path": "skills/windags-avatar/references/skill-ecosystem.md",
+      "sha256": "2603159e66dc3dd426ad855db39886667c3464fd49d87318d42d18ef01835f1d"
+    },
+    {
+      "path": "skills/windags-avatar/references/tradition-influence.md",
+      "sha256": "6a17288acda02a40e3cb6894d11415f3677ca0df691901c8263570d7e2725714"
+    },
+    {
+      "path": "skills/windags-avatar/references/visualization-spec.md",
+      "sha256": "ede39930f7a97e902b7870f76527a11983e48461dfa7036d8226b4927910f259"
+    },
+    {
+      "path": "skills/windags-avatar/references/windags-constitution-v3.md",
+      "sha256": "640e41d006ce592fa6f71808defa42369ca9afd220887ae09305eef5d898b328"
+    },
+    {
+      "path": "skills/windags-avatar/references/windags-practitioner-v3.md",
+      "sha256": "18a233cf05a2d385b0045f0153cbe5627a3890454c5a607792b0be21f9e41871"
+    },
+    {
+      "path": "skills/windags-avatar/scripts/lookup.py",
+      "sha256": "2554eacc0811f1cef16144aa6186c9481ed8b6ea335a0e832668cae610ca0b8f"
+    },
+    {
+      "path": "skills/windags-curator/SKILL.md",
+      "sha256": "2ddb06d2ae3cf960fb4dfef5ac2edab356c76e97f902dda330731f24c3ba80a5"
+    },
+    {
+      "path": "skills/windags-customer-persona/SKILL.md",
+      "sha256": "d6c79f8b1576b51eecfb6ba31f2283541f3834a5fe8a5d8da5a5b547076ce76d"
+    },
+    {
+      "path": "skills/windags-decomposer/INDEX.md",
+      "sha256": "8eac644b2fd8cf55a0dd11057a985d9f26ac61fa06c6f8c093d0a2500619f666"
+    },
+    {
+      "path": "skills/windags-decomposer/SKILL.md",
+      "sha256": "30310ae7bfe29c84115daa55e4a16fcb26e410110ed3c267481bc81a80daf589"
+    },
+    {
+      "path": "skills/windags-evaluator/SKILL.md",
+      "sha256": "45205deb6ac2dc0370f207e848476908a0bff2a93fe6e96da14103ec34d44066"
+    },
+    {
+      "path": "skills/windags-graft/SKILL.md",
+      "sha256": "fea378023d5dad74082e5ab15a12da261d0f9e90781f67e805a103ea49678a2a"
+    },
+    {
+      "path": "skills/windags-librarian/SKILL.md",
+      "sha256": "38e3206c474ac690f63f23a9115bc3870da8bbd43beb7a8f07f263e147d039c0"
+    },
+    {
+      "path": "skills/windags-librarian/references/INDEX.md",
+      "sha256": "c34cf9d0629847f42b1daae2869033d1031435dd62e234a21479f61a394833f4"
+    },
+    {
+      "path": "skills/windags-librarian/references/surface-registry.md",
+      "sha256": "08198f05a1e8d84284f7734a34a6808431f5059074686d69ad6d6307b9ffb45b"
+    },
+    {
+      "path": "skills/windags-librarian/references/terminology-evolution.md",
+      "sha256": "afd82f6a2da1dd99efcb988b68001c54afb5109aef53a42312f6454f3340b83f"
+    },
+    {
+      "path": "skills/windags-looking-back/SKILL.md",
+      "sha256": "93c43e277efb4c50634e8e5025fe735188d0e11fc6840c0f694225cb970775ba"
+    },
+    {
+      "path": "skills/windags-mutator/SKILL.md",
+      "sha256": "53317ef3a4225843fb99b2aa899a1b0f8f1b735f5e4775b0b5499bf0de4b8387"
+    },
+    {
+      "path": "skills/windags-premortem/INDEX.md",
+      "sha256": "9b309457f6135980c775c17a89c1c8d697fcaac73e14a5fcbc93c287ce58adc5"
+    },
+    {
+      "path": "skills/windags-premortem/SKILL.md",
+      "sha256": "cfa8b5a3c98d84d299c5c5bdeddf9fe615ebeb7589bc5b905add7262e92e429e"
+    },
+    {
+      "path": "skills/windags-resilience/CHANGELOG.md",
+      "sha256": "a397bcb48cadc66cabeb7ecf52f58509331a089ac2fad587d6d6c16c85a7a4ed"
+    },
+    {
+      "path": "skills/windags-resilience/SKILL.md",
+      "sha256": "eca1816085ddde15f5bb53ef4168ec27b6da6a4f73559daf9df930dbdf2986db"
+    },
+    {
+      "path": "skills/windags-resilience/affordance-scorecard.json",
+      "sha256": "509aa30e8ab1aa98f64fbcb8f76f07f726f2b021a74fe4966f90893b238f3386"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/01_flowchart_core-insight-idempotent-re-execution-vs-saga-compensation.md",
+      "sha256": "8eb95bfb4a8b7748317417ef5f12f538d80f448cd27412c5534893c8dd4aee4e"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/02_statediagram-v2_transition-matrix.md",
+      "sha256": "9eed598d73206dd34ddbbe1d72a4db83e632f3258ca50202ab4b6cdf236922f6"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/03_flowchart_storage-adapter-pattern.md",
+      "sha256": "bedf9f4380a5ff437cf0405cf50a8bc41a2d709475b9aecc1ae005f2b97ab7ab"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/04_flowchart_resume-protocol.md",
+      "sha256": "c81b35a573715aebb04d4cb46148a51683425ce224238114d3e5e79fa91bdbe4"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/05_flowchart_strategy-selection.md",
+      "sha256": "6ce02e8248e712c0ce2b03f6163b0d4b7f7662627ad06300388f50d381a99288"
+    },
+    {
+      "path": "skills/windags-resilience/diagrams/INDEX.md",
+      "sha256": "185bd0533c9397b97c622a5c78129ef99b8183ee81326ecf516cad6625e953b4"
+    },
+    {
+      "path": "skills/windags-resilience/references/INDEX.md",
+      "sha256": "e755947842b1aa53152d5502d872402d5899813b25d3467527f17f58b4cec266"
+    },
+    {
+      "path": "skills/windags-resilience/references/checkpoint-storage-adapters.md",
+      "sha256": "93cf9fc664f7c1cbecd933199d64e10c5565063312a9da16bd85a717e1a8c78e"
+    },
+    {
+      "path": "skills/windags-resilience/references/phase-orchestration-resilience.md",
+      "sha256": "9787ec88a28d326caa8bd2913a7cc14d9c0dc7abda3835489f52f0c9c8c2d895"
+    },
+    {
+      "path": "skills/windags-resilience/references/recovery-strategy-details.md",
+      "sha256": "49929a430742a327c6039b72e35a660fe3dde4260ed6922f6ef68094752b3ebb"
+    },
+    {
+      "path": "skills/windags-resilience/references/state-machine-implementation.md",
+      "sha256": "9831251955489c49ac44e1823997a3165e00b79e53bf7a081c932b367e0cf7c5"
+    },
+    {
+      "path": "skills/windags-sensemaker/INDEX.md",
+      "sha256": "5a345bbb82793139a571a47b49310a256fafc03ec7f4191f3926c5215512a6d5"
+    },
+    {
+      "path": "skills/windags-sensemaker/SKILL.md",
+      "sha256": "d98d3970a589367f3fbd3d28809112674cc6b4d2e968ab327ce7a95f65e18356"
+    },
+    {
+      "path": "skills/windags-skill-cdm-elicitation/SKILL.md",
+      "sha256": "8592c6cc8edcf61c7d39456e5cf7d231faf03712c46be90e4889bf8a0e2bb568"
+    },
+    {
+      "path": "skills/windags-skill-cdm-elicitation/schemas/output.json",
+      "sha256": "12b309d2363e1f5c21315f889ca90c52640a4f4471fcd6065971ddb661ef38dc"
+    },
+    {
+      "path": "skills/windags-skill-selector/INDEX.md",
+      "sha256": "513be74404700548eaf51f4a5a3cd4ab7ff159a59a125df2b36f4cefecd9452d"
+    },
+    {
+      "path": "skills/windags-skill-selector/SKILL.md",
+      "sha256": "2eed1e5a1d0aa29e1657bf50fe895f3fad14aca2cfa4ed4a0ee2f4c07b618dd5"
+    },
+    {
+      "path": "skills/windags-skill-selector/schemas/skill-selector-output.schema.json",
+      "sha256": "ba43f2f3db568680dcbe6bd24972227ab088a5b8f13b0a7bc84feb668c3a9899"
+    },
+    {
+      "path": "skills/windags-skill-selector/templates/skill-selector-output.template.json",
+      "sha256": "7d2f8ca3d13b80e7cf27c42fe417fe9241ba1f844123a7aa4c5dc0bbc2c00516"
+    },
+    {
+      "path": "skills/windags-synthesizer/INDEX.md",
+      "sha256": "8dfdfe0c15817799ed4afa76889c57f4c8aa47cf2422d8ff6951354de1f969ce"
+    },
+    {
+      "path": "skills/windags-synthesizer/SKILL.md",
+      "sha256": "9d939e60322fa3dcf668fd4008d074a34d080ec73fb3673482120c9af33f3fec"
+    },
+    {
+      "path": "skills/windags-synthesizer/schemas/INDEX.md",
+      "sha256": "803b2b5929db46cb4629789d9735072f3800f5fd794cc4a739a3d0e00224916f"
+    },
+    {
+      "path": "skills/windags-synthesizer/templates/INDEX.md",
+      "sha256": "86216bf342125002bf91d75bef9c194c98202acd53e8e6eb335ccf1c22148bd4"
+    },
+    {
+      "path": "skills/windagszip/SKILL.md",
+      "sha256": "32ba8d4808c83da9d5f992823106d23c843edd063e828ab8dce185f59d9eb72c"
+    },
+    {
+      "path": "skills/windagszip/references/technical-details.md",
+      "sha256": "1956ef351c453c52d1fcf73cadfe4813ebc99f1c18f61f305ce395cc1a32c51a"
+    },
+    {
+      "path": "skills/yao-2022-react/_raw_response.md",
+      "sha256": "9d7c55a00ac6d5ccf0f5bd28527e830b017b5f9e6c73a6910ecd1953dd55bcee"
+    },
+    {
+      "path": "skills/yao-2022-react/references/bridging-knowledge-and-action-gap.md",
+      "sha256": "d3fbf701e639391aa8228e2392ff8f9fa1d2026cb6a58bd6f1bb31dff482b511"
+    },
+    {
+      "path": "skills/yao-2022-react/references/decomposition-through-explicit-subgoaling.md",
+      "sha256": "62c61949ef78544646d39bcd4e61007f71c2beb075e91fcb7efdda803b8b2640"
+    },
+    {
+      "path": "skills/yao-2022-react/references/failure-modes-and-error-propagation.md",
+      "sha256": "1b3b1267de43dd1b279879942ab1873e29b0b76e3890a892aba1c7a7a335e780"
+    },
+    {
+      "path": "skills/yao-2022-react/references/hierarchical-abstraction-in-agent-reasoning.md",
+      "sha256": "b2163149507db5403f0e1d89e15e2f87591238563eb3c1d544eed0e172f2c42c"
+    },
+    {
+      "path": "skills/yao-2022-react/references/human-interpretability-and-controllability.md",
+      "sha256": "32d7e0b8da9e684cfacb6e7289a01f6bba001dda51b5255c7bffa18e6ee55656"
+    },
+    {
+      "path": "skills/yao-2022-react/references/learning-reasoning-acting-patterns.md",
+      "sha256": "5ad4ab92f90022b9a18dab751b237e2444652d2863a823462294cff5ae64193d"
+    },
+    {
+      "path": "skills/yao-2022-react/references/reasoning-action-synergy-in-agent-systems.md",
+      "sha256": "379d252f11e2b490460f187f3cb10a273fb4d23a1b8a37450ee0350a5638bc7b"
+    },
+    {
+      "path": "skills/yao-2022-react/references/uncertainty-and-confidence-in-agent-decisions.md",
+      "sha256": "4fe6cc57fafa2303ef5de25dc019a857d7e6f88d6a243b5e72a71980e820faab"
+    }
+  ]
+}

@@ -105,7 +105,7 @@ Don't wait for the user to ask. After 5 cycles, suggest restart explicitly.
 
 - **Mutating across invalidated stages.** Swapping a skill on a node that downstream nodes depend on without re-running PreMortem may produce risk analysis pointing at the wrong skill.
 - **Restarting from a single skill swap.** Wasteful. The cascade already gave us the shortlist; we just need the next-best candidate.
-- **Dropping `COMMITTED` nodes via mutation.** A `COMMITTED` node, by definition, was identified as load-bearing. Dropping it implies a Decomposer-level change.
+- **Dropping `COMMITTED` nodes via mutation.** A `COMMITTED` node, by definition, was identified as essential. Dropping it implies a Decomposer-level change.
 - **Mutating the topology field without regenerating `topologyDetail`.** The detail config is topology-specific (workflow has nodes/edges, blackboard has board keys). Topology change forces detail regeneration.
 
 ## Quality Gate

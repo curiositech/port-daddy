@@ -1,4 +1,6 @@
 ---
+name: dark-mode-design-expert
+description: Design accessible dark-mode interfaces with contrast, elevation, system-preference, and cross-device readability guidance.
 license: Apache-2.0
 category: Design & Creative
 tags:

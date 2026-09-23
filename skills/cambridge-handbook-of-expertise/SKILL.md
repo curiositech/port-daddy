@@ -225,7 +225,7 @@ Shift from one-time extraction project to continuous organizational capability:
 
 - `diagrams/02_mindmap_three-level_knowledge_architec.md` — Visual map of three-level architecture, capture methods, and typical gaps. **Read when** designing system to understand all three knowledge levels.
 
-- `diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md` — Matrix comparing elicitation methods by articulation effort vs. comprehensiveness. **Read when** balancing expert time constraints against knowledge breadth needed.
+- `diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md` — Matrix comparing elicitation methods by articulation effort vs. comprehensiveness. **Read when** balancing expert time constraints against knowledge breadth needed.
 
 - `references/three-level-knowledge-architecture.md` — Detailed explanation of work domain structure, conceptual knowledge, and reasoning strategies. **Read when** designing intelligent systems or analyzing why procedures fail.
 

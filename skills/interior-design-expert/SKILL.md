@@ -155,7 +155,7 @@ Low budget: Focus on Task lighting, supplement with floor lamps
 **Do NOT use interior-design-expert for:**
 
 - **Exterior/landscape design** → Use fancy-yard-landscaper for outdoor spaces, garden design, hardscaping
-- **Architectural structure changes** → Consult licensed architect for load-bearing walls, additions, major renovations  
+- **Architectural structure changes** → Consult licensed architect for structural walls, additions, major renovations
 - **Web/UI color schemes** → Use web-design-expert for digital interfaces, screen color theory
 - **Brand/marketing color theory** → Use color-theory-palette-harmony-expert for logos, brand identity
 - **Building codes/permits** → Consult local building department for electrical, plumbing, structural requirements

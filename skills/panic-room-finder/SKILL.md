@@ -148,7 +148,7 @@ House Age > 1970:
 - [ ] All investigation steps documented with photos and measurements
 - [ ] Legal permission confirmed for any access attempts
 - [ ] Discovery mapped and integrated into house floor plan
-- [ ] Structural implications assessed (load-bearing walls, utilities)
+- [ ] Structural implications assessed (structural walls, utilities)
 - [ ] Future access plan established (seal, convert, monitor)
 
 ## NOT-FOR Boundaries
@@ -164,7 +164,7 @@ House Age > 1970:
 - Converting found space requires electrical/plumbing → **home-renovation-expert**
 - Hidden space needs security system integration → **home-security-expert**
 - Discovery has historical significance → **historical-preservation** skill
-- Structural concerns about load-bearing walls → **structural-engineering** consultation
+- Structural concerns about structural walls → **structural-engineering** consultation
 ## Imported bundle navigation
 
 These preserved source files add depth when their stated topic is needed.

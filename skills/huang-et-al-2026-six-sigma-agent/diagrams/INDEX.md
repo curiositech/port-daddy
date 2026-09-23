@@ -12,4 +12,4 @@
 
 ## Imported source navigation
 
-- [Model Selection: Cost vs. Reliability Trade-off](03_quadrantChart_model_selection:_cost_vs._reli.md) — imported supporting material.
+- [Model Selection: Cost vs. Reliability Trade-off](03_quadrantChart_model_selection-_cost_vs._reli.md) — imported supporting material.

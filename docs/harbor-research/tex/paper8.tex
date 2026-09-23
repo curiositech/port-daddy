@@ -56,7 +56,7 @@
 In this paper, we develop a unified, mathematically rigorous framework for \textbf{multi-agent swarm legibility and active control} grounded in \textbf{cellular sheaf cohomology} and \textbf{discrete Hodge theory over simplicial 2-complexes}. We establish five primary results:
 (i)~\textbf{The Rosetta Stone}: A formal algebraic dictionary mapping concrete swarm primitives (\texttt{AgentNode}, \texttt{WorkIntent}, AST claim leases, and Producer-Critic-Manager review triads) into cellular sheaves where vertices carry state stalks $\mathcal{F}(v) \in \mathbb{R}^D$, edges carry interface restriction maps $P_e$, and 2-cells enforce triadic round contracts;
 (ii)~\textbf{Completion Residual Soundness \& Certified Lower Bounds (Theorem CR-1)}: Under a three-tier visibility model (\texttt{COMPARED}, \texttt{RELAYED}, \texttt{SEVERED}), the completion residual $r = \|\Pi_K g_K\|_2$ is strictly positive if and only if no global history explains the observed gossip. For a single-edge lie of magnitude $s$, $r$ achieves the closed form $r = |s|\sqrt{1 - R^{K}_{\mathrm{eff}}(e)}$, certifying a sharp lower bound on the injected contradiction. Across cut-edges, $r = 0$ by algebra, defining the exact topological horizon of detection;
-(iii)~\textbf{Electrical Circulation \& Cycle Localization (Theorems CR-2 \& CR-3)}: The residual vector $\rho = \Pi_K g_K$ is an exact algebraic circulation ($B_K^T \rho = 0$) whose non-zero support is strictly confined to visible cycles passing through the equivocator, computable in near-linear time $\widetilde{O}(|E| \cdot D)$ via Laplacian solvers;
+(iii)~\textbf{Electrical Circulation \& Cycle Localization (Theorems CR-2 \& CR-3)}: The residual vector $\rho = \Pi_K g_K$ is an exact algebraic circulation ($B_K^T \rho = 0$) whose non-zero support is strictly confined to visible cycles passing through the equivocator, approximable in near-linear time $\widetilde{O}(|E| \cdot D)$ for fixed solver accuracy via Laplacian solvers;
 (iv)~\textbf{The Swarm Legibility Ratio via Simplicial Hodge Decomposition (Theorem CR-5)}: On a 2-complex where 2-simplices model triadic contracts, any observed disagreement cochain admits a unique orthogonal split $g = \delta_0 x + h + \delta_1^* \psi$. We define the \textbf{Swarm Legibility Ratio} $\mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2} \in [0, 1]$, proving it cleanly separates micro-review bugs ($\mathcal{L} \approx 0$) from macro-network partition cavities ($\mathcal{L} \approx 1$);
 (v)~\textbf{Optimal Cohomological Repair (Theorem CR-4)}: Given non-uniform intervention costs $w(e)$, finding the minimal-cost edge set to reconcile or fence to drive $r \to 0$ decomposes into a circulation min-cut. We prove that a greedy energy-to-cost controller choosing $e^* = \arg\max \frac{\|\rho_e\|^2}{w(e)}$ terminates in at most $\beta_1(G_K)$ rounds.
 
@@ -107,7 +107,7 @@ Mathematically, a stalk is a vector space $\mathcal{F}(v) \cong \mathbb{R}^D$ as
 \item AST code claim / symbol lock lease hash $h_L \in \mathbb{R}$;
 \item Working tree commit root hash $d_v \in \mathbb{R}$.
 \end{enumerate}
-In a fleet of 50 agents, supervisors cannot feasibly inspect 500,000 tokens of raw LLM transcripts. Embedding agent cognition into numeric stalks allows supervisors to mathematically prove whether agents agree on shared state in microseconds using matrix-vector multiplication.
+Numerical stalks let a supervisor test consistency of selected shared-state constraints. The result depends on the encoding and available observations; its computational cost is qualified in Theorem~CR-3.
 
 \paragraph{2. What is a Cochain Complex ($C^0 \xrightarrow{\delta_0} C^1 \xrightarrow{\delta_1} C^2$)?}
 A sequence of vector spaces and linear coboundary operators satisfying the fundamental chain property:
@@ -207,13 +207,15 @@ This proves that $\mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$, establishing 
 
 \section{The Rosetta Stone: Swarms to Cellular Sheaves}\label{sec:rosetta}
 
-Autonomous agents do not communicate unconstrained scalar values; they exchange structured messages over restricted interfaces. This is precisely modeled by a \textbf{cellular sheaf}.
+Autonomous agents exchange structured messages over restricted interfaces. We model their selected numerical interface data by a \textbf{cellular sheaf}, using the cellular construction developed by Curry~\cite{curry}. Robinson~\cite{robinson} provides the broader signal-processing context; neither source establishes that an arbitrary agent transcript admits a faithful linear encoding.
 
 \begin{definition}[Cellular Sheaf on a Simplicial Complex]
+\label{def:cellular-sheaf}
 A cellular sheaf $\mathcal{F}$ over cell complex $X = (V, E, F)$ consists of:
 \begin{enumerate}[noitemsep]
 \item For each cell $\sigma \in X$, a vector space $\mathcal{F}(\sigma)$ called the \textbf{stalk} over $\sigma$.
 \item For each incident pair $\sigma \trianglelefteq \tau$, a linear map $P_{\sigma \trianglelefteq \tau}: \mathcal{F}(\sigma) \to \mathcal{F}(\tau)$ called the \textbf{restriction map}.
+\item Identity and compatibility: $P_{\sigma \trianglelefteq \sigma}=I$ and $P_{\tau \trianglelefteq \upsilon}P_{\sigma \trianglelefteq \tau}=P_{\sigma \trianglelefteq \upsilon}$ whenever $\sigma \trianglelefteq \tau \trianglelefteq \upsilon$.
 \end{enumerate}
 \end{definition}
 
@@ -274,6 +276,8 @@ P_{v \trianglelefteq e} = \begin{bmatrix} I_{d_e \times d_e} & 0_{d_e \times (D_
 filtering each agent's private state down to the exact coordinates governed by the shared communication contract. The resulting coboundary evaluation $g_e = P_{v \trianglelefteq e} x_v - P_{u \trianglelefteq e} x_u$ executes in $\mathcal{O}(d_e)$ time per edge, bypassing expensive LLM arbitration and running in under 2 milliseconds across a 50-agent swarm.
 
 \section{Passive Detection: The Completion Residual and Consistency Radius}\label{sec:detection}
+
+The three-tier visibility model and the scalar completion-residual results CR-1--CR-3 build on Paper~7 of the Harbor program~\cite{owens-r6}. We recall them here before introducing the triadic decomposition and repair discussion.
 
 \subsection{The Three-Tier Visibility Model}
 In real deployments, observer visibility is non-uniform:
@@ -445,9 +449,13 @@ Therefore, every cycle $C_j$ supporting $\rho$ must contain vertex $v^*$.
 We conclude that $\mathrm{supp}(\rho) \subseteq \bigcup \{C \in \mathcal{C}(G_K) : v^* \in V(C)\}$.
 \end{proof}
 
+For the single-edge case, Figure~\ref{fig:matrix} illustrates the dependence of residual magnitude on $|s|$ given the assumed effective resistance $R^K_{\mathrm{eff}}(e)=1/3$, using the closed form from Theorem~CR-1.
+
+\IfFileExists{fig-paper8-16agent-matrix.tex}{\input{fig-paper8-16agent-matrix.tex}}{\input{../figures/fig-paper8-16agent-matrix.tex}}
+
 \begin{thebox}
 \textbf{Theorem CR-3 (Computational Complexity).}
-For a swarm with $|V|$ agents, $|E|$ communication edges, and $D$-dimensional stalks, the completion residual $r$ and circulation vector $\rho$ are computable in $\widetilde{O}(|E| \cdot D)$ time using symmetric diagonally dominant (SDD) Laplacian linear solvers (e.g., Spielman--Teng).
+For the coordinate-decoupled stalk model of Section~\ref{sec:rosetta}, the completion residual $r$ and circulation vector $\rho$ can be approximated by solving $D$ scalar Laplacian systems. The Spielman--Teng solver~\cite{spielman-teng} gives expected time $O(|E|D\log^c|V|\log(1/\epsilon))$ for a constant $c$ and relative energy-norm accuracy $0<\epsilon<1$. This is $\widetilde{O}(|E|D)$ for fixed accuracy; it is not an exact-arithmetic or hardware-latency bound.
 \end{thebox}
 
 \begin{proof}
@@ -466,11 +474,11 @@ The normal matrix $L_K = B_K^T B_K$ is the unweighted graph Laplacian matrix of 
 The matrix $L_K$ is symmetric and weakly diagonally dominant with zero row sums ($L_K \mathbf{1} = 0$). It is therefore a symmetric diagonally dominant (SDD) $M$-matrix with at most $2|K|$ non-zero off-diagonal entries.
 
 \paragraph{2. Linear Solver Complexity:}
-By the landmark nearly-linear SDD solver results of Spielman and Teng (2004, 2014), and subsequent work by Cohen et al.\ (2014) and Kyng and Sachdeva (2016), an $\epsilon$-approximate solution $\tilde{x}$ satisfying $\|\tilde{x} - \hat{x}\|_{L_K} \le \epsilon \|\hat{x}\|_{L_K}$ can be computed in time:
+By the randomized SDD solver of Spielman and Teng~\cite{spielman-teng}, an $\epsilon$-approximate solution $\tilde{x}$ satisfying $\|\tilde{x} - \hat{x}\|_{L_K} \le \epsilon \|\hat{x}\|_{L_K}$ can be computed in expected time:
 \[
-T_{\mathrm{solve}} = O\left( |K| \log^2 |V| \log(1/\epsilon) \right) = \widetilde{O}(|E|).
+T_{\mathrm{solve}} = O\left( |K| \log^c |V| \log(1/\epsilon) \right) = \widetilde{O}(|E|) \quad \text{for fixed } \epsilon,
 \]
-For $D$-dimensional stalks where restriction maps $P_e$ are coordinate projections onto shared state variables (Section~\ref{sec:rosetta}), the sheaf coboundary matrix block-diagonalizes into $D$ independent blocks of size $|K| \times |V|$.
+where $c$ is a constant from the solver bound. For $D$-dimensional stalks where restriction maps $P_e$ are coordinate projections onto shared state variables (Section~\ref{sec:rosetta}), the sheaf coboundary matrix block-diagonalizes into $D$ independent blocks of size $|K| \times |V|$.
 The normal equations decouple into $D$ independent scalar Laplacian systems:
 \[
 L_{K, c} \hat{x}^{(c)} = (\delta_{K, c})^T g_K^{(c)}, \quad \text{for } c \in \{1, \dots, D\}.
@@ -490,7 +498,11 @@ Summing all terms, the total algorithmic time complexity is:
 \[
 T_{\mathrm{total}} = \widetilde{O}(|E| \cdot D) + O(|E| \cdot D) = \widetilde{O}(|E| \cdot D).
 \]
-The verification cost scales nearly linearly in the number of swarm edges and state dimension, proving that passive cohomological audits can execute at microsecond latency on production multi-agent topologies.
+The asymptotic bound concerns approximate linear solves; measured latency requires a specified implementation and workload. For $\tilde{\rho}=g_K-\delta_K\tilde{x}$, the solver guarantee gives
+\[
+\|\tilde{\rho}-\rho\|_2=\|\tilde{x}-\hat{x}\|_{L_K}\le\epsilon\|\hat{x}\|_{L_K}.
+\]
+The same bound controls $|\|\tilde{\rho}\|_2-r|$ by the reverse triangle inequality. Numerical zero tests must account for this approximation error.
 \end{proof}
 
 \section{Higher-Order Triage: Theorem CR-5 and the Swarm Legibility Ratio}\label{sec:hodge}
@@ -500,7 +512,7 @@ While $r > 0$ certifies that an inconsistency exists, it cannot distinguish betw
 \IfFileExists{fig-paper8-simplicial-hodge.tex}{\input{fig-paper8-simplicial-hodge.tex}}{\input{../figures/fig-paper8-simplicial-hodge.tex}}
 
 \subsection{Theorem CR-5: Discrete Hodge-Helmholtz Decomposition}
-Consider the cochain complex $C^0 \xrightarrow{\delta_0} C^1 \xrightarrow{\delta_1} C^2$.
+We use the finite-dimensional Hodge decomposition underlying cellular sheaf spectral theory~\cite{hansen-ghrist}. Consider the cochain complex $C^0 \xrightarrow{\delta_0} C^1 \xrightarrow{\delta_1} C^2$.
 We define the \textbf{Discrete Hodge 1-Laplacian}:
 \[
 L_1 = L_1^{\mathrm{down}} + L_1^{\mathrm{up}} = \delta_0 \delta_0^* + \delta_1^* \delta_1,
@@ -738,9 +750,7 @@ The greedy controller selects:
 \end{itemize}
 
 \subsection{Case Study 4: 16-Agent Clustered Enterprise Matrix (\texorpdfstring{$\mathcal{L} = 0.342$}{L=0.342})}
-A 16-agent organization (Frontend, Backend, Data, Security) with 28 edges and 8 review triangles experiences a compound failure (Figure~\ref{fig:matrix}): Backend review triad $(v_4, v_5, v_6)$ hallucinates $(\delta_1 g)_{456} = 6.0$, while cross-team bridge $(v_2, v_4)$ drifts by $+4.0$.
-
-\IfFileExists{fig-paper8-16agent-matrix.tex}{\input{fig-paper8-16agent-matrix.tex}}{\input{../figures/fig-paper8-16agent-matrix.tex}}
+A 16-agent organization (Frontend, Backend, Data, Security) with 28 edges and 8 review triangles experiences a compound failure: Backend review triad $(v_4, v_5, v_6)$ hallucinates $(\delta_1 g)_{456} = 6.0$, while cross-team bridge $(v_2, v_4)$ drifts by $+4.0$.
 
 Decomposition yields:
 \begin{itemize}[noitemsep]
@@ -767,14 +777,12 @@ To prevent methodological artifacts, our evaluation suite enforces strict falsif
 \item \textbf{Closed-Form Verification}: On $C_6$ with $s = 3.0$ and unit resistors, $R_{\mathrm{eff}} = 5/6$. The empirical residual $r = 1.22474487$ matches $3\sqrt{1 - 5/6}$ to 14 decimal places.
 \end{enumerate}
 
-\section{Academic Literature Survey \& Novelty (2024--2026)}\label{sec:literature}
-Hansen \& Ghrist (2019) introduced cellular sheaves for opinion dynamics in static, synchronous sensor grids. Bodnar et al.~(2022) used learned continuous sheaf weights for Graph Neural Networks. Caru (2024) studied sheaf obstructions under full graph visibility, leaving uninspected links open. Sheng et al.~(2025) applied 1-complexes to sensor fault detection without active repair or 2-cell contracts.
+\section{Related Work and Scope of the Contribution}\label{sec:literature}
+Hansen and Ghrist~\cite{hansen-ghrist} develop spectral theory for cellular sheaves, including sheaf Laplacians, effective resistance, and approximation. Bodnar et al.~\cite{bodnar} learn sheaf structures for graph neural diffusion and study heterophily and oversmoothing. These are mathematical and learning precedents; they do not supply empirical validation of this paper's swarm interpretation.
 
-This paper makes four novel contributions:
-(1) The first translation of cellular sheaves to autonomous LLM swarms (The Rosetta Stone);
-(2) The exact closed-form consistency radius $r = |s|\sqrt{1 - R_{\mathrm{eff}}(e)}$ under partial gossip visibility;
-(3) The Swarm Legibility Ratio $\mathcal{L}(g)$ via simplicial Hodge decomposition, separating micro review bugs from macro partitions;
-(4) The active cohomological repair closed-loop with guaranteed termination in $\le \beta_1(G_K)$ rounds.
+Abramsky and Brandenburger~\cite{abramsky-brandenburger} formulate contextuality as an obstruction to global sections in measurement scenarios. Car\`u~\cite{caru} shows that the associated cohomological obstruction is not a complete invariant for strong contextuality. That result concerns a different model from our real-valued least-squares system: CR-1 still characterizes membership in $\mathrm{im}(\delta_K)$ exactly, but does not by itself certify the truth of the underlying messages or their faithful encoding. Sheng et al.~\cite{sheng} study cryptographic forensic support in BFT protocols; their results concern attribution and protocol evidence, not sheaf-based sensor anomaly detection.
+
+This paper combines four elements: (1) a proposed translation from selected swarm telemetry to cellular sheaves; (2) the partial-visibility completion residual and effective-resistance formula carried forward from Paper~7~\cite{owens-r6}; (3) a triadic interpretation of the standard Hodge decomposition and the proposed legibility ratio; and (4) an edge-removal controller with a cycle-rank termination argument. This positioning does not assert priority for all uses of sheaves in LLM systems. The operational interpretation and evaluation of the proposed extensions must be distinguished from the imported mathematical foundations.
 
 \section{Discussion: Theoretical Boundaries, Reviewer Threat Models, and Pre-Emptive Defenses}\label{sec:discussion}
 
@@ -788,9 +796,9 @@ To ensure academic and operational rigor for peer review, we explicitly address 
 \paragraph{Objection:} \emph{``If the agent organization is structured as an acyclic tree or contains cut-edges, the completion residual is identically zero ($r = 0$). Does this render the detector useless?''}
 \paragraph{Pre-Emptive Defense:} We prove this phenomenon analytically in Theorem~CR-1 (Assertion 4: Cut-Edge Silence). This is not a deficiency of the detector, but a fundamental information-theoretic law of distributed systems: in an open tree where $\beta_1(G) = 0$, the cycle space $\ker(\delta_0^T)$ is trivial ($\{0\}$), meaning any arbitrary edge discrepancy can be perfectly rationalized by a scalar vertex potential $x$. This theorem provides the exact mathematical explanation for why hierarchical delegation frameworks (e.g., LangChain, CrewAI) silently swallow agent hallucinations: open trees are provably topologically dark! By deliberately closing review loops into 3-agent triangles and gossip rings ($\beta_1 \ge 1$), the cycle matroid activates, trapping contradictions with certified non-zero residuals ($r > 0$).
 
-\subsection{Threat Model 3: Attribution vs.\ Localization (The Sheng et al.\ Forensic Gap)}
+\subsection{Threat Model 3: Attribution vs.\ Localization}
 \paragraph{Objection:} \emph{``Does the completion residual vector $\rho$ identify which specific agent signed the lie?''}
-\paragraph{Pre-Emptive Defense:} As established in Section~4.5 and the Sheng et al.~(2025) boundary, linear algebra localizes the \emph{cycle} and the \emph{broken contract} carrying the contradiction, but cannot distinguish whether node $u$ lied by $+s$ or node $v$ lied by $-s$. In modern multi-agent control planes, attribution is handled by cryptographic capability cards (OIDC / Ed25519 signatures), while cohomology provides instant topological localization. Topology and cryptography are orthogonal and complementary: signatures prove who signed; cohomology proves the conversation is mathematically impossible.
+\paragraph{Pre-Emptive Defense:} The residual records inconsistency in the observed linear constraints; it does not identify the signer responsible for an erroneous constraint. Sheng et al.~\cite{sheng} separately characterize forensic support in BFT protocols and show that it depends on the protocol and available signed evidence. Their impossibility result for secure synchronous protocols with $2t+1$ replicas is not a universal theorem about our graph model. A signature authenticates a message's signer under its cryptographic assumptions; identifying protocol culpability additionally requires the relevant conflicting evidence. Cohomological localization and cryptographic forensics therefore answer different questions.
 
 \subsection{Threat Model 4: Multi-Equivocator Cancelling and Byzantine Collusion}
 \paragraph{Objection:} \emph{``Can colluding Byzantine agents coordinate to cancel out the completion residual?''}
@@ -798,22 +806,21 @@ To ensure academic and operational rigor for peer review, we explicitly address 
 
 \subsection{Threat Model 5: Asymptotic Scalability vs.\ LLM-as-a-Judge}
 \paragraph{Objection:} \emph{``How does sheaf cohomology scale to fleets of thousands of agents compared to existing supervisor patterns?''}
-\paragraph{Pre-Emptive Defense:} Mainstream agent frameworks employ ``LLM-as-a-Judge'' supervisors that inspect chat transcripts. For an organization of $n$ agents and $m$ communication channels, pairwise LLM verification incurs $\mathcal{O}(m)$ API calls, costing thousands of dollars in tokens and introducing 10 to 60 seconds of latency per round, while suffering from stochastic judge hallucinations. In contrast, coordinate-wise decoupled cellular sheaves (Section~3.2) decompose the global complex into independent sparse graph Laplacians. Using preconditioned Conjugate Gradients, solving $\rho$ on a 2,048-agent expander mesh requires exactly $12.90$ milliseconds on a single CPU core ($\mathcal{O}(m)$ empirical slope 0.86). Cohomology acts as a zero-token, microsecond filter: the orchestrator spends LLM tokens only when $r > 0$ flags a certified failure.
+\paragraph{Pre-Emptive Defense:} For the coordinate-decoupled model, evaluating the algebraic residual requires no language-model calls once the numerical constraints are available. Theorem~CR-3 bounds approximate Laplacian solves; it does not establish hardware latency or an end-to-end cost advantage over a language-model supervisor. The existing \texttt{sheaf\_consistency\_radius.py} fixture times an unpreconditioned conjugate-gradient implementation on synthetic 3-regular graphs with 128--2,048 vertices, reporting medians of five repetitions. These measurements depend on the implementation, machine, and solver tolerance. Escalation must account for numerical approximation error and observation noise; a residual exceeding those bounds establishes inconsistency in the encoded constraints, not the cause or culpable agent.
 
 \section{Conclusion}\label{sec:conclusion}
 By lifting multi-agent swarm coordination into simplicial sheaves and discrete Hodge theory, we replace ad-hoc log parsing and expensive $O(|E|)$ pairwise cross-checks with exact topological invariants. The completion residual provides certified detection, the Swarm Legibility Ratio delivers instant micro-versus-macro triage, and the Greedy Repair Controller restores consensus in polynomial time. This establishes applied topology as a foundational control plane for autonomous multi-agent systems.
 
 \begin{thebibliography}{99}
-\bibitem{hansen-ghrist} J.~Hansen and R.~Ghrist, ``Toward a spectral theory of cellular sheaves,'' \emph{Journal of Applied and Computational Topology}, vol.~3, no.~4, pp.~315--358, 2019.
-\bibitem{bodnar} C.~Bodnar et al., ``Neural Sheaf Diffusion: A Topological Perspective on Heterophily and Oversmoothing in Graphs,'' \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2022.
-\bibitem{caru} D.~Caru, ``Sheaf-Theoretic Foundations of Distributed Consensus and Agreement Obstructions,'' \emph{IEEE Transactions on Automatic Control}, vol.~69, no.~8, pp.~5120--5134, 2024.
-\bibitem{sheng} Y.~Sheng et al., ``Cohomological Anomaly Detection and Localization in Distributed Sensor Meshes,'' \emph{ACM Transactions on Sensor Networks}, vol.~21, no.~2, pp.~1--28, 2025.
-\bibitem{robinson} M.~Robinson, \emph{Topological Signal Processing}, Springer, 2014.
-\bibitem{curry} J.~Curry, \emph{Sheaves, Cosheaves and Applications}, Ph.D. dissertation, University of Pennsylvania, 2014.
-\bibitem{spielman-teng} D.~A.~Spielman and S.-H.~Teng, ``Nearly-linear time algorithms for graph partitions, graph Laplacians, and designing faster algorithms,'' \emph{Communications of the ACM}, vol.~56, no.~10, pp.~87--97, 2013.
-\bibitem{abramsky-brandenburger} S.~Abramsky and A.~Brandenburger, ``The sheaf-theoretic structure of non-locality and contextuality,'' \emph{New Journal of Physics}, vol.~13, no.~11, p.~113036, 2011.
-\bibitem{owens-r6} E.~Owens, ``The Cohomology of Equivocation: Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency,'' \emph{Technical Report}, Curiositech Research, Aug. 2026.
-\bibitem{owens-hypertrees} E.~Owens, ``Adversarial Proof Hypertrees: Scalable Non-Collusive Verification in Autonomous Fleets,'' \emph{Curiositech Whitepaper Series}, 2026.
+\bibitem{hansen-ghrist} J.~Hansen and R.~Ghrist, ``Toward a spectral theory of cellular sheaves,'' \emph{Journal of Applied and Computational Topology}, vol.~3, no.~4, pp.~315--358, 2019. \url{https://doi.org/10.1007/s41468-019-00038-7}.
+\bibitem{bodnar} C.~Bodnar, F.~Di Giovanni, B.~P.~Chamberlain, P.~Li\`o, and M.~M.~Bronstein, ``Neural Sheaf Diffusion: A Topological Perspective on Heterophily and Oversmoothing in GNNs,'' \emph{Advances in Neural Information Processing Systems}, vol.~35, 2022. \url{https://arxiv.org/abs/2202.04579}.
+\bibitem{caru} G.~Car\`u, ``On the cohomology of contextuality,'' in \emph{Proc.\ QPL 2016}, EPTCS 236, pp.~21--39, 2017. \url{https://doi.org/10.4204/EPTCS.236.2}.
+\bibitem{sheng} P.~Sheng, G.~Wang, K.~Nayak, S.~Kannan, and P.~Viswanath, ``BFT protocol forensics,'' in \emph{Proc.\ ACM CCS}, pp.~1722--1743, 2021. \url{https://doi.org/10.1145/3460120.3484566}.
+\bibitem{robinson} M.~Robinson, \emph{Topological Signal Processing}, Springer, 2014. \url{https://doi.org/10.1007/978-3-642-36104-3}.
+\bibitem{curry} J.~M.~Curry, \emph{Sheaves, Cosheaves and Applications}, Ph.D. dissertation, University of Pennsylvania, 2014. \url{https://arxiv.org/abs/1303.3255}.
+\bibitem{spielman-teng} D.~A.~Spielman and S.-H.~Teng, ``Nearly-Linear Time Algorithms for Preconditioning and Solving Symmetric, Diagonally Dominant Linear Systems,'' author preprint, revised 2012. \url{https://arxiv.org/abs/cs/0607105v5}.
+\bibitem{abramsky-brandenburger} S.~Abramsky and A.~Brandenburger, ``The sheaf-theoretic structure of non-locality and contextuality,'' \emph{New Journal of Physics}, vol.~13, no.~11, p.~113036, 2011. \url{https://doi.org/10.1088/1367-2630/13/11/113036}.
+\bibitem{owens-r6} E.~Owens, ``The Cohomology of Equivocation: Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency,'' Paper~7 of the Harbor Research Program, Aug.\ 2026. Repository source: \texttt{docs/harbor-research/tex/paper7.tex}.
 \end{thebibliography}
 
 \end{document}

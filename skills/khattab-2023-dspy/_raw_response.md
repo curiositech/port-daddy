@@ -1679,7 +1679,7 @@ For agent orchestration with 180+ skills, this multi-layered defense is essentia
 
 Then the overall system degrades gracefully rather than catastrophically. Individual component failures become opportunities for targeted improvement rather than system-wide breakage.
 
-This is the fundamental lesson DSPy teaches about robust system design: **abstraction boundaries aren't just for human understanding—they're load-bearing structures that enable automated recovery from failure.**
+This is the fundamental lesson DSPy teaches about robust system design: **abstraction boundaries aren't just for human understanding—they're essential structures that enable automated recovery from failure.**
 ```
 
 ### FILE: knowledge-vs-execution-gap.md

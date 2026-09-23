@@ -266,5 +266,5 @@ These preserved source files add depth when their stated topic is needed.
 
 - [diagrams/01_flowchart_system_fragility_assessment_de.md](diagrams/01_flowchart_system_fragility_assessment_de.md) — System Fragility Assessment Decision Tree.
 - [diagrams/02_stateDiagram-v2_volatility_suppression_paradox.md](diagrams/02_stateDiagram-v2_volatility_suppression_paradox.md) — Volatility Suppression Paradox: System State Evolution.
-- [diagrams/03_quadrantChart_domain_characterization:_linea.md](diagrams/03_quadrantChart_domain_characterization:_linea.md) — Domain Characterization: Linear vs. Complex.
+- [diagrams/03_quadrantChart_domain_characterization-_linea.md](diagrams/03_quadrantChart_domain_characterization-_linea.md) — Domain Characterization: Linear vs. Complex.
 - [references/designing-intelligence-proof-agent-systems.md](references/designing-intelligence-proof-agent-systems.md) — Designing Intelligence-Proof Agent Systems: Robustness Without Perfect Foresight.

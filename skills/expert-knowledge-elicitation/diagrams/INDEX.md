@@ -12,4 +12,4 @@
 
 - [Knowledge Elicitation Method Selection Decision Tree](01_flowchart_knowledge_elicitation_method_s.md) — imported supporting material.
 - [Three-Level Knowledge Architecture and Elicitation Mapping](02_mindmap_three-level_knowledge_architec.md) — imported supporting material.
-- [Elicitation Method Fit Matrix: Naturalness vs. Comprehensiveness](03_quadrantChart_elicitation_method_fit_matrix:.md) — imported supporting material.
+- [Elicitation Method Fit Matrix: Naturalness vs. Comprehensiveness](03_quadrantChart_elicitation_method_fit_matrix-.md) — imported supporting material.

@@ -95,7 +95,7 @@ This skill is not the right primary tool for:
 
 Expert performance has a declarative layer that experts can usually explain and a perceptual layer that often shows up only when they are pushed on branch points. GOMS captures the former. Critical Cue Inventories and Critical Decision Method interviews are how you recover the latter.
 
-### Cues Are Load-Bearing
+### Cues Drive Decisions
 
 Wake patterns, line tension, a sound change, or a subtle positional relationship are not decorative details. They are the actual inputs to expert choice. If the system cannot see the cues, it cannot reproduce the expert decision function.
 

@@ -181,7 +181,7 @@ Thought 3: Ed Wood was also American. Both are American, so yes, they were the s
 
 These preserved source files add depth when their stated topic is needed.
 
-- [diagrams/01_flowchart_react_decision_loop:_when_to_r.md](diagrams/01_flowchart_react_decision_loop:_when_to_r.md) — ReAct Decision Loop: When to Reason vs. Act.
+- [diagrams/01_flowchart_react_decision_loop-_when_to_r.md](diagrams/01_flowchart_react_decision_loop-_when_to_r.md) — ReAct Decision Loop: When to Reason vs. Act.
 - [diagrams/02_sequenceDiagram_agent_reasoning-action-correct.md](diagrams/02_sequenceDiagram_agent_reasoning-action-correct.md) — Agent Reasoning-Action-Correction Trajectory.
 - [diagrams/03_quadrantChart_confidence-based_knowledge_sou.md](diagrams/03_quadrantChart_confidence-based_knowledge_sou.md) — Confidence-Based Knowledge Source Selection.
 - [references/bridging-knowledge-and-action-gap.md](references/bridging-knowledge-and-action-gap.md) — The Gap Between Knowing and Doing: How ReAct Bridges Internal Knowledge and External Action.

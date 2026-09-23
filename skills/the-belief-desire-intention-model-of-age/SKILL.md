@@ -222,5 +222,5 @@ BDI (philosophy/logic tradition) and Soar (cognitive psychology tradition) indep
 These preserved source files add depth when their stated topic is needed.
 
 - [diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md](diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md) — BDI Agent Decision Cycle and Reconsideration Logic.
-- [diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md](diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md) — Intention Lifecycle: Commitment-Reconsideration States.
+- [diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md](diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md) — Intention Lifecycle: Commitment-Reconsideration States.
 - [diagrams/03_quadrantChart_environment_dynamics_vs._compu.md](diagrams/03_quadrantChart_environment_dynamics_vs._compu.md) — Environment Dynamics vs. Computational Cost: Reconsideration Strategy Selection.

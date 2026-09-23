@@ -10,6 +10,6 @@
 
 ## Imported source navigation
 
-- [Goodhart's Law Progression: Optimization Pressure Cascade](01_flowchart_goodhart's_law_progression:_op.md) — imported supporting material.
-- [Dualistic vs. Embedded Agency: Assumption Architecture](02_mindmap_dualistic_vs._embedded_agency:.md) — imported supporting material.
+- [Goodhart's Law Progression: Optimization Pressure Cascade](01_flowchart_goodhart's_law_progression-_op.md) — imported supporting material.
+- [Dualistic vs. Embedded Agency: Assumption Architecture](02_mindmap_dualistic_vs._embedded_agency-.md) — imported supporting material.
 - [Embedded Agent Alignment Failure Modes](03_stateDiagram-v2_embedded_agent_alignment_failu.md) — imported supporting material.

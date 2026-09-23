@@ -10,4 +10,4 @@
 
 ## Imported source navigation
 
-- [Decision Tree: Agent Addressing & Registry Lookup](03_flowchart_decision_tree:_agent_addressin.md) — imported supporting material.
+- [Decision Tree: Agent Addressing & Registry Lookup](03_flowchart_decision_tree-_agent_addressin.md) — imported supporting material.

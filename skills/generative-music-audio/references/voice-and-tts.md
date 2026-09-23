@@ -53,7 +53,7 @@ The TTS landscape split sharply in 2026: latency-leaders (Cartesia, OpenAI realt
 - Reads for **meaning** before generating audio — shifts delivery from calm to urgent without explicit tags.
 - **$7.60 / 1M characters** — cheapest among top-tier providers per Cekura's 2026 benchmark.
 
-**When to use**: Mental health apps, narrative fiction, empathy-heavy customer scenarios. When the emotional read is the load-bearing requirement.
+**When to use**: Mental health apps, narrative fiction, empathy-heavy customer scenarios. When the emotional read is the central requirement.
 
 ---
 

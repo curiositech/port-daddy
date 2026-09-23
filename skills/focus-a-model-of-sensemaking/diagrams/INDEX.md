@@ -10,6 +10,6 @@
 
 ## Imported source navigation
 
-- [Sensemaking State Machine: Frame-Data Loop & Function Transitions](01_stateDiagram-v2_sensemaking_state_machine:_fra.md) — imported supporting material.
-- [Decision Framework: Anomaly Detection → Function Selection](02_flowchart_decision_framework:_anomaly_de.md) — imported supporting material.
-- [FOCUS Sensemaking Model: Knowledge Architecture & Mental Models](03_mindmap_focus_sensemaking_model:_knowl.md) — imported supporting material.
+- [Sensemaking State Machine: Frame-Data Loop & Function Transitions](01_stateDiagram-v2_sensemaking_state_machine-_fra.md) — imported supporting material.
+- [Decision Framework: Anomaly Detection → Function Selection](02_flowchart_decision_framework-_anomaly_de.md) — imported supporting material.
+- [FOCUS Sensemaking Model: Knowledge Architecture & Mental Models](03_mindmap_focus_sensemaking_model-_knowl.md) — imported supporting material.

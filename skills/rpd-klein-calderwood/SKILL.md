@@ -163,7 +163,7 @@ Speed in experts reflects deep pattern recognition, not cognitive shortcuts. Fas
 The research directly contradicts this for experienced actors in time-pressured domains. Analysis without recognition produces slow, brittle decisions. Recognition without analysis produces fast, flexible ones — with specific, manageable failure modes.
 
 **Building agent coordination on action protocols rather than shared situation models.**
-Agents who agree on what they're doing but disagree on what the situation is will coordinate locally and fail systemically. Schema alignment is load-bearing.
+Agents who agree on what they're doing but disagree on what the situation is will coordinate locally and fail systemically. Schema alignment is essential.
 
 **Treating analogical reasoning as safe because it's expert reasoning.**
 Analogy is one of the primary mechanisms of confident expert error. An expert reasoning from the wrong case is more dangerous than a novice who knows they don't know — the expert's conviction is high and their execution is competent in the wrong direction.

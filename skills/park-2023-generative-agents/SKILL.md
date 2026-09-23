@@ -173,7 +173,7 @@ Agent receives socially significant information?
 - `references/failure-modes-and-boundary-conditions.md` — Documented failure modes and erratic behavior patterns from original research. **Read when** diagnosing unexpected agent behavior or planning robustness improvements.
 - `references/prompt-engineering-as-cognitive-architecture.md` — Prompt design as reasoning architecture component. **Read when** tuning agent decision-making or reflection triggers.
 - `diagrams/01_flowchart_agent_coherence_decision_tree.md` — Decision tree for diagnosing incoherent behavior and selecting remediation. **Read when** troubleshooting agent failures.
-- `diagrams/02_stateDiagram-v2_agent_behavior_loop:_memory-re.md` — State machine of memory-reflection-planning cycle. **Read when** understanding agent execution flow or timing.
+- `diagrams/02_stateDiagram-v2_agent_behavior_loop-_memory-re.md` — State machine of memory-reflection-planning cycle. **Read when** understanding agent execution flow or timing.
 - `diagrams/03_timeline_multi-timescale_planning_decom.md` — Timeline visualization of hierarchical planning across timescales. **Read when** designing multi-level intention structures.
 
 ## Quality Gates

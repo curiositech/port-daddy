@@ -304,6 +304,6 @@ The key insight: These aren't competing techniques but a **ladder of architectur
 
 These preserved source files add depth when their stated topic is needed.
 
-- [diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md](diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md) — Tree of Thoughts: Decision Framework & Architecture.
+- [diagrams/01_flowchart_tree_of_thoughts-_decision_fra.md](diagrams/01_flowchart_tree_of_thoughts-_decision_fra.md) — Tree of Thoughts: Decision Framework & Architecture.
 - [diagrams/02_stateDiagram-v2_thought_state_evolution_&_sear.md](diagrams/02_stateDiagram-v2_thought_state_evolution_&_sear.md) — Thought State Evolution & Search Strategies.
 - [diagrams/03_quadrantChart_problem_characteristics_→_arch.md](diagrams/03_quadrantChart_problem_characteristics_→_arch.md) — Problem Characteristics → Architecture Selection.

@@ -52,7 +52,7 @@ individually published PDFs:
 | Source | Published PDF |
 |---|---|
 | `whitepaper/textbook.json` + every chapter (via `scripts/generate-mega-whitepaper.mjs`) | `coordination-papers-mega-volume.pdf` (the Book — `pdfPath`/`pages`/`sizeKb` in `website-v2/src/data/whitePapers.ts`'s `COLLECTED_VOLUME`) |
-| `docs/harbor-research/tex/paper1.tex` … `paper7.tex` (the seven standalone research papers) | `website-v2/public/research/paper1.pdf` … `paper7.pdf` (registry: `website-v2/src/data/researchPapers.ts`) |
+| `docs/harbor-research/tex/paper1.tex` … `paper8.tex` (the eight standalone research papers) | `website-v2/public/research/paper1.pdf` … `paper8.pdf` (registry: `website-v2/src/data/researchPapers.ts`) |
 
 A chapter entry in `WHITE_PAPERS` carries no `pdfPath`/`filename`/`pages`/
 `sizeKb` at all; any "read" or "download" affordance for a chapter points at
@@ -99,6 +99,14 @@ These papers use inline `thebibliography`, not BibTeX. To add citations:
 1. Add `\cite{key}` in prose; add the matching `\bibitem{key}` before
    `\end{thebibliography}` — copy the neighbor entries' exact `\newblock`
    style (it differs per paper; match the file you're in).
+   Before adding a citation, verify the work's title, authors, venue, year, and
+   the claim it actually supports against a primary record. A recognizable
+   author name does not validate a fabricated title. Cite foundational theory
+   beside the mathematical construction and empirical work beside its measured
+   result; do not attribute this paper's new claims to either. An orphaned
+   bibliography item needs a supported citation or removal, never a dummy
+   citation or a blanket `\nocite{*}` to satisfy CI. Record unverifiable
+   entries and their disposition in the research audit.
 2. Keep bibitem keys identical across the paper suite (`ucp2026`,
    `ap2mandates2026`) so cross-paper grafts stay greppable.
 3. URLs in bibitems: `\texttt{https://...}` — bare URLs break line-wrapping.

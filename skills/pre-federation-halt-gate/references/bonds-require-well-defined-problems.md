@@ -3,7 +3,7 @@
 A Port Daddy bond (`lib/bonds.ts`) is a collateralized work contract: the requester
 signs a `FloatPlan`, the daemon debits the wallet into a SQLite escrow row, and settlement
 is determined by an oracle over machine-checkable acceptance criteria. The oracle is the
-load-bearing piece. It is defined explicitly as *a trusted source of ground truth the agent
+critical piece. It is defined explicitly as *a trusted source of ground truth the agent
 cannot author* — a passing test id, a merged commit SHA, a satisfied Arbiter check. The
 acceptance criteria must be checkable by that oracle, which means they must be **precisely
 specified** before the bond is written.

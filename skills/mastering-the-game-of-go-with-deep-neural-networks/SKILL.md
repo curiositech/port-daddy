@@ -186,8 +186,8 @@ AlphaGo's neural networks learn representations from raw board positions, replac
 - `references/self-play-curriculum-generation.md` — Supervised learning ceiling (57% accuracy) broken by self-play competition. **Read when** designing learning systems that improve beyond training data.
 - `references/coordinating-without-central-understanding.md` — 40 search threads on 1,202 CPUs + 176 GPUs coordinating asynchronously without global synchronization. **Read when** building decentralized multi-agent search systems.
 - `references/learned-representations-vs-handcrafted-features.md` — End-to-end neural learning defeats decades of handcrafted Go patterns and heuristics. **Read when** deciding between learned vs. domain-engineered features.
-- `diagrams/01_flowchart_alphago_decision_framework:_wh.md` — (auto-added; describe on next pass)
-- `diagrams/03_quadrantChart_cascading_approximation:_speed.md` — (auto-added; describe on next pass)
+- `diagrams/01_flowchart_alphago_decision_framework-_wh.md` — (auto-added; describe on next pass)
+- `diagrams/03_quadrantChart_cascading_approximation-_speed.md` — (auto-added; describe on next pass)
 
 ## Anti-Patterns
 
