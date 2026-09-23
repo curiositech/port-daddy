@@ -161,8 +161,8 @@ IF coordination succeeds but action fails
 - `references/satisfiability-as-perceptual-planning.md` — Arranging sensors to achieve epistemic goals via satisfiability solving. **Read when** planning perceptual coverage or agent placement.
 - `references/two-phase-architecture-ontic-epistemic.md` — Separation of ontic actions (move, configure) from epistemic actions (announce, check). **Read when** designing interaction phases or action sequencing.
 - `references/vision-sets-and-perceptual-boundary-design.md` — Vision sets capture observable range and possible orientations. **Read when** defining perceptual boundaries or detecting vision set mismatches.
-- `diagrams/01_flowchart_knowledge_state_decision_tree:.md` — (auto-added; describe on next pass)
-- `diagrams/02_sequenceDiagram_knowledge_propagation:_public_.md` — (auto-added; describe on next pass)
+- `diagrams/01_flowchart_knowledge_state_decision_tree-.md` — (auto-added; describe on next pass)
+- `diagrams/02_sequenceDiagram_knowledge_propagation-_public_.md` — (auto-added; describe on next pass)
 - `diagrams/03_stateDiagram-v2_agent_knowledge_state_evolutio.md` — (auto-added; describe on next pass)
 
 ## QUALITY GATES

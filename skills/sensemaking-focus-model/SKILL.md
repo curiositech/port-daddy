@@ -226,9 +226,9 @@ ELIF multiple plausible frames exist
 
 These preserved source files add depth when their stated topic is needed.
 
-- [diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md](diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md) — Sensemaking State Machine: Frame-Data Loop & Function Transitions.
-- [diagrams/02_flowchart_decision_framework:_anomaly_de.md](diagrams/02_flowchart_decision_framework:_anomaly_de.md) — Decision Framework: Anomaly Detection → Function Selection.
-- [diagrams/03_mindmap_focus_sensemaking_model:_knowl.md](diagrams/03_mindmap_focus_sensemaking_model:_knowl.md) — FOCUS Sensemaking Model: Knowledge Architecture & Mental Models.
+- [diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md](diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md) — Sensemaking State Machine: Frame-Data Loop & Function Transitions.
+- [diagrams/02_flowchart_decision_framework-_anomaly_de.md](diagrams/02_flowchart_decision_framework-_anomaly_de.md) — Decision Framework: Anomaly Detection → Function Selection.
+- [diagrams/03_mindmap_focus_sensemaking_model-_knowl.md](diagrams/03_mindmap_focus_sensemaking_model-_knowl.md) — FOCUS Sensemaking Model: Knowledge Architecture & Mental Models.
 - [references/data-frame-reciprocity-in-agent-systems.md](references/data-frame-reciprocity-in-agent-systems.md) — Data-Frame Reciprocity: Why AI Agents Need Interactive Sensemaking Models.
 - [references/expert-questioning-strategies.md](references/expert-questioning-strategies.md) — Expert Questioning Strategies: How Assumption-Challenging Drives Sensemaking.
 - [references/fragmentary-mental-models-for-agents.md](references/fragmentary-mental-models-for-agents.md) — Fragmentary Mental Models: Building Agent Expertise Without Comprehensive World Models.

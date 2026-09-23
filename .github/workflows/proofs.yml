@@ -13,7 +13,7 @@ name: Proofs (TLA+ / Z3 / ProVerif / Kani / Monte Carlo)
 #   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
 #   - every analyses/** and proofs/** .pv model (ProVerif)
 #   - the three #[kani::proof] harnesses in core/harbor-card-rs (Kani)
-#   - the 19 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
+#   - the 20 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
 #   - scripts/check-whitepaper-corpus.mjs (the estate's own WIRED/RETIRED
 #     manifest, so an unregistered formal artifact fails closed)
 #
@@ -405,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
           cd skills/harbor-results/scripts
-          for s in a3_epsilon_ledger a4_canary_sprt a6_no_mint                    a7_experiment b1_frontier b2_tower b3_controllability                    b4_deontic_fragment b5_engine_substitution b6_probation                    b7_escalation_band b8_specialization b9_context_paging                    c0_workunit c1_noninterference sheaf_mechanism_proof                    sheaf_harness_v2 sheaf_consistency_radius zoom_bound_check; do
+          for s in a3_epsilon_ledger a4_canary_sprt a6_no_mint                    a7_experiment b1_frontier b2_tower b3_controllability                    b4_deontic_fragment b5_engine_substitution b6_probation                    b7_escalation_band b8_specialization b9_context_paging                    c0_workunit c1_noninterference sheaf_mechanism_proof                    sheaf_harness_v2 sheaf_consistency_radius sheaf_repair_and_2complex zoom_bound_check; do
             echo "::group::$s"
             python3 "$s.py"
             echo "::endgroup::"

@@ -10,6 +10,6 @@
 
 ## Imported source navigation
 
-- [AlphaGo Decision Framework: When to Apply Architecture Patterns](01_flowchart_alphago_decision_framework:_wh.md) — imported supporting material.
+- [AlphaGo Decision Framework: When to Apply Architecture Patterns](01_flowchart_alphago_decision_framework-_wh.md) — imported supporting material.
 - [AlphaGo Asynchronous Heterogeneous Architecture: CPU Search + GPU Evaluation](02_sequenceDiagram_alphago_asynchronous_heterogen.md) — imported supporting material.
-- [Cascading Approximation: Speed vs. Accuracy Trade-offs](03_quadrantChart_cascading_approximation:_speed.md) — imported supporting material.
+- [Cascading Approximation: Speed vs. Accuracy Trade-offs](03_quadrantChart_cascading_approximation-_speed.md) — imported supporting material.

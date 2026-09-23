@@ -133,7 +133,7 @@ Native execution exists for `dag` and `workflow` only as of skill version. Every
 - **Padding `topologyDetail` for vanilla DAGs.** Omit it when `topology === 'dag'`.
 - **Re-decomposing.** Don't add or drop subtasks the Decomposer didn't produce. If you disagree, surface it — don't silently fix.
 - **Inventing risks.** Pass `premortem_output.risks` through verbatim. New risks belong in PreMortem.
-- **Wrong commitment levels.** `COMMITTED` means "this load-bearing." `TENTATIVE` means "if conditions change, drop it." Don't mark everything COMMITTED out of momentum.
+- **Wrong commitment levels.** `COMMITTED` means "this must remain." `TENTATIVE` means "if conditions change, drop it." Don't mark everything COMMITTED out of momentum.
 - **Cost arithmetic from thin air.** Sum the per-node values; don't round or estimate at the top level.
 
 ---

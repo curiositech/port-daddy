@@ -184,7 +184,7 @@ The paper's finding that variable compute alone doesn't help reveals: **Adding s
 3. Verify consistency of previous steps
 4. Transform the problem into a more tractable form
 
-**Measure step utility empirically**. Track which intermediate steps in successful reasoning chains actually contributed to reaching the correct answer. Some steps may be load-bearing; others may be ceremonial but unnecessary. An orchestration system should learn which step patterns correlate with success for which problem types.
+**Measure step utility empirically**. Track which intermediate steps in successful reasoning chains actually contributed to reaching the correct answer. Some steps may be essential; others may be ceremonial but unnecessary. An orchestration system should learn which step patterns correlate with success for which problem types.
 
 ## When to Allocate More Steps vs. More Powerful Agents
 

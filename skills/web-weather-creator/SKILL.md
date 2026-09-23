@@ -1,4 +1,6 @@
 ---
+name: web-weather-creator
+description: Create stylized SVG and CSS weather effects for web interfaces, with layered motion, visual restraint, and accessible performance choices.
 license: Apache-2.0
 category: Design & Creative
 tags:

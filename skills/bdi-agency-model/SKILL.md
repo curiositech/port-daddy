@@ -185,7 +185,7 @@ BDI (philosophy/logic tradition) and Soar (cognitive psychology tradition) indep
 - `references/soar-bdi-convergent-evolution.md` — Shows Soar and BDI independently converged on same architecture. **Read when** validating BDI design or integrating with cognitive architectures.
 - `references/learning-the-missing-piece.md` — Identifies learning/adaptation gap in basic BDI model. **Read when** adding adaptive behavior or long-term improvement to agents.
 - `diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md` — Mermaid flowchart of perception→belief→desire→intention→execution cycle. **Read when** implementing agent control loop or explaining decision flow.
-- `diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md` — State machine for intention lifecycle and commitment-reconsideration transitions. **Read when** modeling when agents should abandon or persist with plans.
+- `diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md` — State machine for intention lifecycle and commitment-reconsideration transitions. **Read when** modeling when agents should abandon or persist with plans.
 - `diagrams/03_quadrantChart_environment_dynamics_vs._compu.md` — 2×2 matrix mapping environment dynamics and resource scarcity to reconsideration strategies. **Read when** selecting commitment strategy for specific operational context.
 
 ## Anti-Patterns

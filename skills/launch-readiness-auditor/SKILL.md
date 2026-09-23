@@ -1,4 +1,6 @@
 ---
+name: launch-readiness-auditor
+description: Assess software launch readiness through evidence-backed checks of product flow, reliability, security, operations, and release risk.
 license: Apache-2.0
 category: Productivity & Meta
 tags:

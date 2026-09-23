@@ -20,7 +20,9 @@
     {
       "path": "skills/a-task-analysis-of-pier-side-ship-handli/_raw_response.md",
       "importedSha256": "b85345e717f730fa0b585792623f93001e1c28f9c9328e0e7085f14ebfb5d7ab",
-      "canonicalSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32"
+      "canonicalSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f",
+      "beforeProseRepairSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/agentic-skill-discovery/_raw_response.md",
@@ -185,7 +187,9 @@
     {
       "path": "skills/helm-liang-2022/_raw_response.md",
       "importedSha256": "f42c05fc0589f4a4ec8ed091472186c35aab6dfe5dd43038bd45df52bc072018",
-      "canonicalSha256": "54a435729589c51c0145c99f2434bebde659a754431cb539b54a9ff2b4d0937f"
+      "canonicalSha256": "96132a7fcf6267b8ccf859fb4ea4ef947b04a274835385d3e3e99ca6a7d6f506",
+      "beforeProseRepairSha256": "54a435729589c51c0145c99f2434bebde659a754431cb539b54a9ff2b4d0937f",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/hierarchical-skills-and-skill-based-repr/_raw_response.md",
@@ -240,9 +244,11 @@
     {
       "path": "skills/khattab-2023-dspy/_raw_response.md",
       "importedSha256": "f593e4d4a32527d99a66358b5b20897e27df9527a7e518150dacb49d30c1d81a",
-      "canonicalSha256": "ce5e224cfa0f029c0fe0b3352bafb2ecef2974cfd12837999d18f73c7dce3cad",
+      "canonicalSha256": "74b88598c56c45e2801eb80b5eeeb7da21ecacbb2914ef90365622827b7ba9f8",
       "beforeCiAnnotationSha256": "7d8cc35f97454c65a2431012f7a7f0a9954b798f2437bc4ebf84bc1079205abb",
-      "ciAnnotation": "One inline Python comment marks indexing/call syntax as a citation-parser false positive. Original imported SHA and pre-annotation canonical SHA are retained; no scientific prose or code behavior changed."
+      "ciAnnotation": "One inline Python comment marks indexing/call syntax as a citation-parser false positive. Original imported SHA and pre-annotation canonical SHA are retained; no scientific prose or code behavior changed.",
+      "beforeProseRepairSha256": "ce5e224cfa0f029c0fe0b3352bafb2ecef2974cfd12837999d18f73c7dce3cad",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/klein-1998-sources-of-power/_raw_response.md",
@@ -387,12 +393,16 @@
     {
       "path": "skills/revisiting-interview-data-analysing-turn/_raw_response.md",
       "importedSha256": "3c46035e889c96d0fe988812d8576f1e4fa27aeaf11e278eda46c57d7e2e1ae8",
-      "canonicalSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4"
+      "canonicalSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081",
+      "beforeProseRepairSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/revisiting-interview-data-turn-taking/_raw_response.md",
       "importedSha256": "3c46035e889c96d0fe988812d8576f1e4fa27aeaf11e278eda46c57d7e2e1ae8",
-      "canonicalSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4"
+      "canonicalSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081",
+      "beforeProseRepairSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/rpd-klein-calderwood/_raw_response.md",
@@ -442,7 +452,9 @@
     {
       "path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
       "importedSha256": "b85345e717f730fa0b585792623f93001e1c28f9c9328e0e7085f14ebfb5d7ab",
-      "canonicalSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32"
+      "canonicalSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f",
+      "beforeProseRepairSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/the-belief-desire-intention-model-of-age/_raw_response.md",
@@ -497,7 +509,9 @@
     {
       "path": "skills/wei-2022-chain-of-thought/_raw_response.md",
       "importedSha256": "222a68bc0ede5165a190cfe8f447952436ba623305915b8fc80753e877a73394",
-      "canonicalSha256": "b632a11f854c68a984b47ae4346e9d1043421ad4da46ec9bd809254c7aa36069"
+      "canonicalSha256": "acb688261ed2dc55f9f67b2565fb4368de6cacc5afde38147a2ce54e8f66e270",
+      "beforeProseRepairSha256": "b632a11f854c68a984b47ae4346e9d1043421ad4da46ec9bd809254c7aa36069",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
     },
     {
       "path": "skills/yao-2022-react/_raw_response.md",

@@ -26,7 +26,7 @@ metadata:
     - skill: comfyui-mastery
       reason: Wan/Hunyuan/LTX run as ComfyUI workflows via Kijai wrappers
     - skill: media-gen-deployment
-      reason: Hosting + serving video gen at scale (cost is the load-bearing variable)
+      reason: Hosting + serving video gen at scale (cost is the decisive variable)
     - skill: image-generation-workflow-engine
       reason: Keyframe images feed I2V pipelines
   recognition-cues: []

@@ -161,7 +161,7 @@ Read `references/custom-nodes-2026.md` for the full catalog. The non-negotiables
 - **ComfyUI-KJNodes** — masks, transforms, Set/Get (subgraph-aware), VRAM Debug
 - **ComfyUI-Impact-Pack** — FaceDetailer, regional sampling, ImpactWildcardEncode
 - **ComfyUI-Inspire-Pack** — LoRA Block Weight, A1111-style prompts, Global Seed
-- **ComfyUI_essentials** — image utilities (resize, crop, FluxResolutions). Maintenance-only as of 2025; still load-bearing.
+- **ComfyUI_essentials** — image utilities (resize, crop, FluxResolutions). Maintenance-only as of 2025; still essential.
 - **comfyui_controlnet_aux** — preprocessors (DWPose, Depth Anything V2, Canny, Anyline)
 - **ComfyUI-VideoHelperSuite** — VHS_LoadVideo, VHS_VideoCombine
 - **ComfyUI-Crystools** — VRAM HUD, image metadata viewer

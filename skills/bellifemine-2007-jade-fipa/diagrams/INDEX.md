@@ -12,4 +12,4 @@
 
 - [FIPA Protocol Interaction Patterns](01_sequenceDiagram_fipa_protocol_interaction_patt.md) — imported supporting material.
 - [Agent Behavior State Machine Composition](02_stateDiagram-v2_agent_behavior_state_machine_c.md) — imported supporting material.
-- [Decision Tree: Which JADE Coordination Mechanism to Use](03_flowchart_decision_tree:_which_jade_coor.md) — imported supporting material.
+- [Decision Tree: Which JADE Coordination Mechanism to Use](03_flowchart_decision_tree-_which_jade_coor.md) — imported supporting material.

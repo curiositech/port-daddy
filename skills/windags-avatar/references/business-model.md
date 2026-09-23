@@ -163,7 +163,7 @@ The $150K MRR milestone is achievable at Month 20-22 under the conservative mode
 1. **Phase 1 ships late**: Each month of delay costs approximately 2 months of the growth curve (compounding effect). The 8-week critical path has no slack.
 2. **Hello World > 5 minutes**: The free-to-Pro conversion depends on users experiencing value before friction. A 10-minute Hello World halves conversion rate estimates.
 3. **Enterprise sales cycle**: Enterprise deals at Month 6 assume design partner relationships established at Month 1 (see Section 9). Without pre-existing relationships, Enterprise revenue pushes to Month 9-10.
-4. **Marketplace cold start**: If premium skill inventory is thin at Phase 3 launch, marketplace revenue is near zero through Month 12. The cold-start playbook (Section 3) is load-bearing for Month 10+ projections.
+4. **Marketplace cold start**: If premium skill inventory is thin at Phase 3 launch, marketplace revenue is near zero through Month 12. The cold-start playbook (Section 3) is central to Month 10+ projections.
 
 ---
 

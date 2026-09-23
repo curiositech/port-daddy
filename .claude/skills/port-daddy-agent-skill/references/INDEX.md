@@ -39,3 +39,7 @@ Load only the file that matches the decision in front of you.
   "Git Discipline" section — never destructive-git a live shared checkout,
   worktree-per-agent, claim-aware staging. Read before any git mutation in a
   multi-agent repo.
+- `imported-port-daddy/README.md`: provenance and caveats for supporting
+  references, diagrams, and scorecard preserved from the former duplicate
+  `skills/port-daddy/` skill bundle. These files are historical, not current
+  operating authority.

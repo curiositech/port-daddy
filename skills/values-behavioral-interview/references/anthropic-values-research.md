@@ -13,7 +13,7 @@ Anthropic job postings consistently use these phrases, which reveal what they sc
 - **"Collaborative, low-ego environment"** -- They explicitly screen against lone-wolf mentality. Stories should feature genuine collaboration.
 - **"Comfort with ambiguity"** -- Repeated across nearly every posting. This is not a throwaway line; it is a filter.
 - **"Intellectual honesty"** -- Valuing truth over being right. They want people who update their beliefs.
-- **"Mission-driven"** -- AI safety is not a nice-to-have for culture fit; it is load-bearing.
+- **"Mission-driven"** -- AI safety is not a nice-to-have for culture fit; it is essential.
 - **"Empirical mindset"** -- They value evidence over intuition, measurement over conviction.
 
 ### From Blog Posts and Research Papers

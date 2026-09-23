@@ -188,11 +188,11 @@ IF Memory constraints = TIGHT:
 
 ## Reference Files
 
-- `diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle:_beli.md` — Mermaid state machine showing perception → belief update → change detection → deliberation → plan adoption cycle. **Read when** understanding the core BDI loop or implementing agent control flow.
+- `diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle-_beli.md` — Mermaid state machine showing perception → belief update → change detection → deliberation → plan adoption cycle. **Read when** understanding the core BDI loop or implementing agent control flow.
 
-- `diagrams/02_flowchart_plan_selection_pipeline:_from_.md` — Flowchart from triggering event through plan library matching, context filtering, and execution. **Read when** designing plan selection logic or debugging why wrong plans are chosen.
+- `diagrams/02_flowchart_plan_selection_pipeline-_from_.md` — Flowchart from triggering event through plan library matching, context filtering, and execution. **Read when** designing plan selection logic or debugging why wrong plans are chosen.
 
-- `diagrams/03_sequenceDiagram_resource-bounded_rationality:_.md` — Sequence diagram showing deliberation bottleneck: world state, agent computation, execution window, event monitoring. **Read when** analyzing time budget constraints or deliberation overhead.
+- `diagrams/03_sequenceDiagram_resource-bounded_rationality-_.md` — Sequence diagram showing deliberation bottleneck: world state, agent computation, execution window, event monitoring. **Read when** analyzing time budget constraints or deliberation overhead.
 
 - `references/commitment-strategies-and-reconsideration.md` — Formal framework for when agents should maintain vs. abandon commitments; temporal dynamics of mental attitudes. **Read when** choosing blind vs. open-minded commitment or tuning reconsideration triggers.
 

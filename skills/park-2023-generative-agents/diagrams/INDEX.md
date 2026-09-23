@@ -9,5 +9,5 @@
 3. **Multi-Timescale Planning Decomposition** (timeline)
 
 | [01_flowchart_agent_coherence_decision_tree.md](01_flowchart_agent_coherence_decision_tree.md) | Agent Coherence Decision Tree |
-| [02_stateDiagram-v2_agent_behavior_loop:_memory-re.md](02_stateDiagram-v2_agent_behavior_loop:_memory-re.md) | Agent Behavior Loop: Memory-Reflection-Planning Cycle |
+| [02_stateDiagram-v2_agent_behavior_loop-_memory-re.md](02_stateDiagram-v2_agent_behavior_loop-_memory-re.md) | Agent Behavior Loop: Memory-Reflection-Planning Cycle |
 | [03_timeline_multi-timescale_planning_decom.md](03_timeline_multi-timescale_planning_decom.md) | Multi-Timescale Planning Decomposition |

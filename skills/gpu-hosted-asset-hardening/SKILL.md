@@ -154,7 +154,7 @@ block-beta
   end
 ```
 
-Each layer is independently load-bearing. Skip a layer and you've created a single point of failure.
+Each layer is independently necessary. Skip a layer and you've created a single point of failure.
 
 ---
 

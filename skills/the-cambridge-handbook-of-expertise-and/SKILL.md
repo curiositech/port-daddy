@@ -309,4 +309,4 @@ These preserved source files add depth when their stated topic is needed.
 
 - [diagrams/01_flowchart_knowledge_elicitation_method_s.md](diagrams/01_flowchart_knowledge_elicitation_method_s.md) — Knowledge Elicitation Method Selection Decision Tree.
 - [diagrams/02_mindmap_three-level_knowledge_architec.md](diagrams/02_mindmap_three-level_knowledge_architec.md) — Three-Level Knowledge Architecture and Elicitation Mapping.
-- [diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md](diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md) — Elicitation Method Fit Matrix: Naturalness vs. Comprehensiveness.
+- [diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md](diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md) — Elicitation Method Fit Matrix: Naturalness vs. Comprehensiveness.

@@ -2,7 +2,7 @@
 
 ## Summary
 
-The installed `.agy/skills` view contains linked bundles missing from or differing from the canonical library. This change materializes all 755 requested bundles under `skills/`: 448 additions and 307 existing bundles checked, retained, or semantically reconciled. It preserves supporting knowledge and records merge decisions without changing installed links.
+The installed `.agy/skills` view contains linked bundles missing from or differing from the canonical library. This change represents all 755 requested source entries under `skills/`, with 754 canonical destinations after merging the duplicate Port Daddy manual. The initial import added 448 bundles and checked, retained, or reconciled 307 existing bundles; the follow-up preserves supporting files through explicit portable path mappings. It preserves supporting knowledge and records merge decisions without changing installed links.
 
 Targeted primary-source research strengthens 15 agent-related skills, with four further merge corrections. The review artifacts include a complete catalog, substrate-study explanation, manuscript gap research, and three editable/rendered diagrams. Independent review resolved six findings, including unsupported FormalJudge attribution and mathematical/runtime overclaims.
 
@@ -12,6 +12,8 @@ Start with `docs/research/skills-reconciliation-20260923/README.md` for inventor
 
 ## Test Plan
 
+- Final follow-up: 755 source entries covered through explicit path mappings; all 776 canonical bundles pass hygiene (218 retain non-failing warnings); all blocking Library Checks pass locally with pinned PDF readers. The 49 filename repairs preserve source hashes. Paper 8 compiles in two passes to 24 pages, with no unresolved citations/references; changed pages were visually inspected.
+
 - `verify-reconciliation.py` over all 755 source entries: canonical entrypoints present, no missing meaningful source paths or root symlinks. Exact command is in `validation-final.json`.
 - `audit_skill_bundle.py`: 755/755 bundled navigation/hygiene checks passed; focused checks passed again for all three references amended with WinDAGs evidence.
 - `node skills/provable-action-adjudicator/scripts/test-bundle.mjs`: 13 passing cases. `node skills/ai-engineer/scripts/ai_system_audit.mjs --input skills/ai-engineer/examples/sample-input.json`: sample contract audit passed.
@@ -20,11 +22,16 @@ Start with `docs/research/skills-reconciliation-20260923/README.md` for inventor
 - `python3 -m harness.pilot_summary`: stored substrate data reproduce 80/84 cells without count inconsistencies; experiments were not rerun and the defective merge-queue baseline prevents a rail-versus-queue conclusion.
 - Scope checks and normal commit hooks pass. Gitleaks candidates were reviewed with redacted evidence. The cached whitespace check remains nonzero for preserved source formatting: all 17,143 retained trailing-whitespace lines match a source/base line, plus five final blank-line diagnostics. This exception is documented, not relabeled as a passing check.
 
-Initial hosted CI found mirror drift, documentation citation problems in imported examples, and three unused-variable findings in one imported script. The follow-up corrects these without weakening checks. Library Checks also reproduces ten orphan bibliography entries on the unchanged base manuscript; the hosted hostile release job failed before its test assertions during an ONNX Runtime dependency download. See `docs/research/skills-reconciliation-20260923/ci-followup.md` for the evidence and local repair validation. The PR is open for review; a clean full-CI result and resolved review threads are not claimed.
+The follow-up repairs the inherited Paper 8 bibliography failure: nine verified references now support specific claims, one unused/unlocated proposal entry is removed, and solver qualifications propagate through the affected prose and figure. The rebuilt PDF, website metadata, library index, research program, and proof manifest are reconciled. Import repairs cover portable filenames, frontmatter, canonical Port Daddy guidance, prohibited prose, and the refreshed convention seal. The all-source request supersedes an old platform-exclusion choice; exact hash-pinned source attribution preserves upstream provenance while native harness-authority checks remain enforced. See `docs/research/skills-reconciliation-20260923/repair-contracts.md` and `ci-followup.md`. All three original CodeQL threads are resolved; hosted checks for the final published head are read back separately.
 
 Coverage and navigation do not certify every inherited claim or execute every imported script. Manuscript anchors refer to the hash-pinned active reading snapshot, which differs from the Book at this branch's base. Generation drafts are explicitly provenance-only.
 
 ## Visual Proof
+
+Paper 8 was rebuilt in two passes and its affected pages visually inspected.
+
+![Corrected Paper 8 bibliography](https://raw.githubusercontent.com/curiositech/port-daddy/__SOURCE_HEAD__/docs/research/skills-reconciliation-20260923/paper8-citation-repair/page-24.png)
+
 
 Research diagrams are rendered from paired DOT sources; editable Mermaid sources validate. The gallery was inspected at desktop and narrow-screen sizes.
 

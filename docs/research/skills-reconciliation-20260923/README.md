@@ -4,7 +4,7 @@ Completed local reconciliation on 23 September 2026 in the dedicated linked work
 
 ## What changed
 
-All **755** entries in the primary checkout's `.agy/skills` now have regular canonical bundles under `skills/`: **448 new bundles** and **307 pre-existing bundles** reconciled or retained. The canonical library contains 777 entrypoints including 22 pre-existing skills outside the requested source set. Exact-name fallback installations recovered broken links and metadata-only directories. Meaningful supporting files and destination contributions were retained; conflicting instructions received explicit semantic dispositions instead of competing whole-entrypoint appendices.
+All **755** entries in the primary checkout's `.agy/skills` are represented under `skills/`. The initial import reconciled 448 new and 307 existing bundles. The follow-up merges the duplicate `port-daddy` manual into `port-daddy-agent-skill`, leaving **776 canonical entrypoints** and **754 distinct destinations** for the requested entries. Its nine supporting files are preserved as historical references; explicit mappings retain coverage through this semantic merge and the portable filename repairs. Exact-name fallback installations recovered broken links and metadata-only directories. Meaningful supporting files and destination contributions were retained; conflicting instructions received explicit semantic dispositions instead of competing whole-entrypoint appendices.
 
 Two Terra agents handled the two alphabetical lanes. They read the entrypoints and supporting material to classify the library; Luna supplied independent review and diagram work, and Astra read the active eight-chapter manuscript and researched primary sources. This is a structural reconciliation with targeted semantic/research review, not a factual certification of every inherited skill or script. The 102 imported `_raw_response.md` generation drafts are retained with provenance-only banners and [byte receipts](generation-records.json); they are excluded from reference-depth counts and canonical navigation, and their claims may be superseded by the reviewed instructions.
 
@@ -28,8 +28,8 @@ Astra's first priorities are instrument validity, replication and extension of e
 
 [Final validation commands and results](validation-final.json) record the exact scope.
 
-- [Coverage receipt](coverage-final.json): 755/755 have a canonical entrypoint, no root symlinks, no unavailable source, and no missing meaningful source file path. Changed bytes require the semantic dispositions; path coverage alone is not content equivalence.
-- [Final hygiene receipt](hygiene-final.json): 755/755 pass bundled navigation, local-link, index, and Mermaid-hazard checks.
+- [Initial coverage receipt](coverage-final.json) and [passing follow-up coverage](coverage-repair.json) and [mappings](source-path-mappings.json): 755/755 source entries have canonical destinations. Follow-up validation checks explicit renamed paths and the semantic merge rather than treating a duplicate operating manual as necessary coverage. Changed bytes require the semantic dispositions; path coverage alone is not content equivalence.
+- [Initial hygiene receipt](hygiene-final.json): 755/755 requested bundles passed. The [final whole-library check](hygiene-repair.json) covers all 776 canonical bundles after merging the duplicate and repairing 49 portable filenames.
 - The adjudicator's 13 static cases pass; the AI-engineer sample contract audit passes; all three diagram sources pass the Mermaid validator. These are bounded structural checks, not demonstrations of practical skill efficacy.
 - The stored-data pilot summary reproduces 80/84 cells with no task-count inconsistencies. No experiments were rerun.
 - The cached whitespace check reports inherited formatting, including Markdown hard line breaks. All 17,143 retained trailing-whitespace lines match a source or base line; five final blank-line diagnostics also remain. [Disposition](whitespace-disposition.json) records them. The authored CSV was normalized to LF. This check is not reported as passing.
@@ -39,7 +39,7 @@ Astra's first priorities are instrument validity, replication and extension of e
 
 No Book chapter, study protocol, study result, installed link, runtime, or service was changed. Initial reconciliation used disjoint tool-native ownership because the hosted Work Register required authentication (HTTP 401). On 23 September, the operator supplied a repository-scoped pairing code; exchange and claim readback succeeded for `codex:skillapalooza`. The `skillapalooza` claim is held with `proposed` provenance because no roadmap has been mirrored. This is coordination authority, not a scheduled roadmap item or GitHub credential.
 
-[CI follow-up](ci-followup.md) records introduced repairs, exact base reproduction of the unrelated manuscript citation failure, and the hosted dependency-download failure. These are distinct from the structural validation above; the PR is not represented as fully green.
+[CI follow-up](ci-followup.md) preserves the initial failures and the subsequent repairs. The operator-requested [Paper 8 repair](paper8-citation-repair/README.md) corrects references and affected solver claims, rebuilds the PDF, and refreshes its research records. [Contract decisions](repair-contracts.md) explain the portability, canonical-authority, and source-attribution fixes. Hosted results are verified after publication; local checks alone do not establish a green PR.
 
 ## Publication handoff
 

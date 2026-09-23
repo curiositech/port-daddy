@@ -165,7 +165,7 @@ BDI (philosophy/logic tradition) and Soar (cognitive psychology tradition) indep
 
 - `diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md` — Mermaid flowchart of BDI perception-belief-desire-intention-execution loop. **Read when** designing agent control flow or debugging decision cycles.
 
-- `diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md` — State machine showing intention adoption, commitment checks, and reconsideration triggers. **Read when** implementing commitment-reconsideration logic or handling belief-intention misalignment.
+- `diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md` — State machine showing intention adoption, commitment checks, and reconsideration triggers. **Read when** implementing commitment-reconsideration logic or handling belief-intention misalignment.
 
 - `diagrams/03_quadrantChart_environment_dynamics_vs._compu.md` — 2×2 matrix mapping environment stability and resource availability to reconsideration strategy. **Read when** choosing bold vs. cautious commitment for your environment.
 

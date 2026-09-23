@@ -11,5 +11,5 @@
 ## Imported source navigation
 
 - [The Internalized Blame Cycle & Intervention Points](01_flowchart_the_internalized_blame_cycle_&.md) — imported supporting material.
-- [Cognitive Shift: From Self-Blame to System Accountability](02_stateDiagram-v2_cognitive_shift:_from_self-bla.md) — imported supporting material.
-- [Market Dynamics: Feature Quantity vs. Design Excellence](03_quadrantChart_market_dynamics:_feature_quant.md) — imported supporting material.
+- [Cognitive Shift: From Self-Blame to System Accountability](02_stateDiagram-v2_cognitive_shift-_from_self-bla.md) — imported supporting material.
+- [Market Dynamics: Feature Quantity vs. Design Excellence](03_quadrantChart_market_dynamics-_feature_quant.md) — imported supporting material.

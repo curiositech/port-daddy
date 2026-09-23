@@ -198,8 +198,8 @@ Task has well-defined goal state?
 These preserved source files add depth when their stated topic is needed.
 
 - [diagrams/01_flowchart_problem-solving_diagnosis_&_st.md](diagrams/01_flowchart_problem-solving_diagnosis_&_st.md) — Problem-Solving Diagnosis & Strategy Selection.
-- [diagrams/02_mindmap_problem_space_construction:_si.md](diagrams/02_mindmap_problem_space_construction:_si.md) — Problem Space Construction: Six Information Sources & Architecture Constraints.
-- [diagrams/03_quadrantChart_search_strategy_selection:_wor.md](diagrams/03_quadrantChart_search_strategy_selection:_wor.md) — Search Strategy Selection: Working Memory vs. Task Clarity.
+- [diagrams/02_mindmap_problem_space_construction-_si.md](diagrams/02_mindmap_problem_space_construction-_si.md) — Problem Space Construction: Six Information Sources & Architecture Constraints.
+- [diagrams/03_quadrantChart_search_strategy_selection-_wor.md](diagrams/03_quadrantChart_search_strategy_selection-_wor.md) — Search Strategy Selection: Working Memory vs. Task Clarity.
 - [references/learning-and-problem-space-construction.md](references/learning-and-problem-space-construction.md) — Learning and Problem Space Construction: The Frontier of the Theory.
 - [references/means-ends-analysis-as-special-case.md](references/means-ends-analysis-as-special-case.md) — Means-Ends Analysis: Powerful but Not Universal.
 - [references/selective-search-as-intelligence.md](references/selective-search-as-intelligence.md) — Selective Search as the Essence of Intelligence.

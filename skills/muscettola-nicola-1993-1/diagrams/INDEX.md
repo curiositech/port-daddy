@@ -10,6 +10,6 @@
 
 ## Imported source navigation
 
-- [Decision Framework: When to Commit to a Choice](01_flowchart_decision_framework:_when_to_co.md) — imported supporting material.
+- [Decision Framework: When to Commit to a Choice](01_flowchart_decision_framework-_when_to_co.md) — imported supporting material.
 - [State Variable Evolution and Resource Contention Over Time](02_stateDiagram-v2_state_variable_evolution_and_r.md) — imported supporting material.
-- [Problem Classification: Separation vs. Unification Trade-off](03_quadrantChart_problem_classification:_separa.md) — imported supporting material.
+- [Problem Classification: Separation vs. Unification Trade-off](03_quadrantChart_problem_classification-_separa.md) — imported supporting material.

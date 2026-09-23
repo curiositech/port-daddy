@@ -2,7 +2,7 @@
 
 Initial published head: `4aa09e6deccbd553817a9a642f28ef3b4296726b`, base `42bbdc2382a8f934b4ceffe1dddfc28acda84234`. This note distinguishes findings introduced by the import from a reproduced base failure and a hosted dependency failure. It does not assert that all PR checks pass.
 
-## Introduced findings
+## Initial introduced findings (before the operator follow-up)
 
 - The skill mirror check found a stale canonical path in port-daddy metadata and nine missing files across the three tracked Swiss-design skill mirrors. Repairs preserve canonical contents and do not alter installed links in the primary checkout.
 - The documentation checker found 52 unresolved citations in new files: 51 imported-skill diagnostics and one new research-report diagnostic. Repairs correct real links or explicitly distinguish hypothetical, external, or absent example paths from local repository files. The checker remains unchanged.
@@ -20,12 +20,50 @@ Initial published head: `4aa09e6deccbd553817a9a642f28ef3b4296726b`, base `42bbdc
 
 The checks do not run Port Daddy, execute all imported helpers, certify inherited scientific/legal claims, or resolve GitHub review threads. CI and review state for the published successor are read back after the push; local passing results do not imply a green hosted run.
 
-## Reproduced base failure
+## Historical base reproduction (now repaired)
 
 [Library Checks](https://github.com/curiositech/port-daddy/actions/runs/35915070709/job/107364371709) fails on ten uncited bibliography entries in the existing paper8 manuscript. The manuscript, checker, workflow, and all three input corpora are byte-identical to the base commit. Executing the exact base checker in memory against these unchanged clean inputs reproduces exit 1, ten orphan entries, zero dangling citations, zero duplicate entries, and two non-blocking advisories. [Blob identities and reproduction output](ci-base-reproduction.json) provide the evidence.
 
-No paper8 bibliography entry was deleted and no unsupported citation was inserted to make this unrelated check pass. No manuscript or citation gate was changed.
+At that checkpoint no manuscript or citation gate had changed. The operator then explicitly requested repair; the final disposition is below. The citation gate remains unchanged.
 
-## Hosted dependency failure
+## Historical hosted dependency failure
 
 [Release Candidate E2E hostile job](https://github.com/curiositech/port-daddy/actions/runs/35915070678/job/107365361800) failed during dependency installation. The ONNX Runtime installer could not download its GPU package from NuGet: IPv4 timed out and IPv6 was unreachable. The product-journey test steps were skipped. This is an observed download failure, not evidence of either passing or failing product assertions. No local Port Daddy runtime was started to investigate it.
+
+
+## Operator-requested repair
+
+The inherited bibliography failure is repaired in the manuscript itself. The
+[primary-record audit and rendered proof](paper8-citation-repair/README.md)
+record each disposition. Nine verified bibliography entries now support actual
+claims; the unused, unlocated proposal entry is removed. Solver qualifications
+are propagated to the affected discussion and analytical figure. The corrected
+PDF and website metadata are rebuilt together.
+
+The corpus manifest now declares the existing sheaf repair fixture, and the
+hosted proof loop executes it. The library index includes Paper 8's standard
+lemma/definition, and the research program and website mirror include all eight
+papers. The fixture's ten numerical assertions passed locally with the recorded
+Python/numeric environment; this is bounded fixture evidence, not a certificate
+for all manuscript claims.
+
+The broader import repairs and authority decisions are documented in
+[repair-contracts.md](repair-contracts.md). They preserve all requested source
+entries, replace the duplicate coordination manual with a semantic merge,
+repair portable paths/frontmatter, and preserve accurate source attribution
+under a narrow hash-pinned contract. The independent attribution review caught
+nested harness-config eligibility, external symlink traversal, unnecessary
+whole-repository memory retention, and Windows path separators; all were
+corrected before publication.
+
+All three original CodeQL review threads are resolved and outdated. At the
+previous published head, the subsequent RC E2E run also passed, superseding the
+initial dependency-download failure. Neither statement substitutes for checking
+the new head after this repair is published.
+
+The [final local repair validation](repair-validation.json) records all six
+previously failing unit suites passing together (75 tests), all 755 source
+entries covered, and all 776 canonical bundles passing hygiene. All blocking
+Library Checks pass with the pinned reader stack. The two explicitly advisory
+Book checks retain their findings; their status has not been concealed or
+converted to a claim that the full Book is certified.

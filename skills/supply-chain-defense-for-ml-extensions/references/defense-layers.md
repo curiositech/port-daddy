@@ -1,6 +1,6 @@
 # Defense Layers — Sigstore, SLSA, SBOM, Sandboxing, Allowlists
 
-The toolkit. Pick layers that match your stakes; sequence them so each one is independently load-bearing.
+The toolkit. Pick layers that match your stakes; sequence them so each one is independently necessary.
 
 ---
 

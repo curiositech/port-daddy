@@ -235,7 +235,7 @@ The triple records `topology: "blackboard"` even though the runtime was a DAG pr
 2. **Blackboard recognition.** Three parallel evidence-gatherers feeding a synthesizer feeding an action — that's a board. Even if we can't run it as one.
 3. **Honest projection.** `topologyReason` names the divergence and the cost (loss of dynamic re-triggering).
 4. **Forbidden phrase avoided.** No "executing the blackboard" — the runtime headline says "Executing DAG projection of blackboard plan."
-5. **PreMortem flagged the high-severity risk.** Reproducer fidelity is the load-bearing assumption; if it's wrong, the rest is wasted. PreMortem must catch this kind of fragility.
+5. **PreMortem flagged the high-severity risk.** Reproducer fidelity is the critical assumption; if it's wrong, the rest is wasted. PreMortem must catch this kind of fragility.
 6. **5-node plan stays bounded by waves.** Without the wave projection, the parallelism wouldn't be obvious. With it, three investigators run truly in parallel.
 
 Read `04-halt-gate-tripped.md` next for the case where the pipeline correctly refuses to predict.

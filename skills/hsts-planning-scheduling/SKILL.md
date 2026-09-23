@@ -153,9 +153,9 @@ flowchart TD
 
 ### Diagrams
 
-- `diagrams/01_flowchart_decision_framework:_when_to_co.md` — Decision tree for commitment level: reversible vs. now-or-never, bottleneck detection, ordering vs. exact time. **Read when** facing a specific pending decision about what to commit to.
+- `diagrams/01_flowchart_decision_framework-_when_to_co.md` — Decision tree for commitment level: reversible vs. now-or-never, bottleneck detection, ordering vs. exact time. **Read when** facing a specific pending decision about what to commit to.
 - `diagrams/02_stateDiagram-v2_state_variable_evolution_and_r.md` — State variable evolution over time; resource contention transitions. **Read when** visualizing how commitment choices affect resource state.
-- `diagrams/03_quadrantChart_problem_classification:_separa.md` — Problem classification by resource contention and causal interdependency; when to unify vs. separate. **Read when** assessing whether the domain warrants HSTS approach.
+- `diagrams/03_quadrantChart_problem_classification-_separa.md` — Problem classification by resource contention and causal interdependency; when to unify vs. separate. **Read when** assessing whether the domain warrants HSTS approach.
 - `references/schedules-as-behavior-envelopes.md` — (auto-added; describe on next pass)
 
 ## Quality Gates

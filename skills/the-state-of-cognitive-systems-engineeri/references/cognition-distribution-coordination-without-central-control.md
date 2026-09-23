@@ -27,9 +27,9 @@ CSE research in naturalistic settings shows a different picture. Effective human
 
 This "common ground" — the knowledge that team members can assume is shared — is carefully managed in high-performing teams. It is built up through explicit communication at the beginning of an operation (briefings, situational updates), maintained through ongoing communication of state-changing events, and repaired when it breaks down (through explicit clarification when coordination failures signal a gap).
 
-Critically, high-performing teams are skilled at knowing *what needs to be shared* and *what can remain private*. Not everything that any individual knows is relevant to coordination. Effective teams have developed, through experience, a shared understanding of what information is load-bearing for coordination — what must be communicated — and what is not.
+Critically, high-performing teams are skilled at knowing *what needs to be shared* and *what can remain private*. Not everything that any individual knows is relevant to coordination. Effective teams have developed, through experience, a shared understanding of what information is essential for coordination — what must be communicated — and what is not.
 
-**For agent orchestration systems, this translates into a principled approach to communication design: not "share everything" and not "share nothing, just coordinate through outputs" — but "identify what is load-bearing for coordination and ensure that information flows.**
+**For agent orchestration systems, this translates into a principled approach to communication design: not "share everything" and not "share nothing, just coordinate through outputs" — but "identify what coordination depends on and ensure that information flows.**
 
 ## The Three Layers of Distributed Cognitive Architecture
 

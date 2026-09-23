@@ -557,7 +557,7 @@ HELM explicitly connects calibration to practical system design applications:
 
 HELM notes that information retrieval requires especially strong calibration: "these scenarios necessitate a strong degree of calibration, in which the probabilities assigned to each of the 'Yes'/'No' outputs accurately reflects the continuous degree of relevance of a passage to a query." (§8.3)
 
-The passage ranking task is scored by comparing relative probabilities across passages. If the model is poorly calibrated, the ranking will be poor even if the model "knows" which passages are relevant in some abstract sense. Calibration is load-bearing for the task architecture.
+The passage ranking task is scored by comparing relative probabilities across passages. If the model is poorly calibrated, the ranking will be poor even if the model "knows" which passages are relevant in some abstract sense. Calibration is essential to the task architecture.
 
 ## Application to Agent System Design
 

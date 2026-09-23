@@ -2,7 +2,7 @@
 
 The architecture this skill ships: `catalog.json` in git is the single source of truth; idempotent scripts sync it outward to Stripe, the website, and marketplace feeds. Humans edit one file; machines fan it out.
 
-## Load-bearing facts
+## Essential facts
 
 1. **Stripe Prices are immutable.** Only `metadata`, `nickname`, `active`, `lookup_key` are editable after creation. To change an amount: create a new Price with `transfer_lookup_key=true` (atomically moves the stable handle), then archive the old one (`active=false`). Prices can never be deleted, only archived.
 2. **`lookup_key` is your only stable price handle.** Code and checkout sessions resolve prices by lookup_key; never hardcode `price_xxx` IDs.

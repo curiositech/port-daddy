@@ -102,13 +102,13 @@
 WHAT TO EXPECT
 ──────────────
 
-INTERIOR WALLS (non-load-bearing):
+INTERIOR WALLS (nonstructural):
 ├── Standard drywall both sides: 4.5" - 5"
 │   (2x4 stud + 2 layers 1/2" drywall)
 ├── With plaster (older homes): 5" - 6"
 └── With soundproofing: 6" - 7"
 
-INTERIOR WALLS (load-bearing):
+INTERIOR WALLS (structural):
 ├── Standard: 6" - 6.5"
 │   (2x6 stud + drywall)
 └── Older construction: 7" - 8"
