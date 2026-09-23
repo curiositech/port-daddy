@@ -611,6 +611,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     )
     @Published public private(set) var cursors: [CursorEvent] = []
     @Published public private(set) var proofReceipt: PortholeProofReceipt?
+    @Published public private(set) var lastSavedRecordingURL: URL?
+    @Published public private(set) var lastSavedScreenshotURL: URL?
 
     public let proofConfiguration: ProofConfiguration?
 
@@ -932,12 +934,21 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
 
         do {
             var recorder: ApprovedProofRecorder?
-            if let proofConfiguration,
-               approval.capabilities.persistRecording,
+            if approval.capabilities.persistRecording,
                persistenceGate.allowed
             {
+                let outputURL: URL
+                if let proofConfiguration {
+                    outputURL = proofConfiguration.outputDirectory.appendingPathComponent("stage-source.mov")
+                } else {
+                    let baseDir = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
+                        ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
+                    let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+                    outputURL = baseDir.appendingPathComponent("porthole-\(timestamp).mov")
+                }
                 recorder = try ApprovedProofRecorder(
-                    outputURL: proofConfiguration.outputDirectory.appendingPathComponent("stage-source.mov"),
+                    outputURL: outputURL,
                     width: width,
                     height: height
                 )
@@ -1023,12 +1034,44 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         defer { operationGate.finishStop() }
         await stopStream(finalState: .stopped, finalizeProof: true)
         let didWriteReceipt = proofReceipt != nil
+        let savedRecording = lastSavedRecordingURL
         clearLiveState()
         if lifecycle != .failed {
             lifecycle = .stopped
-            statusMessage = didWriteReceipt
-                ? "Stopped · approved proof receipt written · preview cleared"
-                : "Stopped · preview, ring, and cursors cleared · no proof receipt"
+            if didWriteReceipt {
+                statusMessage = "Stopped · approved proof receipt written · preview cleared"
+            } else if let savedRecording {
+                statusMessage = "Stopped · recording saved: \(savedRecording.lastPathComponent)"
+            } else {
+                statusMessage = "Stopped · preview, ring, and cursors cleared · no proof receipt"
+            }
+        }
+    }
+
+    @discardableResult
+    public func captureScreenshot() -> URL? {
+        guard let image = latestImage else { return nil }
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:])
+        else { return nil }
+
+        let picturesDir = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.appendingPathComponent("Porthole", isDirectory: true)
+            ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Porthole", isDirectory: true)
+        try? FileManager.default.createDirectory(at: picturesDir, withIntermediateDirectories: true)
+        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let fileURL = picturesDir.appendingPathComponent("porthole-\(timestamp).png")
+        do {
+            try png.write(to: fileURL)
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.writeObjects([image])
+            lastSavedScreenshotURL = fileURL
+            statusMessage = "Screenshot saved: \(fileURL.lastPathComponent) (copied to clipboard)"
+            return fileURL
+        } catch {
+            statusMessage = "Screenshot failed: \(error.localizedDescription)"
+            return nil
         }
     }
 
@@ -1372,14 +1415,20 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         let manifest = finalizeProof && !proofInvalidated ? proofManifest(recorder: recorder) : nil
         let proofOutput = proofConfiguration?.outputDirectory
         var work = CaptureShutdownWork(
-            approval: manifest?.sourceApproval,
+            approval: manifest?.sourceApproval ?? activeApproval,
             closeDelivery: {}, // Real outputs were synchronously retired above.
             stop: { deadline in
                 if let stoppingStream { try await Self.stop(stoppingStream, deadline: deadline) }
             },
             finalize: { deadline in
-                if manifest != nil, let recorder { try await recorder.finish(deadline: deadline) }
-                else { recorder?.cancel() }
+                if let recorder {
+                    if recorder.recordedFrameCount > 0 {
+                        try await recorder.finish(deadline: deadline)
+                        self.lastSavedRecordingURL = recorder.outputURL
+                    } else {
+                        recorder.cancel()
+                    }
+                }
             },
             publish: {
                 guard let manifest, let proofOutput else { return nil }
@@ -1417,7 +1466,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             if finalizeProof, !proofInvalidated,
                work.approval.map({ approvedSources.contains($0) }) ?? true {
                 proofReceipt = try work.publish()
-            } else { work.cancel() }
+            } else if !finalizeProof || proofInvalidated || work.approval.map({ !approvedSources.contains($0) }) ?? false {
+                work.cancel()
+            }
             if let finalState, lifecycle != .failed { lifecycle = finalState }
         } catch {
             work.cancel()
