@@ -133,3 +133,11 @@ node skills/productive-discourse-facilitator/scripts/test-bundle.mjs
 ```
 
 Static validity does not establish participant safety, claim truth, equal power, genuine comprehension, or authoritative consent.
+
+## Imported bundle navigation
+
+These preserved source files add depth when their stated topic is needed.
+
+- [references/playbooks/couples-early-recovery.md](references/playbooks/couples-early-recovery.md) — Couples Communication in Early Recovery: Full Reference.
+- [references/playbooks/sac.md](references/playbooks/sac.md) — Structured Academic Controversy (SAC): Full Reference.
+- [references/theory/dialog-vs-debate.md](references/theory/dialog-vs-debate.md) — Dialogue vs. Debate vs. Deliberation: Theory and Practice.

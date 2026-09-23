@@ -1,0 +1,60 @@
+{
+  "sourceCoverage": {
+    "entryCount": 755,
+    "structuralProblems": []
+  },
+  "skillHygiene": {
+    "entryCount": 755,
+    "failedNames": []
+  },
+  "diagramMermaid": {
+    "files_scanned": 5,
+    "diagrams_found": 3,
+    "passed": true,
+    "errors": 0,
+    "warnings": 0,
+    "issues": []
+  },
+  "coverageCommand": [
+    "python3",
+    "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/docs/research/skills-reconciliation-20260923/verify-reconciliation.py",
+    "--source",
+    "/Users/erichowens/coding/port-daddy/.agy/skills",
+    "--destination",
+    "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills",
+    "--fallback",
+    "/opt/homebrew/Cellar/windags/2.10.0/libexec/skills",
+    "--fallback",
+    "/Users/erichowens/coding/port-daddy/skills",
+    "--fallback",
+    "/Users/erichowens/.claude/skills",
+    "--fallback",
+    "/Users/erichowens/.codex/skills",
+    "--fallback",
+    "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/io-contract-pile-split/skills"
+  ],
+  "hygieneMethod": "Imported unchanged skills/skill-hygiene/scripts/audit_skill_bundle.py and called audit(Path) once for each requested skill.",
+  "mermaidCommand": [
+    "python3",
+    "skills/skill-architect/scripts/validate_mermaid.py",
+    "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/docs/research/skills-reconciliation-20260923/diagrams",
+    "--json"
+  ],
+  "targetedWorkerValidation": [
+    {
+      "command": "node skills/provable-action-adjudicator/scripts/test-bundle.mjs",
+      "reportedResult": "13/13 pass after final documentation repairs"
+    },
+    {
+      "command": "node skills/ai-engineer/scripts/ai_system_audit.mjs --input skills/ai-engineer/examples/sample-input.json",
+      "reportedResult": "exit 0; sample contract score 100, not an efficacy result"
+    }
+  ],
+  "review": "All six original independent findings resolved; see independent-n-z-review.md final closure.",
+  "limits": "No library-wide factual certification, imported-script runtime execution, skill efficacy experiment, manuscript proof verification, or deployment test.",
+  "cachedWhitespaceCheck": {
+    "status": "nonzero; reviewed imported formatting retained",
+    "disposition": "whitespace-disposition.json",
+    "unmatchedTrailingWhitespace": 0
+  }
+}

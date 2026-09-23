@@ -72,6 +72,21 @@ Load only what the case needs.
 
 ## Decision Points
 
+### Four-plane topology check
+
+Before selecting a label, draw four small artifacts: the **planning graph**
+(dependencies), **communication topology** (who can exchange which evidence),
+**authority graph** (who may grant, deny, or commit), and **execution substrate**
+(worktrees, queues, services, or human gates). They may differ. A DAG plan does
+not create a message bus; a manager role does not grant tool authority; a queue
+does not prove a semantic dependency graph.
+
+Write the single-agent baseline first. Add a topology only for a stated task
+dependency or capacity constraint, then specify equal-budget evaluation and a
+stop/escalation condition. Research on agent-system scaling reports strong
+task–architecture dependence, so do not import a universal worker threshold.
+See `references/four-plane-topology.md`.
+
 ### Primary Selection Tree
 
 ```mermaid

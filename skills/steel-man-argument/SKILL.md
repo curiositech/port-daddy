@@ -164,3 +164,10 @@ node skills/steel-man-argument/scripts/test-bundle.mjs
 | `diagrams/01-fidelity-gate.md` | Explaining the reconstruction gate visually. |
 | `scripts/validate-fidelity-ledger.mjs` | Validating one Fidelity Ledger. |
 | `scripts/test-bundle.mjs` | Running positive and adversarial validation cases. |
+
+## Imported bundle navigation
+
+These preserved source files add depth when their stated topic is needed.
+
+- [references/patterns/relational-usage.md](references/patterns/relational-usage.md) — Steelmanning in Relationships and Interpersonal Conflict.
+- [references/theory/steelman-vs-strawman.md](references/theory/steelman-vs-strawman.md) — Steel Man vs. Straw Man — Theory and Background.

@@ -1,0 +1,1981 @@
+[
+  {
+    "skill": "national-expungement-expert",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/state-eligibility-matrix.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-decision-making",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "decision-quality-vs-decision-speed-fire-grows-exponentially.md",
+      "experience-accumulation-expert-knowledge-architecture.md",
+      "mental-simulation-evaluation-without-comparison.md",
+      "pattern-matching-as-primary-decision-mechanism.md",
+      "situation-assessment-as-primary-cognitive-work.md",
+      "team-coordination-without-central-control.md",
+      "training-for-decision-requirements-not-procedures.md",
+      "why-formal-decision-tools-fail-in-practice.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-decision-making",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_recognition-primed_decision_(r.md",
+      "02_stateDiagram-v2_pattern_schema_states_and_tran.md",
+      "03_quadrantChart_decision_approach_selection_ma.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-decision-making",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_recognition-primed_decision_(r.md",
+      "diagrams/02_stateDiagram-v2_pattern_schema_states_and_tran.md",
+      "diagrams/03_quadrantChart_decision_approach_selection_ma.md",
+      "references/decision-quality-vs-decision-speed-fire-grows-exponentially.md",
+      "references/experience-accumulation-expert-knowledge-architecture.md",
+      "references/mental-simulation-evaluation-without-comparison.md",
+      "references/pattern-matching-as-primary-decision-mechanism.md",
+      "references/situation-assessment-as-primary-cognitive-work.md",
+      "references/team-coordination-without-central-control.md",
+      "references/training-for-decision-requirements-not-procedures.md",
+      "references/why-formal-decision-tools-fail-in-practice.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-insight",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "contradiction-driven-insight-pathways.md",
+      "expertise-enables-insight-not-fixation.md",
+      "gradual-insight-and-pattern-accumulation.md",
+      "organizational-barriers-to-insight.md",
+      "task-decomposition-for-insight-vs-execution.md",
+      "three-pathways-anchor-model.md",
+      "when-error-prevention-blocks-insight.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-insight",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_naturalistic_insight_decision_.md",
+      "02_stateDiagram-v2_insight_pathway_activation_&_a.md",
+      "03_quadrantChart_insight_mechanism_selection_ma.md"
+    ]
+  },
+  {
+    "skill": "naturalistic-insight",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_naturalistic_insight_decision_.md",
+      "diagrams/02_stateDiagram-v2_insight_pathway_activation_&_a.md",
+      "diagrams/03_quadrantChart_insight_mechanism_selection_ma.md",
+      "references/contradiction-driven-insight-pathways.md",
+      "references/expertise-enables-insight-not-fixation.md",
+      "references/gradual-insight-and-pattern-accumulation.md",
+      "references/organizational-barriers-to-insight.md",
+      "references/task-decomposition-for-insight-vs-execution.md",
+      "references/three-pathways-anchor-model.md",
+      "references/when-error-prevention-blocks-insight.md"
+    ]
+  },
+  {
+    "skill": "ndm-decision-models",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "decision-support-for-recognition-not-analysis.md",
+      "decision-support-systems-for-recognition-not-analysis.md",
+      "expertise-as-pattern-recognition-not-analysis.md",
+      "expertise-as-pattern-recognition-not-rules.md",
+      "failure-modes-in-agent-decision-systems.md",
+      "failure-modes-of-analytical-frameworks-in-operational-systems.md",
+      "mental-simulation-as-evaluation-method.md",
+      "naturalistic-versus-laboratory-thinking.md",
+      "recognition-primed-decision-architecture.md",
+      "rpd-recognition-primed-decisions-for-agents.md",
+      "satisficing-over-optimizing-in-complex-domains.md",
+      "situation-assessment-as-primary-cognitive-work.md",
+      "situation-assessment-primacy.md",
+      "the-cognitive-continuum-and-strategy-selection.md",
+      "the-gap-between-laboratory-and-field-decision-making.md",
+      "when-analytical-decision-tools-fail.md"
+    ]
+  },
+  {
+    "skill": "ndm-decision-models",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/decision-support-for-recognition-not-analysis.md",
+      "references/decision-support-systems-for-recognition-not-analysis.md",
+      "references/expertise-as-pattern-recognition-not-analysis.md",
+      "references/expertise-as-pattern-recognition-not-rules.md",
+      "references/failure-modes-in-agent-decision-systems.md",
+      "references/failure-modes-of-analytical-frameworks-in-operational-systems.md",
+      "references/mental-simulation-as-evaluation-method.md",
+      "references/naturalistic-versus-laboratory-thinking.md",
+      "references/recognition-primed-decision-architecture.md",
+      "references/rpd-recognition-primed-decisions-for-agents.md",
+      "references/satisficing-over-optimizing-in-complex-domains.md",
+      "references/situation-assessment-as-primary-cognitive-work.md",
+      "references/situation-assessment-primacy.md",
+      "references/the-cognitive-continuum-and-strategy-selection.md",
+      "references/the-gap-between-laboratory-and-field-decision-making.md",
+      "references/when-analytical-decision-tools-fail.md"
+    ]
+  },
+  {
+    "skill": "ndm-law-enforcement",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "decisions-about-behavior-the-hardest-domain.md",
+      "expert-novice-gap-in-situation-assessment.md",
+      "expert-vs-novice-decision-signatures.md",
+      "failure-modes-in-high-stakes-dynamic-systems.md",
+      "failure-modes-plan-fixation-and-update-failure.md",
+      "recognition-primed-decision-making-for-agents.md",
+      "recognition-primed-decision-making.md",
+      "satisficing-and-the-quick-test.md",
+      "situation-assessment-as-the-critical-skill.md",
+      "situation-awareness-decomposition-and-coordination.md",
+      "tacit-knowledge-elicitation-and-the-cdm.md",
+      "tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "ten-characteristics-of-naturalistic-decision-environments.md",
+      "the-three-pronged-framework-observation-interview-training.md",
+      "training-for-expertise-deliberate-practice-and-the-experience-bank.md",
+      "uncertainty-acceptance-and-information-seeking.md"
+    ]
+  },
+  {
+    "skill": "ndm-law-enforcement",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/decisions-about-behavior-the-hardest-domain.md",
+      "references/expert-novice-gap-in-situation-assessment.md",
+      "references/expert-vs-novice-decision-signatures.md",
+      "references/failure-modes-in-high-stakes-dynamic-systems.md",
+      "references/failure-modes-plan-fixation-and-update-failure.md",
+      "references/recognition-primed-decision-making-for-agents.md",
+      "references/recognition-primed-decision-making.md",
+      "references/satisficing-and-the-quick-test.md",
+      "references/situation-assessment-as-the-critical-skill.md",
+      "references/situation-awareness-decomposition-and-coordination.md",
+      "references/tacit-knowledge-elicitation-and-the-cdm.md",
+      "references/tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "references/ten-characteristics-of-naturalistic-decision-environments.md",
+      "references/the-three-pronged-framework-observation-interview-training.md",
+      "references/training-for-expertise-deliberate-practice-and-the-experience-bank.md",
+      "references/uncertainty-acceptance-and-information-seeking.md"
+    ]
+  },
+  {
+    "skill": "neobrutalist-web-designer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "component-library.md",
+      "design-gallery-sources.md",
+      "real-world-examples.md"
+    ]
+  },
+  {
+    "skill": "neobrutalist-web-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/component-library.md",
+      "references/design-gallery-sources.md",
+      "references/real-world-examples.md"
+    ]
+  },
+  {
+    "skill": "next-move",
+    "path": "examples/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "03-halt-gate-tripped.md"
+    ]
+  },
+  {
+    "skill": "next-move",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "examples/03-halt-gate-tripped.md"
+    ]
+  },
+  {
+    "skill": "nygard-2018-release-it-2nd-edition",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "failure-propagation-mechanics.md",
+      "observability-feedback-loops.md",
+      "production-scale-antipatterns.md",
+      "zero-downtime-deployment-architecture.md"
+    ]
+  },
+  {
+    "skill": "nygard-2018-release-it-2nd-edition",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_failure_propagation_decision_t.md",
+      "02_sequenceDiagram_cascading_failure_propagation_.md",
+      "03_stateDiagram-v2_circuit_breaker_state_machine_.md"
+    ]
+  },
+  {
+    "skill": "nygard-2018-release-it-2nd-edition",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_failure_propagation_decision_t.md",
+      "diagrams/02_sequenceDiagram_cascading_failure_propagation_.md",
+      "diagrams/03_stateDiagram-v2_circuit_breaker_state_machine_.md",
+      "references/observability-feedback-loops.md"
+    ]
+  },
+  {
+    "skill": "ongaro-ousterhout-2014-raft",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "02_sequenceDiagram_log_replication_protocol:_happ.md",
+      "03_mindmap_decomposition_hierarchy:_raft'.md"
+    ]
+  },
+  {
+    "skill": "ongaro-ousterhout-2014-raft",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md",
+      "diagrams/03_mindmap_decomposition_hierarchy:_raft'.md"
+    ]
+  },
+  {
+    "skill": "openai-docs",
+    "path": "assets/INDEX.md",
+    "kind": "created-index",
+    "files": []
+  },
+  {
+    "skill": "openai-docs",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "codex-self-knowledge.md",
+      "latest-model.md",
+      "mcp-diagnostics.md",
+      "model-migration.md",
+      "model-selection.md",
+      "official-docs.md",
+      "prompting-guide.md",
+      "upgrade-guide.md",
+      "upgrading-to-gpt-6-astra.md"
+    ]
+  },
+  {
+    "skill": "openai-docs",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "fetch-codex-manual.mjs"
+    ]
+  },
+  {
+    "skill": "openai-docs",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "agents/openai.yaml",
+      "references/upgrade-guide.md",
+      "scripts/fetch-codex-manual.mjs"
+    ]
+  },
+  {
+    "skill": "panic-room-finder",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/measurement-templates.md"
+    ]
+  },
+  {
+    "skill": "partner-text-coach",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/attachment-styles.md"
+    ]
+  },
+  {
+    "skill": "personal-finance-coach",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "investment-theory.md",
+      "tax-optimization.md",
+      "withdrawal-math.md"
+    ]
+  },
+  {
+    "skill": "personal-finance-coach",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/investment-theory.md",
+      "references/tax-optimization.md",
+      "references/withdrawal-math.md"
+    ]
+  },
+  {
+    "skill": "pet-memorial-creator",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/memorial-project-ideas.md"
+    ]
+  },
+  {
+    "skill": "photo-composition-critic",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "analysis-scripts.md",
+      "color-theory.md",
+      "composition-theory.md",
+      "ml-models.md"
+    ]
+  },
+  {
+    "skill": "photo-composition-critic",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/analysis-scripts.md",
+      "references/color-theory.md",
+      "references/composition-theory.md",
+      "references/ml-models.md"
+    ]
+  },
+  {
+    "skill": "photo-content-recognition-curation-expert",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "content-detection.md",
+      "face-clustering.md",
+      "perceptual-hashing.md",
+      "photo-indexing.md"
+    ]
+  },
+  {
+    "skill": "photo-content-recognition-curation-expert",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/content-detection.md",
+      "references/face-clustering.md",
+      "references/perceptual-hashing.md",
+      "references/photo-indexing.md"
+    ]
+  },
+  {
+    "skill": "physics-rendering-expert",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "core-algorithms.md",
+      "implementations.md",
+      "tangle-physics.md"
+    ]
+  },
+  {
+    "skill": "physics-rendering-expert",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/core-algorithms.md",
+      "references/implementations.md",
+      "references/tangle-physics.md"
+    ]
+  },
+  {
+    "skill": "plugin-creator",
+    "path": "assets/INDEX.md",
+    "kind": "created-index",
+    "files": []
+  },
+  {
+    "skill": "plugin-creator",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "create_basic_plugin.py",
+      "identifier_validation.py",
+      "read_marketplace_name.py",
+      "update_plugin_cachebuster.py",
+      "validate_plugin.py"
+    ]
+  },
+  {
+    "skill": "plugin-creator",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "agents/openai.yaml",
+      "scripts/identifier_validation.py"
+    ]
+  },
+  {
+    "skill": "pre-federation-halt-gate",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "bonds-require-well-defined-problems.md",
+      "halt-gate-implementation.md",
+      "polya-principal-parts.md"
+    ]
+  },
+  {
+    "skill": "pre-federation-halt-gate",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "agents/default-agent.md",
+      "diagrams/01_flowchart_decision-points.md",
+      "examples/01_worked_example.md",
+      "references/bonds-require-well-defined-problems.md",
+      "references/halt-gate-implementation.md",
+      "references/polya-principal-parts.md"
+    ]
+  },
+  {
+    "skill": "productive-discourse-facilitator",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/playbooks/couples-early-recovery.md",
+      "references/playbooks/sac.md",
+      "references/theory/dialog-vs-debate.md"
+    ]
+  },
+  {
+    "skill": "pwa-expert",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "background-sync.md",
+      "install-prompt.md",
+      "nextjs-integration.md",
+      "offline-handling.md",
+      "service-worker-patterns.md",
+      "update-flow.md"
+    ]
+  },
+  {
+    "skill": "pwa-expert",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/background-sync.md",
+      "references/install-prompt.md",
+      "references/nextjs-integration.md",
+      "references/offline-handling.md",
+      "references/service-worker-patterns.md",
+      "references/update-flow.md"
+    ]
+  },
+  {
+    "skill": "rapport-based-elicitation",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "autonomy-preservation-in-elicitation.md",
+      "coercion-contaminates-information.md",
+      "coercive-vs-rapport-the-failure-mode-of-forcing-output.md",
+      "evidence-based-practice-adoption-barriers.md",
+      "evidence-research-practice-gap-as-systemic-failure.md",
+      "gap-between-knowing-and-doing.md",
+      "information-extraction-as-indirect-problem.md",
+      "knowing-doing-gap-in-expert-systems.md",
+      "mediated-causal-chains-in-agent-design.md",
+      "mediation-chains-and-skipping-steps.md",
+      "rapport-as-causal-mechanism-not-social-lubricant.md",
+      "resistance-as-diagnostic-signal.md",
+      "resistance-as-information-not-obstacle.md",
+      "three-layer-elicitation-architecture.md",
+      "three-layers-of-rapport-architecture.md",
+      "training-transfer-and-skill-erosion.md",
+      "trust-reciprocity-and-the-cooperative-threshold.md"
+    ]
+  },
+  {
+    "skill": "rapport-based-elicitation",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/autonomy-preservation-in-elicitation.md",
+      "references/coercion-contaminates-information.md",
+      "references/evidence-based-practice-adoption-barriers.md",
+      "references/gap-between-knowing-and-doing.md",
+      "references/information-extraction-as-indirect-problem.md",
+      "references/mediated-causal-chains-in-agent-design.md",
+      "references/resistance-as-diagnostic-signal.md",
+      "references/three-layers-of-rapport-architecture.md",
+      "references/trust-reciprocity-and-the-cooperative-threshold.md"
+    ]
+  },
+  {
+    "skill": "rapport-intelligence-yield",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "attention-as-the-primary-yield-driver.md",
+      "attention-dominates-yield-active-processing-over-warmth.md",
+      "coordination-as-structural-intelligence.md",
+      "coordination-shared-goal-structure-enables-transfer.md",
+      "frequency-impact-asymmetry-in-skilled-performance.md",
+      "frequency-monitoring-as-quality-control.md",
+      "informal-vs-formal-interaction-elicitation-context-matters.md",
+      "intelligence-yield-taxonomy-decomposing-output-quality.md",
+      "motivation-as-functional-intelligence.md",
+      "objective-measurement-vs-subjective-rating.md",
+      "rapport-as-behavioral-frequency-not-feeling.md",
+      "rapport-decomposition-and-differential-impact.md",
+      "self-report-gap-behavioral-auditing-vs-perceived-practice.md",
+      "self-report-vs-behavior-gap.md",
+      "working-alliance-motivation-modeling-source-management.md",
+      "working-alliance-vs-social-warmth.md"
+    ]
+  },
+  {
+    "skill": "rapport-intelligence-yield",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/attention-as-the-primary-yield-driver.md",
+      "references/coordination-as-structural-intelligence.md",
+      "references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "references/frequency-monitoring-as-quality-control.md",
+      "references/motivation-as-functional-intelligence.md",
+      "references/objective-measurement-vs-subjective-rating.md",
+      "references/rapport-decomposition-and-differential-impact.md",
+      "references/self-report-vs-behavior-gap.md",
+      "references/working-alliance-vs-social-warmth.md"
+    ]
+  },
+  {
+    "skill": "recovery-app-legal-terms",
+    "path": "docs/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "MEDICAL_DISCLAIMER.md",
+      "PRIVACY_POLICY_TEMPLATE.md",
+      "TERMS_OF_SERVICE_TEMPLATE.md"
+    ]
+  },
+  {
+    "skill": "recovery-app-legal-terms",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "docs/MEDICAL_DISCLAIMER.md",
+      "docs/PRIVACY_POLICY_TEMPLATE.md",
+      "docs/TERMS_OF_SERVICE_TEMPLATE.md",
+      "scripts/compliance_checklist.py"
+    ]
+  },
+  {
+    "skill": "recovery-app-onboarding",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "assets/example_asset.txt",
+      "references/api_reference.md",
+      "scripts/example.py"
+    ]
+  },
+  {
+    "skill": "recovery-community-moderator",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "moderate_content.py",
+      "training_examples.json"
+    ]
+  },
+  {
+    "skill": "recovery-community-moderator",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "docs/COMMUNITY_STANDARDS.md",
+      "scripts/training_examples.json"
+    ]
+  },
+  {
+    "skill": "recovery-social-features",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "accountability.md",
+      "friendships.md",
+      "groups.md",
+      "messaging.md",
+      "moderation.md",
+      "sponsor-sponsee.md"
+    ]
+  },
+  {
+    "skill": "recovery-social-features",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/accountability.md",
+      "references/friendships.md",
+      "references/groups.md",
+      "references/messaging.md",
+      "references/moderation.md",
+      "references/sponsor-sponsee.md"
+    ]
+  },
+  {
+    "skill": "recursive-synthesis",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "phase-templates.md",
+      "process-design.md"
+    ]
+  },
+  {
+    "skill": "recursive-synthesis",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/phase-templates.md",
+      "references/process-design.md"
+    ]
+  },
+  {
+    "skill": "revisiting-interview-data-analysing-turn",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "asymmetry-status-and-the-pre-determined-interaction.md",
+      "coding-systems-and-the-limits-of-surface-analysis.md",
+      "communicative-breakdown-as-primary-data.md",
+      "contingency-and-formality-in-structured-exchanges.md",
+      "cultural-context-as-active-analytical-tool.md",
+      "cultural-criteria-and-avoiding-anglocentric-evaluation.md",
+      "emergent-research-and-data-revisitation.md",
+      "hidden-breakdown-and-face-sensitive-communication.md",
+      "layers-of-insight-as-analytical-methodology.md",
+      "layers-of-insight-multi-tool-interpretation.md",
+      "multi-purpose-data-and-the-ethics-of-inference.md",
+      "primary-knower-inversion-and-role-contamination.md",
+      "repair-sequences-as-diagnostic-windows.md",
+      "surface-coding-vs-illocutionary-intent.md",
+      "the-methodology-of-revisiting-data.md",
+      "the-researcher-as-instrument-and-source-of-bias.md",
+      "the-semi-structured-approach-to-complex-inquiry.md"
+    ]
+  },
+  {
+    "skill": "revisiting-interview-data-analysing-turn",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/asymmetry-status-and-the-pre-determined-interaction.md",
+      "references/communicative-breakdown-as-primary-data.md",
+      "references/cultural-context-as-active-analytical-tool.md",
+      "references/layers-of-insight-as-analytical-methodology.md",
+      "references/multi-purpose-data-and-the-ethics-of-inference.md",
+      "references/surface-coding-vs-illocutionary-intent.md",
+      "references/the-methodology-of-revisiting-data.md",
+      "references/the-semi-structured-approach-to-complex-inquiry.md"
+    ]
+  },
+  {
+    "skill": "rpd-klein-calderwood",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "analogical-reasoning-and-its-failure-modes.md",
+      "analytical-prescriptions-vs-recognitional-expertise.md",
+      "critical-decision-method-eliciting-knowledge-from-experts.md",
+      "critical-decision-method-for-knowledge-elicitation.md",
+      "distributed-decision-making-and-coordination-without-central-control.md",
+      "distributed-decision-making-without-central-control.md",
+      "expertise-as-situational-knowledge-not-analytical-power.md",
+      "expertise-gap-cues-vs-inferences.md",
+      "failure-modes-in-operational-decision-systems.md",
+      "novice-vs-expert-error-patterns.md",
+      "progressive-deepening-mental-simulation-as-evaluation-tool.md",
+      "progressive-deepening-mental-simulation-as-evaluation.md",
+      "recognition-primed-decision-core-model.md",
+      "rpd-recognition-primed-decision-model.md",
+      "serial-evaluation-and-satisficing-under-time-pressure.md",
+      "serial-evaluation-vs-concurrent-comparison.md",
+      "situation-assessment-as-primary-intelligence.md",
+      "situation-assessment-the-overlooked-half-of-decision-making.md",
+      "why-analytical-decision-methods-fail-experts.md"
+    ]
+  },
+  {
+    "skill": "rpd-klein-calderwood",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/analytical-prescriptions-vs-recognitional-expertise.md",
+      "references/critical-decision-method-for-knowledge-elicitation.md",
+      "references/distributed-decision-making-without-central-control.md",
+      "references/expertise-gap-cues-vs-inferences.md",
+      "references/failure-modes-in-operational-decision-systems.md",
+      "references/progressive-deepening-mental-simulation-as-evaluation.md",
+      "references/rpd-recognition-primed-decision-model.md",
+      "references/serial-evaluation-and-satisficing-under-time-pressure.md",
+      "references/situation-assessment-as-primary-intelligence.md"
+    ]
+  },
+  {
+    "skill": "rpd-knowledge-elicitation",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "cdm-methodology-as-agent-design-protocol.md",
+      "decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "distributed-decision-making-and-span-of-control.md",
+      "expert-knowledge-structure-layers-and-abstraction.md",
+      "failure-modes-in-expert-judgment-and-agent-design.md",
+      "failure-modes-of-expert-decision-making.md",
+      "knowledge-elicitation-methods-and-their-limits.md",
+      "knowledge-representation-and-system-design-alignment.md",
+      "novice-to-expert-spectrum-and-knowledge-transfer.md",
+      "option-evaluation-the-serial-vs-concurrent-distinction.md",
+      "recognition-primed-decision-making-core-model.md",
+      "recognition-primed-decision-model.md",
+      "situation-assessment-as-primary-cognitive-task.md",
+      "situational-awareness-as-primary-cognitive-work.md",
+      "tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "tacit-knowledge-elicitation-for-agent-systems.md",
+      "the-boundary-of-routine-where-expertise-becomes-visible.md"
+    ]
+  },
+  {
+    "skill": "rpd-knowledge-elicitation",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/cdm-methodology-as-agent-design-protocol.md",
+      "references/decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "references/expert-knowledge-structure-layers-and-abstraction.md",
+      "references/failure-modes-in-expert-judgment-and-agent-design.md",
+      "references/recognition-primed-decision-making-core-model.md",
+      "references/situation-assessment-as-primary-cognitive-task.md",
+      "references/tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "references/the-boundary-of-routine-where-expertise-becomes-visible.md"
+    ]
+  },
+  {
+    "skill": "runtime-task-overlap-detector",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "agentbench-overlap-patterns.md",
+      "embedding-similarity-approaches.md",
+      "entailment-based-detection.md",
+      "plan-sketch-hashing.md"
+    ]
+  },
+  {
+    "skill": "runtime-task-overlap-detector",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_decision-points.md",
+      "references/agentbench-overlap-patterns.md",
+      "references/embedding-similarity-approaches.md",
+      "references/entailment-based-detection.md",
+      "references/plan-sketch-hashing.md"
+    ]
+  },
+  {
+    "skill": "self-adaptive-systems",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "control-theory-for-software.md",
+      "formal-adaptation-goals.md",
+      "hierarchical-feedback-loops.md",
+      "managed-vs-managing-separation.md"
+    ]
+  },
+  {
+    "skill": "self-adaptive-systems",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_mape-k_feedback_loop_architect.md",
+      "02_stateDiagram-v2_hierarchical_feedback_loop_lay.md",
+      "03_quadrantChart_system_adaptation_complexity_v.md"
+    ]
+  },
+  {
+    "skill": "self-adaptive-systems",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_mape-k_feedback_loop_architect.md",
+      "diagrams/02_stateDiagram-v2_hierarchical_feedback_loop_lay.md",
+      "diagrams/03_quadrantChart_system_adaptation_complexity_v.md",
+      "references/control-theory-for-software.md",
+      "references/formal-adaptation-goals.md",
+      "references/hierarchical-feedback-loops.md",
+      "references/managed-vs-managing-separation.md"
+    ]
+  },
+  {
+    "skill": "sensemaking-focus-model",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "data-frame-reciprocity-in-agent-systems.md",
+      "expert-questioning-strategies.md",
+      "fragmentary-mental-models-for-agents.md",
+      "frame-elaboration-vs-frame-comparison.md",
+      "sensemaking-decision-making-separation.md",
+      "sensemaking-triggers-and-anomaly-detection.md"
+    ]
+  },
+  {
+    "skill": "sensemaking-focus-model",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+      "02_flowchart_decision_framework:_anomaly_de.md",
+      "03_mindmap_focus_sensemaking_model:_knowl.md"
+    ]
+  },
+  {
+    "skill": "sensemaking-focus-model",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+      "diagrams/02_flowchart_decision_framework:_anomaly_de.md",
+      "diagrams/03_mindmap_focus_sensemaking_model:_knowl.md",
+      "references/data-frame-reciprocity-in-agent-systems.md",
+      "references/expert-questioning-strategies.md",
+      "references/fragmentary-mental-models-for-agents.md",
+      "references/frame-elaboration-vs-frame-comparison.md",
+      "references/sensemaking-decision-making-separation.md",
+      "references/sensemaking-triggers-and-anomaly-detection.md"
+    ]
+  },
+  {
+    "skill": "seo-visibility-expert",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "launch-checklists.md",
+      "llms-txt-examples.md",
+      "schema-templates.md"
+    ]
+  },
+  {
+    "skill": "seo-visibility-expert",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/launch-checklists.md",
+      "references/llms-txt-examples.md",
+      "references/schema-templates.md"
+    ]
+  },
+  {
+    "skill": "shadowbox-expertise-transfer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "calibration-driven-learning-for-agent-systems.md",
+      "constraint-as-cognitive-forcing-function.md",
+      "expert-consensus-without-ground-truth.md",
+      "facilitation-free-scalable-expertise-transfer.md",
+      "multi-dimensional-cognitive-assessment.md",
+      "progressive-revelation-and-commitment.md",
+      "scenario-based-expertise-transfer.md"
+    ]
+  },
+  {
+    "skill": "shadowbox-expertise-transfer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/calibration-driven-learning-for-agent-systems.md",
+      "references/constraint-as-cognitive-forcing-function.md",
+      "references/expert-consensus-without-ground-truth.md",
+      "references/facilitation-free-scalable-expertise-transfer.md",
+      "references/multi-dimensional-cognitive-assessment.md",
+      "references/progressive-revelation-and-commitment.md",
+      "references/scenario-based-expertise-transfer.md"
+    ]
+  },
+  {
+    "skill": "simon-and-newell-human-problem-solving-theory-1971",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "learning-and-problem-space-construction.md",
+      "means-ends-analysis-as-special-case.md",
+      "selective-search-as-intelligence.md",
+      "serial-processing-constraints-shape-behavior.md",
+      "structure-exploitation-over-search-power.md",
+      "task-environment-vs-problem-space.md"
+    ]
+  },
+  {
+    "skill": "simon-and-newell-human-problem-solving-theory-1971",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_problem-solving_diagnosis_&_st.md",
+      "02_mindmap_problem_space_construction:_si.md",
+      "03_quadrantChart_search_strategy_selection:_wor.md"
+    ]
+  },
+  {
+    "skill": "simon-and-newell-human-problem-solving-theory-1971",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_problem-solving_diagnosis_&_st.md",
+      "diagrams/02_mindmap_problem_space_construction:_si.md",
+      "diagrams/03_quadrantChart_search_strategy_selection:_wor.md",
+      "references/learning-and-problem-space-construction.md",
+      "references/means-ends-analysis-as-special-case.md",
+      "references/selective-search-as-intelligence.md",
+      "references/serial-processing-constraints-shape-behavior.md",
+      "references/structure-exploitation-over-search-power.md",
+      "references/task-environment-vs-problem-space.md"
+    ]
+  },
+  {
+    "skill": "skill-coach",
+    "path": "examples/INDEX.md",
+    "kind": "created-index",
+    "files": []
+  },
+  {
+    "skill": "skill-coach",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "examples/good/clip-aware-embeddings/SKILL_.md",
+      "examples/good/clip-aware-embeddings/scripts/validate_clip_usage.py"
+    ]
+  },
+  {
+    "skill": "skill-creator",
+    "path": "agents/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "analyzer.md",
+      "comparator.md",
+      "grader.md"
+    ]
+  },
+  {
+    "skill": "skill-creator",
+    "path": "eval-viewer/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "generate_review.py"
+    ]
+  },
+  {
+    "skill": "skill-creator",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "description-optimization.md",
+      "eval-patterns.md",
+      "schemas.md",
+      "troubleshooting.md"
+    ]
+  },
+  {
+    "skill": "skill-creator",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "__init__.py",
+      "aggregate_benchmark.py",
+      "generate_report.py",
+      "improve_description.py",
+      "package_skill.py",
+      "quick_validate.py",
+      "run_eval.py",
+      "run_loop.py",
+      "utils.py"
+    ]
+  },
+  {
+    "skill": "skill-creator",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "agents/analyzer.md",
+      "agents/comparator.md",
+      "agents/grader.md",
+      "eval-viewer/generate_review.py",
+      "references/description-optimization.md",
+      "references/eval-patterns.md",
+      "references/schemas.md",
+      "references/troubleshooting.md",
+      "scripts/__init__.py",
+      "scripts/aggregate_benchmark.py",
+      "scripts/generate_report.py",
+      "scripts/improve_description.py",
+      "scripts/package_skill.py",
+      "scripts/quick_validate.py",
+      "scripts/run_eval.py",
+      "scripts/run_loop.py",
+      "scripts/utils.py"
+    ]
+  },
+  {
+    "skill": "skill-documentarian",
+    "path": "guides/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "ARTIFACT_PRESERVATION.md",
+      "ARTIFACT_QUICKREF.md",
+      "README.md"
+    ]
+  },
+  {
+    "skill": "skill-documentarian",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "artifact-structure.md",
+      "badge-metadata-management.md",
+      "documentation-templates.md",
+      "tag-taxonomy.md"
+    ]
+  },
+  {
+    "skill": "skill-documentarian",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "guides/ARTIFACT_PRESERVATION.md",
+      "guides/ARTIFACT_QUICKREF.md",
+      "references/artifact-structure.md",
+      "references/badge-metadata-management.md",
+      "references/documentation-templates.md",
+      "scripts/validate-skills-sync.sh"
+    ]
+  },
+  {
+    "skill": "skill-installer",
+    "path": "assets/INDEX.md",
+    "kind": "created-index",
+    "files": []
+  },
+  {
+    "skill": "skill-installer",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "github_utils.py",
+      "install-skill-from-github.py",
+      "list-skills.py"
+    ]
+  },
+  {
+    "skill": "skill-installer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "agents/openai.yaml",
+      "scripts/github_utils.py"
+    ]
+  },
+  {
+    "skill": "sober-addict-protector",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/couples-therapy-resources.md"
+    ]
+  },
+  {
+    "skill": "sobriety-tools-guardian",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "CRISIS_DETECTION.md",
+      "PERFORMANCE_PATTERNS.md"
+    ]
+  },
+  {
+    "skill": "sobriety-tools-guardian",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/CRISIS_DETECTION.md",
+      "references/PERFORMANCE_PATTERNS.md"
+    ]
+  },
+  {
+    "skill": "sound-engineer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/implementations.md"
+    ]
+  },
+  {
+    "skill": "speech-pathology-ai",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "acoustic-analysis.md",
+      "ai-models.md",
+      "mellifluo-platform.md",
+      "therapy-interventions.md"
+    ]
+  },
+  {
+    "skill": "speech-pathology-ai",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/acoustic-analysis.md",
+      "references/ai-models.md",
+      "references/mellifluo-platform.md",
+      "references/therapy-interventions.md"
+    ]
+  },
+  {
+    "skill": "steel-man-argument",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/patterns/relational-usage.md",
+      "references/theory/steelman-vs-strawman.md"
+    ]
+  },
+  {
+    "skill": "supabase-admin",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "rls-patterns.md",
+      "social-schema.md"
+    ]
+  },
+  {
+    "skill": "supabase-admin",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/rls-patterns.md",
+      "references/social-schema.md"
+    ]
+  },
+  {
+    "skill": "swarm-invocation-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "examples/expected-output.md",
+      "references/fast-agent-bus.md",
+      "references/invocation-patterns.md",
+      "schemas/latency-budget.schema.json",
+      "scripts/latency_budget.mjs",
+      "templates/output-template.md"
+    ]
+  },
+  {
+    "skill": "tacit-expertise-elicitation",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "communities-of-practice-as-knowledge-infrastructure.md",
+      "community-of-practice-design-for-agent-coordination.md",
+      "decision-making-under-uncertainty-the-expert-pattern.md",
+      "deliberate-practice-and-agent-capability-development.md",
+      "elicitive-methodology-local-over-universal-knowledge.md",
+      "expertise-as-domain-specific-not-general.md",
+      "expertise-is-not-experience-the-deliberate-practice-gap.md",
+      "four-passes-framework-for-deep-cognitive-inquiry.md",
+      "knowledge-transfer-failure-modes.md",
+      "metacognition-and-reflection-before-during-after.md",
+      "naturalistic-decision-making-and-pattern-recognition.md",
+      "structural-barriers-to-knowledge-transfer.md",
+      "tacit-expertise-elicitation-protocol.md",
+      "tacit-knowledge-elicitation-protocols.md",
+      "the-credential-expertise-gap-and-routing.md",
+      "the-war-story-problem-authentic-vs-curated-knowledge.md",
+      "theory-in-use-vs-theory-espoused.md"
+    ]
+  },
+  {
+    "skill": "tacit-expertise-elicitation",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/communities-of-practice-as-knowledge-infrastructure.md",
+      "references/community-of-practice-design-for-agent-coordination.md",
+      "references/decision-making-under-uncertainty-the-expert-pattern.md",
+      "references/deliberate-practice-and-agent-capability-development.md",
+      "references/elicitive-methodology-local-over-universal-knowledge.md",
+      "references/expertise-as-domain-specific-not-general.md",
+      "references/expertise-is-not-experience-the-deliberate-practice-gap.md",
+      "references/four-passes-framework-for-deep-cognitive-inquiry.md",
+      "references/knowledge-transfer-failure-modes.md",
+      "references/metacognition-and-reflection-before-during-after.md",
+      "references/naturalistic-decision-making-and-pattern-recognition.md",
+      "references/structural-barriers-to-knowledge-transfer.md",
+      "references/tacit-expertise-elicitation-protocol.md",
+      "references/tacit-knowledge-elicitation-protocols.md",
+      "references/the-credential-expertise-gap-and-routing.md",
+      "references/the-war-story-problem-authentic-vs-curated-knowledge.md",
+      "references/theory-in-use-vs-theory-espoused.md"
+    ]
+  },
+  {
+    "skill": "taleb-blyth-2011-black-swan-of-cairo",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "action-bias-and-intervention-fragility.md",
+      "designing-intelligence-proof-agent-systems.md",
+      "linear-vs-complex-prediction-failure.md",
+      "turkey-problem-and-catalyst-confusion.md",
+      "variation-as-information-opacity-as-blindness.md",
+      "volatility-suppression-fragility-paradox.md"
+    ]
+  },
+  {
+    "skill": "taleb-blyth-2011-black-swan-of-cairo",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_system_fragility_assessment_de.md",
+      "02_stateDiagram-v2_volatility_suppression_paradox.md",
+      "03_quadrantChart_domain_characterization:_linea.md"
+    ]
+  },
+  {
+    "skill": "taleb-blyth-2011-black-swan-of-cairo",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_system_fragility_assessment_de.md",
+      "diagrams/02_stateDiagram-v2_volatility_suppression_paradox.md",
+      "diagrams/03_quadrantChart_domain_characterization:_linea.md",
+      "references/designing-intelligence-proof-agent-systems.md"
+    ]
+  },
+  {
+    "skill": "the-belief-desire-intention-model-of-age",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_bdi_agent_decision_cycle_and_r.md",
+      "02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "03_quadrantChart_environment_dynamics_vs._compu.md"
+    ]
+  },
+  {
+    "skill": "the-belief-desire-intention-model-of-age",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md",
+      "diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "diagrams/03_quadrantChart_environment_dynamics_vs._compu.md"
+    ]
+  },
+  {
+    "skill": "the-cambridge-handbook-of-expertise-and",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_knowledge_elicitation_method_s.md",
+      "02_mindmap_three-level_knowledge_architec.md",
+      "03_quadrantChart_elicitation_method_fit_matrix:.md"
+    ]
+  },
+  {
+    "skill": "the-cambridge-handbook-of-expertise-and",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_knowledge_elicitation_method_s.md",
+      "diagrams/02_mindmap_three-level_knowledge_architec.md",
+      "diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md"
+    ]
+  },
+  {
+    "skill": "the-impact-of-rapport-on-intelligence-yi",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "attention-as-the-primary-yield-driver.md",
+      "attention-dominates-yield-active-processing-over-warmth.md",
+      "coordination-as-structural-intelligence.md",
+      "coordination-shared-goal-structure-enables-transfer.md",
+      "frequency-impact-asymmetry-in-skilled-performance.md",
+      "frequency-monitoring-as-quality-control.md",
+      "informal-vs-formal-interaction-elicitation-context-matters.md",
+      "intelligence-yield-taxonomy-decomposing-output-quality.md",
+      "motivation-as-functional-intelligence.md",
+      "objective-measurement-vs-subjective-rating.md",
+      "rapport-as-behavioral-frequency-not-feeling.md",
+      "rapport-decomposition-and-differential-impact.md",
+      "self-report-gap-behavioral-auditing-vs-perceived-practice.md",
+      "self-report-vs-behavior-gap.md",
+      "working-alliance-motivation-modeling-source-management.md",
+      "working-alliance-vs-social-warmth.md"
+    ]
+  },
+  {
+    "skill": "the-impact-of-rapport-on-intelligence-yi",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/attention-as-the-primary-yield-driver.md",
+      "references/coordination-as-structural-intelligence.md",
+      "references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "references/frequency-monitoring-as-quality-control.md",
+      "references/informal-vs-formal-interaction-elicitation-context-matters.md",
+      "references/motivation-as-functional-intelligence.md",
+      "references/objective-measurement-vs-subjective-rating.md",
+      "references/rapport-decomposition-and-differential-impact.md",
+      "references/self-report-vs-behavior-gap.md",
+      "references/working-alliance-vs-social-warmth.md"
+    ]
+  },
+  {
+    "skill": "the-role-of-cognitive-systems-engineerin",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "automation-surprises-and-failure-mode-prevention.md",
+      "cognitive-requirements-are-invisible.md",
+      "cognitive-work-analysis-as-constraint-mapping.md",
+      "cse-concept-map-for-agent-architecture.md",
+      "design-as-dialog-not-pipeline.md",
+      "design-as-dialog-not-sequence.md",
+      "expert-models-as-engineering-blueprints.md",
+      "expertise-recognition-and-tacit-knowledge.md",
+      "failure-modes-in-complex-cognitive-systems.md",
+      "invisible-cognitive-layer-in-system-design.md",
+      "joint-cognitive-systems-and-distributed-cognition.md",
+      "joint-cognitive-systems-distributed-cognition.md",
+      "problem-framing-as-the-critical-design-act.md",
+      "problem-reframing-as-highest-leverage-intervention.md",
+      "value-case-and-invisible-contributions.md",
+      "value-of-cse-to-stakeholders-making-the-invisible-visible.md"
+    ]
+  },
+  {
+    "skill": "the-role-of-cognitive-systems-engineerin",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/automation-surprises-and-failure-mode-prevention.md",
+      "references/cognitive-work-analysis-as-constraint-mapping.md",
+      "references/design-as-dialog-not-sequence.md",
+      "references/expert-models-as-engineering-blueprints.md",
+      "references/invisible-cognitive-layer-in-system-design.md",
+      "references/joint-cognitive-systems-and-distributed-cognition.md",
+      "references/problem-framing-as-the-critical-design-act.md",
+      "references/value-of-cse-to-stakeholders-making-the-invisible-visible.md"
+    ]
+  },
+  {
+    "skill": "the-state-of-cognitive-systems-engineeri",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "automation-surprises-and-coordination-failure.md",
+      "automation-surprises-opacity-risk.md",
+      "cognition-distribution-coordination-without-central-control.md",
+      "cognitive-task-analysis-for-skill-specification.md",
+      "expert-knowledge-elicitation-for-agent-training.md",
+      "expertise-acquisition-stages-for-agent-capability-design.md",
+      "expertise-as-alternative-path-generation.md",
+      "human-centered-design-for-agent-orchestration.md",
+      "human-centered-inversion-for-agent-design.md",
+      "invariant-task-fallacy-and-agent-pipelines.md",
+      "linear-decomposition-failure-modes.md",
+      "recognition-primed-decision-making-for-agents.md",
+      "situated-cognition-and-context-dependence.md",
+      "skill-rules-knowledge-hierarchy-agent-architecture.md",
+      "sociotechnical-systems-design-lessons.md",
+      "the-gap-between-knowing-and-doing-in-complex-systems.md",
+      "the-knowledge-elicitation-problem.md",
+      "true-work-vs-prescribed-work-gap.md"
+    ]
+  },
+  {
+    "skill": "the-state-of-cognitive-systems-engineeri",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/automation-surprises-opacity-risk.md",
+      "references/cognition-distribution-coordination-without-central-control.md",
+      "references/expert-knowledge-elicitation-for-agent-training.md",
+      "references/expertise-as-alternative-path-generation.md",
+      "references/human-centered-design-for-agent-orchestration.md",
+      "references/linear-decomposition-failure-modes.md",
+      "references/skill-rules-knowledge-hierarchy-agent-architecture.md",
+      "references/sociotechnical-systems-design-lessons.md",
+      "references/true-work-vs-prescribed-work-gap.md"
+    ]
+  },
+  {
+    "skill": "thinking-inside-the-box-the-shadowbox-me",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "calibration-driven-learning-for-agent-systems.md",
+      "constraint-as-cognitive-forcing-function.md",
+      "expert-consensus-without-ground-truth.md",
+      "facilitation-free-scalable-expertise-transfer.md",
+      "multi-dimensional-cognitive-assessment.md",
+      "progressive-revelation-and-commitment.md",
+      "scenario-based-expertise-transfer.md"
+    ]
+  },
+  {
+    "skill": "thinking-inside-the-box-the-shadowbox-me",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/facilitation-free-scalable-expertise-transfer.md"
+    ]
+  },
+  {
+    "skill": "towards-a-taxonomy-of-cognitive-task-ana",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "automated-knowledge-the-hardest-target.md",
+      "building-theory-driven-agent-capability-taxonomies.md",
+      "declarative-vs-procedural-knowledge-for-agent-design.md",
+      "declarative-vs-procedural-knowledge-in-agent-systems.md",
+      "expert-knowledge-automation-gap.md",
+      "expert-knowledge-is-invisible-by-design.md",
+      "instructional-design-principles-for-agent-capability-building.md",
+      "knowledge-compilation-in-expert-systems-and-agent-design.md",
+      "knowledge-elicitation-as-a-three-phase-pipeline.md",
+      "knowledge-elicitation-as-toolkit-pairing.md",
+      "method-selection-drives-knowledge-outcomes.md",
+      "multi-method-coordination-for-knowledge-coverage.md",
+      "representation-bias-and-knowledge-extraction-validity.md",
+      "representation-bias-and-knowledge-fidelity.md",
+      "skill-selection-as-cognitive-task-analysis-problem.md",
+      "taxonomy-progress-and-classification-failure.md",
+      "taxonomy-theory-and-the-proliferation-trap.md",
+      "the-automated-knowledge-problem-for-ai-agents.md"
+    ]
+  },
+  {
+    "skill": "towards-a-taxonomy-of-cognitive-task-ana",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/automated-knowledge-the-hardest-target.md",
+      "references/declarative-vs-procedural-knowledge-for-agent-design.md",
+      "references/expert-knowledge-is-invisible-by-design.md",
+      "references/instructional-design-principles-for-agent-capability-building.md",
+      "references/knowledge-compilation-in-expert-systems-and-agent-design.md",
+      "references/knowledge-elicitation-as-a-three-phase-pipeline.md",
+      "references/knowledge-elicitation-as-toolkit-pairing.md",
+      "references/multi-method-coordination-for-knowledge-coverage.md",
+      "references/representation-bias-and-knowledge-extraction-validity.md",
+      "references/taxonomy-progress-and-classification-failure.md",
+      "references/the-automated-knowledge-problem-for-ai-agents.md"
+    ]
+  },
+  {
+    "skill": "turnstile-spin",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "astro.md",
+      "hugo.md",
+      "nextjs-app.md",
+      "nextjs-pages.md",
+      "sveltekit.md",
+      "vanilla-html.md"
+    ]
+  },
+  {
+    "skill": "turnstile-spin",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/astro.md",
+      "references/hugo.md",
+      "references/nextjs-app.md",
+      "references/nextjs-pages.md",
+      "references/sveltekit.md",
+      "references/vanilla-html.md",
+      "tests/validation.md"
+    ]
+  },
+  {
+    "skill": "typescript-advanced-patterns",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "branded-types.md",
+      "type-safe-patterns.md"
+    ]
+  },
+  {
+    "skill": "typescript-advanced-patterns",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/branded-types.md",
+      "references/type-safe-patterns.md"
+    ]
+  },
+  {
+    "skill": "vaporwave-glassomorphic-ui-designer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "animations-interactions.md",
+      "glassmorphism-patterns.md",
+      "metal-shaders.md",
+      "vaporwave-aesthetic.md"
+    ]
+  },
+  {
+    "skill": "vaporwave-glassomorphic-ui-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/animations-interactions.md",
+      "references/glassmorphism-patterns.md",
+      "references/metal-shaders.md",
+      "references/vaporwave-aesthetic.md"
+    ]
+  },
+  {
+    "skill": "vibe-matcher",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "scripts/validate_visual_dna.sh"
+    ]
+  },
+  {
+    "skill": "video-processing-editing",
+    "path": "scripts/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "audio_mixer.py",
+      "batch_processor.py",
+      "motion_graphics.py",
+      "quality_assessment.py",
+      "thumbnail_generator.py",
+      "timelapse_creator.py",
+      "video_editor.py"
+    ]
+  },
+  {
+    "skill": "video-processing-editing",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "scripts/audio_mixer.py",
+      "scripts/motion_graphics.py",
+      "scripts/quality_assessment.py",
+      "scripts/thumbnail_generator.py",
+      "scripts/timelapse_creator.py"
+    ]
+  },
+  {
+    "skill": "wang-2023-voyager",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "automatic-curriculum-as-frontier-discovery.md",
+      "code-as-action-space-advantages.md",
+      "curriculum-skill-verification-trinity.md",
+      "failure-modes-in-llm-agents.md",
+      "generalization-through-composition.md",
+      "iterative-prompting-as-error-driven-refinement.md",
+      "self-verification-without-ground-truth.md",
+      "skill-library-as-compositional-memory.md"
+    ]
+  },
+  {
+    "skill": "wang-2023-voyager",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_curriculum-skill-verification_.md",
+      "02_sequenceDiagram_iterative_code_refinement_cycl.md",
+      "03_mindmap_decision_framework_tree_(when_.md"
+    ]
+  },
+  {
+    "skill": "wang-2023-voyager",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_curriculum-skill-verification_.md",
+      "diagrams/02_sequenceDiagram_iterative_code_refinement_cycl.md",
+      "diagrams/03_mindmap_decision_framework_tree_(when_.md",
+      "references/automatic-curriculum-as-frontier-discovery.md",
+      "references/code-as-action-space-advantages.md",
+      "references/curriculum-skill-verification-trinity.md",
+      "references/failure-modes-in-llm-agents.md",
+      "references/generalization-through-composition.md",
+      "references/iterative-prompting-as-error-driven-refinement.md",
+      "references/self-verification-without-ground-truth.md",
+      "references/skill-library-as-compositional-memory.md"
+    ]
+  },
+  {
+    "skill": "web-cloud-designer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "animation-patterns.md",
+      "color-and-lighting.md",
+      "svg-filter-deep-dive.md"
+    ]
+  },
+  {
+    "skill": "web-cloud-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/animation-patterns.md",
+      "references/color-and-lighting.md",
+      "references/svg-filter-deep-dive.md"
+    ]
+  },
+  {
+    "skill": "web-wave-designer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "animation-patterns.md",
+      "displacement-and-color.md",
+      "turbulence-deep-dive.md"
+    ]
+  },
+  {
+    "skill": "web-wave-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/animation-patterns.md",
+      "references/displacement-and-color.md",
+      "references/turbulence-deep-dive.md"
+    ]
+  },
+  {
+    "skill": "wedding-immortalist",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "face-clustering-aesthetics.md",
+      "gaussian-splatting-pipeline.md",
+      "theme-extraction.md"
+    ]
+  },
+  {
+    "skill": "wedding-immortalist",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/face-clustering-aesthetics.md",
+      "references/gaussian-splatting-pipeline.md",
+      "references/theme-extraction.md"
+    ]
+  },
+  {
+    "skill": "wei-2022-chain-of-thought",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "emergent-capabilities-and-decomposition-thresholds.md",
+      "model-scale-agent-capability-and-coordination.md",
+      "natural-language-reasoning-in-agent-coordination.md",
+      "prompt-engineering-robustness-and-brittleness.md",
+      "reasoning-failure-modes-and-recovery.md",
+      "variable-compute-and-structured-reasoning.md",
+      "when-decomposition-helps-and-when-it-hurts.md"
+    ]
+  },
+  {
+    "skill": "wei-2022-chain-of-thought",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_task_decomposition_decision_tr.md",
+      "02_sequenceDiagram_multi-agent_reasoning_coordina.md",
+      "03_quadrantChart_task_complexity_vs._agent_capa.md"
+    ]
+  },
+  {
+    "skill": "wei-2022-chain-of-thought",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_task_decomposition_decision_tr.md",
+      "diagrams/02_sequenceDiagram_multi-agent_reasoning_coordina.md",
+      "diagrams/03_quadrantChart_task_complexity_vs._agent_capa.md",
+      "references/emergent-capabilities-and-decomposition-thresholds.md",
+      "references/model-scale-agent-capability-and-coordination.md",
+      "references/natural-language-reasoning-in-agent-coordination.md",
+      "references/prompt-engineering-robustness-and-brittleness.md",
+      "references/reasoning-failure-modes-and-recovery.md",
+      "references/variable-compute-and-structured-reasoning.md",
+      "references/when-decomposition-helps-and-when-it-hurts.md"
+    ]
+  },
+  {
+    "skill": "windags-architect",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "business-model.md",
+      "execution-engines.md",
+      "llm-routing.md",
+      "observability-and-testing.md",
+      "progressive-revelation.md",
+      "sdk-implementation.md",
+      "skill-gap-analysis.md",
+      "skill-lifecycle.md",
+      "skills-vs-research.md",
+      "user-experience.md",
+      "visualization-research.md"
+    ]
+  },
+  {
+    "skill": "windags-architect",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/business-model.md",
+      "references/execution-engines.md",
+      "references/llm-routing.md",
+      "references/observability-and-testing.md",
+      "references/progressive-revelation.md",
+      "references/sdk-implementation.md",
+      "references/skill-gap-analysis.md",
+      "references/skill-lifecycle.md",
+      "references/skills-vs-research.md",
+      "references/user-experience.md",
+      "references/visualization-research.md"
+    ]
+  },
+  {
+    "skill": "windags-avatar",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "AMENDMENT-001-skill-selection-cascade.md",
+      "amendment-framework.md",
+      "amendments-from-v2.md",
+      "behavioral-contracts.md",
+      "build-roadmap.md",
+      "business-model.md",
+      "design-ux-roadmap.md",
+      "marketing-positioning.md",
+      "oss-strategy.md",
+      "review-concerns.md",
+      "skill-ecosystem.md",
+      "tradition-influence.md",
+      "visualization-spec.md",
+      "windags-constitution-v3.md",
+      "windags-practitioner-v3.md"
+    ]
+  },
+  {
+    "skill": "windags-avatar",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/AMENDMENT-001-skill-selection-cascade.md",
+      "references/amendment-framework.md",
+      "references/amendments-from-v2.md",
+      "references/behavioral-contracts.md",
+      "references/build-roadmap.md",
+      "references/business-model.md",
+      "references/design-ux-roadmap.md",
+      "references/marketing-positioning.md",
+      "references/oss-strategy.md",
+      "references/review-concerns.md",
+      "references/skill-ecosystem.md",
+      "references/tradition-influence.md",
+      "references/visualization-spec.md",
+      "references/windags-constitution-v3.md",
+      "references/windags-practitioner-v3.md",
+      "scripts/lookup.py"
+    ]
+  },
+  {
+    "skill": "windags-librarian",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "surface-registry.md",
+      "terminology-evolution.md"
+    ]
+  },
+  {
+    "skill": "windags-librarian",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/surface-registry.md",
+      "references/terminology-evolution.md"
+    ]
+  },
+  {
+    "skill": "windags-skill-selector",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "schemas/skill-selector-output.schema.json",
+      "templates/skill-selector-output.template.json"
+    ]
+  },
+  {
+    "skill": "windows-95-web-designer",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "ai-assistant-patterns.md",
+      "component-library.md",
+      "mobile-pocket-pc.md"
+    ]
+  },
+  {
+    "skill": "windows-95-web-designer",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/ai-assistant-patterns.md",
+      "references/component-library.md",
+      "references/mobile-pocket-pc.md"
+    ]
+  },
+  {
+    "skill": "wisdom-accountability-coach",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "conversation-scripts.md",
+      "philosophy-traditions.md"
+    ]
+  },
+  {
+    "skill": "wisdom-accountability-coach",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "references/conversation-scripts.md",
+      "references/philosophy-traditions.md"
+    ]
+  },
+  {
+    "skill": "yao-2022-react",
+    "path": "references/INDEX.md",
+    "kind": "created-index",
+    "files": [
+      "bridging-knowledge-and-action-gap.md",
+      "decomposition-through-explicit-subgoaling.md",
+      "failure-modes-and-error-propagation.md",
+      "hierarchical-abstraction-in-agent-reasoning.md",
+      "human-interpretability-and-controllability.md",
+      "learning-reasoning-acting-patterns.md",
+      "reasoning-action-synergy-in-agent-systems.md",
+      "uncertainty-and-confidence-in-agent-decisions.md"
+    ]
+  },
+  {
+    "skill": "yao-2022-react",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_react_decision_loop:_when_to_r.md",
+      "02_sequenceDiagram_agent_reasoning-action-correct.md",
+      "03_quadrantChart_confidence-based_knowledge_sou.md"
+    ]
+  },
+  {
+    "skill": "yao-2022-react",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_react_decision_loop:_when_to_r.md",
+      "diagrams/02_sequenceDiagram_agent_reasoning-action-correct.md",
+      "diagrams/03_quadrantChart_confidence-based_knowledge_sou.md",
+      "references/bridging-knowledge-and-action-gap.md",
+      "references/decomposition-through-explicit-subgoaling.md",
+      "references/failure-modes-and-error-propagation.md",
+      "references/hierarchical-abstraction-in-agent-reasoning.md",
+      "references/human-interpretability-and-controllability.md",
+      "references/learning-reasoning-acting-patterns.md",
+      "references/reasoning-action-synergy-in-agent-systems.md",
+      "references/uncertainty-and-confidence-in-agent-decisions.md"
+    ]
+  },
+  {
+    "skill": "yao-2023-tree-of-thoughts",
+    "path": "diagrams/INDEX.md",
+    "kind": "added-index-row",
+    "files": [
+      "01_flowchart_tree_of_thoughts:_decision_fra.md",
+      "02_stateDiagram-v2_thought_state_evolution_&_sear.md",
+      "03_quadrantChart_problem_characteristics_→_arch.md"
+    ]
+  },
+  {
+    "skill": "yao-2023-tree-of-thoughts",
+    "path": "SKILL.md",
+    "kind": "added-direct-navigation",
+    "files": [
+      "diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md",
+      "diagrams/02_stateDiagram-v2_thought_state_evolution_&_sear.md",
+      "diagrams/03_quadrantChart_problem_characteristics_→_arch.md"
+    ]
+  }
+]

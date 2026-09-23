@@ -56,9 +56,9 @@ Scenario: a team ships a customer-support RAG chatbot after two weeks of manual 
 ## What fixing it actually looked like
 
 1. **Stood up an eval harness**: 40 held-out support queries with expected retrieval@5 and expected answer intent, run in CI on every prompt/retrieval change.
-2. **Measured retrieval**: recall@5 was 71% — well under the 85% bar in this skill's Quality Gates. Switched from a generic embedding model to a domain-tuned one, re-measured to 89%.
+2. **Illustrative retrieval receipt**: compare the old and candidate profiles on the same versioned corpus, development split, and cost budget. Select a profile only if its frozen holdout outcome meets the team-defined acceptance rule; these example values are not production measurements.
 3. **Made citations mandatory and enforced**: the answer generator now must emit a source id per claim; a post-generation validator rejects answers with unmatched citations and triggers a regeneration.
-4. **Added a confidence threshold**: below 0.6 combined retrieval-confidence score, the bot replies with an escalation offer instead of guessing.
+4. **Calibrated a confidence policy**: derive the fallback boundary on a development split, freeze it for holdout evaluation, and escalate rather than guessing when evidence is insufficient.
 5. **Turned on streaming** with a cancel button — P95 perceived latency dropped even though total generation time didn't change.
 6. **Isolated untrusted content**: retrieved documents and user text are now tagged and placed in a clearly delimited untrusted block; the system prompt instructs the model to never treat content inside that block as instructions.
 7. **Set a $0.50 per-request cost ceiling**, enforced by truncating context and capping tool-call retries.

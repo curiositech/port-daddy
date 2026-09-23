@@ -192,6 +192,18 @@ When a tool call fails:
 
 ---
 
+### External effects: unknown is a state
+
+A timeout after a local or remote write is neither success nor failure. Record
+the intended effect, stable idempotency identity, authorization used, observed
+receipt, and reconciliation query. Resume by re-grounding from the authoritative
+external state; retry only when the operation is idempotent or reconciliation
+proves it did not commit. If the provider cannot answer, leave the effect
+`unknown` and escalate rather than creating a second successor. Local workspace
+rollback cannot undo remote effects. See `references/effect-reconciliation.md`.
+
+---
+
 ## Pillar 4: Context Management
 
 ### Context is a Budget
@@ -287,6 +299,10 @@ Wave 2: [Implement based on synthesis]                ← single agent
 ```
 
 Best for: Tasks requiring multiple independent information sources. Research tasks, competitive analysis, multi-file understanding.
+
+Use fan-out only after a single-worker plan is written. Add workers when the
+task has independently verifiable branches and the expected coordination cost is
+bounded; serialize coupled edits and unresolved effect reconciliation.
 
 ### Pattern 3: Iterative Refinement
 
