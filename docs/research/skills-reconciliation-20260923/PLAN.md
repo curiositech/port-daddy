@@ -8,7 +8,8 @@
 - [x] Complete Astra manuscript gap and competitive research with primary sources.
 - [x] Verify source coverage and bundled hygiene; prepare the scoped checkpoint and PR body.
 - [x] Obtain a scoped publication path: the operator approved the existing `erichowens` login for this branch push and PR creation on 23 September.
-- [ ] Publish and save exact GitHub readback in the external task handoff. No merge is authorized by this exception.
+- [x] Publish and save exact GitHub readback in the external task handoff: [PR #10310](https://github.com/curiositech/port-daddy/pull/10310), open and ready, published as `erichowens`. No merge is authorized by this exception.
+- [x] Repair introduced mirror, citation, and unused-variable findings; validate locally and record inherited CI failures separately. Hosted successor checks and review-thread resolution remain external review state.
 
 ## Ownership and boundaries
 

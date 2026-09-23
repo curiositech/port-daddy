@@ -438,7 +438,7 @@ Composition (FFmpeg/DaVinci)
 
 ### Automation Script
 
-See `scripts/full_pipeline.py` for the complete automated workflow.
+A project may add `scripts/<full_pipeline>.py` for a complete automated workflow (illustrative; not included in this skill).
 
 ---
 
@@ -448,7 +448,7 @@ See `scripts/full_pipeline.py` for the complete automated workflow.
 
 1. **`scripts/cloud_i2v_batch.py`** - Batch I2V on cloud GPUs
 2. **`scripts/cost_calculator.py`** - Compare costs across platforms
-3. **`scripts/lora_training_cloud.py`** - Train LoRA on Vast.ai
+3. **`scripts/<lora_training_cloud>.py`** - Example LoRA training entry point (illustrative; not included in this skill)
 4. **`scripts/motion_graphics_generator.py`** - Programmatic title cards
 5. **`workflows/comfyui_i2v_optimized.json`** - Optimized ComfyUI workflow
 

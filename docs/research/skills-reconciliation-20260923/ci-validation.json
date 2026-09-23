@@ -1,0 +1,37 @@
+{
+  "priorPublishedHead": "4aa09e6deccbd553817a9a642f28ef3b4296726b",
+  "base": "42bbdc2382a8f934b4ceffe1dddfc28acda84234",
+  "localValidation": {
+    "auditorUnitTests": {
+      "passed": 11,
+      "failed": 0
+    },
+    "mirrors": {
+      "targets": 16,
+      "skills": 5,
+      "drift": 0,
+      "independentByteComparisons": 9
+    },
+    "changedDocumentCitations": {
+      "files": 3307,
+      "failures": 0
+    },
+    "wholeLibrary": {
+      "bundles": 777,
+      "passing": 777,
+      "failing": 0,
+      "bundlesWithWarnings": 218
+    },
+    "helperAst": "pass",
+    "followupWhitespace": "pass",
+    "prBodyContract": "pass",
+    "generationHashesVerified": 102
+  },
+  "knownHostedLimits": [
+    "Base manuscript citation failure reproduced unchanged.",
+    "Initial hostile release job failed during dependency download before assertions.",
+    "Review-thread mutations are not represented as completed.",
+    "Successor hosted results require post-push readback."
+  ],
+  "disposition": "ci-followup.md"
+}

@@ -1319,7 +1319,7 @@ class AdaptiveRouter(dspy.Module):
     
     def forward(self, task):
         route_name = self.classifier(task=task).route
-        return self.routes[route_name](task)
+        return self.routes[route_name](task)  # cite-exempt: Python indexing/call, not a Markdown link
 ```
 
 The classifier learns from demonstrations which tasks should go to which specialist modules. No hand-coded rules.

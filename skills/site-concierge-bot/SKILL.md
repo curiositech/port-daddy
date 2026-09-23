@@ -7,8 +7,7 @@ description: Add an owner-aware AI concierge chatbot to a Cloudflare-hosted site
 
 One chatbot, two people. Visitors get a counter clerk; the owner gets a
 copilot. Reference implementation: whiskeyfundwoodworking.com
-(`~/coding/arbor_www` — `app/api/chat/route.ts`, `lib/assistant.ts`,
-`components/assistant/chat-widget.tsx`).
+(an external reference implementation with a chat route, assistant module, and chat widget).
 
 ## Architecture
 

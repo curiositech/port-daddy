@@ -68,13 +68,9 @@ def process_directory(input_dir: Path, output_dir: Path, scale: int = 2, double:
                 scaled = scale2x_epx(pixels)
                 if double:
                     scaled = scale2x_epx(scaled)
-                    method = "EPX 4x (2x doubled)"
-                else:
-                    method = "EPX 2x"
             elif scale == 3:
                 from scale_epx import scale3x_epx
                 scaled = scale3x_epx(pixels)
-                method = "EPX 3x"
                 if double:
                     print("Warning: Double mode only works with scale=2, ignoring")
             else:

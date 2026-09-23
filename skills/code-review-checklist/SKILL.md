@@ -93,7 +93,7 @@ IF Config/Infrastructure:
 ### Example 1: SQL Injection in User Search
 
 **PR**: "Add advanced user search with role filtering"
-**Files**: `routes/users.js`, `services/userSearch.js`, `test/search.test.js`
+**Illustrative files**: `routes/<feature>/users.js`, `services/<feature>Search.js`, `test/<feature>.test.js`
 
 **Decision Tree Application**:
 1. **Change Type**: New Feature → Check security first

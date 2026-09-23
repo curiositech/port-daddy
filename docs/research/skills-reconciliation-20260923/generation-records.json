@@ -240,7 +240,9 @@
     {
       "path": "skills/khattab-2023-dspy/_raw_response.md",
       "importedSha256": "f593e4d4a32527d99a66358b5b20897e27df9527a7e518150dacb49d30c1d81a",
-      "canonicalSha256": "7d8cc35f97454c65a2431012f7a7f0a9954b798f2437bc4ebf84bc1079205abb"
+      "canonicalSha256": "ce5e224cfa0f029c0fe0b3352bafb2ecef2974cfd12837999d18f73c7dce3cad",
+      "beforeCiAnnotationSha256": "7d8cc35f97454c65a2431012f7a7f0a9954b798f2437bc4ebf84bc1079205abb",
+      "ciAnnotation": "One inline Python comment marks indexing/call syntax as a citation-parser false positive. Original imported SHA and pre-annotation canonical SHA are retained; no scientific prose or code behavior changed."
     },
     {
       "path": "skills/klein-1998-sources-of-power/_raw_response.md",

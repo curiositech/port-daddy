@@ -200,7 +200,7 @@ For each example, analyze:
 2. What scripts, references, assets would help with repeated execution
 
 **Example analyses**:
-- `pdf-editor` for "rotate this PDF" → Needs `scripts/rotate_pdf.py`
+- `pdf-editor` for "rotate this PDF" → Illustrative missing tool `scripts/<rotate_pdf>.py`
 - `frontend-webapp-builder` → Needs `assets/hello-world/` template
 - `big-query` skill → Needs `references/schema.md` for table schemas
 

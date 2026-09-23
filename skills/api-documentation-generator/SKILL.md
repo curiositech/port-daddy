@@ -357,9 +357,9 @@ Rules for curl examples:
 ## Output Artifacts
 
 1. **`docs/openapi.yaml`** -- Complete OpenAPI 3.0/3.1 specification
-2. **`docs/api-types.d.ts`** -- TypeScript type definitions for all request/response shapes
-3. **`docs/api-examples.sh`** -- Runnable curl examples for every endpoint
-4. **`docs/api-coverage.md`** -- Report listing documented vs undocumented routes
+2. **`docs/<api-types>.d.ts`** -- Proposed TypeScript type definitions for all request/response shapes
+3. **`docs/<api-examples>.sh`** -- Proposed runnable curl examples for every endpoint
+4. **`docs/<api-coverage>.md`** -- Proposed report listing documented versus undocumented routes
 
 ## Validation
 

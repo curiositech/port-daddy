@@ -44,7 +44,7 @@ If confidence is 0.55–0.65 and **none** of the above amplifiers fire, predict 
 ### Conflicting signals
 
 A tell: `recent_commits` describe one workstream but `modified_files` are in a totally different area. Examples:
-- Recent commits: "fix auth middleware" — modified files: `apps/marketing/components/Hero.tsx`
+- Recent commits: "fix auth middleware" — modified files: `apps/<marketing>/components/Hero.tsx` (illustrative)
 - Recent commits: "ship blog post" — modified files: `packages/core/src/retrieval/*.ts`
 
 This is almost always real ambiguity (the user pivoted) and a halt is correct. Do not paper over it by picking the more recently-touched files — that hides a project-level decision.

@@ -189,25 +189,25 @@
 ### Component Duplication
 
 - **5 card components** not using `.gf-card` class
-  - `apps/dashboard/components/StatCard.tsx`
-  - `apps/analytics/components/ReportCard.tsx`
-  - `apps/manager/components/TeamCard.tsx`
-  - `apps/publisher/components/PostCard.tsx`
-  - `apps/automation/components/WorkflowCard.tsx`
+  - `apps/<dashboard>/components/StatCard.tsx`
+  - `apps/<analytics>/components/ReportCard.tsx`
+  - `apps/<manager>/components/TeamCard.tsx`
+  - `apps/<publisher>/components/PostCard.tsx`
+  - `apps/<automation>/components/WorkflowCard.tsx`
 
 ### Missing Theme Support
 
 - **3 components** hardcode colors that break dark mode
-  - `apps/website/components/Hero.tsx`
-  - `apps/publisher/components/Editor.tsx`
-  - `apps/studio/pages/projects.tsx`
+  - `apps/<website>/components/Hero.tsx`
+  - `apps/<publisher>/components/Editor.tsx`
+  - `apps/<studio>/pages/projects.tsx`
 
 ### Non-Semantic HTML
 
 - **8 clickable divs** should be buttons or links
-  - `apps/manager/components/QuickAction.tsx:45`
-  - `apps/automation/pages/workflows.tsx:123`
-  - `apps/analytics/components/FilterButton.tsx:23`
+  - `apps/<manager>/components/QuickAction.tsx:45`
+  - `apps/<automation>/pages/workflows.tsx:123`
+  - `apps/<analytics>/components/FilterButton.tsx:23`
   - (5 more...)
 
 ## Recommendations
@@ -265,42 +265,42 @@
 
 ### Studio App (24 files)
 
-- `apps/studio/app/(protected)/layout.tsx`
-- `apps/studio/app/(protected)/overview/page.tsx`
-- `apps/studio/app/(protected)/g/videos/page.tsx`
+- `apps/<studio>/app/(protected)/layout.tsx`
+- `apps/<studio>/app/(protected)/overview/page.tsx`
+- `apps/<studio>/app/(protected)/g/videos/page.tsx`
 - [... 21 more files]
 
 ### Dashboard App (18 files)
 
-- `apps/dashboard/app/(protected)/page.tsx`
-- `apps/dashboard/components/Sidebar.tsx`
+- `apps/<dashboard>/app/(protected)/page.tsx`
+- `apps/<dashboard>/components/Sidebar.tsx`
 - [... 16 more files]
 
 ### Publisher App (16 files)
 
-- `apps/publisher/app/(protected)/composer/page.tsx`
-- `apps/publisher/components/ThreadEditor.tsx`
+- `apps/<publisher>/app/(protected)/composer/page.tsx`
+- `apps/<publisher>/components/ThreadEditor.tsx`
 - [... 14 more files]
 
 ### Website (12 files)
 
-- `apps/website/app/(public)/page.tsx`
-- `apps/website/components/home/_pricing.tsx`
+- `apps/<website>/app/(public)/page.tsx`
+- `apps/<website>/components/home/_pricing.tsx`
 - [... 10 more files]
 
 ### Manager App (10 files)
 
-- `apps/manager/app/(protected)/page.tsx`
+- `apps/<manager>/app/(protected)/page.tsx`
 - [... 9 more files]
 
 ### Analytics App (8 files)
 
-- `apps/analytics/app/(protected)/page.tsx`
+- `apps/<analytics>/app/(protected)/page.tsx`
 - [... 7 more files]
 
 ### Automation App (7 files)
 
-- `apps/automation/app/(protected)/page.tsx`
+- `apps/<automation>/app/(protected)/page.tsx`
 - [... 6 more files]
 
 **Total**: 95 files analyzed

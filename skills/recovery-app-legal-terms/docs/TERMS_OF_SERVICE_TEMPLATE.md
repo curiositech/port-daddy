@@ -98,7 +98,7 @@ You can delete your content at any time. When you delete:
 
 ## 5. Community Standards
 
-Our community is built on mutual support and respect. You agree to follow our [Community Standards](link-to-community-standards), which include:
+Our community is built on mutual support and respect. You agree to follow the [COMMUNITY_STANDARDS_URL] placeholder, which must be replaced with the deployed policy URL before publication and includes:
 
 ### Required Behavior
 

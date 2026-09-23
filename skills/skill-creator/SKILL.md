@@ -99,7 +99,7 @@ Improvement Trigger
 **Draft Process**:
 - Interview revealed: Uses OpenAPI specs, needs examples for each endpoint, must include authentication section
 - Created SKILL.md with sections for parsing specs, generating examples, formatting output
-- Identified need for `scripts/openapi_parser.py` based on repetitive parsing logic
+- Identified need for a proposed `scripts/<openapi_parser>.py` based on repetitive parsing logic
 
 **Test Cases Design**:
 ```json
