@@ -1,0 +1,14 @@
+{
+  "requested": 755,
+  "addedBundles": 448,
+  "preexistingRequestedBundles": 307,
+  "canonicalEntrypoints": 777,
+  "changedPaths": 3728,
+  "changedBytes": 45570017,
+  "outOfScope": [],
+  "junkPaths": [],
+  "symlinks": [],
+  "base": "42bbdc2382a8f934b4ceffe1dddfc28acda84234",
+  "retainedGenerationRecords": 102,
+  "measurementNote": "Pre-commit snapshot; this report and subsequent closure prose can change path count or byte totals."
+}

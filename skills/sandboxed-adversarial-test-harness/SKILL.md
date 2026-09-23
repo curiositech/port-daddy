@@ -393,3 +393,7 @@ Reject these shortcuts during design review. Load
 - `examples/`: abbreviated legacy and Drydock examples.
 - `schemas/harness-spec.schema.json` and `scripts/containment_audit.mjs`: legacy T0 lint.
 - `agents/openai.yaml`: optional specialist descriptor, subject to local fan-out policy.
+
+## Unknown-effect and adaptive-attack gate
+
+A timeout is not a negative effect receipt. Load `references/effect-uncertainty-and-adaptive-evaluation.md` to classify crash boundaries, choose retry versus HOLD, and test attacker-aware detection against independent truth.

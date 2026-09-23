@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: operad-task-decomposition
-description: "Use operads to formally model hierarchical task decomposition for multi-agent systems. Covers typed composition, wiring diagrams, and the relationship to DAG-of-agents architectures. Grounded in Spivak's operad work (2013-2020) and Fong & Spivak 'An Invitation to Applied Category Theory' (2019, Chapter 6). Use when decomposing complex tasks for multi-agent execution, designing DAG topologies, validating decomposition type-safety, or building compositional agent workflows. NOT for general category theory education, individual skill creation, or runtime DAG execution."
+description: "Model hierarchical task composition with typed interfaces and colored operads. Use when designing multi-agent decompositions, checking subworkflow boundaries, or distinguishing formal substitution from scheduling and execution semantics. Covers wiring diagrams, explicit artifact bindings, and an acyclic task-workflow model. Not for runtime orchestration, proving agent correctness, or general category theory education."
 category: Research & Academic
 tags:
   - category-theory
@@ -16,397 +16,267 @@ tags:
 
 # Operad Task Decomposition
 
-An operad formalizes "a complex thing decomposes into simpler things, and the decomposition itself composes." Each operation has typed inputs and a typed output. Composition is hierarchical: you can plug the output of one operation into the input of another, provided the types match. The composition laws (associativity and identity) guarantee that decomposition is well-defined regardless of the order you assemble the pieces.
+Use typed composition to make a decomposition's interfaces and substitutions explicit. An operad supplies laws for combining operations. A compatible interpretation supplies their meaning. Executable agents, permissions, effects, and schedules require additional contracts and evidence.
 
-This is the mathematical structure underlying DAG-of-agents architectures, Jury-rig, and any system where tasks decompose into subtasks with explicit interface contracts.
+This skill chooses an **acyclic task workflow** for execution planning. Acyclicity is a constraint of that workflow, not a law of every operad. A typed DAG alone does not establish an operad algebra or prove that agents will complete the task correctly.
 
 ## When to Use
 
-- Decomposing a complex task into subtasks for multi-agent execution
-- Designing DAG topologies where nodes have typed inputs and outputs
-- Validating that a task decomposition is well-typed (no interface mismatches)
-- Building compositional agent workflows where subworkflows can be reused
-- Reasoning about parallel vs. sequential execution (monoidal product vs. composition)
-- Connecting task structure to olog-defined domain types
-- Understanding why certain decompositions fail at integration boundaries
+- Design reusable subworkflows with declared inputs and outputs.
+- Check that a proposed replacement preserves a node's external interface.
+- Explain the difference between a composition expression and its execution.
+- Ground artifact types in a domain vocabulary, including an olog when useful.
+- Identify where a decomposition needs explicit sharing or effect contracts.
 
-**NOT for:** General category theory education (use textbooks). Creating individual agent skills (use skill-architect). Runtime DAG execution and scheduling (use dag-orchestrator). Evaluating output quality (use dag-quality).
-
----
+Use dag-orchestrator for runtime scheduling, dag-quality for outcome evaluation, and skill-architect for individual skill construction. Do not introduce operad terminology when ordinary typed interfaces explain the whole problem.
 
 ## Core Mental Models
 
-### 1. What Is an Operad?
+### 1. Specify the mathematical structure
 
-An operad O consists of:
-- A set of **types** (also called colors, or sorts)
-- For each tuple of input types (t_1, ..., t_n) and output type t, a set of **operations** O(t_1, ..., t_n; t)
-- A **composition rule**: if you have an operation f: (t_1, ..., t_n) --> t and operations g_i: (...) --> t_i for each input, you can compose them to get a single operation that takes all the g_i inputs and produces output t
-- An **identity operation** id_t: (t) --> t for each type
-- **Associativity**: composing in stages gives the same result regardless of grouping
-- **Equivariance** (for symmetric operads): you can permute inputs
+Here, **operad** means a symmetric colored operad, also called a symmetric multicategory. Some authors use “operad” only for the one-color case; state the convention when comparing sources.
 
-**In plain English:** An operad is a collection of "ways to combine things" where:
-- Each combiner has typed input slots and a typed output
-- You can nest combiners (plug one combiner's output into another's input slot)
-- The order of nesting doesn't matter (associativity)
-- There's a trivial combiner that does nothing (identity)
+An operad O specifies:
 
-### 2. Task Decomposition as Operad Application
+- Colors A, B, C, ... representing interfaces or sorts.
+- Operations O(A_1, ..., A_n; B), with an ordered list of input colors and one output color. Arity n may be zero.
+- Substitution: an operation producing A_i can fill an A_i input slot of another operation.
+- An identity operation for each color.
+- Unit and associativity laws for substitution.
+- Symmetric actions and equivariance laws: consistently reindexing slots and the substituted operations respects composition.
 
-**The key insight:** A task decomposition IS an element of an operad.
+Permuting input positions does not say that an operation is commutative. For example, swapping the ports of `subtract(left, right)` requires tracking which value reaches each port.
 
-Consider a task T that decomposes into subtasks S_1, S_2, S_3. This decomposition is an operation:
+A finite list of types and operation signatures is a **presentation starting point**. It can generate a free operad of formal composites. If additional equations are imposed, state them; a signature table alone neither defines an execution semantics nor checks those equations. See [Leinster, Chapter 2](https://arxiv.org/pdf/math/0305049).
 
-```
-    decompose_T : (S_1_output, S_2_output, S_3_output) --> T_output
-```
+### 2. Associativity preserves a substitution tree
 
-The operation says: "Given the results of subtasks S_1, S_2, and S_3, here is how to combine them into the result of task T."
+Suppose the declarations are:
 
-Each subtask S_i may itself decompose further:
-
-```
-    decompose_S1 : (S_1a_output, S_1b_output) --> S_1_output
+```text
+f : (B, C) -> D
+g : (A1, A2) -> B
+h : (X) -> A1
 ```
 
-**Composition in the operad** gives you the full decomposition:
+The same substitution tree can be assembled in either grouping:
 
-```
-    decompose_T . (decompose_S1, id_S2, id_S3) :
-        (S_1a_output, S_1b_output, S_2_output, S_3_output) --> T_output
-```
-
-**Associativity guarantees:** It doesn't matter whether you first decompose T into (S_1, S_2, S_3) and then decompose S_1 into (S_1a, S_1b), or whether you directly decompose T into (S_1a, S_1b, S_2, S_3). The result is the same.
-
-**Why this matters for multi-agent systems:** Associativity means subtask delegation is safe. An agent can delegate a subtask to another agent, who further delegates, and the overall composition is correct as long as types match at every boundary.
-
-### 3. Colored Operads for Typed Task Decomposition
-
-A **colored operad** (also called a **multicategory**) is an operad where the types (colors) carry semantic meaning. In task decomposition:
-
-- Types represent the kinds of artifacts that flow between agents
-- An operation with input types (CodeReview, TestResults) and output type MergeDecision means: "given a code review and test results, produce a merge decision"
-- Type mismatches are caught at design time, not runtime
-
-**Type examples for an agent workflow:**
-
-```
-Types:
-  ProblemDescription     -- natural language task specification
-  DomainAnalysis         -- structured analysis of the problem domain
-  DAGTopology            -- a validated directed acyclic graph of subtasks
-  AgentOutput            -- raw output from a single agent execution
-  QualityReport          -- evaluation of an agent's output
-  SynthesizedResult      -- combined output from multiple agents
-  FinalDeliverable       -- the completed, reviewed work product
+```text
+(f compose (g, id_C)) compose (h, id_A2, id_C)
+    = f compose (g compose (h, id_A2), id_C)
+    : (X, A2, C) -> D
 ```
 
-**Typed operations:**
+This equation preserves the operations, slot assignments, and tree. It does not authorize replacing the entire tree with a new prompt, dropping intermediate checks, changing the dependency order, or swapping agents.
 
-```
-analyze : (ProblemDescription) --> DomainAnalysis
-decompose : (DomainAnalysis) --> DAGTopology
-execute_node : (ProblemDescription, DAGTopology) --> AgentOutput
-evaluate : (AgentOutput, ProblemDescription) --> QualityReport
-synthesize : (AgentOutput, AgentOutput, ...) --> SynthesizedResult
-finalize : (SynthesizedResult, QualityReport) --> FinalDeliverable
-```
+It also does not make each individual operation associative. With deterministic subtraction, `(8 - 3) - 1 = 4` and `8 - (3 - 1) = 6`. Those are different trees of operations; operadic substitution remains associative.
 
-**Type-checking a decomposition:** Before executing a DAG, verify that every edge's source type matches the target node's expected input type. This is a static check -- no agent needs to run. If types don't match, the decomposition is invalid and must be revised.
+### 3. Interpretation is a separate obligation
 
-### 4. The Operad of Wiring Diagrams
+A Set-valued algebra assigns a carrier set to each color and an actual function to each operation, preserving identities, substitution, and symmetry. Equal formal composites then have equal denotations in that algebra. This is a statement about a specified mathematical interpretation, not a certificate that an implementation conforms to it. See [Spivak, §2.2](https://arxiv.org/html/1305.0297v1).
 
-Spivak's **operad of wiring diagrams** (2013) provides a visual and formal language for system composition:
+For a task system, distinguish four layers:
 
-- A **box** represents a system with typed input ports and typed output ports
-- A **wiring diagram** connects output ports of inner boxes to input ports of other inner boxes (or to the outer box's output ports)
-- The outer box's input ports feed into inner boxes
-- Composition: you can replace any inner box with a wiring diagram of smaller boxes
+| Layer | What must be supplied | What it supports |
+|---|---|---|
+| Formal syntax | Colors, operations, substitution, laws | Well-formed composites and formal equations |
+| Compatible interpretation | Carriers and operation meanings preserving those laws | Equality under that interpretation |
+| Implementation | Code/model versions, input bindings, effects, authority, error handling | A concrete candidate realization |
+| Observations | Traces, output checks, controlled comparisons | Bounded evidence about actual behavior |
 
-```
-    ┌──────────────────────────────────────┐
-    │            Outer Box                 │
-    │   ┌──────┐         ┌──────┐         │
-    │   │ Box A │──out──>│ Box B │──out──>─┤──> final output
-    │   └──────┘         └──────┘         │
-    │       ^                              │
-    ├──>────┘                              │
-    │  input                               │
-    └──────────────────────────────────────┘
-```
+Pure function composition is associative, but determinism alone does not justify changing a workflow's operations or effects. Nondeterminism does not turn the operad laws into “approximate associativity.” Choose an appropriate semantics for relations, distributions, state, or effects and establish its composition rules. If a probabilistic interpretation is used, equal distributions still do not require identical sampled outputs.
 
-**This IS the Jury-rig architecture:**
-- Each box = an agent node in the DAG
-- Each port = a typed input or output
-- Wiring = edges in the DAG with type annotations
-- Composition = replacing a node with a sub-DAG (hierarchical decomposition)
+If the practical question is whether two agent implementations behave similarly, define the outcome, workload, randomness, tolerance, and comparison method. That empirical claim is separate from an operad equation. A replacement with the same input/output signature may still differ in quality, authority, latency, cost, or external effects.
 
-**The operad structure guarantees:** Any valid wiring diagram can be composed with any other valid wiring diagram (at matching ports), and the result is again a valid wiring diagram. This is the formal basis for "DAGs of DAGs" -- hierarchical agent orchestration.
+### 4. Wiring diagrams require a chosen grammar
 
-### 5. The Monoidal Product for Parallelism
+In a wiring-diagram operad, a color can be an entire **box interface** with multiple typed ports. An operation is a wiring arrangement of inner boxes within an outer box. Its operadic input slots are the inner-box interfaces; its output color is the outer-box interface. Wire types and operad colors therefore need not be the same objects.
 
-In an operad, the **monoidal product** (tensor product) models parallel execution:
+Substitution replaces an inner box with a diagram having the matching interface. Which diagrams are permitted depends on the chosen construction. Spivak's [2013 paper](https://arxiv.org/abs/1305.0297) includes recursion; [Vagner, Spivak, and Lerman](https://arxiv.org/abs/1408.1598) give an interpretation involving open dynamical systems. These are not universal finite-DAG execution rules.
 
-```
-    f : (A, B) --> C     -- sequential: f needs both A and B to produce C
-    g : (D) --> E         -- independent operation
+For this skill, use directed acyclic data dependencies, explicitly declared boundaries, and finite node instances. Ordinary operad expressions are tree-shaped; a workflow with a value feeding several consumers additionally needs a specified sharing interpretation. For example:
 
-    f tensor g : (A, B, D) --> (C, E)  -- f and g run in parallel
+- An immutable, versioned patch artifact can be read by both review and test nodes.
+- An exclusive mutation grant cannot be duplicated merely because both consumers accept its schema.
+- A feedback loop is rejected by this skill's outer DAG contract. It may be represented by a bounded iteration node with explicit state, stopping conditions, and failure handling. This is an engineering choice, not a theorem excluding feedback from operads.
+
+[Fong and Spivak, §5.2.2](https://arxiv.org/pdf/1803.05316) provide an acyclic port-graph construction. Their §§6.5.1–6.5.3 discuss operads and wiring diagrams more generally.
+
+### 5. Composition does not determine a runtime schedule
+
+A symmetric monoidal category can model side-by-side structure with a tensor:
+
+```text
+f : A -> B, g : C -> D
+f tensor g : A tensor C -> B tensor D
 ```
 
-**For DAG scheduling:**
-- Operations that share NO input dependencies can be tensored (run in parallel)
-- Operations with data dependencies must be composed (run sequentially)
-- The wave-based execution model in DAG orchestrators is exactly the monoidal product applied per-wave: all nodes in a wave run in parallel (tensor), and waves execute sequentially (composition)
+It induces an operad with operations `O(A1, ..., An; B) = Hom(A1 tensor ... tensor An, B)`. The tensor belongs to that additional categorical structure; an arbitrary colored operad need not provide a tensor of its colors. See [Fong and Spivak, §6.5.2](https://arxiv.org/pdf/1803.05316).
 
-**Practical implication:** The operad structure tells you the MAXIMUM parallelism possible in a decomposition. If your DAG scheduler achieves less parallelism, it's leaving performance on the table. If it attempts more, it will produce type errors (using outputs before they're available).
+Side-by-side structure does not guarantee simultaneous execution. Two nodes can share an immutable input and still run concurrently. Conversely, nodes with disjoint data inputs may conflict over mutable files, credentials, rate limits, or capacity.
 
-### 6. Connection to Ologs
+Derive readiness from explicit dependency edges. Then check effects, permissions, budgets, worker availability, and scheduling policy. Wave barriers are one possible schedule and can add unnecessary waiting. Operad laws alone neither calculate maximum parallelism nor prove a scheduler optimal. Using an unavailable value is a readiness failure even when its declared type is correct.
 
-**Types in an operad can reference objects in an olog.** If you have an olog defining your domain (types = "a customer", "an order", "a product"), then the operad's colors can be the objects of that olog.
+### 6. Domain vocabulary can inform colors
 
-An operation in the operad like:
+An olog may supply names and relationships for domain entities. Task colors can refer to that vocabulary, with separate schemas, refinements, and provenance requirements. For example:
 
-```
-    process_order : (Customer, OrderDetails, InventoryStatus) --> FulfillmentPlan
+```text
+plan_fulfillment : (Customer, OrderDetails, InventorySnapshot) -> FulfillmentPlan
 ```
 
-has its input and output types grounded in the olog's type system. This means:
-- The olog defines WHAT things exist in the domain
-- The operad defines HOW tasks involving those things decompose
-- Functors between ologs (problem equivalence) lift to natural transformations between operads (solution transfer)
+An olog functor alone does not establish problem equivalence or automatically transfer a task operad. A transfer must also map operations and preserve the relevant composition and interpretation. Do not infer behavioral equivalence merely from aligned type names.
 
----
+## Construction Workflow
 
-## Decision Framework: Constructing an Operad from a Task Description
+### Step 1: Declare interfaces and evidence requirements
 
-### Step 1: Identify the Types (Colors)
+List external inputs, required outputs, and intermediate artifacts. Give each a name, description, and checkable schema where practical. Add version, repository, subject digest, and authority constraints when they matter.
 
-List every distinct kind of artifact that flows between agents or between stages of the task.
+Two values satisfying the same schema need not be interchangeable: test results for patch P do not validate patch Q. Encode or check such relationships explicitly. Avoid both a universal `text` type and distinctions that no consumer needs.
 
-**Test:** Two artifacts have the same type if and only if they can be used interchangeably as input to any downstream operation. If artifact A can substitute for artifact B in every context, they have the same type. If there exists ANY operation that accepts A but not B, they have different types.
+### Step 2: Declare operations and effects
 
-**Common mistake:** Too few types. Using "string" or "text" for everything defeats the purpose. Types should carry semantic meaning: "CodeReview" is different from "TestResults" even if both are strings.
+For each operation, specify named input ports and an output port, plus:
 
-### Step 2: Identify the Operations
+- Preconditions and output predicates.
+- Implementation or agent assignment and its version.
+- Read/write effects, required authority, and resource budget.
+- Failure, cancellation, retry, and uncertain-effect behavior.
 
-For each task or subtask, specify:
-- What types of inputs does it require?
-- What type of output does it produce?
-- Is the operation deterministic or nondeterministic?
+These operational annotations supplement the mathematical signature. Operads impose no universal five-input limit. Split a large operation when doing so improves evaluation, ownership, reuse, or resource control; measure the added coordination cost.
 
-```
-Format: operation_name : (InputType1, InputType2, ...) --> OutputType
-```
+### Step 3: Bind actual artifacts
 
-**Test for completeness:** Can you chain the operations to get from the initial input types to the final output type? If there's a gap (no operation produces a type that a downstream operation needs), you're missing an operation.
+Use explicit node and port identifiers. Never select a producer solely by type: several nodes may produce a `ReviewReport`, or several revisions of the same patch may exist. Declare external inputs separately and bind every required port exactly once unless the operation explicitly accepts a collection.
 
-### Step 3: Define the Composition Rules
+### Step 4: Check the chosen DAG and substitution boundary
 
-For each pair of operations where one's output type matches another's input type, verify that composition is well-defined:
+Check declaration consistency, input completeness, source-port existence, schema compatibility, and final-output reachability. Reject cycles under this skill's chosen DAG contract. Check artifact identity and provenance relationships separately from schema compatibility.
 
-- Does plugging operation A's output into operation B's input produce a meaningful result?
-- Is the composition associative? (If A feeds B feeds C, does it matter whether you compute A-then-B first, or B-then-C first?)
+A proposed subworkflow must preserve the replaced node's external interface and satisfy its effect, authority, budget, and failure contracts. Preserve boundary bindings during substitution and recheck the resulting graph. A matching signature establishes interface compatibility only; implementation correctness needs its own evidence.
 
-**For deterministic operations:** Associativity is automatic.
-**For nondeterministic operations (LLM calls):** Associativity is approximate. Document the degree of variability.
+### Step 5: Propose and evaluate execution
 
-### Step 4: Identify Parallelism
+Compute dependency readiness, then assess resource and effect conflicts. Mark a proposed concurrent group as conditional on those checks. If testing hierarchy-preserving execution versus a flattened implementation, hold inputs and implementation versions fixed, record changed context and effect ordering, and evaluate outcome quality and total cost. Do not report that experiment as a test of the abstract associativity axiom.
 
-Group operations by their data dependencies:
-- Operations with NO shared inputs can be tensored (parallel)
-- Operations where one's output feeds another's input must be composed (sequential)
+## Practical Representation
 
-This gives you the DAG topology:
-```
-Wave 1: {operations with only initial inputs}      -- all in parallel
-Wave 2: {operations depending on Wave 1 outputs}   -- all in parallel
-Wave 3: {operations depending on Wave 2 outputs}   -- all in parallel
-...
-Final:  {operation producing the final deliverable}
-```
-
-### Step 5: Validate the Operad
-
-1. **Type consistency:** Every edge in the DAG has a source type that matches the target input type
-2. **Completeness:** There exists a path (sequence of compositions) from initial inputs to final output
-3. **No cycles:** The composition graph is acyclic (this is what makes it an operad application, not a general category)
-4. **Identity check:** For every type t, the identity operation id_t exists and acts as expected (passing through without modification)
-5. **Associativity check:** For any three composable operations, both groupings produce the same result
-
----
-
-## Practical Implementation: Operads in TypeScript/JSON
-
-Represent an operad for a task decomposition as a JSON schema:
+The following is a typed workflow representation, not a complete operad definition or proof checker. `outputs` permits structured box interfaces; the earlier artifact-operation model's single output can instead be a product record.
 
 ```typescript
-interface OperadType {
+type Source =
+  | { external: string }
+  | { node: string; port: string };
+
+type Port = { name: string; type: string };
+
+interface OperationDeclaration {
   name: string;
-  description: string;
-  schema?: object;  // JSON Schema for the type's instances
+  inputs: Port[];
+  outputs: Port[];
+  contract: string; // reference to effects, predicates, authority, retry policy
 }
 
-interface OperadOperation {
-  name: string;
-  inputs: { name: string; type: string }[];  // references OperadType.name
-  output: { type: string };                   // references OperadType.name
-  agent?: string;                             // which agent/skill executes this
-  parallelizable_with?: string[];             // operations that can run in parallel
-}
-
-interface TaskOperad {
-  types: OperadType[];
-  operations: OperadOperation[];
-  composition_order: string[][];  // waves: each inner array runs in parallel
+interface TypedTaskWorkflow {
+  types: { name: string; description: string; schema?: object }[];
+  operations: OperationDeclaration[];
+  externalInputs: Port[];
+  nodes: {
+    id: string;
+    operation: string;
+    bindings: Record<string, Source>;
+  }[];
+  outputs: { name: string; type: string; source: Source }[];
 }
 ```
 
-**Example:**
+Example instance bindings, with declarations `review: Patch -> Review`, `test: Patch -> Tests`, and `finalize: (Patch, Review, Tests) -> Deliverable`:
+
 ```json
 {
-  "types": [
-    { "name": "ProblemDescription", "description": "Natural language task spec" },
-    { "name": "DomainAnalysis", "description": "Structured domain breakdown" },
-    { "name": "CodePatch", "description": "A diff that modifies source code" },
-    { "name": "TestResults", "description": "Pass/fail with coverage report" },
-    { "name": "FinalDeliverable", "description": "Reviewed, tested code change" }
+  "externalInputs": [{ "name": "patch", "type": "Patch" }],
+  "nodes": [
+    { "id": "r", "operation": "review", "bindings": {
+      "patch": { "external": "patch" }
+    } },
+    { "id": "t", "operation": "test", "bindings": {
+      "patch": { "external": "patch" }
+    } },
+    { "id": "f", "operation": "finalize", "bindings": {
+      "patch": { "external": "patch" },
+      "review": { "node": "r", "port": "result" },
+      "tests": { "node": "t", "port": "result" }
+    } }
   ],
-  "operations": [
-    {
-      "name": "analyze",
-      "inputs": [{ "name": "problem", "type": "ProblemDescription" }],
-      "output": { "type": "DomainAnalysis" },
-      "agent": "jury_rig-sensemaker"
-    },
-    {
-      "name": "implement",
-      "inputs": [
-        { "name": "analysis", "type": "DomainAnalysis" },
-        { "name": "problem", "type": "ProblemDescription" }
-      ],
-      "output": { "type": "CodePatch" },
-      "agent": "code-architecture"
-    },
-    {
-      "name": "test",
-      "inputs": [{ "name": "patch", "type": "CodePatch" }],
-      "output": { "type": "TestResults" },
-      "agent": "test-automation-expert"
-    },
-    {
-      "name": "finalize",
-      "inputs": [
-        { "name": "patch", "type": "CodePatch" },
-        { "name": "tests", "type": "TestResults" }
-      ],
-      "output": { "type": "FinalDeliverable" },
-      "agent": "jury_rig-evaluator"
-    }
-  ],
-  "composition_order": [
-    ["analyze"],
-    ["implement"],
-    ["test"],
-    ["finalize"]
-  ]
+  "outputs": [{ "name": "deliverable", "type": "Deliverable",
+    "source": { "node": "f", "port": "result" } }]
 }
 ```
 
-**Type-checking algorithm:**
-```
-For each operation op in topological order:
-  For each input (name, type) of op:
-    Find the upstream operation that produces this type
-    Verify it exists and appears in an earlier wave
-    Verify the type names match exactly
+This fragment omits the type and operation declaration tables. Each declaration's output port is named `result`. The patch is an immutable artifact; review and tests must record its digest. Finalization checks that both reports refer to that exact digest and satisfy the acceptance policy. Review and test may run concurrently only if their implementations' effects and allocated resources permit it.
 
-If any check fails: INVALID decomposition. Report the type mismatch.
-```
+A checker for this representation should:
 
----
+1. Reject duplicate identifiers, undeclared types/operations, unknown source ports, and missing or extra input bindings.
+2. Resolve each source by identifier and check the declared source and target types, or an explicitly permitted compatibility relation.
+3. Build edges from bindings, check acyclicity, and trace declared final outputs back to available external inputs or zero-input operations.
+4. Validate runtime artifact schemas, digests, and predicates when values arrive.
+5. Evaluate effect and authority contracts before scheduling or substitution.
 
-## Relationship to Jury-rig
+Unused library types are not an operad violation. Unused nodes in a particular execution plan are a review signal because they may consume resources without supporting the deliverable.
 
-The Jury-rig architecture is an instantiation of the operad of wiring diagrams:
+## Applying the Model to a DAG Planner
 
-| Operad Concept | Jury-rig Equivalent |
-|---|---|
-| Type (color) | Node output schema |
-| Operation | Agent node with skill assignment |
-| Composition | Edge connecting nodes |
-| Identity | Pass-through node |
-| Monoidal product | Wave (parallel execution group) |
-| Wiring diagram | The DAG itself |
-| Nested wiring diagram | Sub-DAG (hierarchical decomposition) |
-| Associativity | "Decompose T into sub-DAGs, or directly into leaves -- same result" |
+For a Jury-rig-style planner, this is a modeling proposal unless the implementation has been checked against the definitions above:
 
-**The Jury-rig Decomposer agent is performing operad construction:** Given a problem description, it produces a wiring diagram (DAG topology) where each box (node) has typed inputs and outputs, and the wiring (edges) respects type compatibility.
+| Planner element | Modeling interpretation | Additional obligation |
+|---|---|---|
+| Artifact schema | Sort in an artifact-operation model | Schema, refinements, provenance |
+| Node interface | Color in a box-wiring model | Explicit port correspondence |
+| Node implementation | Candidate interpretation of an operation | Contract conformance |
+| Node expansion | Substitution by a subworkflow | Boundary and effect preservation |
+| Wave | Proposed schedule | Readiness, resources, interference |
+| Graph rewrite | A new composition candidate | No semantic equivalence from types alone |
 
-**The Jury-rig Mutator is performing operad substitution:** When a node fails and the DAG needs restructuring, the mutator replaces an operation with a different operation of the same type signature, or decomposes it into sub-operations. The operad structure guarantees the replacement is type-safe.
+Do not switch between artifact colors and box-interface colors without saying which model is in use. A graph planner's existence does not prove it constructs an operad algebra.
 
----
+## Anti-Patterns and Diagnostic Questions
 
-## Anti-Patterns
+- **“The two prompts have the same signature, so replacement preserves behavior.”** Check output predicates, provenance, effects, and evaluation evidence. Typing is only one obligation.
+- **“Grouping is irrelevant because the agents are deterministic.”** Determine whether this is the same formal substitution tree, then specify the interpretation. Changed operations or effect ordering require separate reasoning.
+- **“Multi-input means independent inputs.”** An input list describes requirements. Inspect dependencies and shared resources to assess concurrency; curried and uncurried function representations can express the same requirements.
+- **“Every operad forbids cycles.”** Identify the diagram grammar. Reject cycles here because this workflow chooses a DAG, while other wiring constructions admit feedback or recursion.
+- **“An operad is just a type system.”** Typing constrains interfaces; the operad additionally specifies substitution and its laws. Neither feature alone supplies a runtime scheduler or a correctness proof.
+- **“Static type checks are free and sufficient.”** They require a defined representation and checker, and they do not establish semantic truth or authority. State exactly which properties were checked.
+- **“Five inputs is a mathematical limit.”** There is no such operad axiom. Choose granularity using the task's validation and execution costs.
 
-### The Untyped DAG
-**Novice:** Builds a DAG where every edge carries "text" or "any". Nodes accept whatever the previous node produced. Type errors surface only at runtime when an agent receives input it can't process.
-**Expert:** Every edge in a DAG should have a named, documented type. Type-checking is free (it's a static analysis) and catches integration errors before any agent runs. If you can't name the type, you don't understand the interface. Define a schema for each type.
-**Timeline:** This is the default in most LLM-based agent frameworks. The cure is adding even minimal type annotations. Start with named string types; graduate to JSON schemas.
+## Primary References
 
-### The Megaoperation
-**Novice:** A single operation takes 15 inputs and produces a complex output. The operation is a monolith that can't be decomposed further.
-**Expert:** If an operation has more than 4-5 inputs, it almost certainly decomposes into sub-operations. Apply the operad composition recursively: find intermediate types that split the megaoperation into stages. Each stage should have 2-3 inputs. This mirrors the "small functions" principle in software engineering, but with formal type-theoretic backing.
-**Timeline:** Common when the decomposer agent is given too little guidance about granularity. Fix by setting a max-inputs constraint on the decomposer.
+Sources checked 2026-09-23:
 
-### The Phantom Type
-**Novice:** Defines types that no operation produces or consumes. The type exists in the schema but has no role in the decomposition.
-**Expert:** Every type must appear as the output of at least one operation AND the input of at least one operation (except for initial input types and the final output type). Phantom types indicate either missing operations or over-specified type systems. Remove them or add the operations that connect them.
-**Timeline:** Happens when copying type lists from ologs without checking which types participate in the task workflow.
-
-### The Cycle Pretending to Be Composition
-**Novice:** Creates a "decomposition" where operation A's output feeds B, and B's output feeds back to A. "It's iterative refinement!"
-**Expert:** Operads are acyclic by construction. Iteration is NOT composition -- it's a fixed-point computation. Model iteration as a SEPARATE operation: iterate(f, convergence_criterion) that internally applies f repeatedly until convergence. The iterate operation itself has typed inputs and outputs and participates in the operad normally. The cycle lives INSIDE the iterate box, not in the operad's wiring.
-**Timeline:** Very common in agent systems that do "revise until good." The fix is always to encapsulate the loop.
-
----
-
-## Shibboleths
-
-**"Operads are just DAGs"** -- No. A DAG is a graph. An operad is an algebraic structure with composition laws. The key difference: an operad tells you not just the topology but also the TYPE CONSTRAINTS at every connection point, and it guarantees that composition is associative. A DAG can have arbitrary, unchecked connections.
-
-**"Why not just use function types?"** -- Operad operations are multi-input, single-output. Function types (in the lambda calculus sense) are single-input, single-output (you curry multi-input functions). The operad formalism avoids currying, which means the parallelism structure is explicit: if an operation takes (A, B, C), you know A, B, and C can be computed in parallel. With curried functions f: A -> B -> C -> D, the parallelism is hidden.
-
-**"Associativity doesn't matter in practice"** -- It matters enormously for hierarchical delegation. If agent X decomposes a task and delegates subtask S to agent Y, who further decomposes S and delegates sub-subtask S' to agent Z, associativity guarantees that the overall result is the same as if X had directly decomposed to the leaf level. Without associativity, delegation introduces path-dependent bugs.
-
-**"How is this different from a type system?"** -- An operad IS a type system, but one specifically designed for hierarchical composition. A general type system (like TypeScript's) lets you compose functions but doesn't distinguish between sequential and parallel composition. The operad's monoidal product makes parallelism a first-class citizen.
-
----
-
-## Reference Files
-
-When deeper detail is needed:
-
-- **Fong, B. & Spivak, D.I. (2019).** *An Invitation to Applied Category Theory: Seven Sketches in Compositionality.* Cambridge University Press. Chapter 6 covers operads and wiring diagrams. The canonical accessible introduction.
-- **Spivak, D.I. (2013).** "The operad of wiring diagrams: formalizing a graphical language for databases, recursion, and plug-and-play circuits." arXiv:1305.0297. -- The formal foundation for wiring diagram operads.
-- **Vagner, D., Spivak, D.I., & Lerman, E. (2015).** "Algebras of open dynamical systems on the operad of wiring diagrams." Theory and Applications of Categories, 30(51). -- Extends wiring diagrams to dynamical systems; relevant for agents with internal state.
-- **Spivak, D.I. (2014).** *Category Theory for the Sciences.* MIT Press. -- Broader context; Chapters 4-7 for ologs and functors that ground operad types.
-- **Catlab.jl documentation.** algebraicjulia.org -- Implements operads computationally; useful for validation and enumeration.
-
----
+- **Leinster (2004), Higher Operads, Higher Categories**, [author preprint](https://arxiv.org/pdf/math/0305049), Chapter 2, especially Definition 2.1.1, Examples 2.1.2–2.1.5, and Definition 2.1.12. Definitions of multicategories and algebras; the unary case is a category; the monoidal construction is additional structure.
+- **Fong and Spivak (2019), An Invitation to Applied Category Theory**, [author preprint](https://arxiv.org/pdf/1803.05316). Chapter 6 is correct: §§6.5.1–6.5.3 cover operads, algebras, and their relation to symmetric monoidal categories. Chapter 5 §5.2.2 separately defines acyclic port graphs.
+- **Spivak (2013), The operad of wiring diagrams: formalizing a graphical language for databases, recursion, and plug-and-play circuits**, [arXiv:1305.0297](https://arxiv.org/abs/1305.0297). §2 states conventions, operad functors, and algebras; recursion is within the paper's scope.
+- **Vagner, Spivak, and Lerman (2015), Algebras of Open Dynamical Systems on the Operad of Wiring Diagrams**, [arXiv:1408.1598](https://arxiv.org/abs/1408.1598). A specific wiring construction and compatible dynamical-system interpretations; not a generic agent-execution guarantee.
+- **Catlab.jl**, [official documentation](https://algebraicjulia.github.io/Catlab.jl/latest/). Computational structures and wiring-diagram tooling. The project explicitly distinguishes itself from a theorem prover or proof assistant; using it does not certify agent behavior.
 
 ## Quality Gates
 
-You have a valid task operad when:
+For the **mathematical claim**:
 
-- [ ] Every type has a name, description, and (ideally) a JSON schema
-- [ ] Every operation has explicitly typed inputs and a typed output
-- [ ] No type mismatches exist at any composition boundary
-- [ ] There exists a composition path from initial input types to the final output type
-- [ ] The composition graph is acyclic
-- [ ] Maximum parallelism is identified (operations in the same wave share no dependencies)
-- [ ] Every type is produced by at least one operation and consumed by at least one operation (except initial/final types)
-- [ ] No operation has more than 5 inputs (decompose further if so)
-- [ ] Iterative/looping behaviors are encapsulated inside operations, not expressed as cycles in the operad
-- [ ] The operad corresponds to a valid Jury-rig DAG topology (if applicable)
+- [ ] State whether colors are artifact sorts or box interfaces.
+- [ ] Specify the chosen operad, or label signatures as generators for formal syntax.
+- [ ] Use unit, substitution associativity, and equivariance laws with their actual scope.
+- [ ] Supply a compatible interpretation before claiming semantic equality.
+- [ ] Identify which implementation obligations remain unproved.
+
+For the **chosen task workflow**:
+
+- [ ] Declare concrete ports, source bindings, external inputs, and final outputs.
+- [ ] Check type compatibility, completeness, provenance, and relevant refinements.
+- [ ] Check acyclicity as this workflow's constraint, with bounded iteration contracts where needed.
+- [ ] Make sharing, effects, authority, retries, and resource limits explicit.
+- [ ] Check proposed concurrency against readiness and interference.
+- [ ] Evaluate substitutions against the full interface and behavioral contract.
+- [ ] Report static checks and empirical results separately from formal guarantees.

@@ -427,3 +427,9 @@ If the user selects `Change topology`:
 - **Pretending unsupported topologies execute natively** -> Do not do this
 - **ASCII-only theater when a real Jury-rig surface is available** -> Open the real surface
 - **Ad hoc subagent prompts with no contracts** -> Use the skillful-node template and reference
+
+## Imported bundle navigation
+
+These preserved source files add depth when their stated topic is needed.
+
+- [examples/03-halt-gate-tripped.md](examples/03-halt-gate-tripped.md) — Example 03 — Halt Gate Tripped.

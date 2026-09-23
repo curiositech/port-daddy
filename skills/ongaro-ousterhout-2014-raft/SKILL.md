@@ -335,3 +335,10 @@ Complete specification includes:
 
 - **Diagrams**: [`diagrams/INDEX.md`](diagrams/INDEX.md) — state-transition diagram, log replication sequence, and decomposition mindmap
 - **References**: [`references/INDEX.md`](references/INDEX.md) — seven deep-dive documents covering decomposition strategy, leadership trade-offs, constraint design, randomization, failure modes, understandability metrics, and specification completeness
+
+## Imported bundle navigation
+
+These preserved source files add depth when their stated topic is needed.
+
+- [diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md](diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md) — Log Replication Protocol: Happy Path vs. Edge Cases.
+- [diagrams/03_mindmap_decomposition_hierarchy:_raft'.md](diagrams/03_mindmap_decomposition_hierarchy:_raft'.md) — Decomposition Hierarchy: Raft's Independent Subproblems.

@@ -85,7 +85,7 @@ Is the invariant safety-critical (data loss, security breach)?
             +-- NO  --> EVENT-DRIVEN: subscribe to state-change events
 ```
 
-**Synchronous:** Runs in the hot path. Budget 0.1-2ms per check. Use for
+**Synchronous:** Runs in the hot path. Measure its local cost on the frozen build; no universal latency budget is assumed. Use for
 safety-critical invariants where a single violation is unacceptable.
 
 **Sampled:** Runs on a timer. Violations may persist for one interval before
@@ -145,10 +145,9 @@ For agent coordination, use **bounded online**:
 - **Liveness invariants** (CrashRecovery): O(active dead agents), bounded window
 - **Temporal ordering**: Ring buffer of last N events, O(N)
 
-**Complexity budget** (100 req/s daemon, 10ms p99 target):
-- Per-request monitor: 0.5ms (5% of latency budget)
-- Background sweep: 10ms every 1s (1% CPU)
-- Total overhead target: < 2%
+**Illustrative measurement worksheet** (not a default or imported claim):
+- Record per-request and sweep costs under the local workload.
+- Compare monitored and unmonitored behavior; publish the resulting distribution, not a borrowed threshold.
 
 ## Worked Example: Compiling NoteMonotonicity
 
@@ -249,7 +248,7 @@ function onViolation(v: Violation) {
 
 ### Step 6: Verify the Monitor
 
-**Quality gate:** 100% of injected violations caught, < 2% CPU overhead.
+**Example preregistered finite-corpus detection target:** detect 100% of a declared injected corpus and measure overhead against a pinned workload. The percentages and workload are acceptance choices, not proof of general correctness or universal defaults.
 
 ```typescript
 // Injection test: direct DELETE bypassing API
@@ -258,7 +257,7 @@ const violations = monitor.sweep();
 expect(violations).toHaveLength(1);
 expect(violations[0].currentCount).toBeLessThan(violations[0].previousCount);
 
-// Overhead test: <0.5ms per check
+// Example local threshold: preregister the workload and acceptance rule before measurement.
 const start = performance.now();
 for (let i = 0; i < 10_000; i++) monitor.checkAfterAddNote(sessionId);
 expect((performance.now() - start) / 10_000).toBeLessThan(0.5);
@@ -283,7 +282,7 @@ Is the slow check safety-critical?
 +-- NO  --> Move to SAMPLED. Accept detection delay.
 ```
 
-**Prevention:** Budget 0.5ms/sync check. Precompute state. No full scans in sync path.
+**Prevention:** Set and preregister a local latency target before measurement; do not infer one from this example.
 
 ### Failure Mode 2: False Positive Cascades
 
@@ -356,27 +355,27 @@ accumulates into hourly digests. Only high-severity triggers immediate alerts.
 **5. Happy-Path-Only Testing.** Every monitor needs injection tests: direct SQL
 bypassing API, concurrent races, clock manipulation, simulated crash recovery.
 
-## Quality Gates
+## Example Preregistered Finite-Corpus Gates
 
 | Gate | Criterion | Verification |
 |------|-----------|-------------|
-| Correctness | 100% of injected violations caught | >= 10 injection scenarios |
-| No false positives | Zero on 24h clean run | Load test against healthy daemon |
-| Overhead | < 2% CPU, < 0.5ms/sync check | Benchmark with/without monitor |
-| Crash resilience | Recovers from own crash | Kill mid-sweep, verify resync |
-| State bounded | Memory O(active sessions) | 24h churn test, measure RSS |
+| Finite injected-corpus detection | 100% of declared injected cases detected | >= 10 scenarios selected before the run |
+| No false positives | A preregistered target, for example zero | 24-hour pinned clean workload (example duration) |
+| Overhead | Preregister a target, for example <2% CPU and <0.5ms latency | Benchmark under a pinned workload |
+| Crash resilience | Preregister a recovery target | Declared crash/restart corpus |
+| State bounded | Preregister a memory target | Pinned churn workload (duration selected before run) |
 | Watchman health | Canary detects death within 2x interval | Kill monitor, verify alert |
 
 ## Compiling Any TLA+ Safety Invariant
 
 1. **Identify state variables** referenced by the invariant
 2. **Identify actions** that can modify those variables
-3. **Per action**, determine if sync check is feasible (< 0.5ms)
+3. **Per action**, preregister the decision-latency target and evaluate feasibility against the pinned workload
 4. **Compile** into `(previous, current) -> Violation | null`
 5. **Wire** into action path (sync) or background sweep (sampled)
 6. **Define remediation**: log, alert, salvage, or halt
 7. **Write injection tests** that bypass the API
-8. **Measure overhead** against quality gates
+8. **Measure overhead** against the preregistered finite-corpus gates
 
 ### Port Daddy Invariant Reference
 
@@ -405,4 +404,8 @@ inspection, not by monitoring.
 
 ## Bundled Assets
 
-- `evals/evals.json` — Evaluation scenarios and quality-gate validation. Load when testing your monitor implementation against formal correctness (100% violation detection), overhead budgets (<2% CPU, <0.5ms/check), and crash resilience.
+- `evals/evals.json` — Evaluation scenarios and quality-gate validation. Load when testing your monitor implementation against a preregistered finite injected-test corpus, workload-specific overhead targets, and a declared crash-recovery corpus. These examples are not known results or universal defaults.
+
+## Evidence boundary
+
+A runtime monitor detects; it prevents only when an independently controlled effect boundary consumes its decision before the effect. Load `references/monitoring-and-enforcement.md` before describing a monitor as enforcement or planning an adversarial evaluation.
