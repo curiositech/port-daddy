@@ -1005,6 +1005,16 @@
   ],
   "unindexed_allow": [
     {
+      "id": "thm:ephemeral-memory",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Ephemeral Inference State and the KV Boundary')."
+    },
+    {
+      "id": "thm:ephemeral-memory",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Ephemeral Inference State and the KV Boundary')."
+    },
+    {
       "id": "unlabeled-env:docs/harbor-research/tex/exec1.tex:30",
       "file": "docs/harbor-research/tex/exec1.tex",
       "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{theorem}[Regret head], an executive-summary restatement of R3, at line 30.)"
