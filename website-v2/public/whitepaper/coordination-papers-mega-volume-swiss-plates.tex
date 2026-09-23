@@ -29,4 +29,8 @@
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
+\newcommand{\pdswisslandmarkplate}[2]{% #1 landmark ID (e.g. 01..12), #2 width
+  \IfFileExists{plates/swiss/landmark-#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/landmark-#1.jpg}}{%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/landmark-#1.jpg}{Generate the Swiss landmark plate render and place it at plates/swiss/landmark-#1.jpg before building.}}}
 \makeatother
