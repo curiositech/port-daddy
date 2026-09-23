@@ -242,7 +242,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
     pdfPath: '/research/paper8.pdf',
     pages: 24,
-    sizeKb: 544,
+    sizeKb: 542,
     claim:
       'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
     pullQuote:

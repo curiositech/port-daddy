@@ -67,3 +67,34 @@ entries covered, and all 776 canonical bundles passing hygiene. All blocking
 Library Checks pass with the pinned reader stack. The two explicitly advisory
 Book checks retain their findings; their status has not been concealed or
 converted to a claim that the full Book is certified.
+
+
+## Generated PDF follow-up
+
+The source repair at `0f60fd36c7809aa95d646152d856d33b95df7e09` passed
+[CI](https://github.com/curiositech/port-daddy/actions/runs/35928002372),
+[Library Checks](https://github.com/curiositech/port-daddy/actions/runs/35928002476),
+[Proofs](https://github.com/curiositech/port-daddy/actions/runs/35928002391), and
+[Release Candidate E2E](https://github.com/curiositech/port-daddy/actions/runs/35928002409).
+These are source-parent receipts, not checks on every successor.
+
+The Harbor build then published `b1e838012ee9257557e47dd06c8689d25b4ec772`,
+changing only 29 PDF files. The TeX and figure inputs were unchanged, but PDF
+creation/modification dates advanced. The Harbor workflow lacked the source-date
+discipline already used by the main whitepaper builder. Its generated push left CI absent from the ordinary check summary. The Actions
+API revealed CI, Library Checks, Proofs, Harbor Build, and RC E2E runs with
+`action_required` on that exact head. Current [GitHub built-in-token event rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
+explain that these PR updates create approval-required runs. That live evidence
+supersedes the initial assumption that no workflows had been created.
+
+The follow-up repairs the build recipe itself: source-bound author timestamps,
+a clean repeated-build hash check, compilation failure propagation, exact event
+checkout, and a guard against replaying artifacts over changed inputs. Final
+hosted artifact bytes, metadata, and checks are read back after publication;
+local and hosted TeX stacks need not produce identical bytes.
+
+The [build repair receipt](harbor-build-repair/README.md) includes the four new
+regression cases, 460 passing research-library tests, and the actual execution
+report page inspected after repairing the shared pgfplots style. Local full-corpus
+compilation is limited by the BasicTeX installation's missing `titlesec.sty`; the
+pinned hosted toolchain supplies the full-corpus verification.

@@ -25,8 +25,8 @@ a red build or, worse, a silently stale PDF.
 
 ```bash
 cd website-v2/public/whitepaper
-pdflatex -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 1: refs
-pdflatex -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 2: resolve
+pdflatex -halt-on-error -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 1: refs
+pdflatex -halt-on-error -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 2: resolve
 grep "Output written" paper.log        # → "(NN pages, BBBBBB bytes)"
 grep -c "LaTeX Error" paper.log        # must be 0
 grep "Warning: Citation" paper.log     # every hit = a \cite with no \bibitem
@@ -40,6 +40,24 @@ grep "Warning: Reference" paper.log    # dangling \ref — check if pre-existing
 - **Pre-existing dangling refs happen** when papers share content lineage
   (e.g. labels living in a sibling paper). Note them in the PR; don't chase
   labels that belong to another document.
+
+## Reproducible committed PDFs
+
+Use the repository's pinned hosted TeX toolchain for published bytes. Export
+`SOURCE_DATE_EPOCH` from the maximum Git author timestamp of the actual source
+inputs and `FORCE_SOURCE_DATE=1`; include the build recipe and toolchain pin,
+but exclude generated PDFs, catalog metadata, and review receipts. Author times
+survive rebases. A clock time or HEAD timestamp makes unrelated commits change
+PDF dates and identifiers.
+
+Prove determinism with two clean builds and compare every output hash. Bind a
+hosted build to its event SHA. Before replaying a generated commit onto a moved
+branch, confirm its source inputs and epoch remain unchanged. Do not decide
+freshness from a commit-message prefix. After a bot publication, verify the
+actual PR head and its checks; a successful source-parent run does not validate
+a later artifact commit. GitHub's built-in-token PR updates can leave runs
+requiring approval, which may be absent from the ordinary check summary. Inspect
+the Actions runs for the exact head and follow the normal approval path; see the [event rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
 
 ## Source → published naming is NOT 1:1
 
@@ -68,12 +86,11 @@ you). Never `git add -A` here (coordination guard blocks it anyway).
 `website-v2/scripts/check-whitepaper-metadata.ts` compares each registry entry
 to the on-disk PDF:
 
-- `pages`: **exact match required.** Adding a section that spills a page
-  means bumping the registry.
+- `pages`: record the actual count. The current checker uses an absolute floor
+  and a `max(5%, 4 pages)` drift band; passing the band is not exact metadata.
 - `sizeKb`: `Math.round(bytes / 1024)` with tolerance `max(2%, 4 KB)` — but
-  set it exact anyway; drift-within-tolerance rots. Beware shell arithmetic:
-  `$(( (bytes + 512) / 1024 ))` FLOORS after the add and disagrees with
-  `Math.round` near .5 boundaries. Compute with node/python if unsure.
+  set it exact anyway. Use the registry generator to avoid rounding differences
+  between language runtimes.
 - Run the real test when deps exist: `vitest run src/data/whitePapers.test.ts`.
   In a fresh worktree, symlink the main checkout's `node_modules` first —
   and `rm` the symlink before committing.
