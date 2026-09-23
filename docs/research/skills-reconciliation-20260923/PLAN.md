@@ -26,7 +26,11 @@ The source `.agy/skills` is an installed-link view, not an independent copy: mat
 - [x] Verify and repair paper8 bibliography entries and supporting citations.
 - [x] Render the corrected paper and inspect the changed pages.
 - [x] Reconcile remaining library checks and resolved code-review findings.
-- [ ] Publish the repair and verify the hosted result at the final PR head.
+- [x] Publish the source repair and verify its hosted checks at `0f60fd36c7809aa95d646152d856d33b95df7e09`.
+
+The generated-artifact successor exposed an additional build defect. Its repair
+and exact-head validation are tracked in [ci-followup.md](ci-followup.md) and the
+PR checks; a source-parent success is not substituted for successor validation.
 
 The operator explicitly requested this repair on 23 September. The prior
 inherited-failure disposition is historical evidence, not a reason to leave it
