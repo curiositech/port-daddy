@@ -37,51 +37,112 @@
   \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
   \raisebox{-2.2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/\pdblock@icon.pdf}}%
   \endgroup\hspace{.45em}}
-% Every split segment retains a complete, full-strength perimeter.
-% Color identifies the family, not evidence confidence. Official icons and
-% explicit type names remain essential when hues converge in grayscale.
-% Quiet fields support reading; broad edge geometry adds a second category cue.
-\newcommand{\pdblock@frame}{%
-  \draw[draw=\pdblock@color,line width=.5pt]
-    (frame.south west) rectangle (frame.north east);
+\providecommand{\pdgrotesk}{\sffamily}
+\usetikzlibrary{decorations.pathmorphing}
+% Category accents decomposed by edge:
+\newcommand{\pdblock@accents@top}{%
   \ifdefstring{\pdblock@color}{pdblockProof}{%
     \fill[\pdblock@color] (frame.north west) rectangle
       ([yshift=-5pt]frame.north east);
-    \fill[\pdblock@color] (frame.south east) rectangle
-      ([xshift=-3pt,yshift=20pt]frame.south east);
-  }{\ifdefstring{\pdblock@color}{pdblockChecked}{%
-    \fill[\pdblock@color] (frame.north west) rectangle
-      ([xshift=2pt]frame.south west);
-    \fill[\pdblock@color] ([xshift=4pt]frame.north west) rectangle
-      ([xshift=6pt]frame.south west);
-    \fill[\pdblock@color] (frame.south east) rectangle
-      ([xshift=-24pt,yshift=3pt]frame.south east);
   }{\ifdefstring{\pdblock@color}{pdblockHypothesis}{%
-    \fill[\pdblock@color] (frame.north east) rectangle
-      ([xshift=-6pt]frame.south east);
     \fill[\pdblock@color] (frame.north west) rectangle
       ([xshift=32pt,yshift=-3pt]frame.north west);
   }{\ifdefstring{\pdblock@color}{pdblockInvariant}{%
-    \fill[\pdblock@color] (frame.south west) rectangle
-      ([yshift=5pt]frame.south east);
     \fill[\pdblock@color] (frame.north west) rectangle
       ([xshift=3pt,yshift=-20pt]frame.north west);
   }{\ifdefstring{\pdblock@color}{pdblockCalculation}{%
-    \fill[\pdblock@color] (frame.south west) rectangle
-      ([yshift=5pt]frame.south east);
     \fill[\pdblock@color] (frame.north east) rectangle
       ([xshift=-24pt,yshift=-3pt]frame.north east);
   }{\ifdefstring{\pdblock@color}{pdblockProtocol}{%
     \fill[\pdblock@color] (frame.north west) rectangle
-      ([xshift=5pt]frame.south west);
-    \fill[\pdblock@color] (frame.north west) rectangle
       ([yshift=-5pt]frame.north east);
+  }{}}}}}}%
+}
+\newcommand{\pdblock@accents@bottom}{%
+  \ifdefstring{\pdblock@color}{pdblockProof}{%
+    \fill[\pdblock@color] (frame.south east) rectangle
+      ([xshift=-3pt,yshift=20pt]frame.south east);
+  }{\ifdefstring{\pdblock@color}{pdblockChecked}{%
+    \fill[\pdblock@color] (frame.south east) rectangle
+      ([xshift=-24pt,yshift=3pt]frame.south east);
+  }{\ifdefstring{\pdblock@color}{pdblockInvariant}{%
+    \fill[\pdblock@color] (frame.south west) rectangle
+      ([yshift=5pt]frame.south east);
+  }{\ifdefstring{\pdblock@color}{pdblockCalculation}{%
+    \fill[\pdblock@color] (frame.south west) rectangle
+      ([yshift=5pt]frame.south east);
+  }{\ifdefstring{\pdblock@color}{pdblockProtocol}{%
+  }{%
+    \fill[\pdblock@color] (frame.south east) rectangle
+      ([xshift=-24pt,yshift=3pt]frame.south east);
+  }}}}}}%
+}
+\newcommand{\pdblock@accents@side}{%
+  \ifdefstring{\pdblock@color}{pdblockChecked}{%
+    \fill[\pdblock@color] (frame.north west) rectangle
+      ([xshift=2pt]frame.south west);
+    \fill[\pdblock@color] ([xshift=4pt]frame.north west) rectangle
+      ([xshift=6pt]frame.south west);
+  }{\ifdefstring{\pdblock@color}{pdblockHypothesis}{%
+    \fill[\pdblock@color] (frame.north east) rectangle
+      ([xshift=-6pt]frame.south east);
+  }{\ifdefstring{\pdblock@color}{pdblockProtocol}{%
+    \fill[\pdblock@color] (frame.north west) rectangle
+      ([xshift=5pt]frame.south west);
   }{%
     \fill[\pdblock@color] (frame.north west) rectangle
       ([xshift=5pt]frame.south west);
-    \fill[\pdblock@color] (frame.south east) rectangle
-      ([xshift=-24pt,yshift=3pt]frame.south east);
-  }}}}}}}
+  }}}}%
+}
+% Every split segment retains a complete perimeter cue.
+% When unbroken, the perimeter is solid.
+% When broken across pages:
+% - first segment has a serrated/zigzag bottom edge + continuation arrow;
+% - middle segment has zigzag top and bottom edges + continued/continuation arrows;
+% - last segment has a zigzag top edge + continued arrow.
+\newcommand{\pdblock@frame@unbroken}{%
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.south west) rectangle (frame.north east);
+  \pdblock@accents@top
+  \pdblock@accents@bottom
+  \pdblock@accents@side
+}
+\newcommand{\pdblock@frame@first}{%
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.south west) -- (frame.north west) -- (frame.north east) -- (frame.south east);
+  \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
+    (frame.south west) -- (frame.south east);
+  \node[anchor=south east, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=-4.5pt, xshift=-1pt]
+    at (frame.south east) {continues on next page $\,\blacktriangleright$};
+  \pdblock@accents@top
+  \pdblock@accents@side
+}
+\newcommand{\pdblock@frame@middle}{%
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.south west) -- (frame.north west);
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.south east) -- (frame.north east);
+  \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
+    (frame.north west) -- (frame.north east);
+  \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
+    (frame.south west) -- (frame.south east);
+  \node[anchor=north west, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=4.5pt, xshift=1pt]
+    at (frame.north west) {$\blacktriangleright\,$ continued from previous page};
+  \node[anchor=south east, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=-4.5pt, xshift=-1pt]
+    at (frame.south east) {continues on next page $\,\blacktriangleright$};
+  \pdblock@accents@side
+}
+\newcommand{\pdblock@frame@last}{%
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.north west) -- (frame.south west) -- (frame.south east) -- (frame.north east);
+  \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
+    (frame.north west) -- (frame.north east);
+  \node[anchor=north west, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=4.5pt, xshift=1pt]
+    at (frame.north west) {$\blacktriangleright\,$ continued from previous page};
+  \pdblock@accents@bottom
+  \pdblock@accents@side
+}
+\newcommand{\pdblock@frame}{\pdblock@frame@unbroken}
 \newcommand{\pdblockbefore}[1]{%
   % Allow a wrapped standalone head, frame padding and two opening body lines.
   \par\if@nobreak\else\Needspace{7\baselineskip}\fi
@@ -93,8 +154,10 @@
     left=11pt,right=11pt,top=10pt,bottom=10pt,
     before skip=9pt plus 2pt,after skip=9pt plus 2pt,
     pad at break*=10pt,lines before break=6,
-    overlay unbroken={\pdblock@frame},overlay first={\pdblock@frame},
-    overlay middle={\pdblock@frame},overlay last={\pdblock@frame}]
+    overlay unbroken={\pdblock@frame@unbroken},
+    overlay first={\pdblock@frame@first},
+    overlay middle={\pdblock@frame@middle},
+    overlay last={\pdblock@frame@last}]
     \clubpenalty=9000 \widowpenalty=9000
     \displaywidowpenalty=9000 \brokenpenalty=9000
 }
