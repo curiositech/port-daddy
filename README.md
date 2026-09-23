@@ -36,6 +36,11 @@ does not by itself update `relay.portdaddy.dev`.
 
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, sessions with append-only notes, advisory file/symbol claims, distributed locks, pub/sub messaging, budget-bonded spawning, and automatic salvage.
 
+Agent launches enter through WorkIntent and a single-node plan before the governed
+Conductor executes them. Spawn responses include a durable run receipt linking
+the intent, launch, session and transcript; see [SDK receipt readback](docs/sdk.md#spawn--ai-run-launcher).
+
+
 ```bash
 # Start working (registers agent + claims port + starts session)
 pd begin "Building the auth layer" --identity myapp:api --lifecycle durable --roadmap auth-layer

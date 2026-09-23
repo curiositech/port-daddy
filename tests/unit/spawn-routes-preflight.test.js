@@ -33,6 +33,8 @@ function buildApp() {
     register: () => app.register(spawnPlugin, {
       deps: {
         spawner,
+        workIntentSpawn: { replay: async () => null, run: async spec => ({ result: await spawner.spawn(spec),
+          runReceipt: { schema: 'pd.agent-run-receipt.v1', status: 'completed' }, duplicate: false }) },
         costTracker: {
           budgetStatus: jest.fn(),
         },
@@ -526,4 +528,38 @@ describe('spawn routes preflight', () => {
 
     await app.close();
   });
+});
+
+
+test('matching receipt replay bypasses newly blocked preflight without spawning', async () => {
+  const app = Fastify();
+  const receipt = { schema: 'pd.agent-run-receipt.v1', id: 'old-run', status: 'completed' };
+  const run = jest.fn();
+  const replay = jest.fn(async () => ({ result: null, runReceipt: receipt, duplicate: true }));
+  mockAssessSpawnPreflight.mockClear();
+  mockAssessSpawnPreflight.mockResolvedValue({ launchReady: false, blockedReasons: ['budget spent'] });
+  await app.register(spawnPlugin, { deps: { spawner: { list: () => [], kill() {} },
+    workIntentSpawn: { run, replay, get: () => receipt }, metrics: { errors: 0 }, logger: { info() {}, error() {} } } });
+  const response = await app.inject({ method: 'POST', url: '/spawn', headers: { 'idempotency-key': 'prior-key' },
+    payload: { backend: 'claude', task: 'same goal', budgetUsd: 1 } });
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({ code: 'WORK_INTENT_REPLAY', runReceipt: receipt });
+  expect(mockAssessSpawnPreflight).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
+  await app.close();
+});
+
+test('missing canonical runtime fails closed and stop only acknowledges a request', async () => {
+  const app = Fastify();
+  const spawn = jest.fn();
+  mockAssessSpawnPreflight.mockResolvedValue({ launchReady: true, attempts: [{ backend: 'claude' }] });
+  await app.register(spawnPlugin, { deps: { spawner: { spawn, list: () => [], kill() {} },
+    metrics: { errors: 0 }, logger: { info() {}, error() {} } } });
+  const response = await app.inject({ method: 'POST', url: '/spawn', payload: { backend: 'claude', task: 'goal' } });
+  expect(response.statusCode).toBe(503);
+  expect(response.json().code).toBe('WORK_INTENT_RUNTIME_UNAVAILABLE');
+  expect(spawn).not.toHaveBeenCalled();
+  const stop = await app.inject({ method: 'DELETE', url: '/spawn/missing' });
+  expect(stop.json().status).toBe('requested');
+  await app.close();
 });
