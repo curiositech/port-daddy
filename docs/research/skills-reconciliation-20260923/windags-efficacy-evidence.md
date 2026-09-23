@@ -73,7 +73,7 @@ These are recorded generation usage and per-condition times, not end-to-end bill
 
 ## Reproduction and accounting limits verified in source
 
-The [pinned README](https://github.com/curiositech/windags-skills/blob/9e2fed3bb42ad027284c5a3342e5487be45bf05e/scripts/bench/README.md) explicitly says the full cascade needs the private core monorepo. The runner imports `packages/core/...` files absent from the inspected public tree and refers to a missing `scripts/bench/build-tool2vec-cache.ts`. The offered BM25 substitution changes the intervention; its claimed preservation of direction is not established by this export.
+The [pinned README](https://github.com/curiositech/windags-skills/blob/9e2fed3bb42ad027284c5a3342e5487be45bf05e/scripts/bench/README.md) explicitly says the full cascade needs the private core monorepo. The [pinned runner](https://github.com/curiositech/windags-skills/blob/9e2fed3bb42ad027284c5a3342e5487be45bf05e/scripts/bench/runner-skill-graft-v2.ts) imports private core modules absent from the inspected public tree and refers to a Tool2Vec cache builder that is also absent. The offered BM25 substitution changes the intervention; its claimed preservation of direction is not established by this export.
 
 The runner writes to repository-root `bench/runs/sg-v2`, while README commands from `scripts/bench` subsequently reference `runs/sg-v2`. Export expects `apps/marketing/public/data/...`. Those paths need reconciliation for an executable public reproduction. The public tree does not contain the original run directory or complete raw verdict files; the site JSON provides a substantial, inspectable subset.
 

@@ -35,5 +35,5 @@ Status as of the soma-windags graft memo (2026-06-26): **DESIGNED, ZERO CODE**. 
 ## See Also
 
 - **SKILL.md § Implementation Pattern** — the full `detect_degeneracy` pseudocode with the four signal thresholds (SCR, NCR, FEC, PNS) that feed into the selection-pressure mechanisms described here.
-- **`docs/SKILL-LIFECYCLE.md` (workgroup-ai)** — the full side-effect registry for skill mutations; demotion and rollback are additional entries in that inventory that are not yet registered there.
+- **Skill lifecycle registry (workgroup-ai; external to this repository)** — the full side-effect registry for skill mutations; demotion and rollback are additional entries in that inventory that are not yet registered there.
 - **`graft-memos-379.md` (soma-windags graft)** — the RCP-6b origin document; see the WinDAGs → Port Daddy graft block for the C4 evolutionary dynamics framing and the distinction between RCP-6, RCP-6a, and RCP-6b.

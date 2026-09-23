@@ -87,7 +87,7 @@ completion rate in Week 2 is guaranteed by the scan invariant, not by luck.
 
 ## Operational Connection to Port Daddy's Coordination Layer
 
-Port Daddy's **claims** (`docs/adr/pd-adr-038-claim-tree.md`) are advisory
+Port Daddy's **claims** (`docs/adr/0038-claim-tree.md`) are advisory
 announcements of intent. A claim on a file does not prove the file was read. In a
 system without epistemic scan, an agent can claim every file in a repo and produce
 no finding on isolated nodes — and the claim log looks complete.

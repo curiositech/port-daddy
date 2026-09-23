@@ -20,6 +20,8 @@ Start with `docs/research/skills-reconciliation-20260923/README.md` for inventor
 - `python3 -m harness.pilot_summary`: stored substrate data reproduce 80/84 cells without count inconsistencies; experiments were not rerun and the defective merge-queue baseline prevents a rail-versus-queue conclusion.
 - Scope checks and normal commit hooks pass. Gitleaks candidates were reviewed with redacted evidence. The cached whitespace check remains nonzero for preserved source formatting: all 17,143 retained trailing-whitespace lines match a source/base line, plus five final blank-line diagnostics. This exception is documented, not relabeled as a passing check.
 
+Initial hosted CI found mirror drift, documentation citation problems in imported examples, and three unused-variable findings in one imported script. The follow-up corrects these without weakening checks. Library Checks also reproduces ten orphan bibliography entries on the unchanged base manuscript; the hosted hostile release job failed before its test assertions during an ONNX Runtime dependency download. See `docs/research/skills-reconciliation-20260923/ci-followup.md` for the evidence and local repair validation. The PR is open for review; a clean full-CI result and resolved review threads are not claimed.
+
 Coverage and navigation do not certify every inherited claim or execute every imported script. Manuscript anchors refer to the hash-pinned active reading snapshot, which differs from the Book at this branch's base. Generation drafts are explicitly provenance-only.
 
 ## Visual Proof

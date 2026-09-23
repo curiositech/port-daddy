@@ -273,8 +273,8 @@ This skill is designed for the **National Expungement Guide** project:
 ### Existing Infrastructure
 
 - **Firecrawl scripts**: `scripts/firecrawl/`
-- **Job definitions**: `scripts/firecrawl/jobs.ts` (P0-P4 priority jobs)
-- **URL config**: `scripts/firecrawl/config.ts` (all 50 states)
+- **Job definitions**: `scripts/firecrawl/<jobs>.ts` (illustrative P0-P4 layout; not included in this skill)
+- **URL config**: `scripts/firecrawl/<config>.ts` (illustrative all-state layout; not included in this skill)
 - **Output path**: `src/data/scraped/states/{state}/`
 - **State data**: `src/data/states/` (TypeScript files per state)
 
@@ -325,7 +325,7 @@ See `references/` folder for:
 1. Check existing data: `ls src/data/scraped/states/ca/`
 2. Verify current statute version at `california.public.law`
 3. Check for 2025-2026 law changes via CCRC or news search
-4. Update `scripts/firecrawl/config.ts` if URLs changed
+4. Update your `scripts/firecrawl/<config>.ts` if URLs changed (illustrative project layout)
 5. Run targeted scrape: add CA-specific URLs to P0 job
 6. Validate extracted data against known statute citations
 7. Document any gaps or changes found

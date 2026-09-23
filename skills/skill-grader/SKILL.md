@@ -296,7 +296,7 @@ For rapid triage across many skills, produce only:
 
 ### Ignoring Phantoms
 **Wrong**: Scoring Axis 5 as B because scripts are "referenced."
-**Right**: Actually check if every referenced file exists. If `scripts/validate.py` is mentioned but doesn't exist, that's D.
+**Right**: Actually check if every referenced file exists. If `scripts/validate.py` is mentioned but does not exist (hypothetical; <!-- cite-exempt -->), that is D.
 
 
 ## Output Contract

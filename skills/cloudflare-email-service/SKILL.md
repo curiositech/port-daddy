@@ -18,7 +18,7 @@ Cloudflare Email Service lets you send transactional emails and route incoming e
 | Cloudflare docs | `cloudflare-docs` search tool or URL `https://developers.cloudflare.com/email-service/` | API reference, limits, pricing, latest features |
 | REST API spec | `https://developers.cloudflare.com/api/resources/email_sending` | OpenAPI spec for the Email Sending REST API |
 | Workers types | `https://www.npmjs.com/package/@cloudflare/workers-types` | Type signatures, binding shapes |
-| Agents SDK docs | Fetch `docs/email.md` from `https://github.com/cloudflare/agents/tree/main/docs` | Email handling in Agents SDK |
+| Agents SDK docs | [Email handling documentation](https://github.com/cloudflare/agents/blob/main/docs/email.md) | Email handling in Agents SDK |
 
 ## FIRST: Check Prerequisites
 

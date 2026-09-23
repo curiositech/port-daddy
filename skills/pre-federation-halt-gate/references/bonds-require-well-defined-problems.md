@@ -95,6 +95,6 @@ layer specified in ADR-0027 and Paper VII, which is whitepaper'd, not built.
 - `SKILL.md` — halt gate pseudocode, validity formula, dimensional override thresholds
 - `docs/research/north-star/agent-economy-anchor.md` — Paper IV; §3.1 (float plan), §3.3
   (oracle + four terminal states), §3.4 (three sides on one escrow)
-- `docs/adr/pd-adr-041-durable-commitments-and-obligation-monitoring.md` — oracle-bound
+- `docs/adr/0041-durable-commitments-and-obligation-monitoring.md` — oracle-bound
   closure; the rule that `state='done'` requires a `closed_by_oracle_ref`, not free text;
   the commitment object that makes no-escape obligations machine-enforceable

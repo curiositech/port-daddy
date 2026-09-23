@@ -326,7 +326,7 @@ Each agent produces structured output:
 ## Anti-Patterns
 
 ### Phantom Tools
-**What it looks like**: SKILL.md references `scripts/analyze.py` but file doesn't exist
+**What it looks like**: SKILL.md references `scripts/analyze.py` but file does not exist <!-- cite-exempt: hypothetical missing-file counterexample -->
 
 **Why it's wrong**: Users try to run non-existent code, lose trust in skill
 
@@ -374,8 +374,8 @@ Each agent produces structured output:
 
 | Skill | Tools Included |
 |-------|----------------|
-| clip-aware-embeddings | `scripts/validate_clip_usage.py` |
-| site-reliability-engineer | `scripts/validate-brackets.js`, `scripts/validate-liquid.js` |
+| clip-aware-embeddings | `skills/clip-aware-embeddings/scripts/validate_clip_usage.py` |
+| site-reliability-engineer | `skills/site-reliability-engineer/scripts/validate-brackets.js`, `skills/site-reliability-engineer/scripts/validate-liquid.js` |
 | skill-coach | `scripts/validate_skill.py` |
 
 **Goal**: Every skill with repeatable operations should have working tools.

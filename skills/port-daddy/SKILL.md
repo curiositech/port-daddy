@@ -12,7 +12,7 @@ metadata:
   authorship:
     maintainers: [workgroup-ai, port-daddy]
   mirrors:
-    repo: /Users/erichowens/coding/port-daddy/skills/port-daddy-cli
+    repo: skills/port-daddy
     user: /Users/erichowens/.agents/skills/port-daddy-cli
   recognition-cues: []
   expectancies: []
@@ -422,7 +422,7 @@ Already shipped:
 Current truthful limitation:
 
 - the first shipped slice still runs one coordinating spawned agent underneath
-- richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are still the next layer from `docs/recovery/PD-AGENT-SORTIE-PLAN.md`
+- richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls remain planned; the cited recovery plan is not yet shipped in this repository
 
 Examples:
 
