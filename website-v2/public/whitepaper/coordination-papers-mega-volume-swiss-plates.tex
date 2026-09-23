@@ -102,8 +102,18 @@
 \expandafter\def\csname pdlandmarktitle@9\endcsname{\csname pdlandmarktitle@09\endcsname}
 \expandafter\def\csname pdlandmarkquote@9\endcsname{\csname pdlandmarkquote@09\endcsname}
 
+\newcommand{\pdlandmarktocentry}[2]{%
+  \begin{minipage}[c]{.19\linewidth}%
+    \includegraphics[width=\linewidth,height=.62in,keepaspectratio]{plates/swiss/landmark-#1.jpg}%
+  \end{minipage}\hfill
+  \begin{minipage}[c]{.76\linewidth}\raggedright\small
+    \textbf{Landmark #1: #2}%
+  \end{minipage}}
+
 \newcommand{\pdswisslandmarkplate}[2]{% #1 landmark ID (e.g. 01..12), #2 width
   \IfFileExists{plates/swiss/landmark-#1.jpg}{%
+    \phantomsection\label{landmark:#1}%
+    \addcontentsline{toc}{pdplate}{\protect\texorpdfstring{\protect\pdlandmarktocentry{#1}{\csname pdlandmarktitle@#1\endcsname}}{Landmark #1: \csname pdlandmarktitle@#1\endcsname}}%
     \centering
     \includegraphics[width=#2]{plates/swiss/landmark-#1.jpg}%
     \par\vspace{10pt}%
