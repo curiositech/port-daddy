@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -114,11 +115,15 @@ async function startHarness(): Promise<Harness> {
   (db as unknown as { exec(sql: string): void }).exec(CORE_SCHEMA_SQL);
 
   const transcripts = createTranscripts(db);
+  let worktreeBinding: { cwd: string | null } = { cwd: null };
   const spawner = createSpawner({
     transcripts,
     managedSessionLifecycle: {
-      admit: async () => ({ success: true, sessionId: 'provider-fixture-session', credential: 'synthetic', worktreeBinding: { cwd: null } }),
-      bind: async () => ({ success: true, worktreeBinding: { cwd: null }, validateBeforeLaunch: async () => ({ success: true }) }),
+      admit: async input => {
+        worktreeBinding = { cwd: input.workdir ? realpathSync(input.workdir) : null };
+        return { success: true, sessionId: 'provider-fixture-session', credential: 'synthetic', worktreeBinding };
+      },
+      bind: async () => ({ success: true, worktreeBinding, validateBeforeLaunch: async () => ({ success: true }) }),
       complete: async () => ({ success: true }), abort: async () => ({ success: true }),
     },
     enforceTranscriptPolicy: true,
