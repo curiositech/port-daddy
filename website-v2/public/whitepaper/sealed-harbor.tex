@@ -24,6 +24,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -308,20 +309,30 @@ Table~\ref{tab:sealed-work-order-elements} details each of the thirteen elements
 of $C$, specifying the exact security guarantee enforced by each field alongside
 concrete production values.
 
-\begin{table}[p]
-\centering\footnotesize
-\caption{The thirteen elements of Work Order Contract $C$. Mutual non-disclosure between data owner Derek and model owner Erin is enforced by pinning cryptographic measurements, execution permissions, output schemas, resource ceilings, and economic remedies before any decryption key is released.}
-\label{tab:sealed-work-order-elements}
+{\footnotesize
 \setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.06}
-\begin{tabularx}{\textwidth}{@{}
-  >{\raggedright\arraybackslash}p{1.7cm}
-  >{\raggedright\arraybackslash}p{2.0cm}
+\renewcommand{\arraystretch}{1.08}
+\begin{xltabular}{\textwidth}{@{}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}
+  >{\raggedright\arraybackslash}p{0.18\textwidth}
   >{\raggedright\arraybackslash}X
-  >{\raggedright\arraybackslash\ttfamily\scriptsize}p{2.85cm}@{}}
+  >{\raggedright\arraybackslash\ttfamily\scriptsize}p{0.27\textwidth}@{}}
+\caption{The thirteen elements of Work Order Contract $C$. Mutual non-disclosure between data owner Derek and model owner Erin is enforced by pinning cryptographic measurements, execution permissions, output schemas, resource ceilings, and economic remedies before any decryption key is released.}\label{tab:sealed-work-order-elements}\\
 \toprule
 \textbf{Element} & \textbf{Role} & \textbf{Security Specification \& Guarantee} & \normalfont\textbf{Example Value} \\
 \midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape Table~\ref{tab:sealed-work-order-elements}: The thirteen elements of Work Order Contract $C$ (continued)}\\
+\addlinespace[3pt]
+\toprule
+\textbf{Element} & \textbf{Role} & \textbf{Security Specification \& Guarantee} & \normalfont\textbf{Example Value} \\
+\midrule
+\endhead
+\bottomrule
+\multicolumn{4}{r}{\itshape\scriptsize Continues on next page $\,\blacktriangleright$} \\
+\endfoot
+\bottomrule
+\endlastfoot
 $H(\text{manifest})$ & Pins & Cryptographic digest over dataset chunks, schema layout, and provenance. Guarantees guest reads only approved data. & sha256:7f83b165... \newline s3://derek/q3.parquet \\
 \addlinespace[2pt]
 $H(\text{agent})$ & Pins & Digest of model weights, tokenizer, prompt AST, and tools. Guarantees Erin's proprietary agent is unmodified. & sha256:c0ffee4b... \newline weights.safetensors \\
@@ -347,9 +358,7 @@ $\text{validators}$ & Remedies & Independent appraisal rules for attestation evi
 $\text{payment}$ & Remedies & Consideration terms, escrow identifiers, and conditional release mechanisms upon verified receipt delivery. & 250.00 USDC in \newline Escrow\#0x8f2a... \\
 \addlinespace[2pt]
 $\text{liability}$ & Remedies & Liquidated damages, penalty covenants, and bonded stake forfeiture on attested breach or canary leak receipt. & 10,000 USDC bond; \newline forfeit\_on\_leak: canary \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\end{xltabular}}
 
 Figure~\ref{fig:sealed-work-order-schema} illustrates how these thirteen
 fields stack within the confidential enclave boundary.
