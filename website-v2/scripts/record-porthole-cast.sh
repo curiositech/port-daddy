@@ -15,7 +15,7 @@
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OUT_DIR="$ROOT_DIR/website-v2/public/casts/porthole"
+OUT_DIR="${PORTHOLE_CAST_OUTPUT_DIR:-${PORTHOLE_OUTPUT_DIR:-$ROOT_DIR/website-v2/public/casts/porthole}}"
 mkdir -p "$OUT_DIR"
 
 if [ "$#" -lt 2 ]; then
