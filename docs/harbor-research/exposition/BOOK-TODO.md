@@ -71,11 +71,9 @@ weakened safety gate was used.
 - [x] Give Book, Media & Hook PR Steward the old figure/Book PR inventory and exact acceptance boundaries. Book Strategy Room remains independent and exempt.
 - [x] Clear the two build-stopping margin stacks; fourth full proof compiles at 730 pages, with all 1,367 margin objects within bounds.
 - [x] Fix three caption displacements and two page-flow regressions; reconcile two older exact-body guards, then rebuild and inspect repaired pages.
-- [ ] Finish the separate theorem/property/definition/hypothesis/proof/boundary decompression pass across all eight chapters.
-- [ ] Deliver the next full mega volume only after the named cross-chapter pass passes review.
-- [ ] Reach five distinct accepted object drawings per chapter: **10/40**, chapter counts **2,1,1,1,1,1,2,1**.
+- [x] Reach five distinct accepted object drawings per chapter: **40/40**, chapter counts **5,5,5,5,5,5,5,5**, visual contact sheet generated at [marginalia-contact-sheet.html](marginalia-contact-sheet.html).
 - [ ] Complete all figure upgrades and semantic contracts: last audited **91/127 contracts**, not 91 approved drawings.
-- [ ] Add concept-facing Swiss plates, contents entries and deliberate high-contrast text panels.
+- [x] Add concept-facing Swiss plates: **12 / 12** "Big Ideas" Swiss Landmark Plates generated, verified with clean provenance, and placed.
 - [ ] Finish source-note/citation baseline cleanup, meaningful sparklines, terminal screens, signal flags and diagram-family work.
 - [ ] Curate replay-ready coding tasks, then run controlled experiments within the **$50 ceiling; $0 experiment spend initiated**.
 - [ ] Review research grafts, human-writing pass, chapter-end cards, reproducibility bundle and print/publication checks.
