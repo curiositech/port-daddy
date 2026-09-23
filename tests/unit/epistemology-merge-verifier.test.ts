@@ -126,6 +126,32 @@ describe('EpistemologyMergeVerifier & Contradiction Ladder', () => {
     });
   });
 
+  describe('Level 2: Contract & Behavioral Invariants', () => {
+    it('detects contract precondition breach and halts admission', () => {
+      const contractClaim: ClaimEnvelope = {
+        schema: 'pd.epistemology.claim-envelope.v0',
+        claimId: 'claim-contract-precond-fail',
+        kind: 'obligation',
+        subject: 'PaymentService.charge',
+        proposition: {
+          type: 'contract_behavior',
+          expression: 'VIOLATES_PRECONDITION: amount > 0'
+        },
+        scope: { repository: 'curiositech/billing', paths: ['src/charge.ts'] },
+        assumptions: [],
+        evidence: [{ witnessClass: 'witnessed', digest: 'd1', uri: 'file:///charge' }],
+        issuer: { principalId: 'principal-erich', agentId: 'agent-billing' },
+        observationTime: new Date().toISOString(),
+        authority: 'proposed'
+      };
+
+      const result = verifier.verifyMerge([], [contractClaim]);
+      expect(result.success).toBe(false);
+      expect(result.ladderLevelTrapped).toBe(2);
+      expect(result.rejectedClaims[0].reason).toContain('L2 Contract Breach: Precondition expression failure');
+    });
+  });
+
   describe('Clean Admission & Porthole Evidence Binding', () => {
     it('admits non-conflicting claims and preserves Porthole capture evidence', () => {
       const { admittedClaim, cleanCandidateClaim } = createSyntheticContradictionFixture();
