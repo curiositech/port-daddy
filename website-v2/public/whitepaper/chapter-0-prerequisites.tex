@@ -11,6 +11,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -47,6 +48,7 @@
 \providecommand{\scene}[2]{}
 \providecommand{\xrefbox}[1]{}
 \providecommand{\pullquote}[1]{}
+\providecommand{\pdchapref}[2]{\textbf{#2}}
 
 \title{\textbf{Chapter 0: Foundations and Prerequisites}\\
 \large Pre-LLM Multi-Agent Theory, Transformer Mechanics, and the Kernel Gap}
@@ -57,141 +59,501 @@
 
 \maketitle
 
-\noindent\emph{Express lane: Before constructing an operating kernel for autonomous systems, we must establish the physical and theoretical ground upon which modern AI agents stand. This chapter establishes the five core foundations assumed by the subsequent eight chapters: (i)~classical multi-agent systems and intentional agency (the BDI model, Hewitt--Agha actor concurrency, and FIPA speech acts); (ii)~the physical mechanics of autoregressive transformers and the memory asymptotics of the key-value (KV) cache; (iii)~the agent harness lifecycle, tool dispatch turn-loops, and hook-based observation injection; (iv)~the compute topology separating frontier cloud reasoning from local host actuation; and (v)~the architectural necessity of an external kernel, proving why generative models cannot act as their own operating system.}
 
+\noindent\emph{Express lane: Before constructing an operating kernel for autonomous systems, we must establish the physical and theoretical ground upon which modern AI agents stand. This chapter establishes eight core foundations assumed by the subsequent eight chapters: (i)~the dual lineage of autonomous agency connecting classical symbolic multi-agent systems to generative connectionism; (ii)~classical multi-agent theory, spanning Bratman practical rationality, Rao--Georgeff $BDI_{CTL^*}$ temporal logic, AgentSpeak(L) operational semantics, normative deontic reasoning, Hewitt--Agha actor concurrency versus Hoare CSP, FIPA-00037 speech acts, Smith's Contract Net Protocol, Big Brother dynamic epistemic logic, and game-theoretic mechanism design; (iii)~modern coding agent architectures, contrasting leading systems and formalizing closed-loop POMDP deliberation (ReAct, Tree of Thoughts, Reflexion); (iv)~cognitive control, tool-call SFT, PRMs, and test-time compute; (v)~transformer mechanics, KV-cache memory scaling, and context economics; (vi)~the tool execution hypervisor, MCP protocols, skill progressive disclosure, and Ramadge--Wonham supervisory control hooks; (vii)~multi-agent swarm topologies, durable identity versus ephemeral leases, and zombie salvage; and (viii)~the kernel gap, proving mathematically why generative models cannot act as their own operating system.}
 
-\section{Introduction: The Lineage of Agency}
+\section{Introduction: The Dual Lineage of Agency}
 
-Autonomous AI agents did not begin with large language models. The problem of coordinating multiple independent computational processes, each pursuing distinct local goals under incomplete information, has occupied distributed systems and artificial intelligence research for more than four decades.
+Autonomous software agents did not begin with large language models. The problem of coordinating multiple independent computational processes, each pursuing distinct local goals under incomplete information and bounded resources, has occupied distributed systems and artificial intelligence research for over four decades.
 
-When modern developers observe an LLM invoke a bash shell, parse the JSON output, and plan its next move, they are observing the convergence of two previously separate research lineages:
+When a modern coding agent inspects a git repository, evaluates compiler diagnostics, plans a refactoring sequence, and invokes a bash shell, it operates at the intersection of two previously separate research lineages:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Symbolic Multi-Agent Systems (1975--2010):} Formal architectures for intentional agency, asynchronous message passing, contract negotiation, and communicative action.
-  \item \textbf{Statistical Connectionism (2017--2026):} Deep autoregressive sequence prediction trained over planet-scale code and text corpora, capable of flexible semantic synthesis and zero-shot reasoning.
+  \item \textbf{Symbolic Multi-Agent Systems (1975--2010):} Mathematical formalisms for practical rationality, intention persistence, asynchronous message passing, contract negotiation, epistemic logic, and social norms.
+  \item \textbf{Statistical Connectionism (2017--2026):} Deep autoregressive sequence prediction trained over planet-scale code and natural language corpora, capable of zero-shot semantic reasoning, code synthesis, and tool parameterization.
 \end{enumerate}
 
-The tension between these lineages defines the subject of this textbook. Modern frontier models supply unprecedented semantic reasoning, but possess neither persistent memory, monotonic security boundaries, nor physical execution guarantees. To scale from an isolated interactive assistant to an autonomous engineering fleet, we must place statistical models inside a rigorous structural envelope.
+The tension between these lineages defines the subject of this textbook. Modern frontier models supply unprecedented semantic reasoning, but possess neither persistent state, monotonic capability boundaries, nor physical execution guarantees. When an ungrounded model encounters an unexpected tool error, its probabilistic nature induces intention drift, hallucinatory claims of success, and concurrency hazards. To scale from an isolated interactive coding assistant to a collaborative, multi-agent autonomous engineering fleet, we must place statistical inference inside an authoritative, mathematically verified structural envelope.
 
-\section{Classical Multi-Agent Foundations}
+\section{Classical Multi-Agent Systems Foundations}
 
-Three classical formulations provide the mathematical and conceptual language for reasoning about multi-agent systems: the BDI model of mental states, the Actor model of asynchronous concurrency, and the theory of communicative speech acts.
+Before analyzing neural coding agents, we formalize the foundational frameworks developed during the classical era of multi-agent systems.
 
-\subsection{The BDI Architecture (Beliefs, Desires, Intentions)}
+\subsection{Intentional Agency and Practical Rationality}
 
-Formalized by Rao and Georgeff~\cite{rao1991modeling,rao1995bdi} following Michael Bratman's philosophical account of practical human deliberation~\cite{bratman1987intention}, the \textbf{BDI} architecture models an agent as a bounded rational system governed by three primary mental attitudes:
-\begin{itemize}[leftmargin=1.8em,itemsep=3pt]
-  \item \textbf{Beliefs ($\mathcal{B}$):} The agent's information about the state of the world, itself, and other agents. In an LLM agent, $\mathcal{B}$ is represented in-flight by the contents of the context window (system prompts, user instructions, file listings, tool execution outputs).
-  \item \textbf{Desires ($\mathcal{D}$):} The motivational states or potential objectives allocated to the agent. A software development agent may desire to ``fix bug \#412'', ``maintain 100\% test coverage'', and ``minimize execution latency''.
-  \item \textbf{Intentions ($\mathcal{I}$):} The subset of desires to which the agent has actively committed resources and execution time. Commitments persist across discrete actions until achieved, recognized as impossible, or superseded by higher-priority events.
-\end{itemize}
+Classical decision theory models an agent as an expected utility maximizer balancing subjective beliefs $\mathcal{B}$ and desires $\mathcal{D}$. In his seminal 1987 work \emph{Intention, Plans, and Practical Reason}, philosopher Michael Bratman demonstrated that this two-component model is computationally inadequate for resource-bounded agents operating in dynamic environments~\cite{bratman1987intention}.
+
+A resource-bounded agent cannot continuously compute optimal policies from first principles at every millisecond. Practical rationality requires a third mental attitude: \textbf{Intention} ($\mathcal{I}$). Intentions are not merely desires with high utility; they represent \emph{conduct-controlling pro-attitudes to which the agent has actively committed}.
+
+Bratman established four defining functional roles of intentions:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ obligates the agent to formulate sub-plans and allocate computational cycles until $\phi$ is satisfied.
+  \item \textbf{Filter of Admissibility:} Once an intention $\phi$ is adopted, candidate options inconsistent with $\phi$ (given current beliefs $\mathcal{B}$) are ruled inadmissible without evaluating their cost-benefit payoff.
+  \item \textbf{Stability and Commitment:} Intentions resist reconsideration in the absence of relevant environmental interrupts or belief updates, preventing computational paralysis.
+  \item \textbf{Coordination Scaffolding:} Intentions enable interpersonal coordination: other agents can safely form expectations regarding an agent's future actions based on its declared commitments.
+\end{enumerate}
+
+\subsection{The Rao--Georgeff BDI Temporal Logic (\texorpdfstring{$BDI_{CTL^*}$}{BDI-CTL*})}
+
+Rao and Georgeff~\cite{rao1991modeling,rao1995bdi} formalized Bratman's theory into a multimodal branching-time temporal logic ($BDI_{CTL^*}$). A temporal world model $\mathcal{M}$ is defined as an 8-tuple:
+\begin{equation}
+\mathcal{M} \;=\; \langle W, T, \prec, U, \mathcal{B}, \mathcal{D}, \mathcal{I}, \Phi \rangle
+\end{equation}
+where $W$ is a set of possible worlds, $T$ is a discrete set of time points ordered by tree-branching relation $\prec$, $U$ is the universe of discourse, $\Phi$ interprets predicates across worlds and times, and $\mathcal{B}, \mathcal{D}, \mathcal{I} \subseteq W \times T \times W$ are accessibility relations for Beliefs, Desires, and Intentions.
+
+For world $w \in W$ at time $t \in T$:
+\begin{align}
+\mathcal{B}_t(w) &= \{ w' \in W \mid (w, t, w') \in \mathcal{B} \} \\
+\mathcal{D}_t(w) &= \{ w' \in W \mid (w, t, w') \in \mathcal{D} \} \\
+\mathcal{I}_t(w) &= \{ w' \in W \mid (w, t, w') \in \mathcal{I} \}
+\end{align}
+
+Semantics of the mental modalities at state $\langle w, t \rangle$:
+\begin{align}
+\mathcal{M}, w, t \models \mathrm{Bel}(\phi) &\iff \forall w' \in \mathcal{B}_t(w), \; \mathcal{M}, w', t \models \phi \\
+\mathcal{M}, w, t \models \mathrm{Des}(\phi) &\iff \forall w' \in \mathcal{D}_t(w), \; \mathcal{M}, w', t \models \phi \\
+\mathcal{M}, w, t \models \mathrm{Int}(\phi) &\iff \forall w' \in \mathcal{I}_t(w), \; \mathcal{M}, w', t \models \phi
+\end{align}
+
+Beliefs satisfy the $KD45$ axiom system (deductive closure $\mathbf{K}$, consistency $\mathbf{D}$, positive introspection $\mathbf{4}$, and negative introspection $\mathbf{5}$). Desires and Intentions satisfy seriality ($\mathbf{D}$), ensuring an agent never desires or intends logical contradictions ($\neg\mathrm{Des}(\bot)$ and $\neg\mathrm{Int}(\bot)$).
+
+\subsubsection{Compatibility and Weak Realism}
+In rational agency, an agent's desires and intentions must be constrained by its beliefs. Under the \textbf{Weak Realism} axiom, an agent cannot intend what it believes to be impossible:
+\begin{equation}
+\forall w \in W, \; \mathcal{I}_t(w) \cap \mathcal{B}_t(w) \neq \emptyset
+\end{equation}
+Syntactically, for temporal achievement goals:
+\begin{equation}
+\mathrm{Int}(\mathbf{A}\lozenge \phi) \;\to\; \neg\mathrm{Bel}(\neg\mathbf{E}\lozenge \phi)
+\end{equation}
+where $\mathbf{A}\lozenge \phi$ denotes ``$\phi$ holds eventually on all future paths,'' and $\mathbf{E}\lozenge \phi$ denotes ``$\phi$ holds on at least one branch.''
+
+\subsection{Formal Commitment Strategies}
+
+A commitment strategy dictates the precise formal conditions under which an agent drops an intention $\phi$. Rao and Georgeff~\cite{rao1991modeling} formalized three canonical strategies:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Commitment Strategy} & \textbf{Formal Drop Axiom} \\
+\midrule
+\textbf{Blind (Fanatical)} & Maintains $\mathrm{Int}(\mathbf{A}\lozenge \phi)$ until $\mathrm{Bel}(\phi)$ holds. \\
+& $\mathrm{Int}(\mathbf{A}\lozenge \phi) \land \neg\mathrm{Bel}(\phi) \to \mathbf{A}\big(\mathrm{Int}(\mathbf{A}\lozenge \phi) \;\mathcal{U}\; \mathrm{Bel}(\phi)\big)$. \\
+& \emph{Pathology:} Induces infinite loops if $\phi$ becomes physically impossible. \\
+\addlinespace[3pt]
+\textbf{Single-Minded} & Drops $\phi$ if achieved \emph{or} believed impossible. \\
+& $\mathrm{Int}(\mathbf{A}\lozenge \phi) \land \neg\mathrm{Bel}(\phi) \land \mathrm{Bel}(\mathbf{E}\lozenge \phi) \to \mathbf{A}\big(\mathrm{Int}(\mathbf{A}\lozenge \phi) \;\mathcal{U}\; (\mathrm{Bel}(\phi) \lor \neg\mathrm{Bel}(\mathbf{E}\lozenge \phi))\big)$. \\
+& \emph{Standard:} Balances persistence with dynamic feasibility. \\
+\addlinespace[3pt]
+\textbf{Open-Minded} & Drops $\phi$ if achieved, impossible, \emph{or no longer desired}. \\
+& $\mathrm{Int}(\mathbf{A}\lozenge \phi) \land \dots \land \mathrm{Des}(\mathbf{A}\lozenge \phi) \to \mathbf{A}\big(\mathrm{Int}(\mathbf{A}\lozenge \phi) \;\mathcal{U}\; (\mathrm{Bel}(\phi) \lor \neg\mathrm{Bel}(\mathbf{E}\lozenge \phi) \lor \neg\mathrm{Des}(\mathbf{A}\lozenge \phi))\big)$. \\
+\bottomrule
+\end{tabularx}
+\caption{Canonical commitment strategies in BDI agent architectures.}
+\label{tab:commitment-strategies}
+\end{table}
 
 \begin{pdclaim}{Design invariant}{Commitment Persistence}\label{inv:commitment-persistence}
 An agent's intention $\iota \in \mathcal{I}$ must not be abandoned merely because a single step incurs a transient tool failure. Intention reconsideration is an explicit state transition triggered by invariant failure or objective discharge, not an accidental consequence of context window truncation.
 \end{pdclaim}
 
-In classical BDI interpreters (such as PRS, dMARS, or Jason), intention maintenance was regimented by a deterministic execution cycle. In an LLM agent, where deliberation occurs through autoregressive generation, intentions are fragile: attention dilution or misleading intermediate tool errors routinely cause models to wander into unrelated sub-tasks---a pathology known as \emph{intention drift}.
+\subsection{Operational Semantics of AgentSpeak(L) and Normative Extensions}
 
-\subsection{The Hewitt--Agha Actor Model}
+AgentSpeak(L)~\cite{bordini2007agentspeak} provides structural operational semantics (SOS) for executing BDI agents. An agent configuration is a tuple $C = \langle bs, ps, is, \mathcal{E}, A \rangle$, where $bs$ is the belief base, $ps$ is the plan library, $is$ is the set of active intention stacks, $\mathcal{E}$ is the event queue, and $A$ is the action history.
 
-Concurrency in multi-agent environments cannot safely rely on shared-memory synchronization with raw threading primitives. The theoretical foundation of modern agent message fabrics is the \textbf{Actor Model}, pioneered by Carl Hewitt~\cite{hewitt1973actor} and formalized by Gul Agha~\cite{agha1986actors}.
-
-In the Actor model, the primitive unit of computation is the \emph{Actor}. Each actor possesses:
-\begin{enumerate}[nosep]
-  \item Private, unshared internal state.
-  \item A sequential mailbox queue.
-  \item The ability to send a finite number of messages to addresses it possesses.
-  \item The ability to create a finite number of new actors.
-  \item The ability to designate the replacement behavior for the next message.
+The operational execution cycle is governed by three deterministic or priority-driven selection functions:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item $S_E(\mathcal{E}) = \langle te, i \rangle$: Selects an event from $\mathcal{E}$ (e.g., belief change $+b$, goal addition $+!g$).
+  \item $S_O(\mathrm{App})$: Selects a plan $(p, \theta)$ from the applicable plans whose context is entailed by $bs\theta$.
+  \item $S_I(is) = i$: Selects which intention stack advances its execution step in the current cycle.
 \end{enumerate}
 
+When an action $a$ in plan $p$ fails during host execution, AgentSpeak semantics do not silently abort the agent; instead, the failure transition posts a failure event $-!g$ to $\mathcal{E}$, popping the failed plan frame and invoking explicit recovery plans:
 \begin{equation}
-\text{Actor}(S, m) \;\xrightarrow{\text{atomic}}\; \big( S',\; \{m_1, m_2, \dots, m_k\},\; \{\alpha_{\text{new},1}, \dots, \alpha_{\text{new},j}\} \big)
+\frac{\epsilon = \langle te, i \rangle, \quad \mathrm{App}(\mathrm{Rel}(te, ps), bs) = \emptyset}{\langle bs, ps, is, \mathcal{E}, A \rangle \;\longrightarrow\; \langle bs, ps, is, \mathcal{E} \cup \{\langle -!g, \mathrm{pop}(i) \rangle\}, A \rangle}
 \end{equation}
 
-The Actor model enforces \emph{share-nothing isolation}. Modern agent harnesses mirror this structure: an autonomous agent runs in an isolated operating process or sandbox, interacts with peers exclusively via structured message buses (such as Swarm Radio or Relay), and delegates tasks by spawning subagents with scoped authority.
+\subsubsection{Normative Extensions: Deontic Constraints and Regret Minimization}
+In institutional multi-agent systems, agents are constrained by external \textbf{norms} (deontic logic). A norm is defined as a 6-tuple $N = \langle \text{id}, \text{Type}, \phi_{\text{act}}, \phi_{\text{tgt}}, d, \text{Sanction} \rangle$, where $\text{Type} \in \{\mathcal{O}, \mathcal{F}, \mathcal{P}\}$ (Obligation, Prohibition, Permission), $\phi_{\text{act}}$ is the activation context, $\phi_{\text{tgt}}$ is the target state, $d$ is the deadline, and $\text{Sanction}$ is the penalty for violation.
 
-\subsection{Speech Acts and Communicative Performatives}
-
-Agents do not merely transmit unstructured data; their messages constitute actions that alter social and legal commitments. Based on Austin's speech act theory~\cite{austin1962how} and Searle's philosophy of language~\cite{searle1969speech}, the Foundation for Intelligent Physical Agents (\textbf{FIPA}) standardized Agent Communication Language (\textbf{ACL}) performatives~\cite{fipa2002acl}:
-\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item $\mathtt{inform}(i, j, \phi)$: Agent $i$ asserts to $j$ that proposition $\phi$ holds.
-  \item $\mathtt{request}(i, j, a)$: Agent $i$ asks $j$ to perform action $a$.
-  \item $\mathtt{propose}(i, j, a, c)$: Agent $i$ offers to perform action $a$ under condition $c$.
-  \item $\mathtt{agree}(i, j, a, c)$: Agent $i$ commits to perform action $a$.
-  \item $\mathtt{refuse}(i, j, a, r)$: Agent $i$ declines request $a$ with explanation $r$.
-\end{itemize}
-
-In this volume, communicative acts cease to be informal JSON payloads. They become cryptographically bound, verifiable transactions: an $\mathtt{agree}$ corresponds to an accepted Float Plan (§\ref{pre:sec:kernel-gap}), while an $\mathtt{inform}$ must be backed by an append-only cryptographic receipt.
-
-\section{Transformer Mechanics and Memory Scaling}
-
-Modern agents deliberate by querying an autoregressive transformer. Understanding the computational and physical constraints of this inference engine is essential for building an operating kernel.
-
-\subsection{Autoregressive Inference and Attention Complexity}
-
-Given a sequence of input tokens $x_{1:t} = (x_1, \dots, x_t)$, a decoder-only transformer computes the conditional probability distribution over the vocabulary for the next token $x_{t+1}$:
+To reconcile institutional norms with internal intentions, agents maintain an \textbf{Abstract Norm Base} ($ANB$) and evaluate instantiated norms in the \textbf{Norm Instance Base} ($NIB$). When norm instances conflict with active goals ($Plans(is \cup \mathcal{N}) = \emptyset$), the agent resolves the normative conflict by partitioning candidate norms into \textbf{Maximal Non-Conflicting Subsets} (MNCS), selecting the subset that minimizes maximum penalty under a \textbf{minimax regret} criterion:
 \begin{equation}
-P(x_{t+1} \mid x_1, \dots, x_t) \;=\; \mathrm{softmax}\left( \frac{Q_t K_{1:t}^\top}{\sqrt{d_k}} \right) V_{1:t}
+S^* \;=\; \arg\min_{S \in \Omega} \;\max_{n_v \in \mathcal{N} \setminus S} \;\mathrm{Cost}(\mathrm{Sanction}(n_v))
 \end{equation}
-where $Q, K, V$ are the query, key, and value projections. For a sequence of length $T$, computing full self-attention requires $O(T^2)$ floating-point operations across all query-key pairs.
+This ensures that any deliberate norm violation is recorded in an immutable ledger alongside its formal justification.
 
-\subsection{The KV-Cache Asymptotics}
+\subsection{Concurrency: Hewitt--Agha Actor Model vs. Hoare CSP}
 
-During generation, past key and value vectors are cached in GPU memory to avoid recomputing past token representations at step $t+1$. For a model with $L$ layers, $N_h$ key-value heads, dimension per head $d_h$, and precision bytes $b_p$, the memory footprint of the KV-cache for a context of length $T$ is:
+Multi-agent coordination requires formal concurrency models. Classical computer science produced two foundational, mathematically rigorous paradigms for message-passing concurrency:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Dimension} & \textbf{Hewitt--Agha Actor Model~\cite{hewitt1973actor,agha1986actors}} & \textbf{Hoare's CSP (1978)~\cite{hoare1978csp}} \\
+\midrule
+\textbf{Primitive} & Autonomous Actor with private state & Sequential Process and Named Channel \\
+\textbf{Synchronization} & Asynchronous (non-blocking send) & Synchronous (rendezvous handshake) \\
+\textbf{Addressing} & First-class Mailbox addresses & Explicit Channel identifiers \\
+\textbf{Buffering} & Unbounded mailbox queue & Zero buffer (unbuffered channels) \\
+\textbf{State Evolution} & Replacement behavior ($\mathtt{become}(B')$) & Sequential instruction trace \\
+\textbf{Failure Mode} & Mailbox overflow; unhandled messages & Circular rendezvous deadlock \\
+\textbf{Modern Descendant} & Erlang/OTP, Akka, Ray, Port Daddy & Go channels, Rust crossbeam \\
+\bottomrule
+\end{tabularx}
+\caption{Message-passing concurrency: Hewitt--Agha actors versus Hoare CSP.}
+\label{tab:concurrency-models}
+\end{table}
+
+In the Actor model, an actor processes one message from its mailbox by executing a bounded 3-tuple:
+\begin{equation}
+\mathrm{Actor}(S, m) \;\xrightarrow{\text{atomic}}\; \big( S',\; \{m_1, \dots, m_k\},\; \{\alpha_{\mathrm{new},1}, \dots, \alpha_{\mathrm{new},j}\} \big)
+\end{equation}
+where $S'$ is the designated replacement behavior, $\{m_k\}$ are asynchronous outbound messages, and $\{\alpha_{\mathrm{new}}\}$ are newly spawned actors. This share-nothing encapsulation provides the blueprint for sandboxed agent processes.
+
+\clearpage
+\subsection{Communicative Action and Speech Acts (FIPA-00037)}
+
+Standard computer networks exchange raw data packets; autonomous agents exchange \textbf{speech acts}. Grounded in Austin's distinction between locutionary (syntactic utterance), illocutionary (communicative intent), and perlocutionary (consequential effect) acts~\cite{austin1962how}, and Searle's taxonomy of illocutionary forces~\cite{searle1969speech}, the Foundation for Intelligent Physical Agents standardized the \textbf{FIPA ACL Communicative Act Library} (FIPA-00037)~\cite{fipa2002acl}.
+
+Every communicative act $a(s, r, \phi)$ between sender $s$ and receiver $r$ is formally defined by its \textbf{Feasibility Preconditions} ($FP$) and intended \textbf{Rational Effect} ($RE$):
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Act} & \textbf{Category} & \textbf{Feasibility Precondition ($FP$)} & \textbf{Rational Effect ($RE$)} \\
+\midrule
+\texttt{inform} & Assertive & $\mathrm{Bel}_s(\phi) \land \neg\mathrm{Bel}_s(\mathrm{Bel}_r(\phi))$ & $\mathrm{Bel}_r(\phi)$ \\
+\texttt{request} & Directive & $\mathrm{FP}(\alpha)[s\backslash r] \land \mathrm{Bel}_s(\mathrm{Agent}(r, \alpha))$ & $\mathrm{Done}(\alpha)$ \\
+\texttt{query-if} & Directive & $\neg\mathrm{Bel}_s(\phi) \land \neg\mathrm{Bel}_s(\neg\phi)$ & $\mathrm{Bel}_s(\mathrm{Bel}_r(\phi) \lor \mathrm{Bel}_r(\neg\phi))$ \\
+\texttt{propose} & Commissive & $\mathrm{Bel}_s(\mathrm{Int}_s(\mathrm{Done}(\alpha, \phi)))$ & $\mathrm{Bel}_r(\mathrm{Int}_s(\mathrm{Done}(\alpha, \phi)))$ \\
+\texttt{agree} & Commissive & $\mathrm{Bel}_s(\mathrm{Int}_s(\mathrm{Done}(\alpha)))$ & $\mathrm{Bel}_r(\mathrm{Int}_s(\mathrm{Done}(\alpha)))$ \\
+\texttt{refuse} & Directive & $\mathrm{Bel}_s(\neg\mathrm{Int}_s(\mathrm{Done}(\alpha)))$ & $\mathrm{Bel}_r(\neg\mathrm{Int}_s(\mathrm{Done}(\alpha)))$ \\
+\texttt{failure} & Assertive & $\mathrm{Bel}_s(\mathrm{Failed}(\alpha, \psi))$ & $\mathrm{Bel}_r(\mathrm{Failed}(\alpha, \psi))$ \\
+\bottomrule
+\end{tabularx}
+\caption{FIPA-00037 communicative performatives with mental-state preconditions and rational effects.}
+\label{tab:fipa-performatives}
+\end{table}
+
+In an autonomous agent operating kernel, performatives cease to be informal text; they are cryptographically signed, immutable protocol events backed by content-addressed receipts.
+
+\subsection{Task Allocation: Smith's Contract Net Protocol (1980)}
+
+Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\cite{smith1980cnp} formalized bilateral market-inspired negotiation between a Manager and distributed Contractor agents:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Task Announcement:} Manager broadcasts an announcement $\langle \text{task\_id}, \text{eligibility}, \text{spec}, t_{\text{expire}} \rangle$.
+  \item \textbf{Bidding:} Eligible contractors evaluate local capacity and submit bids $\langle \text{bid\_id}, \text{cost}, \text{eta}, \text{quality} \rangle$.
+  \item \textbf{Bid Evaluation and Award:} Manager ranks bids by utility $\mathcal{U}_M(b)$, issuing an $\mathtt{accept\text{-}proposal}$ to the winner and $\mathtt{reject\text{-}proposal}$ to others.
+  \item \textbf{Execution and Receipt:} Contractor executes the task and returns signed execution receipts or formal failure disclosures.
+\end{enumerate}
+
+\subsection{Dynamic Epistemic Logic and Big Brother Logic}
+
+In multi-agent swarms, coordination requires reasoning about higher-order knowledge: what agent $i$ knows about what agent $j$ knows. In modal epistemic logic ($S5_n$), Kripke relations $R_i$ represent epistemic indistinguishability.
+
+Public Announcement Logic (PAL) models communication as epistemic model restriction: when proposition $\psi$ is announced, worlds where $\psi$ is false are eliminated ($W' = \{ w \in W \mid \mathcal{M}, w \models \psi \}$), establishing common knowledge $C_G \psi$.
+
+Charrier et al.~\cite{charrier2014bigbrother} developed \textbf{Big Brother Logic (BBL)}, formalizing epistemic reasoning over embodied agents equipped with directed observation cones (vision sets $V(a)$). If agent $a_1$ observes agent $a_2$ ($a_2 \in V(a_1)$), $a_1$ knows what $a_2$ observes, yielding $K_{a_1} K_{a_2}(\phi)$. By inverting verification into a planning problem, BBL proves that multi-agent systems can achieve target epistemic goals $\Phi$ by autonomously reconfiguring observation cones and network routes.
+
+\subsection{Game-Theoretic Foundations and Mechanism Design}
+
+When agents have independent objective functions, coordination cannot assume altruism. Shoham and Leyton-Brown~\cite{shoham2009multiagent} systematized the algorithmic and game-theoretic foundations of multi-agent systems.
+
+\subsubsection{Social Choice Impossibilities}
+Arrow's Impossibility Theorem (1951) and the Gibbard--Satterthwaite Theorem (1973/1975) establish that in ordinal voting environments with three or more alternatives, every strategy-proof (dominant-strategy incentive compatible) social choice rule is necessarily a dictatorship. Consequently, in multi-agent engineering swarms without monetary transfers, strategic manipulation of priority rankings is mathematically unavoidable.
+
+\subsubsection{The VCG Mechanism and Dominant-Strategy Incentive Compatibility}
+In quasi-linear environments where agents have private valuations $v_i(o, \theta_i)$ and make monetary transfers $p_i$, the \textbf{Vickrey--Clarke--Groves (VCG)} mechanism aligns private incentives with global social welfare $W(o) = \sum_{i} v_i(o, \theta_i)$.
+
+Under VCG, the mechanism determines the socially optimal outcome:
+\begin{equation}
+o^* \;=\; \arg\max_{o \in O} \sum_{j} v_j(o, \hat{\theta}_j)
+\end{equation}
+and charges each agent $i$ its Clarke pivot payment:
+\begin{equation}
+p_i(\hat{\theta}) \;=\; \max_{o \in O} \sum_{j \neq i} v_j(o, \hat{\theta}_j) \;-\; \sum_{j \neq i} v_j(o^*, \hat{\theta}_j)
+\end{equation}
+The Clarke payment equals the exact negative externality agent $i$'s presence imposes on all other participants. Under VCG, truth-telling ($\hat{\theta}_i = \theta_i$) is a strictly dominant strategy (DSIC).
+
+\subsubsection{The Myerson--Satterthwaite Boundary}
+The Myerson--Satterthwaite Theorem (1983) proves that no bilateral trade mechanism can simultaneously achieve: (1)~Dominant-strategy incentive compatibility; (2)~Ex-post Pareto efficiency; (3)~Individual rationality; and (4)~Budget balance without an external subsidy. In local agent economies (Chapter 6), resource clearing must explicitly trade off budget balance against exact allocative efficiency.
+
+\section{Modern Coding Agent Architectures}
+
+We now transition from classical multi-agent foundations to contemporary coding agents, examining how modern LLM-based harnesses interface with host execution environments.
+
+\subsection{The Contemporary Landscape: Systems Comparison}
+
+Contemporary coding agents bridge unstructured natural language reasoning with deterministic host tools (shells, AST parsers, compilers, git checkouts). Table~\ref{tab:coding-agents} compares the five leading production architectures:
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Agent} & \textbf{Isolation Boundary} & \textbf{Context Strategy} & \textbf{Tool Interface} & \textbf{Rollback Engine} \\
+\midrule
+\textbf{Claude Code} & Subprocess + Seatbelt & Progressive disclosure & File edit, bash, MCP & Git commit checkpoint \\
+\textbf{Codex CLI} & Container sandbox & History compaction & Sandboxed patch apply & Ephemeral container reset \\
+\textbf{Gemini CLI} & Local / Cloud Run & 1M--2M token window & POSIX CLI, GCP SDK & Workspace rewind \\
+\textbf{Aider} & Host process & Repo-map (Tree-sitter) & Git-backed diff engine & Automatic git commit undo \\
+\textbf{Devin} & MicroVM (Firecracker) & Multi-buffer browser/shell & Full root pseudo-terminal & Snapshot restoration \\
+\bottomrule
+\end{tabularx}
+\caption{Architectural comparison of contemporary production coding agents.}
+\label{tab:coding-agents}
+\end{table}
+
+\subsection{Closed-Loop Deliberation vs. Open-Loop Sampling}
+
+Stateless code generation evaluates an autoregressive distribution $Y \sim P_\theta(Y \mid X)$ in an open loop. Any syntactic, semantic, or environmental error compounds irreversibly:
+\begin{equation}
+\mathrm{ErrorRate}_{\text{open-loop}}(T) \;=\; 1 - \prod_{t=1}^T (1 - \epsilon_t)
+\end{equation}
+
+In contrast, an agent harness operates as a Partially Observable Markov Decision Process (POMDP):
+\begin{equation}
+\mathcal{M} \;=\; \langle \mathcal{S}, \mathcal{A}, \mathcal{T}, \mathcal{R}, \Omega, \mathcal{O}, \gamma \rangle
+\end{equation}
+where $\mathcal{S}$ is the true environment state (filesystem, git index, running processes), $\mathcal{A}$ is the action space (tool invocations), $\Omega$ is the observation space (stdout, stderr, exit codes), and $\mathcal{O}$ generates observations. The agent maintains a belief state $b_t = \mathrm{Pr}(s_t \mid h_t)$ conditioned on history $h_t = (a_0, o_0, \dots, a_{t-1}, o_{t-1})$.
+
+\subsubsection{Deliberation Frameworks}
+Four primary frameworks govern closed-loop agent reasoning:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{ReAct (Reasoning and Acting)~\cite{yao2022react}:} Interleaves natural language reasoning traces (``Thoughts'') with structured tool executions (``Actions'') and environment feedback (``Observations''). When factual uncertainty is encountered, reasoning halts and an exploratory tool is invoked.
+  \item \textbf{Tree of Thoughts (ToT)~\cite{yao2023tree}:} Explores search trees over candidate thought steps using BFS, DFS, or MCTS, evaluating intermediate node viability via self-critique rubrics and backtracking upon failure.
+  \item \textbf{Reflexion~\cite{shinn2023reflexion}:} Employs verbal reinforcement learning. Upon task failure, the model generates linguistic self-reflections that are stored in an episodic memory buffer and prepended to subsequent execution prompts.
+  \item \textbf{Plan-and-Solve:} Divides execution into a macro-planning phase (generating ordered subgoals) followed by iterative sub-task execution with explicit replanning interrupts.
+\end{enumerate}
+
+\subsection{Cognitive Control, Training, and Fine-Tuning}
+
+Coding agents are trained across a three-stage continuum:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Pre-Training:} Self-supervised next-token autoregressive modeling over trillions of tokens of source code, version history, documentation, and technical literature:
+  \begin{equation}
+  \mathcal{L}_{\mathrm{PT}}(\theta) \;=\; -\mathbb{E}_{x \sim \mathcal{D}}\left[ \sum_t \log P_\theta(x_t \mid x_{<t}) \right]
+  \end{equation}
+  \item \textbf{Tool-Use Supervised Fine-Tuning (SFT):} Training over multi-turn trajectories with \emph{loss masking}: loss gradients are computed strictly over model-generated tool calls and arguments, masking prompt context and tool output tokens.
+  \item \textbf{Reinforcement Learning Alignment (RLHF / DPO):} Direct Preference Optimization optimizes policy weights over paired trajectories without training an explicit reward model:
+  \begin{align}
+  \mathcal{L}_{\mathrm{DPO}}(\theta; \theta_{\mathrm{ref}}) \;&=\; -\mathbb{E}_{(x, y_w, y_l)}\Big[ \log \sigma \Big( \beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} \nonumber \\
+  &\qquad\qquad\qquad\quad -\; \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)} \Big) \Big]
+  \end{align}
+\end{enumerate}
+
+\subsubsection{Test-Time Compute and Process Reward Models}
+Reasoning-focused frontier models shift compute to inference time. Instead of sampling greedily, inference search trees explore alternative reasoning chains scored by \textbf{Process Reward Models (PRMs)} that evaluate correctness at each logical derivation step:
+\begin{equation}
+\mathrm{Score}(\tau) \;=\; \prod_{t=1}^T \mathrm{PRM}(c_t \mid c_{<t}, x)
+\end{equation}
+When an intermediate verification score falls below a threshold $\tau_{\mathrm{cut}}$, the search beam backtracks to a previous checkpoint.
+
+\subsection{Instruction Hierarchy and Context Economics}
+
+A fundamental vulnerability of LLM architectures is the absence of hardware-enforced privilege separation between instructions and data. An agent that reads an untrusted file or issue comment is susceptible to \textbf{indirect prompt injection}, where malicious text commandeers model control flow. Production harnesses enforce strict instruction hierarchies: system prompts occupy privileged framing, while user inputs and tool outputs are quarantined in escaped delimitations.
+
+\subsubsection{The KV-Cache Asymptotics}
+During autoregressive decoding, key and value activations for preceding tokens are stored in high-bandwidth memory (HBM). For a model with $L$ layers, $N_h$ KV-heads, dimension $d_h$, and precision bytes $b_p$, the memory footprint for a context of length $T$ is:
 \begin{equation}
 \mathrm{Memory}_{\mathrm{KV}} \;=\; 2 \times L \times N_h \times d_h \times T \times b_p \quad \text{bytes}
 \end{equation}
-
-For a typical 70-billion parameter model ($L=80, N_h=8, d_h=128$, 16-bit FP16 precision $b_p=2$), each token in the context consumes:
-\begin{equation}
-2 \times 80 \times 8 \times 128 \times 2 \;=\; 327{,}680 \;\text{bytes/token} \;\approx\; 320 \;\text{KB/token}
-\end{equation}
-At a context length of $T = 128{,}000$ tokens, the KV-cache for a \emph{single} agent process consumes approximately $40.96$ GB of high-bandwidth VRAM---exceeding the entire parameter storage of smaller models.
+For a 70-billion parameter model ($L=80, N_h=8, d_h=128, b_p=2$), each context token consumes $\approx 320\text{ KB}$. At $T = 128{,}000$ tokens, the KV-cache consumes $\approx 40.96\text{ GB}$ of VRAM per concurrent agent.
 
 \begin{pdclaim}{Theorem}{The Ephemeral Memory Limit}\label{thm:ephemeral-memory}
 The context window of a transformer is volatile, expensive, and subject to attention dilution (effective information retrieval degrades with sequence depth~\cite{liu2024lost}). Consequently, long-term system state cannot be maintained by continuously appending tool execution logs to the prompt. Durable state must reside in an external, indexed, and ACID-compliant storage engine.
 \end{pdclaim}
 
+\section{Tools, Protocols, Skills, and Hooks}
+
+To interact safely with the host environment, an agent harness must govern tool dispatch, encapsulate domain knowledge, and enforce runtime invariants.
+
+\subsection{Tool Dispatch and the Model Context Protocol (MCP)}
+
+The Model Context Protocol (MCP) standardizes agent-to-tool communication using JSON-RPC 2.0. MCP defines four core primitives:
+\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Tools:} Executable actions with strict JSON-Schema input validation and structured result payloads.
+  \item \textbf{Resources:} URI-addressable read-only context (files, database rows, logs).
+  \item \textbf{Prompts:} Parametric prompt templates engineered for specific operational workflows.
+  \item \textbf{Sampling:} Protocol affordances enabling servers to request nested LLM inference through the client harness under client permission boundaries.
+\end{itemize}
+
+\subsection{Skill Architectures and Progressive Disclosure}
+
+A critical architectural challenge in agent design is \emph{context bloat}. Injecting complete documentation for hundreds of tools into the system prompt exhausts context limits and induces attention dilution.
+
+Modern harnesses resolve this via \textbf{Progressive Disclosure}:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Level 1 (Metadata Discovery):} The system prompt contains only lightweight index entries (name and a one-line description per skill).
+  \item \textbf{Level 2 (On-Demand Activation):} When an agent identifies a relevant skill, it invokes a read tool to load the detailed instructions (\path{SKILL.md}) into its context buffer only for the duration of that task.
+\end{enumerate}
+
+\subsection{Lifecycle Hooks and Supervisory Control}
+
+Harness lifecycle hooks (e.g., \texttt{PreToolUse}, \texttt{PostToolUse}, \texttt{SessionStart}) intercept agent control flow. Formally, lifecycle hooks operate as a \textbf{Ramadge--Wonham Supervisory Controller} ($S / G$).
+
+Let the unconstrained agent execution be modeled as a discrete-event generator $G = \langle X, \Sigma, \delta, x_0, X_m \rangle$, where events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into controllable events $\Sigma_c$ (tool invocations) and uncontrollable events $\Sigma_u$ (model token generation, host hardware interrupts). A supervisory hook $S: L(G) \to \mathcal{P}(\Sigma)$ dynamically disables tool invocations that violate safety invariants:
+\begin{equation}
+L(S / G) \;\subseteq\; K \;\subset\; L(G)
+\end{equation}
+where $K$ is the formal language of safe execution traces (e.g., preventing writes to protected branches or unauthenticated network egress).
+
+\section{Multi-Agent Swarm Topologies and Interaction Patterns}
+
+When multiple agents collaborate on a codebase, their interaction follows standard topological patterns:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Topology} & \textbf{Coordination Characteristics} \\
+\midrule
+\textbf{Hierarchical Orchestrator} & A primary agent decomposes goals, spawns specialized subagents, aggregates findings, and enforces review gates. Single point of failure; prone to orchestrator context saturation. \\
+\addlinespace[3pt]
+\textbf{Peer-to-Peer Gossip} & Agents communicate directly via broadcast or targeted channels. Highly resilient, but vulnerable to message explosion ($O(N^2)$) and consensus divergence. \\
+\addlinespace[3pt]
+\textbf{Tuple Space (Blackboard)} & Agents coordinate asynchronously through an associative shared memory (Linda model). Writes, reads, and takes are atomic; enables loose temporal and spatial coupling. \\
+\addlinespace[3pt]
+\textbf{Market-Based Clearing} & Tasks and resources are allocated through sealed-bid or English auctions under budget constraints. Prevents resource hoarding and aligns allocation with task priority. \\
+\bottomrule
+\end{tabularx}
+\caption{Taxonomy of multi-agent swarm interaction topologies.}
+\label{tab:swarm-topologies}
+\end{table}
+
+\subsection{Durable Identity vs. Ephemeral Execution Bodies}
+
+A fundamental architectural principle of robust swarms is the strict decoupling of \textbf{Durable Identity} from \textbf{Ephemeral Execution Bodies}:
+\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
+  \item An \emph{Identity} represents the persistent persona, cryptographic keypair, credit balance, and accountability record of an agent. Identity survives machine reboots and process terminations.
+  \item A \emph{Body} is a temporary OS subprocess or container leased to execute a specific work slice.
+\end{itemize}
+
+When a subprocess crashes or hangs, the kernel reclaims the ephemeral body via \textbf{Zombie Salvage} (\S\ref{pre:sec:kernel-gap}), returning unfinished task claims to the work register and assigning a fresh body to resume the durable identity's mission.
+
 \section{The Agent Harness Lifecycle}
 
-An LLM is a stateless function: it maps a sequence of integers to a probability distribution. An \emph{Agent} is formed only when this stateless sampler is wrapped in an execution loop known as the \textbf{Agent Harness}.
+An LLM is a stateless mathematical function mapping an input sequence of tokens to a probability distribution. An \emph{Agent} is formed only when this stateless sampler is wrapped in a stateful execution loop known as the \textbf{Agent Harness}.
 
-\begin{figure}[H]
+Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified into three architectural tiers: the probabilistic Deliberation Layer, the confined Execution Layer, and the deterministic Governance Layer.
+
+\begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
-  % Nodes
-  \node[draw=hhcobalt,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (prompt) at (0,3) {\textbf{Context Buffer}};
-  \node[draw=hhteal,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (sample) at (4.5,3) {\textbf{LLM Sampling}};
-  \node[draw=hhamber,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (parse) at (9,3) {\textbf{Tool Call Parser}};
-  \node[draw=pderror,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (env) at (9,0.8) {\textbf{Host Environment}};
-  \node[draw=hhink,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (kernel) at (4.5,0.8) {\textbf{Port Daddy Kernel}};
-  \node[draw=hhgray,fill=white,rounded corners=3pt,line width=1pt,minimum width=3cm,minimum height=0.9cm] (hook) at (0,0.8) {\textbf{Hook Dispatch}};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  pd box/.style={draw=pdink!70,line width=0.6pt,fill=white,rounded corners=0pt,align=center,inner xsep=4pt,inner ysep=4pt},
+  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=0pt,align=center,inner xsep=4pt,inner ysep=4pt},
+  pd layer panel/.style={draw=pdink!20,line width=0.5pt,fill=pdinkmuted!3,rounded corners=0pt},
+  pd edge/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
+  pd focus edge/.style={draw=pdcobalt,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}}
+]
+  % Modular Grid (Josef Müller-Brockmann discipline)
+  % Total Width = 10.6cm (fits inside 11.43cm textblock with generous margins)
+  % Col 1: center x = 1.75, width = 2.30cm ([0.60, 2.90])
+  % Col 2: center x = 5.70, width = 2.40cm ([4.50, 6.90])
+  % Col 3: center x = 9.65, width = 2.30cm ([8.50, 10.80])
+  % Inter-column Gaps: 1.60cm
 
-  % Arrows
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (prompt) -- (sample) node[midway,above,font=\footnotesize] {Tokens};
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (sample) -- (parse) node[midway,above,font=\footnotesize] {Completion};
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (parse) -- (env) node[midway,right,font=\footnotesize] {Invoke};
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (env) -- (kernel) node[midway,above,font=\footnotesize] {Syscall/Lock};
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (kernel) -- (hook) node[midway,above,font=\footnotesize] {Witnessed Event};
-  \draw[-{Stealth[length=5pt]},line width=0.8pt] (hook) -- (prompt) node[midway,left,font=\footnotesize] {Inject Observation};
+  % =============================================================
+  % LAYER 1: DELIBERATION (y: 6.80 to 9.50)
+  % =============================================================
+  \draw[pd layer panel] (0.4, 6.80) rectangle (11.0, 9.50);
+  \node[anchor=north west, pd title] at (0.6, 9.32) {\textbf{DELIBERATION LAYER}};
+  \node[anchor=north east, pd kind] at (10.8, 9.32) {Probabilistic Reasoning Engine};
+
+  \node[pd box, text width=2.30cm] (ctx) at (1.75, 7.75) {
+    \textbf{Context Buffer}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Prompt \& History}
+  };
+  \node[pd box, text width=2.40cm] (llm) at (5.70, 7.75) {
+    \textbf{Reasoning Engine}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Autoregressive LLM}
+  };
+  \node[pd box, text width=2.30cm] (parse) at (9.65, 7.75) {
+    \textbf{Tool Validation}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Schema \& Bounds}
+  };
+
+  \draw[pd edge] (ctx) -- (llm) node[midway, above=1pt, pd kind] {tokens};
+  \draw[pd edge] (llm) -- (parse) node[midway, above=1pt, pd kind] {tool call};
+
+  % =============================================================
+  % LAYER 2: EXECUTION & ACTUATION (y: 3.50 to 6.20)
+  % =============================================================
+  \draw[pd layer panel] (0.4, 3.50) rectangle (11.0, 6.20);
+  \node[anchor=north west, pd title] at (2.05, 6.02) {\textbf{EXECUTION LAYER} \quad {\color{pdinkmuted}\normalfont\textperiodcentered \quad Confined OS Runtime}};
+
+  \node[pd box, text width=2.40cm] (host) at (5.70, 4.45) {
+    \textbf{Host}\\[1pt]\textbf{Environment}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub POSIX Processes}
+  };
+  \node[pd box, text width=2.30cm] (sandbox) at (9.65, 4.45) {
+    \textbf{Sandboxed}\\[1pt]\textbf{Runtime}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Coast Guard}
+  };
+
+  % Descent from Layer 1 to Layer 2 at x = 9.65
+  \draw[pd edge] (parse) -- (sandbox) node[midway, right=3pt, pd kind] {invoke};
+  % Horizontal confinement in Layer 2
+  \draw[pd edge] (sandbox) -- (host) node[midway, above=1pt, pd kind] {confine};
+
+  % =============================================================
+  % LAYER 3: COORDINATION & GOVERNANCE (y: 0.20 to 2.90)
+  % =============================================================
+  \draw[pd layer panel] (0.4, 0.20) rectangle (11.0, 2.90);
+  \node[anchor=north west, pd title] at (2.05, 2.72) {\textbf{GOVERNANCE LAYER}};
+  \node[anchor=north east, pd kind] at (10.8, 2.72) {Kernel Authority};
+
+  \node[pd box, text width=2.30cm] (hook) at (1.75, 1.15) {
+    \textbf{Hook Interceptor}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Sanitize \& Format}
+  };
+  \node[pd focus box, text width=2.40cm] (kernel) at (5.70, 1.15) {
+    \textbf{Port Daddy}\\[1pt]\textbf{Kernel}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub SQLite WAL $\cdot$ Mutex}
+  };
+  \node[pd box, text width=2.30cm] (ledger) at (9.65, 1.15) {
+    \textbf{Evidence Ledger}\\[2pt]
+    {\color{pdinkmuted}\pdfigsub Outcome Receipts}
+  };
+
+  % Descent from Layer 2 to Layer 3 at x = 5.70
+  \draw[pd edge] (host) -- (kernel) node[midway, right=3pt, pd kind] {syscall / lock};
+  % Layer 3 horizontal flows
+  \draw[pd edge] (kernel) -- (hook) node[midway, above=1pt, pd kind] {witness};
+  \draw[pd edge] (kernel) -- (ledger) node[midway, above=1pt, pd kind] {audit log};
+
+  % =============================================================
+  % LOOP CLOSURE: Hook -> Context Buffer (Straight up at x = 1.75)
+  % =============================================================
+  \draw[pd focus edge] (hook.north) -- (ctx.south)
+    node[midway, right=3pt, pd kind, align=left] {observation\\[1pt]{\color{pdinkmuted}\pdfigsub(sanitized)}};
+
 \end{tikzpicture}
-\caption{The closed agentic loop: LLM deliberation interleaved with kernel-mediated host actuation and observation feedback.}
+\caption{The closed agentic architecture loop: three-layer Swiss stratification separating probabilistic deliberation from deterministic kernel coordination.}
 \label{fig:pre-agent-loop}
 \end{figure}
 
 The harness operates as a deterministic finite-state machine driving an indeterminate generator:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Pre-Invocation:} The harness assembles the system prompt, environment variables, tool schemas, and recent message history.
-  \item \textbf{Inference:} The prompt is transmitted to the inference provider (local or remote). Tokens are streamed until an end-of-turn or tool-use stop token is encountered.
-  \item \textbf{Interception \& Validation:} The harness extracts the tool call arguments (e.g., \texttt{bash}, \texttt{write\_file}, \texttt{http\_request}). Before execution, the harness verifies permission parameters against local policies.
-  \item \textbf{Execution:} The command executes inside an operating sandbox or local process.
-  \item \textbf{Observation Injection:} The raw stdout/stderr output is sanitized, truncated if necessary to respect budget bounds, formatted as a tool-result block, and appended to the context.
-  \item \textbf{Evaluation:} The harness inspects whether terminal conditions (objective satisfied, unrecoverable crash, or budget exhaustion) are reached; if not, the cycle repeats.
+  \item \textbf{Pre-Invocation Assembly:} The harness compiles system instructions, tool schemas, retrieved repository symbols, and recent conversation turns into the token buffer.
+  \item \textbf{Inference:} The prompt is transmitted to the inference engine. Tokens stream autoregressively until a function-call termination token is detected.
+  \item \textbf{Validation and Policy Gate:} The parser extracts tool arguments. The supervisor validates types against JSON-Schema definitions and verifies authority against local capability policies.
+  \item \textbf{Sandboxed Execution:} The command executes inside an isolated runtime container (macOS Seatbelt, Linux Bubblewrap) under strict egress caps.
+  \item \textbf{Kernel Witnessing:} Mutations, locks, and file reservations are submitted to the local kernel, appending a receipt to the audit log.
+  \item \textbf{Observation Injection:} Raw output is sanitized, truncated to preserve token budget, and appended to the context buffer for the next deliberation step.
 \end{enumerate}
 
 \section{Compute Topology: Frontier Cloud vs. Edge Actuation}
 
-Autonomous agent fleets are split across a radical computational asymmetry:
+Autonomous agent fleets are split across a fundamental physical asymmetry:
 
 \begin{table}[H]
 \centering
@@ -211,7 +573,7 @@ Autonomous agent fleets are split across a radical computational asymmetry:
 \label{tab:pre-compute-topology}
 \end{table}
 
-Because cloud reasoning is high-latency and probabilistic, it is incapable of resolving local race conditions. If two cloud agents concurrently attempt to edit line 42 of the same file, relying on their internal world models to avoid collisions guarantees data corruption. The resolution must be executed locally by a synchronous, zero-latency authority.
+Because cloud reasoning is high-latency and probabilistic, it is physically incapable of resolving local race conditions. If two cloud agents concurrently attempt to edit line 42 of the same file, relying on their internal world models to avoid collisions guarantees data corruption. The resolution must be executed locally by a synchronous, zero-latency authority.
 
 \section{The Kernel Gap: Why LLMs Cannot Be Their Own OS}\label{pre:sec:kernel-gap}
 
@@ -259,10 +621,20 @@ J.~L. Austin.
 \newblock {\em How to Do Things with Words}.
 \newblock Oxford University Press, 1962.
 
+\bibitem{bordini2007agentspeak}
+R.~H. Bordini, J.~F. H{\"u}bner, and M.~Wooldridge.
+\newblock {\em Programming Multi-Agent Systems in AgentSpeak using Jason}.
+\newblock John Wiley \& Sons, 2007.
+
 \bibitem{bratman1987intention}
 M.~E. Bratman.
 \newblock {\em Intention, Plans, and Practical Reason}.
 \newblock Harvard University Press, Cambridge, MA, 1987.
+
+\bibitem{charrier2014bigbrother}
+T.~Charrier, F.~Ouchet, and F.~Schwarzentruber.
+\newblock Big Brother logic: Reasoning about agents equipped with surveillance cameras in the plane.
+\newblock In {\em Proc. 13th International Conference on Autonomous Agents and Multiagent Systems (AAMAS)}, pages 421--428, 2014.
 
 \bibitem{fipa2002acl}
 {Foundation for Intelligent Physical Agents}.
@@ -273,6 +645,11 @@ M.~E. Bratman.
 C.~Hewitt, P.~Bishop, and R.~Steiger.
 \newblock A universal modular {ACTOR} formalism for artificial intelligence.
 \newblock In {\em Proc. 3rd International Joint Conference on Artificial Intelligence (IJCAI)}, pages 235--245, 1973.
+
+\bibitem{hoare1978csp}
+C.~A.~R. Hoare.
+\newblock Communicating sequential processes.
+\newblock {\em Communications of the ACM}, 21(8):666--677, 1978.
 
 \bibitem{liu2024lost}
 N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and P.~Liang.
@@ -293,6 +670,31 @@ A.~S. Rao and M.~P. Georgeff.
 J.~R. Searle.
 \newblock {\em Speech Acts: An Essay in the Philosophy of Language}.
 \newblock Cambridge University Press, 1969.
+
+\bibitem{shinn2023reflexion}
+N.~Shinn, F.~Cassin, B.~Labash, A.~Gopinath, P.~Narasimhan, and S.~Yao.
+\newblock Reflexion: Language agents with verbal reinforcement learning.
+\newblock In {\em Proc. NeurIPS}, 2023.
+
+\bibitem{shoham2009multiagent}
+Y.~Shoham and K.~Leyton-Brown.
+\newblock {\em Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations}.
+\newblock Cambridge University Press, 2009.
+
+\bibitem{smith1980cnp}
+R.~G. Smith.
+\newblock The {Contract Net Protocol}: High-level communication and control in a distributed problem solver.
+\newblock {\em IEEE Transactions on Computers}, C-29(12):1104--1113, 1980.
+
+\bibitem{yao2022react}
+S.~Yao, J.~Zhao, D.~Yu, N.~Du, I.~Shafran, K.~Narasimhan, and Y.~Cao.
+\newblock {ReAct}: Synergizing reasoning and acting in language models.
+\newblock In {\em Proc. ICLR}, 2023.
+
+\bibitem{yao2023tree}
+S.~Yao, D.~Yu, J.~Zhao, I.~Shafran, T.~L. Griffiths, Y.~Cao, and K.~Narasimhan.
+\newblock Tree of Thoughts: Deliberate problem solving with large language models.
+\newblock In {\em Proc. NeurIPS}, 2023.
 
 \end{thebibliography}
 
