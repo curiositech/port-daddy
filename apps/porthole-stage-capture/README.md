@@ -5,6 +5,8 @@ window or app. It combines ScreenCaptureKit capture, an explicit source
 allowlist, visible local/agent presence, cooperative pointers and comments, and
 a synthetic fixture that is safe to use when collecting product proof.
 
+For the full product architecture, bug diagnoses, arbitrary GUI recording pipeline, and 5-milestone roadmap, see [PORTHOLE-SYSTEM-SPECIFICATION-AND-MILESTONES.md](../../docs/architecture/PORTHOLE-SYSTEM-SPECIFICATION-AND-MILESTONES.md).
+
 It is not yet a distributed Porthole release. Pull-request CI emits a short-lived,
 ad-hoc-signed artifact whose name and embedded manifest both say
 `NOT-FOR-DISTRIBUTION`. That artifact can prove compilation, tests, bundle
