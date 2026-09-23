@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+K #!/usr/bin / env tsx
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -17,34 +17,34 @@ const dimensionNames: Record<number, string> = {
 type AgentId = 'PM' | 'Design' | 'Dev' | 'Critic';
 
 const agentObservationIndices: Record<AgentId, number[]> = {
-    'PM':     [0, 1, 3],
+    'PM': [0, 1, 3],
     'Design': [0, 2, 3, 4, 6],
-    'Dev':    [0, 2, 4, 5, 6],
+    'Dev': [0, 2, 4, 5, 6],
     'Critic': [1, 2, 3, 5, 6]
 };
 
 const agentRoles: Record<AgentId, string> = {
-    'PM':     'System Architect & Product Manager',
+    'PM': 'System Architect & Product Manager',
     'Design': 'UI/UX Designer & Design System Lead',
-    'Dev':    'Frontend & Fullstack Engineer',
+    'Dev': 'Frontend & Fullstack Engineer',
     'Critic': 'QA Auditor & WCAG Accessibility Lead'
 };
 
 type EdgeDef = { u: AgentId; v: AgentId; sharedDims: number[] };
 const edges: EdgeDef[] = [
-    { u: 'PM',     v: 'Design', sharedDims: [0, 3] },
-    { u: 'PM',     v: 'Dev',    sharedDims: [0] },
-    { u: 'PM',     v: 'Critic', sharedDims: [1, 3] },
-    { u: 'Design', v: 'Dev',    sharedDims: [0, 2, 4, 6] },
+    { u: 'PM', v: 'Design', sharedDims: [0, 3] },
+    { u: 'PM', v: 'Dev', sharedDims: [0] },
+    { u: 'PM', v: 'Critic', sharedDims: [1, 3] },
+    { u: 'Design', v: 'Dev', sharedDims: [0, 2, 4, 6] },
     { u: 'Design', v: 'Critic', sharedDims: [2, 3, 6] },
-    { u: 'Dev',    v: 'Critic', sharedDims: [2, 5, 6] }
+    { u: 'Dev', v: 'Critic', sharedDims: [2, 5, 6] }
 ];
 
 type SimplexDef = { id: string; name: string; agents: [AgentId, AgentId, AgentId]; sharedDims: number[] };
 const simplices: SimplexDef[] = [
     { id: 'tau_sitemap', name: 'Architecture Review Triad', agents: ['PM', 'Design', 'Dev'], sharedDims: [0] },
-    { id: 'tau_wcag',    name: 'Accessibility Review Triad', agents: ['PM', 'Design', 'Critic'], sharedDims: [3] },
-    { id: 'tau_ui',      name: 'Design-Code Review Triad',  agents: ['Design', 'Dev', 'Critic'], sharedDims: [2, 6] }
+    { id: 'tau_wcag', name: 'Accessibility Review Triad', agents: ['PM', 'Design', 'Critic'], sharedDims: [3] },
+    { id: 'tau_ui', name: 'Design-Code Review Triad', agents: ['Design', 'Dev', 'Critic'], sharedDims: [2, 6] }
 ];
 
 function getLocalIndex(agent: AgentId, globalDim: number): number {
@@ -85,9 +85,9 @@ const rawTurns: RawTurn[] = [
             result: { status: 'COMMITTED', sitemapVersion: '1.0.0', routeCount: 6, completeness: 50 }
         },
         stateDelta: {
-            'PM':     [50, 70, 0],
+            'PM': [50, 70, 0],
             'Design': [0, 0, 0, 0, 0],
-            'Dev':    [0, 0, 0, 0, 0],
+            'Dev': [0, 0, 0, 0, 0],
             'Critic': [0, 0, 0, 0, 0]
         }
     },
@@ -103,9 +103,9 @@ const rawTurns: RawTurn[] = [
             result: { tokensExported: 48, assetCount: 6, themeConsistency: 80, assetReadiness: 70 }
         },
         stateDelta: {
-            'PM':     [50, 70, 0],
+            'PM': [50, 70, 0],
             'Design': [50, 80, 80, 70, 60],
-            'Dev':    [0, 0, 0, 0, 0],
+            'Dev': [0, 0, 0, 0, 0],
             'Critic': [0, 0, 0, 0, 0]
         }
     },
@@ -121,9 +121,9 @@ const rawTurns: RawTurn[] = [
             result: { tscExitCode: 0, routesOperational: 6, sitemapCoverage: 100, codeCoverage: 35 }
         },
         stateDelta: {
-            'PM':     [100, 70, 0],
+            'PM': [100, 70, 0],
             'Design': [100, 80, 80, 70, 60],
-            'Dev':    [100, 80, 70, 35, 50],
+            'Dev': [100, 80, 70, 35, 50],
             'Critic': [0, 0, 0, 0, 0]
         }
     },
@@ -139,9 +139,9 @@ const rawTurns: RawTurn[] = [
             result: { measuredRatio: 3.22, compliant: false, violations: ['1.4.3 Contrast (Minimum)'], wcagScore: 35 }
         },
         stateDelta: {
-            'PM':     [100, 85, 40],
+            'PM': [100, 85, 40],
             'Design': [100, 80, 85, 70, 60],
-            'Dev':    [100, 80, 70, 40, 50],
+            'Dev': [100, 80, 70, 40, 50],
             'Critic': [85, 80, 35, 40, 50]
         }
     },
@@ -157,9 +157,9 @@ const rawTurns: RawTurn[] = [
             result: { expectedRatio: 7.14, level: 'AAA', tokensReplaced: 12, wcagConfidence: 95 }
         },
         stateDelta: {
-            'PM':     [100, 85, 80],
+            'PM': [100, 85, 80],
             'Design': [100, 95, 95, 85, 75],
-            'Dev':    [100, 80, 70, 45, 50],
+            'Dev': [100, 80, 70, 45, 50],
             'Critic': [85, 80, 35, 40, 50]
         }
     },
@@ -175,9 +175,9 @@ const rawTurns: RawTurn[] = [
             result: { status: 'CERTIFIED', measuredRatio: 7.14, violations: [], wcagScore: 95 }
         },
         stateDelta: {
-            'PM':     [100, 90, 95],
+            'PM': [100, 90, 95],
             'Design': [100, 95, 95, 85, 75],
-            'Dev':    [100, 80, 70, 50, 50],
+            'Dev': [100, 80, 70, 50, 50],
             'Critic': [90, 95, 95, 50, 70]
         }
     },
@@ -193,9 +193,9 @@ const rawTurns: RawTurn[] = [
             result: { testsPassed: 24, testsFailed: 0, coveragePercentage: 76.5, tscErrors: 0 }
         },
         stateDelta: {
-            'PM':     [100, 90, 95],
+            'PM': [100, 90, 95],
             'Design': [100, 95, 95, 85, 75],
-            'Dev':    [100, 95, 85, 75, 70],
+            'Dev': [100, 95, 85, 75, 70],
             'Critic': [90, 95, 95, 75, 70]
         }
     },
@@ -211,9 +211,9 @@ const rawTurns: RawTurn[] = [
             result: { fontTokensUpdated: 8, noticeSent: false, designUiPolish: 95 }
         },
         stateDelta: {
-            'PM':     [100, 90, 95],
+            'PM': [100, 90, 95],
             'Design': [100, 100, 95, 100, 95],
-            'Dev':    [100, 95, 85, 75, 70],
+            'Dev': [100, 95, 85, 75, 70],
             'Critic': [90, 95, 95, 75, 70]
         }
     },
@@ -229,9 +229,9 @@ const rawTurns: RawTurn[] = [
             result: { diffPercentage: 18.2, mismatchedToken: 'font-heading', reportedTo: 'Dev' }
         },
         stateDelta: {
-            'PM':     [100, 90, 95],
+            'PM': [100, 90, 95],
             'Design': [100, 100, 95, 100, 95],
-            'Dev':    [100, 95, 85, 75, 70],
+            'Dev': [100, 95, 85, 75, 70],
             'Critic': [90, 95, 95, 75, 70]
         }
     },
@@ -247,9 +247,9 @@ const rawTurns: RawTurn[] = [
             result: { visualDiff: 0.0, buildStatus: 'OPTIMIZED', codeCoverage: 90, uiPolish: 95 }
         },
         stateDelta: {
-            'PM':     [100, 95, 95],
+            'PM': [100, 95, 95],
             'Design': [100, 100, 95, 100, 95],
-            'Dev':    [100, 100, 100, 90, 95],
+            'Dev': [100, 100, 100, 90, 95],
             'Critic': [95, 100, 95, 90, 95]
         }
     },
@@ -265,9 +265,9 @@ const rawTurns: RawTurn[] = [
             result: { allChecksPassed: true, specCoverage: 100 }
         },
         stateDelta: {
-            'PM':     [100, 100, 100],
+            'PM': [100, 100, 100],
             'Design': [100, 100, 100, 100, 100],
-            'Dev':    [100, 100, 100, 95, 95],
+            'Dev': [100, 100, 100, 95, 95],
             'Critic': [100, 100, 100, 95, 95]
         }
     },
@@ -283,9 +283,9 @@ const rawTurns: RawTurn[] = [
             result: { e2ePassed: 6, unitPassed: 32, wcagPassed: true, globalResidual: 0.0, status: 'RELEASE_APPROVED' }
         },
         stateDelta: {
-            'PM':     [100, 100, 100],
+            'PM': [100, 100, 100],
             'Design': [100, 100, 100, 100, 100],
-            'Dev':    [100, 100, 100, 100, 100],
+            'Dev': [100, 100, 100, 100, 100],
             'Critic': [100, 100, 100, 100, 100]
         }
     }
@@ -321,11 +321,11 @@ function computeTrial() {
             const scaledNorm = Math.round((normSq / 100.0) * 10) / 10;
             const edgeKey = `${edge.u}-${edge.v}`;
             edgeResiduals[edgeKey] = scaledNorm;
-            
+
             // Build restriction map descriptions
             const uIndices = edge.sharedDims.map(d => agentObservationIndices[edge.u].indexOf(d));
             const vIndices = edge.sharedDims.map(d => agentObservationIndices[edge.v].indexOf(d));
-            
+
             edgeCochains[edgeKey] = {
                 u_proj: uProj,
                 v_proj: vProj,
@@ -387,7 +387,7 @@ function computeTrial() {
         const totalEnergy = totalResidual;
         const triadicCurlEnergy = Math.min(totalCurlSq, totalEnergy);
         const remainingEnergy = Math.max(0, totalEnergy - triadicCurlEnergy);
-        
+
         // Split remaining between gradient (75%) and harmonic cavity (25% if unaligned)
         const gradientEnergy = Math.round(remainingEnergy * 0.75 * 10) / 10;
         const harmonicEnergy = Math.round((remainingEnergy - gradientEnergy) * 10) / 10;
