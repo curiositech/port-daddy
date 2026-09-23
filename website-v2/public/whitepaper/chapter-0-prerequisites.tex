@@ -346,59 +346,59 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
   pd decision/.style={draw=pdindigo,line width=0.8pt,fill=pdindigo!8,diamond,aspect=2.0,inner sep=2pt,align=center,font=\pdfiglabelsize\bfseries},
-  pd proc/.style={draw=pdink!70,line width=0.6pt,fill=white,rounded corners=0pt,align=center,inner xsep=3pt,inner ysep=3pt,font=\pdfiglabelsize},
-  pd focus proc/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!8,rounded corners=0pt,align=center,inner xsep=3pt,inner ysep=3pt,font=\pdfiglabelsize\bfseries},
+  pd proc/.style={draw=pdink!70,line width=0.6pt,fill=white,rounded corners=0pt,align=center,inner xsep=3pt,inner ysep=4pt,minimum height=0.8cm,font=\pdfiglabelsize},
+  pd focus proc/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!8,rounded corners=0pt,align=center,inner xsep=3pt,inner ysep=4pt,minimum height=0.8cm,font=\pdfiglabelsize\bfseries},
   pd edge/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
   pd branch label/.style={font=\fontsize{6.5}{7.5}\selectfont\color{pdinkmuted},fill=white,inner sep=1.5pt}
 ]
   % Root Requirement
-  \node[pd proc, text width=5.6cm] (req) at (5.3, 10.0) {\textbf{Autonomous Behavior Requirement}};
+  \node[pd proc, text width=5.6cm] (req) at (5.3, 9.9) {\textbf{Autonomous Behavior Requirement}};
 
   % Diamond 1: Persistent goals plus interrupts?
-  \node[pd decision, text width=3.0cm] (d1) at (5.3, 8.5) {Persistent goals\\plus interrupts?};
+  \node[pd decision, text width=2.7cm, aspect=1.8] (d1) at (5.3, 8.4) {Persistent goals\\plus interrupts?};
   \draw[pd edge] (req) -- (d1);
 
   % Branch 1: Reactive rule system
-  \node[pd proc, text width=2.4cm] (react) at (1.6, 6.8) {Use reactive\\rule system};
+  \node[pd proc, text width=2.4cm] (react) at (1.6, 6.2) {Use reactive\\rule system};
   \draw[pd edge] (d1) -| (react) node[midway, above left, pd branch label] {No, only reactive};
 
   % Branch 2: Classical planner
-  \node[pd proc, text width=2.4cm] (plan) at (5.3, 6.8) {Use classical\\planner};
-  \draw[pd edge] (d1) -- (plan) node[pos=0.45, right, font=\fontsize{6.5}{7.5}\selectfont\color{pdinkmuted}] {No, static};
+  \node[pd proc, text width=2.4cm] (plan) at (5.3, 6.2) {Use classical\\planner};
+  \draw[pd edge] (d1) -- (plan) node[midway, anchor=east, left=2pt, font=\fontsize{5.5}{6.5}\selectfont\color{pdinkmuted}] {No, static};
 
   % Branch 3: BDI architecture
-  \node[pd focus proc, text width=2.5cm] (bdi) at (9.0, 6.8) {Use BDI\\Architecture};
+  \node[pd focus proc, text width=2.5cm] (bdi) at (9.0, 6.2) {Use BDI\\Architecture};
   \draw[pd edge] (d1) -| (bdi) node[midway, above right, pd branch label] {Yes};
 
   % Diamond 2: What choice is being made?
-  \node[pd decision, text width=3.2cm] (d2) at (5.3, 5.0) {What choice\\is being made?};
-  \draw[pd edge] (bdi) |- (d2);
+  \node[pd decision, text width=2.9cm, aspect=1.8] (d2) at (5.3, 4.3) {What choice\\is being made?};
+  \draw[pd edge] (bdi.south) -- ++(0, -0.45) -| (d2.north);
 
   % Branch A: Plan selection (SO)
-  \node[pd proc, text width=2.4cm] (so) at (1.6, 3.2) {\textbf{Plan Selection}\\[1pt]Route through $S_O$};
+  \node[pd proc, text width=2.4cm] (so) at (1.6, 2.5) {\textbf{Plan Selection}\\[2pt]{\fontsize{6}{7}\selectfont Route through $S_O$}};
   \draw[pd edge] (d2) -| (so) node[midway, above left, pd branch label] {Which plan fits?};
 
   % Branch B: Event selection (SE)
-  \node[pd proc, text width=2.4cm] (se) at (5.3, 3.2) {\textbf{Event Selection}\\[1pt]Route through $S_E$};
-  \draw[pd edge] (d2) -- (se) node[pos=0.45, right, font=\fontsize{6.5}{7.5}\selectfont\color{pdinkmuted}] {Which event?};
+  \node[pd proc, text width=2.4cm] (se) at (5.3, 2.5) {\textbf{Event Selection}\\[2pt]{\fontsize{6}{7}\selectfont Route through $S_E$}};
+  \draw[pd edge] (d2) -- (se) node[midway, anchor=east, left=2pt, font=\fontsize{5.5}{6.5}\selectfont\color{pdinkmuted}] {Which event?};
 
   % Branch C: Intention selection (SI)
-  \node[pd proc, text width=2.4cm] (si) at (9.0, 3.2) {\textbf{Intention Selection}\\[1pt]Route through $S_I$};
+  \node[pd proc, text width=2.4cm] (si) at (9.0, 2.5) {\textbf{Intention Selection}\\[2pt]{\fontsize{6}{7}\selectfont Route through $S_I$}};
   \draw[pd edge] (d2) -| (si) node[midway, above right, pd branch label] {Which commitment?};
 
   % Sub-nodes below SE and SI
-  \node[pd proc, text width=2.4cm] (se_act) at (5.3, 1.7) {Update event\\priorities};
+  \node[pd proc, text width=2.4cm] (se_act) at (5.3, 0.9) {Update event\\priorities};
   \draw[pd edge] (se) -- (se_act);
 
-  \node[pd proc, text width=2.4cm] (si_act) at (9.0, 1.7) {Apply preemption\\or fairness};
-  \draw[pd edge] (si) -- (si_act);
-
   % Sub-tree below SO: Plan failure handling
-  \node[pd decision, text width=2.0cm] (d3) at (1.6, 1.7) {Plan\\fails?};
+  \node[pd decision, text width=1.7cm, aspect=1.8] (d3) at (1.6, 0.9) {Plan\\fails?};
   \draw[pd edge] (so) -- (d3);
 
-  \node[pd proc, text width=2.2cm] (fail_act) at (0.3, 0.2) {\color{pderror}\textbf{Post $-!g$}\\Recover or drop};
-  \node[pd proc, text width=2.2cm] (succ_act) at (2.9, 0.2) {\textbf{Advance Stack}\\Execute step};
+  \node[pd proc, text width=2.4cm] (si_act) at (9.0, 0.9) {Apply preemption\\or fairness};
+  \draw[pd edge] (si) -- (si_act);
+
+  \node[pd proc, text width=2.2cm] (fail_act) at (0.3, -0.5) {\color{pderror}\textbf{Post $-!g$}\\Recover or drop};
+  \node[pd proc, text width=2.2cm] (succ_act) at (2.9, -0.5) {\textbf{Advance Stack}\\Execute step};
 
   \draw[pd edge] (d3) -| (fail_act) node[midway, above left, pd branch label] {Yes};
   \draw[pd edge] (d3) -| (succ_act) node[midway, above right, pd branch label] {No};
@@ -1362,6 +1362,16 @@ The remainder of this textbook is organized into eight cumulative chapters acros
   \item \textbf{Chapter 7: The Bonded Commons (Game-Theoretic Governance).} We formalize claim signaling as an incentive-compatible repeated game, proving when cooperation is sustained under bonded escrow.
   \item \textbf{Chapter 8: The Federated Harbor (Cross-Machine Consensus).} We extend governance across distrustful host boundaries via witness logs and sheaf-theoretic consistency without central sovereignty.
 \end{itemize}
+
+
+
+
+
+
+
+
+
+
 
 
 

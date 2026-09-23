@@ -17,6 +17,9 @@ cd "$PUB"
 xelatex -interaction=nonstopmode coordination-papers-mega-volume-spreads.tex
 
 # Remove auxiliary build files
-rm -f coordination-papers-mega-volume-spreads.aux coordination-papers-mega-volume-spreads.log coordination-papers-mega-volume-spreads.out
-
 echo "Successfully built $PUB/coordination-papers-mega-volume-spreads.pdf"
+
+if [ -f "$REPO_ROOT/scripts/render_book_spreads.py" ]; then
+  echo "Rendering facing spreads..."
+  python3 "$REPO_ROOT/scripts/render_book_spreads.py" "$@" || true
+fi
