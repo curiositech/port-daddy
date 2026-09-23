@@ -216,6 +216,20 @@ final class CaptureShutdownTests: XCTestCase {
         recorder.cancel()
     }
 
+    func testInteractiveShutdownPreservesRecordingWhenFramesExist() async throws {
+        let root = try fixtureDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("interactive.mov")
+        let recorder = try ApprovedProofRecorder(outputURL: url, width: 32, height: 32)
+        let sample = try syntheticSample()
+        recorder.append(sample)
+        XCTAssertEqual(recorder.recordedFrameCount, 1)
+        recorder.suspend()
+        try await recorder.finish(deadline: CaptureShutdownDeadline())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertGreaterThan(try Data(contentsOf: url).count, 0)
+    }
+
     private func fixtureDirectory() throws -> URL {
         let parent = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("coding/tmp", isDirectory: true)
         let root = parent.appendingPathComponent("porthole-shutdown-test-\(UUID().uuidString)", isDirectory: true)

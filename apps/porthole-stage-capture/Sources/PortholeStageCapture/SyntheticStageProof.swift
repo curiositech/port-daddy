@@ -22,9 +22,12 @@ private final class SyntheticStageModel: StagePresentationModel {
     let cursors: [CursorEvent]
     let proofReceipt: PortholeProofReceipt? = nil
     let proofConfiguration: ProofConfiguration? = nil
+    let lastSavedRecordingURL: URL? = nil
+    let lastSavedScreenshotURL: URL? = nil
     let statusMessage = "Synthetic UI proof · no capture or transport exercised"
     let selectedApprovalCanEnterStage = false
     let canPauseCapture = false
+    func captureScreenshot() -> URL? { nil }
 
     init(frame: Int, image: CGImage) {
         let program = SignedProgramIdentity(bundleIdentifier: "invalid.synthetic.motion-lab",
