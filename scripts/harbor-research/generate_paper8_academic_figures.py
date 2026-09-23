@@ -21,7 +21,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import numpy as np
 
 # Standard Harbor Research Color Palette
 HARBOR_BLUE = '#1e466e'
@@ -565,7 +564,7 @@ def make_fig3():
     
     categories = ['Review Bug\n(Micro)', 'Network Split\n(Macro)']
     values = [0.00, 1.00]
-    bars = ax4.bar(categories, values, width=0.45, color=[SHIP_RED, HARBOR_BLUE], edgecolor=SLATE_DARK, lw=1.0)
+    ax4.bar(categories, values, width=0.45, color=[SHIP_RED, HARBOR_BLUE], edgecolor=SLATE_DARK, lw=1.0)
     ax4.set_ylabel(r"$\mathcal{L}(g) \in [0, 1]$", fontsize=11.5, labelpad=6)
     ax4.set_ylim(0, 1.20)
     ax4.set_yticks([0.0, 0.5, 1.0])
@@ -627,7 +626,7 @@ def make_fig4():
     energies = [0.50, 2.33, 0.80, 0.80, 1.85]
     ratios = [en / c for en, c in zip(energies, costs)]
     
-    bars = ax2.bar(edge_names, ratios, width=0.45, color=[SLATE_LIGHT]*4 + [HARBOR_BLUE], edgecolor=SLATE_DARK, lw=1.0)
+    ax2.bar(edge_names, ratios, width=0.45, color=[SLATE_LIGHT]*4 + [HARBOR_BLUE], edgecolor=SLATE_DARK, lw=1.0)
     ax2.set_ylabel(r"Ratio $E(e)/w(e)$", fontsize=12.5)
     ax2.grid(axis='y', linestyle=':', alpha=0.35)
     ax2.text(4, ratios[4] + 0.08, r"Optimal Cut $e^*$" + "\n" + r"(Ratio=1.85)", ha='center', va='bottom', fontsize=11.0, color=HARBOR_BLUE, fontweight='bold')

@@ -139,10 +139,38 @@ struct AnyCodable: Codable {
 // MARK: - Data Loader
 class DataLoader {
     static func loadGroundedSheafData() throws -> SheafTrialData {
-        let path = "/Users/erichowens/coding/port-daddy/.worktrees/sheaf-cohomology-swarm-research/docs/harbor-research/transcripts/sheaf_swarm_grounded.json"
-        let url = URL(fileURLWithPath: path)
-        let data = try Data(contentsOf: url)
+        var data: Data?
+        if let bundleUrl = Bundle.module.url(forResource: "sheaf_swarm_grounded", withExtension: "json"),
+           let bundleData = try? Data(contentsOf: bundleUrl) {
+            data = bundleData
+        } else if let envPath = ProcessInfo.processInfo.environment["SHEAF_DATA_PATH"],
+                  let envData = try? Data(contentsOf: URL(fileURLWithPath: envPath)) {
+            data = envData
+        } else {
+            let candidates = [
+                "docs/harbor-research/transcripts/sheaf_swarm_grounded.json",
+                "../transcripts/sheaf_swarm_grounded.json",
+                "../../transcripts/sheaf_swarm_grounded.json",
+                "Sources/SwarmVisualizer/Resources/sheaf_swarm_grounded.json",
+                "Resources/sheaf_swarm_grounded.json"
+            ]
+            let fileManager = FileManager.default
+            let cwd = fileManager.currentDirectoryPath
+            for candidate in candidates {
+                let candidateUrl = URL(fileURLWithPath: cwd).appendingPathComponent(candidate)
+                if fileManager.fileExists(atPath: candidateUrl.path),
+                   let fileData = try? Data(contentsOf: candidateUrl) {
+                    data = fileData
+                    break
+                }
+            }
+        }
+
+        guard let finalData = data else {
+            throw NSError(domain: "DataLoader", code: 404, userInfo: [NSLocalizedDescriptionKey: "sheaf_swarm_grounded.json not found in Bundle.module, SHEAF_DATA_PATH, or repository relative paths"])
+        }
+
         let decoder = JSONDecoder()
-        return try decoder.decode(SheafTrialData.self, from: data)
+        return try decoder.decode(SheafTrialData.self, from: finalData)
     }
 }

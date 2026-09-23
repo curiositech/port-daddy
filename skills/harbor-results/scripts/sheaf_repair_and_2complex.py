@@ -38,13 +38,8 @@ Program seed: 20260917.
 """
 
 import sys
+import heapq
 import numpy as np
-
-try:
-    import networkx as nx
-except ImportError:
-    print("networkx required: pip install networkx")
-    sys.exit(2)
 
 SEED = 20260917
 D = 5              # Stalk dimension (e.g. capacity, epoch, claim bounds, rejection hash)
@@ -197,17 +192,80 @@ def swarm_legibility_ratio(h, curl_comp):
 # --------------------------------------------------------------------------
 # CR-4 Optimal Cohomological Repair Optimizer
 # --------------------------------------------------------------------------
+def solve_cohomological_repair_optimal(delta_0, edges, g_known, costs=None, mode="sever"):
+    """
+    Computes the guaranteed minimum-cost edge set whose repair (sever or reconcile)
+    drives the completion residual r to zero (r < TOL).
+    Uses branch-and-bound / Dijkstra subset search over cumulative edge costs.
+    """
+    nE = delta_0.shape[0]
+    if costs is None:
+        cost_arr = np.ones(nE)
+    elif isinstance(costs, dict):
+        cost_arr = np.array([costs.get(e, 1.0) for e in edges], dtype=float)
+    else:
+        cost_arr = np.array(costs, dtype=float)
+
+    # Initial residual
+    xhat, _, _, _ = np.linalg.lstsq(delta_0, g_known, rcond=None)
+    resid = g_known - delta_0 @ xhat
+    r_init = float(np.linalg.norm(resid))
+    if r_init < TOL:
+        return [], [r_init]
+
+    def residual_for_subset(removed_indices):
+        if mode == "sever":
+            active_indices = [i for i in range(nE) if i not in removed_indices]
+            if len(active_indices) == 0:
+                return 0.0
+            A_act = delta_0[active_indices, :]
+            b_act = g_known[active_indices]
+            xh, _, _, _ = np.linalg.lstsq(A_act, b_act, rcond=None)
+            return float(np.linalg.norm(b_act - A_act @ xh))
+        else:
+            g_rec = g_known.copy()
+            for idx in removed_indices:
+                g_rec[idx] = 0.0
+            xh, _, _, _ = np.linalg.lstsq(delta_0, g_rec, rcond=None)
+            return float(np.linalg.norm(g_rec - delta_0 @ xh))
+
+    pq = [(0.0, ())]
+    visited = set()
+    best_edges = []
+
+    while pq:
+        curr_cost, removed = heapq.heappop(pq)
+        rem_set = frozenset(removed)
+        if rem_set in visited:
+            continue
+        visited.add(rem_set)
+
+        r_curr = residual_for_subset(removed)
+        if r_curr < TOL:
+            best_edges = [edges[i] for i in removed]
+            break
+
+        for i in range(nE):
+            if i not in rem_set:
+                nxt = tuple(sorted(list(removed) + [i]))
+                if frozenset(nxt) not in visited:
+                    edge_c = cost_arr[i]
+                    heapq.heappush(pq, (curr_cost + edge_c, nxt))
+
+    # Reconstruct trajectory
+    trajectory = [r_init]
+    running_removed = []
+    for e in best_edges:
+        running_removed.append(edges.index(e))
+        trajectory.append(residual_for_subset(running_removed))
+
+    return best_edges, trajectory
+
 def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode="sever"):
     """
     Given completion residual r = ||Pi_K g_K||_2 > 0 and edge repair costs w(e),
     iteratively selects the edge e* with maximum energy-to-cost ratio E(e)/w(e).
-
-    Modes:
-      'sever': The governor fences / drops edge e* (making it a free block).
-               Breaks the cycle, dropping beta_1 by 1.
-      'reconcile': The governor forces endpoints of e* to reconcile (sets g_{e*} = 0).
-
-    Returns list of repaired edges and residual trajectory.
+    Acts as a fast O(|E|) greedy approximation for large graphs.
     """
     nE = delta_0.shape[0]
     if costs is None:
@@ -258,7 +316,6 @@ def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode=
         active_mask[best_idx] = False
 
         if mode == "sever":
-            # Sever edge: drop row from completion
             active_indices = np.where(active_mask)[0]
             if len(active_indices) == 0:
                 r = 0.0
@@ -268,7 +325,6 @@ def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode=
                 xh, _, _, _ = np.linalg.lstsq(A_act, b_act, rcond=None)
                 r = float(np.linalg.norm(b_act - A_act @ xh))
         else:
-            # Reconcile edge: set disagreement to 0
             current_g[best_idx] = 0.0
             xhat, _, _, _ = np.linalg.lstsq(delta_0, current_g, rcond=None)
             resid = current_g - delta_0 @ xhat
@@ -277,6 +333,16 @@ def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode=
         trajectory.append(r)
 
     return repaired_edges, trajectory
+
+def solve_cohomological_repair(delta_0, edges, g_known, costs=None, mode="sever", method="optimal"):
+    """
+    Solves cohomological repair to drive completion residual r to 0.
+    method='optimal': Guaranteed minimum-cost edge cut via exact branch-and-bound.
+    method='greedy': Fast greedy ratio controller E(e)/w(e) as an approximation.
+    """
+    if method == "optimal":
+        return solve_cohomological_repair_optimal(delta_0, edges, g_known, costs=costs, mode=mode)
+    return solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=costs, mode=mode)
 
 # --------------------------------------------------------------------------
 # Test Suites
@@ -399,13 +465,29 @@ def test_optimal_cohomological_repair_cr4():
     costs = {e: 5.0 for e in edges}
     costs[orient_edge((0, 6))] = 1.0 # cheaper to arbitrate the bridge
 
-    repaired, traj = solve_cohomological_repair_greedy(d0, edges, g, costs)
-    print(f"  Repair sequence chosen by optimizer: {[edges.index(e) for e in repaired]} -> {repaired}")
+    repaired, traj = solve_cohomological_repair(d0, edges, g, costs, method="optimal")
+    print(f"  Repair sequence chosen by optimal solver: {[edges.index(e) for e in repaired]} -> {repaired}")
     print(f"  Residual trajectory: {[round(r, 4) for r in traj]}")
 
     check(traj[-1] < TOL, f"residual collapsed to zero: final r = {traj[-1]:.2e} < 1e-9")
     check(len(repaired) == 1 and repaired[0] == orient_edge((0, 6)),
-          f"CR-4 greedy controller selected the EXACT minimal-cost bottleneck edge: {repaired[0]}")
+          f"CR-4 optimal controller selected the EXACT minimal-cost bottleneck edge: {repaired[0]}")
+
+    # Additional test: K4 counterexample from Codex review comment
+    # Edges: (0,1), (0,2), (0,3), (1,2), (1,3), (2,3)
+    k4_edges = [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]
+    k4_d0 = np.zeros((6, 4))
+    for i, (u, v) in enumerate(k4_edges):
+        k4_d0[i, u] = -1
+        k4_d0[i, v] = 1
+    k4_g = np.array([-2, -3, -3, -3, -3, 2], dtype=float)
+    k4_costs = {e: c for e, c in zip(k4_edges, [3, 10, 3, 10, 1, 9])}
+    
+    k4_opt_edges, k4_opt_traj = solve_cohomological_repair_optimal(k4_d0, k4_edges, k4_g, k4_costs)
+    opt_cost = sum(k4_costs[e] for e in k4_opt_edges)
+    print(f"  K4 Counterexample — Optimal cost: {opt_cost} with edges {k4_opt_edges}")
+    check(opt_cost == 7.0 and k4_opt_traj[-1] < TOL,
+          f"CR-4 optimal solver achieves exact minimal cost 7 on K4: {k4_opt_edges}")
 
 def run_mutation_suite():
     print("\n" + "=" * 74)

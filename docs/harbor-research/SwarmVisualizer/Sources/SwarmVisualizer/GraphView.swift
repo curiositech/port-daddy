@@ -397,31 +397,31 @@ struct FloatingThoughtBubble: View {
     var body: some View {
         let bubbleOffset = offset(for: agentId)
         
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
                 Text("💭")
-                    .font(.system(size: 11))
+                    .font(.system(size: 14))
                 Text("\(agentId)'s Inner Monologue")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.secondary)
             }
             
             Text(thought)
-                .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                .font(.system(size: 14, weight: .regular, design: .rounded))
                 .italic()
                 .foregroundColor(.primary.opacity(0.95))
-                .lineLimit(4)
+                .lineLimit(6)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
-        .frame(width: 240)
+        .padding(14)
+        .frame(width: 290)
         .background(
             .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 14)
+            in: RoundedRectangle(cornerRadius: 16)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.cyan.opacity(0.5), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.cyan.opacity(0.5), lineWidth: 1.5)
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .position(x: anchor.x + bubbleOffset.x, y: anchor.y + bubbleOffset.y)

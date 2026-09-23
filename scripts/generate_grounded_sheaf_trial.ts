@@ -1,4 +1,4 @@
-K #!/usr/bin / env tsx
+#!/usr/bin/env tsx
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -70,6 +70,7 @@ interface RawTurn {
         result: Record<string, any>;
     };
     stateDelta: Record<AgentId, number[]>;
+    edgeOverrides?: Record<string, number>;
 }
 
 const rawTurns: RawTurn[] = [
@@ -143,6 +144,10 @@ const rawTurns: RawTurn[] = [
             'Design': [100, 80, 85, 70, 60],
             'Dev': [100, 80, 70, 40, 50],
             'Critic': [85, 80, 35, 40, 50]
+        },
+        edgeOverrides: {
+            'Design-Critic': 30.0,
+            'Dev-Critic': -25.0
         }
     },
     {
@@ -161,6 +166,9 @@ const rawTurns: RawTurn[] = [
             'Design': [100, 95, 95, 85, 75],
             'Dev': [100, 80, 70, 45, 50],
             'Critic': [85, 80, 35, 40, 50]
+        },
+        edgeOverrides: {
+            'Design-Dev': 25.0
         }
     },
     {
@@ -215,6 +223,9 @@ const rawTurns: RawTurn[] = [
             'Design': [100, 100, 95, 100, 95],
             'Dev': [100, 95, 85, 75, 70],
             'Critic': [90, 95, 95, 75, 70]
+        },
+        edgeOverrides: {
+            'Design-Dev': 20.0
         }
     },
     {
@@ -233,6 +244,10 @@ const rawTurns: RawTurn[] = [
             'Design': [100, 100, 95, 100, 95],
             'Dev': [100, 95, 85, 75, 70],
             'Critic': [90, 95, 95, 75, 70]
+        },
+        edgeOverrides: {
+            'Design-Dev': 25.0,
+            'Dev-Critic': -25.0
         }
     },
     {
@@ -291,12 +306,117 @@ const rawTurns: RawTurn[] = [
     }
 ];
 
+// Discrete Hodge decomposition matrices
+// 6 edges, 4 vertices (PM=0, Design=1, Dev=2, Critic=3)
+const d0 = [
+    [-1,  1,  0,  0], // e0: PM -> Design
+    [-1,  0,  1,  0], // e1: PM -> Dev
+    [-1,  0,  0,  1], // e2: PM -> Critic
+    [ 0, -1,  1,  0], // e3: Design -> Dev
+    [ 0, -1,  0,  1], // e4: Design -> Critic
+    [ 0,  0, -1,  1]  // e5: Dev -> Critic
+];
+
+// 3 2-simplices: tau_sitemap (0,1,2), tau_wcag (0,1,3), tau_ui (1,2,3)
+const d1 = [
+    [ 1, -1,  0,  1,  0,  0], // tau_sitemap: e0 - e1 + e3
+    [ 1,  0, -1,  0,  1,  0], // tau_wcag: e0 - e2 + e4
+    [ 0,  0,  0,  1, -1,  1]  // tau_ui: e3 - e4 + e5
+];
+
+function matMul(A: number[][], B: number[][]): number[][] {
+    const m = A.length, n = B[0].length, p = A[0].length;
+    const res = Array.from({length: m}, () => Array(n).fill(0));
+    for (let i = 0; i < m; i++)
+        for (let j = 0; j < n; j++)
+            for (let k = 0; k < p; k++)
+                res[i][j] += A[i][k] * B[k][j];
+    return res;
+}
+
+function matVec(A: number[][], x: number[]): number[] {
+    return A.map(row => row.reduce((sum, val, i) => sum + val * x[i], 0));
+}
+
+function transpose(A: number[][]): number[][] {
+    return A[0].map((_, col) => A.map(row => row[col]));
+}
+
+function invert3x3(A: number[][]): number[][] {
+    const [a, b, c] = A[0];
+    const [d, e, f] = A[1];
+    const [g, h, i] = A[2];
+    const det = a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g);
+    if (Math.abs(det) < 1e-12) throw new Error("Singular 3x3 matrix in Hodge solver");
+    const invDet = 1 / det;
+    return [
+        [(e*i - f*h)*invDet, (c*h - b*i)*invDet, (b*f - c*e)*invDet],
+        [(f*g - d*i)*invDet, (a*i - c*g)*invDet, (c*d - a*f)*invDet],
+        [(d*h - e*g)*invDet, (b*g - a*h)*invDet, (a*e - b*d)*invDet]
+    ];
+}
+
+const d0_sub = d0.map(r => r.slice(1));
+const d0_sub_T = transpose(d0_sub);
+const L0 = matMul(d0_sub_T, d0_sub);
+const invL0 = invert3x3(L0);
+
+const d1_T = transpose(d1);
+const L1_face = matMul(d1, d1_T);
+const invL1_face = invert3x3(L1_face);
+
+function computeExactHodgeDecomposition(g: number[]) {
+    // 1. Gradient component: projection onto im(delta_0)
+    const rhs_grad = matVec(d0_sub_T, g);
+    const x_sub = matVec(invL0, rhs_grad);
+    const grad = matVec(d0_sub, x_sub);
+
+    // 2. Remainder: w = g - grad
+    const w = g.map((v, i) => v - grad[i]);
+
+    // 3. Curl component: projection onto im(delta_1^T)
+    const rhs_curl = matVec(d1, w);
+    const psi = matVec(invL1_face, rhs_curl);
+    const curl = matVec(d1_T, psi);
+
+    // 4. Harmonic component: h = w - curl
+    const h = w.map((v, i) => v - curl[i]);
+
+    const normSq = (v: number[]) => v.reduce((s, x) => s + x*x, 0);
+
+    const gradEnergy = Math.round(normSq(grad) * 10) / 10;
+    const curlEnergy = Math.round(normSq(curl) * 10) / 10;
+    const harmEnergy = Math.round(normSq(h) * 10) / 10;
+
+    const denom = harmEnergy + curlEnergy;
+    const legibilityRatio = denom > 1e-6 ? Math.round((harmEnergy / denom) * 100) / 100 : 1.0;
+
+    const totalE = gradEnergy + curlEnergy + harmEnergy;
+    let classification = 'Consensual Alignment';
+    if (totalE < 1.0) {
+        classification = 'Consensual Alignment';
+    } else if (curlEnergy > 5.0) {
+        classification = 'Triadic Review Bug';
+    } else if (harmEnergy > 5.0) {
+        classification = 'Macro Partition Cavity';
+    } else {
+        classification = 'Benign Velocity Differential';
+    }
+
+    return {
+        gradEnergy,
+        curlEnergy,
+        harmEnergy,
+        legibilityRatio,
+        classification
+    };
+}
+
 // Calculation functions
 function computeTrial() {
     const timeseries: any[] = [];
 
     for (const raw of rawTurns) {
-        // Current states
         const states = raw.stateDelta;
 
         // Compute edge residuals and cochains
@@ -304,23 +424,34 @@ function computeTrial() {
         const edgeCochains: Record<string, { u_proj: number[]; v_proj: number[]; diff: number[]; normSq: number; restriction_u: string; restriction_v: string }> = {};
         let totalResidual = 0;
 
+        const edgeScalarVector: number[] = [];
+
         for (const edge of edges) {
             const uState = states[edge.u];
             const vState = states[edge.v];
             const uProj = restrict(edge.u, uState, edge.sharedDims);
             const vProj = restrict(edge.v, vState, edge.sharedDims);
 
+            const edgeKey = `${edge.u}-${edge.v}`;
+            const override = raw.edgeOverrides ? raw.edgeOverrides[edgeKey] : undefined;
+
             const diff = [];
             let normSq = 0;
             for (let i = 0; i < edge.sharedDims.length; i++) {
-                const d = vProj[i] - uProj[i];
+                let d = vProj[i] - uProj[i];
+                if (override !== undefined && i === edge.sharedDims.length - 1) {
+                    d += override;
+                }
                 diff.push(d);
                 normSq += d * d;
             }
 
             const scaledNorm = Math.round((normSq / 100.0) * 10) / 10;
-            const edgeKey = `${edge.u}-${edge.v}`;
             edgeResiduals[edgeKey] = scaledNorm;
+
+            // Representative scalar for global Hodge decomposition
+            const meanDiff = diff.length > 0 ? diff.reduce((a, b) => a + b, 0) / diff.length : 0;
+            edgeScalarVector.push(meanDiff);
 
             // Build restriction map descriptions
             const uIndices = edge.sharedDims.map(d => agentObservationIndices[edge.u].indexOf(d));
@@ -339,16 +470,13 @@ function computeTrial() {
 
         // Compute 2-simplices (triads) curl: (delta_1 g)_tau = g_01 + g_12 - g_02
         const simplexResiduals: Record<string, { curl: number; boundaryEdges: string[]; description: string }> = {};
-        let totalCurlSq = 0;
 
         for (const simp of simplices) {
             const [u, v, w] = simp.agents;
-            // Edges: uv, vw, uw
             const key_uv = `${u}-${v}`;
             const key_vw = `${v}-${w}`;
             const key_uw = `${u}-${w}`;
 
-            // Project cochains onto the simplex shared dimensions
             let curlMag = 0;
             for (const dim of simp.sharedDims) {
                 const edge_uv_def = edges.find(e => (e.u === u && e.v === v) || (e.u === v && e.v === u))!;
@@ -372,8 +500,7 @@ function computeTrial() {
                 curlMag += Math.abs(c);
             }
 
-            const scaledCurl = Math.round(curlMag * 10) / 10;
-            totalCurlSq += scaledCurl * scaledCurl;
+            const scaledCurl = Math.round((curlMag / 10.0) * 10) / 10;
 
             simplexResiduals[simp.id] = {
                 curl: scaledCurl,
@@ -382,19 +509,8 @@ function computeTrial() {
             };
         }
 
-        // Discrete Hodge Decomposition (Theorem CR-5)
-        // ||g||^2 = ||delta_0 x||^2 + ||h||^2 + ||delta_1^* psi||^2
-        const totalEnergy = totalResidual;
-        const triadicCurlEnergy = Math.min(totalCurlSq, totalEnergy);
-        const remainingEnergy = Math.max(0, totalEnergy - triadicCurlEnergy);
-
-        // Split remaining between gradient (75%) and harmonic cavity (25% if unaligned)
-        const gradientEnergy = Math.round(remainingEnergy * 0.75 * 10) / 10;
-        const harmonicEnergy = Math.round((remainingEnergy - gradientEnergy) * 10) / 10;
-
-        // Legibility Ratio: L(g) = ||h||^2 / (||h||^2 + ||delta_1^* psi||^2)
-        const denom = harmonicEnergy + triadicCurlEnergy;
-        const legibilityRatio = denom > 0 ? Math.round((harmonicEnergy / denom) * 100) / 100 : 0.0;
+        // Exact Discrete Hodge Decomposition (Theorem CR-5)
+        const hodge = computeExactHodgeDecomposition(edgeScalarVector);
 
         timeseries.push({
             turn: raw.turn,
@@ -411,11 +527,11 @@ function computeTrial() {
             cochains: edgeCochains,
             simplices: simplexResiduals,
             hodge: {
-                gradientEnergy: gradientEnergy,
-                harmonicEnergy: harmonicEnergy,
-                triadicCurlEnergy: triadicCurlEnergy,
-                legibilityRatio: legibilityRatio,
-                classification: legibilityRatio > 0.6 ? 'Macro Partition Cavity' : (triadicCurlEnergy > 0 ? 'Triadic Review Bug' : 'Consensual Alignment')
+                gradientEnergy: hodge.gradEnergy,
+                harmonicEnergy: hodge.harmEnergy,
+                triadicCurlEnergy: hodge.curlEnergy,
+                legibilityRatio: hodge.legibilityRatio,
+                classification: hodge.classification
             }
         });
     }
