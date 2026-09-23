@@ -29,8 +29,84 @@
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
+\providecolor{pdswissred}{HTML}{DA291C}
+\providecolor{pdcobalt}{HTML}{001489}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhgray}{HTML}{5C5650}
+
+% Canonical Landmark titles and pull-quotes
+\expandafter\def\csname pdlandmarktitle@01\endcsname{Agentic Psychosis \& Hallucination Cascade}
+\expandafter\def\csname pdlandmarkquote@01\endcsname{When an unanchored swarm feeds on its own unverified assertions, error does not dissipate; it cascades into conviction. Coordination requires shared physical truth, not mutual agreement on hallucinated state.}
+
+\expandafter\def\csname pdlandmarktitle@02\endcsname{Agentic Continuity \& The Overlapping Strand}
+\expandafter\def\csname pdlandmarkquote@02\endcsname{Identity is not an indivisible core preserved across time, but the continuous overlap of many short fibers. No single thread runs the full length of the rope; the strength is entirely in the friction between the splices.}
+
+\expandafter\def\csname pdlandmarktitle@03\endcsname{The Engine Swap}
+\expandafter\def\csname pdlandmarkquote@03\endcsname{The intelligence engine may be unbolted and swapped out in mid-voyage. What survives the swap is not the neural weights, but the unbroken hull of contracts, claims, and verified ledger obligations.}
+
+\expandafter\def\csname pdlandmarktitle@04\endcsname{The Front-Loaded Probation Cliff}
+\expandafter\def\csname pdlandmarkquote@04\endcsname{Autonomy is never granted on faith; it is won against a sheer cliff of probation. The newcomer faces strict confinement until its attestation record proves it will not compromise the commons.}
+
+\expandafter\def\csname pdlandmarktitle@05\endcsname{The Single-Writer Monotonic Horizon}
+\expandafter\def\csname pdlandmarkquote@05\endcsname{One writer, one lock, one monotonic frontier. Beyond the commit horizon, the unwritten future remains empty paper; behind it, no write may ever be undone, denied, or reordered.}
+
+\expandafter\def\csname pdlandmarktitle@06\endcsname{The Attenuation Frontier \& Cryptographic Macaroons}
+\expandafter\def\csname pdlandmarkquote@06\endcsname{Every delegation narrows the aperture of authority. A bearer credential cannot expand its reach as it traverses the network; it can only accumulate cryptographic caveats that bind its hands.}
+
+\expandafter\def\csname pdlandmarktitle@07\endcsname{Attestation Without Revelation (The Sealed Harbor)}
+\expandafter\def\csname pdlandmarkquote@07\endcsname{The enclave proves what was computed without disclosing what was seen. Trust in autonomous labor cannot demand total transparency; it demands unforgeable evidence of compliance.}
+
+\expandafter\def\csname pdlandmarktitle@08\endcsname{Read-Poverty \& The Legible Swarm}
+\expandafter\def\csname pdlandmarkquote@08\endcsname{In an ocean of synthetic prose, reading is infinitely more expensive than writing. A legible swarm does not shout across channels; it leaves quiet, structured pheromones in the environment.}
+
+\expandafter\def\csname pdlandmarktitle@09\endcsname{Skills as Capital vs.\ Token Labor}
+\expandafter\def\csname pdlandmarkquote@09\endcsname{Token generation is perishable labor; compiled deterministic tools are durable capital. An economy matures when agents stop paying per token to deliberate and start amortizing proven apparatus.}
+
+\expandafter\def\csname pdlandmarktitle@10\endcsname{The Bonded Commons \& Sacrificial Slashing}
+\expandafter\def\csname pdlandmarkquote@10\endcsname{Trust without collateral is wishful thinking. An agent stakes its bond in the escrow of the commons; when an invariant is breached, the tripwire snaps and the stake is forfeited without appeal.}
+
+\expandafter\def\csname pdlandmarktitle@11\endcsname{Sheaf Laplacian Invariance \& Cycle Consistency}
+\expandafter\def\csname pdlandmarkquote@11\endcsname{Local consistency along every pairwise edge does not guarantee global truth. When an assertion traverses a closed cycle of harbors and returns altered, the non-zero holonomy reveals the fraud.}
+
+\expandafter\def\csname pdlandmarktitle@12\endcsname{The Zombie Reclaim \& Salvage Graveyard}
+\expandafter\def\csname pdlandmarkquote@12\endcsname{The graveyard of abandoned sessions is the foundation of harbor resilience. When a heartbeat goes cold, no ghost may linger; the lease expires, the locks are salvaged, and the port is reclaimed.}
+
+% Single-digit alias fallbacks
+\expandafter\def\csname pdlandmarktitle@1\endcsname{\csname pdlandmarktitle@01\endcsname}
+\expandafter\def\csname pdlandmarkquote@1\endcsname{\csname pdlandmarkquote@01\endcsname}
+\expandafter\def\csname pdlandmarktitle@2\endcsname{\csname pdlandmarktitle@02\endcsname}
+\expandafter\def\csname pdlandmarkquote@2\endcsname{\csname pdlandmarkquote@02\endcsname}
+\expandafter\def\csname pdlandmarktitle@3\endcsname{\csname pdlandmarktitle@03\endcsname}
+\expandafter\def\csname pdlandmarkquote@3\endcsname{\csname pdlandmarkquote@03\endcsname}
+\expandafter\def\csname pdlandmarktitle@4\endcsname{\csname pdlandmarktitle@04\endcsname}
+\expandafter\def\csname pdlandmarkquote@4\endcsname{\csname pdlandmarkquote@04\endcsname}
+\expandafter\def\csname pdlandmarktitle@5\endcsname{\csname pdlandmarktitle@05\endcsname}
+\expandafter\def\csname pdlandmarkquote@5\endcsname{\csname pdlandmarkquote@05\endcsname}
+\expandafter\def\csname pdlandmarktitle@6\endcsname{\csname pdlandmarktitle@06\endcsname}
+\expandafter\def\csname pdlandmarkquote@6\endcsname{\csname pdlandmarkquote@06\endcsname}
+\expandafter\def\csname pdlandmarktitle@7\endcsname{\csname pdlandmarktitle@07\endcsname}
+\expandafter\def\csname pdlandmarkquote@7\endcsname{\csname pdlandmarkquote@07\endcsname}
+\expandafter\def\csname pdlandmarktitle@8\endcsname{\csname pdlandmarktitle@08\endcsname}
+\expandafter\def\csname pdlandmarkquote@8\endcsname{\csname pdlandmarkquote@08\endcsname}
+\expandafter\def\csname pdlandmarktitle@9\endcsname{\csname pdlandmarktitle@09\endcsname}
+\expandafter\def\csname pdlandmarkquote@9\endcsname{\csname pdlandmarkquote@09\endcsname}
+
 \newcommand{\pdswisslandmarkplate}[2]{% #1 landmark ID (e.g. 01..12), #2 width
   \IfFileExists{plates/swiss/landmark-#1.jpg}{%
-    \includegraphics[width=#2]{plates/swiss/landmark-#1.jpg}}{%
+    \centering
+    \includegraphics[width=#2,height=0.66\textheight,keepaspectratio]{plates/swiss/landmark-#1.jpg}%
+    \par\vspace{10pt}%
+    \begin{minipage}{\linewidth}%
+      {\color{pdcobalt}\rule{\linewidth}{1.2pt}}\par\vspace{6pt}%
+      \raggedright
+      {\color{pdswissred}\rule{4.5pt}{4.5pt}}\enspace%
+      {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
+        Landmark #1\enspace\textperiodcentered\enspace\csname pdlandmarktitle@#1\endcsname}\par\vspace{4.5pt}%
+      {\pdgrotesk\itshape\fontsize{9.5}{13.5}\selectfont\color{hhink}%
+        ``\csname pdlandmarkquote@#1\endcsname''\par}%
+      \vspace{6pt}%
+      {\color{hhgray!30}\rule{\linewidth}{0.4pt}}%
+    \end{minipage}%
+  }{%
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/landmark-#1.jpg}{Generate the Swiss landmark plate render and place it at plates/swiss/landmark-#1.jpg before building.}}}
 \makeatother
