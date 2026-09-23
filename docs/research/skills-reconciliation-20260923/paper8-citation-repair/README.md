@@ -42,3 +42,8 @@ The affected timing panel had hard-coded values without a reproducible run
 receipt and contradicted the approximation qualification. It is replaced by an
 explicit conditional analytical curve; the unsupported hardware latency and
 competitor cost comparisons are removed from the corresponding prose.
+
+A [browser walkthrough recording](page-walkthrough.webm) shows the rendered
+figure, qualified comparison, and bibliography in the [proof viewer](review.html).
+This records interaction with the source-bound proof pages, not a deployed
+website session.

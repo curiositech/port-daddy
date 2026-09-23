@@ -28,7 +28,7 @@ Coverage and navigation do not certify every inherited claim or execute every im
 
 ## Visual Proof
 
-Paper 8 was rebuilt in two passes and its affected pages visually inspected.
+Paper 8 was rebuilt in two passes and its affected pages visually inspected. A [recorded browser walkthrough of the rendered pages](https://raw.githubusercontent.com/curiositech/port-daddy/__SOURCE_HEAD__/docs/research/skills-reconciliation-20260923/paper8-citation-repair/page-walkthrough.webm) shows the analytical figure, qualified comparison, and bibliography in the local proof viewer.
 
 ![Corrected Paper 8 bibliography](https://raw.githubusercontent.com/curiositech/port-daddy/__SOURCE_HEAD__/docs/research/skills-reconciliation-20260923/paper8-citation-repair/page-24.png)
 
