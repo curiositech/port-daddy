@@ -23,24 +23,21 @@
   The noninterference claim must name what that output may reveal and which
   other channels the model excludes.}
 \newcommand{\pdreflectiontocentry}[2]{%
-  \begin{minipage}[c]{.25\linewidth}%
-    \includegraphics[width=\linewidth,height=.85in,keepaspectratio]{plates/interstitial/#1.png}%
+  \begin{minipage}[c]{.19\linewidth}%
+    \includegraphics[width=\linewidth,height=.62in,keepaspectratio]{plates/interstitial/#1.png}%
   \end{minipage}\hfill
-  \begin{minipage}[c]{.65\linewidth}\raggedright\small
-    \textbf{Plate: #2}%
-  \end{minipage}\hfill
-  \makebox[.06\linewidth][r]{\small\ifdefined\pdcurrentplatepage\pdcurrentplatepage\fi}}
+  \begin{minipage}[c]{.76\linewidth}\raggedright\small
+    Plate: #2%
+  \end{minipage}}
 \newcommand*{\l@pdplate}[2]{%
-  \par\addvspace{6pt}\noindent
-  \def\pdcurrentplatepage{#2}%
-  #1%
-  \par\addvspace{6pt}}
+  \par\addvspace{7pt}\noindent
+  \begin{minipage}[c]{.90\linewidth}#1\end{minipage}\hfill
+  \makebox[.07\linewidth][r]{\small #2}\par\addvspace{7pt}}
 \newcommand{\pd@reflection@render}[1]{%
   \IfFileExists{plates/interstitial/#1.png}{%
     \thispagestyle{empty}%
     \ifcsname pd@reflection@title@#1\endcsname
       \phantomsection\label{plate:#1}%
-      \addcontentsline{toc}{pdplate}{\protect\texorpdfstring{\protect\pdreflectiontocentry{#1}{\csname pd@reflection@title@#1\endcsname}}{Plate: \csname pd@reflection@title@#1\endcsname}}%
     \else
       \PackageError{pd-reflection-plates}{Missing contents title for #1}%
         {Register this plate with pdreflectiontitle before placing it.}%
