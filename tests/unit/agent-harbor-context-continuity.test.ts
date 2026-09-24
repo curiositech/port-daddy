@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { afterEach, describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { createTranscripts } from '../../lib/transcripts.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { createContinuationStore, hashContinuationPrompt } from '../../lib/continuation-runtime.js';
@@ -28,6 +28,62 @@ afterEach(() => {
 });
 
 describe('Agent Harbor context continuity vertical slice', () => {
+  test('bridges transcript rows after another producer advances the managed session', () => {
+    const { db, transcripts, bridge } = state();
+    const agentId = 'spawn-shared-session-agent';
+    const sessionId = 'managed-shared-session';
+    const transcriptId = transcripts.start({
+      id: 'transcript-shared-session', ship: 'test', spawned_agent_id: agentId,
+      trigger: 'test', backend: 'cli:codex', model: 'gpt-5', started_at: 1_000,
+    });
+    transcripts.appendMessage(transcriptId, {
+      role: 'assistant', content: 'Final answer survives interleaved writes.', timestamp: 1_003,
+    });
+    bridge.registerNode(agentId, null, 1_000, { sessionId, runId: 'managed-run' });
+    expect(bridge.appendTranscriptEvent(agentId, 'session_started', 1_000)).not.toBeNull();
+
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        eventId: 'evt-interleaved-context-pressure', sessionId, agentNodeId: agentId,
+        sequence: 2, occurredAt: new Date(1_001).toISOString(), schemaVersion: 1,
+        kind: 'context_pressure', visibility: 'operator', payloadJson: {},
+      },
+    });
+
+    expect(bridge.syncTranscript(agentId, transcriptId)).toBe(1);
+    expect(bridge.appendTranscriptEvent(agentId, 'session_end', 1_004)).not.toBeNull();
+    const events = readEvents(db, { streamType: 'transcript-event', sessionId });
+    expect(events.map((event) => [event.sequence, event.kind])).toEqual([
+      [1, 'session_started'],
+      [2, 'context_pressure'],
+      [3, 'assistant_message'],
+      [4, 'session_end'],
+    ]);
+    expect(verifySessionChain(db, sessionId)).toBeNull();
+  });
+
+  test('a failed bridge append leaves the durable sequence available for retry', () => {
+    const { db, bridge } = state();
+    const agentId = 'spawn-retry-agent';
+    const sessionId = 'managed-retry-session';
+    bridge.registerNode(agentId, null, 1_000, { sessionId, runId: 'managed-run' });
+    db.exec(`CREATE TRIGGER reject_bridge_event BEFORE INSERT ON harbor_events
+      WHEN NEW.stream_type = 'transcript-event'
+      BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END`);
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(bridge.appendTranscriptEvent(agentId, 'assistant_message', 1_001)).toBeNull();
+    } finally {
+      error.mockRestore();
+    }
+    db.exec('DROP TRIGGER reject_bridge_event');
+
+    expect(bridge.appendTranscriptEvent(agentId, 'assistant_message', 1_002)).not.toBeNull();
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId }).map(event => event.sequence)).toEqual([1]);
+    expect(verifySessionChain(db, sessionId)).toBeNull();
+  });
+
   test('turns redacted transcript rows into a verified packet and standard exactly-once handoff input', () => {
     const { db, transcripts, episodicMemory, bridge, errors } = state();
     const agentId = 'spawn-context-critical';

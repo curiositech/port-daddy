@@ -76,27 +76,9 @@ export function createSpawnerHarborBridge(
   db: DatabaseInstance,
   deps: ContextContinuityCoordinatorDeps = {},
 ): SpawnerHarborBridge {
-  // Sequence by admitted session, never by a guessed agent/session equivalence.
-  // A fresh bridge reads the durable head before appending its first event.
-  const seqBySession = new Map<string, number>();
   const bindings = new Map<string, { sessionId: string; runId: string }>();
   const messageSeqByTranscript = new Map<string, number>();
   const continuity = createContextContinuityCoordinator(db, deps);
-
-  function nextSeq(sessionId: string): number {
-    let current = seqBySession.get(sessionId);
-    if (current === undefined) {
-      const row = db.prepare(`
-        SELECT MAX(sequence) AS max_sequence
-        FROM harbor_events
-        WHERE stream_type = 'transcript-event' AND session_id = ?
-      `).get(sessionId) as { max_sequence: number | null };
-      current = row.max_sequence ?? 0;
-    }
-    const n = current + 1;
-    seqBySession.set(sessionId, n);
-    return n;
-  }
 
   function registerNode(agentId: string, identity: string | null, startedAt: number, binding: { sessionId: string; runId: string }): void {
     try {
@@ -138,20 +120,30 @@ export function createSpawnerHarborBridge(
       const binding = bindings.get(agentId);
       if (!binding) return null;
       const sessionId = binding.sessionId;
-      appendEvent(db, {
-        streamType: 'transcript-event',
-        payload: {
-          eventId,
-          sessionId,
-          agentNodeId: agentId,
-          sequence: nextSeq(sessionId),
-          occurredAt: new Date(occurredAt).toISOString(),
-          schemaVersion: 1,
-          kind,
-          visibility: 'operator',
-          payloadJson: { ...payloadJson, runId: binding.runId },
-        },
-      });
+      // The managed session has other transcript producers. Read its durable
+      // head for every append, with a writer lock before allocation so a second
+      // SQLite connection cannot claim the same sequence between read and write.
+      db.transaction(() => {
+        const row = db.prepare(`
+          SELECT MAX(sequence) AS max_sequence
+          FROM harbor_events
+          WHERE stream_type = 'transcript-event' AND session_id = ?
+        `).get(sessionId) as { max_sequence: number | null };
+        appendEvent(db, {
+          streamType: 'transcript-event',
+          payload: {
+            eventId,
+            sessionId,
+            agentNodeId: agentId,
+            sequence: (row.max_sequence ?? 0) + 1,
+            occurredAt: new Date(occurredAt).toISOString(),
+            schemaVersion: 1,
+            kind,
+            visibility: 'operator',
+            payloadJson: { ...payloadJson, runId: binding.runId },
+          },
+        });
+      }).immediate();
       return eventId;
     } catch (err) {
       console.error(`[agent-harbor] spawner-bridge appendTranscriptEvent failed agent=${agentId}: ${String(err)}`);
@@ -210,10 +202,6 @@ export function createSpawnerHarborBridge(
   function recordContext(sample: ContextContinuitySample): ContextContinuityResult | null {
     try {
       const result = continuity.record(sample);
-      // The coordinator appends after this bridge's last lifecycle event.
-      // Re-read the head before any hypothetical late event to avoid a stale
-      // in-memory sequence after compaction appended its own packet.
-      seqBySession.delete(sample.sessionId);
       return result;
     } catch (err) {
       console.error(`[agent-harbor] spawner-bridge recordContext failed agent=${sample.agentNodeId}: ${String(err)}`);
