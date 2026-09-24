@@ -392,16 +392,13 @@ function computeExactHodgeDecomposition(g: number[]) {
     const legibilityRatio = denom > 1e-6 ? Math.round((harmEnergy / denom) * 100) / 100 : 1.0;
 
     const totalE = gradEnergy + curlEnergy + harmEnergy;
-    let classification = 'Consensual Alignment';
-    if (totalE < 1.0) {
-        classification = 'Consensual Alignment';
-    } else if (curlEnergy > 5.0) {
-        classification = 'Triadic Review Bug';
-    } else if (harmEnergy > 5.0) {
-        classification = 'Macro Partition Cavity';
-    } else {
-        classification = 'Benign Velocity Differential';
-    }
+    const classification = totalE < 1.0
+        ? 'Consensual Alignment'
+        : curlEnergy > 5.0
+        ? 'Triadic Review Bug'
+        : harmEnergy > 5.0
+        ? 'Macro Partition Cavity'
+        : 'Benign Velocity Differential';
 
     return {
         gradEnergy,

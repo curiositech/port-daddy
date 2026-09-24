@@ -658,8 +658,7 @@
       "authority": "design-claim",
       "status": "historical",
       "paths": [
-        "skills/pd-relay-zero-trust/templates/proverif-relay.pv",
-        ".agents/skills/pd-relay-zero-trust/templates/proverif-relay.pv"
+        "skills/pd-relay-zero-trust/templates/proverif-relay.pv"
       ],
       "method": "ProVerif",
       "owner": "skills/pd-relay-zero-trust",
@@ -694,8 +693,7 @@
         "skills/harbor-results/scripts/sheaf_mechanism_proof.py",
         "skills/harbor-results/scripts/sheaf_harness_v2.py",
         "skills/harbor-results/scripts/sheaf_consistency_radius.py",
-        "skills/harbor-results/scripts/zoom_bound_check.py",
-        "skills/harbor-results/scripts/sheaf_repair_and_2complex.py"
+        "skills/harbor-results/scripts/zoom_bound_check.py"
       ],
       "owner": ".github/workflows/proofs.yml",
       "ci": {
@@ -703,6 +701,19 @@
         "job": [
           "harbor-results-estate"
         ]
+      }
+    },
+    {
+      "id": "harbor-results-sheaf-repair-2complex",
+      "kind": "deterministic-result-checker-suite",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/sheaf_repair_and_2complex.py"
+      ],
+      "owner": "skills/harbor-results",
+      "ci": {
+        "status": "retired",
+        "reason": "R6 research-program extension for CR-4/CR-5 2-complex simplicial Hodge legibility and active repair; asserted via standalone unit verification"
       }
     },
     {
