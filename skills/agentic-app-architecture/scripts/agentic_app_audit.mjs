@@ -27,6 +27,7 @@ export function validateAgenticAppSpec(spec){
  return {valid:errors.length===0,errors};
 }
 export function auditAgenticAppArchitecture(spec){
+ if(!object(spec))throw new TypeError('spec must be a JSON object matching schemas/agentic-app-spec.schema.json');
  const v=validateAgenticAppSpec(spec);if(!v.valid)return {pass:false,schemaValid:false,coverageByAxis:{},findings:v.errors.map(message=>({id:'invalid-declaration',axis:'schema',severity:'critical',message})),recommendations:['Repair the declaration before interpreting design findings.'],scope:'Static declaration audit only; no runtime, enforcement, provider, account, or effect evidence was observed.'};
  const findings=[];const add=(axis,id,severity,message)=>findings.push({axis,id,severity,message});const {transparency:t,stateModel:s,contextStrategy:c,capabilities:p,execution:e}=spec;const consequential=e.effectClass==='external-or-irreversible';const effectful=e.effectClass!=='none';const powered=p.tools==='used'||p.mcp.status==='used';
  if((powered||effectful)&&t.actionDisclosure==='not-applicable')add('transparency','missing-action-disclosure','high','Declared tools, MCP or effects require an action disclosure level.');

@@ -11,11 +11,8 @@
   "reviewed_at": "2026-09-24T09:30:49.742428+00:00",
   "editions": [
     {
-      "edition": "maritime",
       "width_in": 4.5988750000000005,
       "height_in": 3.949277777777778,
-      "report": "four-graphs-renders/maritime/render-report.json",
-      "png": "four-graphs-renders/maritime/four-graphs-maritime/four-graphs-maritime.png",
       "png_sha256": "09f30aa40447db6a49a5225246e649b440c312721746c90206e741264b7c893b",
       "pdf_sha256": "2f8f3125d1ba852c6455b995d88897fc87125a34adb99e771b9e70e375281900",
       "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
@@ -31,14 +28,12 @@
       "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
     },
     {
-      "edition": "technical",
       "width_in": 4.5988750000000005,
       "height_in": 3.949277777777778,
-      "report": "four-graphs-renders/technical/render-report.json",
-      "png": "four-graphs-renders/technical/four-graphs-technical/four-graphs-technical.png",
       "png_sha256": "dfd5764a04b63e717b845a3d256fad75912e19de84f10e64d0a08ca363ed4d3d",
       "pdf_sha256": "5392d0c18e1d2e2edefc58072ef78625d9856fdfcd6fa56bbf9cb00976013f43",
       "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
     }
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

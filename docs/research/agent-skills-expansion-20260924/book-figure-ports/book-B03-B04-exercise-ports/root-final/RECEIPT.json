@@ -6,11 +6,7 @@
   "page_previews": 6,
   "root_viewed_pages": [
     "renders/status-history-swiss-page.png",
-    "renders/status-history-maritime-page.png",
-    "renders/status-history-technical-page.png",
-    "renders/search-evidence-swiss-page.png",
-    "renders/search-evidence-maritime-page.png",
-    "renders/search-evidence-technical-page.png"
+    "renders/search-evidence-swiss-page.png"
   ],
   "max_text_width_in": 4.487132694444444,
   "imports": [
@@ -33,8 +29,6 @@
       "matches": true
     },
     {
-      "source": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/figures/pd-figure-language-technical.tex",
-      "copy": "figures/pd-figure-language-technical.tex",
       "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
       "matches": true
     }
@@ -86,5 +80,6 @@
     "No Book integration",
     "No publication",
     "No empirical novelty"
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

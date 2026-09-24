@@ -32,7 +32,6 @@
       "size": 2430
     },
     {
-      "path": "figures/pd-figure-language-technical.tex",
       "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
       "size": 2842
     },
@@ -62,12 +61,10 @@
       "size": 3224
     },
     {
-      "path": "mas-worksheet-maritime-page.tex",
       "sha256": "8d56d26884b8c9cf8c71a95c5a0091b0b8fefab207c7ceaa3c15265414410dc4",
       "size": 1156
     },
     {
-      "path": "mas-worksheet-maritime.tex",
       "sha256": "92d467931cab7415307f685240dfef6217905f16a090736015db6662a5f664a8",
       "size": 629
     },
@@ -82,12 +79,10 @@
       "size": 626
     },
     {
-      "path": "mas-worksheet-technical-page.tex",
       "sha256": "ddc9c373522f33e68956524d428cdc6aec97792cbee4c5a7fbeafd13d654fb27",
       "size": 1157
     },
     {
-      "path": "mas-worksheet-technical.tex",
       "sha256": "74d41409c467c06b4c227d55f105c2eb1e56332a7c34751a9fa7dcc66fae278a",
       "size": 630
     },
@@ -112,52 +107,42 @@
       "size": 1160
     },
     {
-      "path": "renders/mas-worksheet-maritime-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/mas-worksheet-maritime-page.fls",
       "sha256": "5496d2788a72a5e60f4a47a5f5d487cca39957465676c9f16c651570ad06d52e",
       "size": 19789
     },
     {
-      "path": "renders/mas-worksheet-maritime-page.log",
       "sha256": "b6b80a912ce32592aeadc8c1986b4f350ffb3132fab25f89a248544f9f76029c",
       "size": 21387
     },
     {
-      "path": "renders/mas-worksheet-maritime-page.pdf",
       "sha256": "838a81a51c9899dbc9ec9b39b3f375a81ae054c50fe0adc14b8f10cdfc69f436",
       "size": 133427
     },
     {
-      "path": "renders/mas-worksheet-maritime-page.png",
       "sha256": "66bdca46faed1e3b4784fe7881d684c81d0375f378bd818d7ba4e44c27521a47",
       "size": 137782
     },
     {
-      "path": "renders/mas-worksheet-maritime.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/mas-worksheet-maritime.fls",
       "sha256": "7d58846f4b3fdbb2e32393c6b1c136248c2d5545c40bac1897793fd9a1e7f664",
       "size": 20579
     },
     {
-      "path": "renders/mas-worksheet-maritime.log",
       "sha256": "0f9d63cb50f910222b3108e4d15cc41d22268927e14686563dec784598adea72",
       "size": 21101
     },
     {
-      "path": "renders/mas-worksheet-maritime.pdf",
       "sha256": "5c684cad9784329f2b52d75e0a07a25b2ccb48f463f8ec010b51ccfaf70d9348",
       "size": 131708
     },
     {
-      "path": "renders/mas-worksheet-maritime.png",
       "sha256": "358c52f336426dbd706e57cff5700db18bbe15d76f891448639ed7afdf0ffd2c",
       "size": 92671
     },
@@ -212,52 +197,42 @@
       "size": 91927
     },
     {
-      "path": "renders/mas-worksheet-technical-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/mas-worksheet-technical-page.fls",
       "sha256": "24ddfebeb244ad7521e2a9c48ca2521d5312e0b27e85bff9d7b90dc3f8b16e50",
       "size": 20977
     },
     {
-      "path": "renders/mas-worksheet-technical-page.log",
       "sha256": "3a00e60739fd1efbbc7e73786882e78b7edf4b6586484cf5edde6b6665ed6a8b",
       "size": 21821
     },
     {
-      "path": "renders/mas-worksheet-technical-page.pdf",
       "sha256": "1667121da648b12a62aa96a70e563a94e53ab0498584971acc929798a6b1820e",
       "size": 124425
     },
     {
-      "path": "renders/mas-worksheet-technical-page.png",
       "sha256": "164bb1a5809973173450d3f22c9387dfa7b73a10fa892f5f4ce4170f7a618578",
       "size": 137025
     },
     {
-      "path": "renders/mas-worksheet-technical.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/mas-worksheet-technical.fls",
       "sha256": "906c12b68de754ef8835ef93bf18c21cca6099ddf23236c8398fde498a11487e",
       "size": 21616
     },
     {
-      "path": "renders/mas-worksheet-technical.log",
       "sha256": "80bd7f740cc025597ecab952f0bd0f305ca98a0edfa6532728c239f6fd24ff6f",
       "size": 21463
     },
     {
-      "path": "renders/mas-worksheet-technical.pdf",
       "sha256": "f61210ea62fb175adf67da87f6b6b973a97af8eb643ee714366f1f50820b9c9e",
       "size": 75412
     },
     {
-      "path": "renders/mas-worksheet-technical.png",
       "sha256": "1efe04be3961568876639f0b4a62036e458035ee1da7547558bc91018925de0d",
       "size": 91351
     },
@@ -271,5 +246,6 @@
       "sha256": "60980ce5d25087a40c5db3094acbf30b3655d936f07438d1ea1fb3c270577250",
       "size": 3586
     }
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

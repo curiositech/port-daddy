@@ -8,7 +8,10 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 export const RETIRED_TOKEN = ['win', 'dags'].join('');
 export const MANIFEST_PATH = 'config/skill-source-attribution.json';
 export const CATALOG_PATH = 'docs/research/skills-reconciliation-20260923/skill-catalog.csv';
-const REPORT_PREFIX = 'docs/research/skills-reconciliation-20260923/';
+const REPORT_PREFIXES = [
+  'docs/research/skills-reconciliation-20260923/',
+  'docs/research/agent-skills-expansion-20260924/',
+];
 
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const containsAttribution = (path, bytes) =>
@@ -20,7 +23,7 @@ export function eligibleAttributionPath(path, sourceNames) {
   const parts = path.split('/');
   const authorityNames = new Set(['agents.md', 'claude.md', 'gemini.md', '.claude', '.codex', '.cursor', '.agents', '.gemini', '.github', 'hooks']);
   if (parts.some((part) => authorityNames.has(part.toLowerCase()))) return false;
-  if (path.startsWith(REPORT_PREFIX)) return true;
+  if (REPORT_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
   return parts.length >= 3 && parts[0] === 'skills' && sourceNames.has(parts[1]) &&
     !parts[1].startsWith('port-daddy') && !parts[1].startsWith('jury-rig');
 }
@@ -62,7 +65,7 @@ export function isContainedTarget(root, target) {
 export function collectAttributionFiles(repo, manifest = { entries: [] }) {
   const root = realpathSync(repo);
   const referenced = new Set((manifest.entries ?? []).map((entry) => entry.path));
-  const paths = [...new Set(execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root })
+  const paths = [...new Set(execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, maxBuffer: 64 * 1024 * 1024 })
     .toString('utf8').split('\0').filter((path) => path && existsSync(join(root, path))))].sort();
   const files = new Map();
   for (const path of paths) {

@@ -1,6 +1,5 @@
 [
   {
-    "edition": "maritime",
     "actual_page_size": "504 x 720 pts",
     "embedded_fonts": true,
     "standalone_size": "331.119 x 260.253 pts",
@@ -8,7 +7,6 @@
     "column_width_cm": 11.43
   },
   {
-    "edition": "technical",
     "actual_page_size": "504 x 720 pts",
     "embedded_fonts": true,
     "standalone_size": "331.119 x 260.253 pts",

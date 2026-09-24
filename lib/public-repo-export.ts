@@ -44,6 +44,7 @@ export function listTrackedFilesAtRef(ref: string = 'HEAD', cwd: string = repoRo
   const output = execFileSync('git', ['ls-tree', '-r', '--name-only', ref], {
     cwd,
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   });
 
   return output

@@ -183,6 +183,7 @@ function semanticChecks(plan, findings) {
 
 /** Static declaration check only. A pass is not deployment or readiness evidence. */
 export function auditInfraReadiness(plan) {
+  if (!isPlainObject(plan)) throw new TypeError('plan must be a JSON object matching schemas/infra-plan.schema.json');
   const findings = [];
   const jsonErrors = [];
   try { inspectJsonValue(plan, '$', jsonErrors); }

@@ -12,15 +12,14 @@ const topologyFor = {elo: 'pairwise', trueskill: 'team-or-draw', bandit: 'contex
 const plain = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 export function auditReputationDesign(plan) {
+  if (!plain(plan)) throw new TypeError('plan must be a JSON object matching schemas/reputation-plan.schema.json');
   const findings = [];
   const recommendations = [];
   const fail = (id, severity, message, recommendation) => {
     findings.push({id, severity, message});
     if (recommendation) recommendations.push(recommendation);
   };
-  if (!plain(plan)) {
-    fail('schema-invalid-plan', 'critical', 'Plan is not a JSON object.', 'Supply an object conforming to the schema.');
-  } else if (!validate(plan)) {
+  if (!validate(plan)) {
     for (const error of validate.errors ?? []) fail('schema-invalid-plan', 'critical', (error.instancePath || '/') + ' ' + (error.message || 'fails schema') + '.', 'Provide required declarations with allowed values.');
   }
   if (!findings.length) {

@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "profile": "v2",
   "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
-  "fileCount": 233,
-  "packetSha256": "8889cc50f6be15d67f45ba338d46a3d8453a99292d31cfd6681695ccb43f8e8d",
+  "fileCount": 238,
+  "packetSha256": "01ead5201f1ce8fb7d3b8e082d7570b170f9e82f9024149cdc204b2e6b585c0e",
   "files": [
     {
       "path": "docs/research/drydock-anchor-convention/convention.json",
@@ -587,7 +587,7 @@
     },
     {
       "path": "skills/manager-driven-team-orchestrator/affordance-scorecard.json",
-      "sha256": "bb9c359b8110eaf5ab1317947e0982741336fc2d4843dfb4f6e462c813ef5962"
+      "sha256": "6092688cae298427918cb892f724c185ab2f920754a53afc4bd265157cbd541e"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/CHANGELOG.md",
@@ -598,24 +598,28 @@
       "sha256": "c78adc2e0b1bf9e2adb11837ddae0f485f643cc58e33950281cfe69d77ce39b7"
     },
     {
+      "path": "skills/manager-driven-team-orchestrator/references/independent-review-boundary.md",
+      "sha256": "49aa6bc037daea4509230b440a0c9c91adf55895c1425ecd62cdf55e6e7d3021"
+    },
+    {
       "path": "skills/manager-driven-team-orchestrator/references/protocol-and-authority.md",
-      "sha256": "2ab628552bbe8dea72c32562ca99e4568d056558c0c0f98a9c88422d3bd5889e"
+      "sha256": "41bc9ecf36d28a1d835769047d39da0787c0afc524818f3bf40eddad2ebffc44"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/schemas/bounded-synthesis-v2.schema.json",
-      "sha256": "3350c6fbd42bf861f0c2b9f663495bb99fff61350e33aed1e07c5b9b1730ab3a"
+      "sha256": "351a89c71ca12ea18c2c5d6d30d90e0043a223d04141c8c11670b8836a2b5ba2"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/scripts/audit-bounded-synthesis.mjs",
-      "sha256": "b4c9a1b9298437bc4d9d30d2b50fbd82a7e9aa9dfccbf0c45ea7508633eddde9"
+      "sha256": "9cc957295206057fd7d03a949c87c6dfbf1090e5b045ed5a3bec4c23002cf1d4"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/scripts/test-bundle.mjs",
-      "sha256": "f2720344b9dc4c4006cc320e476de53ea7915ba34c30d50b6d240e683f409a6b"
+      "sha256": "3bb7f7ad17f9b0b2412217e876d353e2f35003944842fb6076f0acfe23a51633"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/SKILL.md",
-      "sha256": "2e6ea994e19f559610e496e25bc2cf46445589eb4f2e51906b326148bd8b0c49"
+      "sha256": "0db214fefaf8bc975012da93b6c8c59d1148d7b103cc6aa3f05499deebad7b05"
     },
     {
       "path": "skills/manager-driven-team-orchestrator/tests/activation.md",
@@ -675,7 +679,7 @@
     },
     {
       "path": "skills/provable-action-adjudicator/diagrams/01_flowchart_decision-points.md",
-      "sha256": "daddd13c99bc54173a5f30925dc8c5475a9f8fee2eef53a3fe4ffdad3918e448"
+      "sha256": "86fb58f3cb2c1c55561de252c4b6944dc2743246d79fa651aa8158fabeaa0aa3"
     },
     {
       "path": "skills/provable-action-adjudicator/diagrams/01-claim-ladder.md",
@@ -683,11 +687,23 @@
     },
     {
       "path": "skills/provable-action-adjudicator/diagrams/02-pre-effect-sequence.md",
-      "sha256": "2a586a3742ddc653bcc7006ce7514f91f94153ca11213d520450dd0d82f3ed17"
+      "sha256": "5de16735c4633a35c20048d1a843d1b75f9627fd1a1447df40516d122d14a7ac"
     },
     {
       "path": "skills/provable-action-adjudicator/diagrams/INDEX.md",
-      "sha256": "a7e874ede35c24156c12bb3b5b03e3b02abae1e5529b80c7bc50f40b38f030d5"
+      "sha256": "3080f717aa1208d70f8a5d281496b8cda35364657a791ec61265c2dc5d4ffba5"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p01-policy-verdict-is-separate-from-external-effect-truth.md",
+      "sha256": "09f49bf5e198b88417940de028e4be58a9083cec51678ac502f425fa0132ee28"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p02-one-use-admission-does-not-guarantee-exactly-once-effect.md",
+      "sha256": "7e3578da0f422a31dc3bdaf90e4ba792fb6e4e4667a881ea3b3860e39beda529"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p03-evidence-classes-have-separate-scopes-they-are-not-an-automatic-ladder.md",
+      "sha256": "eb17a82932063e285d150b73f3bac24d987b8047eadcdf61b54eda4416714511"
     },
     {
       "path": "skills/provable-action-adjudicator/examples/static-verifier-audit.json",
@@ -703,7 +719,7 @@
     },
     {
       "path": "skills/provable-action-adjudicator/references/deontic-logic-for-agents.md",
-      "sha256": "e6e9bc5f6444511be613d2813d1ec0f2203a98a3e7b4adc7ad53c19d551c27ff"
+      "sha256": "66eba8a0d80f6b7a4c254805dd6332d2ee22ac3de856939dd59abdaef4d41cfe"
     },
     {
       "path": "skills/provable-action-adjudicator/references/evidence-classes-and-uncertain-effects.md",
@@ -715,7 +731,7 @@
     },
     {
       "path": "skills/provable-action-adjudicator/references/INDEX.md",
-      "sha256": "ba2cad8789802921cc87da4da3025cd31517a5f87ba75860baf814afbd553e6d"
+      "sha256": "d212b400250d010c376556a76eb54534f74dbc3867cc7b180105782530c6c2e8"
     },
     {
       "path": "skills/provable-action-adjudicator/references/lean-agent-pattern.md",
@@ -730,24 +746,28 @@
       "sha256": "c53b031999f8f210d820a1c367fb4be98744a89a19122cd3609dcf582c560481"
     },
     {
+      "path": "skills/provable-action-adjudicator/references/source-correction-ledger.md",
+      "sha256": "96b8cd3208ec73370f8610142c9bc611fad4a397d9ab84121a6dcbc41fbbcd33"
+    },
+    {
       "path": "skills/provable-action-adjudicator/references/source-ledger.md",
       "sha256": "f27665f215ddcba4e50d4351189bf6e9281828a2418f50f4622019d941d5b2b3"
     },
     {
       "path": "skills/provable-action-adjudicator/schemas/adjudication-audit.schema.json",
-      "sha256": "7b80468d7361c99784f7ef168c1410953e66d74fc5b106975dec81f11746630e"
+      "sha256": "4df9632ca40ff97542ba158c278d9fabc155b9568d91f9f03a281be2d7687a0a"
     },
     {
       "path": "skills/provable-action-adjudicator/scripts/test-bundle.mjs",
-      "sha256": "d38def81a2e4b8ed81ab93f814b891239247124a2d674e359e14e7a222cf7b15"
+      "sha256": "b75a3354917db21844ee9008509c218032f6d965ceec66a357821a1faa1bc681"
     },
     {
       "path": "skills/provable-action-adjudicator/scripts/validate-adjudication-audit.mjs",
-      "sha256": "c892fdef6a94bf1115caf05357edc616d8f82b55f2518c50821ba798e1c444ad"
+      "sha256": "32ac28c4d7b6e1f3046dccd988513c619b005271885f591a7da05439f58a9bd3"
     },
     {
       "path": "skills/provable-action-adjudicator/SKILL.md",
-      "sha256": "6094c850ab84239eb9b3aae4ef45792d479f41e129fa50d45ba032ae7a1e3f9f"
+      "sha256": "d730e011e2c1612f997621c9eb77dabb20d74cf4520e52ec000de99b9d18355b"
     },
     {
       "path": "skills/provable-action-adjudicator/tests/activation.md",

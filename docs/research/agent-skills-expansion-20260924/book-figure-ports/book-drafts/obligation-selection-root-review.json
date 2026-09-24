@@ -4,8 +4,6 @@
   "reviews": [
     {
       "figure": "draft/obligation-context-receipt",
-      "edition": "maritime",
-      "png": "obligation-and-selection/renders/obligation/maritime/obligation-maritime/obligation-maritime.png",
       "sha256": "ffecfcd3ed57ccc0bce03251d3e446f945ed2f316027ced668197c117f24da61",
       "root_visual_review": "Opened complete final PNG at original resolution. Table values, row labels, arrows and footer fit without clipping; obligation footer repair rechecked in all three editions."
     },
@@ -18,15 +16,11 @@
     },
     {
       "figure": "draft/obligation-context-receipt",
-      "edition": "technical",
-      "png": "obligation-and-selection/renders/obligation/technical/obligation-technical/obligation-technical.png",
       "sha256": "8b79b6d3bcff42ab579a85439dfedbdf60d4e39ad26016a36ed6f77278a03a53",
       "root_visual_review": "Opened complete final PNG at original resolution. Table values, row labels, arrows and footer fit without clipping; obligation footer repair rechecked in all three editions."
     },
     {
       "figure": "draft/selection-aware-skill-promotion",
-      "edition": "maritime",
-      "png": "obligation-and-selection/renders/selection/maritime/selection-maritime/selection-maritime.png",
       "sha256": "69893e25970f1e7937f91848826ed2ad0bb348f29f056c24304d45608aa866db",
       "root_visual_review": "Opened complete final PNG at original resolution. Table values, row labels, arrows and footer fit without clipping; obligation footer repair rechecked in all three editions."
     },
@@ -39,10 +33,9 @@
     },
     {
       "figure": "draft/selection-aware-skill-promotion",
-      "edition": "technical",
-      "png": "obligation-and-selection/renders/selection/technical/selection-technical/selection-technical.png",
       "sha256": "e2abbf9e7a4c59178c6482835189799f367c396c594be0aa22c9bce3500abb16",
       "root_visual_review": "Opened complete final PNG at original resolution. Table values, row labels, arrows and footer fit without clipping; obligation footer repair rechecked in all three editions."
     }
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

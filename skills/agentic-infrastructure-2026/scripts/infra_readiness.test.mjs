@@ -24,8 +24,11 @@ test('schema and API agree on mandatory gates; unknown local properties remain a
   assert.equal(auditInfraReadiness(plan).pass, true);
 });
 
-test('null, arrays, primitives, and malformed nested containers fail without throwing', () => {
-  for (const malformed of [null, [], 'plan', 4, { ...clone(), security: null }, { ...clone(), framework: [] }, { ...clone(), evaluation: { ...clone().evaluation, taskSet: null } }, { ...clone(), security: { ...clone().security, controls: {} } }]) {
+test('non-object public inputs throw; malformed object declarations return findings', () => {
+  for (const malformed of [null, [], 'plan', 4]) {
+    assert.throws(() => auditInfraReadiness(malformed), TypeError);
+  }
+  for (const malformed of [{ ...clone(), security: null }, { ...clone(), framework: [] }, { ...clone(), evaluation: { ...clone().evaluation, taskSet: null } }, { ...clone(), security: { ...clone().security, controls: {} } }]) {
     assert.doesNotThrow(() => auditInfraReadiness(malformed));
     assert.equal(auditInfraReadiness(malformed).pass, false);
   }

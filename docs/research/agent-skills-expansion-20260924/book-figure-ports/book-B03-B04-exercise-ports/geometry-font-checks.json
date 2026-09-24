@@ -1,9 +1,8 @@
 [
   {
-    "pdf": "renders/search-evidence-maritime-page.pdf",
     "sha256": "1b110812c2e588902ba78c786b631cdd92be32b7fff43df5fe7b0517d091e422",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.659259,
       412.50867,
       383.189525
@@ -12,7 +11,6 @@
     "fonts_sha256": "fbff12ca525a4d3a84a5129807670c1f3d06c4bfa3e738fc322ce3608165e226"
   },
   {
-    "pdf": "renders/search-evidence-maritime.pdf",
     "sha256": "6637d17b835f5c96f81a55e6bc28687ebb24a860aa048b91b17da3d27911b039",
     "text_bounds_pt": [
       4.184,
@@ -27,7 +25,7 @@
     "pdf": "renders/search-evidence-swiss-page.pdf",
     "sha256": "82a9481e4720e0bbf62f9fee2399b06910b798e391087f56a0dd7ab06800a514",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.847427,
       413.073554,
       383.189525
@@ -48,10 +46,9 @@
     "fonts_sha256": "ad21cbc78237a050b9c37339c52029744a62ae36a453eed158e74a338b43da22"
   },
   {
-    "pdf": "renders/search-evidence-technical-page.pdf",
     "sha256": "ffe1e80397f061a2b004b58681c1ac85868a1c75411fb03497850ef62c953021",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.847427,
       413.073554,
       383.189525
@@ -60,7 +57,6 @@
     "fonts_sha256": "03de9c7fd911133c3095c4a3a15e9d0b1db1c669b0e566ebc44dfeb1ad8feee6"
   },
   {
-    "pdf": "renders/search-evidence-technical.pdf",
     "sha256": "1b25154e872afa831b155a2173fd1a09d523fbc79a451d41ec9377b3c2db3202",
     "text_bounds_pt": [
       4.184,
@@ -72,10 +68,9 @@
     "fonts_sha256": "ad21cbc78237a050b9c37339c52029744a62ae36a453eed158e74a338b43da22"
   },
   {
-    "pdf": "renders/status-history-maritime-page.pdf",
     "sha256": "220baea2c1e4852d99847b8250e3ad4a8cf679bad963508ab96c97ccbe717c7f",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.659259,
       409.499731,
       356.639525
@@ -84,7 +79,6 @@
     "fonts_sha256": "c06b40e63908b7a70fef8d87a9f11c60025ae9d8264caabb9f2866ca9361cff8"
   },
   {
-    "pdf": "renders/status-history-maritime.pdf",
     "sha256": "910f25918260cac5086b72215d39474eee7870c2e653a312c28358af64fc8567",
     "text_bounds_pt": [
       4.184,
@@ -99,7 +93,7 @@
     "pdf": "renders/status-history-swiss-page.pdf",
     "sha256": "aa29c2f9fc8066b1f2a22e4ba6f4c0903a5d4e8cce5349bcde93374e6e57b9c8",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.847427,
       409.499731,
       356.639525
@@ -120,10 +114,9 @@
     "fonts_sha256": "74f7ead7c7c310acca64f12153dbc004acd57ec1206bd78af2c758adbf554aa7"
   },
   {
-    "pdf": "renders/status-history-technical-page.pdf",
     "sha256": "99b15771e97ffde8cbdd1a7d8b42cfb8478523e1b4607437d2057e56ca940843",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.847427,
       409.499731,
       356.639525
@@ -132,7 +125,6 @@
     "fonts_sha256": "9d08010ef6f51edb321b171df959508f561837d7ea3aea7f32d38289f4611421"
   },
   {
-    "pdf": "renders/status-history-technical.pdf",
     "sha256": "1715426fc555bdbc64abc9891e9d6398956dc97abb9d819a3d7b663d608f444c",
     "text_bounds_pt": [
       4.184,

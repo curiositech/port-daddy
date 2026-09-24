@@ -30,7 +30,6 @@
     "bytes": 2430
   },
   {
-    "path": "figures/pd-figure-language-technical.tex",
     "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
     "bytes": 2842
   },
@@ -60,12 +59,10 @@
     "bytes": 3224
   },
   {
-    "path": "mas-worksheet-maritime-page.tex",
     "sha256": "8d56d26884b8c9cf8c71a95c5a0091b0b8fefab207c7ceaa3c15265414410dc4",
     "bytes": 1156
   },
   {
-    "path": "mas-worksheet-maritime.tex",
     "sha256": "92d467931cab7415307f685240dfef6217905f16a090736015db6662a5f664a8",
     "bytes": 629
   },
@@ -80,12 +77,10 @@
     "bytes": 626
   },
   {
-    "path": "mas-worksheet-technical-page.tex",
     "sha256": "ddc9c373522f33e68956524d428cdc6aec97792cbee4c5a7fbeafd13d654fb27",
     "bytes": 1157
   },
   {
-    "path": "mas-worksheet-technical.tex",
     "sha256": "74d41409c467c06b4c227d55f105c2eb1e56332a7c34751a9fa7dcc66fae278a",
     "bytes": 630
   },
@@ -105,22 +100,18 @@
     "bytes": 1160
   },
   {
-    "path": "renders/mas-worksheet-maritime-page.pdf",
     "sha256": "838a81a51c9899dbc9ec9b39b3f375a81ae054c50fe0adc14b8f10cdfc69f436",
     "bytes": 133427
   },
   {
-    "path": "renders/mas-worksheet-maritime-page.png",
     "sha256": "66bdca46faed1e3b4784fe7881d684c81d0375f378bd818d7ba4e44c27521a47",
     "bytes": 137782
   },
   {
-    "path": "renders/mas-worksheet-maritime.pdf",
     "sha256": "5c684cad9784329f2b52d75e0a07a25b2ccb48f463f8ec010b51ccfaf70d9348",
     "bytes": 131708
   },
   {
-    "path": "renders/mas-worksheet-maritime.png",
     "sha256": "358c52f336426dbd706e57cff5700db18bbe15d76f891448639ed7afdf0ffd2c",
     "bytes": 92671
   },
@@ -145,22 +136,18 @@
     "bytes": 91927
   },
   {
-    "path": "renders/mas-worksheet-technical-page.pdf",
     "sha256": "1667121da648b12a62aa96a70e563a94e53ab0498584971acc929798a6b1820e",
     "bytes": 124425
   },
   {
-    "path": "renders/mas-worksheet-technical-page.png",
     "sha256": "164bb1a5809973173450d3f22c9387dfa7b73a10fa892f5f4ce4170f7a618578",
     "bytes": 137025
   },
   {
-    "path": "renders/mas-worksheet-technical.pdf",
     "sha256": "f61210ea62fb175adf67da87f6b6b973a97af8eb643ee714366f1f50820b9c9e",
     "bytes": 75412
   },
   {
-    "path": "renders/mas-worksheet-technical.png",
     "sha256": "1efe04be3961568876639f0b4a62036e458035ee1da7547558bc91018925de0d",
     "bytes": 91351
   },

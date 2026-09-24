@@ -6,7 +6,6 @@
   "astra_review_sha256": "2b8573f2547e231a948ec58eec19bcc5d73b179aebf53e8a411ad4196066e8b8",
   "style_sha256": {
     "figures/pd-figure-language-swiss.tex": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
-    "figures/pd-figure-language-technical.tex": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
     "figures/pd-figure-language.tex": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
     "figures/pd-palette.tex": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec"
   },
@@ -21,18 +20,14 @@
       "tikz_sha256": "25a40b4c29def1a5b26425574176fa68b9d101813d806ac22e3b21122fda57de",
       "editions": [
         {
-          "edition": "maritime",
-          "wrapper": "judges-maritime.tex",
           "wrapper_sha256": "1a756758ea4361d195999f1e9867adedccc7c93067eeef8ebd4f74cac4752464",
           "width_in": 4.5988750000000005,
           "height_in": 3.7918055555555554,
           "artifacts": {
             "pdf": {
-              "path": "renders/judges/maritime/judges-maritime/judges-maritime.pdf",
               "sha256": "54bafc48aca6795eb155f975d121a492326cf47f26e59f6621e59644b1879906"
             },
             "png": {
-              "path": "renders/judges/maritime/judges-maritime/judges-maritime.png",
               "sha256": "25bdca68079f639acfa252505b8291b3dcf2f6ad4236c9eb6f4dc2b976af3aed"
             }
           },
@@ -57,18 +52,14 @@
           "visual_review": "Root opened this final PNG in full. Labels and conditional claims are legible; no observed overlap or clipping. Minor line-break hyphenation is retained. Constructed examples remain labeled."
         },
         {
-          "edition": "technical",
-          "wrapper": "judges-technical.tex",
           "wrapper_sha256": "eb90d2253c04235e2b1e747919b7bbc593ecbf097d580735b05ce6a114c6a5e5",
           "width_in": 4.5988750000000005,
           "height_in": 3.7918055555555554,
           "artifacts": {
             "pdf": {
-              "path": "renders/judges/technical/judges-technical/judges-technical.pdf",
               "sha256": "f8224b7ffd83ed25564c55a41b4ec085d110a4aa374d27e50b3c69901687436a"
             },
             "png": {
-              "path": "renders/judges/technical/judges-technical/judges-technical.png",
               "sha256": "c41aa8909e0f50a963f9112ed5f05dddd85414c8fe429a48b89437b7fa03d048"
             }
           },
@@ -84,18 +75,14 @@
       "tikz_sha256": "ce6d49aefd742373e388d98278d17781494c7a814545b05e3c7083bd8c0a86bf",
       "editions": [
         {
-          "edition": "maritime",
-          "wrapper": "revisions-maritime.tex",
           "wrapper_sha256": "5bced286cafb3f5c4a7c4f65e786853abd9ef49a7c6c5d638b1ac006a6ec934b",
           "width_in": 4.5988750000000005,
           "height_in": 3.8311666666666664,
           "artifacts": {
             "pdf": {
-              "path": "renders/revisions/maritime/revisions-maritime/revisions-maritime.pdf",
               "sha256": "07ec4233ba5a46cae97bfedc383d0014fdd03e15f1a566c106dcdc3db6499cdf"
             },
             "png": {
-              "path": "renders/revisions/maritime/revisions-maritime/revisions-maritime.png",
               "sha256": "ec323fb1d175ba816d9800cf0a8f13571cfbb82027517569249d190f80fe51d6"
             }
           },
@@ -120,18 +107,14 @@
           "visual_review": "Root opened this final PNG in full. Labels and conditional claims are legible; no observed overlap or clipping. Minor line-break hyphenation is retained. Constructed examples remain labeled."
         },
         {
-          "edition": "technical",
-          "wrapper": "revisions-technical.tex",
           "wrapper_sha256": "6eed00d37b6e8bf2cc4fd43520cb279f360427f0bf320a5d6839fcb5298746b2",
           "width_in": 4.5988750000000005,
           "height_in": 3.8311666666666664,
           "artifacts": {
             "pdf": {
-              "path": "renders/revisions/technical/revisions-technical/revisions-technical.pdf",
               "sha256": "00a3a90f7135325b0349eb715597f670c2ab3a19b2ad22f75f5f3a138f43765a"
             },
             "png": {
-              "path": "renders/revisions/technical/revisions-technical/revisions-technical.png",
               "sha256": "8361dbf01f06241b104adffa654f0ecdeab041a69db899eb0931d6b9256c66af"
             }
           },
@@ -147,18 +130,14 @@
       "tikz_sha256": "7e05ae733435eabec62a07ed8ac9d9d905da2352db50deed9165f554ba188a6a",
       "editions": [
         {
-          "edition": "maritime",
-          "wrapper": "conflicts-maritime.tex",
           "wrapper_sha256": "bcf1d52a260d5db55c7871258efd1c5a954dcaca9ce6891805ddde8a0ebe7502",
           "width_in": 4.5988750000000005,
           "height_in": 4.008333333333334,
           "artifacts": {
             "pdf": {
-              "path": "renders/conflicts/maritime/conflicts-maritime/conflicts-maritime.pdf",
               "sha256": "fe390955169ad65fbb3df85b50629c48c3fa6553e3ace6fc065ff905745df404"
             },
             "png": {
-              "path": "renders/conflicts/maritime/conflicts-maritime/conflicts-maritime.png",
               "sha256": "6be9f34d7ea615b7b95f1b3f8c80580d470209c4dc06c992a9a0b0c638f84ead"
             }
           },
@@ -183,18 +162,14 @@
           "visual_review": "Root opened this final PNG in full. Labels and conditional claims are legible; no observed overlap or clipping. Minor line-break hyphenation is retained. Constructed examples remain labeled."
         },
         {
-          "edition": "technical",
-          "wrapper": "conflicts-technical.tex",
           "wrapper_sha256": "7a28de4bc4f7d6ca6ea941d8491822dffd4ef96041745ed295d62ca8e351dab8",
           "width_in": 4.5988750000000005,
           "height_in": 4.008333333333334,
           "artifacts": {
             "pdf": {
-              "path": "renders/conflicts/technical/conflicts-technical/conflicts-technical.pdf",
               "sha256": "fa475abed93086ee9423efbfbfc8ab327888f0b825c76da5bcbdc53bfd11b01b"
             },
             "png": {
-              "path": "renders/conflicts/technical/conflicts-technical/conflicts-technical.png",
               "sha256": "2c1ecbeca38aa70bad87753543ef885b6d8b4e035d8ed955da307c108ac9b14f"
             }
           },
@@ -202,5 +177,6 @@
         }
       ]
     }
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

@@ -1,17 +1,25 @@
-flowchart TB
-  subgraph I[Source input changed]
-    I1[Compile evidence stale] --> I2[Acceptance evidence stale]
-    I2 --> I3[Revalidate artifact and publication authority]
-  end
-  subgraph P[Acceptance policy changed]
-    P1[Compile evidence: reuse candidate] --> P2[Acceptance evidence stale]
-    P2 --> P3[Revalidate acceptance and publication authority]
-  end
-  subgraph A[Publication authority revoked]
-    A1[Compile evidence: reuse candidate] --> A2[Acceptance evidence: reuse candidate]
-    A2 --> A3[Publication blocked]
-  end
-  U[An earlier UNKNOWN publication still requires reconciliation]
-  I3 -. independent unresolved obligation .-> U
-  P3 -. independent unresolved obligation .-> U
-  A3 -. independent unresolved obligation .-> U
+stateDiagram-v2
+  direction LR
+  state "Compile evidence" as Compile {
+    [*] --> Current_compile
+    Current_compile --> Stale_compile: source input changes
+  }
+  state "Acceptance evidence" as Accept {
+    [*] --> Current_acceptance
+    Current_acceptance --> Stale_acceptance: source input or policy changes
+  }
+  state "Publication authority" as Publish {
+    [*] --> Granted
+    Granted --> Blocked: authority revoked
+  }
+
+  Stale_compile --> Revalidate: rebuild artifact evidence
+  Stale_acceptance --> Revalidate: rerun acceptance evidence
+  Revalidate --> Current_compile: artifact checks pass
+  Revalidate --> Current_acceptance: acceptance checks pass
+  Blocked --> [*]
+
+  note right of Revalidate
+    An earlier UNKNOWN publication
+    remains a separate reconciliation obligation.
+  end note

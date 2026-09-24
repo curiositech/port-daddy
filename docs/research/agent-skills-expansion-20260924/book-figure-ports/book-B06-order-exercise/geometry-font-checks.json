@@ -1,8 +1,7 @@
 [
   {
-    "pdf": "chain-vs-path-maritime-page.pdf",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.659259,
       409.284538,
       433.175525
@@ -12,7 +11,6 @@
     "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:44 2026 PDT\nModDate:         Thu Sep 24 09:27:44 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       504 x 720 pts\nPage rot:        0\nFile size:       127645 bytes\nOptimized:       no\nPDF version:     1.7\n"
   },
   {
-    "pdf": "chain-vs-path-maritime.pdf",
     "text_bounds_pt": [
       4.184,
       6.645259,
@@ -26,7 +24,7 @@
   {
     "pdf": "chain-vs-path-swiss-page.pdf",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.852427,
       409.284538,
       433.175525
@@ -48,9 +46,8 @@
     "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:49 2026 PDT\nModDate:         Thu Sep 24 09:27:49 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       331.119 x 282.931 pts\nPage rot:        0\nFile size:       66089 bytes\nOptimized:       no\nPDF version:     1.7\n"
   },
   {
-    "pdf": "chain-vs-path-technical-page.pdf",
     "text_bounds_pt": [
-      90.0,
+      90,
       74.852427,
       409.284538,
       433.175525
@@ -60,7 +57,6 @@
     "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:50 2026 PDT\nModDate:         Thu Sep 24 09:27:50 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       504 x 720 pts\nPage rot:        0\nFile size:       121013 bytes\nOptimized:       no\nPDF version:     1.7\n"
   },
   {
-    "pdf": "chain-vs-path-technical.pdf",
     "text_bounds_pt": [
       4.184,
       6.837427,

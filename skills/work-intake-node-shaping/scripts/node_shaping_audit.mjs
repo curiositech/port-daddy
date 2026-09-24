@@ -13,6 +13,7 @@ const schemaIssues = () => (validateShape.errors || []).map(error => issue('sche
 const validRouteVerbs = new Set(['spawn', 'dispatch', 'sortie', 'conjure', 'nightshift']);
 
 export function auditNodeShaping(input) {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('input must be an object');
   if (!validateShape(input)) {
     return {pass: false, declarationValid: false, eligibleToAdmit: false, structuralBlocked: false, findings: schemaIssues(), scope: 'supplied-declaration-consistency-only'};
   }

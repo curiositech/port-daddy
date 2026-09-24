@@ -1,11 +1,9 @@
 [
   {
-    "source": "market-worksheet-maritime-page.tex",
     "exit": 0,
     "warnings": []
   },
   {
-    "source": "market-worksheet-maritime.tex",
     "exit": 0,
     "warnings": []
   },
@@ -20,12 +18,10 @@
     "warnings": []
   },
   {
-    "source": "market-worksheet-technical-page.tex",
     "exit": 0,
     "warnings": []
   },
   {
-    "source": "market-worksheet-technical.tex",
     "exit": 0,
     "warnings": []
   }

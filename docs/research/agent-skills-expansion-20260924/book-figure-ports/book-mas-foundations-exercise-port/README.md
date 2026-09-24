@@ -1,6 +1,6 @@
 # MAS worksheet: planning figure draft
 
-One compact payoff matrix and worksheet, compiled in Swiss, maritime and technical editions, with a 7 × 10 inch page-context preview for each. Open index.html for the gallery. Figure and context PDFs are under renders/. All authoring stayed in this owned scratch directory; the prior review, accepted figures and manuscript were untouched.
+One compact payoff matrix and worksheet retained as Swiss-only candidate sources. All authoring stayed in this owned scratch directory; the prior review, accepted figures and manuscript were untouched. This README makes no current gallery or rendered-page validation claim.
 
 ## Meaning and arithmetic
 
@@ -8,7 +8,7 @@ The constructed game has pure equilibria (A,A) and (B,B), with unilateral deviat
 
 ## Source and import order
 
-The accepted B03–B04 preview wrappers were reused: T1 encoding, TeX Gyre Pagella/Heros, TikZ, palette, hh role aliases, edition declaration, figure language, then the matching Swiss/technical override (maritime uses the base). source-receipt.json verifies all four source library hashes against both the primary working bytes and accepted figure copies. Copies live locally under figures/. Compiler recorder files retain actual input paths. No style was inferred from screenshots.
+The accepted B03–B04 preview wrappers were reused: T1 encoding, TeX Gyre Pagella/Heros, TikZ, palette, hh role aliases, Swiss declaration, figure language, then the Swiss override. source-receipt.json retains source-library provenance. Copies live locally under figures/. No style was inferred from screenshots.
 
 Important source boundary: these actual inherited figure-language bytes expose the older pd panel title/pd direct label role vocabulary. The installed tikz-diagram-craft skill describes a newer v2 vocabulary. We preserved the verified accepted source and edition import order rather than silently replacing shared Book style. The neutral ruled worksheet needs no semantic color legend. This is not a certification that the whole Book uses v2. Page-context uses the accepted Book-compatible article wrapper, not a full chapter/book compilation or manuscript integration.
 
@@ -18,7 +18,7 @@ Applied sources and exact hashes are in applied-sources.json. tikz-diagram-craft
 
 All six PDFs compile with no Overfull, Missing character, Undefined control sequence or LaTeX Error markers. Every PDF has one page; all extracted text lies within its page; page-preview text width is 4.4805 inches, inside the 4.5-inch column. Rendered font metadata rounds to 9 pt throughout. No pair of word bounds overlaps by more than 10 percent of the smaller word area. geometry-font-checks.json records these checks. Figure drawing is natively 11.4 cm wide, with no scaling or resizebox.
 
-The first render collided in the universal-property prompt. Shortened it to “Every Nash?” and recompiled every edition. Inspected the final three-edition contact sheet and each of the three full page-context images. The repaired rows have clear column gaps, readable payoff values and separate model-change and execution bands. Page previews have ample caption separation and fit without clipped labels. Swiss/technical are visually close because this neutral worksheet uses their shared sans-serif roles; maritime uses the inherited serif roles. No decoration was added to manufacture edition differences.
+The source uses “Every Nash?” for the universal-property prompt. Re-render and inspect the Swiss candidate before claiming layout, gallery, or page-fit results.
 
 figcheck.py and beauty_lint.py exist but their required PyMuPDF module is unavailable in both tested Python environments; neither gate is claimed passed. Poppler text bounds/fonts, compile diagnostics and rendered inspection were used instead. This fallback does not automatically check every vector/text intersection or style-lint rule. No full-book pagination, browser screenshot, accessibility study, teaching efficacy or human acceptance is established.
 

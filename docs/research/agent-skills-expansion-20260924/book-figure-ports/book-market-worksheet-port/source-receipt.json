@@ -26,7 +26,6 @@
       "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1"
     },
     {
-      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B06-order-exercise/figures/pd-figure-language-technical.tex",
       "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820"
     },
     {
@@ -43,5 +42,6 @@
     "pd-figure-language.tex",
     "pd-figure-language-{edition}.tex"
   ],
-  "construction": "One Book-scale two-panel figure; 3 standalone and 3 page-context edition wrappers; manuscript untouched."
+  "construction": "One Book-scale two-panel figure; 3 standalone and 3 page-context edition wrappers; manuscript untouched.",
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

@@ -27,7 +27,6 @@
       "size": 2430
     },
     {
-      "path": "figures/pd-figure-language-technical.tex",
       "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
       "size": 2842
     },
@@ -57,72 +56,58 @@
       "size": 2251
     },
     {
-      "path": "renders/search-evidence-maritime-bbox.html",
       "sha256": "48cad4bc30e0cf02829133b1392b4d0a4ba28345eb40bdc46155b71d2df1afc4",
       "size": 6559
     },
     {
-      "path": "renders/search-evidence-maritime-fonts.txt",
       "sha256": "33a262b4dc8caf7e8024b57954e46268f525eb5471b25a8ba1bc011ef0a63e58",
       "size": 752
     },
     {
-      "path": "renders/search-evidence-maritime-page-bbox.html",
       "sha256": "fbc52856f556001ac8fa2937ef111b02bfaae90560df6dc6e90e742186a5d68b",
       "size": 13202
     },
     {
-      "path": "renders/search-evidence-maritime-page-fonts.txt",
       "sha256": "fbff12ca525a4d3a84a5129807670c1f3d06c4bfa3e738fc322ce3608165e226",
       "size": 752
     },
     {
-      "path": "renders/search-evidence-maritime-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/search-evidence-maritime-page.fls",
       "sha256": "bf62aeac18e97b9b4f9519c30eaa923e8eff9a4568001702b2b7f8cd5667111c",
       "size": 19705
     },
     {
-      "path": "renders/search-evidence-maritime-page.log",
       "sha256": "3909c6fea97ff57118a731c91af447a1c774724bfaf204aac1ac780a97021747",
       "size": 21427
     },
     {
-      "path": "renders/search-evidence-maritime-page.pdf",
       "sha256": "1b110812c2e588902ba78c786b631cdd92be32b7fff43df5fe7b0517d091e422",
       "size": 136622
     },
     {
-      "path": "renders/search-evidence-maritime-page.png",
       "sha256": "1332c2d17c15bc21e75a42fd57db27a30b936a1e65c73c7cf1ea85c56f2bb718",
       "size": 103399
     },
     {
-      "path": "renders/search-evidence-maritime.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/search-evidence-maritime.fls",
       "sha256": "0841b416f8af2c2e71fa76981facf7325ad8deb182d07bcbc20128feae84a67e",
       "size": 20495
     },
     {
-      "path": "renders/search-evidence-maritime.log",
       "sha256": "208a7ebac2b36ae5099de19912d9d767419d48a4d03d8fa2842d41757b06e754",
       "size": 21140
     },
     {
-      "path": "renders/search-evidence-maritime.pdf",
       "sha256": "6637d17b835f5c96f81a55e6bc28687ebb24a860aa048b91b17da3d27911b039",
       "size": 133108
     },
     {
-      "path": "renders/search-evidence-maritime.png",
       "sha256": "115bb42c16ec621b45f277978d34ceea292f0118403ba7f6d393eed2fb85b945",
       "size": 48608
     },
@@ -197,142 +182,114 @@
       "size": 48098
     },
     {
-      "path": "renders/search-evidence-technical-bbox.html",
       "sha256": "6d5cd603397a35735af2a29283e6183dcb66d853ddd597c4e32826a358db9c6b",
       "size": 6562
     },
     {
-      "path": "renders/search-evidence-technical-fonts.txt",
       "sha256": "ad21cbc78237a050b9c37339c52029744a62ae36a453eed158e74a338b43da22",
       "size": 752
     },
     {
-      "path": "renders/search-evidence-technical-page-bbox.html",
       "sha256": "07b5cd24974233d8f18839e0cf59e20ab92235aa07061b5a50352cfa11b31b04",
       "size": 13202
     },
     {
-      "path": "renders/search-evidence-technical-page-fonts.txt",
       "sha256": "03de9c7fd911133c3095c4a3a15e9d0b1db1c669b0e566ebc44dfeb1ad8feee6",
       "size": 846
     },
     {
-      "path": "renders/search-evidence-technical-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/search-evidence-technical-page.fls",
       "sha256": "878595019a9b2af48b9d5781e5d7da62f1e3eea1ce247b1bc37a51e5104976fc",
       "size": 20858
     },
     {
-      "path": "renders/search-evidence-technical-page.log",
       "sha256": "b4f49afbcdc65dec3a7cdc5585942cdebb251b87b0d8384810da30a8bec3bde7",
       "size": 21854
     },
     {
-      "path": "renders/search-evidence-technical-page.pdf",
       "sha256": "ffe1e80397f061a2b004b58681c1ac85868a1c75411fb03497850ef62c953021",
       "size": 128073
     },
     {
-      "path": "renders/search-evidence-technical-page.png",
       "sha256": "8e289b1a74f26278eb64ac09f9c168e94c378dbd28eb77ed4f4ab6e9e7e1b85c",
       "size": 105037
     },
     {
-      "path": "renders/search-evidence-technical.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/search-evidence-technical.fls",
       "sha256": "99333250dba2bfaf3c448567ea9ba5d8cf1fd93d66d5736b79ba0157d05cd115",
       "size": 21573
     },
     {
-      "path": "renders/search-evidence-technical.log",
       "sha256": "cd1eba42b60f406ba0015bc567d303459b24cf89380b3293a31973e508f8cc53",
       "size": 21495
     },
     {
-      "path": "renders/search-evidence-technical.pdf",
       "sha256": "1b25154e872afa831b155a2173fd1a09d523fbc79a451d41ec9377b3c2db3202",
       "size": 78769
     },
     {
-      "path": "renders/search-evidence-technical.png",
       "sha256": "ed54b2b64432d4e78ff2307645c6b59e748dd122ad6a0df8930ce4a7ed787e0e",
       "size": 48658
     },
     {
-      "path": "renders/status-history-maritime-bbox.html",
       "sha256": "9dbd5d250202c141894e2b3bfee97c5f5b00a0b9e0fd033d7b71605ce1d4b2da",
       "size": 6681
     },
     {
-      "path": "renders/status-history-maritime-fonts.txt",
       "sha256": "c7e568d2cdf49d026f2fdf67aa988f2d9041606f7617d12807be5a298dffb0d5",
       "size": 470
     },
     {
-      "path": "renders/status-history-maritime-page-bbox.html",
       "sha256": "9d9c67b411194029524e0eb4cee17e7111e223d6a7d68ff5846e399ddb48c394",
       "size": 12832
     },
     {
-      "path": "renders/status-history-maritime-page-fonts.txt",
       "sha256": "c06b40e63908b7a70fef8d87a9f11c60025ae9d8264caabb9f2866ca9361cff8",
       "size": 470
     },
     {
-      "path": "renders/status-history-maritime-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/status-history-maritime-page.fls",
       "sha256": "8f61096dfa5f25c51d20a5f10130f241fd1fdc2d67aceb55a59bcb87c27c08b0",
       "size": 19433
     },
     {
-      "path": "renders/status-history-maritime-page.log",
       "sha256": "7b8102aa68ba84e57812706d78582e971e558272bce0d3d5cc1fb4ef72e80dd0",
       "size": 21173
     },
     {
-      "path": "renders/status-history-maritime-page.pdf",
       "sha256": "220baea2c1e4852d99847b8250e3ad4a8cf679bad963508ab96c97ccbe717c7f",
       "size": 111574
     },
     {
-      "path": "renders/status-history-maritime-page.png",
       "sha256": "bed9bbc0280f7e800c8fda2fc68d1e1ea1c14325f7a9be24a7d65c8f8df905a0",
       "size": 111297
     },
     {
-      "path": "renders/status-history-maritime.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/status-history-maritime.fls",
       "sha256": "c36001f5d71356fc087f0601da717d1f00f0eca8300c9d23e983c3cd61b2ee5c",
       "size": 20223
     },
     {
-      "path": "renders/status-history-maritime.log",
       "sha256": "96976aa769113e76de81c259c9fb938d73a004683d417b36dad4ff9c7b9493d0",
       "size": 20887
     },
     {
-      "path": "renders/status-history-maritime.pdf",
       "sha256": "910f25918260cac5086b72215d39474eee7870c2e653a312c28358af64fc8567",
       "size": 106694
     },
     {
-      "path": "renders/status-history-maritime.png",
       "sha256": "a65e60f9a9fdf9fe1d83244b99b31019726279902b0c428350e8e5fbba1d86ed",
       "size": 58532
     },
@@ -407,72 +364,58 @@
       "size": 58964
     },
     {
-      "path": "renders/status-history-technical-bbox.html",
       "sha256": "1c64b9a66287e07a5712152a4669b112fd6ed0dee614831b61bc73145d52bc9d",
       "size": 6681
     },
     {
-      "path": "renders/status-history-technical-fonts.txt",
       "sha256": "74f7ead7c7c310acca64f12153dbc004acd57ec1206bd78af2c758adbf554aa7",
       "size": 470
     },
     {
-      "path": "renders/status-history-technical-page-bbox.html",
       "sha256": "f21a0fcadd3ce3bfb5b2e20f3271b90ece62d9f880c41592d17aab76925ac154",
       "size": 12832
     },
     {
-      "path": "renders/status-history-technical-page-fonts.txt",
       "sha256": "9d08010ef6f51edb321b171df959508f561837d7ea3aea7f32d38289f4611421",
       "size": 564
     },
     {
-      "path": "renders/status-history-technical-page.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/status-history-technical-page.fls",
       "sha256": "00943924995e3ab780d9594a0e9d2663a6e19e987d0cec1fe2ec3f757cc3ae74",
       "size": 20586
     },
     {
-      "path": "renders/status-history-technical-page.log",
       "sha256": "9ba4ddebdf066e25fbbe22a5f3d573fb737778cb4001c4bcd5beeb6438cd19b1",
       "size": 21600
     },
     {
-      "path": "renders/status-history-technical-page.pdf",
       "sha256": "99b15771e97ffde8cbdd1a7d8b42cfb8478523e1b4607437d2057e56ca940843",
       "size": 103265
     },
     {
-      "path": "renders/status-history-technical-page.png",
       "sha256": "e1038b8b56b145f1fbf6ec858e3a6d042bc9a8d813ebea2a96c234436cf6a52d",
       "size": 111040
     },
     {
-      "path": "renders/status-history-technical.aux",
       "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
       "size": 32
     },
     {
-      "path": "renders/status-history-technical.fls",
       "sha256": "9ca8c360cb4836d6315bd55c23753add1ba4f92a530c537c34bd5b84f4f5a791",
       "size": 21225
     },
     {
-      "path": "renders/status-history-technical.log",
       "sha256": "045d015ac6a10fdfeb7296fbf7dcb2ed8792a060f94e3d8fab3db6b174956274",
       "size": 21242
     },
     {
-      "path": "renders/status-history-technical.pdf",
       "sha256": "1715426fc555bdbc64abc9891e9d6398956dc97abb9d819a3d7b663d608f444c",
       "size": 52859
     },
     {
-      "path": "renders/status-history-technical.png",
       "sha256": "94b1788d39e6788e70e43d403ec9a53df338f3a4c99e7d852ad12908c152f37c",
       "size": 58611
     },
@@ -487,12 +430,10 @@
       "size": 2281
     },
     {
-      "path": "search-evidence-maritime-page.tex",
       "sha256": "9480f9f0b59194b36ba621bad6865cb74d61cdcf53d4af2f1225e7ffb362d59a",
       "size": 1282
     },
     {
-      "path": "search-evidence-maritime.tex",
       "sha256": "6563119e4923caafb69536488687d65cede4cf453595c3ec9b79b5405e9b0c3d",
       "size": 631
     },
@@ -512,12 +453,10 @@
       "size": 628
     },
     {
-      "path": "search-evidence-technical-page.tex",
       "sha256": "a1661ac782b47830100a133ceb07b19fa1ee17c8206dcc329739efd911495752",
       "size": 1283
     },
     {
-      "path": "search-evidence-technical.tex",
       "sha256": "3e52d518bede3b9551b064847475d7928e8e77625501309d1373cfa5ad171f32",
       "size": 632
     },
@@ -537,12 +476,10 @@
       "size": 2073
     },
     {
-      "path": "status-history-maritime-page.tex",
       "sha256": "e2f0f23c36d012206ab4044760fc3868872dcfbae6c024cf1ace642a7eec72ab",
       "size": 1247
     },
     {
-      "path": "status-history-maritime.tex",
       "sha256": "8d3c51b5f181995f06cd70da059c5390a6b3822108451a606d7f89dd60bf8a99",
       "size": 630
     },
@@ -562,14 +499,13 @@
       "size": 627
     },
     {
-      "path": "status-history-technical-page.tex",
       "sha256": "00ba8506d00d86f1ae4d09edb87d7ae4db18c2915c1e117d61e8c79762d6fed7",
       "size": 1248
     },
     {
-      "path": "status-history-technical.tex",
       "sha256": "b353af564d0c33b274f3c9b3fa6516db286fea56b4a1409e041a1e1eb7285b60",
       "size": 631
     }
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }

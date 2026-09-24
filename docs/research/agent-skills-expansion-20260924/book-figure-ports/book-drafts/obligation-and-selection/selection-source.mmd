@@ -1,11 +1,10 @@
-flowchart TB
-    S["S · easy 9/10 · hard 1/2"] --> R["Raw: 10/12 = 83.3%"]
-    T["T · easy 1/1 · hard 6/10"] --> Q["Raw: 7/11 = 63.6%"]
-    S --> M["Equal easy/hard mix: 70%"]
-    T --> N["Equal easy/hard mix: 80%"]
-    R --> L["Adaptive routing logs: policy, strata, support, use, outcome"]
-    Q --> L
-    M --> U["Fresh, version-pinned held-out evaluation"]
-    N --> U
-    L -.->|hypotheses only| U
-    U --> D["Release dossier → promotion decision"]
+quadrantChart
+    title Constructed ranking changes when the task mix changes
+    x-axis "Lower observed raw rate" --> "Higher observed raw rate"
+    y-axis "Lower equal-mix rate" --> "Higher equal-mix rate"
+    quadrant-1 "High under both views"
+    quadrant-2 "Equal-mix advantage"
+    quadrant-3 "Low under both views"
+    quadrant-4 "Raw-rate advantage"
+    S: [0.833, 0.700]
+    T: [0.636, 0.800]

@@ -19,7 +19,7 @@ These are standalone draft figures outside the manuscript and accepted atlas. Th
 - Stable draft ID: `draft/selection-aware-skill-promotion`.
 - Reader question: What can an adaptively selected skill's success history establish?
 - Claim: the constructed raw success ranking S>T reverses under an equal easy/hard mixture, T>S; routing logs alone do not justify release promotion.
-- Relation and grammar: aligned strata table and separate routing/release lanes. A bandit loop would conceal the task mix and imply that use is promotion evidence.
+- Mermaid relation and grammar: a quadrant comparison places the constructed raw rate on the x-axis and equal-mix rate on the y-axis, making the ranking reversal legible without inventing a causal claim. The Book port pairs an aligned strata table with separate routing and release lanes. A bandit loop would conceal the task mix and imply that use is promotion evidence.
 - Required evidence: S easy 9/10, hard 1/2, raw 10/12 = 83.3%, equal mix 70%; T easy 1/1, hard 6/10, raw 7/11 = 63.6%, equal mix 80%.
 - Counter-reading: equal-mixture arithmetic proves T is better or identifies a causal effect. Tiny cells and unmeasured selection uncertainty prevent that conclusion.
 - Placement: Chapter 5 `spawn-to-person.tex` after the matched-comparison pitfall near lines 1973–2017; cross-reference bandit discussion near line 1809.

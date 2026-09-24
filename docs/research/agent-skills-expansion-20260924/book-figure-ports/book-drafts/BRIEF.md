@@ -8,6 +8,6 @@ Grammar: a shared-time sequence over three roles, followed by an aligned evidenc
 
 Boundary: a successful status query is an explicit environmental premise. Absence at a stale read is not confirmed non-commitment. Retrying requires current authority plus idempotency or fencing that excludes a late first commit. No exactly-once claim follows for arbitrary external APIs. Service/status authority may be one implementation; separate lanes name responsibilities, not required process count.
 
-Atlas contract: draft/unknown-effect-reconciliation, a proposed Chapter1/Chapter5 cross-reference rather than a change to any canonical atlas figure. Style source bytes copied from the active Book and recorded in source-receipt.json. The standalone wrappers use the shared role styles in maritime, Swiss and technical variants, white page ground, Pagella/Heros, and a fixed11.4cm content width. They do not load the full Book preamble, so these are standalone figure proofs, not page-integration certification.
+Atlas contract: draft/unknown-effect-reconciliation, a proposed Chapter1/Chapter5 cross-reference rather than a change to any canonical atlas figure. Style source bytes copied from the active Book and recorded in source-receipt.json. The retained standalone wrapper uses the Swiss figure language, white page ground, Pagella/Heros, and a fixed 11.4 cm content width. It does not load the full Book preamble, so it is a candidate source, not page-integration certification.
 
-Validation and visual review are recorded after rendering. All artifacts remain outside the manuscript pending review.
+The remaining source is outside the manuscript pending editorial review. This directory does not claim a current rendered-page validation.

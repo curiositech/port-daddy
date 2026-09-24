@@ -15,6 +15,25 @@ metadata:
   provenance:
     kind: first-party
     source: repaired work-intake-node-shaping bundle
+  pairs-with:
+    - skill: swarm-invocation-designer
+      reason: Once a chain/dag-workgroup/tournament archetype is chosen, this skill hands off the actual inter-agent invocation and coordination mechanics to it.
+    - skill: task-decomposer
+      reason: A dag-workgroup or chain archetype still needs its sub-tasks decomposed; this skill only proves the archetype call itself is singular and legacy-safe.
+    - skill: next-move
+      reason: next-move's synthesizer picks a planning/runtime topology per subtask; this skill is the upstream gate proving the operator-level WorkIntent resolved to one archetype before that DAG is even built.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: work-intent-signal-vector
+        format: json
+      - kind: legacy-route-manifest
+        format: json
+    produces:
+      - kind: topology-archetype-decision
+        format: markdown
+      - kind: node-shaping-audit
+        format: json
 ---
 
 # Work Intake Node Shaping

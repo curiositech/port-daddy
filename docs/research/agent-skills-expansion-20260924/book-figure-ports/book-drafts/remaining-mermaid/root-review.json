@@ -6,7 +6,7 @@
       "line": 13,
       "type": "flowchart",
       "sourceSha256": "497e4b89aa685b5e477b0d4fd60182b94121a251c571fd4c9e7c07d4c1b71027",
-      "svg": "01-flowchart-497e4b89aa68.svg",
+      "renderPreview": {"format": "svg", "availability": "external-media-only", "sha256": "ce64c83c7aa600886e7214e154dfe7c83e089ccb9b52d8f7481f2f67688ce187"},
       "png": "01-flowchart-497e4b89aa68.png",
       "result": "parsed-and-rendered"
     },
@@ -14,7 +14,7 @@
       "line": 47,
       "type": "flowchart",
       "sourceSha256": "68390d23019983e7505c5bcaba60d74ea0f9295d9509a5638ba6cbd22ab5488f",
-      "svg": "02-flowchart-68390d230199.svg",
+      "renderPreview": {"format": "svg", "availability": "external-media-only", "sha256": "682993cffff6ea07fded400b9046226415983799fb53d7aebd83267edc004cf2"},
       "png": "02-flowchart-68390d230199.png",
       "result": "parsed-and-rendered"
     },
@@ -22,7 +22,7 @@
       "line": 75,
       "type": "flowchart",
       "sourceSha256": "b23561eab2b9dc9a30b09c516f56f7fec9466f80e87bdfd9cf673c0132d9eed7",
-      "svg": "03-flowchart-b23561eab2b9.svg",
+      "renderPreview": {"format": "svg", "availability": "external-media-only", "sha256": "c4e0d38c0303d760c5c5919ffea504928df03345d1090d80c706ecdf3111f9dd"},
       "png": "03-flowchart-b23561eab2b9.png",
       "result": "parsed-and-rendered"
     }

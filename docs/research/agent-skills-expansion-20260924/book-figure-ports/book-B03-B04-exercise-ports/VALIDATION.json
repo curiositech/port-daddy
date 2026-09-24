@@ -44,7 +44,6 @@
   "compile_log_findings": "All 12 final standalone/page builds exit 0, no Overfull, Missing character, Undefined control sequence or LaTeX Error.",
   "geometry": "4.5-inch column; drawn grid 11.4 cm; no scaling. Poppler text extents <=4.5 inches. Page previews 7x10 inches.",
   "fonts": "T1 fontenc; tgpagella/tgheros; footnotesize 9pt labels; Computer Modern math with conventional smaller subscripts. Embedded subset fonts verified by pdffonts.",
-  "imports": "Copied primary pd-palette then legacy hh aliases then pd-figure-language then edition override (Swiss/technical; maritime base). Same chain as accepted ports. All four copied sources hashed in source-receipt.json; .fls files retain resolved import paths.",
   "visual_review": {
     "method": "Opened final six 144-dpi 7x10 page PNGs individually at original resolution; inspected both three-edition standalone contact sheets before final label-only refinement. Final contact sheets refreshed.",
     "claim": "PASS: history and current observation stay separate; finite-domain negative result is scoped; no execution authority implied.",
@@ -59,5 +58,6 @@
     "Page wrappers match active font/palette/column settings, not full chapter furniture or manuscript integration.",
     "Constructed pedagogy, no empirical benefit or novel theorem claimed.",
     "No Book source integration, runtime action, publication, or repository mutation."
-  ]
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
 }
