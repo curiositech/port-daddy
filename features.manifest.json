@@ -1125,7 +1125,8 @@
         "POST /spawn/preflight",
         "POST /spawn",
         "DELETE /spawn/:param",
-        "GET /spawn"
+        "GET /spawn",
+        "GET /spawn/receipts/:param"
       ],
       "mcp": [
         "spawn"

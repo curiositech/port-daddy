@@ -315,14 +315,20 @@ Documents`.
 
 ## Pull Request Operating Procedure
 
-**This lifecycle is autonomous — never gated on operator confirmation.**
-Once you open a PR, you drive it all the way to merge without pausing to
-ask "should I push?" or "should I merge?". Solicit bot reviews, run the
-adversarial agent review, respond to every comment, add unit tests wired
-into CI, get CI green the right way, and merge. The only legitimate pause
-is a real red you cannot fix unilaterally (missing secrets, infra outage).
-Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
-every Claude this?" — don't be the Claude that has to be told.
+**Operator update, 2026-09-24: own the PR finish line within the authorized
+goal.** Immediately after creating a PR and after every push, inspect the
+current head's reviews, every review thread, required and advisory GitHub
+checks, and attached CI/CD or deploy statuses and logs. Recheck while pending;
+delegate polling and log triage to a tool-native non-Astra, lower-cost agent by
+default. Astra plans, coordinates, and reviews its findings rather than doing
+routine status checks. Fix branch-caused failures, answer and resolve review
+threads, and document proven external blockers with an owner and next action.
+Keep an active follow-up or accepting handoff until the authorized goal is
+verified; a pending check or open PR is not completion. Do not infer merge
+authorization from a request for a review PR. When merge is authorized, use the
+protected path and verify the actual merged receipt. While the local Port Daddy
+runtime is halted, use ordinary Git, hosted checks, and tool-native agents;
+the older `pd` coordination steps below are suspended.
 
 ### Base `main`. Do not stack PRs onto feature branches.
 
@@ -809,10 +815,10 @@ These bite every contributor session; they are not theoretical.
 
 - **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
 - Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
-- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries on the tag; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula. Hold `pd lock release-publish` for the duration of the brew-tap roll — the formula is shared state.
+- The release boundary is a git tag plus a GitHub Release. The authorized release train opens a separate version PR, then tags and publishes from its merged version transition. The Homebrew tap discovers the stable feed through its own workflow; the source release workflow does not write the formula. See [`docs/RELEASING.md`](docs/RELEASING.md) for the current authority and recovery path.
 - Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
 - User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
-- **A DAEMON OR CLI-SURFACE CHANGE AND ITS RELEASE ARE ONE ATOMIC UNIT.** If a change alters the shipped `pd` — a new, renamed, or removed verb; a change to what the single binary registers; anything an operator would observe after `brew upgrade` — then the version bump, the embedded-version sync, and the Homebrew formula roll land *with* it, not in a follow-up. Shipping the daemon change alone leaves a binary that disagrees with the formula, which is precisely the drift `version-drift-guard` and `tests/unit/embedded-version-sync.test.js` exist to catch — do not make them the thing that discovers it. Before finishing such a change, state plainly whether the shipped surface actually changed: correcting a stale test expectation or harness wiring does NOT require a release, and claiming it does is its own kind of noise. If part of the release genuinely cannot run from your environment (a tag push the git proxy blocks, a tarball SHA that does not exist yet), do every part that can be done and report the exact remaining command instead of skipping it silently.
+- **Feature PRs do not cut a release.** For daemon, route, server, or MCP changes, use the binary smoke test in [`docs/RELEASING.md`](docs/RELEASING.md) §3 when local runtime execution is authorized; during the operator halt, use compile-only evidence and authorized hosted checks, and mark local runtime proof unverified. Submit the review PR with any required changelog fragment. The release train handles version surfaces and publication in its separate protected flow; the Homebrew tap updates from the stable feed. A review-PR request does not authorize a tag, Release, formula roll, or merge. Report source, hosted CI, merged, and released states separately.
 
 ## Fleet Identity
 

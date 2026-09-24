@@ -140,14 +140,14 @@ repo-specific mechanics:
   that summarize operator preferences or cross-repo tactics must carry
   provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
-- **A daemon/CLI-surface change ships atomically with its release.** If your slice
-  alters the shipped `pd` — a new/renamed/removed verb, what the single binary
-  registers, anything an operator sees after `brew upgrade` — the version bump,
-  the embedded-version sync, and the Homebrew formula roll are part of the SAME
-  change, not a follow-up. A landed binary that disagrees with the formula is the
-  drift `version-drift-guard` and `tests/unit/embedded-version-sync.test.js` are
-  there to catch; do not let them be what discovers it. Full rule and the
-  "did the surface actually change?" test: `AGENTS.md` § *Release*.
+- **Feature PRs and releases are separate.** For daemon/CLI changes, run the
+  local binary smoke test only when local runtime execution is authorized;
+  during the operator halt, use compile-only and authorized hosted evidence,
+  and mark local runtime proof unverified. Add the required changelog fragment
+  and take the review PR through its authorized finish line. The release train opens the
+  separate version PR and publishes the tag/Release; the tap's workflow rolls
+  the formula from the stable feed. See `docs/RELEASING.md` §§1, 3. Do not bump
+  versions or publish a release merely because a feature PR changed `pd`.
 - **Prove Squid from release cargo.** Adding a hook to source is not enough.
   Declare every required tentacle/identity/steering asset in
   `release-artifacts.json`, stage it in `release.yml`, then run
@@ -413,10 +413,11 @@ calling a branch ready, inspect and close the full PR surface:
 - Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
   Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
   it external after proving the branch is not the cause, and record that proof
-  in both the PR and a `pd note`.
+  in the PR and, when local Port Daddy is authorized, a `pd note`.
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
-  exact next action to an active Port Daddy session.
+  exact next action to an accepting tool-native task or PR owner while local
+  Port Daddy is halted.
 - **UI diffs ship visual artifacts — forever (now `[M]`).** A PR touching a GPUI
   surface (`core/pd-console` window), the console (any pane/renderer), or the
   website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
@@ -458,6 +459,14 @@ invent a command, switch identities or replay an uncertain write.
 permitted inspection path. Respond graciously, incorporating actionable
 feedback unless clearly wrong or harmful; explain disagreements with evidence.
 Add regression tests and land high-confidence findings as named fixup commits.
+Inspect the exact current head immediately after PR creation and after every
+push, then follow pending reviews and all GitHub/external CI/CD statuses to a
+verdict. Delegate routine polling and log triage, plus bounded repairs, to a
+tool-native non-Astra lower-cost agent by default; Astra coordinates and reviews
+the evidence. Fix branch-caused failures, reply to and resolve review threads,
+and record proven external blockers with an owner and next action. Keep an
+active follow-up or accepting handoff while checks are pending; an open PR is
+not completion. A request for a review PR does not authorize merge.
 Get every status context configured as required by the live ruleset green.
 Advisory repo jobs and external checks are evidence, not merge blockers; inspect
 material failures, record their disposition, and do not wait merely for visual
