@@ -120,3 +120,7 @@ Use `!g` when the caller must suspend until the achievement subgoal completes. U
 - [Reasoning-cycle diagram](diagrams/01_reasoning-cycle.md)
 - [Failure-state diagram](diagrams/02_failure-state.md)
 - [Intention operators and failure boundaries](diagrams/03_intention-operators.md)
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

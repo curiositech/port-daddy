@@ -10,3 +10,9 @@
 Also read [worked index and differential fixtures](index-and-differential-fixtures.md) and [source method boundaries](source-method-boundaries.md).
 
 Read [printed index and implementation discrepancy](printed-index-and-implementation-gap.md) before using the paper pseudocode.
+
+## Bundle files
+
+- [`hierarchical-abstraction-for-scaling.md`](hierarchical-abstraction-for-scaling.md)
+- [`problem-decomposition-strategies.md`](problem-decomposition-strategies.md)
+- [`width-as-coordination-complexity.md`](width-as-coordination-complexity.md)

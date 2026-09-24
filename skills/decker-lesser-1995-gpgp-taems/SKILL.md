@@ -57,3 +57,7 @@ flowchart TD
 Primary source: Decker & Lesser, *Designing a Family of Coordination Algorithms*, UMass CS TR 94-14, §§1–5 targeted-read via the official institutional PDF on 2026-09-24. Table 2 symbolic coefficients and some equations were not visually recovered, so this skill does not repeat them. Report simulations use generated abstract episodes, not production services or a global-optimality guarantee.
 
 See [substrate choice and fixture limits](references/substrate-choice-and-fixture-boundary.md) before implementing schedule selection; a strict no-violation filter is a different policy.
+
+## Bundle navigation
+
+[examples index](examples/INDEX.md).

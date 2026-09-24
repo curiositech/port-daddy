@@ -108,7 +108,7 @@ sequenceDiagram
 
 ## Interpret the result conservatively
 
-`node scripts/control_contract_audit.mjs --input examples/sample-input.json` emits `declarationPass`, findings, and an explicit static-scope statement. The script exits nonzero for invalid input or any declaration failure. It always sets `safeToRenderControls: false`: runtime permission, adapter behavior, independent effect evidence, and UI gating are outside its scope.
+`node scripts/control_contract_audit.mjs --input examples/research-sample-input.json` emits `declarationPass`, findings, and an explicit static-scope statement. The script exits nonzero for invalid input or any declaration failure. It always sets `safeToRenderControls: false`: runtime permission, adapter behavior, independent effect evidence, and UI gating are outside its scope.
 
 The audit checks that a required verb exists and has at least one declared supporting backend; it does not force every backend to support every verb. Each backend's positive `supportedVerbs` list must match the `supported`/`unsupported` matrix exactly. Every declared pair needs one row. Duplicate names, duplicate pairs, unknown references, numeric verbs, missing cells, contradictory support, and missing lifecycle distinctions fail.
 
@@ -138,3 +138,9 @@ To adapt the sample for a real system:
 ## Source and claim boundary
 
 The first-party control vocabulary and UI needs are derived from the Harbor control-plane work packet, its `Session List`/control flow, binder chapters 13 and 15, and the iOS surface design. They are design inputs, not evidence that any specific runtime currently implements them. NIST SP 800-162 supports the narrower ABAC vocabulary described in the evidence reference; it does not prove this schema or any adapter is secure.
+
+## Bundle navigation
+
+[agents index](agents/INDEX.md), [tests index](tests/INDEX.md).
+
+The [example index](examples/INDEX.md) separates the iOS operator fixture from the constructed research declaration.

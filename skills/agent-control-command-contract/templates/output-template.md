@@ -2,7 +2,7 @@
 
 This worksheet creates a static declaration. Completing it or receiving a declaration pass does not prove runtime support or authorize enabling a control.
 
-1. Copy `examples/sample-input.json` to a versioned contract file.
+1. Copy `examples/research-sample-input.json` to a versioned contract file.
 2. Set `profile.id`, `profile.name`, and `profile.basis` to the exact product scope.
 3. Edit `profile.requiredVerbs`; include only controls the named profile promises.
 4. Declare each verb, backend, positive supported-verb list, and exactly one matrix row per pair.

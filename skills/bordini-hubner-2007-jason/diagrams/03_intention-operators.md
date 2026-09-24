@@ -6,8 +6,8 @@ flowchart TD
   A -->|!move| S[Same intention; parent waits]
   A -->|!!notify| N[New intention; parent continues]
   S --> Q{Concurrent composition?}
-  Q -->|"!a |&| !b"| AND[Two sub-intentions; continue only when both finish]
-  Q -->|"!a ||| !b"| XOR[Two sub-intentions; first success drops the other]
+  Q -->|parallel AND| AND[Two sub-intentions; continue only when both finish]
+  Q -->|first-success OR| XOR[Two sub-intentions; first success drops the other]
   AND --> F{One branch fails without handler?}
   F -->|yes| DROP[Drop other branch; handle failure of parent goal]
   F -->|no| BOTH[Continue until both branches complete]
@@ -20,6 +20,6 @@ flowchart TD
   AT[atomic plan annotation] -. prevents other intentions while it runs .-> G
 ```
 
-The comparison reflects Jason’s documented concurrency rules. `atomic` also propagates to subgoals and therefore trades responsiveness for a short local critical region; it is not a transaction or rollback mechanism.
+The `!a |&| !b` operator corresponds to parallel AND; `!a ||| !b` corresponds to first-success OR. The comparison reflects Jason’s documented concurrency rules. `atomic` also propagates to subgoals and therefore trades responsiveness for a short local critical region; it is not a transaction or rollback mechanism.
 
 A handled branch failure can continue through its recovery plan. If neither XOR branch can finish, the enclosing goal cannot be counted as achieved. The arrows summarize outcomes, not a guarantee that an unfinished branch will terminate.

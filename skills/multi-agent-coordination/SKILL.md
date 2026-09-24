@@ -281,7 +281,7 @@ Agents communicate through four event types:
 
 ### The Shared Context Document
 
-For a bounded cooperative workflow, agents may maintain a shared Markdown document (for example, `docs/coordination.md`) with four sections: **Active Agents** (who, what task, status, files claimed), **Discoveries** (findings that affect other agents), **Contracts** (agreed function signatures / API interfaces), and **Blocked** (who is waiting on whom). Each agent reads it before starting and updates it through a designated writer or conflict-aware process. It is a potentially stale record, not a transactional lock or authority store.
+For a bounded cooperative workflow, agents may maintain a shared Markdown document (for example, `docs/coordination.md` (proposed example)) with four sections: **Active Agents** (who, what task, status, files claimed), **Discoveries** (findings that affect other agents), **Contracts** (agreed function signatures / API interfaces), and **Blocked** (who is waiting on whom). Each agent reads it before starting and updates it through a designated writer or conflict-aware process. It is a potentially stale record, not a transactional lock or authority store.
 
 ---
 
@@ -421,3 +421,7 @@ they show layers, working-tree branches, decomposition choices, and conflict
 routes without treating claims as effect enforcement. Use
 [coordination-foundations.md](references/coordination-foundations.md) for the
 primary Contract Net source and its access limit.
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

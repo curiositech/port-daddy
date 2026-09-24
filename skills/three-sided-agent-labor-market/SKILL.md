@@ -124,3 +124,7 @@ Use the 11.5-credit proposal above. A test evaluator reports success, so no tran
 ## Historical provenance
 
 The original skill and foundations reference are preserved as byte snapshots outside the active bundle. [Preimage record](provenance/ARCHIVAL-MATERIAL.md) provides canonical commit, source path, and SHA-256. This skill makes no Book novelty claim; the separate planning note records one possible explanatory figure question.
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

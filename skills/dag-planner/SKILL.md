@@ -72,3 +72,7 @@ A2→B3,C2; B,C→D1; D→E2; C,E→G1; G→F1; F→V1. G is a **human gate** wi
 Every node must name purpose, input/output contract, owner, failure outcome, and readiness evidence. Validate references, typed hard edges, multi-root topology/cycle witness, resources, vague-node refinement, approval evidence, and version identity. Planning is not execution, output validation, skill selection, ETL, or UI orchestration; a schedule remains a plan until independently observed.
 
 See [typed dependency contracts and source scope](references/methods-and-sources.md) and the [worked planning fixtures](references/worked-planning-fixtures.md) for full inputs, outputs, and failure branches.
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

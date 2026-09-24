@@ -74,3 +74,7 @@ The decision is not evidence. The observation's source and retrieval context are
 ## Boundaries
 
 ReAct is a prompting and interaction pattern, not a substitute for authorization, source validation, privacy review, or effect confirmation.
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

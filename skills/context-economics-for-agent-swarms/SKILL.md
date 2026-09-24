@@ -393,3 +393,7 @@ choosing one as a local default.
 - `tests/validate-capacity-evidence.test.mjs` — schema parity, nine root-audit regressions, and capacity/alias/time boundary cases. Requires the same Ajv 8 dependency.
 - `tests/activation.md` — positive and negative routing cases.
 - `CHANGELOG.md` — evolution of the skill contract.
+
+## Bundle navigation
+
+[tests index](tests/INDEX.md).

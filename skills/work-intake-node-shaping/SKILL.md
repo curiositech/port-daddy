@@ -103,3 +103,7 @@ See [Schema enforcement](references/schema-enforcement.md).
 - [First-party method boundary](references/method-boundaries.md)
 - [Seven local archetypes](references/seven-archetypes.md)
 - [Existing-route audit](references/legacy-verb-compatibility.md)
+
+## Bundle navigation
+
+[agents index](agents/INDEX.md), [examples index](examples/INDEX.md), [schemas index](schemas/INDEX.md), [templates index](templates/INDEX.md), [tests index](tests/INDEX.md).

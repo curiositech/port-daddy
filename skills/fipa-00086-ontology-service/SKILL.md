@@ -91,3 +91,7 @@ Negative: reverse the direction or add an extension-only term. If no relation/ca
 - [Failure diagnosis](references/failure-modes-semantic-interoperability.md)
 - [Optional Annex B authoring method](references/ontology-authoring-guidelines.md)
 - [Historical provenance](historical-provenance.md)
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

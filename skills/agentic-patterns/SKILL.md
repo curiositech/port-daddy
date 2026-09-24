@@ -314,3 +314,7 @@ Think sets goal and evidence needs; act takes the narrowest authorized action;
 assess checks the observed result and whether the exit condition is met.
 
 Agents that skip THINK waste tokens exploring. Agents that skip ASSESS don't know when to stop. Agents that skip ACT just plan forever. All three, in that order, every cycle.
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

@@ -126,3 +126,7 @@ Use at least these distinct cases, with declared numbers rather than invented be
 | `scripts/pricing_stress.mjs` | Deterministic arithmetic and blocking status. |
 | `examples/expected-output.md` | Constructed revise/pass and unknown-outcome walkthrough. |
 | `diagrams/` | Separate pricing loop and commitment/outcome state diagrams. |
+
+## Bundle navigation
+
+[agents index](agents/INDEX.md), [templates index](templates/INDEX.md).

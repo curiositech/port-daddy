@@ -6,11 +6,11 @@ Use this bundle to define a local operator-control profile and audit whether its
 
 1. Read `SKILL.md` for the declaration workflow and evidence boundary.
 2. Choose a product-specific `profile.requiredVerbs` set. The audit has no built-in four-verb requirement; a small profile may require only the controls it actually offers.
-3. Fill `examples/sample-input.json`, including exactly one row for every declared verb × backend pair.
+3. Fill `examples/research-sample-input.json`, including exactly one row for every declared verb × backend pair.
 4. Run the declaration audit:
 
 ```bash
-node scripts/control_contract_audit.mjs --input examples/sample-input.json
+node scripts/control_contract_audit.mjs --input examples/research-sample-input.json
 ```
 
 5. `declarationPass: true` means only that the declarations are internally complete. It never proves that authority is current, an adapter works, an effect occurred, or a button is safe to enable.

@@ -7,7 +7,7 @@ These outputs come from the local static declaration checker and constructed fix
 Command:
 
 ```bash
-node scripts/control_contract_audit.mjs --input examples/sample-input.json
+node scripts/control_contract_audit.mjs --input examples/research-sample-input.json
 ```
 
 Expected key output:

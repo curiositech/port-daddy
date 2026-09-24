@@ -337,3 +337,7 @@ Use [monitoring-boundary-and-evaluation](references/monitoring-boundary-and-eval
 Lamport's TLA+ material distinguishes state predicates from action relations and frames safety/liveness claims over behaviors. NIST SP 800-137 describes continuous monitoring as a risk- and system-context-dependent program. Schneider's runtime-enforcement source was accessed at abstract/source-identity depth only; it is used here only to motivate separating observation from enforcement, not to assert a specific implementation theorem. Chandra–Toueg's source was accessed at source-identity/research-summary depth; silence/timeout limits are presented as a model-dependent warning, not a deployment guarantee. None of these sources validates a universal poll interval, clock tolerance, monitor-latency budget, crash count, SQL cost, or effect-prevention claim for a particular deployment.
 
 Sources: [Lamport, TLA+ high-level overview](https://lamport.azurewebsites.net/tla/high-level-view.html); [Lamport, state predicates](https://lamport.azurewebsites.net/tla/rhtml/state-predicate.html); [Schneider, 2000](https://doi.org/10.1145/353323.353382); [NIST SP 800-137](https://csrc.nist.gov/pubs/sp/800/137/final); [Chandra and Toueg, 1996](https://hdl.handle.net/1813/7192).
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

@@ -77,3 +77,7 @@ A service that posts externally declares `effectClass: external-or-irreversible`
 - [Capabilities, custody, and effects](references/capabilities-and-execution-substrate.md)
 - [Evidence scope](references/evidence-scope.md)
 - [Example declaration](examples/expected-output.md)
+
+## Bundle navigation
+
+[agents index](agents/INDEX.md), [examples index](examples/INDEX.md).

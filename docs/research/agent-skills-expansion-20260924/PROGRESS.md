@@ -25,6 +25,6 @@ Diagram sources prepared for 16 skills (61 unique drafts). Counts describe sourc
 
 Astra reviewed the seven initial Book candidates and a B03/B04 follow-up against the active manuscript. Twelve diagram ports now have accepted standalone renders in all three editions (36 variants), including five worked exercises with fifteen page previews. Root source/visual receipts retain the validation limits. Manuscript prose remains unchanged.
 
-[Catalog](catalog/CATALOG.md) · [Detailed hashes and per-skill state](campaign-progress.json) · [ASCII review candidates](ascii-review-inventory.json) · [Astra Book review](ASTRA-BOOK-REVIEW.md) · [Book placement review](BOOK-PLACEMENT-REVIEW.md) · [Book draft gallery](book-drafts/index.html) · [New exercise gallery](book-B03-B04-exercise-ports/index.html) · [MAS worksheet](book-mas-foundations-exercise-port/index.html) · [Chain/path exercise](book-B06-order-exercise/index.html)
+[Catalog](catalog/CATALOG.md) · [Detailed hashes and per-skill state](campaign-progress.json) · [ASCII review candidates](ascii-review-inventory.json) · [Astra Book review](ASTRA-BOOK-REVIEW.md) · [Book placement review](BOOK-PLACEMENT-REVIEW.md) · [Book figure source and brief](book-figure-ports/book-drafts/BRIEF.md) · [New exercise source](book-figure-ports/book-B03-B04-exercise-ports/README.md) · [MAS worksheet source](book-figure-ports/book-mas-foundations-exercise-port/README.md) · [Chain/path exercise source](book-figure-ports/book-B06-order-exercise/VALIDATION.md)
 
 Generated: 2026-09-24T19:30:57.796218+00:00

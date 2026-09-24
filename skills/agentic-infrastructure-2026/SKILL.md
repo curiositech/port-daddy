@@ -143,3 +143,7 @@ This skill supports infrastructure planning and evaluation, not operational safe
 - [`references/adoption-and-worked-examples.md`](references/adoption-and-worked-examples.md)
 - [`references/vendor-capability-ledger.md`](references/vendor-capability-ledger.md)
 - [`references/evidence-scope.md`](references/evidence-scope.md)
+
+## Bundle navigation
+
+[provenance index](provenance/INDEX.md), [tests index](tests/INDEX.md).

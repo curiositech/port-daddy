@@ -119,3 +119,7 @@ I/F (input/feedback) and A (action) are two historical difficulty prompts, not a
 ## Historical provenance
 
 The active bundle contains source-bounded teaching material. Byte-preserved original essays, diagrams, and raw response are outside it. [Archival material](provenance/ARCHIVAL-MATERIAL.md) gives a portable canonical commit/path/SHA mapping for every omitted unit; [the raw wrapper](_raw_response.md) identifies the historical raw preimage without reproducing its ASCII diagrams.
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md), [provenance index](provenance/INDEX.md), [references index](references/INDEX.md).

@@ -1,6 +1,6 @@
 # Current prior art: coordination substrates, state management and drift
 
-Review date: 2026-09-24. This is a research follow-up to [the seven-candidate Astra review](../ASTRA-BOOK-REVIEW.md), not a manuscript edit or new empirical result.
+Review date: 2026-09-24. This is a research follow-up to [the seven-candidate Astra review](../../ASTRA-BOOK-REVIEW.md), not a manuscript edit or new empirical result.
 
 **Decision:** STORM warrants a direct comparison in the proposed collaboration experiment and a citation in the planning records for candidates 4–5. grite warrants a measurement/instrumentation comparison. DriCo remains a qualified lead because full-paper retrieval was blocked; its indexed primary passages support limited comparison, not theorem or result adoption. None resolves the existing S2 pilot defect or establishes that Port Daddy's implementation works. No eighth Book candidate is warranted from this pass.
 

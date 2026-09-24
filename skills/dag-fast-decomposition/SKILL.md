@@ -85,3 +85,7 @@ For `parse→typecheck→review` and `parse→review`, an index may answer wheth
 For `ingest→calibrate→aggregate` and direct `ingest→aggregate`, the same query/filter procedure may identify the direct arc as transitive. It does not prove calibration accuracy, freshness, or suitability of the aggregate. Rebuilding is required when the graph revision or chosen cover changes.
 
 Read [index and differential fixtures](references/index-and-differential-fixtures.md), [source method boundaries](references/source-method-boundaries.md), and [partial-filter fixture](references/transitive-structure-as-compression-opportunity.md).
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md), [references index](references/INDEX.md).

@@ -75,3 +75,7 @@ A design team may adapt this pattern to another simulator or an agent workflow, 
 ## Historical material and provenance
 
 Historical generated raw material, reference essays, and the prior diagram are kept outside this active bundle. `provenance/original-raw-response.md` identifies the canonical raw-response path, baseline commit, and SHA-256 without embedding archival ASCII diagrams. `provenance/original-archive-manifest.tsv` lists every archived original reference and diagram by canonical commit, source path, and SHA-256; the external campaign archive path is only a convenience pointer. `provenance.json` is a non-operative wrapper for historical import metadata; its original relative source path is unavailable here and its claimed $0.00 cost is not audited. The broad rarity, universality, “actual inputs,” and universal-redundancy claims in historical material are not active. The bounded five-validator tug discrepancy stated above is source-backed by IV.C.3.
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md), [provenance index](provenance/INDEX.md), [references index](references/INDEX.md).

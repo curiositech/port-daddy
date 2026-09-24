@@ -94,3 +94,7 @@ Record objective, graph revision, node/edge semantics, closure or direct-arc bas
 Do not use this skill to dispatch work, choose worker counts, compute a calendar, update a changing graph, or promise Chen/Fulkerson behavior without the corresponding constructed graph and proof artifacts.
 
 Read [finite proof and application fixtures](references/proof-and-application-fixtures.md), [Chen source boundary](references/chen-source-boundaries.md), and [schema examples](schemas/examples.md).
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

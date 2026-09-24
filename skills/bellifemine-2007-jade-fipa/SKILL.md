@@ -113,3 +113,7 @@ Do not label an absent response “Byzantine,” choose arbitrary global thresho
 - [Source access and implementation boundary](references/source-access-and-implementation-boundary.md)
 - [CFP lifecycle diagram](diagrams/01_cfp-lifecycle.md)
 - [Implementation boundary diagram](diagrams/02_implementation-boundary.md)
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

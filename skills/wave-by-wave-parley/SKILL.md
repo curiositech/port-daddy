@@ -128,3 +128,7 @@ allocate resources, or prove FIPA conformance. See
 - [Method boundaries](references/method-boundaries.md)
 
 A reported partial, failed, missing, or untrusted outcome is still an outcome record. If it is in `justFinished`, the local checkpoint policy holds admission for recovery review even when the next proposed branch is independent. This alone does not make the declaration malformed. A claimed successful descendant with an absent or failed prerequisite remains inconsistent, and a proposed next wave whose prerequisites are not successful remains invalid.
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md), [schemas index](schemas/INDEX.md), [tests index](tests/INDEX.md).

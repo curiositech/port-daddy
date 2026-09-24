@@ -18,7 +18,7 @@ Origins: `llm-evaluation-harness`, `recursive-synthesis`, `wu-2023-autogen`, `ma
 
 **Candidate research/product.** A reviewer-selection receipt could preserve eligibility, evidence lineage, calibration domain, rule version, missing judgments and held-out performance. The proposed result is whether evidence-route diversity improves incremental error discovery under matched total cost, beyond merely changing model brands. A factorial study could vary judge bank and access to shared versus disjoint evidence. No market vacancy, optimal selector, new theorem or efficacy is established.
 
-**Figure contract.** `draft/judge-dependence-premises`: an aligned relation matrix for principal links, evidence sources and observed errors, plus calibration/evaluation separation. Do not draw three model logos as proof of independence. Mermaid and standalone Book-style ports are rendered in [the gallery](book-drafts/index.html); [exact-source receipt](book-drafts/judges-revisions-conflicts/RECEIPT.json).
+**Figure contract.** `draft/judge-dependence-premises`: an aligned relation matrix for principal links, evidence sources and observed errors, plus calibration/evaluation separation. Do not draw three model logos as proof of independence. Mermaid and standalone Book-style ports are rendered in [the gallery](book-figure-ports/book-drafts/BRIEF.md); [exact-source receipt](book-figure-ports/book-drafts/judges-revisions-conflicts/RECEIPT.json).
 
 ## Candidate 4: Replanning must specify what evidence can survive the change
 
@@ -34,7 +34,7 @@ Origins: `dag-dynamic-replanner`, `dag-mutation-strategist`, `dag-replay-debugge
 
 **Candidate research/product.** Prototype an explanation of which receipts a revision invalidates and why. Compare conservative rerun-all, ordinary data dependency invalidation, and typed invalidation on preregistered changes with independent acceptance oracles. Measure false reuse, unnecessary recomputation, missed revoked authority and duplicate effects. The attractive question is whether separating these edge types saves work without accepting stale evidence; there is no proven minimal invalidation algorithm or safety result yet.
 
-**Figure contract.** `draft/typed-plan-revision`: before/after small multiples over the same three tasks, with a dependency-type key and receipts marked reusable, stale or unresolved. This must depict a concrete change, not an unqualified graph transformation. The final draft uses an aligned receipt-invalidation table to express these relations. Mermaid and all three standalone Book editions are rendered; see [the receipt](book-drafts/judges-revisions-conflicts/RECEIPT.json).
+**Figure contract.** `draft/typed-plan-revision`: before/after small multiples over the same three tasks, with a dependency-type key and receipts marked reusable, stale or unresolved. This must depict a concrete change, not an unqualified graph transformation. The final draft uses an aligned receipt-invalidation table to express these relations. Mermaid and all three standalone Book editions are rendered; see [the receipt](book-figure-ports/book-drafts/judges-revisions-conflicts/RECEIPT.json).
 
 ## Candidate 5: Semantic conflicts need an integration oracle
 
@@ -46,7 +46,7 @@ Origins: `semantic-conflict-prediction`, `runtime-task-overlap-detector`, `dag-c
 
 **Evidence and proposed result.** This is a constructed example, not measured performance. Freeze fixtures and acceptance tests before fitting a predictor; include positive and negative controls; compare against changed-line, static dependency and review baselines. Split by repository/task family and report missed harmful conflicts, unnecessary serialization, useful completed work and total integration cost. The candidate is a benchmark/oracle design, not a demonstrated detector or a new theorem.
 
-**Figure contract.** `draft/conflict-four-cells`: a 2-by-2 outcome matrix plus the producer/consumer contract edge. A generic “semantic engine catches conflict” box would conceal the unproven step. Mermaid and three standalone TikZ editions are rendered; see [the receipt](book-drafts/judges-revisions-conflicts/RECEIPT.json).
+**Figure contract.** `draft/conflict-four-cells`: a 2-by-2 outcome matrix plus the producer/consumer contract edge. A generic “semantic engine catches conflict” box would conceal the unproven step. Mermaid and three standalone TikZ editions are rendered; see [the receipt](book-figure-ports/book-drafts/judges-revisions-conflicts/RECEIPT.json).
 
 ## Candidates 6–7: Two distinct later-batch experiments
 

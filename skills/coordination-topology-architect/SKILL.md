@@ -341,3 +341,7 @@ Fix:
 - Do not use this skill to pick the best coding skill for a single node.
 - Do not use this skill when the work is plainly one direct skill call.
 - Do not hide runtime limitations by relabeling unsupported topologies as if they run natively.
+
+## Bundle navigation
+
+[references index](references/INDEX.md).

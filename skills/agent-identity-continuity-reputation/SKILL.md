@@ -190,3 +190,7 @@ A declared graduated flag is not evidence that an incentive inequality holds.
 - [Elo, The Rating of Chessplayers (1978)](https://gwern.net/doc/statistics/order/comparison/1978-elo-theratingofchessplayerspastandpresent.pdf).
 - [Herbrich, Minka and Graepel, TrueSkill (2006)](https://proceedings.neurips.cc/paper/2006/file/f44ee263952e65b3610b8ba51229d1f9-Paper.pdf).
 - [Zheng et al., Judging LLM-as-a-Judge (2023)](https://arxiv.org/abs/2306.05685).
+
+## Bundle navigation
+
+[agents index](agents/INDEX.md), [examples index](examples/INDEX.md), [schemas index](schemas/INDEX.md).

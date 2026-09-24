@@ -22,7 +22,7 @@ Read in the canonical worktree at commit `00ab2c9ab2197ff97e85edc173370b7446fdb2
 
 ## Constructed material and unsupported claims removed
 
-`examples/sample-input.json` uses `adapter-example` and `observer-only-example` with placeholder attribute-field names. It is constructed only to exercise the format. It is not an observed capability matrix, source of live profile truth, Cloudflare/remote backend claim, authorization result, or evidence that controls are safe to enable.
+`examples/research-sample-input.json` uses `adapter-example` and `observer-only-example` with placeholder attribute-field names. It is constructed only to exercise the format. It is not an observed capability matrix, source of live profile truth, Cloudflare/remote backend claim, authorization result, or evidence that controls are safe to enable.
 
 This draft replaces the inherited unqualified claims that a lease or last appended event is automatically authoritative; that acknowledgement means the effect happened; that expiry proves no effect; and that every product must provide a hard-coded four-verb core. It also removes unverified capability assertions about hook-only and Cloudflare bodies. They were design assertions in the earlier skill/example, not source-supported or locally observed facts.
 

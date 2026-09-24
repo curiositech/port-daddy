@@ -101,3 +101,7 @@ The same paper A1 math topology is shown with autonomous participation and with 
 - [Iteration](references/failure-recovery-through-conversation-iteration.md)
 - [Topology diagram](diagrams/01-topology.md)
 - [Input/execution boundary](diagrams/02-control-boundary.md)
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

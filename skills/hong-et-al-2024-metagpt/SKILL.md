@@ -70,3 +70,7 @@ In the MetaGPT paper (arXiv:2308.00352v7, §§3.1–3.3), the pool/subscription/
 - [Executable feedback](references/executable-feedback-as-reality-grounding.md)
 - [Artifact pipeline diagram](diagrams/01-artifact-pipeline.md)
 - [Feedback boundary diagram](diagrams/02-feedback-boundary.md)
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md).

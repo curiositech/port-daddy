@@ -1,6 +1,6 @@
 # Always-on agent safety: primary-method deepening
 
-**Retrieved:** 2026-09-24. **Scope:** source-level research to support the eight findings in [`ROOT-REVIEW-HOLD.md`](../architecture-skill-drafts/B02/validation/always-on-final/safety/ROOT-REVIEW-HOLD.md). I read the complete staged `always-on-agent-safety/SKILL.md`, its three references (`evidence-scope.md`, `safety-case-and-containment.md`, `retention-and-evidence.md`), and the hold note. The report maps methods and testable repairs to each finding. It does not certify implementation or give legal, medical, or clinical advice. Existing useful content to retain is identified; no draft or repository skill was edited.
+**Retrieved:** 2026-09-24. **Scope:** source-level research to support the eight findings in [`ROOT-REVIEW-HOLD.md`](always-on-root-review-hold.md). I read the complete staged `always-on-agent-safety/SKILL.md`, its three references (`evidence-scope.md`, `safety-case-and-containment.md`, `retention-and-evidence.md`), and the hold note. The report maps methods and testable repairs to each finding. It does not certify implementation or give legal, medical, or clinical advice. Existing useful content to retain is identified; no draft or repository skill was edited.
 
 ## Primary source set and inspection depth
 

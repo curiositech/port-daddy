@@ -9,7 +9,7 @@ import { auditControlContract, LIFECYCLE_STATES } from '../scripts/control_contr
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const script = resolve(root, 'scripts/control_contract_audit.mjs');
-const sample = JSON.parse(readFileSync(resolve(root, 'examples/sample-input.json'), 'utf8'));
+const sample = JSON.parse(readFileSync(resolve(root, 'examples/research-sample-input.json'), 'utf8'));
 const supportedStates = sample.profile.requiredLifecycleStates;
 const unsupportedStates = ['requested', 'policy-denied', 'unsupported'];
 
@@ -171,7 +171,7 @@ test('CLI returns nonzero for a structurally valid but incomplete audit', () => 
 });
 
 test('CLI returns zero for a complete declaration but keeps UI safety false', () => {
-  const result = spawnSync(process.execPath, [script, '--input', resolve(root, 'examples/sample-input.json')], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [script, '--input', resolve(root, 'examples/research-sample-input.json')], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.declarationPass, true);

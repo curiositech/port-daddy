@@ -61,3 +61,7 @@ A residual support can suggest which observed coordinates to inspect. Ranking co
 - [Source access and fixture limits](references/source-access-and-fixtures.md)
 
 The included [finite helper](examples/finite_sheaf_checks.py) and receipt fixture validate matrix identities only. They do not connect to a runtime or authorize a response.
+
+## Bundle navigation
+
+[memory index](memory/INDEX.md).
