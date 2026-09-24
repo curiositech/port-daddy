@@ -1,236 +1,137 @@
 ---
 license: Apache-2.0
 name: rao-georgeff-1995-bdi-agents-from-theory-to-practice
-description: >-
-  Foundational framework for modeling intelligent agents through Beliefs, Desires, and Intentions with practical
-  implementation strategies under resource constraints
+description: Apply the Rao–Georgeff 1995 BDI interpreter and its representation choices
+  to compare commitment policies, filter plan options, and state the boundary from
+  formal model to a constructed implementation.
 metadata:
   category: Research & Academic
   tags:
-    - bdi
-    - agents
-    - theory
-    - practical-reasoning
-    - commitment
+  - bdi
+  - agents
+  - theory
+  - practical-reasoning
+  - commitment
   io-contract:
     kind: none
     covers:
-      - BDI agent architecture theory
-      - Rational agency under resource constraints
-      - Commitment strategies in dynamic environments
-      - Plan library organization and indexing
-      - Belief update granularity trade-offs
-      - Agent failure modes and detection
-      - Decision trees for agent design
+    - BDI agent architecture theory
+    - Rational agency under resource constraints
+    - Commitment strategies in dynamic environments
+    - Plan library organization and indexing
+    - Belief update granularity trade-offs
+    - Agent failure modes and detection
+    - Decision trees for agent design
 allowed-tools: Read,Write,Edit,Glob,Grep
 ---
 
-# SKILL: BDI Agents - Practical Rational Agency Under Resource Bounds
+# BDI methods from theory to practice
 
-**Skill ID**: `bdi-agents-theory-practice`  
-**Domain**: Agent architectures, AI system design, decision-making under resource constraints  
-**Source**: Rao & Georgeff, "BDI Agents: From Theory to Practice"
+Use this skill when an agent must keep acting while beliefs, objectives, and the environment change, and a plan library can express the relevant responses. The paper does not prescribe a universal policy, latency, architecture, safety authority, financial action, or optimum.
 
-## Decision Points
+**Source boundary.** Rao and Georgeff, [*BDI Agents: From Theory to Practice*](https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf), ICMAS 1995, pp. 312–319, official eight-page PDF, was read in full on 2026-09-24. It gives a formal BDI account, an ideal interpreter, a practical PRS/dMARS-style representation, and the OASIS air-traffic example. It treats blind, single-minded, and open-minded commitment as application-tailored choices. A local implementation must separately define sensing authority, update rules, scheduling, and effect authorization.
 
-### Primary Decision Tree: Commitment Strategy Selection
+## The reusable procedure
 
-```
-INPUT: Environment volatility + Goal clarity + Computation budget
+1. **Write the state boundary.** Name the observed events, current ground beliefs, competing desires, active intention stacks, and the action boundary. Record which observations may update beliefs and which effects need independent approval.
+2. **Express each plan.** Give it an invocation event, a precondition over current beliefs, and a body of primitive actions or subgoals. Index candidate plans by invocation event, then test their preconditions. This follows the paper’s practical plan representation.
+3. **Run one interpreter cycle.** Take queued events; generate options; deliberately select a subset; update intention stacks; execute an enabled atomic action; collect external events; drop successful attitudes and impossible attitudes. The order is the paper’s ideal loop; queue priority, fairness, and timing are local policies.
+4. **Choose and test a commitment policy.** Blind rejects conflicting belief/desire changes; single-minded permits belief changes that drop an intention; open-minded permits relevant belief and desire changes. Run all candidate policies against the *same constructed trace* and record completions, revisions, missed changes, compute time, and unresolved cases.
+5. **Calibrate rather than assert.** Measure option-generation time separately from scheduling, belief update, action execution, and input delay. A slow first action is a symptom; a profile identifies the component(s). Do not infer a bottleneck from one timeout or a comparison with an environment-change period.
 
-IF Environment volatility = LOW (changes slower than plan execution):
-  └─ IF Goal clarity = HIGH (specific, measurable outcomes):
-     └─ CHOOSE: Blind commitment
-        • Perceptual cue: Plan steps complete in predictable timeframes
-        • Trigger reconsideration: Only when goal achieved/failed
-  └─ IF Goal clarity = LOW (abstract, evolving objectives):
-     └─ CHOOSE: Single-minded commitment
-        • Perceptual cue: Subgoal failures indicate impossibility
-
-IF Environment volatility = MEDIUM (changes comparable to plan duration):
-  └─ IF Computation budget = HIGH:
-     └─ CHOOSE: Open-minded commitment
-        • Perceptual cue: Monitor for better opportunities
-        • Trigger reconsideration: Goal deprioritization OR impossibility
-  └─ IF Computation budget = LOW:
-     └─ CHOOSE: Single-minded commitment
-        • Perceptual cue: Focus on clear failure signals only
-
-IF Environment volatility = HIGH (changes faster than typical plans):
-  └─ IF Goal urgency = CRITICAL:
-     └─ CHOOSE: Reactive execution (bypass BDI deliberation)
-        • Perceptual cue: Environmental state requires immediate response
-  └─ ELSE:
-     └─ CHOOSE: Open-minded with frequent reconsideration windows
-        • Perceptual cue: Schedule reconsideration at plan checkpoints
+```mermaid
+flowchart TD
+    E[external or internal event] --> Q[event queue]
+    Q --> O[generate options from invocation conditions]
+    O --> P[filter by current-belief preconditions]
+    P --> D[deliberate: select a subset]
+    D --> I[update intention stacks]
+    I --> A{Enabled atomic action?}
+    A -->|yes: new or existing intention| X[execute atomic action]
+    A -->|no| C[collect events; drop successful or impossible attitudes]
+    X --> C
+    C --> Q
+    P -. no new applicable option .-> N[record no-new-option diagnostic]
+    N --> D
 ```
 
-### Decision Tree: Plan Library Organization Strategy
+## Commitment-policy comparison
 
-```
-IF Domain knowledge = COMPLETE AND STABLE:
-  └─ Pre-compile all plans with full context conditions
-  └─ Use hash-table indexing on event types
+| Policy | Paper-level distinction | Hand-checkable constructed trace |
+| --- | --- | --- |
+| Blind | Rejects belief and desire changes that conflict with the commitment. | A `route_A` intention remains after a sensor report says the route is blocked; the report must still be retained as evidence even if the policy does not revise. |
+| Single-minded | Entertains belief changes and may drop a conflicting commitment. | The same report makes `route_A` infeasible under the declared model; mark the intention dropped and run option generation. A new lower-priority desire alone does not require revision. |
+| Open-minded | Entertains belief and desire changes that may drop a commitment. | A verified priority change conflicts with `route_A`; record the desire change, policy rule, and selected replacement or unresolved outcome. |
 
-IF Domain knowledge = INCOMPLETE OR EVOLVING:
-  └─ Use hierarchical decomposition with abstract plans
-  └─ Enable runtime plan composition
-  └─ Index on goal patterns, not specific events
+The source distinguishes committing to one possible future from committing to all futures, separately from blind/single/open termination behavior. Do not collapse those axes. A blind policy does **not** mean “drop when achieved or impossible”; its defining behavior is denial of conflicting belief/desire changes. The generic interpreter’s dropping of successful/impossible attitudes is not a proof that every policy applies the same termination rule.
 
-IF Real-time constraints = CRITICAL:
-  └─ Sacrifice completeness for speed
-  └─ Cache frequent plan instantiations
-  └─ Use compiled pattern matching over full search
-```
-
-### Decision Tree: Belief Update Granularity
-
-```
-IF Environmental change rate > Belief update rate:
-  └─ Use event-triggered updates only
-  └─ Accept temporary inconsistency for speed
-
-IF Belief inconsistency tolerance = LOW:
-  └─ Implement belief revision with dependency tracking
-  └─ May require pausing execution during updates
-
-IF Memory constraints = TIGHT:
-  └─ Maintain only current-state beliefs
-  └─ Compile temporal dependencies into plan preconditions
+```mermaid
+stateDiagram-v2
+    [*] --> active
+    active --> continue: no policy-recognized conflict
+    continue --> active
+    active --> blind_hold: blind conflict rejected
+    blind_hold --> active
+    active --> single_review: belief change conflicts
+    single_review --> active: accepted belief leaves outcome possible
+    single_review --> revise: drop and generate options
+    active --> open_review: relevant belief or desire change
+    open_review --> active: retain under declared policy
+    open_review --> revise
+    revise --> active: selected replacement
+    revise --> unresolved: no applicable selected plan
 ```
 
-## Failure Modes
+## Diagnostics and fixtures
 
-### 1. Thrashing Agent (Continuous Reconsideration)
-**Symptoms**: Agent switches between plans rapidly, never completing goals, high deliberation overhead
-**Detection Rule**: If reconsideration frequency > 1 per plan step execution, you're thrashing
-**Root Cause**: "Potentially significant change" detection is too sensitive OR commitment strategy is too weak for environment
-**Fix**: Tighten change detection criteria, increase commitment strength, or batch environmental updates
+| Observation | Competing explanations to measure | Next check |
+| --- | --- | --- |
+| Repeated plan switching | policy trigger too broad; conflicting desires; unstable beliefs; selection tie-breaking; external event burst | Trace trigger, belief/desire change, option set, and chosen stack per cycle. |
+| No first action before a deadline | option matching; precondition evaluation; deliberation; queue delay; action gate; logging/transport | Profile each stage on the same event and plan-library fixture. |
+| Continued obsolete action | blind policy; missing/late observation; absent precondition; stale belief; action already committed | Inspect the policy, observation provenance/timestamp, plan precondition, and action boundary. |
+| No plan selected | no invocation match; precondition failure; a deliberate policy rejection; incomplete library; queue loss | Preserve every rejected candidate and reason. Do not call the goal impossible without a complete declared model/search. |
 
-### 2. Zombie Plans (Blind Persistence)
-**Symptoms**: Agent continues executing obviously obsolete plans, ignores contradictory evidence, goals never achieved
-**Detection Rule**: If plan execution continues after preconditions become false, you have zombie plans
-**Root Cause**: Missing "impossibility" detection in termination conditions OR belief update failures
-**Fix**: Add explicit plan precondition monitoring, implement belief-intention consistency checks
+### Constructed fixture: navigation comparison
 
-### 3. Option Generation Bottleneck
-**Symptoms**: Long delays before any plan selection, agent appears "frozen" before acting, timeout failures
-**Detection Rule**: If time-to-first-action > environment change period, option generation is the bottleneck
-**Root Cause**: Plan library too large for real-time search OR matching algorithm is naive
-**Fix**: Index plans by triggering events, use compiled pattern matching, accept incompleteness for speed
+Use `goal = reach(checkpoint)`; plans `short_route` (requires `path_clear`) and `detour` (requires `detour_open`); initial belief `path_clear`; event `blocked(path)`. The fixture can compare: blind retains `short_route` while recording the conflict; single-minded drops it after the belief update and selects `detour` if its precondition holds; open-minded may also switch after a separately recorded priority change. The fixture proves only the declared interpreter behavior, not robot safety or physical success.
 
-### 4. Schema Bloat (Over-Detailed Plans)
-**Symptoms**: Plan library grows exponentially, new situations require entirely new plans, brittle to minor variations
-**Detection Rule**: If adding new capability requires modifying >10% of existing plans, you have schema bloat
-**Root Cause**: Plans encode too much detail rather than using hierarchical decomposition
-**Fix**: Use abstract plans with subgoal decomposition, separate invariant patterns from situation-specific details
+### Constructed fixture: replayed market-like data
 
-### 5. Desire-Intention Confusion
-**Symptoms**: Agent attempts impossible combinations, violates resource constraints, goals conflict in execution
-**Detection Rule**: If multiple intentions require mutually exclusive resources, desires and intentions are confused
-**Root Cause**: Deliberation process doesn't filter desires for mutual consistency before commitment
-**Fix**: Implement explicit compatibility checking in deliberation, maintain resource allocation tracking
+Replay values `p_0=100`, `p_1=103`, and an event `announcement_unverified`. Plans merely label simulated choices `hold` and `recompute`; they do not place orders. Compare whether policy rules react only to a verified belief update, not to the unverified announcement. Report selected stacks and computation cost; do not claim gain, loss, price movement, merger outcome, or trading advice.
 
-## Worked Examples
+### Constructed fixture: delayed telemetry simulator
 
-### Example 1: Robot Navigation Under Deadline Pressure
+Declare an input delay `d`, state-estimation error bound `e`, and a simulator-only action `predict_next`. Test whether a policy records stale telemetry, revises its simulation plan under the declared error rule, or remains unresolved. The paper supplies no three-second delay, stable-orbit result, flight-control authority, or recommended policy.
 
-**Scenario**: Delivery robot must reach destination in 10 minutes. Environment has pedestrians (medium volatility) and network connectivity for map updates (computation budget = medium).
+## Reference routing
 
-**Decision Process**:
-1. **Commitment Strategy Selection**: Medium volatility + medium budget → Open-minded commitment
-2. **Initial Plan**: Direct path using A* with current map
-3. **Execution**: At waypoint 3, pedestrian blocks path
-4. **Reconsideration Trigger**: Blocked path = "potentially significant change" because it affects plan feasibility
-5. **New Deliberation**: 
-   - Option 1: Wait for pedestrian (risks deadline)
-   - Option 2: Detour via loading dock (adds 2 minutes)
-   - **Choose**: Detour (keeps deadline feasible)
-6. **Continued Execution**: At waypoint 7, network update shows construction blocking detour
-7. **Reconsideration**: Construction = significant change → New deliberation finds alternate route
+- [Three attitudes and resource bounds](references/resource-bounded-rationality-three-attitudes.md): domain assumptions and B/D/I separation.
+- [Decision trees to symbolic reasoning](references/decision-trees-to-symbolic-reasoning.md): possible worlds and what the formal transformation preserves.
+- [Commitment strategies](references/commitment-strategies-and-reconsideration.md): the two commitment axes and interpreter status events.
+- [Option generation](references/option-generation-problem-filtering.md): invocation/precondition filtering and measurement procedure.
+- [Plans as compilation](references/plans-as-knowledge-compilation.md): plan anatomy, stack semantics, and library limits.
+- [Theory–practice approximation](references/theory-practice-gap-practical-approximation.md): the paper’s representation restrictions.
+- [Failure modes](references/failure-modes-complex-agent-systems.md): diagnosis procedure and negative cases.
+- [Paper scope and calibration](references/paper-scope-and-calibration.md): source access, implementation assumptions, and historical identity.
 
-**Key Insight**: Agent commits to paths but reconsiders when assumptions (clear route) become invalid. Novice would either replan at every pedestrian (thrashing) or ignore the blocked path (zombie plan).
+## Original-heading disposition ledger
 
-### Example 2: Trading Algorithm Under Market Volatility
-
-**Scenario**: Algorithm trading in options market, goal is profit maximization, market shows high volatility.
-
-**Decision Process**:
-1. **Environment Analysis**: High volatility + profit goal (clear but moving target) → Open-minded commitment with frequent reconsideration
-2. **Initial Plan**: Buy puts on overvalued stock XYZ
-3. **Execution**: Places orders
-4. **Reconsideration Window**: Every 30 seconds (predetermined based on typical option price movement)
-5. **Window 1**: XYZ down 2%, puts profitable → Continue plan
-6. **Window 2**: News breaks: XYZ merger announced → Stock will gap up
-7. **Reconsideration**: News = significant change → Goal no longer achievable with current plan
-8. **New Deliberation**: Exit put position, consider call options or different stock
-
-**Failure Trace**: Without proper reconsideration windowing, agent either:
-- Reacts to every price tick (thrashing, transaction costs destroy profit)
-- Ignores merger news (zombie plan, massive losses)
-
-### Example 3: Satellite Control Under Communication Delays
-
-**Scenario**: Earth station controlling satellite with 3-second communication delay, goal is maintain orbital position.
-
-**Decision Process**:
-1. **Constraint Analysis**: Communication delay means environment state is always 3 seconds stale, high cost of deliberation (each command cycle = 6 seconds minimum)
-2. **Commitment Strategy**: Single-minded commitment (can't afford frequent reconsideration)
-3. **Plan Structure**: Predictive control using orbital mechanics model
-4. **Execution**: Send thruster commands based on predicted position
-5. **Reconsideration Trigger**: Only when telemetry shows prediction error > safety threshold
-6. **Example Reconsideration**: Atmospheric drag higher than predicted → orbital decay faster than expected
-7. **New Plan**: Increase thruster frequency to compensate
-
-**Expert vs Novice**:
-- **Novice**: Tries to react to real-time telemetry → always 3 seconds behind, satellite drifts
-- **Expert**: Uses predictive model with error-based reconsideration → maintains stable orbit despite delay
-
-## Reference Files
-
-- `diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle-_beli.md` — Mermaid state machine showing perception → belief update → change detection → deliberation → plan adoption cycle. **Read when** understanding the core BDI loop or implementing agent control flow.
-
-- `diagrams/02_flowchart_plan_selection_pipeline-_from_.md` — Flowchart from triggering event through plan library matching, context filtering, and execution. **Read when** designing plan selection logic or debugging why wrong plans are chosen.
-
-- `diagrams/03_sequenceDiagram_resource-bounded_rationality-_.md` — Sequence diagram showing deliberation bottleneck: world state, agent computation, execution window, event monitoring. **Read when** analyzing time budget constraints or deliberation overhead.
-
-- `references/commitment-strategies-and-reconsideration.md` — Formal framework for when agents should maintain vs. abandon commitments; temporal dynamics of mental attitudes. **Read when** choosing blind vs. open-minded commitment or tuning reconsideration triggers.
-
-- `references/decision-trees-to-symbolic-reasoning.md` — Bridge between quantitative decision theory and symbolic BDI architectures; transformation from logic to practical reasoning. **Read when** converting formal specifications into executable agent code.
-
-- `references/failure-modes-complex-agent-systems.md` — Blind agent problem, zombie plans, thrashing; implicit warnings about incomplete BDI specifications. **Read when** debugging agent misbehavior or preventing commitment failures.
-
-- `references/option-generation-problem-filtering.md` — Computational bottleneck in applicability checking; search vs. pattern matching trade-offs for real-time performance. **Read when** optimizing plan candidate filtering or facing deliberation latency.
-
-- `references/plans-as-knowledge-compilation.md` — Plans as compiled reasoning; why BDI logic is uncomputable and how plan libraries solve it. **Read when** designing plan library structure or understanding why pre-compilation matters.
-
-- `references/resource-bounded-rationality-three-attitudes.md` — Why beliefs + desires alone fail; necessity of intentions for real-time dynamic environments. **Read when** justifying three-component architecture or comparing to two-attitude systems.
-
-- `references/theory-practice-gap-practical-approximation.md` — Principled approximation strategies; gap between ideal rationality and implementable systems. **Read when** making trade-off decisions or documenting what is sacrificed vs. gained.
-
-## Quality Gates
-
-- [ ] Commitment strategy explicitly selected based on environment volatility, goal clarity, and computation budget
-- [ ] "Potentially significant change" detection rules defined with specific triggering conditions
-- [ ] Plan library indexed for sub-second option generation in target domain
-- [ ] Belief-intention consistency checks prevent impossible commitments
-- [ ] Deliberation process filters desires for mutual compatibility before intention adoption
-- [ ] Reconsideration frequency measured and falls within acceptable bounds (not thrashing, not zombie)
-- [ ] Plan preconditions accurately reflect real-world applicability conditions
-- [ ] Resource constraints (time, memory, network) explicitly modeled in architecture
-- [ ] Failure modes have monitoring and recovery procedures
-- [ ] Abstract interpreter semantics preserved despite implementation approximations
-
-## Not-For Boundaries
-
-**Do NOT use BDI for**:
-- **Static optimization problems** → Use mathematical programming instead
-- **Pure reactive control** → Use behavior-based architectures instead  
-- **Domains requiring provable optimality** → Use decision theory or game theory instead
-- **Systems with unlimited computation time** → Use classical planning instead
-
-**Delegate to other skills**:
-- **For multi-agent coordination** → Use distributed consensus protocols instead
-- **For learning and adaptation** → Use reinforcement learning architectures instead
-- **For uncertainty quantification** → Use probabilistic reasoning frameworks instead
-- **For real-time guarantees** → Use real-time systems design instead
+| Original heading | Disposition | Destination/reason |
+| --- | --- | --- |
+| Decision Points | Retained and corrected | Reusable procedure and policy comparison replace unsupported numeric routing. |
+| Primary Decision Tree: Commitment Strategy Selection | Retained and corrected | Commitment-policy comparison preserves blind/single/open distinctions. |
+| Decision Tree: Plan Library Organization Strategy | Retained | Plan anatomy and option-filtering route retain the procedure. |
+| Decision Tree: Belief Update Granularity | Corrected | State boundary requires an explicit local observation/update adapter. |
+| Failure Modes | Retained and expanded | Diagnostics separates symptoms from competing causes. |
+| Thrashing Agent (Continuous Reconsideration) | Retained | Diagnostics trace handles it without a single-cause claim. |
+| Zombie Plans (Blind Persistence) | Corrected | Fixture distinguishes retained evidence from policy revision. |
+| Option Generation Bottleneck | Corrected | Stage profiling replaces the false period comparison rule. |
+| Schema Bloat (Over-Detailed Plans) | Retained | Plans-as-compilation reference supplies library tests. |
+| Desire-Intention Confusion | Retained | B/D/I state boundary and policy table preserve distinction. |
+| Worked Examples | Retained and corrected | Navigation, replay, and telemetry fixtures are constructed and non-operational. |
+| Robot Navigation Under Deadline Pressure | Retained | Navigation fixture. |
+| Trading Algorithm Under Market Volatility | Corrected and renamed | Replayed market-like data fixture removes order/loss/merger claims. |
+| Satellite Control Under Communication Delays | Corrected | Delay/error simulator fixture removes invented timing and stability guarantee. |
+| Reference Files | Retained | Reference routing covers all eight support files. |
+| Quality Gates | Corrected | Measure local targets rather than assert universal thresholds. |
+| Not-For Boundaries | Retained and corrected | Paper scope rejects automatic safety, financial, real-time, or optimality conclusions. |

@@ -1,47 +1,28 @@
-# The Completion Residual as Double-Spend & Settlement Obstruction (PRV-12/13)
+# Observed residuals are not settlement decisions
 
-The algebraic object that diagnoses multi-agent coordination failure also characterizes the impossibility of consistent cross-harbor ledger settlement. This is not analogy — it is the identical algebraic structure under two interpretations of the same cellular sheaf.
+## Declared linear statistic
 
-## The Formal Correspondence
+Given a stated finite map `delta_K:C0->C1(K)` and **independently observed** `g_K`, the least-squares distance
 
-In Port Daddy's settlement protocol (PRV-12/PRV-13), each harbor node maintains a local ledger shard: a vector $x_v \in \mathbb{R}^d$ encoding uncommitted balances, pending claims, and port allocations. When two harbors share a settlement channel $e = (u, v)$, each asserts its projection through a shared restriction map $P_e: \mathbb{R}^d \to \mathbb{R}^s$. 
+$$r=\min_x\|g_K-\delta_Kx\|$$
 
-Across known channels $K = C \cup R$ (direct compared channels $C$ and relayed settlement gossip $R$), the observed disagreement cochain is:
-$$g_e = P_e x_u - P_e x_v$$
+is the smallest correction in the stated norm needed to make the observations compatible with the chosen linear model. If `g_K=delta_Kx` is constructed from one assignment, then `r=0` identically. The observation model must distinguish asserted edge values from values derived from a shared assignment.
 
-If $g_e \neq 0$, harbors $u$ and $v$ assert contradictory claims about the shared balance on that channel. This is the seed of a double-spend.
+If the measurement model is `g_K=delta_Kx_*+epsilon`, then `r <= ||epsilon||` in that same norm because `x_*` is a feasible comparison point. This does not identify a source of error, establish a unique correction, or transfer to an unstated noise model.
 
-### The Correct Diagnostic Statistic
-Computing $\dim H^1(G; \mathcal{F})$ of the *abstract sheaf* is data-independent and fails: on any cyclic mesh, $\dim H^1 \ge \beta_1(G) \cdot d$ even when all balances are 100% honest and consistent!
+## What zero and nonzero mean
 
-The correct, operational diagnostic is the **Least-Squares Completion Residual**:
-$$r = \min_{x} \| g_K - (\delta_K x) \|_2 = \| \Pi_K g_K \|_2$$
-where $\Pi_K$ is the orthogonal projector onto $\text{coker}(\delta_K)$.
+| Algebraic result | Permitted statement | Not established |
+| --- | --- | --- |
+| `r=0` | observations are compatible with the stated linear model within tolerance | balance validity, nonnegativity, capacity, freshness, authenticity, no double spend, or permission to settle |
+| `r>0` | no exact assignment matches all observed values in that model | cause, intent, faulty participant, attack, or a safe repair |
 
-- **$r = 0$**: The asserted balances are globally reconcilable. There exists a valid global assignment $x^*$ explaining all observed channel values. Settlement may proceed safely.
-- **$r > 0$**: Irresolvable double-spend pattern. No consistent global ledger state exists. Furthermore, by Theorem CR-1, $r$ is the exact lower bound on the balance discrepancy injected by the equivocator:
-  $$\|\varepsilon_K\|_2 \ge r$$
+A nonzero residual can come from noise, stale versions, inconsistent units, incomplete visibility, an orientation error, or a restriction-map/model mismatch.
 
-## Localization and Active Repair (CR-2 & CR-4)
+## Ranking is only a hypothesis generator
 
-When $r > 0$, the reconciler does not halt the entire federation. By Theorem CR-2:
-$$\text{supp}(\Pi_K g_K) \subseteq \bigcup \{ \text{cycles of channels passing through the double-spender} \}$$
+Residual support may guide a review: report the coordinates with largest `||rho_e||²` and the declared costs. A greedy `||rho_e||²/cost(e)` ordering is a local heuristic. It is not an optimal cut proof, does not show a selected edge caused the residual, and does not guarantee one step per cycle rank. Any ledger/settlement action must be governed and verified outside this reference.
 
-The reconciler executes the **CR-4 Optimal Repair Min-Cut**:
-1. Computes the harmonic circulation $\rho = \Pi_K g_K$.
-2. For each channel $e$, evaluates residual energy $E(e) = \|\rho_e\|_2^2$ relative to arbitration cost $w(e)$.
-3. Selects $e^* = \arg\max E(e)/w(e)$ and triggers atomic two-party arbitration or fences $e^*$.
-4. Re-evaluates $r$. The obstruction collapses to zero in at most $\beta_1(G_K)$ steps.
+## Constructed triangle
 
-## Comparison Table
-
-| Concept | Multi-Agent Swarm | Cross-Harbor Settlement |
-|---|---|---|
-| **0-Cell $v$** | AgentNode private belief / state | Harbor local ledger shard |
-| **1-Cell $e$** | Communication link / AST claim | Settlement channel |
-| **Stalk $\mathcal{F}(v)$** | State vector (capacity, epoch, claim) | Balance vector (accounts, escrows) |
-| **Restriction $P_e$** | Shared discourse projection | Channel balance readout |
-| **Cochain $g_e$** | Asserted agent disagreement | Discrepancy in channel assertions |
-| **$r = 0$** | Swarm is globally coherent | No double-spend; settlement safe |
-| **$r > 0$** | Topological coordination impasse | Double-spend detected; $r \le \|\varepsilon\|$ |
-| **Remediation** | Fencing lease or forced sync (CR-4) | Channel escrow fence / atomic arbitration |
+For the scalar oriented triangle `(01,12,02)`, `delta0=[[-1,1,0],[0,-1,1],[-1,0,1]]`. The independently supplied `g=(1,1,1)` has cycle sum `1+1-1=1`, so it is not in `im(delta0)`. This shows incompatibility with this orientation/model only. It does not describe a transaction system.

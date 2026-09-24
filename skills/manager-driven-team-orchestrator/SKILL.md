@@ -5,7 +5,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: Read,Grep,Glob
 metadata:
-  version: "2.0.0"
+  version: "2.0.2"
   category: Agent & Orchestration
   tags: [bounded-synthesis, frozen-packet, reciprocal-review, dissent, correction-ledger]
   io-contract:
@@ -19,6 +19,8 @@ metadata:
 # Manager-Driven Team Orchestrator
 
 The manager organizes a finite epistemic process. It does not run a fleet, admit a participant, reserve capacity, approve its own synthesis, or certify shipment. Its strongest terminal is **candidate submitted for independent review**.
+
+Use [Independent review boundary](references/independent-review-boundary.md) for packet-digest and external-gate limits.
 
 ## Activate when
 
@@ -42,7 +44,7 @@ Every artifact binds one supplied receipt: packet ID, repository anchor, packet 
 
 - Late evidence invalidates the active round. Reseal and restart every affected downstream phase.
 - Corrections are overlays; they never mutate sealed originals.
-- A packet receipt proves only the named static bytes. It grants no execution, review, merge, settlement, or spawn authority.
+- A supplied packet receipt names static bytes; verifying the digest against an available canonical encoding can bind those bytes. The bundled auditor compares supplied digest strings without reading the packet files. It grants no execution, review, merge, settlement, or spawn authority.
 - Packet sealing and external acceptance are inputs to this skill, not powers it owns.
 
 ## Bounded lifecycle
@@ -95,6 +97,8 @@ flowchart TD
 - native capacity ceilings
 
 Birth ceilings are accounting limits, not admission. Real participants require externally supplied admission evidence. Capacity stays in native units; do not invent conversions among tokens, subscription allowance, cash, people, attention, and wall time.
+
+The bundled auditor is a static semantic checker. Its fixture harness supplies a fixed evaluation clock and verifies that the fixture deadline is strictly after it; this is reproducible test evidence, never trusted current-time or runtime authority. A runtime policy must supply a trusted fresh clock and separately prove enforcement. The record has no historical round, birth, concurrency, or artifact-attempt ledger, so the auditor checks declared bounds, not their enforcement. It also cannot authenticate an external decision or verify who withdrew dissent from the current fields.
 
 ## Review contract
 
@@ -163,3 +167,7 @@ node skills/manager-driven-team-orchestrator/scripts/test-bundle.mjs
 ```
 
 Static success never authorizes birth, execution, merge, settlement, or shipment.
+
+## Evidence and Book candidate
+
+The reference uses W3C PROV-O at vocabulary-only access depth. It supports provenance terminology, not independent review, participant admission, or runtime enforcement. **Book candidate, not Book prose:** a manager can synthesize a bounded, dissent-preserving candidate without becoming its acceptance authority. Compare with `ASTRA-BOOK-REVIEW.md` and `BOOK-PLACEMENT-REVIEW.md` before asserting novelty or placement.

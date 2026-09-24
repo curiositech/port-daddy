@@ -1,0 +1,14 @@
+{
+  "delivery_scope": "Swiss-only candidate source inventory",
+  "candidate_sources": [
+    "unknown-effect-swiss.tex",
+    "four-graphs-swiss.tex",
+    "obligation-and-selection/obligation-swiss.tex",
+    "obligation-and-selection/selection-swiss.tex",
+    "judges-revisions-conflicts/judges-swiss.tex",
+    "judges-revisions-conflicts/revisions-swiss.tex",
+    "judges-revisions-conflicts/conflicts-swiss.tex"
+  ],
+  "render_validation": "Not asserted by this inventory. Re-render and inspect the retained Swiss candidates before claiming gallery or page-preview status.",
+  "manuscript_integration": "Unproven"
+}

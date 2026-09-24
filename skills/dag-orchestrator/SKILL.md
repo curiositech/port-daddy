@@ -2,7 +2,7 @@
 license: BSL-1.1
 name: dag-orchestrator
 description: |
-  The intelligence layer of Jury-rig. Decomposes natural language tasks into Hierarchical Task DAGs (HTDAGs), matches subtasks to skills, executes waves in parallel, and dynamically expands nodes when complexity exceeds executor capability. Use for 'orchestrate', 'execute DAG', 'parallel agents', 'decompose task', 'coordinate skills'. NOT for single-skill tasks or simple linear workflows.
+  The intelligence layer of Jury-rig. Decomposes natural language tasks into proposed Hierarchical Task DAGs (HTDAGs), matches subtasks to skills, proposes wave and revision contracts, and expands nodes only when evidence supports a revised graph. Use for 'orchestrate', 'execute DAG', 'parallel agents', 'decompose task', 'coordinate skills'. NOT for single-skill tasks or simple linear workflows.
 allowed-tools:
   - Read
   - Write
@@ -35,68 +35,71 @@ metadata:
 
 # DAG Orchestrator
 
-The beating heart of Jury-rig. Transforms arbitrary natural language tasks into parallelized agent graphs that execute in waves, adapting dynamically to task complexity and executor capabilities.
+Transforms natural-language tasks into proposed agent graphs and execution contracts. Use [Orchestration Authority and Lifecycle](references/orchestration-authority-and-lifecycle.md): a graph is not a running system, and a controller must not claim dispatch, cancellation, join, or effect semantics without receipts from its executor.
 
 ## Decision Points
 
 ### 1. Initial Decomposition Strategy
-```
-Task Complexity Assessment:
-├─ Single verb, single output file? → Use single-skill task
-├─ 2-3 clear sequential steps? → Use linear workflow  
-├─ Multiple independent components? → Use parallel DAG
-├─ Requires research phase? → Use phase orchestration
-└─ Unclear requirements? → Start shallow, expand on failure
+```mermaid
+flowchart TD
+    A[Task contract] --> B[Name outputs, authority, acceptance, and effects]
+    B --> F{Requirements or authority unresolved?}
+    F -->|Yes| G[Halt for clarification or research]
+    F -->|No| C{Artifacts become independent after declared prerequisites?}
+    C -->|Yes| D[Propose parallel siblings after prerequisites with join and merge rules]
+    C -->|No| E[Propose ordered prerequisites]
 ```
 
 ### 2. AND vs OR Composition Logic
-```
-Subtask Relationship Analysis:
-├─ All must succeed for parent success? → AND composition
-├─ Any success satisfies parent goal? → OR composition  
-├─ Primary approach with fallbacks? → Mixed (AND primary, OR fallbacks)
-└─ Exploration of multiple options? → OR with confidence weighting
+```mermaid
+flowchart LR
+    A[Parent acceptance condition] --> B{All child receipts required?}
+    B -->|Yes| C[AND join with failure policy]
+    B -->|No| D{Any child may satisfy a stated criterion?}
+    D -->|Yes| E[OR join with independent evaluator]
+    D -->|No| F[Declare mixed/fallback semantics and effect containment]
 ```
 
 ### 3. Max Depth Calibration
-```
-Task Complexity Heuristics:
-├─ Simple CRUD operations? → max_depth = 2
-├─ Feature development? → max_depth = 3
-├─ System architecture? → max_depth = 4  
-├─ Research + implementation? → max_depth = 5
-└─ If >5 levels needed → Use phase orchestration instead
+```mermaid
+flowchart TD
+    A[Proposed decomposition] --> B{Each leaf has bounded artifact and acceptance test?}
+    B -->|No| C[Refine or request missing contract]
+    B -->|Yes| D{Depth or fan-out exceeds local resource policy?}
+    D -->|Yes| E[Split into phases with revisioned handoff]
+    D -->|No| F[Retain explicit graph]
 ```
 
 ### 4. Parallelization Safety Check
-```
-File Conflict Analysis:
-├─ Predicted file overlap? → Force sequential execution
-├─ Singleton operations (build/test)? → Isolate in separate wave
-├─ Independent file modifications? → Safe to parallelize
-└─ Database/config changes? → Serialize critical sections
+```mermaid
+flowchart LR
+    A[Candidate parallel wave] --> B[Check files, mutable resources, authority, and external effects]
+    B --> C{Shared scarce or mutable boundary?}
+    C -->|Yes| D[Serialize or grant a scoped lease]
+    C -->|No| E[Parallel proposal with cancellation and join policy]
 ```
 
 ### 5. Failure Recovery Strategy
-```
-Executor Failure Response:
-├─ depth < max_depth? → Decompose failed node into sub-DAG
-├─ depth >= max_depth? → Mark dependents as skipped, continue independents
-├─ Critical path failure? → Halt DAG, report blocking issue
-└─ Low confidence result? → Flag for review, continue with warnings
+```mermaid
+flowchart TD
+    A[Executor receipt or timeout] --> B{Effect and completion state known?}
+    B -->|No| C[Contain or cancel future work; reconcile before retry or dependent release]
+    B -->|Yes| D{Acceptance condition satisfied?}
+    D -->|Yes| E[Release dependents under declared policy]
+    D -->|No| F[Contain dependents, propose revision, or escalate]
 ```
 
 ## Failure Modes
 
 ### Schema Bloat
-**Symptoms**: DAG has >15 nodes in single level, execution takes >10 minutes
-**Detection**: `if nodeCount > 15 || estimatedTime > 600s`
-**Fix**: Group related subtasks into composite nodes, increase abstraction level
+**Symptoms**: DAG scope prevents clear ownership, contracts, or join semantics under its declared resource policy
+**Detection**: A graph cannot state bounded artifacts, contracts, ownership, or join rules under its local resource policy
+**Fix**: Split into revisioned phases or reduce scope; node count and estimates are planning inputs, not universal limits.
 
 ### Circular Dependencies  
 **Symptoms**: Topological sort fails, "cyclic dependency" error in wave computation
-**Detection**: `if waves.length === 0 && nodes.length > 0`
-**Fix**: Identify cycle using DFS, break with intermediate artifact or merge conflicting nodes
+**Detection**: Compare the processed-node count from Kahn's algorithm with the total node count, or retain a DFS back-edge witness; an acyclic prefix can exist before a cycle.
+**Fix**: Preserve the cycle witness and ask the contract owner to revise the dependency or decompose an explicit intermediate artifact. Never delete an edge merely to make a sort succeed.
 
 ### Premature Parallelization
 **Symptoms**: File conflicts, race conditions, inconsistent final state  
@@ -105,8 +108,8 @@ Executor Failure Response:
 
 ### Infinite Decomposition
 **Symptoms**: Depth keeps increasing, same task fails repeatedly at leaf level
-**Detection**: `if depth > max_depth && taskId appears in call stack`  
-**Fix**: Flag task as requiring human skill creation or use general-purpose fallback
+**Detection**: A decomposition repeats the same unresolved obligation without a changed contract or evidence
+**Fix**: Halt and request a new requirement, capability, or human decision rather than expanding depth by rule.
 
 ### Context Loss Cascade
 **Symptoms**: Later waves fail due to missing information from earlier waves
@@ -117,70 +120,77 @@ Executor Failure Response:
 
 ### Example: "Build authentication system for web app"
 
-**Initial Assessment**: Complex multi-component task → Use parallel DAG with max_depth=4
+**Initial Assessment**: This is an illustrative authentication contract. Propose a revisioned graph only after naming its acceptance tests, credential/effect policy, and diagnosed component complexity.
 
 **Wave 0 Decomposition**:
 ```typescript
 // Initial breakdown
 subtasks = [
-  "Design user data schema",           // skill: database-architect  
-  "Create login/signup API endpoints", // skill: api-architect
-  "Build frontend auth components",    // skill: react-developer
-  "Set up JWT token handling",        // skill: security-engineer
-  "Write authentication tests"        // skill: test-engineer
+  "Design user data schema",               // skill: database-architect
+  "Specify authentication acceptance tests", // skill: test-engineer
+  "Create login/signup API candidate",     // skill: api-architect
+  "Build frontend auth candidate",         // skill: react-developer
+  "Propose credential-policy candidate"     // skill: security-engineer
 ]
 ```
 
-**Dependency Analysis**: 
-- API endpoints need schema → Add dependency edge
-- Frontend needs API → Add dependency edge  
-- Tests need all components → Add dependency edge
+**Dependency Analysis**:
+- The illustrative data, credential and effect contracts are prerequisites for the acceptance fixtures.
+- The acceptance-test specification is a prerequisite for implementation candidates; executed evidence is evaluated before artifacts are accepted.
+- API and frontend candidates may run after the frozen interface and fixtures only when their shared resources and effects have a valid coordination policy; their combined artifact is checked before acceptance.
 
-**Final Wave Structure**:
-```
-Wave 0: [Design schema]
-Wave 1: [Create API endpoints] (depends on schema)
-Wave 2: [Build frontend, Set up JWT] (parallel, both depend on API)
-Wave 3: [Write tests] (depends on all above)
+**Illustrative dependency and acceptance graph**:
+```mermaid
+flowchart TD
+    C[Define data, credential, and effect contracts] --> T[Specify acceptance fixtures]
+    T --> A[Implement API candidate]
+    T --> F[Implement frontend candidate against frozen interface]
+    A --> J[Join compatible artifacts with attributed receipts]
+    F --> J
+    J --> R[Run component and integration checks]
+    R --> X{All declared acceptance conditions established?}
+    X -->|Yes| D[Accept artifacts under the named policy]
+    X -->|No or unknown| E[Preserve findings and revise or escalate]
 ```
 
 **Execution with Failure**:
 ```typescript
-// Wave 1 executor fails on "Create API endpoints" - too complex
-if (executorResult.failed && depth < maxDepth) {
-  // Decompose the failing node
+// An observed failure alone does not establish that decomposition is appropriate.
+if (failureDiagnosis.complexityEvidence && effectStatus === "reconciled") {
+  // Propose a revision after the task owner confirms the diagnosed complexity,
+  // revised graph, authority, and acceptance checks.
   const apiSubtasks = [
     "Define authentication routes",
     "Implement password hashing", 
     "Add session management",
     "Create user CRUD operations"
   ];
-  // Execute sub-DAG, then continue main DAG
+  // A separate runner may execute the approved revision and emit receipts.
 }
 ```
 
 **Expert vs Novice**: 
-- Novice: Would try to execute all at once, miss dependencies
-- Expert: Identifies that schema must come first, API before frontend, tests last
+- Novice: Assumes a familiar component order proves safe execution.
+- Expert: Names the local contract, verifies prerequisites and effects, evaluates acceptance evidence before release, and revises only from a diagnosed condition.
 
 ## Quality Gates
 
 - [ ] All subtasks have identified skill matches or fallback strategy
 - [ ] Dependency graph has no cycles (topological sort succeeds)
-- [ ] File conflict prediction shows no overlapping modifications per wave
-- [ ] Maximum decomposition depth doesn't exceed 5 levels
-- [ ] Each wave has ≤10 parallel tasks (Claude execution limit)
-- [ ] Critical path execution time estimated <30 minutes
-- [ ] All executor confidence scores >60% or flagged for review
+- [ ] Shared file, semantic, authority, resource and effect requirements have explicit coordination policies; file overlap prediction alone is not sufficient
+- [ ] Decomposition depth and wave size comply with a declared local resource policy
+- [ ] Critical-path claims distinguish measurements from planning assumptions
+- [ ] Executor results include receipt evidence or are explicitly unknown
 - [ ] Context passing between waves explicitly defined
 - [ ] Failure handling strategy defined for each critical node
 - [ ] Resource constraints (memory, tokens, API calls) within limits
+- [ ] Cancellation, join, duplicate-dispatch, and external-effect policies are declared
 
 ## NOT-FOR Boundaries
 
 **Don't use DAG Orchestrator for**:
 - Single-skill tasks → Use direct skill invocation
-- Simple linear workflows with <3 steps → Use sequential task calls
+- Simple workflows whose artifacts, authority, and acceptance can be stated directly → use sequential task calls
 - Real-time interactive tasks → Use conversational agents instead
 - Tasks requiring human creativity/judgment → Use human-in-loop workflows
 - Debugging/troubleshooting → Use diagnostic-specialist skill

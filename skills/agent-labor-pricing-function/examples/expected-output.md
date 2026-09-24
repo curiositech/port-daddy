@@ -1,92 +1,39 @@
-# Example Output: Agent Labor Pricing Function
+# Example Output: Constructed Agent-Labor Pricing Review
 
-Scenario: unblocking Port Daddy's stalled Phase 2 pricing lane for the background Fleet feature — pricing a hybrid seat-plus-overage plan for agents that run background tasks (code fixes, PR review replies, test repair) to completion.
+This walkthrough uses made-up buyer names, prices, costs, and outcomes. It is a worked procedure, not a customer study, product quote, or launch proposal.
 
-## Chosen Model
+## Draft and diagnosis
 
-- **Model**: hybrid
-- **Why this model fits**: Fleet usage has a predictable core (most teams run a steady number of background tasks per month) plus occasional bursts (a migration, a big refactor, an incident response sprint). A pure per-seat price would leave heavy-burst months unpriced; pure metering would expose light users to raw per-task billing they can't forecast. A seat-anchored base with a defined overage rate covers both, per `references/pricing-model-decision-guide.md`.
+A team proposes a hybrid plan for a `verified completed case` unit. Its declared cost floor is $0.20 per case. `team` is $100/month including 100 cases and $1 per excess case. The plan deliberately sets `perTaskEstimate: false` while the other guardrails are true.
 
-## Value Metric
+The static checker reports `status: "blocked"`, even though a 100-case persona has $80 contribution. The concrete reason is the required guardrail: a hybrid plan exposes use, and a monthly forecast is not a substitute for an estimate at task submission. The portable regression suite independently clears each required guardrail and confirms a blocked report.
 
-- **Name / unit**: completed fleet task / completed-task
-- **Buyer can predict it before running work?**: Yes — a completed fleet task is a terminal state (merged PR, closed ticket, or explicit human accept/reject), not a raw token or tool-call count. Buyers already track "how many background tasks did we run this month" informally; this metric makes that number billable.
+## Revision
 
-## Cost Floor
-
-| Component | $ per unit |
-| --- | --- |
-| Model token cost | 0.18 |
-| Tool/compute cost | 0.06 |
-| Overhead | 0.03 |
-| **Total unit cost floor** | **0.27** |
-
-## Price Points — First Draft (failed stress test)
-
-| Tier | Base price | Included units | Overage rate |
-| --- | --- | --- | --- |
-| starter | $29 | 100 | $0.35 |
-| team | $149 | 600 | $0.30 |
-| enterprise | $999 | 5,000 | $0.22 |
-
-Guardrails on the first draft: spend cap present, budget preview present, **per-task estimate missing**, transparent metering present.
-
-### Stress test result (draft)
+Set `perTaskEstimate: true`, retain the cap, preview, and receipt, and rerun:
 
 ```json
 {
-  "pass": false,
-  "model": "hybrid",
-  "valueMetric": { "name": "completed fleet task", "unit": "completed-task", "buyerCanPredict": true },
-  "unitCostFloor": { "modelTokenCost": 0.18, "toolCompute": 0.06, "overhead": 0.03, "totalUnitCost": 0.27 },
-  "marginByPersona": {
-    "solo-founder": { "tier": "starter", "monthlyUnits": 60, "overageUnits": 0, "revenue": 29, "cost": 16.2, "margin": 12.8, "marginPct": 44.1, "status": "healthy" },
-    "staff-engineer": { "tier": "team", "monthlyUnits": 900, "overageUnits": 300, "revenue": 239, "cost": 243, "margin": -4, "marginPct": -1.7, "status": "negative" },
-    "enterprise-admin": { "tier": "enterprise", "monthlyUnits": 3200, "overageUnits": 0, "revenue": 999, "cost": 864, "margin": 135, "marginPct": 13.5, "status": "thin" }
-  },
-  "billShockRisk": { "level": "high", "riskPoints": 5, "missingGuardrails": ["perTaskEstimate"] },
-  "findings": [
-    "Missing guardrail \"perTaskEstimate\" on a hybrid plan — usage-sensitive pricing without it risks bill shock.",
-    "staff-engineer: NEGATIVE margin ($-4) on tier \"team\" at 900 completed-task/mo — cost ($243) exceeds revenue ($239).",
-    "enterprise-admin: thin margin (13.5%) on tier \"enterprise\", below the 30% target."
-  ],
-  "recommendations": [
-    "Emit a per-task cost estimate at submission time, not only in the monthly rollup.",
-    "Raise the price floor or add per-unit overage billing on tier \"team\" — staff-engineer costs more than it pays."
-  ]
-}
-```
-
-The draft fails for two distinct reasons that read identically as "the pricing is wrong" but require different fixes: the `team` tier's overage rate doesn't clear the cost floor for a bursty staff-engineer persona, and the `enterprise` tier's base price undervalues its own included allotment even with zero overage.
-
-## Price Points — Revised (passing)
-
-| Tier | Base price | Included units | Overage rate |
-| --- | --- | --- | --- |
-| starter | $29 | 100 | $0.35 |
-| team | $219 | 600 | $0.45 |
-| enterprise | $1,299 | 5,000 | $0.22 |
-
-Guardrails on the revision: spend cap present, budget preview present, per-task estimate **added**, transparent metering present.
-
-### Stress test result (revised)
-
-```json
-{
+  "status": "pass",
   "pass": true,
-  "billShockRisk": { "level": "none", "riskPoints": 0, "missingGuardrails": [] },
-  "marginByPersona": {
-    "solo-founder": { "tier": "starter", "monthlyUnits": 60, "revenue": 29, "cost": 16.2, "margin": 12.8, "marginPct": 44.1, "status": "healthy" },
-    "staff-engineer": { "tier": "team", "monthlyUnits": 900, "overageUnits": 300, "revenue": 354, "cost": 243, "margin": 111, "marginPct": 31.4, "status": "healthy" },
-    "enterprise-admin": { "tier": "enterprise", "monthlyUnits": 3200, "revenue": 1299, "cost": 864, "margin": 435, "marginPct": 33.5, "status": "healthy" }
-  },
-  "findings": [],
-  "recommendations": [
-    "Plan clears the cost floor and guardrail bar for the modeled personas — recheck when unit costs or personas change."
-  ]
+  "unitCostFloor": {"modelTokenCost": 0.1, "toolCompute": 0.05, "overhead": 0.05, "totalUnitCost": 0.2, "display": {"totalUnitCostUsd": "$0.200000"}},
+  "marginByPersona": [{"name": "healthy-user", "status": "healthy"}],
+  "policyBlocks": {"predictableValueMetric": false, "requiredGuardrails": false, "marginFloor": false, "explicitExcessTreatment": false, "outcomeSettlement": false},
+  "billShockRisk": {"level": "none", "riskPoints": 0, "requiredGuardrails": ["spendCap", "budgetPreview", "perTaskEstimate", "transparentMetering"], "missingGuardrails": []}
 }
 ```
 
-## Decision
+This says the declared one-persona model clears the checker. It does not show that a cap exists in a deployed system or that the market accepts $100.
 
-Ship the revised plan. The team tier's overage rate and base price both moved to clear the 0.27/unit cost floor at a 30%+ margin target for a realistic burst persona, the enterprise tier's base price now covers its own included allotment, and the missing per-task-estimate guardrail is added so the hybrid model's overage exposure is previewed, not discovered on the invoice.
+## Outcome-priced contrast
+
+For an outcome model, use a verifier and unknown-result policy:
+
+```json
+{
+  "model": "outcome",
+  "outcomeSettlement": {"verifier": "named acceptance test", "unknownResult": "hold-for-review"}
+}
+```
+
+If the verifier times out, the state is `Unknown`, then `Held`; it must not be silently billed as completed. A reviewer either confirms the billable outcome and emits a receipt or rejects it and records `NoCharge`.

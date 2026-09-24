@@ -25,18 +25,19 @@ describe('agentic-app-architecture audit', () => {
 
   test('flags a hidden-hands, transcript-only, ungated coding-agent design', () => {
     const weak = {
-      transparency: { thinkingVisible: false, toolUseVisible: false, planBeforeAct: false, interruptible: false },
-      stateModel: { durableHistory: false, forking: false, rename: false, episodicMemory: false },
-      contextStrategy: { caching: false, eviction: false, memoryPromotion: false },
-      capabilities: { tools: true, skills: false, mcp: { coreSize: 40, perProjectSpecialists: false }, secretCustody: { mode: 'argv' } },
-      execution: { agentType: 'coding', isolation: false, sideEffectHumanGate: false, artifactReceipts: false },
+      appName: 'Ungated code writer',
+      transparency: { actionDisclosure: 'not-applicable', evidenceDisclosure: 'not-applicable', uncertaintyDisclosure: 'not-applicable', privateReasoningPolicy: 'redacted-summary-only', interruptMode: 'before-dispatch', rationale: 'The operator cannot inspect or steer the active run.' },
+      stateModel: { conversationTranscript: 'used', durableTaskState: 'not-applicable', userMemory: 'not-applicable', provenanceEvidence: 'not-applicable', retention: 'Transcript is the only retained state.', restoreForkPolicy: 'No restore policy exists.', rationale: 'No state beyond the transcript is retained.' },
+      contextStrategy: { strategies: ['bounded-input'], rationale: 'Only the current prompt is supplied.' },
+      capabilities: { tools: 'used', skills: 'not-applicable', mcp: { status: 'used', coreSize: 40, perProjectSpecialists: false, rationale: 'Every server is always enabled.' }, secretCustody: { required: true, mode: 'argv', scope: 'Full shell invocation.', rationale: 'Secrets are passed with command arguments.' }, rationale: 'Tools are directly available to the agent.' },
+      execution: { agentType: 'coding', effectClass: 'external-or-irreversible', isolation: 'not-applicable', control: { kind: 'not-applicable', rationale: 'No control is required.' }, authority: 'The agent decides.', receiptPolicy: 'No receipt is retained.', rationale: 'The code agent can act directly.' },
     };
     const report = auditAgenticAppArchitecture(weak);
     expect(report.pass).toBe(false);
     const codes = report.findings.map((f) => f.code ?? f.id ?? JSON.stringify(f)).join(' ');
-    expect(codes).toMatch(/hidden-thinking-or-tool-use/);
-    expect(codes).toMatch(/transcript-only-state/);
-    expect(codes).toMatch(/secret|custody/i);
+    expect(codes).toMatch(/missing-action-disclosure/);
+    expect(codes).toMatch(/missing-effect-task-state/);
+    expect(codes).toMatch(/secret-exposure-path/);
     expect(report.findings.length).toBeGreaterThanOrEqual(5);
   });
 

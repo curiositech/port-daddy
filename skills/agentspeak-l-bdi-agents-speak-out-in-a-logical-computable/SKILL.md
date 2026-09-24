@@ -157,6 +157,14 @@ Several mobile agents share a belief base about aisle congestion and inventory s
 - If "strategy" changes require rewriting plan bodies, policy and knowledge were never separated.
 - If the agent cannot say what interrupted it and what it will resume next, it is not really using intention stacks.
 
+## Evidence and interpreter boundary
+
+Name the grammar, interpreter, selection functions, and environment adapter. A
+local BDI transition does not establish message delivery, distributed agreement,
+authority, or an external effect. See [the transition cycle](diagrams/01_transition-cycle.md),
+[the environment adapter](diagrams/02_environment-adapter.md), and
+[`references/evidence-scope.md`](references/evidence-scope.md).
+
 ## Reference Routing
 
 - `references/bdi-architecture-for-agent-orchestration.md`: load for the full agent cycle and B/D/I interplay.

@@ -52,7 +52,7 @@ describe('Drydock safety evidence', () => {
     expect(result.errors).toEqual(expect.arrayContaining([
       expect.stringContaining('forecast route provider-demo:unowned-route is not one of its routeAliases'),
       'bucket bucket:provider-demo:seat-demo:five-hour eligibility disagrees with evidence',
-      'root admissible must equal eligible buckets with complete, atomic, unexpired reservation evidence',
+      'admissible must match fresh eligible buckets, complete reservation, and nonblocking preemption state',
     ]));
   });
 
@@ -65,8 +65,8 @@ describe('Drydock safety evidence', () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      'admissible evidence requires finite reservation timestamps with issuedAt <= evaluatedAt < expiresAt',
-      'root admissible must equal eligible buckets with complete, atomic, unexpired reservation evidence',
+      'admissible evidence requires issuedAt <= evaluatedAt < expiresAt',
+      'admissible must match fresh eligible buckets, complete reservation, and nonblocking preemption state',
     ]));
   });
 

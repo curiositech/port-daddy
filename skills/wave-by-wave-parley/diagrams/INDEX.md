@@ -1,3 +1,8 @@
 # Diagrams
 
-- `01_flowchart_decision-points.md`: flowchart of the pause-and-parley decision points after each wave.
+The active source diagrams are the two Mermaid blocks in SKILL.md: all-wave
+evidence hold and graph-revision/approval admission.
+
+## Bundle files
+
+- [`01_flowchart_decision-points.md`](01_flowchart_decision-points.md)

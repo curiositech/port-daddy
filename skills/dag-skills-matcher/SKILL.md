@@ -22,72 +22,74 @@ tags:
 
 # DAG Skills Matcher
 
+Use [Constraint-first skill matching](references/constraint-first-skill-matching.md). Ranking is candidate retrieval, not authorization or a capability guarantee.
+
 Matches tasks to skills, ranks candidates, and maintains the skill catalog.
 
-## Decision Points
+## Decision procedure
 
-### When to Retry vs. Escalate
-```
-task_description → extract_intent()
-├─ fit_score ≥ 0.5 for top candidate?
-│  ├─ YES → check NOT clauses
-│  │  ├─ passes → assign skill
-│  │  └─ fails → try next candidate
-│  └─ NO → retry with broader search terms
-│     └─ still no fit_score ≥ 0.5?
-│        └─ escalate to skill-architect (new skill needed)
-```
+Bind the node to an acceptance predicate, required and prohibited capabilities, schemas, repository/corpus boundary, effect class, budget, and catalog snapshot. Exclude candidates that violate a hard constraint before retrieval or cost comparison. Rank the eligible remainder with recorded lexical/dense evidence and compatible profile identity. Return coverage, missing requirements, rejected candidates, and either a bounded selection, clarification, decomposition, new-skill proposal, or abstention. Ranking weights, exploration mechanisms, score cutoffs, and cost tradeoffs are versioned local policy unless an evaluation names workload, labels, date, and uncertainty. Selection is never authorization to execute.
 
-### Search Strategy Selection
-```
-task_complexity = count(technical_terms, domain_words, constraints)
-├─ complexity ≤ 3 → keyword_search_only
-├─ 4-8 → keyword + semantic_similarity
-└─ >8 → full_pipeline (keyword + semantic + domain_tags + thompson)
+### Search, retry and coverage routes
+
+This replaces the term-count and fit-threshold trees. A small task still requires the declared retrieval and authority contract.
+
+```mermaid
+flowchart TD
+ A[Acceptance predicate, scope and effect limits] --> B[Authority filter and compatible hybrid retrieval]
+ B --> C{Task-compatible capability evidence?}
+ C -->|Yes| D[Eligible candidates]
+ C -->|Request ambiguous| E[Clarify then rerun scoped retrieval]
+ C -->|Coverage missing| F{Useful bounded refinement remains?}
+ F -->|Yes| B
+ F -->|No| G[Abstain, decompose, or propose a new skill]
+ E --> B
 ```
 
-### Ranking Threshold Decision
-```
-candidate_count → ranking_strategy
-├─ 1-2 candidates → simple fit_score ranking
-├─ 3-5 candidates → weighted: fit(0.5) + elo(0.3) + cost(0.2)
-└─ >5 candidates → full scoring with thompson sampling
-```
+### Ranking and cost routes
 
-### Cost vs. Quality Trade-off
-```
-task_priority + budget_constraints → selection_criteria
-├─ high_priority + unlimited_budget → maximize fit_score + elo
-├─ medium_priority → balanced scoring (default weights)
-└─ low_priority + cost_sensitive → weight cost(0.5) + fit(0.3) + elo(0.2)
+Candidate count never authorizes exploration or supplies universal score weights. Outcome comparisons need a shared workload and measurement units.
+
+```mermaid
+flowchart TD
+ A[Eligible candidates] --> B[Compare recorded capability and workload evidence]
+ B --> C{Declared quality and effect constraints met?}
+ C -->|No| D[Abstain or clarify]
+ C -->|Yes| E[Apply versioned cost and latency tradeoff]
+ E --> F{Exploration proposed?}
+ F -->|No| G[Return bounded selection and alternatives]
+ F -->|Yes| H{Authority, harm and budget permit evaluation?}
+ H -->|Yes| I[Run separately admitted comparison]
+ H -->|No| G
+ I --> J[Record attributed outcomes before policy update]
 ```
 
 ## Failure Modes
 
 ### Schema Drift
-**Symptoms**: fit_scores consistently < 0.3, many "skill not found" escalations
-**Detection**: If >20% of searches in 24h escalate to skill-architect
-**Fix**: Update skill descriptions with recent task language patterns
+**Symptoms**: Repeated abstention or capability gaps on a declared task cohort.
+**Detection**: A versioned evaluation shows repeated abstention for a defined task slice.
+**Fix**: Inspect catalog coverage and constraints before proposing a new skill.
 
 ### Thompson Exploitation Lock-in
 **Symptoms**: Same 2-3 skills always selected, no skill performance comparison data
-**Detection**: If top skill selection rate > 80% for any domain over 100 tasks
-**Fix**: Increase Thompson sampling beta parameter by 10%, force exploration
+**Detection**: Attributed outcomes show narrow selection on a known workload.
+**Fix**: Evaluate a local exploration policy under authority/harm limits; no fixed sampler adjustment is implied.
 
 ### NOT-Clause Bypass
 **Symptoms**: Skills assigned to incompatible tasks, high downstream failure rates
-**Detection**: If downstream acceptance_rate < 0.7 for any skill
-**Fix**: Strengthen NOT-clause checking, add regex patterns for exclusion terms
+**Detection**: A validator records constraint-breaching assignments.
+**Fix**: Strengthen hard checks before hybrid retrieval; do not replace them with lexical rules.
 
 ### Semantic Similarity False Positives
 **Symptoms**: Skills matched on superficial word similarity, not actual capability
-**Detection**: If fit_score > 0.7 but downstream acceptance_rate < 0.5
-**Fix**: Add domain-specific negative embeddings, weight keyword matching higher
+**Detection**: High-ranked candidates fail the stated acceptance contract in a held-out cohort; report denominators, versions and uncertainty.
+**Fix**: Keep authority filtering and compatible lexical+dense retrieval; investigate the profile and corpus rather than silently privileging keywords.
 
 ### Cost Optimization Trap
 **Symptoms**: Always selecting cheapest skills, degrading output quality
-**Detection**: If avg_cost_per_use drops >30% while acceptance_rate drops >15%
-**Fix**: Set minimum fit_score threshold (0.5), reject candidates below threshold regardless of cost
+**Detection**: A comparable workload shows a cost/quality trade-off outside the declared acceptance policy.
+**Fix**: Enforce required capabilities and acceptance constraints before cost ranking; evaluate any numeric selection rule on a named cohort.
 
 ## Worked Examples
 
@@ -95,41 +97,37 @@ task_priority + budget_constraints → selection_criteria
 **Task**: "Build a scikit-learn classifier for customer churn prediction with hyperparameter tuning"
 
 **Process**:
-1. Extract intent: ML classification + scikit-learn + hyperparameter tuning
-2. Search yields: `sklearn-tuner` (fit=0.85, elo=1750), `automl-skill` (fit=0.72, elo=1820), `python-ml-basic` (fit=0.65, elo=1680)
-3. Apply decision tree: >5 candidates → full scoring
-4. Scores: sklearn-tuner: 0.85×0.4 + 0.72×0.3 + 0.8×0.3 = 0.796, automl-skill: 0.766
-5. Check NOT clauses: sklearn-tuner NOT clause says "not for deep learning" ✓ (this is classical ML)
-6. **Decision**: Assign sklearn-tuner
+1. Define the classification, scikit-learn and tuning requirements, acceptance checks, and permitted repository/effect scope.
+2. Filter authority and disclosure boundaries before either retriever; reject incompatible capabilities and NOT-FOR conditions before selection ranking.
+3. Constructed eligible candidates: `sklearn-tuner` (fit=0.85, elo=1750), `automl-skill` (fit=0.72, elo=1820), `python-ml-basic` (fit=0.65, elo=1680). These labels and numbers illustrate a record; they are not benchmark results or a portable scoring formula.
+4. Check documented task-compatible evidence under the versioned policy. A general ML description does not prove tuning capability.
+5. **Decision**: select `sklearn-tuner` only if that evidence satisfies the contract; otherwise clarify, decompose, or abstain. Selection grants no execution authority.
 
 **Novice miss**: Would pick automl-skill due to higher Elo, missing that sklearn-tuner is more specifically matched
-**Expert catch**: Recognizes hyperparameter tuning keyword strongly favors sklearn-tuner despite slightly lower Elo
+**Expert catch**: Requires documented tuning capability and task-compatible evidence; a keyword or Elo from another cohort does not prove fit.
 
 ### Example 2: Ambiguous Code Review Request
 **Task**: "Review this code for issues"
 
 **Process**:
 1. Extract intent: code review (but no language specified)
-2. fit_score for all code-review skills < 0.5 (too vague)
-3. Apply decision tree: fit_score < 0.5 → retry with broader search
-4. Broader search finds: `code-review-general` (fit=0.55)
-5. Still marginal fit → escalate to skill-architect
-6. **Decision**: Create task-specific code review skill
+2. Language, change scope and acceptance requirements are unresolved; raw fit scores cannot fill those gaps.
+3. Ask which language, scope, and acceptance predicate are required.
+4. Offer `code-review-general` only as a constrained fallback when it satisfies the clarified effect boundary.
+5. Abstain or decompose if clarification leaves a capability gap; propose a new skill only after coverage evidence.
 
-**Expert insight**: Recognizes that vague tasks need either clarification or new specialized skills
+**Expert insight**: Clarify the missing requirement before inferring a gap in the skill catalog.
 
 ## Quality Gates
 
-- [ ] Top candidate has fit_score ≥ 0.5
-- [ ] Selected skill's NOT clauses don't match task requirements
-- [ ] Composite score > 0.6 OR task explicitly escalated to skill-architect
-- [ ] Search found at least 1 candidate (not empty result set)
-- [ ] If multiple candidates with score difference < 0.1, thompson sampling was applied
-- [ ] Cost per use is within budget constraints (if specified)
-- [ ] Selected skill's domain tags overlap with extracted task domain
-- [ ] Downstream acceptance rate for selected skill > 0.6 (historical data)
-- [ ] Search took < 2 seconds (performance gate)
-- [ ] Match reasoning is logged for skill improvement feedback
+- [ ] Hard authority, disclosure, required capability and NOT-FOR checks precede ranking.
+- [ ] Query and stored dense vectors have the exact compatible `spaceId`; lexical and dense ranks are fused under a recorded policy.
+- [ ] Lexical-only degradation requires explicit corpus permission and is labeled; a semantic requirement never silently downgrades.
+- [ ] Catalog snapshot, profile, selected policy, candidate evidence and rejected alternatives are recorded.
+- [ ] Unresolved constraints lead to clarification or abstention; an empty result is valid evidence of insufficient coverage.
+- [ ] Any exploration or numeric rule is evaluated on a named workload and permitted by the task's effect and budget authority.
+- [ ] Cost, latency and outcome claims include measurement units, denominators, environment and uncertainty.
+- [ ] Selection explains what evidence supports the candidate and confers no execution authority.
 
 ## NOT-FOR Boundaries
 

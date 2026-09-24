@@ -1,0 +1,133 @@
+[
+  {
+    "sha256": "838a81a51c9899dbc9ec9b39b3f375a81ae054c50fe0adc14b8f10cdfc69f436",
+    "pages": 1,
+    "text_bounds_pt": [
+      90,
+      74.659259,
+      412.595829,
+      433.555525
+    ],
+    "text_width_in": 4.480497625,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  },
+  {
+    "sha256": "5c684cad9784329f2b52d75e0a07a25b2ccb48f463f8ec010b51ccfaf70d9348",
+    "pages": 1,
+    "text_bounds_pt": [
+      4.184,
+      6.644259,
+      303.217765,
+      281.453525
+    ],
+    "text_width_in": 4.153246736111111,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  },
+  {
+    "file": "renders/mas-worksheet-swiss-page.pdf",
+    "sha256": "0b7b1e0d0de3e650b534291393e900e57add8e52c68c07d2e01d9ca042e1a59e",
+    "pages": 1,
+    "text_bounds_pt": [
+      90,
+      74.852427,
+      412.595829,
+      433.555525
+    ],
+    "text_width_in": 4.480497625,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  },
+  {
+    "file": "renders/mas-worksheet-swiss.pdf",
+    "sha256": "a9f5f03f91bd4a01fdd5c9dc3fabfdcdfb29b311eefd6cd3b582990cca6ad701",
+    "pages": 1,
+    "text_bounds_pt": [
+      4.184,
+      6.836427,
+      300.752005,
+      281.255675
+    ],
+    "text_width_in": 4.119000069444444,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  },
+  {
+    "sha256": "1667121da648b12a62aa96a70e563a94e53ab0498584971acc929798a6b1820e",
+    "pages": 1,
+    "text_bounds_pt": [
+      90,
+      74.852427,
+      412.595829,
+      433.555525
+    ],
+    "text_width_in": 4.480497625,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  },
+  {
+    "sha256": "f61210ea62fb175adf67da87f6b6b973a97af8eb643ee714366f1f50820b9c9e",
+    "pages": 1,
+    "text_bounds_pt": [
+      4.184,
+      6.836427,
+      300.752005,
+      281.255675
+    ],
+    "text_width_in": 4.119000069444444,
+    "font_sizes_pt_rounded": [
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "word_overlaps_over_10pct": [],
+    "all_text_in_page": true
+  }
+]

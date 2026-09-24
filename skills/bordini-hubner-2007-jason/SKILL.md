@@ -1,216 +1,126 @@
 ---
 license: Apache-2.0
 name: bordini-hubner-2007-jason
-description: Jason multi-agent platform implementing AgentSpeak(L) for practical BDI agent programming and deployment
+description: Design AgentSpeak-style BDI plan libraries with explicit event, context, failure, and authority boundaries.
 metadata:
   category: Research & Academic
-  tags:
-    - jason
-    - bdi
-    - agents
-    - multi-agent-systems
-    - agentspeak
+  tags: [jason, agentspeak, bdi, plans, intentions]
   io-contract:
     kind: deliverable
     produces:
       - kind: design-doc
-        description: >-
-          BDI agent architecture decision framework covering plan selection strategies, failure recovery matrices, and
-          coordination protocols for multi-agent systems
+        description: A plan-library design with event/context coverage and local failure dispositions.
         format: markdown
       - kind: code
-        description: >-
-          AgentSpeak(L) agent implementations demonstrating belief-desire-intention programming patterns, plan context
-          conditions, and reactive-proactive behavior
+        description: Illustrative AgentSpeak plan fragments and a stated executable-validation boundary.
         language: agentspeak
-      - kind: critique
-        description: >-
-          Analysis of common BDI implementation pitfalls (monolithic plans, belief staleness, goal cascades,
-          communication deadlocks, context pollution) with diagnostic rules and remediation strategies
-        format: markdown
-      - kind: refactor-plan
-        description: >-
-          Guidance for decomposing procedural multi-agent logic into declarative BDI plans with appropriate context
-          guards and failure handlers
-        format: markdown
 allowed-tools: Read,Write,Edit,Glob,Grep
 ---
 
-# SKILL: Programming Multi-Agent Systems with BDI Architecture
+# Programming BDI plans with Jason and AgentSpeak
 
-## When to Use This Skill
+## Source boundary
 
-Load this skill when facing challenges involving:
-- Goal-directed autonomy where systems determine HOW to achieve objectives
-- Dynamic replanning when paths are blocked requiring alternative approaches
-- Reactive-proactive integration balancing deliberation with responsiveness
-- Distributed coordination between autonomous entities
-- Context-sensitive behavior where goals require different implementations
-- Cascading failure handling where low-level failures trigger high-level recovery
+Bordini, Hübner, and Wooldridge, *Programming Multi-Agent Systems in AgentSpeak using Jason* (Wiley, 2007; DOI `10.1002/9780470061848`) supplies the historical topic. The accessible Wiley record is bibliographic metadata only; the book body was not accessed. Current implementation guidance is from the author-maintained Jason tutorial, FAQ, technical guides, and 3.3.0 API, accessed 2026-09-24. It supports the cycle and language rules stated below, not a transport guarantee or a claim about a local runtime. Verify executable syntax and semantics against the pinned Jason release you use.
 
-## Decision Points
+## Plan-library decision
 
-### Plan Selection Strategy Tree
-
-```
-Triggering Event Occurs:
-├── Single applicable plan?
-│   └── Execute immediately
-├── Multiple applicable plans?
-│   ├── Context conditions differ? → Select first applicable (specificity order)
-│   ├── All contexts true? → Apply selection heuristics:
-│   │   ├── Success rate (prior execution history) → Choose highest
-│   │   ├── Cost estimate (resource requirements) → Choose lowest
-│   │   └── Recency (when last used) → Choose most recent
-│   └── Priority conflicts? → Use plan annotation weights
-└── No applicable plans?
-    ├── Generate failure event (-!goal)
-    └── Check for failure handlers
-
-Communication Coordination Decision:
-├── Information sharing needed?
-│   ├── One-way update → .send(agent, tell, belief)
-│   ├── Query response → .send(agent, askOne, query)
-│   └── Complete knowledge → .send(agent, askAll, query)
-├── Work delegation needed?
-│   ├── Agent capable? → .send(agent, achieve, goal)
-│   ├── Agent unknown? → Broadcast achieve request
-│   └── Critical task? → Send with timeout handling
-└── Coordination protocol?
-    ├── Sequential handoff → Chain achieve messages
-    ├── Parallel execution → Multiple concurrent achieves
-    └── Consensus needed → Negotiation protocol
+```mermaid
+flowchart TD
+  E[Event: percept, belief update, or goal adoption] --> C[Find plans whose trigger and context hold]
+  C --> Q{Applicable plans?}
+  Q -->|none| U[Record unmatched event or emit a local failure disposition]
+  Q -->|one or more| S[Apply documented local selection policy]
+  S --> X[Execute one intended step]
+  X --> R{Step result}
+  R -->|success| N[Continue or complete intention]
+  R -->|action/subgoal failure| F[Offer explicit failure-handling plans]
+  R -->|separate admitted event| E
+  F --> L{Recovery context holds?}
+  L -->|yes| X
+  L -->|no| U
 ```
 
-### Failure Recovery Decision Matrix
+Do not make plan selection look deterministic unless the selected runtime and local policy define the order. “Most specific,” “highest success rate,” “lowest cost,” and fixed numeric branch/retry/depth thresholds are policies that require a measured local rationale. An unmatched event is evidence of missing/unsatisfied plan coverage, not permission for a broad catch-all plan to hide it.
 
-| Failure Type | Detection Rule | Recovery Strategy |
-|-------------|----------------|-------------------|
-| Action failure | Action returns error/timeout | Try remaining plan body, then backtrack |
-| Context invalidated | Context query becomes false | Switch to alternative plan for same goal |
-| Goal impossible | All plans exhausted | Propagate failure to parent goal |
-| Communication failure | Send timeout/agent unavailable | Retry with alternative agents or methods |
-| Belief inconsistency | Contradictory percepts | Trigger belief revision or conflict resolution |
+## Worked local example: route a sealed package within a model workspace
 
-## Failure Modes
+The domain is constructed and non-clinical. `route_known` and `route_blocked` are local beliefs; an integration must define their provenance and freshness. The snippets show the retained context-sensitive, subgoal, and recovery pattern. They are illustrative AgentSpeak-style fragments and were not run against a Jason interpreter in this offline bundle.
 
-### 1. Monolithic Plan Bodies (Procedural Thinking)
-**Symptom**: Plans contain complex conditionals handling multiple cases
-**Detection Rule**: If plan body has >3 if-then branches based on beliefs
-**Diagnosis**: Programmer thinking procedurally instead of declaratively
-**Fix**: Split into separate plans with different context conditions
+```agentspeak
++!deliver(Package, Destination) : route_known(Destination) & not route_blocked(Destination) <-
+    !move_to(Destination);
+    !record_arrival(Package, Destination).
 
-### 2. Belief Staleness Loops (World-Model Drift)
-**Symptom**: Agent repeatedly selects inapplicable plans or wrong behaviors
-**Detection Rule**: If same plan fails >3 times consecutively with same context
-**Diagnosis**: Beliefs not synchronized with world state changes
-**Fix**: Add perception updating plans and belief revision guards
++!deliver(Package, Destination) : route_blocked(Destination) <-
+    !request_route_review(Package, Destination).
 
-### 3. Goal Cascade Explosions (Uncontrolled Decomposition)
-**Symptom**: System generates exponentially growing subgoals or infinite recursion
-**Detection Rule**: If intention stack depth >10 or same goal readopted cyclically
-**Diagnosis**: Missing termination conditions or circular goal dependencies
-**Fix**: Add cycle detection guards and base case plans
+-!move_to(Destination) : route_blocked(Destination) <-
+    !request_route_review(package_underway, Destination).
+```
 
-### 4. Communication Deadlocks (Synchronous Assumption)
-**Symptom**: Agents waiting indefinitely for responses that never come
-**Detection Rule**: If .send() followed by blocking wait without timeout
-**Diagnosis**: Treating asynchronous communication as synchronous RPC
-**Fix**: Add timeout handling and alternative response plans
+A fresh `+route_blocked(zone_3)` can cause another event cycle; it does not retroactively prove that the original move failed or automatically cancel a remote action. The recovery plan executes only if its context holds. If no route-review plan applies, record the unmatched failure for review rather than recursively re-adopting the same goal.
 
-### 5. Context Pollution (Over-Specific Guards)
-**Symptom**: No plans applicable despite reasonable belief state
-**Detection Rule**: If events generated but no plans selected repeatedly
-**Diagnosis**: Context conditions too restrictive or beliefs incomplete
-**Fix**: Add default catch-all plans with "true" context
+```mermaid
+stateDiagram-v2
+  [*] --> adopted
+  adopted --> selected: matching plan and context
+  adopted --> unmatched: no applicable plan
+  selected --> running
+  running --> completed: plan body completes
+  running --> recovery_event: action or subgoal reports failure
+  running --> reconsider: explicit application reconsideration
+  recovery_event --> running: recovery plan context holds
+  recovery_event --> unmatched: no recovery plan applies
+  reconsider --> selected: a newly selected plan is locally justified
+  reconsider --> unmatched: coverage remains absent
+  completed --> [*]
+  unmatched --> [*]
+```
 
-## Worked Examples
+The state view includes an application-defined reconsideration step; a new belief event alone does not replace the executing plan.
 
-### Example: Autonomous Package Delivery Robot
+## Practical plan-library method
 
-**Scenario**: Robot must deliver package to Building B, Room 205.
+1. Write each trigger and its context in a coverage table; list the evidence source that can establish each context belief.
+2. Keep normal and recovery plans distinguishable. A recovery plan must state what failure event it addresses and what it requires before acting.
+3. Decide whether multiple applicable plans are intentional. If they are, publish the local selection rule and test ties/unknown estimates. If they are not, refine contexts or flag ambiguity.
+4. Put cycle prevention in local state, not an unexplained universal depth limit. A useful local guard can retain `(goal, arguments, evidenceVersion)` and escalate on repeated unchanged evidence.
+5. Treat `.send`-style communication as an assertion exchange. A received message does not grant an action authority or make its content a true belief without an admission policy.
 
-**Initial State**: 
-- Beliefs: `at(lobby_A)`, `battery(90)`, `hasPackage(pkg123)`
-- Goal adoption: `+!deliver(pkg123, building_B, room_205)`
+The operational cycle is: select an event, find relevant plans, test plan contexts against the current belief base, select an option, then execute one topmost body element of a selected intention. Default intention interleaving is round-robin, but it is customizable and a long Java/internal action can still occupy the cycle. A belief update creates an event; it does not silently rewrite a running plan. Put any stale-assumption check in the body or a failure/recovery plan.
 
-**Decision Process**:
+Use `!g` when the caller must suspend until the achievement subgoal completes. Use `!!g` only when a distinct intention is intended and the caller may continue. `|&|` waits for both branches; `|||` continues after the first branch and drops the other. `atomic` prevents other intentions from running, so reserve it for short local critical regions. A failed `+!g` can generate `-!g` in the same intention; a matching recovery plan can inspect failure information and compensate. It never rolls back a prior external effect automatically.
 
-1. **Plan Selection**: Event `+!deliver(pkg123, building_B, room_205)` triggers plan search
-   - Plan A context: `battery(X) & X > 80` ✓
-   - Plan B context: `battery(X) & X < 30` ✗ 
-   - Plan C context: `true` ✓
-   - **Select Plan A** (most specific applicable)
+## Failure modes
 
-2. **Plan A Execution**: 
-   ```
-   +!deliver(Pkg, Building, Room) : battery(X) & X > 80 <-
-       !navigate(Building);
-       !findRoom(Room);
-       !handover(Pkg).
-   ```
+| Observation | Correct local response |
+| --- | --- |
+| Context not established | Preserve the event as unmatched or request bounded evidence; do not use `true` as a universal fallback. |
+| Action reports failure | Produce a failure event and try only a recovery plan whose context holds. |
+| Repeated attempt with unchanged evidence | Record a cycle candidate and apply a stated local stop/escalation rule. |
+| Conflicting observations | Retain provenance and invoke an explicitly defined belief-management policy; Jason syntax alone does not resolve conflict. |
+| Missing reply | Record a local timeout outcome; it does not prove remote state. |
 
-3. **Subgoal Decomposition**: `!navigate(building_B)` triggers navigation plans
-   - Context check: `hasMap(building_B)` → False
-   - Select fallback: `!requestDirections(building_B)`
+## Quality gates
 
-4. **Dynamic Replanning**: During navigation, belief update `+obstacle(hallway_3)`
-   - Current plan: `followRoute(route_1)` 
-   - Context invalidated: route blocked
-   - **Automatic replan**: Select alternative route plan
+- [ ] Each used goal/event has an explicit coverage table, including unmatched and recovery cases.
+- [ ] Selection ordering, if needed, is a local policy with tie and unknown-value behavior.
+- [ ] Context beliefs state their evidence/freshness assumptions.
+- [ ] Recovery plans are context-guarded and cannot silently create an infinite re-adoption loop.
+- [ ] Communication and external effects have separate admission/authorization checks.
+- [ ] Any executable Jason claim cites the pinned release and a run result.
 
-5. **Failure Handling**: `!handover(pkg123)` fails (recipient absent)
-   - Generates failure event: `-!handover(pkg123)`
-   - Failure handler triggered: 
-   ```
-   -!handover(Pkg) <- !findAlternateRecipient(Pkg); !handover(Pkg).
-   ```
+## Read next
 
-**Novice vs Expert Differences**:
-- **Novice**: Would write single monolithic navigation function with all cases
-- **Expert**: Encodes multiple context-sensitive plans allowing dynamic adaptation
-- **Novice**: Would treat failures as exceptions requiring global error handling  
-- **Expert**: Designs cascading failure handlers at appropriate abstraction levels
+- [Plan selection and coverage](references/context-driven-plan-selection.md)
+- [Goal/subgoal and cycle controls](references/goal-subgoal-decomposition.md)
+- [Failure and recovery](references/graceful-failure-and-recovery.md)
+- [Source access and Jason boundary](references/source-access-and-jason-boundary.md)
+- [Reasoning-cycle diagram](diagrams/01_reasoning-cycle.md)
+- [Failure-state diagram](diagrams/02_failure-state.md)
+- [Intention operators and failure boundaries](diagrams/03_intention-operators.md)
 
-## Reference Files
+## Bundle navigation
 
-- `diagrams/01_flowchart_bdi_reasoning_cycle.md` — Mermaid flowchart of the BDI perception-event-plan-execution cycle. **Read when** understanding how agents perceive, generate events, select plans, and execute actions.
-- `diagrams/02_sequenceDiagram_multi-agent_coordination_via_s.md` — Sequence diagram showing multi-agent coordination via speech acts (tell, askOne, achieve). **Read when** designing agent-to-agent communication protocols.
-- `diagrams/03_stateDiagram-v2_plan_execution_&_failure_recov.md` — State machine for plan execution, failure detection, and recovery transitions. **Read when** implementing failure handlers and plan backtracking logic.
-- `references/context-driven-plan-selection.md` — Explains how AgentSpeak encodes procedural knowledge as context-sensitive plan libraries instead of monolithic procedures. **Read when** designing plan libraries with multiple applicable plans for the same goal.
-- `references/goal-subgoal-decomposition.md` — Covers hierarchical goal decomposition and intentions as dynamic execution stacks. **Read when** breaking complex goals into subgoals or managing goal cascades.
-- `references/graceful-failure-and-recovery.md` — Discusses plan failure inevitability and cascading recovery strategies. **Read when** designing failure handlers and alternative plan selection.
-- `references/knowledge-level-communication.md` — Explains speech acts and mental state coordination beyond byte-passing. **Read when** implementing agent communication for cooperation and coordination.
-- `references/procedural-knowledge-encoding.md` — Distinguishes know-how (procedural) from know-that (declarative) and the plan library paradigm. **Read when** converting domain procedures into AgentSpeak plans.
-- `references/reactive-proactive-integration.md` — Addresses integrating reactive stimulus-response with proactive goal-driven behavior. **Read when** balancing event-driven and goal-driven agent behavior.
-
-## Quality Gates
-
-- [ ] Each goal has at least 2 plans with different contexts
-- [ ] Every plan has explicit failure handler or alternative
-- [ ] All belief updates trigger relevant reactive plans
-- [ ] Communication includes timeout and failure handling
-- [ ] No plan body contains complex conditional logic (>3 branches)
-- [ ] Context conditions are testable and mutually exclusive where intended
-- [ ] Goal decomposition has clear termination conditions
-- [ ] Intention stack depth bounded (detect cycles)
-- [ ] All external actions have error handling plans
-- [ ] Plan library coverage verified for common scenarios
-
-## NOT-FOR Boundaries
-
-**Do NOT use this skill for**:
-- Simple event-driven systems → Use basic event handlers instead
-- Stateless request-response APIs → Use REST/microservices instead  
-- Deterministic workflows → Use process orchestration tools instead
-- Real-time control loops → Use control theory/embedded systems instead
-- Large language model agents → Use prompt engineering patterns instead
-
-**When to delegate**:
-- For distributed consensus → Use consensus algorithms like Raft
-- For load balancing → Use container orchestration tools  
-- For data processing → Use stream processing frameworks
-- For user interfaces → Use reactive UI frameworks
-- For machine learning → Use ML pipeline tools
-
-This skill is specifically for programming autonomous agents that must pursue goals while adapting to changing conditions through plan selection and failure recovery.
+[diagrams index](diagrams/INDEX.md).

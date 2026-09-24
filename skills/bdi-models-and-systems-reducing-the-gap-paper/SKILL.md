@@ -1,9 +1,10 @@
 ---
 name: bdi-models-and-systems-reducing-the-gap-paper
 description: >-
-  Implement executable BDI reasoning with explicit negation, paraconsistent revision, trigger-based commitment updates,
-  and abduction. Use for runtime agent semantics and conflicting desires. NOT for purely axiomatic modal logic,
-  black-box planners, or classical logic without operational semantics.
+  Design executable BDI reasoning using scoped explicit negation, Event Calculus, abductive feasibility checks, and
+  preference-governed revision. The cited paper assumes initially consistent beliefs and leaves belief update out of
+  scope; observation update is a local extension. NOT for purely axiomatic modal logic, black-box planners, or
+  classical logic without operational semantics.
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Glob,Grep
 metadata:
@@ -66,7 +67,7 @@ metadata:
 
 # Executable BDI Revision Semantics
 
-Use this skill when the main problem is closing the gap between a pretty BDI theory and a reasoning engine that can actually run, revise commitments, and survive contradiction.
+Use this skill when translating the cited BDI model into conformance work. Móra et al., “BDI Models and Systems: Reducing the Gap” (ATAL 1998; LNAI 1999), proposes ELP/WFSX, Event Calculus, abductive feasibility, and preference-governed revision. It is not a complete agent implementation, empirical validation, or belief-update algorithm.
 
 ## When to Use
 
@@ -95,7 +96,7 @@ Agents need to represent "I believe not-P" and "I intend not-P" as positive nega
 
 ### Contradiction Should Trigger Deliberation
 
-Conflicting desires are normal. Paraconsistent semantics treat contradiction as a signal to revise beliefs or intentions, not as a fatal error.
+Keep explicit positive and negative evidence distinct with source, time, scope, and authority. Contradictory evidence must not itself grant contradictory authorization; the cited paper leaves external belief update out of scope.
 
 ### Commitment Lives in the Revision Rules
 
@@ -119,7 +120,7 @@ flowchart TD
   H -->|Yes| I[Use paraconsistent revision]
   H -->|No| J[Proceed with current commitments]
   I --> K{Trigger for reconsideration fired?}
-  K -->|Yes| L[Revise beliefs and intentions by preference]
+  K -->|Yes| L[Run a separately specified local observation/update adapter, then revise intentions by preference]
   K -->|No| M[Keep commitments stable]
 ```
 
@@ -164,11 +165,11 @@ Fix: encode preference into the revision procedure so it guides the search direc
 
 ### Triage Agent with Conflicting Obligations
 
-A healthcare triage agent must avoid interrupting one patient while escalating another urgent case. Represent the negative intention explicitly, allow contradictory candidate desires, and let priority-guided revision choose which intention set survives after new evidence arrives.
+For a non-clinical routing scenario, represent two conflicting candidate obligations with explicit source and time. Apply a declared revision preference or escalate unresolved authority; do not treat the paper as a clinical or authorization policy.
 
 ### Field Robotics with Deadlines
 
-A robot intends to inspect a site before battery reserve drops below a threshold. New terrain beliefs make the route infeasible. The right move is not endless replanning, but trigger-based reconsideration with abductive reasoning about missing preconditions and alternative routes.
+A robot intends to inspect a site before a locally declared reserve condition. New terrain evidence makes the route infeasible. Trigger-based reconsideration and an observation-update layer are engineering extensions that must be separately specified and tested.
 
 ## Reference Files
 
@@ -182,6 +183,7 @@ A robot intends to inspect a site before battery reserve drops below a threshold
 - `references/preference-over-consistency-restoring-revisions.md` — Addresses multiplicity in conflict resolution; encodes deliberation policy in search structures. **Read when** choosing among multiple consistent subsets or ranking revisions.
 - `references/revision-mechanisms-as-non-monotonic-deliberation.md` — Frames deliberation as conflict resolution; explains paraconsistent handling of contradictory desires. **Read when** implementing non-monotonic reasoning or contradiction-triggered revision.
 - `references/triggers-and-attention-in-committed-agents.md` — Analyzes commitment-deliberation tradeoff; identifies when deliberation should occur. **Read when** tuning trigger thresholds or balancing stability vs. responsiveness.
+- `references/paper-scope-and-conformance.md` — Separates paper-defined operators from local observation, update, and effect extensions. **Read when** building conformance vectors or making a source claim.
 
 ## Quality Gates
 

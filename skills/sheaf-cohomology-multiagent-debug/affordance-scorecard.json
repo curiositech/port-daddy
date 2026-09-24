@@ -1,36 +1,12 @@
 {
   "skill": "sheaf-cohomology-multiagent-debug",
-  "updatedAt": "2026-06-26T00:00:00",
-  "provenance": {
-    "kind": "rcp-graft-mint",
-    "sourceRepo": "soma + workgroup-ai",
-    "createdAt": "2026-06-26T00:00:00",
-    "owners": ["soma-jury_rig-graft"]
-  },
-  "authorship": {
-    "maintainers": ["soma-jury_rig-graft"]
-  },
-  "lineCount": 145,
-  "structuralComplete": true,
+  "updatedAt": "2026-09-24",
+  "scope": "Offline reference and finite algebra fixtures",
   "structure": {
-    "decisionPoints": true,
-    "failureModes": true,
-    "workedExamples": false,
-    "qualityGates": true,
-    "notFor": true,
-    "inlineMermaid": 1
+    "entrypoint": true,
+    "references": 7,
+    "examples": 1,
+    "mermaidDiagrams": 6
   },
-  "affordances": {
-    "scripts": false,
-    "templates": false,
-    "examples": false,
-    "references": true,
-    "assets": false,
-    "diagrams": true,
-    "referenceFiles": 5,
-    "referenceIndex": false,
-    "diagramCompanions": 1,
-    "visualPreviewCapability": false
-  },
-  "validatorPassed": true
+  "validationBoundary": "Static and finite-fixture validation only; no runtime, monitor, ledger, authorization, or effect claim."
 }

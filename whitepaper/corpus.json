@@ -694,6 +694,7 @@
         "skills/harbor-results/scripts/sheaf_harness_v2.py",
         "skills/harbor-results/scripts/sheaf_consistency_radius.py",
         "skills/harbor-results/scripts/sheaf_repair_and_2complex.py",
+        "skills/harbor-results/scripts/test_cr4_contract.py",
         "skills/harbor-results/scripts/zoom_bound_check.py"
       ],
       "owner": ".github/workflows/proofs.yml",

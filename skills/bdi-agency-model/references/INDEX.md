@@ -10,3 +10,4 @@ Imported supporting material. Load a listed file only when it serves the active 
 - [Soar and BDI: Convergent Evolution in Agent Architecture](soar-bdi-convergent-evolution.md) — imported supporting material.
 - [Task-Orientation vs. Goal-Orientation: The Fundamental Divide in System Design](task-vs-goal-orientation.md) — imported supporting material.
 - [Why Beliefs, Desires, and Intentions Must Exist as Separate Components](why-beliefs-desires-intentions-exist.md) — imported supporting material.
+- [Evidence scope](evidence-scope.md) — source-specific limits and revalidation rule for current claims.

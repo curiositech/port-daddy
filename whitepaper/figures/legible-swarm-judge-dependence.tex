@@ -1,0 +1,33 @@
+% Reader question: do distinct reviewers supply independent evidence?
+% Claim: separate principals can repeat the same errors when all read the same
+% flawed source. Evidence: a constructed four-item error-vector counterexample.
+% Grammar: one common-source provenance branch and aligned outcome rows.
+% Counter-reading: this is not a measured judge error rate or collusion test.
+% Five-second test: trace the one source to all three identical error vectors.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \path[use as bounding box] (0,-.55) rectangle (11.2,4.15);
+  \node[pd panel title,anchor=west] at (.1,3.85) {Common input};
+  \node[pd panel title,anchor=west] at (4.2,3.85) {Distinct principals};
+  \node[pd panel title,anchor=west] at (8.1,3.85) {Errors on items 1--4};
+  \draw[pd hairline] (0,3.55)--(11.2,3.55);
+  \node[pd artifact,minimum width=2.2cm,minimum height=.82cm] (src)
+    at (1.35,1.92) {source $S$};
+  \foreach \who/\yy in {A/3.0,B/1.92,C/.84} {
+    \node[pd actor,minimum width=1.8cm,minimum height=.62cm] (j\who)
+      at (5.1,\yy) {judge \who};
+    \draw[pd arrow] (src.east) -- (j\who.west);
+    \node[pd mono label,anchor=west] at (8.25,\yy) {1\quad 0\quad 1\quad 0};
+  }
+  \draw[pd hairline] (0,.24)--(11.2,.24);
+  \node[pd note,anchor=north west] at (.1,.12)
+    {1 = error; all values are constructed, not observations.};
+\end{tikzpicture}
+\caption{Three reviewers have separate principal identities but read the same
+source $S$ and make identical errors on two of four constructed items. Distinct
+principals remove one conflict of interest; they do not by themselves prove
+independent errors. Error dependence needs labeled evaluation, while strategic
+collusion remains a separate question [constructed example].}
+\label{fig:judge-dependence}
+\end{figure}

@@ -1,146 +1,195 @@
-# Email Handling
+# Email handling
 
-Fetch https://developers.cloudflare.com/agents/api-reference/email/ for complete documentation.
+Agents send, receive, route, and reply to email through Cloudflare Email Service and the Agents SDK. Outbound delivery uses a `send_email` Worker binding. Inbound delivery requires a Cloudflare Email Service routing rule that sends mail to the Worker, then `routeAgentEmail` selects an Agent instance. [Email agent example](https://developers.cloudflare.com/agents/examples/email-agent/) and [Email channel guide](https://developers.cloudflare.com/agents/communication-channels/email/).
 
-## Overview
+## Setup and bindings
 
-Agents receive and reply to emails via Cloudflare Email Routing.
-
-## Wrangler Configuration
+Onboard a sending domain in Cloudflare Email Service, publish its required DNS records, add the Worker `send_email` binding, and configure an inbound routing rule to this Worker. The Agent Durable Object binding/migration remains required for an Agent class; the current Email Service binding replaces the original obsolete `destination_address` form.
 
 ```jsonc
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "durable_objects": {
     "bindings": [{ "name": "EmailAgent", "class_name": "EmailAgent" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EmailAgent"] }],
-  "send_email": [
-    { "name": "SEB", "destination_address": "reply@yourdomain.com" }
-  ]
+  "send_email": [{ "name": "EMAIL", "remote": true }]
 }
 ```
 
-## Basic Email Handler
+`remote: true` lets `wrangler dev` call the real Email Service API. It is not a test double: use a controlled recipient/domain for any development delivery. Store `EMAIL_SECRET` as a Wrangler secret only when secure reply routing is needed; it must not be committed as a variable.
 
-```typescript
+## Receive, parse, and reply
+
+`onEmail` receives `AgentEmail`, which provides sender/recipient addresses, headers, `rawSize`, `getRaw()`, `reply()`, `forward()`, and `setReject(reason)`. Parse raw MIME before using the subject or body, and treat fields and attachments as untrusted message content.
+
+```ts
 import { Agent } from "agents";
-import { type AgentEmail } from "agents/email";
+import { type AgentEmail, isAutoReplyEmail } from "agents/email";
 import PostalMime from "postal-mime";
 
-export class EmailAgent extends Agent<Env, State> {
+type EmailState = { acceptedCount: number };
+
+export class EmailAgent extends Agent<Env, EmailState> {
+  initialState: EmailState = { acceptedCount: 0 };
+
   async onEmail(email: AgentEmail) {
+    // Application gate before MIME parsing: source/tenant policy and size ceiling.
+    await authorizeInboundEnvelopeAndSize(this, email);
     const raw = await email.getRaw();
     const parsed = await PostalMime.parse(raw);
+    if (isAutoReplyEmail(parsed.headers)) return;
+    const subject = parsed.subject ?? "(no subject)";
 
-    console.log("From:", email.from);
-    console.log("Subject:", parsed.subject);
-
-    await this.replyToEmail(email, {
-      fromName: "My Agent",
-      subject: `Re: ${parsed.subject}`,
-      body: "Thanks for your email!"
+    // Application transaction: inbox identity + exact reply payload + outbox intent.
+    // Duplicate/conflicting inbound identities are handled before creating new work.
+    const admission = await admitInboundAndReply(this, email, parsed, {
+      fromName: "Support Agent",
+      subject: `Re: ${subject}`,
+      body: "Thanks for your email. We received it.",
+      contentType: "text/plain",
     });
+    if (admission.kind !== "new") return;
+    // State is a small authorized projection, not raw sender/subject history.
+    this.setState({ acceptedCount: admission.acceptedCount });
+    await deliverAdmittedEmail(admission, () =>
+      this.replyToEmail(email, admission.replyOptions));
   }
 }
 ```
 
-## Routing Emails
+The named authorization/admission/delivery helpers are application contracts, not SDK APIs. They must reject malformed MIME and mailing-list/auto-reply traffic, bind tenant and payload digest to an inbound identity, persist a recoverable send intent, and preserve uncertain provider results instead of blindly retrying. The SDK does not supply these guarantees merely because this snippet names them. Keep raw sender/subject history in access-controlled storage under retention policy rather than broadcasting it as Agent state.
 
-```typescript
-import { routeAgentRequest, routeAgentEmail } from "agents";
+Do not automatically reply to auto-replies, mailing-list traffic, or malformed messages. Apply sender/tenant authorization before an inbound message changes records, sends a notification, or calls an external tool; an email `From` header alone is not an application identity proof.
+
+`replyToEmail` requires the live `AgentEmail` object and therefore belongs inside `onEmail`. For a delayed response from a schedule, callable method, or approval completion, persist the sender, message ID, and subject, then call `sendEmail({ inReplyTo: messageId, ... })` from that later method.
+
+## Send a new email
+
+Use `sendEmail` for a new conversation. A `replyTo` mailbox must route back to this Worker if recipients should continue the same conversation. At least one of `text` or `html` is required by the documented send options.
+
+```ts
+import { callable } from "agents";
+
+export class WelcomeEmailAgent extends Agent<Env> {
+  @callable()
+  async sendWelcomeEmail(to: string, requestId: string) {
+    const message = {
+      binding: this.env.EMAIL,
+      to,
+      from: "support@yourdomain.com",
+      replyTo: "support@yourdomain.com",
+      subject: "Welcome to our service",
+      text: "Thanks for signing up. Reply to this email if you need help.",
+    };
+    // Application admission binds authenticated caller, recipient, payload and requestId.
+    const admission = await admitAuthorizedOutbound(this, requestId, message);
+    return deliverAdmittedEmail(admission, () => this.sendEmail(message));
+  }
+}
+```
+
+The current send shape also supports `html`, `cc`, `bcc`, `inReplyTo`, custom `headers`, and a `secret` for secure reply routing. Validate recipient and business authority before calling this method, use an operation key to suppress duplicate effects on retried requests, and avoid placing secrets or internal identifiers in the subject/body.
+
+## Route inbound mail
+
+`routeAgentEmail` is called from the Worker's `email` handler. Keep normal HTTP Agent routing in `fetch` when the Worker serves both channels:
+
+```ts
+import { routeAgentEmail, routeAgentRequest } from "agents";
 import { createAddressBasedEmailResolver } from "agents/email";
 
 export default {
-  async email(message, env) {
+  async email(message: ForwardableEmailMessage, env: Env) {
     await routeAgentEmail(message, env, {
-      resolver: createAddressBasedEmailResolver("EmailAgent")
+      resolver: createAddressBasedEmailResolver("EmailAgent"),
+      onNoRoute(email) {
+        console.warn({ code: "email-route-missing" });
+        email.setReject("Unknown recipient");
+      },
     });
   },
 
-  async fetch(request, env) {
-    return routeAgentRequest(request, env) ?? new Response("Not found", { status: 404 });
-  }
-};
+  async fetch(request: Request, env: Env) {
+    await requireAuthorizedAgentRoute(request, env); // Application gate before upgrade/data.
+    return (await routeAgentRequest(request, env)) ?? new Response("Not found", { status: 404 });
+  },
+} satisfies ExportedHandler<Env>;
 ```
 
-## Resolvers
+The resolver decides the Agent destination; the Email Service rule decides which inbound mail reaches this Worker. Reject or explicitly handle an unmatched recipient instead of silently converting it into a default tenant action.
 
-### Address-Based (Inbound Mail)
+## Resolver choices
 
-Routes based on recipient address:
+### Address-based inbound routing
 
-```typescript
+`createAddressBasedEmailResolver("EmailAgent")` maps recipient addresses to Agent names/instance IDs. It supports a default Agent class based on the local part and `agent+id@domain` routing for distinct Agent namespaces and instances:
+
+```ts
 import { createAddressBasedEmailResolver } from "agents/email";
 
 const resolver = createAddressBasedEmailResolver("EmailAgent");
-// support@example.com → EmailAgent, instance "support"
-// NotificationAgent+user123@example.com → NotificationAgent, instance "user123"
+// support@example.com -> EmailAgent instance "support"
+// NotificationAgent+user123@example.com -> NotificationAgent instance "user123"
 ```
 
-### Secure Reply (Reply Flows)
+Agent class matching in recipient addresses is case-insensitive because email infrastructure commonly lowercases addresses. This resolver maps delivery, not permission; ensure a recipient-derived instance ID cannot cross a tenant boundary.
 
-Verifies replies are authentic using HMAC-SHA256 signatures:
+### Secure replies
 
-```typescript
+`createSecureReplyEmailResolver` verifies HMAC-SHA256 routing headers and their timestamp before returning an Agent route. Use it when an Agent initiates a conversation and replies must return to the same instance without trusting forgeable routing headers.
+
+```ts
 import { createSecureReplyEmailResolver } from "agents/email";
 
-const resolver = createSecureReplyEmailResolver(env.EMAIL_SECRET, {
-  maxAge: 7 * 24 * 60 * 60, // 7 days (default: 30 days)
+const secureReplyResolver = createSecureReplyEmailResolver(env.EMAIL_SECRET, {
+  maxAge: 7 * 24 * 60 * 60,
   onInvalidSignature: (email, reason) => {
-    console.warn(`Invalid signature from ${email.from}: ${reason}`);
-  }
+    console.warn({ code: "email-signature-invalid" }); // Do not log sender or raw input.
+  },
 });
 ```
 
-Sign outbound emails to enable secure reply routing:
+The documented default `maxAge` is 30 days. Supply the same secret on an outbound `sendEmail` or `replyToEmail` to sign the routing headers:
 
-```typescript
+```ts
 await this.replyToEmail(email, {
-  fromName: "My Agent",
-  body: "Thanks!",
-  secret: this.env.EMAIL_SECRET  // Signs headers for secure reply routing
+  fromName: "Support Agent",
+  body: "Thanks for your email.",
+  secret: this.env.EMAIL_SECRET,
 });
 ```
 
-### Catch-All (Single Instance)
+When mail arrived through the secure resolver, `replyToEmail` requires a secret or explicit `null` opt-out. Use the secret; `null` deliberately disables signing for that reply and should be an exceptional, audited policy decision.
 
-Routes all emails to one agent instance:
+### Distinct ingress policies; no invalid-signature fallback
 
-```typescript
+A catch-all is appropriate only for a deployment-authorized shared inbox. Preserve its construction as a separate lane:
+
+```ts
 import { createCatchAllEmailResolver } from "agents/email";
-
-const resolver = createCatchAllEmailResolver("EmailAgent", "default");
+const sharedInbox = createCatchAllEmailResolver("EmailAgent", "default");
 ```
 
-### Combining Resolvers
+Choose a resolver from authenticated deployment routing policy before processing the message. Never try secure replies and then fall through to address or catch-all routing on failure: that turns an invalid/expired signed reply into an unsigned tenant action. An unsigned new-message lane needs its own recipient/sender and tenant admission policy; it is not recovery for failed secure replies.
 
-```typescript
-async email(message, env) {
-  const secureReply = createSecureReplyEmailResolver(env.EMAIL_SECRET);
-  const addressBased = createAddressBasedEmailResolver("EmailAgent");
+```ts
+import { routeAgentEmail } from "agents";
+import { createSecureReplyEmailResolver } from "agents/email";
 
-  await routeAgentEmail(message, env, {
-    resolver: async (email, env) => {
-      // Try secure reply first
-      const result = await secureReply(email, env);
-      if (result) return result;
-      // Fall back to address-based
-      return addressBased(email, env);
-    }
-  });
-}
+export default {
+  async email(message: ForwardableEmailMessage, env: Env) {
+    // This Worker ingress is configured exclusively for signed conversation replies.
+    await routeAgentEmail(message, env, {
+      resolver: createSecureReplyEmailResolver(env.EMAIL_SECRET),
+      onNoRoute: (email) => email.setReject("Reply route could not be verified"),
+    });
+  },
+} satisfies ExportedHandler<Env>;
 ```
 
-## Utilities
+A valid routing signature identifies a route, not the current sender's authority to perform arbitrary actions. Recheck that authority in the admitted operation. Exercise invalid and expired signatures and prove neither reaches the address/shared-inbox lane.
 
-```typescript
-import { isAutoReplyEmail } from "agents/email";
+## Lifecycle and safety checks
 
-async onEmail(email: AgentEmail) {
-  if (isAutoReplyEmail(email.headers)) {
-    // Skip auto-replies (vacation, out-of-office, etc.)
-    return;
-  }
-  // Process email...
-}
-```
+An email is an inbound Agent lifecycle event: raw bytes are retrieved with `getRaw`, parsed content is handled in `onEmail`, and delivery succeeds or rejects through the Email Service path. Before enabling production routing, exercise normal inbound mail, missing/malformed MIME, auto-reply suppression, unknown-recipient rejection, a valid signed reply, an expired/invalid signature, send failure/retry, and duplicate inbound delivery. Record the external message ID or application operation key before performing a non-idempotent downstream effect.

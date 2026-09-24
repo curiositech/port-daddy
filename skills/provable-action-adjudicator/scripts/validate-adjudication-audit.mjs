@@ -40,6 +40,21 @@ function oneOf(value, choices, at, errors) {
   if (!choices.includes(value)) errors.push(`${at} must be one of ${choices.join(", ")}`);
 }
 
+function isIsoDateTime(value) {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return false;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, zone, , offsetMinuteText] = match;
+  const year = Number(yearText), month = Number(monthText), day = Number(dayText);
+  const hour = Number(hourText), minute = Number(minuteText), second = Number(secondText);
+  if (year < 1 || month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day < 1 || day > days[month - 1]) return false;
+  if (zone !== "Z" && (Number(match[8]) > 23 || Number(offsetMinuteText) > 59)) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
 export function validateAdjudicationAudit(doc) {
   const errors = [];
   const top = ["schemaVersion", "subject", "claim", "proposal", "authority", "decision", "effect", "mediationInventory", "bypassTests", "witnesses", "unknowns", "status"];
@@ -67,7 +82,7 @@ export function validateAdjudicationAudit(doc) {
     for (const key of ["digest", "targetDigest", "parametersDigest"]) digest(doc.proposal[key], `$.proposal.${key}`, errors);
     for (const key of ["requester", "principal", "repo", "harbor", "operation", "idempotencyKey"]) string(doc.proposal[key], `$.proposal.${key}`, errors);
     if (!Number.isInteger(doc.proposal.bodyGeneration) || doc.proposal.bodyGeneration < 0) errors.push("$.proposal.bodyGeneration must be a non-negative integer");
-    if (typeof doc.proposal.expiresAt !== "string" || Number.isNaN(Date.parse(doc.proposal.expiresAt))) errors.push("$.proposal.expiresAt must be an ISO date-time");
+    if (!isIsoDateTime(doc.proposal.expiresAt)) errors.push("$.proposal.expiresAt must be an RFC 3339 date-time with a valid calendar date and timezone");
   }
 
   const authorityKeys = ["receiptDigest", "proposalDigest", "issuer", "audience", "scopeDigest", "verified", "revocationChecked"];
@@ -85,6 +100,7 @@ export function validateAdjudicationAudit(doc) {
     string(doc.decision.adjudicator, "$.decision.adjudicator", errors);
     oneOf(doc.decision.verdict, ["ALLOW", "DENY", "INDETERMINATE"], "$.decision.verdict", errors);
     if (!Array.isArray(doc.decision.reasonCodes) || doc.decision.reasonCodes.length === 0) errors.push("$.decision.reasonCodes must be a non-empty array");
+    else doc.decision.reasonCodes.forEach((code, index) => string(code, `$.decision.reasonCodes[${index}]`, errors));
     if (typeof doc.decision.issuedBeforeEffect !== "boolean") errors.push("$.decision.issuedBeforeEffect must be boolean");
   }
 
@@ -99,9 +115,10 @@ export function validateAdjudicationAudit(doc) {
     if (typeof doc.effect.intentRecordedBeforeEffect !== "boolean") errors.push("$.effect.intentRecordedBeforeEffect must be boolean");
   }
 
-  if (!Array.isArray(doc.mediationInventory) || doc.mediationInventory.length === 0) errors.push("$.mediationInventory must be non-empty");
+  const mediationInventory = Array.isArray(doc.mediationInventory) ? doc.mediationInventory : [];
+  if (!Array.isArray(doc.mediationInventory) || mediationInventory.length === 0) errors.push("$.mediationInventory must be a non-empty array");
   const inventoryIds = new Set();
-  for (const [index, item] of (doc.mediationInventory ?? []).entries()) {
+  for (const [index, item] of mediationInventory.entries()) {
     const at = `$.mediationInventory[${index}]`;
     const itemKeys = ["effectClass", "boundary", "owner", "coverage", "witnessId", "bypassCases"];
     if (!keys(item, itemKeys, itemKeys, at, errors)) continue;
@@ -109,13 +126,20 @@ export function validateAdjudicationAudit(doc) {
     oneOf(item.coverage, ["SOURCE_PRESENT", "EXTERNALLY_WITNESSED", "UNKNOWN", "OUT_OF_SCOPE"], `${at}.coverage`, errors);
     if (item.witnessId !== null) string(item.witnessId, `${at}.witnessId`, errors);
     if (!Array.isArray(item.bypassCases) || item.bypassCases.length === 0) errors.push(`${at}.bypassCases must be non-empty`);
-    if (inventoryIds.has(item.effectClass)) errors.push(`${at}.effectClass must be unique`);
-    inventoryIds.add(item.effectClass);
+    else {
+      item.bypassCases.forEach((testId, testIndex) => string(testId, `${at}.bypassCases[${testIndex}]`, errors));
+      if (new Set(item.bypassCases).size !== item.bypassCases.length) errors.push(`${at}.bypassCases must not contain duplicates`);
+    }
+    if (typeof item.effectClass === "string" && item.effectClass.length > 0) {
+      if (inventoryIds.has(item.effectClass)) errors.push(`${at}.effectClass must be unique`);
+      inventoryIds.add(item.effectClass);
+    }
   }
 
-  if (!Array.isArray(doc.bypassTests) || doc.bypassTests.length === 0) errors.push("$.bypassTests must be non-empty");
+  const bypassTests = Array.isArray(doc.bypassTests) ? doc.bypassTests : [];
+  if (!Array.isArray(doc.bypassTests) || bypassTests.length === 0) errors.push("$.bypassTests must be a non-empty array");
   const bypassTestIds = new Set();
-  for (const [index, test] of (doc.bypassTests ?? []).entries()) {
+  for (const [index, test] of bypassTests.entries()) {
     const at = `$.bypassTests[${index}]`;
     const testKeys = ["id", "mutation", "expected", "observed", "passed", "witnessId"];
     if (!keys(test, testKeys, testKeys, at, errors)) continue;
@@ -125,10 +149,11 @@ export function validateAdjudicationAudit(doc) {
     bypassTestIds.add(test.id);
   }
 
-  if (!Array.isArray(doc.witnesses) || doc.witnesses.length === 0) errors.push("$.witnesses must be non-empty");
+  const witnesses = Array.isArray(doc.witnesses) ? doc.witnesses : [];
+  if (!Array.isArray(doc.witnesses) || witnesses.length === 0) errors.push("$.witnesses must be a non-empty array");
   const witnessIds = new Set();
   const witnessById = new Map();
-  for (const [index, witness] of (doc.witnesses ?? []).entries()) {
+  for (const [index, witness] of witnesses.entries()) {
     const at = `$.witnesses[${index}]`;
     const witnessKeys = ["id", "class", "principal", "independentOf", "evidenceDigest"];
     if (!keys(witness, witnessKeys, witnessKeys, at, errors)) continue;
@@ -136,29 +161,36 @@ export function validateAdjudicationAudit(doc) {
     string(witness.principal, `${at}.principal`, errors);
     oneOf(witness.class, ["SOURCE_INSPECTOR", "VERIFIER_RUNNER", "HOST_OBSERVER", "PROVIDER_RECONCILER"], `${at}.class`, errors);
     if (!Array.isArray(witness.independentOf)) errors.push(`${at}.independentOf must be an array`);
+    else witness.independentOf.forEach((principal, principalIndex) => string(principal, `${at}.independentOf[${principalIndex}]`, errors));
     digest(witness.evidenceDigest, `${at}.evidenceDigest`, errors);
-    if (witnessIds.has(witness.id)) errors.push(`${at}.id must be unique`);
-    witnessIds.add(witness.id);
-    witnessById.set(witness.id, witness);
+    if (typeof witness.id === "string" && witness.id.length > 0) {
+      if (witnessIds.has(witness.id)) errors.push(`${at}.id must be unique`);
+      witnessIds.add(witness.id);
+      witnessById.set(witness.id, witness);
+    }
   }
 
-  for (const [index, test] of (doc.bypassTests ?? []).entries()) {
+  for (const [index, test] of bypassTests.entries()) {
+    if (!object(test)) continue;
     const witness = witnessById.get(test.witnessId);
-    if (!witness || witness.class !== "VERIFIER_RUNNER" || witness.principal === doc.proposal?.requester || !witness.independentOf?.includes(doc.proposal?.requester)) {
+    if (!witness || witness.class !== "VERIFIER_RUNNER" || witness.principal === doc.proposal?.requester || !Array.isArray(witness.independentOf) || !witness.independentOf.includes(doc.proposal?.requester)) {
       errors.push(`$.bypassTests[${index}].witnessId must reference an independent VERIFIER_RUNNER witness`);
     }
   }
-  for (const [index, item] of (doc.mediationInventory ?? []).entries()) {
+  for (const [index, item] of mediationInventory.entries()) {
+    if (!object(item)) continue;
     if (item.witnessId !== null && !witnessById.has(item.witnessId)) errors.push(`$.mediationInventory[${index}].witnessId must reference an existing witness`);
     if (item.coverage === "EXTERNALLY_WITNESSED") {
       const witness = witnessById.get(item.witnessId);
-      if (!witness || !["HOST_OBSERVER", "PROVIDER_RECONCILER"].includes(witness.class) || witness.principal === doc.proposal?.requester || witness.principal === doc.effect?.channelOwner || !witness.independentOf?.includes(doc.proposal?.requester) || !witness.independentOf?.includes(doc.effect?.channelOwner)) {
+      if (!witness || !["HOST_OBSERVER", "PROVIDER_RECONCILER"].includes(witness.class) || witness.principal === doc.proposal?.requester || witness.principal === doc.effect?.channelOwner || !Array.isArray(witness.independentOf) || !witness.independentOf.includes(doc.proposal?.requester) || !witness.independentOf.includes(doc.effect?.channelOwner)) {
         errors.push(`$.mediationInventory[${index}].witnessId must reference a control-disjoint external witness`);
       }
     }
   }
 
+  const unknowns = Array.isArray(doc.unknowns) ? doc.unknowns : [];
   if (!Array.isArray(doc.unknowns)) errors.push("$.unknowns must be an array");
+  else unknowns.forEach((unknown, index) => string(unknown, `$.unknowns[${index}]`, errors));
   oneOf(doc.status, ["PASS", "FAIL", "BLOCKED"], "$.status", errors);
 
   if (object(doc.proposal) && object(doc.authority) && doc.authority.proposalDigest !== doc.proposal.digest) errors.push("authority must bind the exact proposal digest");
@@ -182,24 +214,26 @@ export function validateAdjudicationAudit(doc) {
   }
 
   const levelIndex = LEVELS.indexOf(doc.claim?.level);
-  if (levelIndex >= LEVELS.indexOf("VERIFIER_TESTED") && (doc.bypassTests ?? []).length === 0) errors.push("VERIFIER_TESTED and above require bypass tests");
+  if (levelIndex >= LEVELS.indexOf("VERIFIER_TESTED") && bypassTests.length === 0) errors.push("VERIFIER_TESTED and above require bypass tests");
   if (levelIndex >= LEVELS.indexOf("AUTHORITY_BOUND") && (!doc.authority?.verified || !doc.authority?.revocationChecked)) errors.push("AUTHORITY_BOUND and above require verified, revocation-checked authority");
   if (doc.claim?.level === "MEDIATION_WITNESSED") {
     if (doc.claim.truthState !== "DYNAMIC_WITNESSED") errors.push("MEDIATION_WITNESSED requires DYNAMIC_WITNESSED truth state");
-    for (const item of doc.mediationInventory ?? []) {
+    if (!mediationInventory.some((item) => object(item) && item.coverage === "EXTERNALLY_WITNESSED")) errors.push("MEDIATION_WITNESSED requires at least one externally witnessed in-scope effect class");
+    for (const item of mediationInventory) {
+      if (!object(item)) continue;
       if (!["EXTERNALLY_WITNESSED", "OUT_OF_SCOPE"].includes(item.coverage)) errors.push(`MEDIATION_WITNESSED cannot retain ${item.coverage} coverage for ${item.effectClass}`);
       if (item.coverage === "EXTERNALLY_WITNESSED") {
         const witness = witnessById.get(item.witnessId);
-        if (!witness || !witness.independentOf?.includes(doc.proposal?.requester) || !witness.independentOf?.includes(doc.effect?.channelOwner)) errors.push(`witness for ${item.effectClass} must be independent of requester and channel owner`);
+        if (!witness || !Array.isArray(witness.independentOf) || !witness.independentOf.includes(doc.proposal?.requester) || !witness.independentOf.includes(doc.effect?.channelOwner)) errors.push(`witness for ${item.effectClass} must be independent of requester and channel owner`);
       }
     }
   }
 
   if (doc.status === "PASS") {
-    if ((doc.unknowns ?? []).length > 0) errors.push("PASS cannot retain unknowns");
-    if ((doc.bypassTests ?? []).some((test) => !test.passed)) errors.push("PASS requires every bypass test to pass");
+    if (unknowns.length > 0) errors.push("PASS cannot retain unknowns");
+    if (bypassTests.some((test) => !object(test) || test.passed !== true)) errors.push("PASS requires every bypass test to pass");
   }
-  if (doc.status === "BLOCKED" && (doc.unknowns ?? []).length === 0 && doc.claim?.truthState !== "BLOCKED_BY_HALT") errors.push("BLOCKED requires an unknown or BLOCKED_BY_HALT truth state");
+  if (doc.status === "BLOCKED" && unknowns.length === 0 && doc.claim?.truthState !== "BLOCKED_BY_HALT") errors.push("BLOCKED requires an unknown or BLOCKED_BY_HALT truth state");
   if (doc.claim?.truthState === "BLOCKED_BY_HALT" && doc.status === "PASS") errors.push("BLOCKED_BY_HALT cannot be PASS");
 
   return errors;

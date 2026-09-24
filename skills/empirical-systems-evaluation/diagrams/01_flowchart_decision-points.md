@@ -1,16 +1,13 @@
-# Diagram 1: flowchart
+# Establish the estimand and evidence before choosing analysis
 
 ```mermaid
 flowchart TD
-  A[Incoming request for Empirical Systems Evaluation] --> B{Within this skill's scope?}
-  B -->|No| C[Redirect using NOT-for boundaries]
-  B -->|Yes| D[Assess inputs, constraints, and current state]
-  D --> E{Which path fits best?}
-  E -->|Plan or design| F[Choose the simplest viable pattern]
-  E -->|Migration or change| G[Protect compatibility and rollout safety]
-  E -->|Debug or evaluate| H[Localize the failing boundary first]
-  F --> I[Apply the domain-specific guidance below]
-  G --> I
-  H --> I
-  I --> J[Validate against the quality gates]
+  Q[Coordination claim and target workload] --> U[Define outcome oracle and assignment unit]
+  U --> D[Record pairing, clusters, retries, and missingness]
+  D --> C[Declare contrasts and resource-matched conditions]
+  C --> P[Plan precision and analysis assumptions]
+  P --> V{Feasible design supports the claim?}
+  V -->|Yes| R[Collect outcomes with frozen protocol and versioned amendments]
+  V -->|No| N[Narrow the claim or revise the design]
+  R --> A[Report effects, uncertainty, and validity limits]
 ```

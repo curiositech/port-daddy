@@ -1,38 +1,29 @@
 {
   "skill": "operad-task-decomposition",
-  "updatedAt": "2026-04-18T22:42:31",
-  "provenance": {
-    "kind": "first-party",
-    "owners": [
-      "some-claude-skills"
-    ]
-  },
-  "authorship": {
-    "maintainers": [
-      "some-claude-skills"
-    ]
-  },
-  "lineCount": 458,
-  "structuralComplete": true,
-  "structure": {
-    "decisionPoints": true,
-    "failureModes": true,
-    "workedExamples": true,
-    "qualityGates": true,
-    "notFor": true,
-    "inlineMermaid": 1
-  },
-  "affordances": {
-    "scripts": false,
-    "templates": false,
-    "examples": false,
-    "references": false,
-    "assets": false,
-    "diagrams": true,
-    "referenceFiles": 0,
+  "status": "current inventory only; not a certification",
+  "assessedAt": "2026-09-24",
+  "currentInventory": {
+    "references": 1,
     "referenceIndex": false,
-    "diagramCompanions": 2,
-    "visualPreviewCapability": false
+    "diagrams": 3,
+    "diagramIndex": true,
+    "workedExamples": true,
+    "qualityGates": true
   },
-  "validatorPassed": true
+  "validation": {
+    "scope": "Packaging, local links, and rendered Mermaid are recorded in the B06 hierarchical final-repair evidence.",
+    "outcome": "No global validator or behavioral-certification result is asserted here."
+  },
+  "historicalImport": {
+    "source": "canonical commit 00ab2c9ab2197ff97e85edc173370b7446fdb2ef, skills/operad-task-decomposition/affordance-scorecard.json",
+    "sha256": "recorded in validation/original hashes",
+    "metadata": {
+      "updatedAt": "2026-04-18T22:42:31",
+      "lineCount": 458,
+      "reportedReferences": 0,
+      "reportedInlineMermaid": 1,
+      "reportedValidatorPassed": true
+    },
+    "interpretation": "These are predecessor import claims, not current validation facts."
+  }
 }

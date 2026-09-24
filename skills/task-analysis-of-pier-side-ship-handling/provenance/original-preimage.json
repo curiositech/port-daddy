@@ -1,0 +1,21 @@
+{
+  "baseline_commit": "00ab2c9ab2197ff97e85edc173370b7446fdb2ef",
+  "files": [
+    {
+      "source_path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
+      "sha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f",
+      "archival_copy": "B06/validation/hta-repair/original/task-analysis-of-pier-side-ship-handling/_raw_response.md"
+    },
+    {
+      "source_path": "skills/task-analysis-of-pier-side-ship-handling/_book_identity.json",
+      "sha256": "b07a52cc0130aa0780fcbd703d43d66610f7d9282301151b89f7fcf488d7a646",
+      "archival_copy": "provenance/original-book-identity.json"
+    }
+  ],
+  "archived_original_references_and_diagrams": {
+    "manifest": "original-archive-manifest.tsv",
+    "records": 19,
+    "baseline_commit": "00ab2c9ab2197ff97e85edc173370b7446fdb2ef",
+    "verification": "each archived copy byte-compared with git show at baseline commit"
+  }
+}

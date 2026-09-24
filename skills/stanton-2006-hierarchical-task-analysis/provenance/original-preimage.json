@@ -1,0 +1,15 @@
+{
+  "baseline_commit": "00ab2c9ab2197ff97e85edc173370b7446fdb2ef",
+  "files": [
+    {
+      "source_path": "skills/stanton-2006-hierarchical-task-analysis/_raw_response.md",
+      "sha256": "cded5a6481255d7d175714f813042986ef33ecc43c62d69642fda821b10274d9",
+      "archival_copy": "B06/validation/hta-repair/original/stanton-2006-hierarchical-task-analysis/_raw_response.md"
+    },
+    {
+      "source_path": "skills/stanton-2006-hierarchical-task-analysis/_book_identity.json",
+      "sha256": "9314505d47ef235d895d6dd9ee93cb8a83bdc94948ce423ac4c30868964a9afc",
+      "archival_copy": "provenance/original-book-identity.json"
+    }
+  ]
+}

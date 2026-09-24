@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: recursive-synthesis
-description: Orchestrate multi-agent collaborative document synthesis through 6 phases - Divergence, Synthesis, Commentary, Consolidation, Reality Check, Final Merge. Produces authoritative founding documents from complex multi-perspective inputs. Use for constitutional documents, architecture decisions, organizational charters, or any document requiring rigorous multi-perspective synthesis. Activates on "synthesize document", "multi-agent authorship", "collaborative synthesis", "founding document", "architecture document", "recursive synthesis", "constitutional document", "multi-perspective document". NOT for simple document writing, single-author tasks, quick summaries, or documents that don't require adversarial review.
+description: Facilitate multi-perspective synthesis of consequential documents through scoped research, independent contributions, evidence mapping, critique, consolidation, and owner disposition. Use when a document needs competing perspectives or an auditable account of unresolved choices. Activates on "synthesize document", "multi-agent authorship", "founding document", "architecture document", "constitutional document", or "multi-perspective document". NOT for ordinary single-author drafting, quick summaries, or urgent response.
 allowed-tools:
   - Read
   - Write
@@ -10,266 +10,142 @@ allowed-tools:
   - Grep
   - Glob
   - Task
-category: Cognitive Science & Decision Making
-tags:
-  - recursive-synthesis
-  - analysis
-  - integration
-  - deep-thinking
-  - methodology
-pairs-with:
-  - skill: team-builder
-    reason: Design agent teams for each phase
-  - skill: dag-planner
-    reason: Plan execution waves for parallel phases
-  - skill: orchestrator
-    reason: Coordinate multi-phase execution
+metadata:
+  category: Cognitive Science & Decision Making
+  tags:
+    - recursive-synthesis
+    - analysis
+    - integration
+    - methodology
+  pairs-with:
+    - skill: team-builder
+      reason: Design roles when additional contributors are useful
+    - skill: dag-planner
+      reason: Plan dependent drafting and review steps
+    - skill: orchestrator
+      reason: Coordinate multi-phase work
 ---
 
 # Recursive Synthesis
 
-Orchestrate multi-agent collaborative document synthesis through 6 phases to produce authoritative founding documents that require rigorous multi-perspective analysis.
+Use this first-party workflow to develop a consequential document from distinct viewpoints, evidence, critique, and revision. It is a configurable collaboration method, not a fixed staffing plan or empirical guarantee. The named phases below are a useful default sequence; combine, skip, or repeat stages when the document's scope and risks justify it.
 
-## Decision Points
+Synthesis produces a reviewable draft. It does not confer authority. Follow the decision rights already established for the work: preserve the named owner's scope and prior authorization, and route only choices outside that authority to the person or body empowered to decide. If authority is unclear and a consequential decision depends on it, record the uncertainty and resolve the ownership question before presenting a choice as settled.
 
-### Primary Execution Tree
+This document-synthesis workflow is distinct from Li et al.'s paper-specific Recursive Synthesis for Long-Horizon Terminal Tasks (RST), which grows verified terminal-task data. See [the related-method reference](references/source-algorithm-and-verification.md) for its algorithm and transfer limits.
 
-```
-Is this a founding document (constitution, charter, ADR)?
-├── NO → Use single-author writing skills instead
-└── YES → Continue to phase selection
+## Choose the process size
 
-Are 10+ perspectives genuinely needed?
-├── NO → Use standard collaborative writing
-└── YES → Continue to agent selection
+Use the smallest process that can expose the meaningful alternatives and verify consequential claims. A short scope note, two independent drafts, and one focused review may suffice. A broad charter or architecture document may need additional domain reviewers, staged synthesis, and a record of dissent. Contributor count, rounds, lengths, and timeboxes are project choices; none is a universal complexity threshold.
 
-Are there irreconcilable tensions expected?
-├── NO → Use simplified consensus process
-└── YES → Full 6-phase recursive synthesis
-    │
-    ├── Phase 0: Setup (always required)
-    │   ├── Problem scope clear? → NO: Clarify before proceeding
-    │   ├── Agents selected for max diversity? → NO: Redesign roster
-    │   └── Ground rules established? → NO: Define steel-man rules
-    │
-    ├── Phase 1: Divergence
-    │   ├── All 10 papers received? → NO: Wait/chase missing
-    │   ├── Genuine diversity achieved? → NO: Replace echo agents
-    │   └── Quality threshold met? → NO: Request rewrites
-    │
-    ├── Phase 2: Synthesis
-    │   ├── Convergence > 50%? → YES: Proceed to commentary
-    │   ├── Convergence 25-50%? → Flag high-tension synthesis
-    │   └── Convergence < 25%? → Abort: Unsynthesizable problem
-    │
-    ├── Phase 3: Commentary
-    │   ├── All steel-man sections present? → NO: Enforce requirement
-    │   ├── Irreconcilable tensions flagged? → YES: Prepare dissenting appendix
-    │   └── Constructive amendments provided? → NO: Request specifics
-    │
-    ├── Phase 4: Consolidation
-    │   ├── Soul Document coherent? → NO: Lead Architect revision
-    │   ├── Dissenting Appendix honest? → NO: Add minority voices
-    │   └── Scope clearly documented? → NO: Define boundaries
-    │
-    ├── Phase 5: Reality Check
-    │   ├── Any "COMPLEX" verdicts? → YES: Major rework required
-    │   ├── Multiple "BUILD" verdicts? → YES: Address P0/P1 demands
-    │   └── Majority "SHIP" verdicts? → YES: Proceed to final merge
-    │
-    └── Phase 6: Final Merge
-        ├── Constitution authoritative? → NO: Strengthen principles
-        ├── Practitioner's Guide actionable? → NO: Add concrete steps
-        └── Editorial Notes complete? → NO: Document all decisions
+For each role or task, select a contributor or method profile only when it is approved, available, and suited to the evidence and judgment needed. Provider or model names in a local example are not rankings or recommendations. Separate profiles do not by themselves establish independence; record shared sources, context, and constraints when they matter.
+
+```mermaid
+flowchart TD
+  Need[Identify the evidence or judgment gap] --> Fit{Is a permitted profile suitable and available?}
+  Fit -->|Yes| Assign[Assign the profile to that scoped role] --> Record[Record why it fits and what context it shares]
+  Fit -->|No| Adjust[Use a qualified reviewer, narrow the task, or record the gap]
+  Record --> Check[Review contribution against sources and scope]
+  Adjust --> Check
 ```
 
-### Model Selection Decision Tree
-
+```mermaid
+flowchart TD
+  Start[Document request] --> Scope[Define question, audience, scope, evidence needs]
+  Scope --> Need{Do materially different views or evidence need synthesis?}
+  Need -->|No| Draft[Use direct drafting or a light review]
+  Need -->|Yes| Roles[Choose only the contributors and reviewers needed]
+  Roles --> Inputs[Collect independent claims, sources, examples, and unknowns]
+  Inputs --> Map[Map support, conflict, assumptions, and omissions]
+  Map --> Critique[Review the synthesis against source material]
+  Critique --> Revise[Revise or preserve unresolved dissent]
+  Revise --> Reality[Check usability, feasibility, scope, and failure cases]
+  Reality --> Owner{Within existing decision owner's authority?}
+  Owner -->|No or unclear| Route[Record unresolved choice and route to scoped owner]
+  Owner -->|Yes| Disposition[Owner accepts, revises, rejects, or defers]
+  Route --> DraftOut[Publish draft with status and limits]
+  Disposition --> DraftOut
+  Draft --> DraftOut
 ```
-Which agent type?
-├── Philosophical/Complex reasoning → Use Opus
-├── Domain-specific technical → Use Sonnet  
-└── Senior practitioner judgment → Use Opus
 
-Which phase?
-├── Phase 1 (Divergence) → Mix: 4 Opus (complex), 6 Sonnet (technical)
-├── Phase 2 (Synthesis) → Opus (long context required)
-├── Phase 3 (Commentary) → Match Phase 1 model per agent
-├── Phase 4 (Consolidation) → Opus (highest judgment)
-├── Phase 5 (Reality Check) → Opus (senior practitioner)
-└── Phase 6 (Final Merge) → Opus (best writing quality)
+## A configurable document workflow
+
+The reference templates retain a fuller seven-stage arrangement (setup plus six work phases). Use it when useful, not as a required ceremony.
+
+1. **Setup.** State the decision question, intended readers, scope, constraints, evidence needs, and existing decision owner. Name what the document cannot decide. Choose a collaboration method and a stop condition proportional to the work.
+2. **Diverge.** Ask contributors to work independently where independence would reduce anchoring. Give them the same problem statement and access to necessary sources. Ask for claims, reasons, counterexamples, uncertainty, and practical consequences. Do not prescribe a fixed number of contributors, words, principles, or perspectives.
+3. **Map.** Extract claims and attach their sources, assumptions, scope, and evidence status. Separate shared support from actual agreement; identify disagreement, missing perspectives, and questions that cannot be settled from the available evidence. A majority or high agreement can be correct and does not by itself establish truth.
+4. **Comment.** Invite authors and relevant reviewers to check whether the draft represents their position accurately. A strong critique can first state what it understands correctly, then identify errors, evidence gaps, tradeoffs, and a proposed correction. This is a useful review structure, not a quota or a reason to suppress direct factual correction.
+5. **Consolidate.** Revise the document for a coherent purpose and audience while keeping distinct claims and unresolved conflicts visible. Use a dissent or decision log when it helps future readers understand alternatives, the responsible decision owner, rationale, costs, and revisit conditions.
+6. **Reality-check.** Ask reviewers with relevant operational, technical, user, legal, or domain knowledge to test the draft cold when that perspective would add value. Independence may help reveal assumptions that participants stopped noticing, but reviewer confusion is evidence to investigate, not proof the document is wrong. No role is categorically excluded from earlier work.
+7. **Finalize and disposition.** Incorporate, reject, or defer review findings with reasons. Record the document's status, scope, unresolved items, sources, and decision owner. The owner makes only the choices within their authority. Keep the draft, dissent, and final decision distinct if the governance process requires it.
+
+### Claim and dissent ledger
+
+For each material claim, track a concise record:
+
+| Field | What to capture |
+|---|---|
+| Claim | Exact proposition and intended scope |
+| Source or basis | Primary source, observation, stakeholder account, reasoning, or constructed example |
+| Assumptions | Conditions the claim depends on |
+| Counterevidence | Strongest relevant challenge or alternative |
+| Status | Supported for stated scope, contested, unknown, or not checked |
+| Decision | Accepted wording, revision, deferral, or unresolved dissent |
+| Authority | Person/body authorized to make the decision, if one is needed |
+
+Agreement is a property of the reviewed inputs, not a measure of correctness. Preserve independent sources, contrary observations, abstentions, and missing evidence. Do not turn a vote, ranked list, or agreement percentage into an evidence test. A useful summary can distinguish a shared finding, a contested interpretation, and a policy choice without forcing one consensus score.
+
+```mermaid
+flowchart TD
+  Claim[Material claim] --> Basis[Source, observation, or stated reasoning]
+  Basis --> Scope[Scope and assumptions]
+  Scope --> Counter[Counterexample or strongest challenge]
+  Counter --> Status{What does the record support?}
+  Status -->|Supported within scope| Draft[Draft with limits]
+  Status -->|Contested| Dissent[Preserve competing account]
+  Status -->|Unknown or unchecked| Gap[Record evidence gap]
+  Draft --> Owner[Scoped owner disposition]
+  Dissent --> Owner
+  Gap --> Owner
+  Owner -->|Accept or revise within authority| Decision[Record choice and rationale]
+  Owner -->|Outside or unclear authority| Route[Route or defer; do not imply settled]
 ```
 
-## Failure Modes
+## Review questions
 
-### Echo Chamber Collapse
-**Symptoms**: All agents reach similar conclusions despite different prompts; position papers sound alike; no genuine tensions emerge
-**Diagnosis**: Agent selection lacks intellectual diversity OR prompts insufficiently enforce perspective differences
-**Fix**: Replace 3-4 agents with genuinely opposing viewpoints; strengthen agent persona prompts with specific belief systems; enforce no-cross-talk rules
+Use the questions that fit the document; they are prompts, not pass/fail thresholds.
 
-### Premature Convergence
-**Symptoms**: Synthesis phase finds 80%+ agreement; few items in dissenting appendix; Reality Check agents have no major concerns
-**Diagnosis**: Problem wasn't complex enough to require recursive synthesis OR agent perspectives were too narrow
-**Fix**: Either abort to simpler process OR restart with more adversarial agent selection (add contrarians, edge cases, minority positions)
+- Does the problem statement distinguish facts, values, and decisions?
+- Are sources current and appropriate to the specific claims they support?
+- Is a shared term hiding incompatible definitions?
+- Has the synthesis combined positions in a way that neither source author intended?
+- Does a proposed compromise preserve the relevant benefits while making its costs explicit?
+- Which strong counterexample or affected perspective could change the conclusion?
+- What is unknown, and what action would reduce that uncertainty?
+- Can the intended reader use the draft without needing the process history?
+- Are implementation, ownership, accessibility, and failure conditions visible?
+- Which remaining choice is a policy decision, and who has authority to make it?
 
-### Context Window Degradation
-**Symptoms**: Later phases lose nuance from earlier phases; agents reference incomplete information; final document doesn't reflect early insights
-**Diagnosis**: Token limits causing information loss between phases OR inadequate summarization strategy
-**Fix**: Use structured references instead of full text; create phase summaries at each transition; implement strategic excerpt selection
+## Failure signals and response
 
-### Analysis Paralysis
-**Symptoms**: Agents get stuck in Phase 3 commentary requesting endless revisions; Lead Architect can't reconcile conflicting demands; Reality Check identifies problems but no solutions
-**Diagnosis**: No clear decision-making authority established OR quality gates too perfectionist
-**Fix**: Designate tie-breaking authority; set "good enough" thresholds; impose time boxes on each phase; accept documented tensions rather than forcing resolution
+Treat these as diagnostic prompts, not proven causal tests:
 
-### Complexity Theater
-**Symptoms**: Process generates more meta-documents than actual content; agents debate methodology more than substance; final Constitution is less clear than original problem statement
-**Diagnosis**: Process became end in itself rather than means to clarity
-**Fix**: Enforce deliverable-focused phase gates; require every meta-document to improve end-user experience; Constitution must be simpler than process that created it
+- **Echoing language:** Contributors use the same framing without independent sources or reasoning. Check shared prompts, context, evidence, and model dependence; seek a genuinely different source or affected perspective if it matters.
+- **Apparent convergence:** The draft has little dissent. Check whether counterexamples were invited, whether disagreement was resolved by evidence or simply omitted, and whether the common position is well-supported. Do not manufacture disagreement to meet a quota.
+- **Context loss:** Later edits omit earlier qualifications or evidence. Maintain a source-linked claim ledger and review the changed passages against it.
+- **Analysis paralysis:** Reviews repeat without changing a material claim or surfacing new evidence. Ask the scoped owner to decide, revise scope, or document the remaining uncertainty and stop condition.
+- **Complexity theater:** Coordination artifacts outgrow the document's value. Remove process steps that do not improve evidence, fairness, usability, or accountability.
+- **Late-stage regression:** The final edit weakens a supported claim or erases a material dissent. Compare it with the reviewed draft and disposition log; apply only justified changes.
 
-## Worked Examples
+## Constructed example: API governance document
 
-### Case Study: API Governance Constitution
+This is an illustrative scenario, not an empirical case study. Suppose an organization is drafting API design guidance and contributors prefer different tradeoffs: resource-oriented HTTP conventions, typed query interfaces, latency, security, developer tooling, asynchronous workflows, legacy integration, domain boundaries, platform operations, and mobile constraints.
 
-**Context**: Engineering org with 50+ microservices needs unified API design principles. Current state: conflicting guidance, inconsistent implementations, integration friction.
+The synthesis can identify possible common requirements such as machine-readable contracts or consistent authentication, but it should not report an agreement rate unless it actually collected and defined that measure. The REST/GraphQL and synchronous/asynchronous choices remain separate design questions. A proposed document may recommend a default and specify exceptions, but the named owner must decide within their delegated scope. The decision log should state the evidence considered, affected systems, migration costs, exceptions, and conditions for revisit. No rollout duration, adoption rate, or future dispute-resolution rate is implied by this constructed example.
 
-**Phase 0 Setup**:
-Agent selection for maximum tension:
-- REST Purist (OpenAPI, resource modeling)
-- GraphQL Advocate (single endpoint, type safety)  
-- Performance Engineer (caching, latency optimization)
-- Security Expert (auth, validation, threat modeling)
-- Developer Experience (SDK generation, documentation)
-- Event-Driven Architect (async messaging, eventual consistency)
-- Legacy Systems Integrator (backwards compatibility)
-- Domain Expert (business logic, service boundaries)
-- Platform Engineer (infrastructure, deployment)
-- Mobile-First Designer (bandwidth constraints, offline)
+## Boundaries
 
-**Phase 1 Divergence Results**:
-- REST Purist: "APIs must be resource-oriented with proper HTTP semantics"
-- GraphQL Advocate: "Single endpoint with strong typing eliminates versioning hell"
-- Performance Engineer: "Cache headers and compression are non-negotiable"
-- Security Expert: "Zero-trust architecture with API gateway authentication"
-- Developer Experience: "Auto-generated SDKs from machine-readable specs"
+Prefer direct drafting for a narrow or urgent request, an uncontested document, a quick summary, or a single-author task. Use focused consultation if only one expertise gap needs filling. Use this workflow when meaningful alternatives, evidence, accountability, or preserved dissent justify the additional coordination.
 
-*Key insight: These aren't just different opinions—they represent fundamentally different mental models of what an API should optimize for.*
-
-**Phase 2 Synthesis Challenge**:
-Synthesizer finds convergence on:
-- Machine-readable specifications (100% agreement)
-- Consistent authentication (90% agreement)
-- Proper error handling (80% agreement)
-
-But irreconcilable tensions:
-- REST vs GraphQL (fundamental architectural choice)
-- Sync vs Async (different consistency models)
-- Developer convenience vs Performance optimization
-
-**Phase 3 Commentary Reveals**:
-- Performance Engineer steel-mans GraphQL: "Eliminates over-fetching, reduces round trips"
-- GraphQL Advocate steel-mans REST: "Simpler caching, better HTTP tooling support"
-- Both critique synthesis for trying to support both paradigms
-
-**Phase 4 Consolidation Decision**:
-Lead Architect makes architectural choice: "REST-first with GraphQL gateway for specific use cases"
-Dissenting Appendix: Documents when GraphQL is preferred, migration path
-
-**Phase 5 Reality Check Catches**:
-- EM: "No rollout timeline provided - this will take 18 months minimum"
-- PM: "No metrics for measuring adoption success"
-- Design: "No user journey for external developers consuming these APIs"
-
-**Phase 6 Final Output**:
-- Constitution: 12 core principles with REST-first architecture
-- Practitioner's Guide: Step-by-step API design checklist with templates
-- Editorial Notes: Documents GraphQL exception criteria and review process
-
-## Quality Gates
-
-### Phase-by-Phase Completion Rubric
-
-**Phase 0 Complete When**:
-- [ ] Problem definition is one clear sentence
-- [ ] 10 agents selected with maximum intellectual diversity
-- [ ] Ground rules include steel-man requirement
-- [ ] File structure created with all directories
-- [ ] PM/EM/Design excluded from Phases 1-4
-
-**Phase 1 Complete When**:
-- [ ] All 10 position papers received (1500+ words each)
-- [ ] Each paper states 3-5 non-negotiable principles
-- [ ] Papers represent genuinely different perspectives (not echoes)
-- [ ] No coordination detected between agents
-- [ ] Each paper includes concrete examples/case studies
-
-**Phase 2 Complete When**:
-- [ ] Principle hierarchy created with ranked-choice logic
-- [ ] Convergence analysis shows Universal/Strong/Minority/Unique categories
-- [ ] All irreconcilable tensions explicitly mapped
-- [ ] Structural skeleton addresses all major themes
-- [ ] No position paper ignored or misrepresented
-
-**Phase 3 Complete When**:
-- [ ] All 10 commentaries received
-- [ ] Every commentary includes 3-point steel-man section
-- [ ] Critiques are specific with line numbers/quotes
-- [ ] Constructive amendments proposed (not just problems)
-- [ ] Irreconcilable tensions confirmed/refined
-
-**Phase 4 Complete When**:
-- [ ] Soul Document speaks with one coherent voice
-- [ ] Commentary integration decisions documented
-- [ ] Dissenting Appendix handles tensions honestly
-- [ ] Document scope clearly bounded
-- [ ] All major positions represented fairly
-
-**Phase 5 Complete When**:
-- [ ] All 3 reality reports received (PM/EM/Design)
-- [ ] Each report includes SHIP/BUILD/COMPLEX verdict
-- [ ] P0/P1 demands are specific and actionable
-- [ ] Fresh perspective genuinely challenges assumptions
-- [ ] Implementation concerns surfaced and prioritized
-
-**Phase 6 Complete When**:
-- [ ] Constitution is authoritative and stands alone
-- [ ] Practitioner's Guide provides concrete next steps
-- [ ] Editorial Notes explain all major decisions
-- [ ] All P0 Reality Check demands addressed
-- [ ] Final deliverable simpler than process that created it
-
-### Success Metrics
-- **Authoritative**: Constitution resolves 80%+ of future disputes in domain
-- **Actionable**: Practitioner can implement without further clarification
-- **Honest**: Dissenting Appendix documents real tensions, not theater
-- **Bounded**: Clear scope prevents mission creep
-- **Adoptable**: Reality Check confirms implementability
-
-## NOT-FOR Boundaries
-
-**Do NOT use recursive synthesis for**:
-- **Simple documentation**: README files, API docs, how-to guides → Use single-author writing instead
-- **Time-sensitive decisions**: Incident responses, urgent releases, hotfixes → Use rapid decision-making instead  
-- **Uncontested domains**: Well-established practices, purely technical specs → Use standard documentation instead
-- **Single-stakeholder documents**: Team procedures, individual role definitions → Use collaborative editing instead
-- **Exploratory work**: Research summaries, market analysis, brainstorming → Use research and analysis skills instead
-
-**When to delegate instead**:
-- For team formation → Use `team-builder` skill
-- For execution planning → Use `dag-planner` skill  
-- For multi-phase coordination → Use `orchestrator` skill
-- For conflict resolution → Use `negotiator` skill
-- For quick consensus → Use `facilitator` skill
-
-**Anti-boundaries** (when you SHOULD use this):
-- Constitutional documents that will govern future decisions
-- Architecture decisions with multiple valid approaches
-- Organizational charters with competing values
-- Any document where "getting it right" matters more than speed
-- Situations where irreconcilable tensions must be surfaced, not buried
-## Imported bundle navigation
-
-These preserved source files add depth when their stated topic is needed.
-
-- [references/phase-templates.md](references/phase-templates.md) — Phase Templates: Copy-Paste Prompt Templates.
-- [references/process-design.md](references/process-design.md) — Process Design: Why Recursive Synthesis Works.
+For prompt templates and fuller phase examples, read [Phase Templates](references/phase-templates.md). For assumptions and design rationale behind this local process, read [Process Design](references/process-design.md). Use the [RST related-method reference](references/source-algorithm-and-verification.md) only when comparing the paper's verified-seed terminal-task algorithm; the paper does not define this document workflow.

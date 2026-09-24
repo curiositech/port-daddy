@@ -1,9 +1,11 @@
-# References Index
+# Reference index
 
-Load the source note whose stated topic matches the current resolution question.
-
-| File | Topic |
+| Reference | Use when |
 |---|---|
-| [anti-inflammatory-analogy.md](anti-inflammatory-analogy.md) | Biological Immune Tolerance vs Computational Autoimmune Disease |
-| [damping-mechanics.md](damping-mechanics.md) | Resolution Trace Damping: Mechanics of Anti-Inflammatory Suppression |
-| [resolution-in-port-daddy.md](resolution-in-port-daddy.md) | Resolution-Trace Damping in Port Daddy: claim.resolve() → RCP-7a Lifecycle |
+| [Damping mechanics](damping-mechanics.md) | Reviewing candidate formula or inspected Port Daddy source snapshot. |
+| [Resolution in Port Daddy](resolution-in-port-daddy.md) | Checking source-specific write, read, and decay paths. |
+| [Reopen and decay policy](reopen-and-decay-policy.md) | Designing invalidation, expiry, reset, and workload evaluation. |
+| [Source correction ledger](source-correction-ledger.md) | Reviewing removed or unresolved inherited claims. |
+| [Anti-inflammatory analogy](anti-inflammatory-analogy.md) | Historical metaphor only; not empirical/biological evidence. |
+
+- [Negative feedback and evaluation](negative-feedback-evaluation.md): source-limited biological context, ablation design, and routing failure localization.

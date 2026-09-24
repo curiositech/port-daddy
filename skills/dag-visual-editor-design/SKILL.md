@@ -40,110 +40,103 @@ metadata:
 
 Design modern, intuitive DAG and workflow visual editors following the LEGO philosophy: snap blocks together simply rather than wire complex ports.
 
-## DECISION POINTS
+Use [Accessible graph-editor evidence](references/accessible-graph-editor-evidence.md). Fixed layout and interaction thresholds are hypotheses until evaluated with declared users and accessibility requirements.
 
-### Layout Algorithm Selection
+## Design procedure
 
-```
-Node Count < 20 AND Simple Flow?
-├─ YES → Force-directed layout (React Flow default)
-│         • Fast rendering
-│         • Good for exploring connections
-│
-└─ NO → Node Count > 100?
-    ├─ YES → Hierarchical (Dagre) + Virtualization
-    │        • Set viewport culling
-    │        • Lazy load node details
-    │
-    └─ NO → Branch Factor > 3 per node?
-        ├─ YES → ELK Layered Algorithm
-        │        • Handles complex routing
-        │        • Minimizes edge crossings
-        │
-        └─ NO → Dagre LR (Left-Right)
-                • Standard choice
-                • rankdir: 'LR', ranksep: 80
-```
+Use the graph's directionality, density, port contracts, and expected editing tasks to make several layout candidates, then evaluate them with representative users and accessibility technologies. Force-directed, layered, and orthogonal routing have different tradeoffs; no node-count threshold selects a universally correct engine. Record the graph corpus, viewport, layout configuration, success task, and failure observations with any choice.
 
-### Node Connection Strategy
+Expose connection compatibility through a programmatic name, visible label, focusable interaction, and reversible preview. Color may reinforce a state but cannot be its only encoding. Offer canvas, command, and keyboard paths according to task evidence rather than assumed user level, and make all paths converge on the same inspectable graph delta and undo/redo history. The linked reference diagrams show data-to-evaluation and edit-to-preview/undo relations.
 
-```
-Data Type Diversity?
-├─ Single type (e.g., JSON) → Implicit connections
-│   • No handles visible by default
-│   • Snap zones on hover
-│
-├─ 2-3 types → Color-coded handles
-│   • Red: Error streams
-│   • Blue: Data streams  
-│   • Green: Success/completion
-│
-└─ 4+ types → Bundled connections
-    • Group related channels
-    • Label bundles clearly
-    • Consider type coercion nodes
+### Layout route
+
+The original numeric tree is replaced by task and evidence gates. React Flow supplies a rendering surface; the chosen layout algorithm and parameters must be explicit.
+
+```mermaid
+flowchart TD
+ A[Graph structure and reader task] --> B{Primary reading need}
+ B -->|Dependency order| C[Compare layered layouts such as Dagre or ELK]
+ B -->|Relationship exploration| D[Compare suitable exploratory layouts]
+ C --> E[Measure crossings, label fit, navigation and task completion]
+ D --> E
+ E --> F{Performance problem observed?}
+ F -->|Yes| G[Benchmark culling, detail loading and layout cost]
+ F -->|No| H[Keep measured configuration]
+ G --> H
 ```
 
-### Editing Mode Selection
+### Connection route
 
+No branch relies solely on color or hover. A uniform data format does not remove the need to expose compatible operations.
+
+```mermaid
+flowchart TD
+ A[Ports and data contracts] --> B{Connection structure}
+ B -->|Uniform| C[Expose labeled compatible targets]
+ B -->|Several types| D[Use type labels plus optional color or shape]
+ B -->|Grouped channels| E[Label bundles and expose individual members]
+ C --> F[Provide keyboard-accessible connection actions]
+ D --> F
+ E --> F
+ F --> G[Validate contract and explicit conversions before applying edit]
 ```
-User Skill Level?
-├─ Beginner → Canvas + Sidebar
-│   • Drag nodes from categorized list
-│   • Template-based workflows
-│
-├─ Intermediate → Quick Add (Slash Commands)
-│   • Type "/" for node search
-│   • Context-aware suggestions
-│
-└─ Expert → Keyboard First
-    • Hotkeys for common nodes
-    • Text-based node creation
-    • Batch operations
+
+### Interaction route
+
+These are complementary entry points, not exclusive access levels. Keyboard operation, error recovery and text alternatives remain available to every user.
+
+```mermaid
+flowchart LR
+ A[User task and familiarity] --> B[Templates and labeled catalog]
+ A --> C[Search or quick-add]
+ A --> D[Keyboard and batch actions]
+ B --> E[Preview edit and validate]
+ C --> E
+ D --> E
+ E --> F[Commit graph edit with undo and accessible feedback]
 ```
 
 ## FAILURE MODES
 
 ### Spaghetti Graph Syndrome
 **Symptoms:** Edges crossing everywhere, impossible to follow data flow, users getting lost
-**Detection:** If >30% of edges cross other edges, or users spend >20s tracing a path
+**Detection:** Observe representative path-tracing tasks and report graph shape, viewport, participant needs, and error evidence; fixed crossing or time figures are local acceptance targets only.
 **Fix:** 
-- Force hierarchical layout (Dagre/ELK)
+- Compare layered candidates such as Dagre/ELK with alternatives on the actual graph corpus; preserve semantically meaningful positions.
 - Add intermediate junction nodes to break long connections
 - Implement edge bundling for parallel data flows
 
 ### Zoom Desert Problem
 **Symptoms:** Pan/zoom feels broken, users can't find their content, minimap unhelpful
-**Detection:** Users hitting zoom limits frequently, >5 seconds to locate nodes after navigation
+**Detection:** Observe recovery/navigation tasks against a declared user group and graph corpus.
 **Fix:**
 - Implement fit-to-view on double-click background
 - Add breadcrumb navigation for nested groups
-- Set proper zoom bounds: min 0.1x, max 3x
-- Show node labels at all zoom levels >0.5x
+- Select zoom bounds and label behavior from observed task needs and accessible representation.
 
 ### Handle Ambiguity Confusion
 **Symptoms:** Users connecting wrong ports, type errors, unexpected data flow
-**Detection:** >20% connection error rate, frequent undo of connections
+**Detection:** Observe failed connections and undo behavior with declared tasks.
 **Fix:**
-- Show handle compatibility on hover (green=valid, red=invalid)
+- Show named compatibility and reasons on pointer hover and keyboard focus; color may reinforce the text/icon but cannot be its only encoding.
 - Add connection preview with data type labels
-- Implement smart handle snapping within 20px radius
+- Evaluate optional snapping against pointer, keyboard, and touch interaction evidence.
 
 ### Performance Cliff Rendering
-**Symptoms:** Editor freezes with >50 nodes, stuttering during pan/zoom
-**Detection:** Frame rate drops below 30fps, render times >100ms
+**Symptoms:** The rendered graph fails a declared interaction-performance target.
+**Detection:** Measure frame and render behavior on a stated graph corpus and device class.
 **Fix:**
-- Enable React Flow viewport culling
+- Measure React Flow `onlyRenderVisibleElements` against a baseline: official documentation notes that culling can help large graphs but itself adds overhead.
 - Virtualize node lists in sidebar
-- Debounce layout recalculation (300ms delay)
+- Tune recomputation scheduling from the measured workload rather than a fixed delay.
 - Cache node measurements between renders
 
 ### No-Feedback Execution Black Box
 **Symptoms:** Users don't know if workflow is running, what failed, or why it stopped
 **Detection:** Users asking "is it working?" or clicking run button multiple times
 **Fix:**
-- Animate edges during execution (flowing dots)
-- Add node status indicators: idle/running/success/error
+- Offer optional execution animation with reduced-motion support; derive state from named executor receipts.
+- Add textual node states for planned, queued, observed running, terminal and unknown outcomes.
 - Show execution time and data throughput
 - Highlight current execution path
 
@@ -154,8 +147,7 @@ User Skill Level?
 **Scenario:** Design editor for CSV → Transform → Database pipeline
 
 **Step 1: Choose Layout**
-- 5 nodes total, linear flow → Use Dagre LR
-- Set `rankdir: 'LR'`, `ranksep: 120` for readable spacing
+- Constructed five-node linear example: evaluate a layered left-to-right candidate alongside alternatives; record selected spacing from the test viewport.
 
 **Step 2: Design Node Structure**
 ```tsx
@@ -176,24 +168,26 @@ const TransformNode = ({ data }) => (
 
 **Step 3: Connection Logic**
 - Single data type (tabular) → One handle per side
-- Show preview of first 3 rows on edge hover
-- Animate data flow during execution
+- Show a bounded, disclosure-permitted row preview on hover and keyboard focus; three rows is a constructed display choice.
+- Offer optional reduced-motion-compatible flow feedback from executor receipts, retaining textual state.
 
 **Novice Miss:** Would add separate handles for each column
 **Expert Catch:** Keeps single connection, shows column mapping in node detail
 
 ## QUALITY GATES
 
-- [ ] Pan latency <50ms (measure with performance.now())
-- [ ] Zoom smoothness: no frame drops during scroll zoom
-- [ ] Handle discoverability: New users find connection points within 30s
-- [ ] Edge routing: <20% of edges cross other edges in auto-layout
-- [ ] Node search: Find any node within 3 keystrokes
+- [ ] The selected layout has recorded graph corpus, task, viewport, and tradeoffs.
+- [ ] Keyboard, pointer, zoom, screen-reader representation, and focus order are tested against declared requirements.
+- [ ] Connection preview exposes contract and cycle-policy result before commit.
 - [ ] Execution feedback: Status visible during all async operations
-- [ ] Mobile usability: Touch targets ≥44px, pinch zoom works
-- [ ] Undo reliability: Can undo/redo any operation without corruption
-- [ ] Save performance: Workflow JSON serialization <500ms for 100 nodes
+- [ ] Touch target policy names WCAG level: 24 CSS px is SC 2.5.8 AA; 44 CSS px is the stricter SC 2.5.5 AAA target when deliberately adopted.
+- [ ] Graph edits support tested undo/redo. Undoing a graph edit does not undo external effects; effect reversal requires its own authority and evidence.
+- [ ] Measured responsiveness or serialization claims include hardware, graph corpus, configuration, and measurement method.
 - [ ] Error clarity: Failed connections show specific reason (type mismatch, circular reference)
+
+## Evidence and Book candidate
+
+[W3C WCAG 2.2](https://www.w3.org/TR/WCAG22/) is cited in the reference as the accessibility recommendation; the recommendation text was read on 2026-09-24, but the editor has not undergone a compliance test. **Book candidate, not Book prose:** graph editing can make authority, preview, and undo visible before an effect. Compare first with the Book-review files; novelty and placement are unverified.
 
 ## NOT-FOR Boundaries
 
@@ -205,6 +199,6 @@ const TransformNode = ({ data }) => (
 - **State machines with loops** → Use dedicated state diagram tools
 
 **Delegate to other skills:**
-- **Performance optimization** → Use [react-performance-optimization] for >1000 nodes
+- **Performance optimization** → Use [react-performance-optimization] when measured graph workloads need it
 - **Accessibility compliance** → Use [web-accessibility] for screen reader support
 - **Animation design** → Use [micro-interactions] for execution visualizations

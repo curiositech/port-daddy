@@ -75,7 +75,9 @@ Rungs are cumulative, never interchangeable:
 
 Only the final rung may support a bounded complete-mediation claim, and only for
 the enumerated subject, build, effects, policy, environment, and observation
-window. It never proves all possible effects in an open system.
+window. It never proves all possible effects in an open system. A one-use permit or
+nonce supports at-most-once admission/redemption under its mechanism; it does not
+prove exactly-once delivery or an external effect.
 
 ## Authority separation
 
@@ -111,17 +113,27 @@ sequenceDiagram
   A-->>J: verified authority receipt
   J-->>C: exact decision receipt
   alt DENY or INDETERMINATE
-    C-->>R: refusal; channel remains closed
+    C-->>R: refusal, channel remains closed
   else ALLOW
     C->>C: atomically redeem one-use permit
     C->>E: record intent, then transmit exact effect
     E-->>W: provider/target observation
-    W-->>C: effect or ambiguity receipt
+    W-->>C: applied, absent-and-fenced, or ambiguous receipt
   end
 ```
 
-`DENY` and `INDETERMINATE` make execution unreachable. Compensation is a new
-effect requiring a new proposal and permit; it is never preventive mediation.
+`DENY` and `INDETERMINATE` keep the protected channel closed. If an acknowledgement
+is lost after dispatch, record policy decision and dispatch separately from effect
+truth; the effect is `UNKNOWN` until an independent target/provider witness
+reconciles it. Retry only when the authoritative absence observation is current and
+the target enforces an idempotency key or fencing condition that rules out a late
+first commit, and only when current authority permits retry. A stale absence read or
+missing local receipt is insufficient. Compensation is a new effect requiring a
+new proposal and permit; it is never preventive mediation.
+
+- [Policy verdict and effect truth](diagrams/research-p01-policy-verdict-is-separate-from-external-effect-truth.md)
+- [At-most-once admission versus exactly-once effect](diagrams/research-p02-one-use-admission-does-not-guarantee-exactly-once-effect.md)
+- [Evidence classes and claim scope](diagrams/research-p03-evidence-classes-have-separate-scopes-they-are-not-an-automatic-ladder.md)
 
 ## Audit procedure
 
@@ -205,4 +217,14 @@ node skills/provable-action-adjudicator/scripts/test-bundle.mjs
 
 ## Evidence and unknown-effect rule
 
+Read [evidence classes and uncertain effects](references/evidence-classes-and-uncertain-effects.md) before deciding whether an ambiguous external action may be retried.
+
+
 Load `references/evidence-classes-and-uncertain-effects.md` for proof/model/simulation/production boundaries, timeout dispositions, and the distinction between prevention, detection, safety, and liveness.
+
+
+## Source and runtime limits
+
+The external sources collected for this skill support bounded descriptions of reference monitoring, continuous monitoring, and evidence scope. The Schneider publisher full text and Anderson report page-level claims were not available for this preparation; do not retain inherited timing guarantees or benchmark transfers without a primary-source passage and exact local reproduction. Static proofs, policy verdicts, and monitor receipts do not establish complete route mediation or external effect truth.
+
+See [references/source-ledger.md](references/source-ledger.md) and [references/evidence-classes-and-uncertain-effects.md](references/evidence-classes-and-uncertain-effects.md) for source and proof boundaries.

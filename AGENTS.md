@@ -2,9 +2,31 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Local runtime halt takes precedence — operator order, 2026-09-05
+
+The Port Daddy local runtime is currently halted. This controls every later
+mention of `pd`, `port-daddy`, MCP, daemons, FleetBar, hooks, launchd, spawning,
+claims, notes, plans, locks, and runtime verification in this file. **No later
+instruction authorizes those actions while the halt remains in place.** Do not
+start, probe, repair, or substitute the local runtime.
+
+Use a linked worktree, ordinary Git, hosted CI, PR review, tool-native
+subagents, and checked-in skill files instead. For skill grafting during the
+halt, read the applicable `SKILL.md` and only the references it requires, then
+say which skill informed the work. That is offline guidance, not a native
+Jury-rig graft or evidence of live catalog state. The native Jury-rig and local
+Port Daddy workflow below apply only after Erich explicitly lifts this halt. The
+hosted Harbor Register remains separately available through its browser-approved,
+repository-scoped pairing bearer.
+
 ## Recently Shipped Surfaces (verify before you depend on them)
 
-These landed on `main` in the last few weeks. The installed Homebrew `pd` binary **lags `main`** — a feature being in source does not mean it is in the operator's `pd`. Run `pd <verb> --help` to confirm, and rebuild + relaunch the daemon when dogfooding a just-landed route. Canonical docs are cited; read them, do not paraphrase from memory.
+These landed on `main` in the last few weeks. Source presence does not prove an
+installed CLI or live daemon. During the current halt, inspect source and hosted
+evidence only; do not run or relaunch the local runtime. After the halt is
+explicitly lifted, verify installed CLI support and the live daemon before
+dogfooding a newly landed route. Canonical docs are cited; read them, do not
+paraphrase from memory.
 
 - **Relay — cross-machine pub/sub** (`docs/adr/0049-relay-architecture.md`). Zero-trust event fabric: a Cloudflare Worker (`apps/relay/`) federates channels across machines; the daemon holds an outbound SSE connection (`lib/relay-client.ts`), routes in `routes/relay.ts`. CLI: `pd relay url <url> | --clear`, `pd relay status`, `pd relay exchange --oidc-token <t>` (CI OIDC → PD card). MCP: `relay_status()` (read-only).
 - **Dispatch — autonomous feature-dev queue** (ADR-0035; `cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`, `lib/dispatch/spawn-adapter.ts`, `docs/proposals/pd-nightshift.md`). `pd dispatch propose|queue|list|show|run|cancel`. `run` is **dry-run by default**; `--really-run` spawns a backend (default `cli:codex`) in an isolated worktree under `~/coding/tmp/port-daddy-dispatch-<id>` and opens a **draft PR**. Per-dispatch `--budget` (default 5 USD, max 25) and `--timeout` (default 3h, max 6h). `pd nightshift` is a **deprecated alias** for one minor version — `pd dispatch` is the verb.
@@ -99,7 +121,11 @@ refuses a second claim and tells you who holds the first; it cannot stop an
 agent that never asks. The enforcement point is your own harness reading this
 file. Behave as though it could stop you.
 
-## Port Daddy First
+## Port Daddy First (only after the local-runtime halt is explicitly lifted)
+
+Until then, the top-level halt rule applies and ordinary Git, hosted CI,
+tool-native subagents, PR review, and offline skill reading replace this section's
+commands.
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
@@ -178,7 +204,9 @@ file. Behave as though it could stop you.
 - Stale symbol indexes are coordination hazards. If claim resolution says a `symbolPath` is missing or stale, refresh the symbol index before widening to a file claim.
 - File claims remain advisory. Locks are stronger and should be rarer: use them for non-mergeable resources, not as a substitute for symbol-level edit intent.
 
-## Canonical Runtime
+## Canonical Runtime (only after the local-runtime halt is explicitly lifted)
+
+Until then, do not use these commands or inspect/repair local runtime state.
 
 - **Full topology map: [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md)** — the TWO `pd` installs (Homebrew runs the live daemon + is your default `pd`; the repo is dev-only), every supervisor/watchdog (`homebrew.mxcl.port-daddy`, `com.portdaddy.bosun`, the rival `com.bosun.daemon`), and the ONLY correct redeploy path. Read it before any daemon surgery — it exists because agents keep re-discovering this the hard way.
 - Do not assume the live daemon is running the current checkout.
@@ -199,6 +227,10 @@ file. Behave as though it could stop you.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
 ## Agent Operating Expectations
+
+The local-runtime commands in this section are conditional on an explicit lift of
+the halt. During the halt, retain the worktree, validation, hosted-CI, and PR
+discipline while using the offline alternatives stated above.
 
 How you are expected to *work* a slice here — the standing posture, not a per-task
 checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintenance
@@ -278,18 +310,19 @@ Documents`.
   model, or built something a paper should now describe? They need not be 1:1 — the
   papers are the lofty theory, the code is what we actually shipped — but each
   should correct the other. Note drift in the PR.
-- **Work at maximal tool + skill access, and pause to find the right skill.** Start
-  with the broadest toolset you can reach. If you catch yourself working without a
-  matching skill, stop and run `pd jury-rig query "<task>"` before improvising
-  what a skill already encodes. Jury-rig is Port Daddy's native hybrid discovery
-  surface: it ranks the local, explicitly configured catalog and reads requested
-  references through the guarded `pd jury-rig reference` path. A third-party skill
-  remains provenance-labelled catalog input; its scripts, hooks, MCP servers,
-  subagents, and planning pipelines never become executable authority merely
-  because Jury-rig selected it. Planning authority remains this guide plus the
-  session's `pd plan`. **Seamanship** is the planned native planning/orchestration
-  module and is not yet a shipped verb; until it lands, do not register or invoke
-  an external planning runtime as a substitute.
+- **Graft the right skill before you improvise.** Jury-rig is Port Daddy's native
+  catalog and guarded reference reader. When the local runtime is expressly
+  enabled, query it before a meaningful task:
+  `pd jury-rig query "<task>"`, then use `pd jury-rig reference` only for the
+  returned material you need. While the runtime is halted, do not invoke `pd`, its
+  MCP server, hooks, or a substitute runtime. Instead, inspect the checked-in
+  project skill directories and their `SKILL.md` files read-only, state which
+  skill is being applied, and preserve its provenance. That offline lookup is
+  useful preparation; it is not a native Jury-rig graft or proof of live catalog
+  state. Catalog inputs never grant authority to execute their scripts, hooks,
+  MCP servers, subagents, or planning pipelines. This guide and the task's
+  explicit instructions remain the authority. **Seamanship** is planned and is
+  not yet a shipped verb.
 - **Launch other agents *through* Port Daddy.** When you need more hands, spawn
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is

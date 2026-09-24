@@ -1,210 +1,121 @@
 ---
 license: Apache-2.0
 name: fipa-00037-communicative-act-library
-description: FIPA standard library of communicative acts (speech acts) for agent-to-agent messaging semantics
+description: Interpret and design bounded FIPA communicative-act exchanges using XC00037H semantics while keeping delivery, authority, and external effects separate.
 category: Research & Academic
-tags:
-  - fipa
-  - agents
-  - communication
-  - speech-acts
-  - standards
+tags: [fipa, communication, speech-acts, protocols]
 ---
 
-# SKILL.md: FIPA Communicative Act Library
+# FIPA communicative-act procedure
 
-```yaml
-name: fipa-communicative-acts
-version: 1.0.0
-description: >
-  Formal semantics and design patterns for multi-agent communication,
-  grounded in the FIPA Communicative Act Library specification. Applies
-  to agent coordination, protocol design, message routing, and failure handling.
-activation_triggers:
-  - designing communication protocols between AI agents
-  - building multi-agent systems or agent orchestration layers
-  - debugging coordination failures between agents
-  - designing fallback or error-signaling behavior for agents
-  - reasoning about what agents should "say" to each other and why
-  - questions about autonomy, commitment, and compliance in agent networks
-  - event-driven or subscription-based agent coordination
-  - federated or multi-hop agent routing problems
+Use this skill when a design needs to choose, interpret, or review a FIPA CAL act among autonomous agents: an assertion, question, request, proposal, conditional request, subscription, or a response such as refusal/failure/non-understanding. It is not a transport, identity, authorization, delivery, database-query, or external-effect protocol.
+
+## Source boundary
+
+The primary source is FIPA *Communicative Act Library Specification* **XC00037H**, experimental, dated 2001-08-10. Its archived 44-page body was read on 2026-09-24. It models feasibility preconditions (FPs), rational effects (REs), mental attitudes, and action expressions. It does not establish an implementation's hidden state, authenticate a sender, guarantee delivery or timing, make a recipient act, or prove an external effect.
+
+The later canonical J endpoint was unavailable in this pass. H itself contains printed normative-section and annex variants for some request-derived formulas; retain the cited form and do not assume equivalence. In the annex, `PG` is a **persistent goal**. See [source access](references/source-access.md).
+
+## Working method
+
+1. **Name the claim.** Is the desired result an attitude-level semantic interpretation, a received message, a local protocol disposition, or an independently checked effect? Keep those records separate.
+2. **Choose the source form.** Use the act's H definition and preserve sender, receiver, content, embedded actor, content language, ontology, and any relevant quantifier/domain.
+3. **Assess FP assumptions.** State which `B`, `U`, `I`, `PG`, `Feasible`, or `Done` facts are source-model assumptions. For a request, name whether the normative §3.19 or annex §5.4.2 form is being followed.
+4. **Observe rather than infer.** Record actual act, correlation, message metadata, and time. Silence at a local deadline is an unresolved local outcome, not a CAL refusal/failure/non-understanding act.
+5. **Apply a labelled local policy.** A retry, alternate recipient, cancellation request, escalation, sampling interval, or verification method belongs to the application contract. Bind it to an evidence source before making an effect claim.
+
+```mermaid
+flowchart TD
+    G[State the coordination goal] --> A{What kind of semantic content?}
+    A -->|assert a believed proposition| I[inform confirm or disconfirm]
+    A -->|ask truth or referent| Q[query-if or query-ref]
+    A -->|ask an autonomous agent to act| R[request]
+    A -->|one parameter proposal condition| C[cfp]
+    A -->|offer own conditional action| P[propose]
+    A -->|select forwarding semantics| F[proxy or propagate]
+    A -->|act on a condition or repeated change| W[request-when request-whenever or subscribe]
+    I --> E[Record observed message and evidence separately]
+    Q --> E
+    R --> E
+    C --> E
+    P --> E
+    F --> E
+    W --> E
 ```
 
----
+The diagram selects a semantic family. It does not choose a wire protocol, a timeout, an authentication mechanism, or an effect verifier.
 
-## When to Use This Skill
+## Fit and diagnostic guide
 
-Load this skill when the problem involves **agents coordinating with other agents** — not just calling tools or APIs, but situations where you need to decide *what kind of message* to send, design protocols, or handle autonomous agent coordination failures.
+| Situation | Read first | Diagnostic question |
+| --- | --- | --- |
+| A message is being treated as proof of completion or truth. | [FP and RE](references/feasibility-preconditions-rational-effects-separation.md) | Which claim is semantic, observed, and independently verified? |
+| You need `B`, `U`, `C`, `I`, action sequence, or choice semantics. | [Mental attitudes](references/mental-attitudes-as-coordination-substrate.md) | Is this an SL assumption or actual implementation state? |
+| A sender can act but may be redundant/irrelevant. | [Ability and context](references/ability-preconditions-vs-context-relevance.md) | Which FP conjunct is ability and which is relevance? Which H request form is cited? |
+| You are deriving `query-if`, `query-ref`, or an action-expression alternative. | [Composition](references/compositional-communication-through-action-expressions.md) | Is `;` a sequence or is `\vert` a one-branch choice? |
+| A message was declined, attempted unsuccessfully, or could not be interpreted. | [Failure dispositions](references/failure-modes-of-multi-agent-coordination.md) | Was `refuse`, `failure`, or `not-understood` actually observed, or only silence? |
+| A referent can have many descriptions or an apparent open result space. | [Macro acts](references/macro-acts-and-infinite-disjunctions.md) | Which of `ι`, `any`, or `all` applies, and what domain/completeness boundary is stated? |
+| You need a CFP, condition-triggered action, recurring trigger, or subscription. | [Conditional requests and proposal composition](references/conditional-requests-and-proposal-composition.md) | Is CFP single-parameter? What cancels it, and what monitoring/lag policy remains local? |
 
----
+| You need a conditional offer or federation forwarding. | [Routing and proposal acts](references/routing-and-proposal-acts.md) | Who performs the embedded act, whose attitudes are required, and which sender/receiver fields change? |
 
-## DECISION POINTS
+## Request trace: alternatives, not one continued path
 
-### Primary Act Selection Decision Tree
+Use a request trace only after choosing a source form and a local terminal/unresolved policy. `agree` and `refuse` are alternatives from the same request observation; a refusal does not continue into an agreed/completion path.
 
-```
-What is the sender's knowledge state about the content?
-├── I KNOW P is true + want receiver to know it
-│   ├── Receiver doesn't know P → inform(P)
-│   └── Unsure if receiver knows P → inform-if(P)
-├── I DON'T KNOW if P is true + need to find out
-│   ├── Want yes/no answer → query-if(P)
-│   └── Want specific referent → query-ref(description)
-├── I WANT an action performed + receiver is autonomous
-│   ├── Direct request → request(action)
-│   ├── Need agreement first → propose(action) 
-│   └── Conditional execution → request-when(condition, action)
-└── RESPONDING to incoming message
-    ├── Cannot process → not-understood(original-message)
-    ├── Won't comply → refuse(requested-action, reason)
-    ├── Tried but failed → failure(attempted-action, reason)
-    ├── Agreeing to proposal → accept-proposal(proposal)
-    └── Declining proposal → reject-proposal(proposal, reason)
-```
-
-> For `query-ref` over unbounded result spaces (unknown number of matches, open-ended referents), see `references/macro-acts-and-infinite-disjunctions.md` for how macro acts handle lazy infinite-disjunction evaluation.
-
-### Federation Routing Decision Tree
-
-```
-Is the target agent directly reachable?
-├── YES → Send communicative act directly
-└── NO → Choose routing strategy:
-    ├── Know specific intermediary → proxy(target-agent, message)
-    ├── Broadcast to group → propagate(filter-criteria, message)
-    └── Store for later → Use subscription/request-whenever pattern
-
-Does this need guaranteed delivery?
-├── YES → Require explicit confirm or inform-done responses
-└── NO → Send and continue (fire-and-forget acceptable)
+```mermaid
+stateDiagram-v2
+    [*] --> request_sent
+    request_sent --> agreed: agree observed, branch A
+    request_sent --> completion_report: completion inform without prior observed agree
+    request_sent --> failure_report: failure without prior observed agree
+    request_sent --> refused: refuse observed, terminal response
+    request_sent --> misunderstood: not-understood observed, terminal response
+    request_sent --> unresolved: no response by local deadline
+    agreed --> completion_report: later inform reports completion
+    agreed --> failure_report: failure observed
+    agreed --> unresolved: no later report by local deadline
+    completion_report --> effect_checked: application verifier records target state
+    completion_report --> unresolved: effect cannot be checked
+    refused --> [*]
+    misunderstood --> [*]
+    failure_report --> [*]
+    effect_checked --> [*]
+    unresolved --> [*]
 ```
 
-### Error Handling Strategy Decision Tree
+`unresolved` is an explicit local-policy label, not a source-defined FIPA terminal state. A completion report is distinct from a checked effect.
 
-```
-Received unexpected response or timeout?
-├── got not-understood → Rephrase with simpler terms or different act
-├── got refuse → 
-│   ├── Capability issue → Find different agent or modify request
-│   └── Context issue → Wait for better conditions or negotiate
-├── got failure → Retry with same agent or escalate to different approach
-├── got nothing (timeout) →
-│   ├── < 30s → Retry once
-│   ├── 30s-2min → Send cancel, try different agent
-│   └── > 2min → Declare coordination failure, escalate
-└── got malformed response → Send not-understood, request clarification
-```
+## Review checklist
 
----
+- [ ] The source edition and section/annex form are named; printed variants are not silently normalized.
+- [ ] Each FP attitude is labelled as a source-model assumption or an application-defined, evidenced representation.
+- [ ] A response trace uses mutually exclusive observed branches and contains a local unresolved policy.
+- [ ] `refuse`, `failure`, `not-understood`, cancellation, and silence are not conflated.
+- [ ] For `cfp`, the proposal expression has exactly one parameter or the design explicitly leaves the H formalization's scope.
+- [ ] For `request-when`, `request-whenever`, and `subscribe`, cancellation, trigger condition, and persistent/one-time mode are stated; sampling frequency and action lag are separately negotiated if material.
+- [ ] A consequential truth/completion claim cites an independent evidence source.
 
-## FAILURE MODES
+## Original-heading disposition ledger
 
-See `references/failure-modes-of-multi-agent-coordination.md` for the formal treatment of `refuse`, `failure`, and `not-understood` semantics and a full taxonomy of coordination breakdown modes.
+| Original substantive heading | Retained, corrected, or removed | Destination and reason |
+| --- | --- | --- |
+| When to Use This Skill | Retained | opening defines the applicable coordination scope. |
+| Primary Act Selection Decision Tree | Corrected and retained | working-method diagram; restores source-scoped `propose` and forwarding choices alongside conditional acts. |
+| Federation Routing Decision Tree | Corrected and restored | routing-and-proposal reference and sequence diagram retain proxy/propagate selection, envelope fields, strong/weak distinction and brokering correlation; drop guaranteed-delivery claims. |
+| Error Handling Strategy Decision Tree | Corrected and retained | request trace and checklist replace fixed timeout bands and automatic recovery claims. |
+| Failure Modes and five anti-patterns | Corrected and retained | fit table/checklist preserve command confusion, silent absence, semantic overclaim, composition, and timeout boundaries without invented thresholds or fallbacks. |
+| Worked Examples | Corrected and retained | eight references supply bounded worked cases; the original federation, size-limit, and timeout scenarios were unsourced application designs. |
+| Quality Gates | Corrected and retained | review checklist names evidence, variants, alternatives, and conditional limits. |
+| Bundled Assets | Retained | index and diagrams are linked below. |
+| Not-for Boundaries / delegates | Corrected and retained | opening/source boundary identifies excluded protocol roles; unsourced delegate skill names are removed. |
 
-### 1. "Command Confusion" Anti-Pattern
-**Symptom**: Agent sends `request(action)` and assumes action will happen without confirmation
-**Detection Rule**: If you see coordination logic that doesn't handle `refuse` or `failure` responses, this is command confusion
-**Fix**: Always design request-response pairs: `request(action)` → expect (`inform-done` | `refuse` | `failure`). See `references/feasibility-preconditions-rational-effects-separation.md` for why rational effects are never guaranteed even when preconditions are met.
+## Assets
 
-### 2. "Silent Drop" Anti-Pattern  
-**Symptom**: Agent receives message it cannot process and ignores it silently
-**Detection Rule**: If error logs show "unknown message type" without sending `not-understood` response, this is silent drop
-**Fix**: Emit `not-understood(original-message)` for any unparseable communicative act before continuing
+- [Reference index](references/INDEX.md)
+- [Source access and historical identity](references/source-access.md)
+- [Act semantics and evidence](diagrams/01-act-effect.md)
+- [Request disposition branches](diagrams/02-request-lifecycle.md)
+- [Conditional commitment scope](diagrams/03-conditional-commitment.md)
 
-### 3. "Ontology Overconfidence" Anti-Pattern
-**Symptom**: Agent sends `inform(P)` when actually uncertain about P's truth value
-**Detection Rule**: If you see `inform` being sent with confidence < 0.8 or from unverified sources, this is ontology overconfidence  
-**Fix**: Use `inform-if(P)` to acknowledge uncertainty, or `query-if` to gather more information first
-
-### 4. "Protocol Explosion" Anti-Pattern
-**Symptom**: Creating specialized acts like `urgent-notify` or `status-update` instead of composing from primitives
-**Detection Rule**: If you see custom message types that aren't grounded in B/U/I mental state changes, this is protocol explosion
-**Fix**: Decompose into primitives — `urgent-notify(P)` becomes `inform(P) + priority-flag`, `status-update` becomes `inform(current-status)`. See `references/compositional-communication-through-action-expressions.md` for the full action-expression composition model.
-
-### 5. "Timeout Guessing" Anti-Pattern
-**Symptom**: Using arbitrary timeout values (like 5 seconds) without considering act semantics
-**Detection Rule**: If timeout logic doesn't vary by communicative act complexity, this is timeout guessing
-**Fix**: Scale timeouts by act type - `query-ref`: 10-30s, `request(complex-action)`: 1-5min, `inform`: 5-10s
-
----
-
-## WORKED EXAMPLES
-
-### Example 1: Federated Information Gathering
-**Scenario**: Agent A needs to find "latest weather data for San Francisco" but doesn't know which agent has it.
-
-**Novice approach**: Broadcast `query-ref("weather data for San Francisco")` to all known agents
-**Expert reasoning**: 
-1. Check ability vs. context relevance - do I have authority to query everyone?
-2. Use propagate pattern with filter: `propagate(has-capability("weather-data"), query-ref("SF weather"))`
-3. Handle responses: collect all `inform-ref` responses, handle `not-understood` by refining query
-4. Timeout after 30s, send `cancel` to any still-processing agents
-
-**Key expert insight**: Propagate with filtering scales better than broadcast, and explicit cancellation prevents resource waste.
-
-### Example 2: Refusal Handling in Task Delegation
-**Scenario**: Agent A requests Agent B to `process_document(large_file.pdf)`, Agent B responds with `refuse(process_document, "file too large")`
-
-**Novice approach**: Retry with same request or give up
-**Expert reasoning**:
-1. Parse refusal reason — "file too large" indicates capability boundary, not context issue (see `references/ability-preconditions-vs-context-relevance.md` for the formal distinction)
-2. Decision tree: capability issue → find different agent OR modify request
-3. Try `request(process_document_chunks(split(large_file.pdf, 10MB)))`
-4. If that also fails, escalate to agent with higher processing limits
-
-**Key expert insight**: `refuse` contains structured information about WHY coordination failed, enabling systematic recovery strategies.
-
-### Example 3: Timeout Recovery with Mental State Tracking
-**Scenario**: Agent A sends `request(calculate_route(complex_params))` to Agent B, no response after 90 seconds
-
-**Novice approach**: Assume failure, try different agent
-**Expert reasoning**:
-1. Check timeout threshold - route calculation should complete in 30-60s, so 90s indicates problem
-2. Send `cancel(calculate_route)` to Agent B to clean up resources
-3. Update mental model: B might be overloaded or stuck
-4. Try Agent C with `request(calculate_route(complex_params))`, but add timeout metadata
-5. If Agent C also delays, simplify params: `request(calculate_route(simplified_params))`
-
-**Key expert insight**: Explicit cancellation preserves agent resource management, and timeout patterns inform request modification strategies.
-
----
-
-## QUALITY GATES
-
-Protocol validation checklist - mark complete when all conditions are verifiable:
-
-- [ ] Every `request` has defined response paths for `inform-done`, `refuse`, and `failure`
-- [ ] All agents can emit `not-understood` for unparseable messages
-- [ ] Mental state preconditions are satisfied before sending each act (sender believes what they claim to believe; see `references/mental-attitudes-as-coordination-substrate.md` for B/U/I operator semantics)
-- [ ] Timeout thresholds are set based on act complexity: `inform` 5-10s, `query` 10-30s, `request` 30s-5min
-- [ ] Routing strategy chosen: direct, proxy, or propagate with appropriate filtering criteria
-- [ ] Error escalation paths defined for each failure mode (refuse → find different agent, failure → retry logic)
-- [ ] Federation endpoints can handle `cancel` messages for long-running operations
-- [ ] Protocol uses composition of primitives rather than custom act types
-- [ ] Belief/uncertainty/intention states remain consistent across message sequences
-- [ ] Context-relevance vs. ability preconditions distinguished in refusal handling
-
----
-
-## Bundled Assets
-
-See [`references/INDEX.md`](references/INDEX.md) for the full reference library with per-document load triggers.
-
----
-
-## NOT-FOR BOUNDARIES
-
-This skill should NOT be used for:
-
-- **Single-agent tool calling**: Use function/API calling patterns instead
-- **Deterministic service integration**: For REST APIs, database queries, or guaranteed-response services, use standard integration patterns
-- **Human-agent conversation**: For natural language dialog, use conversational AI frameworks instead of formal communicative acts
-- **Real-time streaming**: For high-frequency data streams, use event streaming protocols; FIPA acts are for coordination, not data transfer
-- **Internal agent reasoning**: For agent's private mental state updates, use internal reasoning frameworks
-
-**Delegate to other skills**:
-- For API integration: use `[api-integration-patterns]`
-- For conversation design: use `[dialog-management]`  
-- For streaming data: use `[event-driven-architecture]`
-- For internal reasoning: use `[cognitive-architecture]`
+This is a constructed application observation graph, not a complete FIPA Request interaction protocol. A prior observed `agree` is optional in this graph; the allowed wire protocol must be named separately. A failure report does not establish absence of partial external effects.

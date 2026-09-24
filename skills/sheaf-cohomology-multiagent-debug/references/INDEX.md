@@ -1,10 +1,9 @@
 # References
 
-Load only the file that matches the question in front of you.
-
-- `cellular-sheaves-for-engineers.md`: cellular sheaves on simplicial complexes — stalks, restriction maps, and cohomology, for engineers.
-- `dirichlet-energy-implementation.md`: Dirichlet energy as a real-time disagreement metric; implementation reference.
-- `h1-as-settlement-obstruction.md`: H¹ as settlement obstruction — Port Daddy ledger PRV-12/13 and the double-spend problem.
-- `hansen-ghrist-2021.md`: opinion dynamics on discourse sheaves (Hansen & Ghrist 2021).
-- `practical-walkthrough.md`: 3-agent triangle walkthrough — computing H¹ from pheromone disagreement data.
-- `active-repair-and-triadic-cohomology.md`: formal mathematical foundations, theorems, and proofs for active multi-agent swarm control (CR-4) and higher-order 2-complex triage (CR-5).
+- [Cellular sheaves for engineers](cellular-sheaves-for-engineers.md): maps, dimensions, and `H1` rank scope.
+- [Observed residual boundary](h1-as-settlement-obstruction.md): independent observations, lower-bound assumption, and no-settlement inference.
+- [Dirichlet energy implementation](dirichlet-energy-implementation.md): declared-state energy and numerical limits.
+- [Hansen–Ghrist source scope](hansen-ghrist-2021.md): model-specific opinion dynamics.
+- [Finite walkthrough](practical-walkthrough.md): triangle/path/missing-data constructions.
+- [Hodge and repair-ranking hypotheses](active-repair-and-triadic-cohomology.md): model-dependent decomposition and nonautomatic triage.
+- [Source access and fixtures](source-access-and-fixtures.md): primary-source depth and validation boundary.

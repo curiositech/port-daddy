@@ -2,6 +2,282 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "path": "docs/research/agent-skills-expansion-20260924/ASTRA-BOOK-REVIEW.md",
+      "sha256": "2b8573f2547e231a948ec58eec19bcc5d73b179aebf53e8a411ad4196066e8b8"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/BOOK-PLACEMENT-REVIEW.md",
+      "sha256": "d4537fec45a829862297e0b9a3657cbcb60ca875e8c4d21076cef49a5a3b0838"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/ascii-review-inventory.json",
+      "sha256": "e96fd8a35b5552c2b5d8ec320e71040911d93b49f2a895bbe22d20575760d832"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/campaign-progress.json",
+      "sha256": "30bb4a774feccaa80dc73ca25f0eeb52f137917289862e84658add97e881c799"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/catalog/CATALOG.md",
+      "sha256": "50805509346ebc25aebe79d16e0f95fecd2f27bfbfb15cc80fe7dff75a921c7f"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/catalog/batches.json",
+      "sha256": "70331fd7ce525d69e910588667534aa8ad56c15155d939cbed0bf0d04ab0b39e"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/catalog/catalog.csv",
+      "sha256": "abcde5e3e62fc8f8223026f5bde3296b923758edb73280ea061f0c09da840e07"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md",
+      "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agentspeak-and-multi-agent-coordination.md",
+      "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-architecture-for-agent-orchestration.md",
+      "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-mental-architecture-for-agent-systems.md",
+      "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/belief-management-and-world-modeling.md",
+      "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md",
+      "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md",
+      "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md",
+      "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md",
+      "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/proof-theory-and-verifiable-agent-behavior.md",
+      "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-agent-policy.md",
+      "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-policy-locus.md",
+      "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/SKILL.md",
+      "sha256": "e10c6ab4459399c12dc1ea1327d8b5c3cc4972a96e187d7705e4b26d4728cf4c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md",
+      "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md",
+      "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/bdi-architecture-for-agent-orchestration.md",
+      "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/bdi-mental-architecture-for-agent-systems.md",
+      "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/belief-management-and-world-modeling.md",
+      "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md",
+      "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md",
+      "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md",
+      "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md",
+      "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/proof-theory-and-verifiable-agent-behavior.md",
+      "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/selection-functions-as-agent-policy.md",
+      "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/agentspeak-l-bdi-architecture/references/selection-functions-as-policy-locus.md",
+      "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/CHANGELOG.md",
+      "sha256": "1ea87ca93e414bb5bdec3daf62e6f468312f3b99bb4cc97a9f9303eb532b347b"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/SKILL.md",
+      "sha256": "4e91478e18991be837d50d75f7d52a70f3d7f7401e630d99f90fda63710f2d97"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/affordance-scorecard.json",
+      "sha256": "722d7be480c419cb59207bab0683b6ca96c27349fb74cbd794780c07949d65d9"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/agents/default-agent.md",
+      "sha256": "9977f312153d4eda5a80357e88e2e9dc448920c306e808ff9b8572080a214e64"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/references/bonds-require-well-defined-problems.md",
+      "sha256": "abe021457d2f0d53d9a9bce884cdfd12b08dc452bd520eeff22cc8e924b96e31"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/references/halt-gate-implementation.md",
+      "sha256": "8860fa707505b3b99399da42192a80c4717365c00d7afb3ec389dbf4b3ed2352"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/pre-federation-halt-gate/references/polya-principal-parts.md",
+      "sha256": "b9dd861e23a9c594ae5643ccd805524d2013581d513b74ec202e307ff6e41b17"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/state-of-cognitive-systems-engineering/references/cognition-distribution-coordination-without-central-control.md",
+      "sha256": "7baaf0f2364357301aa0757ce374be30a88e83cc3a88d20788c7fc158bba3391"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/state-of-cognitive-systems-engineering/references/linear-decomposition-failure-modes.md",
+      "sha256": "219ad78745f5fa1f8791c36aebe6359b8df5e550d027b278132d9ce9d6ec5068"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/automatic-curriculum-as-frontier-discovery.md",
+      "sha256": "a64913a202173330bd699e5561bb8539dd29ecd9b4e1f6fd1ae51101d5c0ae41"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/code-as-action-space-advantages.md",
+      "sha256": "ace3f43687a33ee91e58544330aa721fed7e1f79a5dd127ec3ae63a47273ee71"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/curriculum-skill-verification-trinity.md",
+      "sha256": "fac44c5d0128df2acc6f35ee7cb9088bb67b95e847e89382f09950e13c27d42f"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/failure-modes-in-llm-agents.md",
+      "sha256": "c74c40445b3f415990e98a7b91d44d8ff33629c2f7d5acaeade58a3adaa67119"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/iterative-prompting-as-error-driven-refinement.md",
+      "sha256": "7c9fab062fa7a97a34b99098775fe53b4f12147f8f544caa00335076c96b714e"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/self-verification-without-ground-truth.md",
+      "sha256": "7d62d30c2550b4cfc5007566292d4d03b79f30c60ecf1821c4b392c5654c7f03"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/wang-2023-voyager/references/skill-library-as-compositional-memory.md",
+      "sha256": "91e6f3b45f773f523ebbde4958c1519f7a3766c0bf9447713ed7b2c674ae0e30"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/CHANGELOG.md",
+      "sha256": "7b094e31dcb7af3770bc55a498bee952fd4c42549eb3e49ffd15cd74335e853c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/SKILL.md",
+      "sha256": "008eba4fc0c59d7a3c431ba9ceffe71d4b302f2b5bd192dfa0723d7e7c563a84"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/INDEX.md",
+      "sha256": "3864b3e23ce7c04864dca1c5b5edf47f3fd69deb515fc12e4e2030897fbf8ee3"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/business-model.md",
+      "sha256": "28da65608bed048d470ac0e3b90c572a15f2af2b7d083923fecaf814d2582b0c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/execution-engines.md",
+      "sha256": "d81aaa1941dd2f8b79d7a2c1e49bbbb94b507bb8fbd3c391a289dd50958b6995"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/llm-routing.md",
+      "sha256": "15c627e7cd544030d5708372c103059d3073fcfaa40a646944990f37ab1825ae"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/observability-and-testing.md",
+      "sha256": "51c36c9dfee2d35797890db78f5ae38ef56e417f8b684269a9aedccb1d0ba91c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/progressive-revelation.md",
+      "sha256": "58fc486ea02fd67abed2f70eea7bf4820274a9e22e9e8fdb1c15d705c918cd1c"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/sdk-implementation.md",
+      "sha256": "2dc05e78327dbef6d8ce0935459a4553e4912f623f151fea5fe663a1c7a2e012"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/skill-gap-analysis.md",
+      "sha256": "b89ca2794c8cc3f9af340dc2f763fc82bb8c5d607f57c0ef9e6b89ddc0af8d37"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/skill-lifecycle.md",
+      "sha256": "2f94774be169fd8da008fa73ed0f135aecd9ef58a0aee36d0c690b92c27f86ed"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/skills-vs-research.md",
+      "sha256": "31ae50d0b1d3175543f2e750a7332b19fd401a1b6c2c706b7f412e974cf5b682"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/user-experience.md",
+      "sha256": "43d4249ee52d531a06ac410ceba86e601a0115a27453615c2b49c31ff5e29c69"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/drafts-pending-review/windags-architect/references/visualization-research.md",
+      "sha256": "a3ad64c091af78557d1ecbf7f47bfa94ee281fbebf87899c7bb031d8fc1de8a6"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/continuity-B10.md",
+      "sha256": "cfc965c74956e61d5e6f44461b501e8abfd2c8f0eb98967d2560d1cb4ad70e13"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/evaluation-evidence.md",
+      "sha256": "f78425b39c94aa8be54cfbb4ac767b4fae1bde14624f05311654463215daad06"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/evidence-B12.md",
+      "sha256": "f1aa98d4bc954a054eedcb6e86429fac300a6c82ac0cfa431b6f7da63c264ff4"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/orchestration-B07.md",
+      "sha256": "9f4eee687a0aa70a9301f32aae9874a2a371a6d83b8d956d1a53c162a165f697"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/planning-intake-B06-B07-deepening.md",
+      "sha256": "86c7bca8d3760a759ce91006d6310f54e12b20d58318d4fae2aeec854d33fc03"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/skills-identity-B14.md",
+      "sha256": "234ef91e17fb61c1ebf83f5cb05dcdd644f194f61f7159308b26be1c7d74b350"
+    },
+    {
+      "path": "docs/research/agent-skills-expansion-20260924/research/skills-lifecycle-B13.md",
+      "sha256": "73b005db5825193c105eb568f228d1ed862d490b4edd78d397d0cd5b233e30d3"
+    },
+    {
       "path": "docs/research/skills-reconciliation-20260923/PR-BODY.md",
       "sha256": "01303e6279a66f988ed1b47d8621f097263c69cdad0878b67b1e2f679c4a2341"
     },
@@ -316,18 +592,6 @@
     {
       "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/_raw_response.md",
       "sha256": "1d1ab7958ce088692f765b05cfc44da7819d2a06bcff4c34c02fc0e4e47dd0d7"
-    },
-    {
-      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/environment-characterization-drives-architecture.md",
-      "sha256": "0b4c756b18559a5b7c617c67359863239263c15d652485040520a53cf69267fa"
-    },
-    {
-      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/grounded-epistemic-logic-for-distributed-agents.md",
-      "sha256": "62bd9717113e6536e078279715410a865b06edc85822134eea787b252714ae26"
-    },
-    {
-      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/references/hybrid-architectures-and-realtime-adaptation.md",
-      "sha256": "45563a7be6ba2db5399611d87ac3137de7a474326d58e8cdb30a6d0d384ed278"
     },
     {
       "path": "skills/allen-cacm1983/_raw_response.md",
@@ -1123,7 +1387,7 @@
     },
     {
       "path": "skills/llm-evaluation-harness/references/skill-efficacy.md",
-      "sha256": "81b214806e9034a738a0e198e7902f3164a311f4eb6620073d57abf43c82d57d"
+      "sha256": "e900463e8c1cafa69c6da2d5187edb73bb64eb726338e7b707c0ec34931788fc"
     },
     {
       "path": "skills/mastering-the-game-of-go-with-deep-neura/_raw_response.md",
@@ -1318,26 +1582,6 @@
       "sha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/maximal-non-conflicting-subsets-for-action-selection.md",
-      "sha256": "0994d9b48ff5659b090659f8ea05a053bd330406a4fa4177159c0ee6da0dc099"
-    },
-    {
-      "path": "skills/normative-bdi-agent-architecture/references/norm-instantiation-through-belief-grounding.md",
-      "sha256": "2114d3f33f026bcf02b8a59b169c25187f6ac4c6a4b3e39b455b07b9cf4813c2"
-    },
-    {
-      "path": "skills/normative-bdi-agent-architecture/references/normative-conflict-resolution-through-consequence-ranking.md",
-      "sha256": "d0051ab84afc9731344bf6fdc88a6b82c0350c79541bd8fa91699cd38dc9b4d7"
-    },
-    {
-      "path": "skills/normative-bdi-agent-architecture/references/separation-of-norm-recognition-and-norm-internalization.md",
-      "sha256": "e1996719901a858debcc44b6d2b09b9b1f8ec6d8dfcf901015a310579c456b54"
-    },
-    {
-      "path": "skills/normative-bdi-agent-architecture/references/three-types-of-consistency-for-norm-adoption.md",
-      "sha256": "3eb3c4b5d6f05a9ff1d170d42aff2a2fa1058c3f842c9b905d460c0b824c4f80"
-    },
-    {
       "path": "skills/nygard-2018-release-it-2nd-edition/_raw_response.md",
       "sha256": "d154ed927e59cd606989113c417a4df916a2496ea3c382b4a7ca483c504ca02a"
     },
@@ -1435,15 +1679,15 @@
     },
     {
       "path": "skills/resolution-trace-damping/CHANGELOG.md",
-      "sha256": "0ee4aeb089c4837e6f1c3c047b2aa81e84553d1f91afee8fdfbc3d32264f0a15"
+      "sha256": "033754879af27a52da8474346136bd462b04556f41601b0a2784cbef8c5960ca"
     },
     {
       "path": "skills/resolution-trace-damping/SKILL.md",
-      "sha256": "de9ea6828730cdfb3ddcfc099f924df9524ed862e238ff31c9c35227cdb31082"
+      "sha256": "bbade4278dceff4f11e090ebeaed55d4106bec153b00aabf3700813ef38a6dd4"
     },
     {
       "path": "skills/resolution-trace-damping/affordance-scorecard.json",
-      "sha256": "5b71936bc37e7ff2c1aeeebeb4b2eb056913e20dc75f2449bd2990b5c08a8a58"
+      "sha256": "8d692b33ad97b9288718d4a8527fd18102fcfff4cf7d32d4b16302b04a3d04c7"
     },
     {
       "path": "skills/rpd-knowledge-elicitation/references/decision-support-vs-decision-replacement-a-critical-distinction.md",
@@ -1451,15 +1695,15 @@
     },
     {
       "path": "skills/runtime-task-overlap-detector/CHANGELOG.md",
-      "sha256": "0b6a3cde2eab6677657f03909de7f0674138453c1b5cf65cc508f0831d50aad9"
+      "sha256": "2a67aa414b2e54a4640c899e0f143ec4c92b2c845872fe96cf6c6e1169e8fbf7"
     },
     {
       "path": "skills/runtime-task-overlap-detector/SKILL.md",
-      "sha256": "2350aa1061d189a1ea4a081298feb6e6cbf5c488e2b62e8b5b5f84fbcaaaa241"
+      "sha256": "55fbf5c929f51717621301cc08cfe9419ea847da3dcbaf82a9944ec683bb4327"
     },
     {
       "path": "skills/runtime-task-overlap-detector/affordance-scorecard.json",
-      "sha256": "5403ff6ec9c67feabae5599c3d64661c56868a3c0175a807cfb250193bc46bd7"
+      "sha256": "a3d47932f4b0cca2f6792ae488fa86c019de76bbfc0f8c30ea9b861f7cbb8a0d"
     },
     {
       "path": "skills/self-adaptive-systems/_raw_response.md",
@@ -1556,10 +1800,6 @@
     {
       "path": "skills/tacit-expertise-elicitation/references/community-of-practice-design-for-agent-coordination.md",
       "sha256": "c7419421d71f85e3c02dcc1cf75dd321f890c5e3c1091e2586abe0d0fa772e68"
-    },
-    {
-      "path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
-      "sha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f"
     },
     {
       "path": "skills/task-analysis-of-pier-side-ship-handling/references/critical-cue-inventories-for-agent-perception.md",
@@ -1939,11 +2179,27 @@
     },
     {
       "path": "skills/windags-decomposer/INDEX.md",
-      "sha256": "8eac644b2fd8cf55a0dd11057a985d9f26ac61fa06c6f8c093d0a2500619f666"
+      "sha256": "887bdd6e67fbe0228616f192e1c6e2cbd969ff6fc4162c206b6512aa2bb2d5dc"
     },
     {
       "path": "skills/windags-decomposer/SKILL.md",
-      "sha256": "30310ae7bfe29c84115daa55e4a16fcb26e410110ed3c267481bc81a80daf589"
+      "sha256": "c8de95413ca78c5c8e22900fd2a2215058a4e6de1d8a70912abd173fe9eac288"
+    },
+    {
+      "path": "skills/windags-decomposer/diagrams/01-three-pass-procedure.md",
+      "sha256": "4c8f666b9fc0804404680886e0ec2da29e096f28467d41e3496273a0e07c07ff"
+    },
+    {
+      "path": "skills/windags-decomposer/diagrams/02-graph-layer-and-admission.md",
+      "sha256": "ed5b3d947bb25e6b904cdad570669070d00ad8990d6ce40f8666c78871ee1d6f"
+    },
+    {
+      "path": "skills/windags-decomposer/examples/typed-edge-fixture.md",
+      "sha256": "2ef7f7e909a447521c70f10cfebf2396e261b85b30c0b7dafa69f61675d0ec3f"
+    },
+    {
+      "path": "skills/windags-decomposer/references/protocol-scope.md",
+      "sha256": "38c030f55ea5607f507ccedc1792bb89ed5645583865adc5ee90d8c5f8bad766"
     },
     {
       "path": "skills/windags-evaluator/SKILL.md",
@@ -2103,35 +2359,19 @@
     },
     {
       "path": "skills/yao-2022-react/references/bridging-knowledge-and-action-gap.md",
-      "sha256": "d3fbf701e639391aa8228e2392ff8f9fa1d2026cb6a58bd6f1bb31dff482b511"
+      "sha256": "a4162cea1b94011f1fa3a812d1e0d852ff4a31de5bc995e3a67bc8e767c61fa1"
     },
     {
       "path": "skills/yao-2022-react/references/decomposition-through-explicit-subgoaling.md",
-      "sha256": "62c61949ef78544646d39bcd4e61007f71c2beb075e91fcb7efdda803b8b2640"
-    },
-    {
-      "path": "skills/yao-2022-react/references/failure-modes-and-error-propagation.md",
-      "sha256": "1b3b1267de43dd1b279879942ab1873e29b0b76e3890a892aba1c7a7a335e780"
-    },
-    {
-      "path": "skills/yao-2022-react/references/hierarchical-abstraction-in-agent-reasoning.md",
-      "sha256": "b2163149507db5403f0e1d89e15e2f87591238563eb3c1d544eed0e172f2c42c"
+      "sha256": "e666e968ba7ed2f4a16e624b45f226df7aa46013ed76d3b4ee940a7c0151a55a"
     },
     {
       "path": "skills/yao-2022-react/references/human-interpretability-and-controllability.md",
-      "sha256": "32d7e0b8da9e684cfacb6e7289a01f6bba001dda51b5255c7bffa18e6ee55656"
-    },
-    {
-      "path": "skills/yao-2022-react/references/learning-reasoning-acting-patterns.md",
-      "sha256": "5ad4ab92f90022b9a18dab751b237e2444652d2863a823462294cff5ae64193d"
-    },
-    {
-      "path": "skills/yao-2022-react/references/reasoning-action-synergy-in-agent-systems.md",
-      "sha256": "379d252f11e2b490460f187f3cb10a273fb4d23a1b8a37450ee0350a5638bc7b"
+      "sha256": "b45211da6c5b622ff6dbf73d9839e380774b0d0c7c9bbe56916b9b4c67120b1f"
     },
     {
       "path": "skills/yao-2022-react/references/uncertainty-and-confidence-in-agent-decisions.md",
-      "sha256": "4fe6cc57fafa2303ef5de25dc019a857d7e6f88d6a243b5e72a71980e820faab"
+      "sha256": "d8e64bdefeca3887e9b2079e2c98a7e7744084db4f5abe5037e35650fa4648f5"
     }
   ]
 }

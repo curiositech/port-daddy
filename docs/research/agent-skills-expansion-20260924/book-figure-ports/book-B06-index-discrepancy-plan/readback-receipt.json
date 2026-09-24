@@ -1,0 +1,80 @@
+{
+  "at": "2026-09-24T17:11:31.617789+00:00",
+  "boundary": {
+    "root": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924",
+    "branch": "codex/agent-skills-expansion-20260924",
+    "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/agent-skills-expansion-20260924",
+    "status": ""
+  },
+  "manuscript": [
+    {
+      "path": "whitepaper/single-writer-kernel.tex",
+      "sha256": "666473b5ad3db54a40d8386a923ead47a574e55b1a96132dbda8dcae701e6eea",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "sha256": "67f7c74dbf48249f04f5904bd1218fddf1360c7386f3b3968d97f2c9345bbe5f",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "sha256": "611b99e1096aa78440728001a4855512bc72a88576768ff09409c405573f2664",
+      "matches": true
+    },
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "sha256": "ca2b4dd5b9d91698ee5550b908a0fa8a4bd0d80ea86f938cb2c98289ef27c8a6",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "8b629d39d9a24e312ad1c17b1e0bdbcda01b0194fcabb081f7671d4130536684",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "9fe6ec5d66f848ae05edc863f2eac0036a0445f4cb55ed8b513352bf1153e14f",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "573b9fc39eb89859a9bd54e927d097b9d0225d388f8d79e05245eb3a0a9b02a5",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "4e770b7839cec82fa3be1f34d2405c0bf4beffe397d1c9079be9ec060e99e1a8",
+      "matches": true
+    }
+  ],
+  "author_commit": "1af62b3d379f06c890bba87f4640f8bd1db31305",
+  "author_blob_computed": "6d8d1e6dbf5883cb7b7f5c81c980b5ab76a40892",
+  "author_blob_tree": "6d8d1e6dbf5883cb7b7f5c81c980b5ab76a40892",
+  "source_hashes": [
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/primary-source/SEA-2023-2.pdf",
+      "sha256": "a62af6321ac242f95f6ccc1455dd1e4096af3034d1fc0fc686a54ee3f49b3c9e"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/primary-source/SEA-2023-algorithm-1.png",
+      "sha256": "1c3faa53f35bf576b9b5a5ab71ee6b7281d804d0aebdbd5e217af9f75bcb053d"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/primary-source/IndexingScheme.java",
+      "sha256": "cfd91becc6c28e449890d456471069e2d33b0b754a7bab2c6ef5c65903a99764"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/primary-source/author-tree.json",
+      "sha256": "80ba8ec1b725c2e152144243c42e451ac079b02bab08ecd965e8de8c5119a99f"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/finite-index-check.py",
+      "sha256": "3f22f68dc9904b888fd1c2c13dce0e5ec225c59e7bd7a14c6e6c787639564b3b"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/order-root-final/finite-index-results.json",
+      "sha256": "a111c4729b6d8da03b2096d2b15d3a6d077788afefa613e9d3b8880d0b2d0182"
+    }
+  ]
+}

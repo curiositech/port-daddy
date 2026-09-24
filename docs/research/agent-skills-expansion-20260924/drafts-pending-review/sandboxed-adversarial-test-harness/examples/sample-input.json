@@ -1,0 +1,89 @@
+{
+  "name": "fleet-webhook-and-file-output-sinks",
+  "isolationDimensions": [
+    "filesystem",
+    "network",
+    "secrets",
+    "process",
+    "resources"
+  ],
+  "egressPolicy": {
+    "mode": "allowlist",
+    "default": "deny",
+    "allow": [
+      "hooks.slack.com",
+      "api.github.com"
+    ]
+  },
+  "pathPolicy": {
+    "mode": "allowlist",
+    "jailRoot": "~/coding/tmp/sandbox-worktree",
+    "allowedRoots": [
+      "~/coding/tmp/sandbox-worktree"
+    ],
+    "realpathChecked": true
+  },
+  "secretHandling": {
+    "mode": "fake-credentials",
+    "exposedToSandbox": true
+  },
+  "adversarialCases": [
+    {
+      "id": "ssrf-metadata-endpoint",
+      "invariant": "Outbound fetch to 169.254.169.254 (cloud metadata) is refused before any socket is opened.",
+      "threatClass": "ssrf",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "assertSafeOutboundUrl"
+    },
+    {
+      "id": "ssrf-obfuscated-ip-literal",
+      "invariant": "Decimal/octal/hex-encoded loopback IP literals (e.g. http://2130706433) are classified and refused.",
+      "threatClass": "ssrf",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "assertSafeOutboundUrl"
+    },
+    {
+      "id": "path-traversal-dotdot",
+      "invariant": "A write target containing ../../ cannot resolve outside jailRoot.",
+      "threatClass": "path-traversal",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath"
+    },
+    {
+      "id": "path-traversal-preplanted-symlink",
+      "invariant": "A symlink planted inside jailRoot that points outside it is caught by realpath-checking the resolved prefix.",
+      "threatClass": "path-traversal",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath"
+    },
+    {
+      "id": "secret-exfil-dns-tunnel",
+      "invariant": "A fake credential value encoded into a DNS query subdomain cannot resolve because egress is allowlist-only.",
+      "threatClass": "secret-exfil",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "network-namespace-egress-allowlist"
+    },
+    {
+      "id": "resource-fork-bomb",
+      "invariant": "A fork bomb inside the sandbox is capped by a process/PID limit and does not affect the host.",
+      "threatClass": "resource-exhaustion",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "cgroup-pids-max"
+    },
+    {
+      "id": "side-effect-write-outside-workspace",
+      "invariant": "A write to an absolute path outside jailRoot (e.g. /etc/cron.d/evil) is refused.",
+      "threatClass": "side-effect-write",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath"
+    }
+  ],
+  "failMode": "fail-closed"
+}

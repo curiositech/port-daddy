@@ -1,0 +1,48 @@
+% Reader question: what may a caller infer after an external operation times out?
+% Claim: timeout is an unknown outcome; only operation-specific authoritative
+% readback can separate committed, confirmed-absent, and unresolved cases.
+% Evidence: the kernel's at-least-once bus and I2 effectively-once boundary.
+% Grammar: three-lane sequence plus a compact outcome ledger. A retry loop or
+% yes/no diamond would falsely imply that a timeout proves non-execution.
+% Five-second test: a reader points to the readback before any retry.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \path[use as bounding box] (0,-6.9) rectangle (11.2,.25);
+  \node[pd row label,anchor=center] at (0.9,0) {caller};
+  \node[pd row label,anchor=center] at (5.7,0) {service};
+  \node[pd row label,anchor=center] at (10.0,0) {status authority};
+  \foreach \x in {0.9,5.7,10.0} {
+    \draw[pd guide] (\x,-.35)--(\x,-3.75);
+  }
+  \draw[pd arrow] (.9,-.95)--(5.7,-.95);
+  \node[pd direct label,anchor=south] at (3.3,-.53) {submit $K$};
+  \draw[pd caution rule] (.7,-1.65)--(1.1,-2.05)
+                         (.7,-2.05)--(1.1,-1.65);
+  \node[pd direct label,anchor=west] at (1.35,-1.48) {timeout};
+  \draw[pd arrow] (.9,-2.75)--(10.0,-2.75);
+  \node[pd direct label,anchor=south] at (3.25,-2.36) {query status for $K$};
+  \draw[pd focus arrow] (10.0,-3.55)--(.9,-3.55);
+  \node[pd direct label,anchor=south] at (8,-3.16) {status evidence};
+  \draw[pd rule] (0,-3.98)--(11.2,-3.98);
+  \node[pd panel title,anchor=west] at (0,-4.35) {Readback};
+  \node[pd panel title,anchor=west] at (3.25,-4.35) {Permitted conclusion};
+  \draw[pd hairline] (0,-4.53)--(11.2,-4.53);
+  \node[pd direct label,anchor=west] at (0,-4.86) {Committed};
+  \node[pd direct label,anchor=west] at (3.25,-4.86) {Record receipt; suppress duplicate.};
+  \draw[pd hairline] (0,-5.2)--(11.2,-5.2);
+  \node[pd direct label,anchor=west] at (0,-5.53) {Final absence};
+  \node[pd direct label,anchor=west] at (3.25,-5.53) {Retry only under a proved idempotent boundary.};
+  \draw[pd hairline] (0,-5.87)--(11.2,-5.87);
+  \node[pd direct label,anchor=west] at (0,-6.2) {Inconclusive};
+  \node[pd direct label,anchor=west] at (3.25,-6.2) {Keep outcome unknown; escalate.};
+  \draw[pd rule] (0,-6.6)--(11.2,-6.6);
+\end{tikzpicture}
+\caption{A timed-out external operation leaves its effect unknown. The caller
+queries an operation-specific authoritative status before deciding whether to
+record a receipt, retry under a proved idempotent boundary, or preserve an
+unresolved outcome. An absence result permits retry only when the authority excludes a late
+commit for $K$; the drawing does not make unbrokered delivery exactly once
+[internal].}
+\label{fig:swk-unknown-effect}
+\end{figure}

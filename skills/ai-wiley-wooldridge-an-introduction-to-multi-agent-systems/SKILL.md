@@ -1,164 +1,79 @@
 ---
 name: ai-wiley-wooldridge-an-introduction-to-multi-agent-systems
-description: >-
-  Choose multi-agent architectures using environment-first analysis,
-  coordination pressure, commitment tuning, and knowledge levels. Use for
-  autonomy design, protocol choice, and coordination failures. NOT for
-  single-agent planning, centralized schedulers, or prompt-only swarms.
-license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
+description: Frame multi-agent designs through explicit environment, autonomy, information, coordination, commitment, incentive, and verification assumptions. NOT for endorsing multi-agent architecture without need or claiming runtime correctness from conceptual methods.
 metadata:
-  category: AI & Agents
-  tags:
-    - multi-agent-systems
-    - coordination
-    - autonomy
-    - distributed-systems
-    - negotiation
-    - epistemic-logic
-  pairs-with:
-    - skill: agent-conversation-protocols
-      reason: Use it when architecture decisions turn into concrete dialogue patterns.
-    - skill: agentic-infrastructure-2026
-      reason: Use it when the protocol and autonomy model need runtime deployment patterns.
-  provenance:
-    kind: legacy-recovered
-    owners:
-      - some-claude-skills
-    sourceDocument: "An Introduction to Multi-Agent Systems (Second Edition)"
-    sourceAuthors:
-      - Michael Wooldridge
-    importedFrom: legacy-recovery
-  authorship:
-    authors:
-      - Michael Wooldridge
-    maintainers:
-      - some-claude-skills
+  category: Research & Academic
+  tags: [multi-agent-systems, interaction, epistemic-logic, coordination, commitments]
 ---
 
-# Wooldridge Multi-Agent Systems
+# Introduction to multi-agent systems: a design method
 
-Use this skill when the question is not "how do I make several models talk," but "what kind of autonomous system does this environment force me to build?"
+Use this skill when a design involves multiple autonomous decision-makers, incomplete information, interdependent tasks, or strategic resource allocation. It is a source-bounded design map based on Wooldridge’s second-edition author contents and accessible author-hosted lecture slides. The full book and Wiley body were not accessed; constructed examples are identified as such.
 
-## When to Use
+Do not use it as an endorsement of multi-agent architecture when ordinary services or a single controller suffice. Do not infer runtime correctness, performance, truthful reporting, or deployment safety from these conceptual methods.
 
-- You must choose between reactive, deliberative, or hybrid agent architectures.
-- Coordination keeps failing because no one has complete information or uncontested control.
-- Agents need negotiation, allocation, or commitment strategies under uncertainty.
-- A design depends on what agents know, what everyone knows, or whether common knowledge is even achievable.
-- You need to diagnose whether a "multi-agent" design is actually just asynchronous object orchestration.
+## Design in this order
 
-## NOT for
-
-- Single-agent planning or optimization problems with no coordination requirement.
-- Centralized schedulers where one controller already owns global decision rights.
-- Prompt-only roleplay swarms that do not have separate goals, beliefs, or control boundaries.
-- General distributed-systems design when agent autonomy and knowledge asymmetry are irrelevant.
-
-## Core Mental Models
-
-### Environment Properties Drive Architecture
-
-Start with observability, determinism, dynamics, and time pressure. Architecture choice is downstream of environment shape, not personal preference for a fashionable agent pattern.
-
-### Autonomy Is Control Inversion
-
-Agents are not just asynchronous objects. They decide whether and when to comply, which means requests need semantics, refusals, and coordination logic rather than implicit obedience.
-
-### Coordination Emerges from Constraint
-
-Partial observability, resource contention, and interdependent goals create coordination pressure. Good protocol design begins by naming that pressure instead of assuming collaboration is always desirable.
-
-### Commitment Strategy Must Match Volatility
-
-Bold agents overcommit in fast-changing environments; cautious agents thrash in stable ones. Reconsideration frequency is a design parameter tied to environment dynamics, not a universal best practice.
-
-### Knowledge Levels Matter
-
-Individual knowledge, everyone-knows, common knowledge, and distributed knowledge are not interchangeable. Asking for the wrong level can make a protocol impossible or wastefully expensive.
-
-## Decision Points
+1. **Define the system and decision.** Name the agents, their control/authority, objective, success condition, deadline, and effects.
+2. **Characterize the environment.** Record relevant states, transitions, observations, dynamics, and model gaps. See [environment worksheet](references/environment-characterization-drives-architecture.md).
+3. **State interaction needs.** Separate interference prevention, task sharing, result sharing, synchronization, and strategic agreement. Choose a protocol only after identifying the need.
+4. **Represent information and intention.** Keep each agent’s observation/knowledge distinct from global state; say when goals continue, change, or end.
+5. **Choose architecture and arbitration.** If reactive and deliberative proposals coexist, define priority, validity, veto, and fallback.
+6. **Analyze incentives when relevant.** Specify preferences, feasible outcomes, information, disagreement options, and the mechanism. A protocol does not establish truthful participation.
+7. **Validate a scoped claim.** A worksheet or finite model supports a claim about its assumptions. Tests support only the exercised implementation paths; neither alone proves production behavior.
 
 ```mermaid
-flowchart TD
-  A[Need agent architecture] --> B{Environment fully observable and stable?}
-  B -->|Yes| C[Simple reactive or planner-heavy design may suffice]
-  B -->|No| D{Need real-time reaction under uncertainty?}
-  D -->|Yes| E[Hybrid architecture]
-  D -->|No| F[Deliberative architecture]
-  E --> G{Why do agents need to coordinate?}
-  F --> G
-  G -->|Partial information| H[Information-sharing protocol]
-  G -->|Resource contention| I[Negotiation or allocation mechanism]
-  G -->|Task dependency| J[Commitment or delegation protocol]
-  G -->|No real autonomy| K[Use a simpler centralized design]
+flowchart LR
+  Q[Multiple autonomous decisions?] -->|No| S[Use simpler model]
+  Q -->|Yes| E[Model agents environment and observations]
+  E --> I{Interaction need?}
+  I -->|Conflicts or dependencies| C[Specify coordination constraints]
+  I -->|Task division or integration| T[Specify sharing and synthesis]
+  I -->|Different preferences| G[Specify strategic model]
+  C --> A[Choose architecture and arbitration]
+  T --> A
+  G --> A
+  A --> V[Validate scoped claim and report limits]
 ```
 
-- Characterize the environment before choosing an agent architecture.
-- If agents cannot refuse, delay, or reinterpret requests, do not pretend you have agent autonomy.
-- Choose knowledge requirements intentionally. Many systems need distributed knowledge, not common knowledge.
-- Tune commitment boldness to the environment's change rate and the cost of reconsideration.
+## Select a method by the question
 
-## Failure Modes
+- Need to understand what agents can observe? Use environment and possible-world worksheets.
+- Need to assign work and integrate results? Use task sharing and Contract Net; define the task/result contract and failure behavior.
+- Need to decide how long to pursue a goal? Use commitment states and explicit authorization/evidence.
+- Need competing reactive/planning proposals? Define layers and their arbitration contract.
+- Need an agreement among agents with different preferences? Define utilities/feasible outcomes before using bargaining or auction analysis.
 
-### Architecture-First Design
+The sequence diagram shows one illustrative path in which the candidate proposes and is awarded the task; rejection/no-bid paths are covered in the coordination reference. The linked references provide the methods and limits. [Reference index](references/INDEX.md).
 
-Cue: the team wants BDI, debate, or a fancy agent framework before anyone can describe the environment.
+```mermaid
+sequenceDiagram
+  participant M as Manager
+  participant A as Candidate agent
+  participant V as Validator
+  M->>A: announce versioned task and constraints
+  A-->>M: proposal
+  M->>A: award
+  A-->>V: result with source and task version
+  V-->>M: validated, rejected, or unresolved
+```
 
-Fix: force environment characterization first.
+## Worked contrast: acknowledgment is not effect evidence
 
-### Anthropomorphic Autonomy
+Suppose agent A sends “commit job J” to agent B. The sender’s log proves that A recorded a send event. It does not alone prove B received the message, acknowledged it, or committed J. Model those as separate propositions and observations. If the next action depends on commit, obtain evidence appropriate to that effect and its authority. See [epistemic logic](references/grounded-epistemic-logic-for-distributed-agents.md).
 
-Cue: the design talks about beliefs and desires but cannot map them to local state, observations, or protocol obligations.
+## Quality gates
 
-Fix: ground mental language in concrete computational state.
+Before accepting a design:
 
-### Coordination for Its Own Sake
+- State which conclusions are source-derived and which are constructed local choices.
+- Separate cooperative assumptions from strategic incentives.
+- Name hard constraints separately from ranking preferences.
+- Keep unknown observations distinct from false facts and from cancellation.
+- Test no eligible proposal, late/duplicate messages, partial result, changed task version, and conflicting result when those cases apply.
+- Verify that action preconditions still hold at the effect boundary.
+- Identify whether evidence is conceptual, finite-model, local-test, hosted, or deployed.
 
-Cue: communication traffic rises, but no one can explain which environmental pressure requires it.
+## Source boundary
 
-Fix: identify the actual forcing function and design the minimal protocol that addresses it.
-
-### Hidden Central Controller
-
-Cue: one "agent" silently makes all important choices while the others just execute.
-
-Fix: either admit the architecture is centralized or redistribute genuine decision rights.
-
-### Impossible Knowledge Assumptions
-
-Cue: protocol correctness depends on every agent knowing that every other agent knows a fact, but the network is unreliable.
-
-Fix: relax to distributed knowledge, acknowledgments, or eventual consistency as the environment allows.
-
-## Worked Examples
-
-### Specialist LLM Review Swarm
-
-A coding system uses security, performance, and style agents. Security reviews depend on different evidence than style review, and no single reviewer has global visibility. Use a hybrid coordinator plus targeted information-sharing instead of assuming every reviewer should see the entire context.
-
-### Distributed Vehicle Monitoring
-
-Sensor agents cover overlapping but incomplete regions. Coordination is necessary because no single agent can maintain end-to-end track continuity. Design the protocol around partial observability rather than generic "collaboration."
-
-## Quality Gates
-
-- The environment is characterized explicitly before architecture choice.
-- The design names the real source of coordination pressure.
-- Knowledge requirements are stated at the right level.
-- Commitment strategy is tied to volatility and reconsideration cost.
-- Any claimed autonomy includes refusal, delay, or local interpretation of requests.
-
-## Shibboleths
-
-- If someone calls a system multi-agent but every important decision still routes through one controller, they are renaming distributed execution, not designing autonomy.
-- If "common knowledge" is used casually with no communication model, the protocol is probably underspecified.
-- If the team cannot say why agents must coordinate, the design probably does not need agents at all.
-
-## Reference Routing
-
-- `references/environment-characterization-drives-architecture.md`: load when architecture choice is the main question.
-- `references/coordination-as-necessity-not-luxury.md`: load when you must justify or minimize coordination.
-- `references/commitment-strategies-and-environment-dynamics.md`: load when boldness or replanning cadence is the main tuning issue.
-- `references/grounded-epistemic-logic-for-distributed-agents.md`: load when knowledge claims drive safety or correctness.
-- `references/negotiation-and-resource-allocation-mechanisms.md`: load when autonomy collides with scarce resources.
+The official [second-edition contents](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/Contents.html) is a topic map. The linked author slide decks provide primary teaching material for the particular chapter methods named in each reference. They are not a substitute for the full textbook, and this skill does not claim access to its complete chapter text.

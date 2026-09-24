@@ -1,11 +1,10 @@
-# references for bellifemine-2007-jade-fipa
+# References
 
-Imported supporting material. Load a listed file only when it serves the active task.
-
-## Imported source navigation
-
-- [Coordination Without Bottlenecks: Decentralized Task Allocation at Scale](coordination-without-bottlenecks.md) — imported supporting material.
-- [Failure-Resilient Distributed Coordination: How Production Agent Systems Stay Alive](failure-resilient-distributed-coordination.md) — imported supporting material.
-- [Hierarchical Task Decomposition: Composable Abstractions for Complex Workflows](hierarchical-task-decomposition-patterns.md) — imported supporting material.
-- [Semantic Grounding for Skill Composition: How Agents Understand Each Other](semantic-grounding-for-skill-composition.md) — imported supporting material.
-- [Split-Container Architecture: Orchestrating Agents Across Unreliable and Resource-Constrained Environments](split-container-architecture-for-heterogeneous-environments.md) — imported supporting material.
+- [Conversation contract and JADE mapping](conversation-contract-and-jade-mapping.md)
+- [Behavior composition and message correlation](behavior-composition-and-correlation.md)
+- [Source access and implementation boundary](source-access-and-implementation-boundary.md)
+- [Coordination without unsupported scaling claims](coordination-without-bottlenecks.md)
+- [Failure-resilient conversation handling](failure-resilient-distributed-coordination.md)
+- [Behavior-oriented task decomposition](hierarchical-task-decomposition-patterns.md)
+- [Semantic grounding](semantic-grounding-for-skill-composition.md)
+- [Split-container deployment choice](split-container-architecture-for-heterogeneous-environments.md)

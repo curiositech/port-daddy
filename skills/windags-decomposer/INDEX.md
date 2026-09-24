@@ -1,42 +1,12 @@
-# windags-decomposer — Skill Index
+# windags-decomposer — index
 
-Stage 2 of the WinDAGs meta-DAG. Breaks the Sensemaker's inferred problem into 3-7 subtasks with dependencies and wave assignments.
+Second stage of a first-party planning pipeline: it turns a supplied ProblemUnderstanding into a **proposal** with typed nodes, reasoned edges, uncertainty records, candidate skills, and topological layers. It is not a runtime schedule or an HTN implementation.
 
-## Folder Map
-
-| Folder | Contents |
+| Asset | Use |
 |---|---|
-| `SKILL.md` | Activation, decomposition rules, wave assignment, output contract |
-| `diagrams/` | Visual flowchart of the decomposition logic |
+| `SKILL.md` | Three-pass method, decision/evidence-node contract, typed edges, revision and diagnostic rules. |
+| `references/protocol-scope.md` | First-party policy and calibration/HTN boundaries. |
+| `examples/typed-edge-fixture.md` | Positive and negative topological layer checks. |
+| `diagrams/` | Three-pass procedure and layer-versus-admission boundary. |
 
-## Pipeline Position
-
-```
-windags-sensemaker → windags-decomposer → [windags-skill-selector ‖ windags-premortem] → windags-synthesizer
-                    ↑ this skill
-```
-
-## Output Contract
-
-This stage emits a `DecomposerOutput`. Canonical schema:
-
-- `skills/next-move/schemas/decomposer-output.schema.json`
-
-Constraints:
-- 1 ≤ subtasks ≤ 12 (3-7 sweet spot)
-- Every `depends_on` ID must exist in the same output
-- The dependency graph is acyclic
-- Wave numbers respect dependencies
-
-## Key References (in /next-move)
-
-- `skills/next-move/references/modify-vs-restart.md` — when subtask-graph changes mean re-decompose vs. mutate
-- `skills/next-move/agents/decomposer.md` — Claude Code subagent that wraps this skill
-
-## Anti-Patterns
-
-- Skill IDs in subtask descriptions (that's the Skill Selector's job).
-- Implicit dependencies via prose ("after the API is built…") — make them edges.
-- Too many subtasks. >7 is usually over-decomposed.
-- Single-subtask "graphs" — if the work is one node, the user didn't need /next-move.
-- Verification subtasks for trivial work.
+No hard node-count, wave-depth, confidence, tie, cascade, or schema-missing threshold is treated as calibrated evidence. Versioned policy may set one only with an abstain/research path and a stated evaluation basis.

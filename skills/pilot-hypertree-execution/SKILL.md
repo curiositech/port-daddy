@@ -1,295 +1,88 @@
 ---
 name: pilot-hypertree-execution
-description: >
-  Standing planning doctrine for the port-daddy pilot: every plan is executed as a
-  hypertree of context clusters. Structure phase before content phase, cluster-to-agent
-  assignment by file-disjointness, spawn discipline capped at the merge-queue digest
-  bound, and manager-driven orchestration with worktree isolation and pointer-based
-  digests. Activate whenever the pilot (or any planner lane) decomposes work into
-  parallel agents: 'plan this wave', 'partition this work', 'how many agents',
-  'hypertree execution'. NOT for the partitioning algorithms themselves (use
-  agent-context-partitioner), single-node prompt construction (use
-  skillful-node-prompt), or token accounting mechanics (use
-  context-economics-for-agent-swarms).
+description: >-
+  First-party planning doctrine for recording context clusters, hard artifact dependencies,
+  order preferences, admission conditions, and a declared wave cap. NOT for HTP results
+  or claims that file disjointness, parallelism, or human capacity are established theorems.
 license: FSL-1.1-MIT
 allowed-tools: Read,Bash,Grep,Glob,Edit,Write
 metadata:
   category: Agent & Orchestration
-  tags: [hypertree, planning-doctrine, context-clusters, pilot, orchestration, spawn-discipline, waves, dag]
-  pairs-with: [manager-driven-team-orchestrator, dag-isolation-manager, dag-parallel-executor, skillful-node-prompt, agent-context-partitioner, context-economics-for-agent-swarms, hypertree-planning]
-  provenance:
-    kind: first-party
-    owners: [port-daddy]
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: design-doc
-      description: >-
-        A wave plan: hypertree outline with context clusters, typed edges, agent
-        assignments with K justified against the spawn-discipline bound, and
-        merge-gated wave boundaries
-      format: markdown
+  tags: [planning-doctrine, context-clusters, hard-dependencies, order-preferences, waves]
+  provenance: {kind: first-party, owners: [port-daddy], dated: 2026-08-22}
 ---
 
 # Pilot Hypertree Execution
 
-## The Doctrine
+## Deliverable
 
-Operator directive (2026-08-22): port-daddy's planning always does hypertree
-context-cluster execution — the pilot working as `manager-driven-team-orchestrator`
-+ `dag-isolation-manager` + `dag-parallel-executor`, with per-node prompts per
-`skillful-node-prompt`.
+Produce a Markdown cluster plan with typed edges, declared admission conditions, a chosen policy cap, and the evidence a dependent cluster needs before it becomes ready. This is a planning deliverable; it neither dispatches work nor authorizes an external effect.
 
-This is not one option among several. It is the standing rule for how the pilot
-(and any planner lane) turns an objective into running agents. The reasoning is
-the HyperTree Planning result (see the `hypertree-planning` skill, arriving via
-its own import PR): complex work fails from **structural mismatch between problem
-complexity and reasoning organization**, not from insufficient effort. A 60-step
-sequential chain accumulates error; a hypertree of independent branches reduces
-effective depth and lets independent branches run in parallel. The doctrine
-binds that insight to port-daddy's concrete execution machinery.
+## Status and boundary
 
-## When to Use
+This is a first-party doctrine dated 2026-08-22 and documented in [CHANGELOG.md](CHANGELOG.md). It borrows “outline” language as a planning metaphor; it is not Gui et al.’s HTP algorithm, an HTN semantics, or database hypertree decomposition. The 6–7 range is a local review/digest policy, not a measured capacity finding.
 
-- The pilot receives an objective that will take more than one agent or more
-  than one sitting.
-- Any planner lane is about to decompose work into tasks, waves, or PRs.
-- An operator asks "how should we split this?" or "how many agents?"
+A **hard** edge identifies a required artifact or data dependency. An **order** edge identifies a merge/review preference. Only a satisfied hard edge establishes the relevant dependency condition; neither edge type proves resources, authorization, effects, or task completion.
 
-NOT for: choosing the clustering algorithm (use `agent-context-partitioner`),
-writing the per-node prompt text (use `skillful-node-prompt`), or pricing token
-spend (use `context-economics-for-agent-swarms`). This skill is the doctrine
-that sequences those skills; they carry the mechanics.
+## Planning procedure
 
-## Rule 1 — Structure Phase Before Content Phase
+### 1. Produce a cluster outline
 
-Build the hypertree **outline** before committing to any detail. Two distinct
-phases, never interleaved:
+State the objective, candidate context clusters, file/subsystem scopes, and every cross-cluster edge. File overlap is one collision signal. It is not proof of semantic independence: contracts, APIs, budgets, credentials, and tests can cross otherwise disjoint paths.
 
-1. **Structure phase**: produce the hypertree skeleton. The root is the
-   objective. Top-level branches are **context clusters** (defined below). No
-   implementation decisions are made here — only decomposition decisions.
-2. **Content phase**: fill in leaf detail (specific edits, specific tests,
-   specific PRs) inside each branch, guided by the outline.
+For each edge, choose exactly one type:
 
-Why the separation matters: premature detail commitment (picking the fix before
-picking the partition) causes cascading revisions when the structure turns out
-wrong, and the outline is itself the coordination protocol — each branch knows
-its scope from its parent cut, so no central message-passing is needed for
-branches to stay out of each other's way.
+- `hard`: consumer requires a particular versioned upstream artifact to begin.
+- `order`: work may begin in either order, but a preferred landing/review order reduces known churn.
 
-### Context clusters, causal closure, typed edges
+If an edge is unclear, keep it unresolved for review; do not silently treat a preference as an enforced dependency or vice versa.
 
-Top-level branches are **context clusters**: groups of tasks chosen to
-**minimize shared context across the cut**. The unit of sharing is concrete:
-files and subsystems. Two tasks that edit the same file, or reason over the
-same subsystem's invariants, belong in the same cluster. Two tasks whose file
-sets are disjoint belong in different clusters. (This is the min-cut framing
-from `agent-context-partitioner`: the optimal partition minimizes mutual
-information across the cut, and file overlap is the cheap, honest proxy.)
+### 2. Check causal closure and admission
 
-Two hard constraints on every cut:
+A same-file producer/consumer chain normally remains within one cluster or becomes an explicit hard cross-cluster edge. For every proposed admitted cluster, check:
 
-- **Causal closure**: a dependency is never split across a cut. If task B needs
-  task A's output to even start, A and B live in the same cluster — or the edge
-  between their clusters becomes an explicit wave boundary. No cluster may
-  silently depend on another cluster's in-flight work.
-- **Typed edges**: every edge in the outline is labeled either
-  - `hard` — data/artifact dependency: downstream consumes upstream's output
-    (a schema, an exported function, a merged PR). Hard edges force wave
-    ordering.
-  - `order` — preference/merge-hygiene dependency: both could run in parallel
-    but landing one first avoids conflict churn (e.g. two clusters touching
-    the same lockfile or the roadmap ledger). Order edges shape the merge
-    queue, not the spawn schedule.
+1. Required hard-producer artifacts are accepted and identified.
+2. The cluster’s file scope and semantic interfaces have been reviewed against running work.
+3. Required authority, resources, budget, and acceptance criteria are declared.
+4. The plan states how cancellation, rejected output, and an unknown prior effect are recorded.
 
-  An edge with no type is a planning bug: untyped edges get treated as hard by
-  timid planners (killing parallelism) or ignored by eager ones (splitting a
-  dependency).
+Passing these checks admits a work item for consideration. It does not mark the work completed or authorize an external effect.
 
-## Rule 2 — Cluster-to-Agent Assignment and Spawn Discipline
+### 3. Choose and apply a policy cap
 
-The mapping from clusters to agents:
+Declare one cap for the current wave. Under cap 6, five unblocked clusters fit and a sixth reaches the cap; a seventh exceeds it and queues. Under cap 7, a seventh reaches the cap and an eighth exceeds it. The range 6–7 does not itself choose a cap.
 
-- **Sequential same-file chain → ONE agent.** Tasks that form a dependent chain
-  over the same files share a single agent. Splitting the chain buys nothing
-  (the second agent blocks on the first anyway) and costs a full context
-  handoff plus merge risk on the shared files.
-- **File-disjoint clusters → parallel agents.** Each unblocked, file-disjoint
-  cluster gets its own agent in its own worktree.
-- **K is chosen by spawn discipline, not ambition.** Spawn an agent only when
-  its cluster is (a) unblocked — every inbound `hard` edge satisfied by a
-  merged artifact — and (b) file-disjoint from every currently running agent.
-  Cap concurrent agents at the **merge-queue / orchestrator digest bound**:
-  the number of 1–2K digests the manager can actually read and steel-man per
-  round, and the number of PRs the merge queue can land without conflict
-  churn. Empirically for port-daddy this is **~6–7 concurrent agents**. Past
-  that bound, additional agents degrade the manager (digest skimming) before
-  they add throughput.
-- **Waves are gated on merges, not schedules.** Wave N+1 starts when wave N's
-  artifacts (PRs) actually land, not when a clock says so. A wave boundary is
-  a set of satisfied `hard` edges. If wave N is partially landed, spawn only
-  the wave-N+1 clusters whose specific inbound edges are satisfied — waves are
-  a bookkeeping convenience, not a barrier.
+Use [02-pilot-wave-policy.md](diagrams/02-pilot-wave-policy.md) to record this count. Reassess when an accepted completion, a rejected result, an unknown effect, or a policy change changes readiness.
 
-## Rule 3 — Execution Roles
+### 4. Integrate and close only with evidence
 
-The pilot runs the plan wearing three skills at once, plus one per node:
+For every completed item, retain its output identity, acceptance result, and any unresolved effect. Dependent clusters become eligible only after their specific hard artifacts satisfy the declared contract. Order edges can guide review order but do not block a ready item.
 
-| Concern | Skill | The doctrine's binding |
-|---|---|---|
-| Orchestration | `manager-driven-team-orchestrator` | The pilot is the manager: it delegates clusters, reads returned digests, decides per round which clusters are active, adds/retires roles as evidence arrives, and **steel-mans against shipping** — the ship condition is stated before wave 1, and the manager argues the strongest case that it is NOT yet met before closing. |
-| Isolation | `dag-isolation-manager` | Every worker runs in its **own linked worktree**, never the main checkout. Worktree-per-agent is the file-level enforcement of the cluster cut: an agent physically cannot conflict with a cluster it was cut away from. Child agents inherit the parent's isolation level or stricter. |
-| Parallelism | `dag-parallel-executor` | Waves execute with controlled parallelism: dependencies checked before spawn, `maxParallelism` = the digest bound, wave completion means all artifacts landed (merged) before dependent clusters start. |
-| Per-node prompts | `skillful-node-prompt` | Each spawned agent's prompt is a hypertree itself: four independent branches — **Identity** (skills/expertise), **Context** (upstream digests, whiteboard), **Task** (the cluster's scope, focus files), **Protocol** (tool limits, output contract, escalation). The outline's cluster definition feeds the Task branch directly. |
+## Worked 2026-08-22 fixture
 
-Note the resolution of an apparent conflict: `hypertree-planning` warns against
-over-centralized manager bottlenecks, yet this doctrine names a manager. The
-synthesis is that the **outline does the coordination** (branches are scoped by
-structure, not by manager micromanagement) while the manager does only what
-structure cannot: read digests, judge evidence, decide ship. The manager never
-holds worker transcripts, so it never becomes the context bottleneck the
-warning is about.
+The doctrine’s recorded fixture has five clusters: identity, cli-tube, receipts, website, and roadmap-merge. With a declared cap of 6, the arithmetic is `K=5<=6`; capacity does not hold any of those five back. This checks only the count.
 
-## Rule 4 — Context Economics
+`endpoint-core -> static-cleanup` is a same-file hard chain: cleanup consumes the preceding artifact and must be sequenced or explicitly versioned. `roadmap-merge` was described as an order preference for merge hygiene; it may be prioritized without becoming a start-blocking hard producer. The fixture records doctrine history; it does not empirically validate the cap or prove file scopes were semantically independent.
 
-Per `context-economics-for-agent-swarms`, budgets by role:
+## Evidence checklist
 
-- **The orchestrator holds the plan plus 1–2K digests only.** Its window is:
-  the hypertree outline, the ship condition, and one 1–2K digest per completed
-  cluster. Never raw tool output, never worker transcripts.
-- **Workers return pointers, not transcripts.** A worker's digest names PR
-  numbers, branch names, and file paths — artifacts the manager (or a
-  successor agent) can re-fetch — plus the one decision or blocker that needs
-  the manager. Isolation IS compaction: the parent never sees the bloat.
-- **Digests must zoom.** Every digest line deep-links to its artifact (PR,
-  diff, note). A digest claim with no backing artifact link is over-flattened
-  and is rejected — send it back. This is what lets the manager steel-man
-  honestly: it can always drill from the claim to the diff.
+- [ ] Cluster scope names files **and** relevant semantic/API invariants.
+- [ ] Each cross-cluster edge is `hard`, `order`, or explicitly unresolved.
+- [ ] Every hard consumer names the accepted producer artifact/version.
+- [ ] The current numerical cap is stated and arithmetic checked.
+- [ ] Admission records resources, authority, completion criterion, cancellation, and unknown-effect handling.
+- [ ] Integration retains acceptance evidence; no intent or dispatch is reported as success.
 
-## Decision Flow
+## Diagrams and reference
 
-```mermaid
-flowchart TD
-  A[Objective arrives at the pilot] --> B[STRUCTURE PHASE\nBuild hypertree outline]
-  B --> C[Cut top branches into context clusters\nminimize shared files/subsystems across cuts]
-  C --> D{Causal closure holds?\nno dependency split across a cut}
-  D -->|No| E[Merge offending clusters\nor promote edge to wave boundary]
-  E --> C
-  D -->|Yes| F[Type every edge: hard vs order]
-  F --> G[CONTENT PHASE\nDetail leaves inside each cluster]
-  G --> H{For each cluster:\nunblocked AND file-disjoint\nfrom running agents?}
-  H -->|No| I[Hold — do not spawn]
-  H -->|Yes| J{Running agents <\ndigest bound ~6-7?}
-  J -->|No| I
-  J -->|Yes| K[Spawn worker in own worktree\nprompt per skillful-node-prompt]
-  K --> L[Worker returns 1-2K digest\npointers: PR / branch / paths]
-  L --> M{Manager: digest zooms?\nartifacts landed?}
-  M -->|No| N[Reject digest or wait on merge queue]
-  N --> H
-  M -->|Yes| O{Ship condition met?\nmanager steel-mans against}
-  O -->|No| H
-  O -->|Yes| P[Close the team]
-  I --> L2[Wait for a merge event] --> H
-```
+- [Edge semantics](diagrams/01-pilot-edge-semantics.md)
+- [Cap and wave policy](diagrams/02-pilot-wave-policy.md)
+- [Doctrine scope](references/pilot-doctrine-scope.md)
 
-## Worked Example — the 2026-08-22 Wave 1
+## Common mistakes
 
-The real wave-1 partition run under this doctrine on 2026-08-22. Structure
-phase produced five context clusters, cut on file/subsystem disjointness:
-
-| Cluster | Scope (subsystem cut) | Branch (pointer, per Rule 4) |
-|---|---|---|
-| identity | identity write-boundary audit; identity/auth surface only | `claude/identity-write-boundary-audit` |
-| cli-tube | CLI tube coast-guard hardening; `cli/` surface only | `claude/cli-tube-coast-guard` |
-| receipts | atomic receipt acceptance; receipts subsystem only | `claude/receipt-atomic-acceptance` |
-| website | website endpoint work; `website/` static + endpoints | `codex/3-28-website-endpoint-core` |
-| roadmap-merge | roadmap snapshot conflict fix; roadmap ledger only | `claude/roadmap-snapshot-conflict-fix` |
-
-Doctrine checkpoints as they played out:
-
-- **Cut quality**: the five clusters are pairwise file-disjoint (identity,
-  cli, receipts, website, roadmap ledger are distinct subsystems), so all five
-  could run as parallel agents — K=5, under the ~6–7 digest bound, so no
-  cluster was held back by spawn discipline.
-- **Typed edge**: roadmap-merge carried an `order` edge toward every other
-  cluster — each landed PR appends to the roadmap ledger, so landing the
-  snapshot-conflict fix early reduced merge churn for the rest. It was an
-  order edge, not hard: nobody consumed its output to start. So it ran in
-  parallel but was prioritized in the merge queue.
-- **Same-file chain kept whole**: the website cluster internally contained a
-  sequential chain (endpoint core → static endpoint cleanup) over overlapping
-  files. Per Rule 2 that chain shares one lane, sequenced within the cluster —
-  it was NOT split into two concurrent agents.
-- **Isolation**: each cluster ran in its own linked worktree under the
-  scratchpad, never the main checkout.
-- **Digests**: each worker returned branch + PR pointers (the table above is
-  literally the digest form), and the manager gated wave 2 on those PRs
-  landing — not on a schedule.
-
-The expert move: the partition was chosen so that the *merge queue*, not the
-agents, was the only shared resource — which is exactly what the digest bound
-prices.
-
-## Anti-Patterns
-
-1. **Premature detail commitment.** Deciding implementation specifics before
-   the outline exists. Symptom: wave-1 agents get respawned with rewritten
-   prompts when the structure shifts. Fix: no content-phase work until the
-   cluster cut passes causal closure.
-2. **Forced sequential reasoning.** Running file-disjoint clusters through one
-   agent "to keep context." Symptom: one long-lived session whose quality
-   decays with length (context rot) while independent work queues behind it.
-   Fix: cut on file-disjointness and spawn.
-3. **Splitting a same-file chain.** Assigning two agents to a dependent chain
-   over the same files. Symptom: agent 2 idles, then merge-conflicts with
-   agent 1. Fix: one agent per chain; the chain is the cluster.
-4. **Unbounded K past the merge queue.** Spawning every unblocked cluster at
-   once because parallelism feels like progress. Symptom: the manager skims
-   digests it cannot steel-man; PRs stack up in conflict churn. Fix: hold at
-   the ~6–7 digest bound; a held cluster costs nothing, a skimmed digest
-   costs correctness.
-5. **Transcript-shaped digests.** Workers returning their reasoning history
-   instead of pointers. Symptom: orchestrator window fills with prose that
-   cannot be verified. Fix: reject any digest line that does not deep-link to
-   an artifact.
-6. **Schedule-gated waves.** Starting wave N+1 because wave N "should be done
-   by now." Symptom: downstream agents build against unmerged, still-mutable
-   branches. Fix: waves gate on merge events only.
-7. **Untyped edges.** An outline whose edges carry no hard/order label.
-   Symptom: either false serialization (everything waits) or a split
-   dependency (something builds on air). Fix: typing edges is part of the
-   structure phase's definition of done.
-
-## Quality Gates
-
-- [ ] A hypertree outline exists before any content-phase work begins.
-- [ ] Every top-level branch is a context cluster with an explicit file/subsystem scope.
-- [ ] The cut passes causal closure: no `hard` dependency crosses a cluster boundary without a wave boundary.
-- [ ] Every edge is typed `hard` or `order`; no untyped edges.
-- [ ] Sequential same-file chains are each assigned to exactly one agent.
-- [ ] Every spawned agent's cluster is unblocked and file-disjoint from all running agents at spawn time.
-- [ ] Concurrent K never exceeds the merge-queue/orchestrator digest bound (~6–7).
-- [ ] Every worker runs in its own linked worktree, never the main checkout.
-- [ ] Every per-node prompt has the four `skillful-node-prompt` branches (Identity / Context / Task / Protocol).
-- [ ] The orchestrator's window holds only the plan + 1–2K digests; no worker transcripts.
-- [ ] Every digest line deep-links to an artifact (PR number, branch, or file path).
-- [ ] Wave N+1 clusters start only after their inbound `hard` edges are satisfied by merged artifacts.
-- [ ] The ship condition was stated before wave 1, and the manager steel-manned against it before closing.
-
-## NOT-FOR Boundaries
-
-- **Choosing the partitioning algorithm** (EAC, METIS+FM, BIRCH, K selection)
-  → `agent-context-partitioner`. This doctrine says clusters exist and what
-  constraints they satisfy; that skill computes them.
-- **Writing the node prompt text** → `skillful-node-prompt`.
-- **Manager round mechanics** (role catalog, activation, ship judgment)
-  → `manager-driven-team-orchestrator`.
-- **Isolation profile details** (trust levels, resource limits)
-  → `dag-isolation-manager`.
-- **Wave execution mechanics** (retries, batching, error strategy)
-  → `dag-parallel-executor`.
-- **Token accounting and compaction mechanics**
-  → `context-economics-for-agent-swarms`.
-- **The underlying research framing** (hypertrees vs chains vs trees, error
-  accumulation math) → `hypertree-planning`.
+- Equating file disjointness with semantic independence.
+- Calling an order preference a readiness block.
+- Treating the policy range 6–7 as one numeric cap.
+- Marking a dispatch or intent as completed work.
+- Treating an HTP outline as a scheduler or authorization mechanism.

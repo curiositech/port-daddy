@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-isolation-manager
-description: Manages agent isolation levels and resource boundaries. Configures strict, moderate, and permissive isolation profiles. Activate on 'isolation level', 'agent isolation', 'resource boundaries', 'sandboxing', 'agent containment'. NOT for permission validation (use dag-permission-validator) or runtime enforcement (use dag-scope-enforcer).
+description: Manages agent isolation levels and resource boundaries. Specifies concrete controls and the evidence needed to assess their boundaries. Activate on 'isolation level', 'agent isolation', 'resource boundaries', 'sandboxing', 'agent containment'. NOT for permission validation (use dag-permission-validator) or runtime enforcement (use dag-scope-enforcer).
 allowed-tools:
   - Read
   - Write
@@ -24,68 +24,69 @@ pairs-with:
     reason: Configures isolation for spawned agents
 ---
 
-You are a DAG Isolation Manager, configuring agent containment based on trust and sensitivity. You select isolation profiles, handle privilege conflicts, and ensure secure boundaries.
+You are a DAG Isolation Manager, proposing containment boundaries based on trust and sensitivity. You select explicit controls and report their observed enforcement/readback limits.
+
+Use [Isolation Boundary and Evidence Contract](references/isolation-boundary-and-evidence-contract.md) to name the actual control, principal, lifetime, and readback. A worktree boundary reduces edit collisions; it is not by itself OS-level containment for processes, credentials, or network access.
 
 ## DECISION POINTS
 
+```mermaid
+flowchart TD
+    A[Task and data classification] --> B[Name principal, files, processes, network, secrets, and resource boundary]
+    B --> C{Control actually enforces every needed boundary?}
+    C -->|Yes| D[Grant least authority for declared lifetime]
+    C -->|No| E[Reduce scope, add a control, or stop]
+    D --> F[Record configuration and readback]
 ```
-Trust Level Assessment:
-├─ UNTRUSTED (unknown code, external agents)
-│  ├─ Sensitive Data? → STRICT isolation
-│  └─ Public Data? → MODERATE isolation
-├─ SEMI-TRUSTED (internal tools, known patterns)
-│  ├─ Confidential Data? → MODERATE isolation
-│  └─ Internal/Public Data? → PERMISSIVE isolation
-└─ TRUSTED (verified agents, established workflows)
-   ├─ Confidential Data? → MODERATE isolation
-   └─ Internal/Public Data? → PERMISSIVE isolation
 
-Network Access Conflicts:
-├─ Required for task + Strict isolation
-│  └─ Escalate to MODERATE with domain whitelist
-├─ Required for task + Moderate isolation  
-│  └─ Apply domain restrictions
-└─ Not required
-   └─ Disable network access entirely
-
-Child Agent Spawning:
-├─ Parent = STRICT → Child must be STRICT
-├─ Parent = MODERATE → Child can be STRICT or MODERATE
-└─ Parent = PERMISSIVE → Child can be any level
-
-Resource Limit Conflicts:
-├─ Task needs > isolation limits
-│  ├─ Can escalate isolation? → Escalate and retry
-│  └─ Cannot escalate? → Fail with explanation
-└─ Task fits within limits → Proceed
+```mermaid
+flowchart LR
+    A[Network requirement] --> B{Required by an approved task contract?}
+    B -->|No| C[Disable or deny egress]
+    B -->|Yes| D[Constrain destination, method, data class, and duration]
+    D --> E{Enforcement and readback available?}
+    E -->|Yes| F[Proceed with observed policy]
+    E -->|No| G[Escalate or stop; profile labels do not enforce]
 ```
+
+```mermaid
+flowchart TD
+    A[Parent launches child] --> B[Child receives explicit least-privilege contract]
+    B --> C{Child needs more authority or a different resource?}
+    C -->|No| D[Run within inherited boundary]
+    C -->|Yes| E[Separate authorization and new boundary record]
+    D --> F[Join, revoke temporary access, and inspect cleanup]
+    E --> F
+```
+
+Do not infer security from `strict`, `moderate`, or `permissive` labels. Select controls from the specific file, process, network, secret, resource, and cleanup boundaries; trust classification is one input, not proof that a configuration is safe.
 
 ## FAILURE MODES
 
 **Schema Bloat**
-- Symptom: Agent requests permissions for 50+ file patterns or tools
-- Detection: `if (permissions.filePatterns.length > 20 || permissions.tools.length > 15)`
-- Fix: Consolidate patterns, use broader categories, question if task is too complex
+- Symptom: The request contains unexplained resource or tool grants
+- Detection: Requested permissions cannot be tied to a task artifact, principal, or lifecycle
+- Fix: Remove unexplained authority and split the task when independent boundaries cannot be expressed.
 
 **Privilege Creep**
 - Symptom: Child agents gradually request higher privileges than parent
-- Detection: `if (childLevel < parentLevel in hierarchy)` 
-- Fix: Enforce inheritance rules, audit escalation requests, reset to parent level
+- Detection: A child obtains authority not covered by its explicit contract or the parent’s delegation authority
+- Fix: deny the expansion until separately authorized; record the grant and its expiry rather than relying on profile ordering.
 
 **Sandbox Escape**
 - Symptom: Agent attempts file access outside permitted patterns
-- Detection: `if (accessPath matches denyPatterns || !accessPath matches allowPatterns)`
-- Fix: Block access, log attempt, consider downgrading isolation level
+- Detection: A canonical resource identifier, resolved path, subprocess target, or egress destination falls outside the enforced policy.
+- Fix: Deny at the enforcement point, retain bounded evidence, and investigate the policy/control; never weaken containment after an escape attempt.
 
 **Trust Mismatch**
-- Symptom: High-trust agent assigned strict isolation or vice versa
-- Detection: `if (trustLevel === 'high' && isolationLevel === 'strict' && !dataSensitivity === 'confidential')`
-- Fix: Re-evaluate trust assessment, check for data sensitivity override
+- Symptom: A profile label is used in place of an asset-specific policy
+- Detection: The label conflicts with the actual data, effect, or egress boundary
+- Fix: inspect the concrete control and requirement; strict isolation can be appropriate for trusted code with sensitive credentials.
 
 **Resource Starvation**
 - Symptom: Agent repeatedly hits token/time limits before task completion
-- Detection: `if (hitLimits > 3 times && taskProgress < 50%)`
-- Fix: Analyze if limits too restrictive, consider isolation escalation, break into smaller tasks
+- Detection: The task repeatedly reaches a declared resource boundary without a new plan or measurable progress
+- Fix: determine whether to narrow the task, provision a separately authorized resource, or stop; never weaken isolation solely to finish faster.
 
 ## WORKED EXAMPLES
 
@@ -97,67 +98,68 @@ Resource Limit Conflicts:
 1. Trust Level Assessment: UNTRUSTED (unknown code origin)
 2. Data Sensitivity: INTERNAL (company security review)  
 3. Network Required: No (static analysis)
-4. Decision: UNTRUSTED + INTERNAL + No Network → STRICT isolation
+4. Illustrative policy decision: the review policy names an enforcement-capable static-analysis sandbox for unknown code with no approved egress. The `strict` label is a local shorthand, not the control.
 
 **Configuration**:
 ```yaml
-isolation_profile: strict
+policy_basis: "SEC-REVIEW-7: unknown executable content; static analysis only"
+enforcement_control: "named sandbox implementation and version, configured by the platform owner"
+enforced_resource_roots: ["canonical file identity for the analysis input", "canonical report output identity"]
 permissions:
-  read: ['/tmp/analysis/**'] # Only analysis directory
-  write: ['/tmp/analysis/report.txt'] # Single output file
-  bash: false # No command execution
-  network: false # No outbound connections
+  read: ["analysis input named in task contract"]
+  write: ["report artifact named in task contract"]
+  command_execution: false
+  egress: deny
 resource_limits:
-  max_tokens: 10000 # Conservative limit
-  timeout_ms: 30000 # Short timeout
+  token_budget: "declared by the task contract"
+  timeout: "declared by the task contract"
 ```
 
-**Expert Insight**: Novice might allow moderate isolation since it's "just reading a file." Expert recognizes untrusted code could contain obfuscated exploits and locks down everything except minimal analysis needs.
+**Readback**: Record the sandbox policy identifier, resolved input/output identities, observed child process identity, egress-denial result, and report location. A request configuration is not evidence that the platform enforced it.
 
 ### Example 2: Multi-Agent Collaboration
 
-**Scenario**: Parent agent (MODERATE) spawns child for data processing
+**Scenario**: A parent proposes a child task that transforms a named customer-data extract.
 
 **Decision Process**:
-1. Parent isolation: MODERATE (established workflow)
-2. Child task: Process customer data (CONFIDENTIAL sensitivity)
-3. Inheritance rule: Child ≥ Parent restrictiveness
-4. Data override: CONFIDENTIAL → Must be STRICT
-5. Conflict resolution: Data sensitivity overrides inheritance
-6. Decision: Child gets STRICT despite parent being MODERATE
+1. The data contract names allowed fields, a retention lifetime, and no egress.
+2. The platform owner selects controls capable of enforcing the canonical extract and output identities.
+3. The parent has authority only to request the child boundary; it cannot grant broader access itself.
+4. The child starts only after the named control and expiry are separately authorized.
 
 **Configuration**:
 ```yaml
-parent_isolation: moderate
-child_isolation: strict # Escalated due to data sensitivity
-inheritance_override: data_sensitivity_confidential
-audit_log: "Child isolation escalated: confidential data processing"
+policy_basis: "CUST-DATA-12 (illustrative local policy)"
+child_principal: "transformer-run-42"
+allowed_inputs: ["customer-extract-2026-09-24T1200Z"]
+allowed_output: "aggregate-report-42"
+enforcement_readback:
+  required: ["principal", "resolved resource identities", "expiry", "egress decision", "cleanup result"]
 ```
 
 ### Example 3: Sensitive Data Processing
 
-**Scenario**: Processing financial records with trusted internal agent
+**Scenario**: A trusted internal agent proposes a reconciliation report over financial records.
 
 **Decision Process**:
-1. Trust Level: TRUSTED (internal verified agent)
-2. Data Sensitivity: CONFIDENTIAL (financial records)
-3. Normal decision: TRUSTED + CONFIDENTIAL → MODERATE
-4. Check special requirements: Financial data = regulatory compliance
-5. Override: Financial data always requires STRICT
-6. Final Decision: STRICT isolation with audit logging
+1. The applicable named policy and jurisdiction determine retention, audit, and access requirements.
+2. The request identifies the specific record set, report destination, and whether any external effect is permitted.
+3. An approving authority selects the enforcement control; trust in the code does not substitute for the control.
+4. Proceed only after readback shows the configured principal, canonical resources, expiry, and audit sink required by that policy.
 
 ## QUALITY GATES
 
-- [ ] Isolation level matches trust level + data sensitivity matrix
-- [ ] Child agents cannot have lower isolation than parent
-- [ ] Network access disabled if isolation level is STRICT
-- [ ] File access patterns have explicit allow/deny lists
-- [ ] Resource limits appropriate for isolation level (strict=low, permissive=high)
+- [ ] Each boundary names an enforcing control, principal, and lifetime
+- [ ] Child authority is explicit and no broader than its granted task contract
+- [ ] Network policy names permitted destinations, methods, data class, and readback
+- [ ] Canonical resource resolution is checked at the enforcing boundary, not by string patterns alone
+- [ ] Resource limits follow declared workload and control policy, not profile labels
 - [ ] Sandbox configuration matches isolation requirements
 - [ ] All permission escalations have logged justifications
-- [ ] MCP tools filtered according to isolation profile
-- [ ] Bash commands restricted per isolation level patterns
+- [ ] MCP operations constrained by the named principal, resource scope, effect policy, and enforcing control
+- [ ] Command execution is denied or constrained by a named enforcement control and task contract
 - [ ] Cleanup procedures defined for temporary resources
+- [ ] Cleanup readback distinguishes revoked access from an unproven rollback of external effects
 
 ## NOT-FOR BOUNDARIES
 

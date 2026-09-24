@@ -12,14 +12,15 @@ State one falsifiable sentence.
 - Scenarios and sampling strategy
 - Metrics with exact definitions
 - Sample-size justification
-- Procedure, randomization, and stopping rule
+- Assignment unit, pairing/clustering, procedure, randomization, and stopping rule
+- Prespecified estimand, contrast family, resource budgets, exclusions and oracle
 
 ## Results
 
-- Descriptive stats with spread and confidence intervals
-- Test statistics and p-values
-- Effect sizes with confidence intervals
-- Inter-rater reliability, if human evaluation is involved
+- Per-unit outcomes, denominators, missingness and descriptive spread
+- Effect estimates and uncertainty appropriate to the design; explain limitations when intervals are not credible
+- Test statistics and multiplicity handling when inferential tests were prespecified
+- Initial rater disagreement and a design-appropriate agreement summary for human evaluation
 
 ## Discussion
 

@@ -1,5 +1,5 @@
-# Bordini Hubner 2007 Jason — Changelog
+# Changelog
 
-## 2026-04-17
-- Recovered legacy/imported frontmatter into the canonical metadata-based repo shape
-- Recorded imported provenance and skip-oriented mutation policy metadata
+## Draft 2026-09-24
+
+Replaced fixed universal plan-count/retry/depth rules and unsupported runtime assertions with source-bounded plan-library methods. Historical material remains outside active instruction.

@@ -1,33 +1,219 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["taskDescription"],
   "properties": {
     "taskDescription": {
       "type": "string",
-      "description": "Natural language task description to match against skills"
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "constraints": {
       "type": "array",
-      "description": "Optional constraints (language, domain, tool restrictions)",
       "items": {
         "type": "object",
         "properties": {
           "type": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
           },
           "value": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "authorityScope": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "corpusScope": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "catalogSnapshot": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "selectionPolicyRef": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "semanticRequired": {
+      "type": "boolean"
+    },
+    "retrieval": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "HYBRID",
+            "LEXICAL_DEGRADED"
+          ]
+        },
+        "corpusPolicyRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "corpusPolicyPermitsLexicalDegraded": {
+          "type": "boolean"
+        },
+        "lexicalProfileRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "denseQuery": {
+          "type": "object",
+          "properties": {
+            "profileRef": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "spaceId": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "profileRef",
+            "spaceId"
+          ],
+          "additionalProperties": false
+        },
+        "denseCorpus": {
+          "type": "object",
+          "properties": {
+            "profileRef": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "spaceId": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "profileRef",
+            "spaceId"
+          ],
+          "additionalProperties": false
+        },
+        "degradedReason": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "mode",
+        "corpusPolicyRef",
+        "corpusPolicyPermitsLexicalDegraded",
+        "lexicalProfileRef"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "HYBRID"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "denseQuery",
+              "denseCorpus"
+            ],
+            "not": {
+              "required": [
+                "degradedReason"
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "degradedReason"
+            ],
+            "properties": {
+              "corpusPolicyPermitsLexicalDegraded": {
+                "const": true
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "denseQuery"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "denseCorpus"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "taskDescription",
+    "authorityScope",
+    "corpusScope",
+    "catalogSnapshot",
+    "selectionPolicyRef",
+    "semanticRequired",
+    "retrieval"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "semanticRequired": {
+            "const": true
+          }
+        },
+        "required": [
+          "semanticRequired"
+        ]
+      },
+      "then": {
+        "properties": {
+          "retrieval": {
+            "properties": {
+              "mode": {
+                "const": "HYBRID"
+              }
+            }
           }
         }
       }
-    },
-    "thresholdScore": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1,
-      "description": "Minimum match score (0.0-1.0) to return"
     }
-  },
-  "additionalProperties": false
+  ]
 }

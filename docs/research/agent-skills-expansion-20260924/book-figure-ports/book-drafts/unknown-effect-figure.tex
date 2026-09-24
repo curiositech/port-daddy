@@ -1,0 +1,27 @@
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner xsep=0pt}]
+\path[use as bounding box] (0,-7.5) rectangle (11.4,.65);
+\node[pd panel title,anchor=west] at (0,.45) {A timeout leaves the outcome unknown};
+\node[pd row label,anchor=center] at (1,-.25) {Agent};
+\node[pd row label,anchor=center] at (5.3,-.25) {External service};
+\node[pd row label,anchor=center] at (9.65,-.25) {Status authority};
+\foreach \x in {1,5.3,9.65} {\draw[pd guide] (\x,-.65)--(\x,-4.1);}
+\draw[pd arrow] (1,-1.15)--(5.3,-1.15);
+\node[pd direct label,anchor=south] at (3.15,-1.05) {Submit with key $K$};
+\node[pd direct label,anchor=west,text width=4.0cm] at (1.42,-1.95) {No conclusive reply};
+\draw[pd caution rule] (.82,-1.8)--(1.18,-2.1) (.82,-2.1)--(1.18,-1.8);
+\draw[pd arrow] (1,-2.7)--(9.65,-2.7);
+\node[pd direct label,anchor=south] at (5.5,-2.6) {Query the authoritative state for $K$};
+\draw[pd focus arrow] (9.65,-3.65)--(1,-3.65);
+\node[pd direct label,anchor=south] at (5.5,-3.55) {Read back the operation-specific evidence};
+\draw[pd rule] (0,-4.35)--(11.4,-4.35);
+\node[pd panel title,anchor=west] at (0,-4.7) {Evidence};
+\node[pd panel title,anchor=west] at (3.4,-4.7) {Permitted next step};
+\node[pd direct label,anchor=west] at (0,-5.25) {Committed};
+\node[pd direct label,anchor=west,text width=7.5cm] at (3.4,-5.25) {Record the receipt; suppress a duplicate submission.};
+\draw[pd hairline] (0,-5.65)--(11.4,-5.65);
+\node[pd direct label,anchor=west] at (0,-6.12) {Confirmed absent};
+\node[pd direct label,anchor=west,text width=7.5cm] at (3.4,-6.12) {Recheck authority. Require idempotency or fencing before retry.};
+\draw[pd hairline] (0,-6.6)--(11.4,-6.6);
+\node[pd direct label,anchor=west] at (0,-7.08) {Still inconclusive};
+\node[pd direct label,anchor=west,text width=7.5cm] at (3.4,-7.08) {Keep the result unknown; stop and escalate.};
+\end{tikzpicture}

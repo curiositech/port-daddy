@@ -5,10 +5,9 @@ description: >
   A graph-based shared blackboard where agents coordinate indirectly by depositing
   typed pheromone traces (PHEROMONE, BELIEF, PREFERENCE, ANTIBODY, RESOLUTION) onto
   graph nodes, then sensing and following concentration gradients. Traces spread via
-  Euler-stable Laplacian diffusion and decay exponentially, creating a self-organizing
-  signal field that replaces message buses, central planners, and explicit agent-to-agent
-  communication. The coordination substrate for the SOMA multi-agent architecture (Week 1
-  kernel, extended by Active Inference agents in Week 2+).
+  a stated scalar graph update and decay, creating a lossy attention field. It can
+  prioritize inspection; it does not replace reliable messaging, assignment, delivery,
+  coverage, or completion evidence.
 author: soma-jury_rig-graft
 tags: [stigmergy, multi-agent, coordination, diffusion, graph, blackboard, active-inference, pheromone]
 pairs-with: [active-inference-agent, belief-market-tateonnement, immune-selection-pressure]
@@ -55,11 +54,11 @@ extension. The fundamental write unit.
 (known-bad / already-solved patterns, triggers negative selection), `RESOLUTION`
 (anti-inflammatory: suppresses agent activity at a node after a problem is closed).
 
-**Euler-stable Laplacian diffusion**: At each tick, pheromone spreads along edges
-via the discrete graph Laplacian `Δp_v = Σ_{u~v}(p_u - p_v)`. To guarantee stability
-under explicit Euler integration the effective step size is clamped:
-`dt_eff = min(dt, 0.9 / (diffusion_rate * max_degree))`. Without this clamp,
-high-degree hubs cause numerical blowup.
+**Scalar diffusion is an attention heuristic**: For the stated synchronous,
+unweighted, undirected update, `p_next = (I - alpha*h*L)p` with `L = D-A` ranks
+nearby candidates for inspection. It does not assign an owner, route a request,
+prove coverage, prevent duplicate work, or prove a resolution; each requires a
+separate authority and evidence protocol.
 
 **Pheromone gradient** (`gradient(node_id)`): The discrete exterior derivative of the
 pheromone 0-cochain restricted to the star of a vertex:
@@ -136,10 +135,16 @@ medium.deviation_from_baseline(node_id)  # novelty signal above baseline
 4. Urgency amplification for traces with `deadline` set
 5. Prune values below `1e-8`
 
-**Stability invariant**: always satisfied automatically — `Medium.tick()` computes
-`dt_max_stable = 0.9 / (diffusion_rate * max_degree)` and uses
-`dt_eff = min(dt, dt_max_stable)`. Do not bypass this by passing tiny manual `dt` values
-in a loop; pass the real elapsed time and let the clamp handle it.
+**Numerical boundary:** `h <= 1/(alpha*d_max)` is a sufficient non-negative
+update bound for the stated operator when `d_max > 0`; `0.9/(alpha*d_max)` is a
+conservative safety factor, not a proof for weighted, directed, normalized,
+asynchronous, saturated, or concurrently mutated graphs. Pure synchronous
+diffusion preserves scalar mass; decay, pruning, and deposits do not. See
+[`references/operator-contract-and-limits.md`](references/operator-contract-and-limits.md).
+
+The diagrams make the operational boundaries explicit: [a trace is a candidate
+signal, not a completion receipt](diagrams/02_trace-lifecycle.md), and
+[disconnected components do not exchange field influence](diagrams/03_topology-boundary.md).
 
 
 ## Key References

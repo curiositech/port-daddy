@@ -1,202 +1,78 @@
 ---
 license: BSL-1.1
 name: dag-confidence-scorer
-description: Assigns confidence scores to agent outputs based on multiple factors including source quality, consistency, and reasoning depth. Produces calibrated confidence estimates. Activate on 'confidence score', 'how confident', 'certainty level', 'output confidence', 'reliability score'. NOT for validation (use dag-output-validator) or hallucination detection (use dag-hallucination-detector).
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-category: Agent & Orchestration
-tags:
-  - dag
-  - quality
-  - confidence
-  - scoring
-  - reliability
-pairs-with:
-  - skill: dag-output-validator
-    reason: Scores validated outputs
-  - skill: dag-hallucination-detector
-    reason: Low confidence triggers detection
-  - skill: dag-iteration-detector
-    reason: Low confidence may require iteration
-io-contract:
-  kind: structured
-  inputSchema: ./schemas/input.json
-  outputSchema: ./schemas/output.json
+description: Records and evaluates event-specific probability forecasts for agent outputs. NOT for validation or automatic acceptance.
+allowed-tools: [Read, Write, Edit, Glob, Grep]
 metadata:
-  recognition-cues: []
-  expectancies: []
-  decision-cues: []
-  adaptive-workarounds: []
-  execution-pattern: sequential
-  needs-cdm: true
+  tags: [dag, confidence, forecasting, calibration]
+  io-contract:
+    kind: structured
+    inputSchema: ./schemas/input.json
+    outputSchema: ./schemas/output.json
 ---
 
-You are a DAG Confidence Scorer, an expert at assigning calibrated confidence scores to agent outputs. You analyze multiple factors including reasoning depth, source quality, internal consistency, and uncertainty markers to produce reliable confidence estimates that inform downstream decisions.
+# DAG confidence scorer
 
-## Decision Points
+Confidence is meaningful as a forecast about a named event, made before the event resolves. A prose rubric about sources, reasoning, or consistency may support a forecast but is not itself a calibrated probability. Never invent universal accept/review thresholds; downstream policy decides actions using its own authority and risk contract.
 
-### Primary Decision Tree: Confidence Scoring Strategy
+## 1. Define a resolvable forecast
 
-```
-Has agent output? → No: Request output first
-                 → Yes: ↓
+Capture a nonblank forecast ID, artifact ID/digest/version, exact event predicate, evaluator/version, forecast time, resolution deadline, cohort key, and prospective probability in `[0,1]`. Examples are “this artifact passes verifier V” and “an independent reviewer confirms claim C.” “Is this good?” is not resolvable until operationalized. A resolved evaluation sample additionally records its forecast ID, event ID, original probability, binary outcome, resolution time, and resolution source. This binds a score to a prospective prediction rather than a rewritten aggregate.
 
-Task type identified? → Analysis: Use weights (reasoning:0.3, sources:0.2, consistency:0.2, completeness:0.2, uncertainty:0.1)
-                     → Research: Use weights (reasoning:0.2, sources:0.35, consistency:0.15, completeness:0.2, uncertainty:0.1)
-                     → Creative: Use weights (reasoning:0.15, sources:0.1, consistency:0.3, completeness:0.35, uncertainty:0.1)
-                     → Code: Use weights (reasoning:0.25, sources:0.15, consistency:0.3, completeness:0.25, uncertainty:0.05)
-                     → Unknown: Use analysis weights as default
+If a forecaster declines to estimate, record `status=declined` and a null probability. It retains the task and artifact identity but carries no fitting or evaluation evidence. An `uncalibrated` forecast is an unscored record; it does not assert that comparable outcomes do or do not exist elsewhere.
 
-Factor scores computed? → Any factor < 0.3: Flag as "Critical weakness - investigate immediately"
-                       → All factors 0.3-0.6: Proceed with standard calibration
-                       → Most factors > 0.7: Check for overconfidence bias
-
-Calibrated confidence calculated? → >0.85: Recommend "accept" 
-                                 → 0.65-0.85: Recommend "review"
-                                 → 0.5-0.65: Recommend "iterate"
-                                 → <0.5: Recommend "reject"
+```mermaid
+flowchart LR
+  O[Output and exact event] --> P{Forecast or decline?}
+  P -->|forecast| F[Prospective probability and forecast ID]
+  P -->|decline| X[Declined: null probability and no evaluation]
+  F --> R[Independent outcome with source and time]
+  R --> C[Cohort evaluation]
+  C --> S[Proper score and reliability report]
+  S --> D[Policy decision with separate authority]
 ```
 
-### Weight Override Decision Points
+## 2. Separate evidence, validation, and calibration
 
-```
-Historical accuracy < 70%? → Yes: Reduce all factor scores by 0.1
-                          → No: Apply standard weights
+Evidence review can identify missing sources, contradictions, or unsupported reasoning. An independent evaluator resolves the stated event. Calibration is an empirical conditional claim: among comparable forecasts near probability `p`, observed event frequency should be assessed against `p`, with uncertainty and a held-out time/task split. Model, task family, evaluator, and distribution shift can invalidate a prior fit.
 
-Task involves safety/security? → Yes: Increase sources weight to 0.4, reduce uncertainty tolerance
-                              → No: Use standard weights
+A raw evaluation scores prospective probabilities directly and must not include a fit or calibration map. Its cohort must equal the current forecast’s cohort; mixed-cohort scoring needs a separate per-sample selection contract. A calibrated evaluation must name a fit cohort, model, and map, then evaluate on disjoint forecast IDs. In this compact contract the calibration map is the fitted model: `calibrationMap.id` must equal `fitEvidence.modelId`, and their fit-cohort IDs must agree. A `calibration-fitted` record holds that fit evidence and map but no evaluation. These record states prevent a fitting set from being presented as an independent evaluation.
 
-Agent explicitly states uncertainty? → Yes: Boost uncertainty factor score by 0.2
-                                    → No: Penalty of -0.1 to uncertainty factor
-
-Multiple conflicting sources? → Yes: Reduce sources factor by 0.3, increase consistency weight
-                             → No: Standard source scoring
-```
-
-## Failure Modes
-
-### 1. Overconfidence Inflation
-**Detection Rule**: If overall confidence > 0.8 but fewer than 3 sources cited AND no uncertainty markers present
-**Symptoms**: High confidence scores on weak evidence, missing doubt indicators
-**Fix**: Apply 0.2 penalty to overall score, increase calibration bias correction to 0.15
-
-### 2. Factor Tunnel Vision  
-**Detection Rule**: If any single factor contributes >50% to final score OR factors vary by >0.6 range
-**Symptoms**: One dominant factor masks weaknesses, unbalanced assessment
-**Fix**: Rebalance weights to cap any factor at 35% contribution, flag imbalanced scores
-
-### 3. Threshold Gaming
-**Detection Rule**: If confidence hovers exactly at threshold boundaries (±0.02) across multiple outputs
-**Symptoms**: Scores cluster at 0.65, 0.85 decision points, artificial precision
-**Fix**: Add ±0.05 confidence intervals, require explicit justification for boundary scores
-
-### 4. Calibration Drift
-**Detection Rule**: If predicted confidence differs from actual accuracy by >0.15 over 10+ samples
-**Symptoms**: Systematic over/under-confidence, poor real-world correlation
-**Fix**: Retrain calibration parameters, adjust bias correction, validate on held-out set
-
-### 5. Context Blindness
-**Detection Rule**: If same content gets vastly different scores (>0.3 difference) when context changes
-**Symptoms**: Identical reasoning scored differently, missing contextual factors
-**Fix**: Explicit context encoding, task-specific calibration, document context dependencies
-
-## Worked Examples
-
-### Example 1: Research Analysis (Confidence: 0.73 → Calibrated: 0.68)
-
-**Input**: "Based on 3 academic papers, machine learning models show 85% accuracy on this task. However, dataset sizes vary significantly (100-10k samples) which may affect generalizability. The Chen et al. study used cross-validation while others did not."
-
-**Scoring Process**:
-```
-1. Factor Analysis:
-   - Reasoning: 0.75 (structured, acknowledges limitations)
-   - Sources: 0.85 (3 academic papers, specific citations)
-   - Consistency: 0.8 (no contradictions)
-   - Completeness: 0.65 (missing methodology details)
-   - Uncertainty: 0.7 (acknowledges dataset variation)
-
-2. Weight Application (Research task):
-   Overall = (0.75×0.2) + (0.85×0.35) + (0.8×0.15) + (0.65×0.2) + (0.7×0.1) = 0.73
-
-3. Calibration:
-   - Model bias: -0.05 (known overconfidence)
-   - Task difficulty: Moderate (-0.02)
-   - Final: 0.73 × 0.95 × 0.98 = 0.68
-
-4. Decision: 0.68 → "review" (above 0.65 threshold)
+```mermaid
+flowchart TB
+  E[Evidence factors and limitations] --> F[Forecast rationale]
+  F --> T[Forecast ledger with time and identity]
+  T --> R[Resolved sample: ID, outcome, source, time]
+  R --> Q{Evaluation mode?}
+  Q -->|raw| H[Score direct prospective probabilities]
+  Q -->|calibrated| H2[Score disjoint held-out forecasts]
+  B[Fit cohort and outcomes] --> M[Named calibration map]
+  M -->|fit evidence| H2
+  H --> U[Uncertainty, drift, and limitations]
+  H2 --> U
 ```
 
-**Novice Miss**: Would score sources higher without checking citation quality
-**Expert Catch**: Notices uneven methodology across studies, adjusts accordingly
+## 3. Score resolved forecasts
 
-### Example 2: Code Implementation (Confidence: 0.45 → Calibrated: 0.41)
+For binary outcome `y` and forecast `p`, Brier loss is `(p-y)^2`; lower mean loss is better. When supplied samples contain their probabilities and outcomes, calculate the displayed mean from those samples and make the declared denominator equal the sample count. Reliability diagrams and score decompositions assess calibration and sharpness, but small cohorts need uncertainty reporting. A three-case calculation is a teaching example, not a calibration guarantee.
 
-**Input**: "Here's the function: `def process(data): return data.sort()`. This should work for most cases."
+### Worked positive case
 
-**Scoring Process**:
-```
-1. Factor Analysis:
-   - Reasoning: 0.3 (minimal explanation)
-   - Sources: 0.2 (no documentation references)  
-   - Consistency: 0.6 (simple, consistent)
-   - Completeness: 0.3 (missing error handling, edge cases)
-   - Uncertainty: 0.4 ("most cases" shows some awareness)
+Forecasts `(0.8, 0.8, 0.2)` resolve as `(1, 0, 0)`. Losses are `(0.04, 0.64, 0.04)`, mean Brier loss `0.24`, and denominator `3`. Each resolved sample must carry its forecast ID, event ID, resolution source, and resolution time; the sample for the current forecast must repeat the original prospective probability. With three examples, report the score but label calibration unknown; fit nothing and do not claim the 0.8 bucket is calibrated.
 
-2. Weight Application (Code task):
-   Overall = (0.3×0.25) + (0.2×0.15) + (0.6×0.3) + (0.3×0.25) + (0.4×0.05) = 0.45
+### Worked negative case
 
-3. Decision: 0.45 → "reject" (below 0.5 threshold)
-```
+An agent assigns 0.91 because it cited four sources, then a validator finds a schema failure. Preserve the forecast, rationale, and resolved `false` label. Do not alter the forecast after resolution, use a blank outcome source, or call an evidence score a calibration correction. A raw evaluation may be reported without a fitted map; a calibrated evaluation must keep the fit IDs out of the scored set.
 
-**Critical Issue**: Multiple factors below 0.3 threshold triggers investigation flag
+## 4. Output and source limits
 
-### Example 3: Creative Writing (Confidence: 0.82 → Calibrated: 0.78)
+Return the forecast record, rationale, and one of four states: `uncalibrated`, `calibration-fitted`, `evaluated` (with `raw` or `calibrated` evaluation mode), or `declined`. An evaluated record includes its scored samples, resolution bindings, denominator, and mean Brier. A calibrated evaluation additionally includes disjoint fit evidence and a named calibration map.
 
-**Input**: "The protagonist's journey mirrors classic hero mythology while subverting gender expectations. Each chapter builds tension through parallel storylines that converge in Act III, creating dramatic irony. The ending provides closure while leaving room for interpretation."
+Read [forecast calibration](references/forecast-calibration.md). Cite [Gneiting and Raftery (2007)](https://sites.stat.washington.edu/people/raftery/Research/PDF/Gneiting2007jasa.pdf) for proper scoring and [Dimitriadis et al. (2020)](https://arxiv.org/abs/2008.03033) for reliability evaluation. These sources do not calibrate LLM judgments automatically or guarantee calibration at any sample size.
 
-**Scoring Process**:
-```
-1. Factor Analysis:
-   - Reasoning: 0.7 (good structure analysis)
-   - Sources: 0.6 (implicit literary references)
-   - Consistency: 0.9 (coherent narrative analysis)
-   - Completeness: 0.95 (covers all story elements)
-   - Uncertainty: 0.5 (confident but appropriate)
+The accompanying [validator](scripts/validate-forecast.mjs) is a portable static check. A consumer can install the declared dependencies with `npm install --save-dev ajv@^8.20.0 ajv-formats@^3.0.1` in this bundle, then run `npm test`; [the fixture](tests/forecast.test.mjs) covers positive and negative cases. It checks declared payload shape, nonblank identities, ISO date-time syntax, chronology, status consistency, fit/evaluation separation, sample arithmetic, and the binding of the current forecast to one resolved sample. It cannot establish that an evaluator, source, outcome, artifact digest, authority, or effect is genuine.
 
-2. Weight Application (Creative task):
-   Overall = (0.7×0.15) + (0.6×0.1) + (0.9×0.3) + (0.95×0.35) + (0.5×0.1) = 0.82
 
-3. Decision: 0.78 → "review" (below 0.85 auto-accept)
-```
+The portable validator requires timestamps representable by JavaScript `Date.parse`; leap-second timestamps are unsupported and rejected even when RFC 3339 syntax validation accepts them. Map identity and fit-cohort agreement apply to both fit-only and calibrated-evaluation records.
 
-## Quality Gates
-
-- [ ] All 5 confidence factors scored (reasoning, sources, consistency, completeness, uncertainty)
-- [ ] Task type identified and appropriate weights applied
-- [ ] Raw confidence calculated using weighted factor scores
-- [ ] Calibration applied with bias correction and historical accuracy
-- [ ] Threshold decision determined (accept/review/iterate/reject)  
-- [ ] Factor breakdown shows contribution percentages sum to 100%
-- [ ] Any factor scoring <0.3 has been flagged for investigation
-- [ ] Confidence interval bounds calculated (±0.05 of point estimate)
-- [ ] Weakest factors identified with specific improvement suggestions
-- [ ] Output includes metadata: timestamp, model version, calibration parameters used
-
-## NOT-FOR Boundaries
-
-**This skill is NOT for**:
-- **Output validation**: Use `dag-output-validator` for correctness checking
-- **Hallucination detection**: Use `dag-hallucination-detector` for factual accuracy
-- **Content quality assessment**: Use `dag-quality-assessor` for writing quality
-- **Performance benchmarking**: Use `dag-performance-evaluator` for speed/efficiency
-- **Binary pass/fail decisions**: This produces probabilistic confidence, not binary judgments
-
-**Delegate to other skills when**:
-- Asked to "validate this output" → Use `dag-output-validator` 
-- Asked to "check if this is accurate" → Use `dag-hallucination-detector`
-- Asked to "is this good enough?" → Use `dag-quality-assessor`
-- Asked to "should we ship this?" → Combine confidence score with `dag-output-validator`
+A [raw evaluated teaching record](examples/raw-evaluated.json) supplies the positive test fixture. Its short digest and receipt names are illustrative, not authentic artifacts.

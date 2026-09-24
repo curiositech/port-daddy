@@ -1,0 +1,23 @@
+% draft/conflict-four-cells; constructed finite-oracle examples only.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd direct label/.append style={inner xsep=0pt}]
+\path[use as bounding box] (0,-9.35) rectangle (11.4,.55);
+\node[pd panel title,anchor=west] at (0,.3) {Text overlap does not identify semantic harm};
+\node[pd panel title,anchor=west] at (2.0,-.6) {Frozen oracle passes};
+\node[pd panel title,anchor=west] at (6.8,-.6) {Frozen oracle fails};
+\draw[pd rule] (0,-1.05)--(11.4,-1.05);
+\node[pd direct label,anchor=west,text width=1.5cm,align=left] at (0,-2.2) {No text overlap};
+\node[pd panel title,anchor=north west,text width=4.05cm,align=left] at (2.0,-1.5) {Independent edits};
+\node[pd direct label,anchor=north west,text width=4.05cm,align=left] at (2.0,-2.12) {Separate documentation and test changes satisfy the declared checks.};
+\node[pd panel title,anchor=north west,text width=4.05cm,align=left] at (6.8,-1.5) {Unit contract breaks};
+\node[pd direct label,anchor=north west,text width=4.05cm,align=left] at (6.8,-2.12) {Producer changes units; consumer in another file still reads seconds.};
+\draw[pd hairline] (0,-3.8)--(11.4,-3.8);
+\node[pd direct label,anchor=west,text width=1.5cm,align=left] at (0,-4.95) {Text overlaps};
+\node[pd panel title,anchor=north west,text width=4.05cm,align=left] at (2.0,-4.25) {Shared index regenerates};
+\node[pd direct label,anchor=north west,text width=4.05cm,align=left] at (2.0,-4.9) {Combine inputs, regenerate the index, and pass the declared checks.};
+\node[pd panel title,anchor=north west,text width=4.05cm,align=left] at (6.8,-4.25) {Acceptance rule breaks};
+\node[pd direct label,anchor=north west,text width=4.05cm,align=left] at (6.8,-4.9) {Conflicting validation edits fail a previously frozen fixture.};
+\draw[pd rule] (0,-6.55)--(11.4,-6.55);
+\node[pd panel title,anchor=west] at (0,-7.05) {Disjoint-file counterexample};
+\node[pd direct label,anchor=west] at (0,-7.62) {Producer: 2 s $\to$ 2000 ms $\to$ consumer reads 2000 s};
+\node[pd note,anchor=north west,text width=10.8cm,align=left] at (0,-8.18) {Constructed cases under a finite frozen oracle. Passing its checks\newline does not prove every intended invariant; the predictor is not the oracle.};
+\end{tikzpicture}

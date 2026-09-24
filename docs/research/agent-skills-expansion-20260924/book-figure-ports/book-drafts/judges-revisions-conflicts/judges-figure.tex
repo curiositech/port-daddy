@@ -1,0 +1,32 @@
+% draft/judge-dependence-premises; constructed example only.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd direct label/.append style={inner xsep=0pt}]
+\path[use as bounding box] (0,-8.8) rectangle (11.4,.55);
+\node[pd panel title,anchor=west] at (0,.3) {Different principals can repeat the same error};
+\node[pd panel title,anchor=west] at (.1,-.5) {Judge};
+\node[pd panel title,anchor=west] at (1.8,-.5) {Principal};
+\node[pd panel title,anchor=west] at (4.15,-.5) {Evidence};
+\node[pd panel title,anchor=west] at (7.1,-.5) {Errors on toy items};
+\foreach \n/\x in {1/7.55,2/8.45,3/9.35,4/10.25}{\node[pd direct label] at (\x,-1.05) {\n};}
+\draw[pd rule] (0,-1.38)--(11.4,-1.38);
+\fill[hhsand!55] (4.1,-1.45) rectangle (6.4,-3.95);
+\foreach \j/\p/\y in {A/PA/-1.93,B/PB/-2.78,C/PC/-3.63}{
+ \node[pd panel title,anchor=west] at (.1,\y) {\j};
+ \node[pd direct label,anchor=west] at (1.8,\y) {\p};
+ \node[pd direct label,anchor=west] at (4.2,\y) {shared S};
+ \foreach \v/\x in {1/7.55,0/8.45,1/9.35,0/10.25}{
+  \node[pd direct label,anchor=center] at (\x,\y) {\v};
+ }
+ \draw[pd hairline] (0,{\y-.38})--(11.4,{\y-.38});
+}
+\node[pd note,anchor=west] at (.1,-4.42) {1 = incorrect; 0 = correct. These rows are constructed.};
+\draw[pd rule] (0,-4.88)--(11.4,-4.88);
+\node[pd panel title,anchor=west] at (0,-5.35) {Measure errors separately from principal identity};
+\node[pd direct label,anchor=west] at (0,-6.0) {Labeled calibration};
+\draw[pd arrow] (3.13,-6.0)--(3.8,-6.0);
+\node[pd direct label,anchor=west] at (4.0,-6.0) {Freeze the rule};
+\draw[pd arrow] (6.65,-6.0)--(7.33,-6.0);
+\node[pd direct label,anchor=west] at (7.55,-6.0) {Fresh evaluation};
+\draw[pd caution rule] (0,-6.58)--(11.4,-6.58);
+\node[pd panel title,anchor=west] at (0,-7.12) {Strategic cliques remain a separate premise};
+\node[pd note,anchor=north west,text width=10.8cm,align=left] at (0,-7.55) {Ordinary error measurements do not certify collusion resistance.\newline Distinct model names or principal IDs do not supply that proof.};
+\end{tikzpicture}

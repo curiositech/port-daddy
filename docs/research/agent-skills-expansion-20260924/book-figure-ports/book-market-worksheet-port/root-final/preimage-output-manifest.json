@@ -1,0 +1,112 @@
+{
+  "files": [
+    {
+      "path": "figures/pd-figure-language-swiss.tex",
+      "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
+      "bytes": 2430
+    },
+    {
+      "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
+      "bytes": 2842
+    },
+    {
+      "path": "figures/pd-figure-language.tex",
+      "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
+      "bytes": 3409
+    },
+    {
+      "path": "figures/pd-palette.tex",
+      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+      "bytes": 2409
+    },
+    {
+      "path": "market-worksheet-figure.tex",
+      "sha256": "417ff675e4a7fe1e0347f177d09049059c7bbe3c3a96afe5b47a2cbd8251b459",
+      "bytes": 2903
+    },
+    {
+      "sha256": "e19fe09aa1f40910bbd76e1cf3128c17939b1aeb3123989a1165ed69c0528526",
+      "bytes": 1205
+    },
+    {
+      "sha256": "9795ccdce11d5e0c946ff9e866c8819c1d31ceca85da787dadab5ca6cd10e3ef",
+      "bytes": 630
+    },
+    {
+      "path": "market-worksheet-swiss-page.tex",
+      "sha256": "5cef69307a5f7f84e4ad20b5fa727a6ec6c6fa4395eed965dcaf9af5c442dea5",
+      "bytes": 1202
+    },
+    {
+      "path": "market-worksheet-swiss.tex",
+      "sha256": "3e88ed5f148d15c7e5e5c012856cf3dfae425e951bfa621a47ce7a37c53eafe1",
+      "bytes": 627
+    },
+    {
+      "sha256": "ba6efff535aad85c30fb7e519753eeffef5b368e72fd4b8758fb5ab116e2c3c2",
+      "bytes": 1206
+    },
+    {
+      "sha256": "c9a660d11286b1f808ee008bc8b5cae2116a36a9d0ed0e30c7a01a2e4ac7e673",
+      "bytes": 631
+    },
+    {
+      "path": "page-contact.png",
+      "sha256": "ce9c4f9f7cf4ad770d9271d0e86ec27434cc1e61a35fc86ab218b88cb1aa4aa1",
+      "bytes": 265101
+    },
+    {
+      "sha256": "e825ffe1a5287eb71722d6b43b9d239ce3ff904e6d241518d33ab4575320b058",
+      "bytes": 175762
+    },
+    {
+      "sha256": "bb2adf6281363aac58bfb4c05d0ff8ea93cd15dac83f4d2610a7367f6777fc0f",
+      "bytes": 146167
+    },
+    {
+      "sha256": "0f719ce174dafa08ad5c8da55a757532782160031d7a5b5c5880f5d4c7bc8b19",
+      "bytes": 175223
+    },
+    {
+      "sha256": "a2dd0c43422c96be3ab8505f63130e65283e2ca13c4123014711e4610655517f",
+      "bytes": 97310
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.pdf",
+      "sha256": "fb3c1fd8158cc7ca9f4f7a140548cc178f5d1eea49bccdd3801e3b5b2914388f",
+      "bytes": 122264
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.png",
+      "sha256": "7b14e944770bfb30645365a3806e1a0250c55321a1f29435e287e5ea5c39deb7",
+      "bytes": 141302
+    },
+    {
+      "path": "renders/market-worksheet-swiss.pdf",
+      "sha256": "ffcc98d4d726af773de1db498db8f1dd95d14dd50d58c89fe28680f5fad82b8b",
+      "bytes": 73627
+    },
+    {
+      "path": "renders/market-worksheet-swiss.png",
+      "sha256": "7f05403cefc10a8a404575a5de995786d8e2da4c77a3b0e0b10c47fd78077637",
+      "bytes": 92081
+    },
+    {
+      "sha256": "c29f0d1226556fa4a7c037eae5f4365aa63986806942de712849055d482c3fc5",
+      "bytes": 138757
+    },
+    {
+      "sha256": "9a73b703085382e220c383a04a322cb4b086c292c8394b0992b2bb580c4cdbcb",
+      "bytes": 141992
+    },
+    {
+      "sha256": "302b0187353693333e37d97744ccf2e1d2a5d71abc1b1e0e6b379f5acbe29675",
+      "bytes": 90136
+    },
+    {
+      "sha256": "8cd5e3b71e9a7ce2518b4fa86706f0f9df973c0817cecf78bfd6f40d64cf696a",
+      "bytes": 93485
+    }
+  ],
+  "current_delivery_scope": "Swiss-only candidate source set; prior non-Swiss variants were removed from this worktree."
+}

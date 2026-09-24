@@ -124,9 +124,11 @@ repo-specific mechanics:
   whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
-- **Skill matching.** If you're missing a matching skill, pause and run
-  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
-  reference loader; no external skill runtime is required.
+- **Skill matching.** If you're missing a matching skill, use Jury-rig when the
+  local runtime is explicitly enabled. When it is halted, do not invoke `pd`, its
+  MCP server, hooks, daemon, or any substitute runtime; read the applicable
+  checked-in `SKILL.md` and needed references directly. That is offline
+  preparation, not a native graft or proof of current catalog state.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -741,15 +743,21 @@ pd jury-rig query "<the thing you're about to do>"
 pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
-**Before every contributor slice**, one search. Examples that have paid off:
+When the runtime is enabled, run one query before every contributor slice. While
+it is halted, do not run these commands: inspect the matching in-repo skill and
+its required references directly, record that source in the PR or handoff, and
+do not describe the offline read as a Jury-rig graft.
+
+Examples for an enabled runtime:
 
 - Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
 - Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
 - Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
 - Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
 
-If the catalog is wrong or stale for our domain, that's a Cartographer
-issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
+If the catalog is wrong or stale for our domain, capture the concrete gap in the
+PR or handoff while the runtime is halted. When it is enabled, route that gap to
+Cartographer through the normal Port Daddy workflow.
 
 ## Maintain These Skills (port-daddy-internal-dev edition)
 
@@ -1067,7 +1075,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
+- [ ] You used a native Jury-rig query when the runtime was enabled, or read the matching checked-in skill during a halt.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 

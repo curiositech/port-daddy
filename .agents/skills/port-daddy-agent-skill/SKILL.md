@@ -1197,26 +1197,34 @@ block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
 and message Cartographer with a one-line recommendation. The user approves
 before anything starts firing.
 
-## Catalog-First Reflex (use Jury-rig)
+## Catalog-First Reflex (use Jury-rig when the runtime is enabled)
 
 Port Daddy assembles a local catalog from project and user skill directories,
 plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
-guidance already. **Search the catalog before you start, not after you're stuck.**
+guidance already. **Find the relevant guidance before you start, not after you're
+stuck.**
 
 ```bash
 pd jury-rig query "<one-line description of what you're about to do>"
 pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
+When the local runtime is explicitly enabled, use the catalog commands above.
+When it is halted, do not invoke `pd`, MCP, hooks, daemons, or a substitute
+runtime. Read the applicable checked-in `SKILL.md` and its needed references
+directly, name that offline source in your work, and treat it as preparation only:
+it is not a native graft and does not prove current catalog state.
+
 Default reflexes:
 
-- **Before every meaningful task** — one `pd jury-rig query` call. Read the returned bodies and load only the references the task needs.
+- **Before every meaningful task** — use a native Jury-rig query when enabled; during a halt, locate and read the matching checked-in skill instead. Load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `pd jury-rig query`, that's
-probably a missed leverage opportunity.
+If you go a whole session without applying a relevant skill, that is probably a
+missed leverage opportunity. A runtime halt changes the lookup path, not the
+expectation to use the guidance.
 
 ## Maintain These Skills (standing invitation)
 
@@ -1336,5 +1344,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `pd jury-rig query` for the task domain before starting.
+- [ ] You used a native Jury-rig query when the runtime was enabled, or read the matching checked-in skill while it was halted.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

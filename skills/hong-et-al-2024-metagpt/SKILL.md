@@ -1,203 +1,76 @@
 ---
 license: Apache-2.0
 name: hong-et-al-2024-metagpt
-description: Applies insights from MetaGPT paper on how structured communication, role specialization, and SOPs prevent coordination failures in multi-agent LLM systems
+description: Design explicit software-work artifacts and dependency-gated handoffs, using MetaGPT paper and v0.8.1 boundaries.
 category: Research & Academic
-tags:
-  - multi-agent
-  - software-development
-  - llm-agents
-  - role-assignment
-  - collaboration
+tags: [metagpt, multi-agent, software-development, artifacts]
 ---
 
-# MetaGPT: Multi-Agent Systems Through Structured Coordination
+# MetaGPT artifact-pipeline design
 
-## Decision Points
+## Source boundary
 
-### Agent Count & Architecture Selection
-```
-IF task requires <3 sequential steps with minimal handoffs
-└── Use single agent with structured output templates
-    └── Add validation checkpoints at each step
+Hong et al., [MetaGPT](https://arxiv.org/html/2308.00352v7) (arXiv:2308.00352v7, 2024-11-01) supplies a software-development SOP and logical shared-pool/subscription model. The v0.8.1 `Role` and `Environment` sources supply only versioned implementation details. A paper result, a framework behavior, and a constructed local policy are separate claims.
 
-IF task requires 3-7 steps with clear role boundaries
-├── Use role-based specialization (PM→Architect→Engineer→QA)
-│   └── Implement structured artifacts at each handoff
-└── Add pub-sub message pool if >5 agents
+## When this workflow fits
 
-IF task requires >7 agents or complex information sharing
-└── Mandatory pub-sub architecture with typed messages
-    ├── Define message schemas first, then agent roles
-    └── Implement subscription patterns by information type
-```
+Ask whether the work has distinct handoffs that can be reviewed as artifacts, whether a consumer can name its prerequisites, and whether an acceptance method exists for each result. The paper's software SOP is one concrete fit. A single direct task, a creative task with no useful stable handoff, or an underspecified request may call for a looser, explicitly reviewed process instead. This is a fit prompt, not a claim that one architecture is superior.
 
-### Domain-Specific Decomposition Strategy
-```
-IF task has established human SOP (software dev, research, content)
-├── Encode existing workflow as agent roles
-│   └── Map human deliverables to structured artifacts
-└── Validate each role produces testable outputs
+## Artifact-first procedure
 
-IF task is novel/experimental
-├── Start with 3-agent proof-of-concept (Generator→Validator→Refiner)
-│   └── Identify handoff points where information degrades
-└── Add specialization only when bottlenecks appear
+1. Turn the request into a PRD: user story, requirement, edge case, source or assumption, and unresolved item.
+2. Have the Architect consume that PRD and produce a design with file/module list, data decision, interface definition, and interaction flow. Keep an unresolved PRD item open rather than silently deciding it in the design.
+3. Have the Project Manager consume the design and publish assigned tasks. Each task names its owner, prerequisite artifact(s), intended action, produced artifact, and acceptance evidence.
+4. A producer publishes its artifact to the logical pool. A subscribed dependent identifies itself, retrieves only its named context, and checks that **all** of its named prerequisites are present. A message for another role, or only one of two prerequisites, is not enough to act.
+5. The eligible role consumes the context, performs its action, and publishes the new artifact. Repeat the prerequisite check for the next named consumer.
+6. For executable work, QA runs a chosen fixture and returns the observed result or error together with the relevant PRD/design/task context to the responsible Engineer. A local repair policy ends in a scoped pass or a visible unresolved exit; it does not imply general correctness.
+
+```mermaid
+flowchart TD
+  U[User request] --> PM[PM publishes PRD]
+  PM --> A[Architect consumes PRD and publishes design]
+  A --> P[Project Manager consumes design and publishes assigned task]
+  P --> E[Engineer consumes task and prerequisites; implements]
+  E --> T[QA runs chosen fixture]
+  T -->|observed error plus source context| E
+  T -->|fixture passes| Q[Scoped QA result]
+  T -->|local repair policy ends| X[Visible unresolved exit]
 ```
 
-### Feedback Mechanism Selection
-```
-IF output is executable (code, API calls, database queries)
-└── Mandatory execution feedback loop
-    ├── Capture concrete errors (stack traces, response codes)
-    └── Feed errors back to generating agent
+The overview is a constructed handoff variant: its QA role returns fixture evidence. In the paper’s §3.3 inner repair loop, the Engineer itself writes and runs tests and uses execution/debugging memory; QA also appears as a separate role in the broader §3.1 SOP. Do not attribute this exact QA-mediated variant to the paper.
 
-IF output is structured data (JSON, documents, reports)
-├── Schema validation first
-└── Content validation via executable checks where possible
+The paper describes PM, Architect, Project Manager, Engineer, and QA roles; choose roles because their artifacts/prerequisites differ, not by a universal agent count. A role contract is: responsibility; accepted input; action; output; constraints/tools; and acceptance evidence. Structured documents make omissions inspectable, but do not validate truth unless a real consumer or validator checks it.
 
-IF output is creative/subjective (writing, designs)
-└── Use structured evaluation criteria with binary checkpoints
-```
+## Constructed worked traces
 
-See `diagrams/02_flowchart_multi-agent_system_decision_tr.md` for a visual rendering of these decision paths alongside failure-mode diagnoses.
+### Software handoff
 
-## Failure Modes
+This is a constructed exercise, not a MetaGPT experiment. A PRD says `export CSV summary`, requires total 0 for zero CSV rows, and leaves locale formatting unresolved. The design supplies `summarize(rows)` and a `Summary` shape. The task assigns Engineer the implementation only after both the design and task are present. QA runs an empty-input fixture and returns `TypeError: Reduce of empty array with no initial value`, plus the PRD edge case and interface signature. The Engineer adds the missing zero initial value to the reduction, and QA records either the next observed fixture result or an unresolved status when the local repair policy ends.
 
-### 1. **Hallucination Cascade** 
-*Symptoms*: Output quality degrades with each agent handoff; later agents produce confident but incorrect results based on earlier errors
-*Detection*: Compare first agent output quality to final output—if final is significantly worse, cascade is occurring
-*Fix*: Implement structured artifacts with validation at each handoff; require concrete verification before passing to next agent
+### Research and content handoffs
 
-See `references/structured-communication-prevents-hallucination-cascades.md` for the formal argument on why structured formats arrest cascade propagation.
+These are constructed workflows, not paper results. In a paper-analysis workflow, a Processor publishes an evidence record with source ID, claim, method, and counterevidence; a Trend Analyst consumes named records and publishes a trend claim linked back to those IDs; a reviewer checks the cited sources before a synthesis uses the claim. In a technical-content workflow, Research publishes a fact sheet with documentation URL, version, and open question; Outline and Writer consume it; a Technical Editor runs a chosen code example or checks the actual API response, then returns the observed mismatch to the Writer. Fields make the review traceable; they do not automatically verify a claim or regenerate a correction.
 
-### 2. **Context Dilution**
-*Symptoms*: Agents lose critical information from earlier steps; requirements get "interpreted" differently at each stage
-*Detection*: If agents ask for information that was provided earlier, or if final output doesn't match initial requirements
-*Fix*: Use persistent structured documents (PRDs, design specs) that agents read from rather than relying on message passing
+## Failure diagnosis and quality gates
 
-See `references/sops-as-decomposition-frameworks.md` for how human SOPs solve the same context-preservation problem.
+- If a downstream artifact conflicts with a requirement, compare it to the PRD and design, identify the first changed interpretation, and record the owner of the correction.
+- If roles repeatedly wait or publish conflicting work, inspect the named dependency graph for an unmet prerequisite or cycle; do not infer a cause from message count alone.
+- If validation is claimed, inspect the test or review transcript and the exact artifact version it covered. A passing fixture has only that fixture's scope.
+- If ownership is unclear, restate the role contract and name the required input, produced artifact, consumer, and acceptance evidence.
+- Before handoff, check required artifact presence and open requirements; for executable work retain observed output/error; for structured work run a schema check only where a real consumer enforces it; for subjective work retain criteria and reviewer disposition.
 
-### 3. **Coordination Thrashing**
-*Symptoms*: Agents endlessly negotiate, ask clarifying questions, or produce conflicting outputs
-*Detection*: High message volume between agents with low progress on actual deliverables; circular dependencies in agent communication
-*Fix*: Switch to pub-sub with pre-defined message types; eliminate agent-to-agent negotiation in favor of structured information publishing
+## Paper and implementation boundary
 
-See `references/publish-subscribe-as-coordination-primitive.md` for the O(n²) vs O(n) communication cost analysis.
+In the MetaGPT paper (arXiv:2308.00352v7, §§3.1–3.3), the pool/subscription/dependency relation is a logical coordination model. In pinned MetaGPT v0.8.1, roles have message buffers and watched action causes; `Environment.publish_message` routes recipient addresses while roles run concurrently. An unmatched recipient logs and returns from publication, so a caller must not call it durable or reliable delivery. The paper’s up-to-three repair configuration is not a general retry rule. A finite test pass proves only the executed fixture.
 
-### 4. **Executable Bypass**
-*Symptoms*: Code/outputs that look correct but fail when tested; agents claiming "validation complete" without actually running tests
-*Detection*: If agent reports success but execution reveals errors that should have been caught
-*Fix*: Make execution feedback mandatory and automatic; never accept agent self-assessment without concrete verification
+## Read next
 
-See `references/executable-feedback-as-reality-grounding.md` for the knowing-doing gap analysis that motivates this requirement.
+- [SOP artifacts](references/sops-as-decomposition-frameworks.md)
+- [Shared pool and prerequisites](references/publish-subscribe-as-coordination-primitive.md)
+- [Executable feedback](references/executable-feedback-as-reality-grounding.md)
+- [Artifact pipeline diagram](diagrams/01-artifact-pipeline.md)
+- [Feedback boundary diagram](diagrams/02-feedback-boundary.md)
 
-### 5. **Role Boundary Blur**
-*Symptoms*: Agents performing tasks outside their specialization; unclear ownership when outputs fail
-*Detection*: If you can't answer "which agent is responsible for X deliverable?" or agents produce overlapping outputs
-*Fix*: Redefine roles by output artifacts; each agent owns exactly one type of structured deliverable
+## Bundle navigation
 
-See `references/role-specialization-as-bounded-expertise.md` for the compounding-error argument against generalist agents.
-
-## Worked Examples
-
-### Example 1: Research Paper Analysis Pipeline
-
-**Scenario**: Analyze 50 academic papers to identify trends in multi-agent systems
-
-**Initial Approach** (fails): Single agent reads papers and produces analysis
-- Agent gets overwhelmed by 50 papers, loses context
-- Analysis lacks systematic comparison framework
-- No way to verify claims against source material
-
-**MetaGPT Approach**:
-1. **Paper Processor** agent produces structured summaries:
-   ```json
-   {
-     "title": "...",
-     "methodology": "...", 
-     "key_findings": ["...", "..."],
-     "evaluation_metrics": {...}
-   }
-   ```
-
-2. **Trend Analyzer** subscribes to summary messages, produces trend reports:
-   ```json
-   {
-     "trend_name": "...",
-     "supporting_papers": ["id1", "id2"],
-     "evidence_strength": "high|medium|low",
-     "counter_evidence": [...]
-   }
-   ```
-
-3. **Synthesis Agent** produces final analysis with traceable references
-
-**Key Decisions Made**:
-- Used structured JSON to prevent information loss between agents
-- Made trend claims traceable to specific papers (executable verification)
-- Each agent specialized on one output type with clear success criteria
-
-**Failure Recovery**: When Trend Analyzer produced unsupported claims, the structured format allowed automatic verification against source summaries—claims without supporting evidence were flagged and regenerated.
-
-### Example 2: Content Generation Pipeline with Failure Recovery
-
-**Scenario**: Generate technical blog posts from API documentation
-
-**Decision Tree Navigated**:
-1. **Agent Count**: 4 steps (Research→Outline→Draft→Edit) = role-based specialization
-2. **Domain**: Has human SOP (technical writing process) = encode existing workflow  
-3. **Feedback**: Output is text but with verifiable technical claims = mixed validation
-
-**Implementation**:
-- **Research Agent** produces structured fact sheet with verifiable claims:
-  ```json
-  {
-    "api_endpoints": [{"url": "...", "verified": true/false}],
-    "code_examples": [{"code": "...", "tested": true/false}],
-    "use_cases": [...]
-  }
-  ```
-
-- **Outline Agent** subscribes to fact sheets, produces structured outline
-- **Draft Agent** writes content following outline structure  
-- **Technical Editor** validates code examples through execution
-
-**Failure Recovery Scenario**: Draft Agent claimed an API endpoint returned specific JSON structure. Technical Editor executed the API call, discovered different response format, published correction to message pool. Draft Agent automatically regenerated affected sections with correct structure.
-
-**What Novice Would Miss**: Running code examples to verify they work; accepting plausible-sounding API behavior without testing
-**What Expert Catches**: Every technical claim must be executable-verifiable; structure enables automatic error localization and recovery
-
-## Quality Gates
-
-- [ ] Each agent role is defined by exactly one structured output artifact type
-- [ ] All agent handoffs use validated structured formats (schemas, templates)
-- [ ] Executable outputs include mandatory execution feedback loops
-- [ ] Information flow uses pub-sub for >3 agents, eliminating point-to-point dependencies
-- [ ] Each structured artifact includes fields that enable error detection/verification
-- [ ] Agent responsibilities map to proven human role boundaries (where domain SOPs exist)
-- [ ] System can recover from individual agent failures without manual intervention
-- [ ] Final output quality is verifiable through concrete metrics, not agent self-assessment
-- [ ] Adding/removing agents doesn't require rewiring communication logic
-- [ ] Each agent's success criteria are binary and testable
-
-## Bundled Assets
-
-- **[diagrams/INDEX.md](diagrams/INDEX.md)** — Sequence diagram of the full PM→QA agent handoff flow, decision tree for diagnosing coordination failures, and mental models mindmap
-- **[references/INDEX.md](references/INDEX.md)** — Deep dives on structured communication, SOPs as decomposition engines, role specialization, pub-sub architecture, executable feedback, and collective meta-programming
-
-## NOT-FOR Boundaries
-
-**Don't use MetaGPT principles for**:
-- Single-step tasks that one agent can complete without handoffs → Use basic prompt engineering instead
-- Creative tasks where "correctness" is subjective and not verifiable → Use human-in-loop evaluation instead  
-- Real-time interactive systems where pub-sub latency is prohibitive → Use direct agent communication with careful prompt design
-- Tasks where human SOPs don't exist or are counterproductive → Use experimental multi-agent approaches instead
-- Systems where structured output significantly constrains useful creativity → Use loose coordination with human oversight instead
-
-**For these alternatives, use**:
-- Simple automation: `basic-prompting` 
-- Creative workflows: `human-ai-collaboration`
-- Real-time systems: `direct-agent-coordination`
-- Novel problem domains: `experimental-multi-agent`
-- Creative processes: `structured-creativity-frameworks`
+[diagrams index](diagrams/INDEX.md).

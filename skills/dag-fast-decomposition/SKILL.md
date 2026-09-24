@@ -1,16 +1,9 @@
 ---
 license: Apache-2.0
 name: dag-fast-decomposition
-description: Apply hierarchical decomposition and structural exploitation strategies from DAG theory to complex system design, problem-solving, and abstraction challenges
+description: Build and validate a static DAG reachability index from source-qualified path/chain decompositions and partial transitive-edge filtering.
 category: Agent & Orchestration
-tags:
-  - dag
-  - decomposition
-  - performance
-  - algorithms
-  - optimization
-io-contract:
-  kind: none
+tags: [dag, decomposition, performance, algorithms, optimization]
 metadata:
   recognition-cues: []
   expectancies: []
@@ -20,232 +13,79 @@ metadata:
   needs-cdm: true
 ---
 
-# SKILL: Fast DAG Decomposition and Reachability
+# Fast DAG decomposition and reachability
 
-license: Apache-2.0
-**Name**: graph-decomposition-strategies  
-**Description**: Apply hierarchical decomposition and structural exploitation strategies from DAG theory to complex system design, problem-solving, and abstraction challenges  
-**Triggers**: system scaling problems, dependency management, reachability/connectivity analysis, hierarchical design, performance optimization through preprocessing, abstraction layer design
+Use for repeated reachability queries over one named static DAG revision. It does not produce a processor schedule, prove a transitive reduction, update a changing graph in O(1), or transfer experiment ratios to an application graph.
 
----
+## Source-labelled procedures
 
-## When to Use This Skill
+### Initial decomposition and concatenation: arXiv v1 (2022)
 
-Load this skill when encountering:
+Kritikakis–Tollis [arXiv:2212.03945v1](https://arxiv.org/html/2212.03945v1) §2 calls Algorithm 1 **Chain-Order (CO)**: scan unused vertices in ascending topological order, start a path at each unused vertex, and repeatedly append an unused immediate successor until none exists. It calls Algorithm 2 **Node-Order (NO)**: scan vertices in ascending topological order and append a vertex to an existing path when it is an immediate successor of that path’s last vertex; otherwise start a singleton. Neither printed pseudocode specifies a tie rule when several paths/successors qualify.
 
-- **Scaling bottlenecks** where brute-force approaches fail but structure exists to exploit
-- **Dependency resolution** problems (build systems, task scheduling, knowledge graphs, import chains)
-- **Query performance** challenges where preprocessing investment could enable fast lookups
-- **Abstraction design** questions about how to layer complex systems
-- **Optimization paradoxes** where "good enough fast" might beat "optimal slow"
-- **Complexity analysis** showing theoretical worst-case doesn't match observed behavior
-- **Coordination problems** where understanding true interdependencies matters more than counting connections
+Its Algorithm 3 concatenates a supplied vertex-disjoint path decomposition. For a path whose first member is `f`, run reversed DFS from `f` to find a last vertex of another current chain. A lookup returns witness path `P` and exhausted explored vertices `R` outside that path. If `P` is nonempty, join the endpoint chain before the chain beginning at `f`; `P` proves comparability, but its interior vertices stay in their existing chains. After either successful or failed lookup, remove/mark all `R` as a no-go region in the search graph before the next lookup. On failure `P` is empty and `R` contains every explored vertex. Preserve the original DAG for validation and indexing. The source’s amortized bound is `O(|E| + (kp-kc)ℓ)`, with realized successful-witness term `Σ|P|`; add selected initial-decomposition cost separately. It is not uniformly linear.
 
-**Key signal**: When you suspect most of the apparent complexity is redundant structure that could be compressed or bypassed through better decomposition.
+Algorithm 4 is **H3**, a Node-Order variation choosing among immediate-predecessor path endpoints the one with lowest out-degree; Algorithm 5 is integrated **H3 conc.**, which performs the reversed lookup when no such endpoint exists. Ties are unspecified. The printed forced-successor condition is inconsistent: nearby prose says current vertex out-degree 1, while Algorithms 4–5 say successor in-degree 1. This bundle preserves that ambiguity rather than silently selecting a rule.
 
----
+### Filter and index: SEA 2023
 
-## Core Mental Models
+The published [SEA 2023 paper](https://drops.dagstuhl.de/opus/volltexte/2023/18352/pdf/LIPIcs-SEA-2023-2.pdf) §3 filter begins from a supplied decomposition. For each source and target chain, retain only its outgoing arc to that chain’s earliest target; other such arcs are found transitive. Symmetrically, for each target and source chain, retain only its incoming arc from that chain’s latest source. The union is a detected subset `E'_tr ⊆ E_tr`; remaining `E'_red = E−E'_tr` retains closure but is only a superset of exact-reduction edges. It is neither exact reduction nor the index build.
 
-### 1. Width Over Density: True Complexity Lives in Coordination, Not Connections
+### Index construction: preserve the representation invariant
 
-**The insight**: Edge count misleads. The width of a system (maximum number of mutually independent components) reveals true complexity better than connection density.
+**Source discrepancy found by a finite counterexample.** SEA §4 Algorithm 1 seeds each own-chain slot before conditionally merging successors. On `a→b→c` with supplied cover `[a,b],[c]`, that literal combination skips `a→b`, losing `a`'s reachability to `c`. The author repository uses a different, strict-successor representation with no early self seed. Do not mix its query inequality with the PDF representation. [The counterexample and version-pinned code comparison](references/printed-index-and-implementation-gap.md) give the complete trace and scope; this is not a claim that the authors' implementation fails.
 
-**Why it matters**: Dense systems with high edge counts can still have low intrinsic complexity if most edges are transitive (implied by shorter paths). A build system with 10,000 dependency edges might have width 20, meaning at most 20 things truly can't be derived from each other.
+For a clear reference implementation, retain the PDF's reflexive representation but **merge every outgoing successor row** in reverse topological order. Record chain IDs/positions, initialize `kc` slots per vertex to infinity and seed its own position, then merge each complete successor row elementwise-min. After all vertices are processed, query `low[u,chain(v)] ≤ position(v)`. Self-reachability is true; strict DAG reachability adds `u != v`. This straightforward local baseline uses `O(kc(|V|+|E|))` work including dense initialization. Its reverse-topological recurrence is proved in the reference; it is not the paper's claimed reduced-edge optimization.
 
-**Application**: When analyzing system complexity, first identify the "reduced edge set" (Ered)—the minimal connections that imply all others. Budget scaling effort against width, not total connections. Systems with low width but high density are ripe for hierarchical compression.
+```mermaid
+flowchart TD
+ G[Static DAG and validated chain cover] --> I[Allocate rows; seed own chain positions]
+ I --> R[Visit vertices in reverse topological order]
+ R --> M[Merge every outgoing successor row elementwise min]
+ M --> V{All vertices processed?}
+ V -- no --> R
+ V -- yes --> T[Compare all or declared sampled queries with closure]
+ T --> B{Baseline agrees?}
+ B -- no --> X[Reject index for this revision]
+ B -- yes --> Q[Query low entry no later than target position]
+ Q --> S[For strict queries also require source differs from target]
+```
 
-### 2. Greedy + Fast Beats Optimal + Slow for Compound Workflows
+### Cost and validation boundary
 
-**The insight**: Near-optimal solutions computed quickly enable their use as preprocessing steps in larger workflows. A 90% optimal solution in 1 second is more valuable than 100% optimal in 1 hour if you need to run it 1000 times or use its output for further computation.
+SEA Theorem 5 reports `O(|E_tr| + kc|E_red|)` construction and `O(kc|V|)` space, with sorted adjacency. That reported optimized bound does not certify the literal printed procedure contradicted above, and it is not the bound of the all-successor baseline. A concrete dense representation initializes `Θ(kc|V|)` cells before edge propagation. An edgeless graph exposes the separate cost: edge work is zero while `|V|²` cells exist if `kc=|V|`. Include decomposition, topological order and adjacency ordering as separate preprocessing. The paper's reverse-traversal stack method can order adjacency in `O(|V|+|E|)`; do not silently assume arbitrary comparison sorting is linear.
 
-**Why it matters**: Optimization obsession creates local maxima while missing global efficiency. The paper's heuristics produce chain decompositions within 5-10% of optimal but run orders of magnitude faster, enabling their use in contexts where optimal algorithms would be prohibitive.
+The author-source read and translated finite checks support a representation comparison, not certification of the Java implementation, every graph, or the paper's performance measurements. Optimize only with a maintained invariant, exact version, and independent query oracle. A sampled check provides sample coverage, not an exhaustive correctness proof.
 
-**Application**: For preprocessing, indexing, or iterative workflows, prioritize fast heuristics with quality guarantees over slow exact algorithms. Measure optimization algorithms by *downstream value* (what they enable), not just solution quality.
+Validate direct and strict query results against an exhaustive closure or declared sample. Record graph revision, decomposition, chain positions, sorted-adjacency check, memory, build time, query distribution, and baseline agreement. A query index proves graph reachability only; it does not prove code-review approval, sensor data quality, deployment authorization, worker count, or schedule feasibility.
 
-### 3. Hierarchical Abstraction Through Chain Decomposition
+```mermaid
+flowchart LR
+ E[Original arcs and supplied cover] --> F[Per-chain earliest-outgoing and latest-incoming filter]
+ F --> T[Detected E prime tr subset of true transitive edges]
+ F --> R[Remaining E prime red superset of exact reduction]
+ R --> X[Build documented index variant on static revision]
+ X --> V[Compare queries with DFS or closure]
+ U[Arc, cover, or query-semantics change] --> I[Invalidate index and filter records]
+ I --> E
+```
 
-**The insight**: Decomposing a DAG into chains creates natural abstraction levels. Each chain represents a total order (linear hierarchy), while relationships between chains represent coordination boundaries. Reachability within chains is trivial; complexity lives in cross-chain relationships.
+## Constructed application checks
 
-**Why it matters**: This transforms an O(V²) problem (all-pairs reachability) into O(kc * Ered) where kc = chain count and Ered = reduced edges. For graphs where 85-95% of edges are transitive, this is a 10-20x compression of what you need to track.
+### Deployment dependency query
 
-**Application**: When designing layered systems, identify "chains" (sequences with clear ordering) and separate them from "coordination points" (where chains must interact). Optimize within chains separately from optimizing across chains. Build indexes at chain boundaries.
+For `build→scan→deploy→verify` plus direct `build→deploy`, the filter may identify the direct `build→deploy` edge as transitive under the supplied chain position order. The strict query `build↝verify` can be true; `deploy↝deploy` is true for the reflexive reference index and false only after applying `u!=v`. None of this establishes scan success or deploy authority.
 
-### 4. Transitive Structure as Compression Opportunity
+### Code-review dependency query
 
-**The insight**: In dense graphs (average degree > 20), 85-95% of edges are transitive—implied by shorter paths. This isn't a bug; it's structural regularity waiting to be exploited.
+For `parse→typecheck→review` and `parse→review`, an index may answer whether parse reaches review. A “review accepted” property is not an edge and must remain separate evidence. The fixture gives the index rows and a negative semantic case where a JSON-shaped “approved” output is rejected for lacking an approval artifact.
 
-**Why it matters**: Apparent complexity often reflects redundant representation, not inherent difficulty. By identifying and collapsing transitive structure, you can dramatically reduce working set size while preserving all essential information.
+### Sensor dependency query
 
-**Application**: In dependency graphs, import chains, knowledge bases, or any transitive relation, explicitly identify which edges are transitive vs. generative. Store and process only the reduced set. Use queries against the reduced set to reconstruct full closure on demand.
+For `ingest→calibrate→aggregate` and direct `ingest→aggregate`, the same query/filter procedure may identify the direct arc as transitive. It does not prove calibration accuracy, freshness, or suitability of the aggregate. Rebuilding is required when the graph revision or chosen cover changes.
 
-### 5. Invest in Indexing for Query-Heavy Workloads
+Read [index and differential fixtures](references/index-and-differential-fixtures.md), [source method boundaries](references/source-method-boundaries.md), and [partial-filter fixture](references/transitive-structure-as-compression-opportunity.md).
 
-**The insight**: Spending O(kc * Ered) time preprocessing to build an index enables O(1) reachability queries. This indexing cost is sublinear in total edges when transitive structure dominates, and the payoff grows with query count.
+## Bundle navigation
 
-**Why it matters**: Systems often face the tradeoff: recompute on every query (no space cost, high time cost per query) vs. precompute everything (O(V²) space, O(1) queries). Chain-based indexing offers a middle path: O(kc * V) space with O(1) queries.
-
-**Application**: For systems answering many reachability/connectivity queries (access control, dependency checking, routing), invest in structural indexing during preprocessing. The flatter the runtime curve relative to graph density, the better the indexing scheme exploits structure.
-
----
-
-## Decision Frameworks
-
-### When Facing Scaling Problems
-
-**IF** your system's theoretical complexity predicts failure, **BUT** empirical behavior suggests hidden structure:
-- **THEN** profile to identify transitive vs. generative relationships
-- Look for width « node count (high density, low coordination complexity)
-- Consider hierarchical decomposition to expose compression opportunities
-- Load: `hierarchical-abstraction-for-scaling.md`
-
-### When Choosing Optimization Approaches
-
-**IF** you need optimal solutions in an interactive or iterative workflow:
-- **THEN** evaluate fast heuristics with quality bounds first
-- Measure: heuristic_time * workflow_iterations vs. optimal_time
-- Test if 90-95% solution quality is "good enough" for downstream needs
-- Load: `greedy-decomposition-and-progressive-refinement.md`
-
-### When Designing Abstraction Layers
-
-**IF** decomposing a complex system into manageable components:
-- **THEN** identify chains (total orders) vs. coordination points (cross-chain dependencies)
-- Measure width to understand true parallelization/independence potential
-- Design APIs at chain boundaries, optimize implementations within chains
-- Load: `width-as-coordination-complexity.md`
-
-### When Analyzing Graph Performance
-
-**IF** a dense graph shows better-than-expected algorithmic behavior:
-- **THEN** compute the transitive edge percentage
-- If > 80%, structure is highly compressible
-- Build on reduced edge set (Ered) rather than full edge set
-- Load: `transitive-structure-as-compression-opportunity.md`
-
-### When Building Query Systems
-
-**IF** you need to answer many connectivity/reachability queries:
-- **THEN** evaluate preprocessing investment vs. query frequency tradeoff
-- Chain-based indexing: O(kc * Ered) preprocessing, O(kc * V) space, O(1) queries
-- Breakeven: queries > preprocessing_cost / (naive_query_cost - indexed_query_cost)
-- Load: `constant-time-reachability-through-indexing.md`
-
-### When Decomposing Complex Problems
-
-**IF** unsure whether to use top-down or bottom-up decomposition:
-- **THEN** consider hybrid: greedy bottom-up for speed, then iterative refinement
-- Path concatenation strategy: start simple, progressively merge where high-value
-- Each merge should have asymmetric returns (local cost, global benefit)
-- Load: `problem-decomposition-strategies.md`
-
----
-
-## Reference Table
-
-| Reference File | When to Load | Key Content |
-|---------------|--------------|-------------|
-| `hierarchical-abstraction-for-scaling.md` | Facing scaling problems where flat approaches fail; designing multi-level systems; need to understand how abstraction reduces complexity | Chain decomposition as hierarchical organization; how levels communicate; scaling through structural exploitation |
-| `width-as-coordination-complexity.md` | Analyzing true system complexity; designing parallel/distributed systems; estimating coordination overhead | Width definition; relationship to reduced edges; how width predicts scaling behavior; width vs. density |
-| `greedy-decomposition-and-progressive-refinement.md` | Choosing between optimization algorithms; designing iterative refinement processes; balancing speed vs. quality | Heuristic vs. exact approaches; path concatenation algorithm; progressive refinement patterns; when "good enough" is better |
-| `transitive-structure-as-compression-opportunity.md` | Working with dense graphs; surprising performance results; opportunity to compress working sets | The 85-95% transitive edge finding; implications for storage and computation; how to identify and exploit transitive structure |
-| `constant-time-reachability-through-indexing.md` | Designing query systems; preprocessing tradeoff analysis; need for fast lookups | Indexing scheme details; space-time tradeoffs; when to invest in preprocessing; O(1) query performance |
-| `problem-decomposition-strategies.md` | Uncertain how to break down complex problems; comparing decomposition approaches; designing modular systems | Top-down vs. bottom-up; hybrid strategies; when each approach works best; decomposition heuristics comparison |
-| `failure-modes-and-structural-blindness.md` | Debugging poor performance; understanding when approaches fail; avoiding common pitfalls | Pathological graph structures; when width ≈ V (worst case); hidden assumptions in decomposition strategies |
-
----
-
-## Anti-Patterns
-
-### 1. Optimizing the Wrong Thing
-**Symptom**: Spending weeks achieving 100% optimal solution when 95% solution computed in seconds would unlock downstream value  
-**Why it fails**: Ignores compound workflow effects; local optimization creates global inefficiency  
-**Alternative**: Profile the full pipeline; optimize for end-to-end value, not component perfection
-
-### 2. Treating All Edges Equally
-**Symptom**: Allocating equal storage, computation, or attention to transitive vs. generative edges  
-**Why it fails**: Transitive edges are redundant—they're implied by paths through other edges  
-**Alternative**: Identify and operate on Ered (reduced edge set); reconstruct transitive closure only when needed
-
-### 3. Ignoring Width When Estimating Complexity
-**Symptom**: Predicting O(V²) or O(E) behavior without checking if width « V  
-**Why it fails**: Width determines true complexity for many graph operations; dense low-width graphs behave much better than edge count suggests  
-**Alternative**: Measure width; use width-based complexity estimates (e.g., O(width * V) for reduced edges)
-
-### 4. Preprocessing Without Query Frequency Analysis
-**Symptom**: Building expensive indexes for systems with few queries, or recomputing on every query when many queries are needed  
-**Why it fails**: Wrong tradeoff point; either wasting preprocessing time or query time  
-**Alternative**: Estimate query frequency; calculate breakeven point; choose indexing strategy accordingly
-
-### 5. Flat Decomposition of Hierarchical Problems
-**Symptom**: Treating all components as peers when natural hierarchies exist; building O(n²) cross-component communication  
-**Why it fails**: Ignores transitive structure and natural ordering; creates false coordination complexity  
-**Alternative**: Identify chains (total orders) first; separate intra-chain logic from inter-chain coordination
-
-### 6. Seeking Structure in Structureless Graphs
-**Symptom**: Applying hierarchical decomposition to graphs with width ≈ V (e.g., random graphs, cross-product structures)  
-**Why it fails**: These techniques exploit low width and high transitivity; benefits vanish when width is high  
-**Alternative**: Check structural preconditions (width, transitive percentage) before applying; have fallback strategies
-
----
-
-## Shibboleths: Distinguishing Deep Understanding from Surface Knowledge
-
-### Surface-Level Understanding Says:
-- "This paper is about an algorithm for chain decomposition of DAGs"
-- "The main contribution is faster runtime complexity"
-- "It's a graph theory result with limited applicability"
-
-### Deep Internalization Reveals Itself Through:
-
-1. **Recognizing Width in the Wild**
-   - Instinctively asking "what's the width?" when analyzing dependency structures
-   - Distinguishing between "many connections" (edges) and "many independent concerns" (width)
-   - Identifying when apparent complexity is just transitive inflation
-
-2. **The Ered Instinct**
-   - When seeing a dense relationship graph, immediately wondering: "What percentage is transitive?"
-   - Building systems that store/process only reduced edges by default
-   - Understanding that Ered ≤ width * V is not just a theorem but a design target
-
-3. **Preprocessing Calculus**
-   - Fluidly reasoning about preprocessing cost vs. query frequency tradeoffs
-   - Knowing when O(kc * Ered) preprocessing beats O(V²) preprocessing beats no preprocessing
-   - Recognizing that "flat runtime curves" (performance independent of density) signal excellent structural exploitation
-
-4. **The Greedy Wisdom**
-   - Defending 90% solutions when they enable compound workflows
-   - Articulating *why* heuristics can be more valuable than optimal algorithms
-   - Distinguishing problems where optimality matters from those where speed enables qualitatively different approaches
-
-5. **Hierarchical Intuition**
-   - Naturally decomposing problems into chains (ordered sequences) and coordination points (chain interactions)
-   - Seeing that O(1) reachability isn't "impossible"—it's a consequence of good indexing at abstraction boundaries
-   - Understanding that hierarchies aren't just organizational—they're computational complexity reducers
-
-6. **Structural Awareness**
-   - Recognizing pathological cases (width ≈ V) where these techniques provide no benefit
-   - Knowing that random graphs and cross-product structures defeat hierarchical methods
-   - Understanding when structure exists to exploit vs. when brute force is actually optimal
-
-### The Telltale Question:
-Ask: "Your system has 10,000 dependencies. Is that a lot?"
-
-**Surface answer**: "Yes, that's very complex."
-
-**Deep answer**: "What's the width? If width is 50, then Ered ≤ 500,000, and if 90% of the 10,000 edges are transitive, you only have 1,000 generative relationships to track. That might be trivial. But if width is 8,000, you have a genuinely complex coordination problem regardless of edge count."
-
----
-
-## Quick Start
-
-When this skill activates:
-
-1. **Identify the graph structure** in your problem (nodes = entities, edges = dependencies/relationships/orderings)
-2. **Estimate width**: How many things are truly independent vs. transitively related?
-3. **Check for transitive dominance**: In dense regions, what % of edges are implied by paths?
-4. **Choose decomposition strategy**: Fast heuristic (greedy) or exact algorithm based on downstream needs?
-5. **If query-heavy**: Evaluate preprocessing investment for O(1) lookups
-6. **Load relevant reference** based on your specific bottleneck (see Reference Table)
-
-**Remember**: The goal isn't to turn everything into a graph problem. It's to recognize when hierarchical decomposition, width-based analysis, or transitive structure exploitation can transform apparent complexity into tractable computation.
+[diagrams index](diagrams/INDEX.md), [references index](references/INDEX.md).

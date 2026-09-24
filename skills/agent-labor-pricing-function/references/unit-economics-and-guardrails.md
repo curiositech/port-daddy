@@ -1,57 +1,34 @@
-# Unit Economics And Guardrails
+# Unit Economics and Guardrails
 
-Use this when building the cost floor for a pricing plan and when designing the guardrails that keep usage-sensitive pricing from becoming a bill-shock incident.
+## Cost-floor procedure
 
-## Building the cost floor
+For one buyer-visible unit, record an auditable ledger:
 
-The cost floor is the fully-loaded $ cost to deliver one unit of the value metric, at the model and tool mix actually used in production — not the cheapest model you tested with.
+1. Enumerate all model calls, including planning, verification, retries, and failure handling. For each, preserve input/output basis, rate-source date, and whether it is estimate or observation.
+2. Add tools and compute that scale with the unit. A sandbox attempt, browser minute, or third-party call belongs here even when the model invoice does not show it.
+3. Add allocated support, review, observability, payment, and dispute cost. Mark the allocation rule; an allocation is not a measured causal cost.
+4. Sum only compatible periods and units. Separate a per-task model cost from a monthly processor fee rather than dividing without an allocation rule.
+5. Calculate revenue, fully-loaded cost, contribution, and margin for each persona. Re-run when the model mix, retry rate, price, scope, or persona changes.
 
-| Component | What to include | Common mistake |
-| --- | --- | --- |
-| `modelTokenCost` | Blended input+output token cost across **every** model call in the task, including planning/verification/critic passes, not just the "main" generation call | Pricing off a single model's list price while the task fans out to 3-5 calls across cheaper and more expensive models |
-| `toolCompute` | Sandboxes, browser automation minutes, container/VM time, any per-call tool or API fee (search, embeddings, vector DB reads) | Treating tool calls as "free" because they don't show up on the LLM provider invoice |
-| `overhead` | Amortized support cost, payment-processor fee (~2.9% + $0.30 per charge is a reasonable placeholder), infra/observability, chargeback/dispute reserve | Ignoring overhead entirely because it's "small" — it is not small at high transaction volume with thin per-unit margins |
+The checker's `unitCosts` field represents a deliberately simplified one-unit summary. The detailed ledger remains the source of its three numbers.
 
-Recompute the floor whenever: a new model is added to the task's model mix, a model provider changes list price, task complexity grows (more tool calls, more retries), or usage patterns shift toward heavier personas. A cost floor computed once at launch and never revisited is a margin leak waiting to be discovered by finance, not by design.
+## Guardrail procedure
 
-**Target margin.** Dev-tools SaaS commonly targets 70-80% gross margin. Agent-labor products that carry real per-task inference and tool cost often run thinner — 40-60% is a realistic planning target, not a red flag by itself. What IS a red flag: a margin that goes negative on your heaviest, most-engaged personas, because those are typically the first and loudest adopters of an agentic feature.
+Usage-exposed models (metered, credits, hybrid, outcome) require every item below to pass this static review.
 
-## Guardrail design
+| Guardrail | Before commitment | Observable hand-check | Invalid/unknown case |
+| --- | --- | --- | --- |
+| Spend cap | buyer selects or confirms a limit | record configured limit and the path at limit | no limit or only an after-the-fact email is blocked |
+| Budget preview | buyer sees a range before submitting | save a plan showing range, basis, and scope | absent or a post-run invoice is blocked |
+| Per-task estimate | each submitted task gets an estimate | retain task id, estimate, and input assumptions | missing estimate is blocked even if a monthly forecast exists |
+| Transparent metering | buyer can reconcile after a task | retain line-item receipt fields and correction path | aggregate-only total is blocked |
 
-Each guardrail below maps to a specific bill-shock failure mode observed in the market (see `references/pricing-model-decision-guide.md` for the Cursor/Copilot lessons).
+The checker verifies declared booleans. It cannot verify that a future system enforces them; that needs separate implementation evidence.
 
-### Spend cap
+## Retry and unknown-outcome accounting
 
-A hard, buyer-configurable ceiling that stops billing or execution once reached — not a soft warning email after the fact.
+Treat retries as their own modeled scenario. If a retry is customer-billable, state the buyer notice and cap interaction. If not billable, include it in seller cost. For an outcome-priced unit, an unverified or conflicting result is not a completed outcome. Use the plan's policy such as `do-not-bill` or `hold-for-review`; do not infer success from a plausible artifact.
 
-- Implementation options, cheapest to most robust: (1) a monthly $ limit enforced at the billing layer that blocks new runs once hit; (2) a per-task unit-count cap; (3) a real-time running-total check before each tool/model call inside the task loop (see the `cost-optimizer` skill for the runtime enforcement side of this).
-- The cap must be visible and editable by the buyer in-product, not only settable by support.
-- Decide and document the failure behavior when the cap is hit mid-task: hard stop with partial-result delivery, or graceful degrade to a cheaper model. Silent partial failure is worse than either.
+## Constructed accounting check
 
-### Budget preview
-
-An estimated cost shown to the buyer **before** they commit to a run or a billing period — the single highest-leverage guardrail against bill shock, because it moves the trust moment before the spend instead of after.
-
-- For a single task: estimate from historical average cost for similar tasks (by type/complexity), not a fixed per-task number that ignores task shape.
-- For a billing period: project from the last N days of the buyer's own usage, not from a generic "average customer" number.
-- Show a range, not false precision — "$2-6 estimated" is more honest and more trustworthy than a fake single-decimal number that is wrong half the time.
-
-### Per-task estimate
-
-A cost estimate attached to each individual task at submission time, distinct from the billing-period preview above. This is what lets a buyer decide "is this task worth running" one task at a time, which matters most for outcome-based and metered pricing where task cost varies widely.
-
-### Transparent metering
-
-A line-item receipt per task, available after the fact: which models were called, token counts, tool calls, and the resulting $ cost. This is the guardrail that turns a surprise invoice into an auditable one — even if the buyer never looks at it, its existence and discoverability is what prevents "I have no idea why this cost so much" from becoming a support escalation or a public trust incident.
-
-- Store the line items durably (not just a rolled-up total) so a disputed charge can be walked back to specific task executions.
-- Surface it in-product, not only in an exportable CSV nobody opens.
-
-## Failure semantics: what "good" guardrail design actually blocks
-
-| Guardrail present? | Usage-sensitive model, buyer hits an unexpectedly large task | Outcome |
-| --- | --- | --- |
-| None | Task runs to completion, bill arrives at month end | Bill shock, support ticket, possible churn/chargeback |
-| Budget preview only | Buyer sees an estimate, can cancel before committing | Reduced surprise, but a buyer who proceeds anyway with no cap can still overspend past their intent |
-| Spend cap only | Task halts once the cap is hit, no advance warning | No surprise overspend, but a buyer gets an unexplained mid-task stop with no context |
-| Preview + cap + transparent metering | Buyer sees the estimate, can set/confirm a cap, and can audit the receipt after | This is the shippable combination — matches the Copilot "quota visible in-product" and OpenAI "spend limit in dashboard" reference patterns |
+The `SKILL.md` example uses 20,000 fresh input + 1,000 output for a $0.00125 first call, then 3,000 fresh input + 1,000 output for a $0.00040 second call. The total is $0.00165. It also shows the assumed processor formula: $5.00 × 0.029 + $0.30 = $0.445. These are hypothetical rate inputs and simplified token accounting, not provider telemetry or a current quotation.

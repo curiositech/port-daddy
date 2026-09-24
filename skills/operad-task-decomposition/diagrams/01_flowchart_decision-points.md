@@ -1,16 +1,20 @@
-# Diagram 1: flowchart
+# Subworkflow boundary, slot, and contract review
 
 ```mermaid
 flowchart TD
-  A[Incoming request for Operad Task Decomposition] --> B{Within this skill's scope?}
-  B -->|No| C[Redirect using NOT-for boundaries]
-  B -->|Yes| D[Assess inputs, constraints, and current state]
-  D --> E{Which path fits best?}
-  E -->|Plan or design| F[Choose the simplest viable pattern]
-  E -->|Migration or change| G[Protect compatibility and rollout safety]
-  E -->|Debug or evaluate| H[Localize the failing boundary first]
-  F --> I[Apply the domain-specific guidance below]
-  G --> I
-  H --> I
-  I --> J[Validate against the quality gates]
+  Q[Proposed subworkflow replacement] --> I[Declare outer interface, inner slots, artifacts, and effects]
+  I --> S{Every input slot has a typed source and every output a consumer or terminal?}
+  S -->|no| R[Repair the boundary contract]
+  S -->|yes| G{Chosen operad grammar and substitution map stated?}
+  G -->|no| R
+  G -->|yes| F[Form the candidate composite]
+  F --> M{Mathematical equality claim?}
+  M -->|yes| L[Check units, associativity, equivariance, and a compatible algebra]
+  M -->|no| W[Check selected workflow DAG and sharing contract]
+  L --> B{Implementation bindings, authority, effects, and resources evidenced?}
+  W --> B
+  B -->|no| H[Hold: no execution conclusion]
+  B -->|yes| E[Review trace and outcome evidence]
 ```
+
+The first branch reviews formal substitution; the second reviews a chosen workflow restriction. Both retain implementation, authority, effect, and observation obligations outside the operad laws.
