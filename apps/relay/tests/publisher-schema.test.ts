@@ -14,6 +14,10 @@ const recoveryMigration = readFileSync(
   new URL('../migrations/2026-09-17-fleetbot-receipt-recovery.sql', import.meta.url),
   'utf8',
 );
+const reviewThreadMigration = readFileSync(
+  new URL('../migrations/2026-09-17-resolve-review-thread.sql', import.meta.url),
+  'utf8',
+);
 
 function tableInfo(db: ReturnType<typeof makeDb>, table: string): unknown[] {
   return db.raw.prepare(`PRAGMA table_info(${table})`).all();
@@ -153,7 +157,9 @@ describe('publisher storage migration and schema parity', () => {
   });
 
   it('adds only the nullable recovery binding to the existing intent table', () => {
-    const before = makeDb(applyAllMigrations().replace(recoveryMigration, ''));
+    const before = makeDb(applyAllMigrations()
+      .replace(recoveryMigration, '')
+      .replace(reviewThreadMigration, ''));
     expect(tableInfo(before, 'github_publisher_intents')).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'recovery_binding_json' }),
     ]));
@@ -161,6 +167,37 @@ describe('publisher storage migration and schema parity', () => {
     expect(tableInfo(before, 'github_publisher_intents')).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'recovery_binding_json', notnull: 0, dflt_value: null }),
     ]));
+  });
+
+  it('preserves prior publisher intents and grants while admitting only the new bounded operation', () => {
+    const db = makeDb(applyAllMigrations().replace(reviewThreadMigration, ''));
+    seedPublisherAccount(db, 'u_review_thread_migration');
+    db.raw.exec(reviewThreadMigration);
+
+    expect(db.raw.prepare('SELECT operation, state FROM github_publisher_intents WHERE idempotency_key = ?')
+      .get('intent-1')).toEqual({ operation: 'pull-request.inspect', state: 'reserved' });
+    expect(db.raw.prepare('SELECT operations_json FROM publisher_grants WHERE grant_id = ?')
+      .get(`pdg_${'ab'.repeat(16)}`)).toEqual({ operations_json: '["pull-request.inspect"]' });
+    expect(db.raw.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+
+    db.raw.prepare(`INSERT INTO github_publisher_intents
+      (account_user_id, account_github_user_id, installation_id, repository,
+       scope_sha, idempotency_key, request_hash, operation, state, actor_id,
+       agent_id, session_id, identity_project, created_at, updated_at)
+      VALUES (?, 9, 9, 'curiositech/port-daddy', ?, 'thread-intent', ?,
+        'pull-request.resolve-review-thread', 'reserved', 'actor', 'agent', 'session-1', 'project', 1, 1)`)
+      .run('u_review_thread_migration', '4'.repeat(40), '5'.repeat(64));
+    expect(db.raw.prepare('SELECT operation FROM github_publisher_intents WHERE idempotency_key = ?')
+      .get('thread-intent')).toEqual({ operation: 'pull-request.resolve-review-thread' });
+
+    expect(() => db.raw.prepare(`INSERT INTO publisher_grants
+      (grant_id, epoch, surface, account_user_id, subject_fingerprint, subject_class,
+       installation_id, repositories_json, operations_json, branch_allow_json,
+       base_allow_json, mutations_per_day, expires_at, created_at, created_via)
+      VALUES (?, 1, 'publisher', ?, ?, 'ci', 9, '["curiositech/port-daddy"]',
+        '["pull-request.resolve-review-thread"]', '["pd-agent/"]', '["main"]',
+        1, 2000000000, 1, 'account-ui')`)
+      .run(`pdg_${'cd'.repeat(16)}`, 'u_review_thread_migration', 'a'.repeat(64))).not.toThrow();
   });
 
   it('keeps the scope trigger deployable by Wrangler D1', () => {

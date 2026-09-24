@@ -112,6 +112,20 @@ describe('publisher grant operator surface', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it('rejects a nine-operation grant at the form boundary before storage', async () => {
+    const operations = [
+      'pull-request.publish', 'pull-request.update', 'pull-request.ready',
+      'pull-request.request-reviewers', 'pull-request.comment',
+      'pull-request.review-reply', 'pull-request.resolve-review-thread',
+      'pull-request.enqueue', 'pull-request.inspect',
+    ];
+    const values = createValues().filter(([key]) => key !== 'operation');
+    values.push(...operations.map((operation): [string, string] => ['operation', operation]));
+    const response = await handlePublisherGrantsPage(post('create', values), env);
+    expect(response.status).toBe(400);
+    expect(sqlite.prepare('SELECT count(*) AS n FROM publisher_grants').get()).toEqual({ n: 0 });
+  });
+
   it('immediately revokes only its account and repository grant with readback', async () => {
     await handlePublisherGrantsPage(post('create', createValues()), env);
     const grantId = String((sqlite.prepare('SELECT grant_id FROM publisher_grants').get() as { grant_id: string }).grant_id);
