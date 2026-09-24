@@ -1,23 +1,10 @@
-# Agent Identity, Continuity & Reputation — Changelog
+# Changelog
 
-## v1.1.0 (2026-07-03)
+## Repair draft — 2026-09-24
 
-- Upgraded to the agentic-family bundle standard: added `license`,
-  `allowed-tools`, and `metadata.{category, tags, provenance, pairs-with,
-  io-contract}` frontmatter.
-- Added deterministic `scripts/reputation_soundness_audit.mjs` exporting
-  `auditReputationDesign(plan)`, with `schemas/reputation-plan.schema.json`
-  (draft-07) and a passing `examples/sample-input.json`.
-- Added `README.md`, `agents/openai.yaml`, `templates/output-template.md`,
-  `examples/expected-output.md`.
-- Split the Failure Modes table out to
-  `references/failure-modes-and-defenses.md` to keep `SKILL.md` within the
-  family's line-count target, and added a "so what" note per row.
-- No changes to the thesis, decision points, quality gates, worked example,
-  future-work designs, or References list — content preserved as-is.
-
-## v1.0.0 (2026-06-05)
-
-- Initial skill creation: identity→continuity→reputation→market thesis,
-  Locke/Parfit grounding, five ordered decision points, failure-mode table,
-  quality gates, Port Daddy worked example, references list.
+- Replaced universal identity, continuity, audit, estimator and judge claims with
+  source-scoped procedures and constructed examples.
+- Updated NIST vocabulary to SP 800-63-4 and separated issuer, actor, credential and session.
+- Replaced boolean-only audit with JSON Schema validation plus supplied-plan
+  consistency checks and regression tests.
+- Moved stale active source diff and hash artifacts into validation provenance.

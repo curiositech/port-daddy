@@ -62,3 +62,10 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 **Context.** Joint digests for two readers (R2).
 **Fact.** Floor(N,2k,m) ≈ 2.1× Floor(N,k,m) — MORE than double (ratio over 2× is 1.05–1.08 across regimes), because log₂C(N,2k) grows faster than 2log₂C(N,k).
 **Rule.** When two guarantees share one artifact, cost the union directly; "sum of the parts" can be an *under*-estimate for combinatorial floors. One stored compaction under-provisions divergent readers by more than 2×.
+
+
+## 11. A quieter residual is not a repaired world
+**Context.** R6 CR-4 intervention experiments.
+**Observation.** Removing a constraint can make a retained-data residual disappear, and replacing a disagreement by zero can make a numerical cochain consistent. Those operations answer different questions: the first changes which evidence is checked; the second changes the evidence value. Neither names an authorized external effect.
+**Counterexample.** In the five-edge fixture, greedy severing costs 6 while deleting edge12 costs 5 and leaves a consistent cycle. In the triangle, three zeroings are needed despite beta_1=1.
+**Rule.** Report the mode, selected rows, remaining residual, stop status, replacement-observation provenance, authority, and effect receipt separately. A passed special fixture is neither an optimizer proof nor an operational repair certificate.

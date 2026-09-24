@@ -75,11 +75,11 @@ Every effective agent embodies five capabilities:
 
 ### The Rule of Three Passes
 
-Before acting, make three passes over the task:
+Before acting, make scoped passes over the task as its risk and uncertainty require:
 
 **Pass 1 — Scope**: What does "done" look like? Define the exit condition first.
 
-**Pass 2 — Subtasks**: What are the 3-7 concrete steps to reach "done"? Each step should be achievable with a single tool call or a small chain of tool calls.
+**Pass 2 — Subtasks**: What concrete steps and dependency boundaries are needed to reach "done"? Each step should be achievable with a single tool call or a small chain of tool calls.
 
 **Pass 3 — Dependencies**: Which steps depend on which? Independent steps can parallelize. Dependent steps must serialize.
 
@@ -88,8 +88,8 @@ Before acting, make three passes over the task:
 | Anti-Pattern | Why It Fails | Fix |
 |-------------|--------------|-----|
 | Acting before decomposing | Wasted tool calls, wrong direction | Always plan first, even briefly |
-| One giant subtask | No parallelism, no checkpoints | Split until each subtask is one tool call |
-| 20+ subtasks | Cognitive overhead, lost context | Merge related steps, aim for 3-7 |
+| One giant subtask | No independent verification or ownership | Split at real effect or verification boundaries |
+| Many subtasks | Cognitive overhead, lost context | Merge or split based on dependency and review cost |
 | No exit condition | Agent runs forever | Define "done" before starting |
 | Static plan | Can't adapt to discoveries | Replan after each wave of results |
 
@@ -99,7 +99,7 @@ Replan when:
 - A tool call returns unexpected results
 - You discover the problem is different from what you assumed
 - A dependency fails and the downstream plan is invalid
-- You're 50% through and confidence in the remaining plan drops below 0.5
+- A material dependency, observation, or risk changes the plan’s basis
 
 ---
 
@@ -131,23 +131,17 @@ Use the fewest tools with the narrowest scope to accomplish each subtask. Every 
 
 ### Sequential vs Parallel
 
-**Sequential** (use when outputs feed into inputs):
-```
-Read file → understand structure → Edit specific section → Run tests
-```
-
-**Parallel** (use when tasks are independent):
-```
-[Grep for pattern A] + [Grep for pattern B] + [Read config file]
-→ all complete → synthesize findings
-```
+**Sequential** work passes each result to the next action. **Parallel** work
+collects independent results before synthesis. See
+[`references/evidence-and-control-loop.md`](references/evidence-and-control-loop.md)
+for rendered control-loop diagrams.
 
 **Rule**: If two tool calls don't share data, run them in parallel. If one needs the other's output, serialize them.
 
 ### The Subagent Decision
 
 Spawn a subagent (Task tool) when:
-- The sub-problem would consume >30% of your remaining context
+- The sub-problem has a bounded question whose exploration would otherwise crowd out integration
 - The work is independent and can be described in one paragraph
 - You need to explore broadly (many files, web search) without polluting your context
 - The sub-problem maps to a known skill (code review, testing, research)
@@ -165,28 +159,28 @@ Do NOT spawn a subagent when:
 
 When a tool call fails, escalate through four levels:
 
-**Level 1 — Retry with adjustment**: Fix the obvious issue (typo, wrong path, missing arg) and retry once.
+**Level 1 — Classify, then retry when justified**: A rejected read or an input-validation failure can often be retried after correction. Before repeating a write, determine whether it may already have taken effect; an ambiguous outcome requires reconciliation or target-enforced idempotency. A retry count is a task-specific budget, not a universal rule.
 
 **Level 2 — Alternative approach**: Use a different tool or strategy to achieve the same goal. If Edit fails, try a different Edit. If Grep finds nothing, try Glob with a different pattern.
 
-**Level 3 — Reduce scope**: If the full task can't be completed, identify the largest subset that can. Deliver partial results with a clear note about what's missing.
+**Level 3 — Complete independent work**: If a dependency is blocked, finish the authorized parts that do not depend on it and retain a concrete handoff. Partial results do not change the requested exit condition or make the task complete.
 
-**Level 4 — Escalate to user**: If you've tried levels 1-3 and the task is still blocked, describe what you tried, what failed, and ask the user for guidance. Never loop silently.
+**Level 4 — Request missing input or authority**: Name the actual blocker and evidence. Ask as soon as a required user decision is clear; do not perform unsafe retries merely to exhaust a ladder.
 
 ### Error Recovery Anti-Patterns
 
 | Anti-Pattern | Consequence | Fix |
 |-------------|-------------|-----|
-| Retry the same thing 5 times | Wasted tokens, same failure | One retry with adjustment, then Level 2 |
+| Repeat a failed call without new evidence | Duplicate effects or wasted work | Classify the outcome, then use a justified recovery step |
 | Ignore the error and continue | Cascading failures downstream | Every error must be handled |
-| Simplify the task to make it work | User gets less than they asked for | Only reduce scope at Level 3, and disclose it |
-| Give up immediately | User loses trust | Exhaust Level 1-2 before escalating |
+| Quietly reduce the requested task | User gets less than they asked for | Preserve the exit condition; report the exact blocked portion |
+| Abandon a recoverable task | Useful authorized work remains | Continue concrete independent steps; escalate real dependencies |
 
 ### Structured Error Handling
 
 When a tool call fails:
 1. **Read the error message carefully** — it usually tells you what's wrong
-2. **Diagnose**: Is it a transient issue (retry) or a fundamental problem (redesign)?
+2. **Diagnose**: Is the request known not to have executed, known applied, or uncertain? Separately classify transient versus structural failure.
 3. **Act**: Apply the appropriate recovery level
 4. **Report**: If the error affects the final output, note it transparently
 
@@ -197,8 +191,7 @@ When a tool call fails:
 A timeout after a local or remote write is neither success nor failure. Record
 the intended effect, stable idempotency identity, authorization used, observed
 receipt, and reconciliation query. Resume by re-grounding from the authoritative
-external state; retry only when the operation is idempotent or reconciliation
-proves it did not commit. If the provider cannot answer, leave the effect
+external state; retry only with a target-enforced duplicate-suppression contract, or authoritative absence plus a mechanism preventing the earlier attempt from committing later. If the provider cannot answer, leave the effect
 `unknown` and escalate rather than creating a second successor. Local workspace
 rollback cannot undo remote effects. See `references/effect-reconciliation.md`.
 
@@ -215,15 +208,15 @@ Every token in your context window costs money and attention. Treat context like
 - **Savings**: Subagents isolate expensive exploration
 - **Debt**: Unnecessary reads/searches that you can't un-read
 
-### The 30% Rule
+### Reserve room for synthesis
 
-Reserve 30% of your effective context for final synthesis and output. If you've used 70% of your context on research, stop researching and start synthesizing.
+Reserve a task-specific synthesis budget. Stop research when another read is less valuable than integrating the evidence already obtained.
 
 ### Context-Efficient Patterns
 
 | Pattern | How | Saves |
 |---------|-----|-------|
-| Targeted reads | Read specific line ranges, not whole files | 50-90% per file |
+| Targeted reads | Read specific line ranges, not whole files | Depends on the relevant fraction of the file |
 | Grep before read | Find the exact location, then read only that section | Avoids reading irrelevant files |
 | Subagent delegation | Expensive exploration happens in isolated context | Protects main context |
 | Summarize early | After a research phase, write a summary before continuing | Prevents re-reading |
@@ -240,36 +233,17 @@ Reserve 30% of your effective context for final synthesis and output. If you've 
 
 ## Pillar 5: Quality Self-Assessment
 
-### Confidence Calibration
+### Evidence before self-ratings
 
-After completing a task, assess your confidence on two axes:
+Assess **completeness** against the requested deliverables and **correctness** against the available acceptance evidence. Record completed, missing, blocked and unverified items separately. Passing a named test is evidence for that test's scope, not probability 1 that an artifact is correct.
 
-**Completeness**: Did you address everything the user asked for?
-- 1.0: Every aspect addressed with evidence
-- 0.7: Main request addressed, some secondary aspects missing
-- 0.4: Partial answer, significant gaps
-- 0.1: Barely started
-
-**Correctness**: How likely is your output to be right?
-- 1.0: Verified by tests, cross-referenced, high certainty
-- 0.7: Reasonable confidence but not verified
-- 0.4: Best guess, significant uncertainty
-- 0.1: Speculative
+If an application genuinely needs numerical confidence, define the event being forecast and calibrate predictions against held-out labeled outcomes. A verbal self-rating or a convenient decimal is not automatically a probability. Keep task coverage, correctness forecasts and expected benefit of further work as different quantities.
 
 ### When to Stop
 
-Stop when ANY of these are true:
-- The exit condition (from decomposition) is satisfied
-- Your confidence that further work improves the output drops below 0.3
-- You've consumed 70% of available context (the 30% rule)
-- The user's question has been answered completely
-- You're making changes that don't measurably improve the result
+Finish when the requested exit condition and matching acceptance checks are satisfied. Pause dependent work when a required input or authority is missing, while continuing useful independent work. Use explicit time, cost or context limits where the task supplies them; report unmet deliverables when a real limit prevents completion.
 
-Continue when ALL of these are true:
-- The exit condition is not yet met
-- You have a clear next step with expected improvement
-- You have sufficient context budget remaining
-- Each iteration is producing measurable progress
+Continue when the exit condition remains unmet and there is a concrete authorized next step that can resolve a material gap. Do not replace the user's completion requirement with an invented confidence threshold or stop because a turn is getting long.
 
 ### The "One More Thing" Trap
 
@@ -281,22 +255,15 @@ Resist the urge to add improvements the user didn't ask for. Every "one more thi
 
 ### Pattern 1: Scout-Then-Act
 
-```
-Phase 1 (Scout):   Read, Grep, Glob — understand the territory
-Phase 2 (Plan):    Decompose based on what you found
-Phase 3 (Act):     Edit, Write, Bash — execute the plan
-Phase 4 (Verify):  Run tests, check results
-```
+Scout, plan, act, and verify are distinct phases; findings may revise the plan
+before an authorized effect.
 
 Best for: Bug fixes, feature additions, refactoring. You need to understand before you change.
 
 ### Pattern 2: Parallel Fan-Out
 
-```
-Wave 0: [Research A] + [Research B] + [Research C]   ← parallel subagents
-Wave 1: [Synthesize findings]                         ← single agent
-Wave 2: [Implement based on synthesis]                ← single agent
-```
+Run independent research in one bounded wave, synthesize it, then decide
+whether implementation is authorized.
 
 Best for: Tasks requiring multiple independent information sources. Research tasks, competitive analysis, multi-file understanding.
 
@@ -306,26 +273,15 @@ bounded; serialize coupled edits and unresolved effect reconciliation.
 
 ### Pattern 3: Iterative Refinement
 
-```
-Loop:
-  1. Produce draft output
-  2. Evaluate against criteria
-  3. If criteria met → done
-  4. Identify largest gap
-  5. Fix the gap → go to 1
-Max iterations: 3-5
-```
+Produce a draft, evaluate it against stated criteria, repair the most material
+gap, and stop when the task-specific exit condition or budget says to stop.
 
 Best for: Creative tasks, code generation, content production. Each pass improves quality.
 
 ### Pattern 4: Staged Pipeline
 
-```
-Stage 1: Raw extraction (fast, broad)
-Stage 2: Filtering (remove noise)
-Stage 3: Enrichment (add detail to survivors)
-Stage 4: Final synthesis
-```
+The pipeline is extraction, filtering, enrichment, then synthesis. Its stage
+count and stopping rule depend on the task and evidence budget.
 
 Best for: Data processing, research synthesis, skill compression. Each stage narrows the working set.
 
@@ -337,11 +293,11 @@ Before considering an agentic task complete:
 
 ```
 [ ] Exit condition defined before starting
-[ ] Task decomposed into 3-7 concrete subtasks
+[ ] Task decomposed into concrete, independently checkable subtasks
 [ ] Dependencies identified (what must serialize vs parallelize)
 [ ] Each tool call has a clear purpose (no exploratory fishing)
 [ ] Errors handled at the appropriate recovery level
-[ ] Context budget tracked (not over 70% before synthesis)
+[ ] Context budget tracked with a task-specific synthesis reserve
 [ ] Output addresses every part of the user's request
 [ ] Confidence self-assessed on completeness and correctness
 [ ] Improvements not requested by user noted but not implemented
@@ -354,10 +310,7 @@ Before considering an agentic task complete:
 
 All five pillars follow one meta-pattern: **think before acting, act with precision, assess after acting**.
 
-```
-THINK:  What am I trying to do? How will I know it's done?
-ACT:    Use the minimum tools with maximum precision.
-ASSESS: Did it work? What's my confidence? Should I continue?
-```
+Think sets goal and evidence needs; act takes the narrowest authorized action;
+assess checks the observed result and whether the exit condition is met.
 
 Agents that skip THINK waste tokens exploring. Agents that skip ASSESS don't know when to stop. Agents that skip ACT just plan forever. All three, in that order, every cycle.

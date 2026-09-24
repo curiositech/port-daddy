@@ -1,44 +1,12 @@
-# Work Intake Decision Template
+# Intake record
 
-Fill in every section before materializing an Agent Node. Validate the underlying claims with
-`node scripts/node_shaping_audit.mjs --input <this-decision-as-json>.json` before treating the
-archetype call as final.
+| Field | Required supplied value |
+| --- | --- |
+| WorkIntent | ID, six signal values, and a nonblank reason for each |
+| Shape decision | exactly one selected archetype and a distinct runner-up with `reasonLost` |
+| Canonical target | nonempty `trace:` call reference and `readback:` persisted-state reference |
+| Approval | `required`, `present`, and a named `blockedAction` when structural |
+| Admission | boolean authority and resources, reported separately from declaration validity |
+| Reachable legacy routes | each historical verb, trace/readback references, and `writesIndependentState`; or explicit no-route trace |
 
-```markdown
-## WorkIntent
-
-- id: `<stable-work-intent-id>`
-- Operator ask (one line): <what the operator actually asked for>
-
-## Signal Vector
-
-| Signal | Value | Why |
-| --- | --- | --- |
-| coupling | `low` / `medium` / `high` | <one line> |
-| contextPressure | `low` / `medium` / `high` | <one line> |
-| skillBoundary | `single` / `few` / `many` | <one line> |
-| reviewIndependence | `shared` / `independent` | <one line> |
-| budget | `small` / `medium` / `large` | <one line> |
-| operatorBurden | `low` / `medium` / `high` | <one line> |
-
-## Archetype Decision
-
-Selected archetype (exactly one): `node` / `scout` / `chain` / `dag-workgroup` / `tournament` /
-`ambient-watcher` / `human-gate`
-
-- Why this one and not the nearest runner-up: <one paragraph, citing references/seven-archetypes.md
-  disambiguation heuristics>
-
-## Legacy Route Audit
-
-| Verb reachable from this entrypoint | Writes independent state? | Evidence |
-| --- | --- | --- |
-| `spawn` / `dispatch` / `sortie` / `conjure` / `nightshift` / (none) | `false` (must be proven, not assumed) | <call-site trace or "no legacy verb in this path"> |
-```
-
-## Checklist before materializing the Agent Node
-
-- [ ] `selectedArchetypes` has exactly one entry, drawn from the canonical seven.
-- [ ] Every legacy route's `writesIndependentState` is traced to the actual call site, not assumed.
-- [ ] No legacy route independently opens a session id, transcript stream, or Agent Node outside the shared WorkPlan pipeline.
-- [ ] `node scripts/node_shaping_audit.mjs --input <decision>.json` returns `pass: true`.
+State `declarationValid`, `eligibleToAdmit`, `structuralBlocked`, and findings. If approval is structural, select human-gate and name the blocked action. Do not create a route merely to fill this template.

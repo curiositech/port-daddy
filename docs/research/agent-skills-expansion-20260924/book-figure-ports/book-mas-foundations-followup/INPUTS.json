@@ -1,0 +1,82 @@
+{
+  "recorded_at": "2026-09-24T14:44:00.015201+00:00",
+  "scope": "targeted review; not full theorem audit",
+  "files": [
+    {
+      "path": "/Users/erichowens/coding/port-daddy/whitepaper/single-writer-kernel.tex",
+      "sha256": "666473b5ad3db54a40d8386a923ead47a574e55b1a96132dbda8dcae701e6eea",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "sha256": "67f7c74dbf48249f04f5904bd1218fddf1360c7386f3b3968d97f2c9345bbe5f",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/sealed-harbor.tex",
+      "sha256": "611b99e1096aa78440728001a4855512bc72a88576768ff09409c405573f2664",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/whitepaper/legible-swarm.tex",
+      "sha256": "ca2b4dd5b9d91698ee5550b908a0fa8a4bd0d80ea86f938cb2c98289ef27c8a6",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "8b629d39d9a24e312ad1c17b1e0bdbcda01b0194fcabb081f7671d4130536684",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "9fe6ec5d66f848ae05edc863f2eac0036a0445f4cb55ed8b513352bf1153e14f",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "573b9fc39eb89859a9bd54e927d097b9d0225d388f8d79e05245eb3a0a9b02a5",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "4e770b7839cec82fa3be1f34d2405c0bf4beffe397d1c9079be9ec060e99e1a8",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B04/validation/second-four/mas-body-repair/BOOK-CANDIDATE.md",
+      "sha256": "6259a1e1367309398a9a1c781642e90c59c05e86d9581a3332e208615f21455a"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/ASTRA-BOOK-REVIEW.md",
+      "sha256": "2b8573f2547e231a948ec58eec19bcc5d73b179aebf53e8a411ad4196066e8b8"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/BOOK-PLACEMENT-REVIEW.md",
+      "sha256": "9cffdb4e52b3a0e880b577f50e9a62bcac2c030e3b1fad013fdcf4024ea63bd4"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-followup/REVIEW.md",
+      "sha256": "7296a08ed7230a1ae3a0c9ffb109deadaccb3849631192a05967467c1357c121"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/manuscript-snapshot.json",
+      "sha256": "e0528f0a2d6c577d9459f0d8c5b18e4075f43c5e8333cac3b7f77c29899ccbd5"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B04/skills/shoham-leyton-brown-2009-mas-foundations/SKILL.md",
+      "sha256": "c1332d70e533c3d1aa22e0f4e8ffb86aab7a1010bb7605132228080b886d09ad"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B04/skills/shoham-leyton-brown-2009-mas-foundations/references/representation-and-tractability.md",
+      "sha256": "9e12f6e18940ccebdffbde4c8537be2445e2cefeb93d398ce1b2801e7846dd1a"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B04/skills/shoham-leyton-brown-2009-mas-foundations/references/computational-equilibrium-complexity.md",
+      "sha256": "38cccd1b650f1f30ac48865b9b632896c594a0210bbe22a97e2e4fb3f5869355"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B04/skills/shoham-leyton-brown-2009-mas-foundations/references/mechanism-design-constrained-reality.md",
+      "sha256": "4a6ce9a91699d8d7176689a7b67c497392e4f749ccff82ec4332e2c757e56429"
+    }
+  ]
+}

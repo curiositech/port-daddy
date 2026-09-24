@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: agentic-infrastructure-2026
 description: |
-  Build and adopt production AI agent infrastructure in 2026. Covers framework selection (LangGraph, CrewAI, AutoGen, MCP), orchestration patterns, evaluation, observability, memory systems, and tool use. Also covers the SOCIAL dimension: how to sell agent infrastructure internally, change management, measuring ROI, building trust in autonomous systems, and scaling adoption across teams. Activate on: "agent infrastructure", "agent framework comparison", "which agent framework", "sell AI tools internally", "agent adoption", "agent observability", "agent evaluation", "MCP architecture", "agentic mesh", "enterprise AI agents", "AI change management", "agent ROI". NOT for: building specific agents (use ai-engineer), designing agent behavior patterns (use agentic-patterns), prompt tuning (use prompt-engineer).
+  Plan, evaluate, and adopt agent infrastructure for a named workload. Use for agent runtime/framework selection, agent evaluation or observability plans, memory and tool boundaries, infrastructure cost controls, and organizational adoption. Covers workload-first comparison, risk and recovery planning, held-out evaluation, cost accounting, and staged rollout. Not a vendor ranking or a production certification. NOT for implementing a specific agent behavior (agentic-patterns), building a specific agent (ai-engineer), prompt optimization (prompt-engineer), or conventional ETL workflow design (jury_rig-architect).
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
   category: AI & Agents
@@ -21,13 +21,13 @@ metadata:
       - port-daddy
   pairs-with:
     - skill: multi-agent-coordination
-      reason: Coordination patterns sit on top of agent infrastructure
+      reason: Coordination patterns inform workload and control requirements.
     - skill: agentic-patterns
-      reason: Behavioral patterns inform infrastructure design choices
+      reason: Behavioral patterns inform task traces and evaluation cases.
     - skill: agentic-app-architecture
-      reason: App-shape decisions (transparency, memory, context economics) precede the infra plan this skill builds
+      reason: Application shape, disclosure, state, and context decisions constrain infrastructure choices.
     - skill: agent-work-receipt-designer
-      reason: Once infra ships, receipts give the audit trail this skill's Production Readiness gate requires
+      reason: Receipts provide evidence for observed effects and recovery tests.
   io-contract:
     kind: deliverable
     consumes:
@@ -38,369 +38,108 @@ metadata:
     produces:
       - kind: architecture-decision
         format: markdown
-      - kind: infra-readiness-audit
+      - kind: infra-plan-audit
         format: json
-category: Agent & Orchestration
-tags:
-  - agentic
-  - infrastructure
-  - '2026'
-  - rust
-  - ai
-  - orchestration
 ---
 
-# Agentic Infrastructure 2026
+# Agent infrastructure planning and evaluation
 
-You are an expert in building, evaluating, and socializing AI agent infrastructure. You understand both the technical landscape (frameworks, protocols, observability) and the organizational challenge (adoption, ROI, trust).
+Use this skill to choose and adopt infrastructure for a specific workload. Build the decision from required behavior, risk, data, and operating constraints. A product's documentation can establish that a capability is documented; it does not establish that the capability fits your workload, is enforced in your deployment, or outperforms another option.
 
-## Decision Points
+## Start from the workload
 
-### 1. Framework Selection
-**If** complex multi-step workflows with conditional branching:
-  - Use LangGraph (graph-based state machines)
-  - Wire observability from day one
-  - Budget $5-20k for learning curve
+Write down concrete tasks and their outcomes before selecting a framework. Include inputs, data classes, expected effects, users, tools, latency and availability needs, recovery behavior, and who can authorize each effect. Include at least one difficult or failure-prone trace. Separate requirements from preferences and open questions.
 
-**If** multi-agent collaboration on shared tasks:
-  - Use CrewAI (role-based teams)
-  - Start with 3-5 agent crew
-  - Expect 2-3 week ramp-up
+Then compare the system's layers rather than treating every product label as interchangeable:
 
-**If** Microsoft ecosystem/.NET shop:
-  - Use Semantic Kernel
-  - Leverage existing Azure investments
-  - Focus on plugin architecture
+- **Harness or orchestrator:** plans model/tool turns, routes control, and applies workflow transitions.
+- **Runtime:** provides execution, scheduling, state, cancellation, timeouts, retries, and recovery semantics.
+- **Model and provider:** supplies inference and provider-managed tools; version, latency, retention, and price can change independently of the harness.
+- **Tool protocol and adapters:** define how clients discover and invoke tools. MCP is a protocol; it is not by itself an orchestration framework, sandbox, permission policy, or evidence that the connected tools are safe.
+- **Application policy:** decides which principal may cause which effect and records the result. A framework feature does not replace this authority boundary.
 
-**If** need tool interoperability across providers:
-  - Implement MCP protocol
-  - Use lazy tool loading for context efficiency
-  - Plan for 40-50% context overhead
+A product may cover several layers. Record which layer each claimed capability belongs to and which component actually enforces it. Use [the layer diagram](diagrams/layered-options.md) to expose missing owners.
 
-**If** simple assistant with file retrieval:
-  - Use OpenAI Assistants API
-  - Accept vendor lock-in trade-off
-  - Good for MVP/prototype
+## Compare options by evidence
 
-### 2. Architecture Complexity
-**If** single-purpose agent:
-  ```
-  Simple: User → Agent → Tool → Response
-  ```
+For each requirement, record (1) required behavior, (2) candidate capability and source/version, (3) evidence type, (4) gap or assumption, and (5) a test that would demonstrate the behavior in your system. Distinguish vendor documentation, a local test, an evaluation result, and a deployed observation. Do not infer comparative quality from capability lists.
 
-**If** multi-step workflow:
-  ```
-  LangGraph: User → State Machine → [Tool A → Decision → Tool B] → Response
-  ```
+A workload may need no agent framework: a deterministic program, single model call, job queue, or human process can be the baseline. Compose a graph or multiple agents only when the task dependencies, branching, parallelism, or recovery needs warrant that complexity. Define the smallest architecture that can be compared fairly, then measure the cost of the additional layers.
 
-**If** team collaboration needed:
-  ```
-  Agentic Mesh: User → LangGraph Orchestrator → CrewAI Teams → MCP Tools
-  ```
+The former recommendation to use OpenAI's Assistants API for a simple retrieval assistant is obsolete: OpenAI's [migration guide](https://developers.openai.com/api/docs/assistants/migration), checked 2026-09-24, says the API was sunset on August 26, 2026 and points to Responses and Conversations APIs. This is a dated product-doc statement, not a recommendation that those APIs fit every workload.
 
-### 3. Adoption Strategy
-**If** engineering leadership audience:
-  - Lead with developer productivity metrics
-  - Show "3 engineers + agents = 8 engineers output"
-  - Demo on code review/test generation
+## Plan an evaluation before a pilot
 
-**If** product leadership audience:
-  - Lead with time-to-market acceleration
-  - Show sprint compression (2 weeks → 2 days)
-  - Emphasize competitive advantage
+Create a task set that represents intended use and foreseeable failure modes. Keep tuning examples separate from held-out evaluation tasks. Use the same model, tools, data, prompts, effect permissions, and stopping rules across a baseline and each candidate unless the comparison explicitly tests one of those variables. If versions differ, record them.
 
-**If** security/compliance audience:
-  - Lead with controlled automation
-  - Show approval gates and audit trails
-  - Highlight MCP governance (Linux Foundation)
+For each run, preserve task ID, candidate/version/configuration, rubric and judgment source, task result, unsafe or unauthorized effect, duplicate effect, retry/timeout, latency, provider and infrastructure cost, human review time, and recovery outcome after interruption. Report denominators and task-level failures, not just an average or acceptance rate. Show uncertainty appropriate to the sample and keep any promotion threshold labeled as a local policy choice. A plan or checklist is not an executed evaluation.
 
-**If** executive leadership audience:
-  - Lead with strategic capability building
-  - Show ROI model with conservative estimates
-  - Frame as organizational muscle
+[The evaluation cycle](diagrams/evaluation-cycle.md) shows a controlled comparison and its stop/revise route. The exact local protocol, including a small hand-checkable task-set design, is in [`references/evaluation-and-cost-method.md`](references/evaluation-and-cost-method.md).
 
-### 4. Cost Management
-**If** token usage > 100k/minute:
-  - Implement token-based rate limiting (not request-based)
-  - Add AI Gateway with cost tracking
-  - Set per-task budget caps
+## Control operating costs and failure behavior
 
-**If** multiple teams using agents:
-  - Create centralized AI Studio model
-  - Shared SDKs and MCP servers
-  - Quota management per team
+Estimate cost from workload volume and measured usage, not a generic per-agent or per-task figure. At minimum, account for model/provider calls, tool and runtime compute, storage and observability, retries, human review, integration and maintenance. Make unit and time window explicit. A useful local metric is:
 
-**If** production deployment:
-  - Always include kill switches
-  - Daily/monthly budget alerts
-  - Cost attribution per workflow
+`cost per accepted task = total attributable cost / tasks meeting the predeclared rubric without an unauthorized or duplicate effect`
 
-### 5. Memory Architecture
-**If** single conversation:
-  - Use working memory (context window only)
+Include the cost of every attempted task in the total-cost numerator. The accepted-task denominator contains only tasks meeting the predeclared rubric without unauthorized or duplicate effects; separately report the full attempted-task count and all failed, incomplete, unsafe, and duplicate cases so none disappear from the report. Set caps and alert actions from the organization's actual tolerance and billing controls. Declare retry limits, end-to-end deadlines, cancellation behavior, idempotency strategy, circuit-breaker or stop conditions, and a human or operator escalation path. These controls mitigate risks; a plan declaration does not prove that deployed code enforces them.
 
-**If** multi-turn session:
-  - Add short-term memory (thread/session state)
-  - Implement conversation summarization
+See [`references/evaluation-and-cost-method.md`](references/evaluation-and-cost-method.md) for a worked unit-economics calculation and retry ledger.
 
-**If** user personalization needed:
-  - Add long-term memory (vector store/database)
-  - Query on relevance, not recency
+## State, tools, observability, and memory
 
-**If** debugging/auditing required:
-  - Add episodic memory (event log)
-  - Enable replay for error analysis
+Name the owner and lifecycle for transient context, task state/checkpoints, user memory, event/audit records, and provider caches. For each, record source/version, retention, access, deletion, restore/fork behavior, and whether it is needed at all. Do not add a vector store, persistent memory, cache, MCP server, or multi-agent layer by default.
 
-## Failure Modes
+Observability can include request, execution trace, task quality, and drift signals. Pick the levels that answer the workload's questions; minimize sensitive capture, set retention, and test that traces correlate across model calls, tool effects, and recovery. A dashboard alone does not demonstrate data correctness or enforcement. MCP schema size and context consumption depend on the actual tool set and provider representation; measure your configuration instead of applying a universal percentage threshold.
 
-### 1. Framework-First Thinking
-**Symptoms:** Team picks LangGraph before defining workflows, gets stuck in configuration hell
-**Detection Rule:** If you're reading framework docs before writing requirements, you're here
-**Fix:** 
-- Define 3 specific agent workflows first
-- Map decision points and tool calls
-- Then select framework that best fits those patterns
+## Adopt by staged evidence, not a fixed calendar
 
-### 2. Context Budget Explosion
-**Symptoms:** Agents spending $2+ per simple task, slow response times, hitting token limits
-**Detection Rule:** If MCP tool schemas consume >50% of context before real work, you're here
-**Fix:**
-- Implement lazy tool loading (load schemas on-demand)
-- Use tool compression/summarization
-- Add tool routing layer (lightweight classifier)
+Name owners for engineering, product, security/privacy, operations, and affected users as applicable. Explain what the system does, what it cannot establish, who can intervene, where evidence is retained, and how to escalate. Gather a baseline before the pilot. When estimating return, count implementation and integration, infrastructure, model/tool spend, human review and rework, monitoring, training, maintenance, and retirement costs. State the time window, workload volume, successful-task denominator, comparison group, and excluded costs. Do not present a hypothetical calculation as achieved savings.
 
-### 3. Observability Debt
-**Symptoms:** Agents failing silently, impossible debugging, no cost visibility
-**Detection Rule:** If you're using console.log to debug agent behavior, you're here
-**Fix:**
-- Wire LangSmith/Braintrust before first production run
-- Instrument at 4 levels: request, trace, quality, drift
-- Set up evaluation pipeline parallel to development
+Define expansion gates from the consequences of error and the measured pilot: task quality, unsafe and duplicate effects, recovery, latency, total cost, support burden, and user impact. A gate may require further evaluation, narrower scope, remediation, or stopping. Do not force all workloads into the same approval, team-count, or rollout schedule.
 
-### 4. Adoption Stall
-**Symptoms:** Great demos, no production usage, teams reverting to manual processes
-**Detection Rule:** If pilot has been "almost ready" for >3 months, you're here
-**Fix:**
-- Start with boring, well-understood workflow
-- Measure time saved religiously
-- Keep human in the loop visibly (approval gates)
-- Underpromise, overdeliver on results
+See [`references/adoption-and-worked-examples.md`](references/adoption-and-worked-examples.md) for the preserved three worked examples and organizational method. The multi-team platform example is also shown in [the adoption diagram](diagrams/shared-platform-adoption.md).
 
-### 5. Cost Runaway
-**Symptoms:** $500+ surprise bills, agents in infinite loops, no budget controls
-**Detection Rule:** If you don't know your cost-per-task within $1, you're here
-**Fix:**
-- Implement per-task cost caps ($5 max)
-- Add circuit breakers (max retries, timeouts)
-- Token-based rate limiting, not request-based
+## Audit the plan
 
-## Worked Examples
+`scripts/infra_readiness.mjs` exports `auditInfraReadiness(plan)` and can run as a CLI. It interprets the schema keywords used by this bundle, validates JSON-only input values and their types, rejects whitespace-only required strings, checks enum domains and numeric bounds, and enforces one effect-policy record per declared workload effect class. Its `pass` means **the plan is structurally complete against the declared planning contract**. It does not mean infrastructure is ready, secure, affordable, deployed, or empirically effective. Findings and `evidenceRefs` are declarations that reviewers must resolve independently.
 
-### Example 1: Enterprise Code Review Agent (LangGraph + ROI)
+- [`schemas/infra-plan.schema.json`](schemas/infra-plan.schema.json) defines the machine-readable contract. The API also asserts `reviewedAt` as a real ISO calendar date; external JSON Schema validators should enable `format` assertions if they need identical date checking.
+- [`examples/sample-input.json`](examples/sample-input.json) is a constructed, not measured, plan.
+- [`scripts/infra_readiness.test.mjs`](scripts/infra_readiness.test.mjs) runs static positive and negative cases. It has no provider, runtime, or external effects.
 
-**Scenario:** Engineering team wants agent to help with code reviews, reduce reviewer burden
+Run:
 
-**Decision Process:**
-1. **Framework Selection:** Complex workflow (read PR → analyze diff → check standards → generate feedback)
-   - Decision: LangGraph for conditional branching
-   - Alternative considered: CrewAI (rejected - single agent task, not team)
-
-2. **Architecture Design:**
-   ```
-   PR Created → LangGraph State Machine:
-   ├─ Fetch diff (GitHub MCP)
-   ├─ Security scan (if contains auth/secrets)
-   ├─ Style check (if language = Python/JS) 
-   ├─ Test coverage (if tests modified)
-   └─ Generate review comment
-   ```
-
-3. **Pilot Scope:** Start with one repo, non-critical reviews only
-   - Human reviewers still required for approval
-   - Agent provides "pre-review" suggestions
-
-4. **ROI Calculation:**
-   ```
-   Before: 45 min avg per review × $75/hour = $56.25 per review
-   After: 10 min human review ($12.50 at $75/hr) + $1.50 agent cost = $14.00 per review
-   Savings: $42.25 per review × 200 reviews/month = $8,450/month
-   Infrastructure cost: $1,200/month (LangSmith + compute)
-   Net savings: $7,250/month
-   ```
-
-5. **What Novice Misses:** Would build complex multi-agent system, skip evaluation pipeline
-6. **What Expert Catches:** Start simple, measure everything, expand gradually
-
-**Outcome:** 67% time reduction in review cycle, 89% of agent suggestions accepted by humans
-
-### Example 2: Framework Migration (AutoGen → LangGraph)
-
-**Scenario:** Team has AutoGen v0.2 multi-agent research system, needs production reliability
-
-**Decision Process:**
-1. **Migration Trigger:** AutoGen conversations unpredictable, hard to debug, no state persistence
-2. **Framework Analysis:**
-   - Current: AutoGen's free-form conversation model
-   - Target: LangGraph's explicit state machine
-   - Trade-off: More setup complexity for better control
-
-3. **Migration Strategy:**
-   ```
-   Phase 1: Parallel implementation (both systems running)
-   Phase 2: A/B test same research tasks
-   Phase 3: Quality comparison (accuracy, cost, reliability)
-   Phase 4: Full cutover
-   ```
-
-4. **Key Differences:**
-   ```
-   AutoGen Pattern:
-   Agent A: "Here's my analysis"
-   Agent B: "I disagree because..."
-   Agent A: "Good point, let me revise..."
-   (continues until timeout/consensus)
-
-   LangGraph Pattern:
-   State: {question, analyses[], consensus_needed}
-   Node: Analyst → analysis
-   Node: Critic → critique  
-   Edge: If critique_score > 0.8 → Consensus, else → Analyst
-   ```
-
-5. **What Novice Misses:** Would rewrite everything at once, no comparison metrics
-6. **What Expert Catches:** Run systems in parallel, measure quality differences, gradual migration
-
-**Outcome:** 73% fewer failed research runs, 45% cost reduction, deterministic execution paths
-
-### Example 3: Multi-Team Adoption (AI Studio Model)
-
-**Scenario:** 5 engineering teams want agent infrastructure, no central coordination
-
-**Decision Process:**
-1. **Problem:** Each team building isolated solutions, duplicated effort, no learning transfer
-2. **Solution:** Centralized AI Studio providing shared infrastructure
-
-3. **Studio Architecture:**
-   ```
-   AI Studio provides:
-   ├─ Pre-built MCP servers (GitHub, Jira, Slack, AWS)
-   ├─ Evaluation harness templates
-   ├─ Cost monitoring dashboard
-   ├─ Agent deployment pipeline
-   └─ Best practices documentation
-   
-   Teams consume:
-   ├─ SDK for their language/framework
-   ├─ Pre-configured observability
-   ├─ Shared tool protocols
-   └─ Cost quotas and guardrails
-   ```
-
-4. **Rollout Strategy:**
-   - Month 1: Team A (most motivated) pilots with Studio support
-   - Month 2: Document learnings, refine Studio offerings
-   - Month 3: Team B and C onboard using improved toolkit
-   - Month 4-6: Teams D and E join, Studio becomes self-service
-
-5. **Success Metrics:**
-   ```
-   Technical:
-   - Time to first working agent: 3 days → 1 day
-   - Code reuse across teams: 0% → 70%
-   - Infrastructure cost per team: $5k → $1.2k
-
-   Organizational:
-   - Teams actively using agents: 1 → 5
-   - Cross-team knowledge sharing: Weekly demos
-   - Executive confidence: Quarterly ROI reports
-   ```
-
-6. **What Novice Misses:** Would let teams build in isolation, reinvent wheels
-7. **What Expert Catches:** Central platform creates network effects, reduces duplicated learning
-
-**Outcome:** 5 teams deployed production agents in 6 months, 80% infrastructure code reuse
-
-## Quality Gates
-
-```
-Technical Infrastructure:
-[ ] Framework selected with documented decision criteria (use case fit)
-[ ] MCP tool servers configured with lazy loading (< 50% context consumption)
-[ ] Observability pipeline operational (LangSmith/Braintrust/Langfuse)
-[ ] Evaluation suite covering unit/trajectory/end-to-end testing
-[ ] Cost controls active (per-task caps, daily quotas, kill switches)
-[ ] Memory architecture documented (working/short-term/long-term boundaries)
-
-Organizational Readiness:
-[ ] Pilot scoped to single team, single workflow (not enterprise-wide)
-[ ] ROI measurement framework defined with baseline metrics
-[ ] Stakeholder communication tailored per audience (eng/product/exec/security)
-[ ] Human-in-the-loop approval gates visible and documented
-[ ] Success criteria defined with binary pass/fail conditions
-[ ] Adoption expansion plan documented (pilot → scale pathway)
-
-Production Readiness:
-[ ] Security review completed (PII filtering, audit trails, access controls)
-[ ] Error handling documented (retry logic, circuit breakers, escalation)
-[ ] Performance benchmarks established (latency SLAs, throughput targets)
-[ ] Incident response procedures defined (who gets paged, rollback plan)
-```
-
-## Machine-Checkable Audit
-
-The Quality Gates above are runnable, not just a checklist. `scripts/infra_readiness.mjs`
-exports `auditInfraReadiness(plan)`, which scores a JSON infra plan against the same
-gates and flags the failure modes most likely to sink a pilot: no documented
-framework-selection criteria, MCP context overhead ≥50% with no lazy loading, missing
-observability, missing cost controls or kill switch, no human-in-the-loop gate, and an
-enterprise-wide (unscoped) pilot.
-
-- `schemas/infra-plan.schema.json` — draft-07 shape of the plan the auditor consumes.
-- `examples/sample-input.json` — a complete plan that scores `pass: true`.
-
-```bash
+```sh
 node scripts/infra_readiness.mjs --input examples/sample-input.json
-# => { "pass": true, "score": 100, "findings": [], "recommendations": [...] }
+node --test scripts/infra_readiness.test.mjs
 ```
 
-## NOT-FOR Boundaries
+An invalid or incomplete plan prints findings and returns a non-zero CLI exit code. Additional JSON properties are allowed so teams can preserve local planning fields; non-JSON JavaScript values (including undefined, functions, symbols, non-finite numbers, sparse arrays, accessors, custom objects, and cycles) are rejected rather than silently dropped. Extra properties do not satisfy missing required gates.
 
-**This skill is NOT for:**
+## Quality gates
 
-- **Building specific agent behaviors** → Use `agentic-patterns` instead
-  - If you need conversation flows, prompt chains, or reasoning strategies
+A plan is reviewable when it names the workload and candidate layers; explains the selection or deferral; includes a controlled evaluation and baseline; assesses security and incident response; defines effect authority; and records cost, observability, and adoption treatment with evidence references or explicit scope rationale. Applicability can differ by workload, but absent fields and silent omissions are not evidence of irrelevance.
 
-- **Implementing RAG systems or chatbots** → Use `ai-engineer` instead  
-  - If building knowledge retrieval, semantic search, or simple Q&A
+The auditor checks declarations only. Before a consequential rollout, separately inspect implementation and authority boundaries, then test denied and failure paths without producing external effects. See the references for a complete recipe.
 
-- **Prompt optimization and tuning** → Use `prompt-engineer` instead
-  - If debugging model outputs, optimizing prompts, or few-shot learning
+## Boundaries
 
-- **DAG workflow design** → Use `jury_rig-architect` instead
-  - If building data pipelines, ETL workflows, or traditional orchestration
+This skill supports infrastructure planning and evaluation, not operational safety certification, legal/compliance advice, guaranteed ROI, universal framework rankings, or live agent control. For a concrete workload, cite current primary product documentation and verify local behavior with controlled tests. Keep synthetic examples labeled as synthetic.
 
-- **LLM fine-tuning or model training** → Use domain-specific skills
-  - Infrastructure is about orchestration, not model customization
+## Diagrams
 
-**Delegate to other skills when:**
-- Request involves specific agent conversation patterns → `agentic-patterns`
-- Question is about model selection or prompt engineering → `ai-engineer` + `prompt-engineer`  
-- Focus is on data workflow orchestration → `jury_rig-architect`
-- Need help with change management processes → `change-management` (if exists)
+- [Layered system options](diagrams/layered-options.md)
+- [Evaluation cycle](diagrams/evaluation-cycle.md)
+- [Conditional code-review task](diagrams/code-review-workflow.md)
+- [Controlled migration comparison](diagrams/migration-comparison.md)
+- [Research message and state-control patterns](diagrams/research-control-patterns.md)
+- [Shared-platform adoption](diagrams/shared-platform-adoption.md)
 
-<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+## Sources and detailed methods
 
-## Skill Bundle Index
-
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
-
-**`examples/`**
-- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
-
-**`schemas/`**
-- [`schemas/infra-plan.schema.json`](schemas/infra-plan.schema.json) — infra plan.schema (data/schema)
-
-**`scripts/`**
-- [`scripts/infra_readiness.mjs`](scripts/infra_readiness.mjs)
-
-<!-- END BUNDLE INDEX -->
+- [`references/workload-and-framework-fit.md`](references/workload-and-framework-fit.md)
+- [`references/evaluation-and-cost-method.md`](references/evaluation-and-cost-method.md)
+- [`references/adoption-and-worked-examples.md`](references/adoption-and-worked-examples.md)
+- [`references/vendor-capability-ledger.md`](references/vendor-capability-ledger.md)
+- [`references/evidence-scope.md`](references/evidence-scope.md)

@@ -3,50 +3,50 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I have a TLA+ invariant that says 'no agent can hold more than 3 file claims simultaneously.' My daemon processes about 200 file claim requests per second. Should I check this synchronously on every claimFile() call, or use sampled checking? What are the trade-offs?",
-      "expected_output": "A decision tree analysis landing on synchronous checking (safety-critical, cheap per-check). Must discuss the cost of a COUNT query per call, propose caching the count in-memory, and address what happens if the check fails mid-burst.",
+      "prompt": "A model says no agent may hold more than 3 simultaneous file claims, and a daemon handles about 200 claim requests per second. Should claimFile() check synchronously or use a sampled monitor? What facts decide?",
+      "expected_output": "First clarify whether the limit is a state invariant or a transition precondition, which authority owns the claim state, and whether every write route reaches a compulsory effect-edge controller. Do not assume COUNT is cheap or recommend an in-memory cache without an atomic/concurrency and restart-reconstruction contract. Measure the pinned implementation against a locally chosen latency budget; a sampled monitor detects later and cannot prevent the claim. On missing or inconsistent evidence return UNKNOWN. If the limit is enforced at the effect edge, deny only the unauthorized claim and record the exact decision.",
       "expectations": [
-        "Identifies this as a safety-critical invariant requiring synchronous checking",
-        "Calculates or estimates the per-check cost and compares it to the latency budget",
-        "Proposes maintaining a cached count per agent to avoid repeated COUNT queries",
-        "Discusses the false positive risk from stale cache during concurrent operations",
-        "Addresses remediation: reject the claim, not salvage the agent"
+        "Distinguishes a state predicate from a before/after action property and asks for the exact claim semantics",
+        "Identifies route coverage and the pre-effect authority needed for prevention",
+        "Treats synchronous cost and cache correctness as implementation questions to measure, not universal facts",
+        "Keeps missing/stale session binding as UNKNOWN rather than PASS or VIOLATION",
+        "Separates a claim rejection from agent salvage or other unrelated remediation"
       ]
     },
     {
       "id": 2,
-      "prompt": "My Arbiter agent keeps crashing every 3-4 hours. While it's down, no invariants are being checked and violations are accumulating silently. The main daemon doesn't even know the Arbiter is dead. How do I fix this?",
-      "expected_output": "Identifies this as the 'who watches the watchman' problem. Proposes a heartbeat canary in the main daemon, restart policy with crash-loop detection, and an out-of-band alert mechanism.",
+      "prompt": "Our monitor process has restarted several times this week. During downtime we may have missed state changes. How should we detect monitor loss and resume safely?",
+      "expected_output": "Use a health witness independent of the monitor, with identity/generation binding and timeout policy selected from the failure model and service objective. A missed heartbeat means suspected failure, not proof of crash; do not prescribe universal heartbeat or crash-loop numbers. Preserve the last verified monitor generation and trace, hold only effects whose contract requires a live decision, and reconcile current authoritative state plus a verified baseline before resuming. Use a separately authorized, bounded restart policy and an independent alert path.",
       "expectations": [
-        "Names the 'who watches the watchman' or 'quis custodiet' problem",
-        "Proposes a heartbeat canary mechanism with specific timing (e.g., publish every N seconds, alert if missed for 2N)",
-        "Includes a crash-loop breaker (e.g., halt after 3 crashes in 10 minutes rather than infinite restart)",
-        "Proposes an out-of-band alert channel (not dependent on the Arbiter itself)",
-        "Recommends a full sweep immediately after restart to catch violations accumulated during downtime"
+        "Names the watchman failure problem and distinguishes self-report from independent evidence",
+        "Treats timeout as suspicion and selects timing from a declared failure model or objective",
+        "Reconciles authoritative state and baseline before declaring monitoring healthy",
+        "Separates recovery authorization from monitoring and avoids automatic salvage claims",
+        "Explains which protected effects are held during missing coverage"
       ]
     },
     {
       "id": 3,
-      "prompt": "After deploying runtime monitors for NoteMonotonicity, we're getting 50+ violation alerts per hour. Investigation shows they're all false positives caused by NTP clock adjustments on our server. The ops team is ignoring all Arbiter alerts now. How do we fix the alert fatigue without losing real violation detection?",
-      "expected_output": "Identifies clock skew as root cause and alert fatigue as the secondary damage. Proposes switching from wall-clock to HLC/Lamport clocks for temporal ordering, adding a re-check gate before alerting, and implementing severity tiers with digest aggregation for low-severity violations.",
+      "prompt": "We see many NoteMonotonicity alerts, and an operator suspects NTP clock adjustments. What should we investigate before changing alert policy?",
+      "expected_output": "Do not accept clock adjustment as the cause of a count decrease without tracing the comparison inputs: wall-clock movement alone does not alter a committed count. Check session identity, consistent snapshot/revision, baseline handling, cache reconstruction, and all write/delete routes. Preserve event time separately from ingest time where ordering matters. Classify ambiguous cases UNKNOWN, reproduce findings from an independent authoritative snapshot, and only then set deduplication/severity policy from the incident objective without an arbitrary hourly digest or universal tolerance.",
       "expectations": [
-        "Identifies NTP clock adjustments as the root cause of false positives",
-        "Names alert fatigue as a critical secondary problem that undermines the entire monitoring system",
-        "Proposes Hybrid Logical Clocks or Lamport clocks as a structural fix for temporal ordering",
-        "Recommends a double-check gate: re-verify with a fresh snapshot before triggering remediation",
-        "Proposes severity tiers so low-confidence violations aggregate into digests rather than individual alerts"
+        "Challenges the unsupported premise that NTP alone changes a committed count",
+        "Investigates source binding, snapshot consistency, and stale baseline state",
+        "Keeps UNKNOWN distinct from VIOLATION and preserves original evidence",
+        "Separates temporal ordering from count monotonicity",
+        "Does not prescribe fixed aggregation intervals or clock tolerances"
       ]
     },
     {
       "id": 4,
-      "prompt": "I want to compile the TLA+ CrashRecovery liveness property ('dead agents are eventually salvaged') into a runtime monitor. But liveness properties can't be checked at a single point in time — they're about eventual behavior. How do I turn this into something I can actually monitor?",
-      "expected_output": "Explains the fundamental difference between safety and liveness in runtime verification. Proposes bounded liveness: convert 'eventually salvaged' into 'salvaged within T seconds.' Uses a sampled monitor that tracks dead-agent timestamps and alerts when any agent exceeds the bound.",
+      "prompt": "A TLA+ property says every dead agent is eventually salvaged. Can a runtime monitor check this, and how should we define a practical objective?",
+      "expected_output": "Explain that a finite observation can establish a witnessed safety violation, while unbounded eventuality is not falsified merely because no response has happened yet. A deadline such as 'salvaged within T under assumptions A' is a stronger, separate bounded-response requirement, not an equivalent restatement of unbounded liveness. T, clock semantics, dead-agent evidence, recovery authority, and fairness assumptions must be specified for the deployment. The monitor can report a missed bound only once the trusted deadline evidence is complete; timeout/missing events yield UNKNOWN. It may alert or hold through an authorized controller, but must not automatically invoke the reaper without authority.",
       "expectations": [
-        "Explains that liveness properties require observing behavior over time, not at a single state",
-        "Proposes bounded liveness as the compilation strategy: 'eventually' becomes 'within T seconds'",
-        "Chooses sampled checking (not synchronous) as the appropriate strategy for liveness",
-        "Describes the monitor state: a map of dead-agent-id to death-timestamp",
-        "Specifies what happens when the bound is exceeded: alert vs auto-trigger reaper vs escalate to operator"
+        "Distinguishes unbounded eventuality from a separately specified bounded-response property",
+        "Does not claim bounded eventuality is equivalent to unbounded liveness",
+        "Defines required clock, evidence, fairness, authority, and missing-event assumptions",
+        "Uses UNKNOWN when deadline evidence or event coverage is incomplete",
+        "Separates alerting from authorized effect/recovery control"
       ]
     }
   ]

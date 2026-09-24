@@ -1,165 +1,128 @@
 ---
 name: agent-labor-pricing-function
 description: >-
-  Design a pricing/packaging function for variable-cost agent labor: pick a pricing model (per-seat,
-  usage/metered, credits/premium-requests, hybrid, outcome-based), align a value metric to delivered
-  value that the buyer can predict, build a cost floor from real unit economics, and add guardrails
-  (spend caps, budget preview, transparent metering) that prevent bill shock. Use when unblocking Port
-  Daddy's Phase 2 pricing function, packaging a new agent-labor feature or tier, reviewing a draft plan
-  against Cursor/Copilot pricing-trust incidents, or deciding what a buyer should be billed per task.
-  NOT for implementing the billing/invoicing/payment system (use webapp-paywall-implementation), for
-  real-time cost accrual telemetry during execution (use cost-accrual-tracker), or for runtime budget
-  enforcement mid-DAG (use cost-optimizer).
+  Design and audit a pricing function for variable-cost agent labor. Choose among per-seat,
+  metered, credits, hybrid, and outcome pricing; name buyer value and cost metrics separately;
+  calculate a reproducible cost floor; require pre-commitment guardrails; and stress-test declared
+  personas. Use for offline pricing-design evidence, not billing implementation or runtime control.
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Agent & Orchestration
-  tags:
-    - pricing
-    - unit-economics
-    - agent-labor
-    - bill-shock
-    - guardrails
+  tags: [pricing, unit-economics, agent-labor, guardrails]
   provenance:
     kind: first-party
-    owners:
-      - port-daddy
-  pairs-with:
-    - skill: mechanism-design-for-agent-labor
-      reason: Once a pricing model is chosen, bond/escrow/settlement mechanics price marketplace-traded agent labor.
-    - skill: cost-accrual-tracker
-      reason: Real-time accrual telemetry supplies the actual unit-cost numbers this skill's cost floor depends on.
-    - skill: cost-optimizer
-      reason: Runtime budget enforcement (downgrade/skip/stop) is how the spend-cap guardrail gets enforced during execution.
-    - skill: agentic-coding-product-research
-      reason: Buyer persona and trust-threshold research grounds the value metric and guardrail choices before pricing.
+    owners: [port-daddy]
   io-contract:
     kind: deliverable
-    consumes:
-      - kind: pricing-plan-draft
-        format: json
-      - kind: persona-usage-profiles
-        format: json
-    produces:
-      - kind: pricing-stress-report
-        format: json
-      - kind: pricing-decision-brief
-        format: markdown
+    consumes: [{kind: pricing-plan-draft, format: json}, {kind: persona-usage-profiles, format: json}]
+    produces: [{kind: pricing-stress-report, format: json}, {kind: pricing-decision-brief, format: markdown}]
 ---
 
 # Agent Labor Pricing Function
 
-Design a pricing function for agent labor that never sells below cost and never surprises the buyer.
+Use a buyer-facing value unit to set a product price, and use a separate fully-loaded cost unit to test whether the price can support the promised work. This skill writes an auditable plan; it does not charge anyone, launch a provider, or enforce a budget at runtime.
 
-## Use This For
+## Scope and evidence boundary
 
-- Unblocking a stalled pricing lane for an agentic dev-tools product (e.g. Port Daddy Phase 2, idle 85+ days).
-- Choosing between per-seat, metered, credits/premium-requests, hybrid, and outcome-based models for a new agent-labor feature.
-- Designing a value metric that scales with delivered value but stays predictable to the buyer before they run anything.
-- Building a cost floor from real unit economics (model token cost + tool/compute + overhead) before any price is set.
-- Stress-testing a draft plan against buyer personas (solo founder, staff engineer, enterprise admin) for both bill-shock risk and margin erosion.
+A plan is an offline design artifact. A passing report means only that the plan's declared arithmetic, personas, and guardrails cleared this static checker. It is not evidence of market demand, a provider quote, a deployed cap, a realized margin, or truthful-mechanism properties.
 
-## Do Not Use This For
+Provider rates and processor fees change. Record a dated official source and the exact assumptions used when inserting live rates. The worked ledger below deliberately uses **hypothetical rates**, so it is an arithmetic example rather than a current provider-price claim.
 
-- Implementing the actual billing, invoicing, or payment-processor integration.
-- Live per-request cost telemetry during a running DAG (that is accrual tracking, not pricing design).
-- Runtime spend enforcement inside an execution loop (that is budget/cost optimization, not the pricing function itself).
-
-## Pricing Design Loop
+## Pricing design loop
 
 ```mermaid
 flowchart TD
-  A[Identify buyer + candidate value metrics] --> B[Match value metric to a pricing model]
-  B --> C[Build unit-cost floor from real usage]
-  C --> D[Draft price points per tier]
-  D --> E[Attach guardrails: spend cap, preview, receipt]
-  E --> F[Stress-test against buyer personas]
-  F --> G{Negative margin or\nhigh bill-shock risk?}
-  G -->|Yes| D
-  G -->|No| H[Ship pricing decision brief]
+  Start([Pricing question]) --> Buyer[Name buyer and job-to-be-done]
+  Buyer --> Metric[Name buyer value unit and seller cost unit]
+  Metric --> Fit{Value unit predictable before commitment?}
+  Fit -->|no| Replace[Choose a countable buyer-facing unit]
+  Replace --> Metric
+  Fit -->|yes| Model[Choose model and write tradeoff]
+  Model --> Floor[Compute fully-loaded unit-cost floor]
+  Floor --> Draft[Draft tiers, included units, and rate]
+  Draft --> Guard{All required guardrails declared?}
+  Guard -->|no| Blocked([Blocked: add cap, preview, estimate, receipt])
+  Guard -->|yes| Stress[Stress declared personas]
+  Stress --> Result{Negative margin, thin margin, or unknown outcome?}
+  Result -->|yes| Revise[Revise metric, price, scope, or assumptions]
+  Revise --> Floor
+  Result -->|no| Brief([Write evidence-labeled decision brief])
 ```
 
-1. Name the buyer for each tier (solo founder, staff engineer, enterprise admin) and list candidate value metrics each buyer already tracks — seats, completed tasks, resolved tickets, merged PRs — before considering raw infra metrics like tokens or tool calls.
-2. Match the value metric to a model using `references/pricing-model-decision-guide.md`: per-seat when usage is roughly uniform per buyer, metered/credits when usage varies widely, hybrid when a seat floor plus overage protects margin without full metering exposure, outcome-based only when the outcome is verifiable and atomic.
-3. Build the unit-cost floor from `references/unit-economics-and-guardrails.md`: blended model token cost across every call in the task, tool/compute cost, and amortized overhead. This floor is a price you must clear, not a target.
-4. Draft price points per tier: base price, included units, and (for anything but pure per-seat) an explicit overage rate. An included allotment with no overage rate is an unbounded cost commitment, not a feature.
-5. Attach guardrails before launch, not after a bill-shock incident: a hard spend cap, a budget preview shown before the buyer commits, a per-task cost estimate, and transparent line-item metering after the fact.
-6. Run `scripts/pricing_stress.mjs` against realistic persona usage profiles for every tier. Fix any negative-margin persona and any missing guardrail on a usage-exposed model before treating the plan as done.
-7. Write the pricing decision brief using `templates/output-template.md`, citing the stress-test JSON as evidence, and route it back to the buyer-research findings that justified the value metric.
+1. State who buys, who consumes, and the buyer's decision horizon. Write one buyer-visible value unit (for example, `verified completed case`) and a separate cost unit (token, tool minute, review minute, payment fee). Do not call a raw cost meter “value” merely because it is easy to observe.
+2. Pick one of the five models in `references/pricing-model-decision-guide.md`. Document the rejected alternatives and the condition that would cause reconsideration.
+3. Collect a dated cost ledger: every model call, tool/compute cost, review or support allocation, and payment/collection cost. Mark estimated and measured values separately.
+4. Draft tiers with a base price, included units, and an explicit treatment of excess use. A free excess-use promise is a product commitment that must be modeled, not an omitted field.
+5. For metered, credits, hybrid, or outcome models, require all four guardrails before a plan can pass: buyer-configurable cap, pre-commitment budget preview, per-task estimate, and line-item receipt. The static checker enforces this condition.
+6. Stress each declared persona plus a heavy-use and retry case. Preserve the input and report; a passing baseline is not enough if assumptions changed.
+7. For outcome pricing, define a verifier, a billable terminal event, and an `unknown` result policy before quoting a price. The default safe planning policy is `do-not-bill` until a named verifier resolves it.
 
-## Output Contract
+## Five model tradeoffs
 
-Produce:
+| Model | Fits when | Main buyer benefit | Main seller exposure | Hand-check before choosing |
+| --- | --- | --- | --- | --- |
+| Per-seat | Work per buyer is close to uniform | Known monthly bill | heavy users subsidized by light users | model a high-use seat and the included service scope |
+| Metered | Use varies and the unit maps to value | pay proportionally | surprise and volatile invoices | pre-run estimate, cap, and overage math |
+| Credits | A named request unit can hide infrastructure variability | countable prepaid budget | expensive requests consume too little credit | worst-case backing mix and expiry/refund policy |
+| Hybrid | There is a stable core plus bursts | stable base with disclosed tail | underpriced overage or free excess use | base covers included work; overage clears floor |
+| Outcome | A result is atomic and independently checkable | pay for a result | verification, rework, and disputes | verifier, reversals, unknown/appeal policy |
 
-- `pricingModel`: the chosen model (per-seat, metered, credits, hybrid, outcome) and the reason it fits the value metric and buyer.
-- `valueMetric`: name, unit, and whether the buyer can predict it before running work.
-- `unitCostFloor`: modelTokenCost, toolCompute, overhead, and the summed floor per unit.
-- `pricePoints`: tiers with base price, included units, and overage rate (or an explicit decision to leave overage unmetered, with the margin-erosion consequence stated).
-- `guardrails`: spend cap, budget preview, per-task estimate, transparent metering — each marked present or planned.
-- `personaStressTest`: the full JSON from the stress-test script — `pass`, `marginByPersona`, `billShockRisk`, `findings`, `recommendations`.
+These are product-fit heuristics. They are not empirical prevalence claims or a theorem about agent markets.
 
-Use `scripts/pricing_stress.mjs` to compute per-persona margin from unit costs and usage, and to flag bill-shock risk from missing guardrails or an unpredictable value metric.
+## Worked hypothetical accounting ledger
 
-## Anti-Patterns
+This constructed task sells for **$5.00**. The rates below are hypothetical, so this is an arithmetic check rather than a current provider-price claim. The first request has 20,000 fresh input tokens at $0.05/M and 1,000 generated-output tokens at $0.25/M. The second request has 3,000 fresh input tokens at $0.05/M and 1,000 generated-output tokens at $0.25/M.
 
-### Opaque Metering Without A Preview
+| Call | Calculation | Cost |
+| --- | --- | ---: |
+| First input | 20,000 × $0.05 / 1,000,000 | $0.00100 |
+| First output | 1,000 × $0.25 / 1,000,000 | $0.00025 |
+| **First total** | sum of first-call rows | **$0.00125** |
+| Second input | 3,000 × $0.05 / 1,000,000 | $0.00015 |
+| Second output | 1,000 × $0.25 / 1,000,000 | $0.00025 |
+| **Second total** | sum of second-call rows | **$0.00040** |
+| **Model total** | $0.00125 + $0.00040 | **$0.00165** |
 
-**Novice**: "We'll bill exactly what it costs us, per token, and show the invoice at month end."
-**Expert**: This is the Cursor lesson — usage-based pricing with no pre-run estimate and no spend cap produces bill-shock trust incidents even when the billing math is technically correct. Ship a per-task budget preview and a hard spend cap before the agent runs, not a reconciled invoice after.
-**Detection**: The plan has `guardrails.budgetPreview: false` or `guardrails.spendCap: false` on any model other than flat per-seat.
+Add a constructed $0.06 tool attempt, $0.03 allocated support/infra, and $2.00 human review. The fully-loaded pre-processor cost is $2.09165. An assumed processor fee is **$5.00 × 0.029 + $0.30 = $0.445**. Variable cost is $2.53665 and contribution is $2.46335 (49.267% of the $5 sale). State which terms are actual quotations, historical observations, or planning assumptions; do not silently promote the ledger to measured margin.
 
-### Vanity Value Metric
+## Product pricing and mechanism-design boundary
 
-**Novice**: "Price per 1K tokens" or "price per API request" because that's what the infra bill shows.
-**Expert**: Tokens and raw requests are the seller's cost metric, not the buyer's value metric — the buyer cannot predict either one before running a task. GitHub Copilot's "premium request" and Claude's rate-limit-window abstractions exist precisely to hide the infra metric behind a unit the buyer can count on their own terms.
-**Detection**: `valueMetric.buyerCanPredict` is false, or the metric name is a raw infra term (tokens, requests, GPU-seconds) rather than a completed unit of work.
+Before using an economic theorem, define the market: named agents, each agent's private information, the allocation/price rule, feasibility constraints, objective, and outside option. For example, Xia and Muthukrishnan study assignments of workers with skill vectors to single-skill tasks under feasibility and stability conditions; their approximation and truthfulness results do not prove a SaaS tier is profitable or that a generic agent-labor subscription is incentive compatible. Myerson's single-item private-value setting is likewise not a shortcut to multi-task procurement.
 
-### Pricing Without A Cost Floor
+Use `references/market-formulation-and-mechanism-boundaries.md` to write that bridge explicitly. If those elements are absent, call the result a product-pricing decision rather than a mechanism-design claim.
 
-**Novice**: "Competitors charge $X/seat, so we'll charge $X too."
-**Expert**: A price set by competitor-matching without a unit-cost floor goes negative exactly on the heaviest users — the power users who adopt agent tools first and generate the most usage. Compute modelTokenCost + toolCompute + overhead per unit before setting any price point.
-**Detection**: `scripts/pricing_stress.mjs` reports any persona with `status: "negative"`, or price points were set before `unitCosts` existed.
+## Stress-test contract
 
-## References
+`schemas/pricing-plan.schema.json` is Draft 7 structural validation: allowed properties, required fields, primitive types, non-whitespace named strings, and local numeric bounds. `scripts/pricing_stress.mjs` repeats those shape checks for direct use, then adds cross-record checks (unique tiers and persona names, known tier references, finite derived arithmetic) and returns policy status. A well-formed usage-exposed plan is `blocked` when guardrails are false; any declared persona is negative or thin; a modeled excess-use case has no explicit rate; or an outcome plan lacks a verifier and supported unknown-result policy. Run the portable regressions with `node --test tests/pricing_stress.test.mjs`; independently validate structure with a Draft 7 engine when integrating the checker.
 
-| File | Load When |
+Run:
+
+```sh
+node scripts/pricing_stress.mjs --input examples/sample-input.json --status
+node scripts/pricing_stress.mjs --input examples/sample-input.json --strict
+```
+
+`pricing_stress.mjs --input …` is report-only: a well-formed report exits 0 whether it says `pass` or `blocked`. `--status` prints only `pass` or `blocked` with the same report-only exit behavior. Add `--strict` when a review gate must exit 2 for `blocked`; malformed input always exits 1. That is a static contract check, not a billing control.
+
+## Buyer stress cases
+
+Use at least these distinct cases, with declared numbers rather than invented benchmark results:
+
+- A solo buyer who wants a known ceiling and may abandon a task after the preview.
+- A staff buyer with burst use above the included allowance.
+- An admin who needs an allocation and receipt for a dispute.
+- A retry or tool-failure case: include the extra cost and state whether it is billable.
+- An unknown outcome: the task ends without a verifier result; demonstrate the plan's `do-not-bill`, `hold-for-review`, or other explicit policy.
+
+## References and artifacts
+
+| Artifact | Use it for |
 | --- | --- |
-| `references/pricing-model-decision-guide.md` | Choosing between per-seat, metered, credits, hybrid, and outcome-based models for a specific buyer and value metric. |
-| `references/unit-economics-and-guardrails.md` | Building the cost floor and designing spend caps, budget previews, and transparent metering. |
-| `examples/expected-output.md` | Need the shape of a finished pricing decision brief with a real stress-test result. |
-| `templates/output-template.md` | Need a reusable pricing decision brief template. |
-| `schemas/pricing-plan.schema.json` | Need to validate a draft pricing plan before running the stress test. |
-| `scripts/pricing_stress.mjs` | Need deterministic per-persona margin and bill-shock scoring for a draft plan. |
-| `agents/openai.yaml` | Need a subagent descriptor for delegated pricing-function design. |
-
-<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
-
-## Skill Bundle Index
-
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
-
-**root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Agent Labor Pricing Function — Changelog — - Initial skill creation - Core process defined - Reference files and deterministic pricing stress-test script added
-- [`README.md`](README.md) — Agent Labor Pricing Function — Design a pricing/packaging function for variable-cost agent labor that clears a real cost floor and never surprises the buyer.
-
-**`agents/`**
-- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
-
-**`examples/`**
-- [`examples/expected-output.md`](examples/expected-output.md) — Example Output: Agent Labor Pricing Function — Scenario: unblocking Port Daddy's stalled Phase 2 pricing lane for the background Fleet feature — pricing a hybrid seat-plus-overage plan fo
-- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
-
-**`references/`**
-- [`references/pricing-model-decision-guide.md`](references/pricing-model-decision-guide.md) — Pricing Model Decision Guide — Use this when choosing a pricing model for a new agent-labor feature or tier, before writing any price.
-- [`references/unit-economics-and-guardrails.md`](references/unit-economics-and-guardrails.md) — Unit Economics And Guardrails — Use this when building the cost floor for a pricing plan and when designing the guardrails that keep usage-sensitive pricing from becoming a
-
-**`schemas/`**
-- [`schemas/pricing-plan.schema.json`](schemas/pricing-plan.schema.json) — pricing plan.schema (data/schema)
-
-**`scripts/`**
-- [`scripts/pricing_stress.mjs`](scripts/pricing_stress.mjs)
-
-**`templates/`**
-- [`templates/output-template.md`](templates/output-template.md) — Agent Labor Pricing Decision Brief — [One sentence naming the product feature, buyer segment, and pricing decision being made.] - **Model**: [per-seat | metered | credits | hybr
-
-<!-- END BUNDLE INDEX -->
+| `references/pricing-model-decision-guide.md` | Five-model selection, buyer personas, and source boundaries. |
+| `references/unit-economics-and-guardrails.md` | Cost ledger, guardrail procedure, and retry/unknown handling. |
+| `references/market-formulation-and-mechanism-boundaries.md` | Theorem scope before any mechanism claim. |
+| `schemas/pricing-plan.schema.json` | Structural input shape; the checker supplies policy status. |
+| `scripts/pricing_stress.mjs` | Deterministic arithmetic and blocking status. |
+| `examples/expected-output.md` | Constructed revise/pass and unknown-outcome walkthrough. |
+| `diagrams/` | Separate pricing loop and commitment/outcome state diagrams. |

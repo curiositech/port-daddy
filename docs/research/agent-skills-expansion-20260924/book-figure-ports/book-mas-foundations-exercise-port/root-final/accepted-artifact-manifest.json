@@ -1,0 +1,275 @@
+{
+  "schema": "offline-artifact-manifest-v1",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "311488b5f3ed8eea084bc80e416e5db0523fae36515f3a9b57af2ef2b67f2db1",
+      "size": 4766
+    },
+    {
+      "path": "applied-sources.json",
+      "sha256": "50765a852f67c243c799fd523a9e8c1b1e2f8b0b48b6ab37a742fc5250bcb11d",
+      "size": 3182
+    },
+    {
+      "path": "boundary-check.json",
+      "sha256": "5b1270ad34b9e52206c25ac50350ccf64364bcf9dd31ec607385044ef5950d7d",
+      "size": 2109
+    },
+    {
+      "path": "build.py",
+      "sha256": "ccd74a841f81d0d993167022424dd4ae62a3d66d8e7a4acfd7ea5de714b96893",
+      "size": 1112
+    },
+    {
+      "path": "contact.png",
+      "sha256": "8bcf9134d18d8ccf7ec52c4b52eea556f75d13a5b2be62523098f396110a7cbb",
+      "size": 187839
+    },
+    {
+      "path": "figures/pd-figure-language-swiss.tex",
+      "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
+      "size": 2430
+    },
+    {
+      "path": "figures/pd-figure-language-technical.tex",
+      "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
+      "size": 2842
+    },
+    {
+      "path": "figures/pd-figure-language.tex",
+      "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
+      "size": 3409
+    },
+    {
+      "path": "figures/pd-palette.tex",
+      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+      "size": 2409
+    },
+    {
+      "path": "geometry-font-checks.json",
+      "sha256": "058d089d26fc282644bc6425f4a0a40524fac2694ec8465a0b037feabf794ca6",
+      "size": 2789
+    },
+    {
+      "path": "index.html",
+      "sha256": "bd6f69d3f43cdd0a90337dc1819586037f4f6ba7b44c45d47d49c777699bc106",
+      "size": 1295
+    },
+    {
+      "path": "mas-worksheet-figure.tex",
+      "sha256": "5ebc53ffb5219fa97999a76710cd3eaa4574deaf1a01505aa524f917c760e68b",
+      "size": 3224
+    },
+    {
+      "path": "mas-worksheet-maritime-page.tex",
+      "sha256": "8d56d26884b8c9cf8c71a95c5a0091b0b8fefab207c7ceaa3c15265414410dc4",
+      "size": 1156
+    },
+    {
+      "path": "mas-worksheet-maritime.tex",
+      "sha256": "92d467931cab7415307f685240dfef6217905f16a090736015db6662a5f664a8",
+      "size": 629
+    },
+    {
+      "path": "mas-worksheet-swiss-page.tex",
+      "sha256": "656514414f3c0e6f356dbf3a5146d65ca6db349169c25578609a9b5aed0af03d",
+      "size": 1153
+    },
+    {
+      "path": "mas-worksheet-swiss.tex",
+      "sha256": "f6d36d6f8f95c080dc7334350fc82a02914b8f2fa3e4aed0cc76f7474cd45f21",
+      "size": 626
+    },
+    {
+      "path": "mas-worksheet-technical-page.tex",
+      "sha256": "ddc9c373522f33e68956524d428cdc6aec97792cbee4c5a7fbeafd13d654fb27",
+      "size": 1157
+    },
+    {
+      "path": "mas-worksheet-technical.tex",
+      "sha256": "74d41409c467c06b4c227d55f105c2eb1e56332a7c34751a9fa7dcc66fae278a",
+      "size": 630
+    },
+    {
+      "path": "output-manifest.json",
+      "sha256": "0e1c1d69177997125d0861bfdefc022080ceb69a7ecb10b1f64cbdcc259d1c2e",
+      "size": 5340
+    },
+    {
+      "path": "page-contact.png",
+      "sha256": "1f6e673e94deba8c6e7df89726dd93eff07f6575523c7b1ba277b2f0aac48c53",
+      "size": 249527
+    },
+    {
+      "path": "payoff-checks.json",
+      "sha256": "3651705cc6540939c50629c31ac03231ba4237090645eff8db5be63fad3be673",
+      "size": 1252
+    },
+    {
+      "path": "renders/compile-results.json",
+      "sha256": "7bc020dbe27c1c72b1a54469fc62f5ccb68286e90901f9b0280c368ac8694ecd",
+      "size": 1160
+    },
+    {
+      "path": "renders/mas-worksheet-maritime-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-maritime-page.fls",
+      "sha256": "5496d2788a72a5e60f4a47a5f5d487cca39957465676c9f16c651570ad06d52e",
+      "size": 19789
+    },
+    {
+      "path": "renders/mas-worksheet-maritime-page.log",
+      "sha256": "b6b80a912ce32592aeadc8c1986b4f350ffb3132fab25f89a248544f9f76029c",
+      "size": 21387
+    },
+    {
+      "path": "renders/mas-worksheet-maritime-page.pdf",
+      "sha256": "838a81a51c9899dbc9ec9b39b3f375a81ae054c50fe0adc14b8f10cdfc69f436",
+      "size": 133427
+    },
+    {
+      "path": "renders/mas-worksheet-maritime-page.png",
+      "sha256": "66bdca46faed1e3b4784fe7881d684c81d0375f378bd818d7ba4e44c27521a47",
+      "size": 137782
+    },
+    {
+      "path": "renders/mas-worksheet-maritime.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-maritime.fls",
+      "sha256": "7d58846f4b3fdbb2e32393c6b1c136248c2d5545c40bac1897793fd9a1e7f664",
+      "size": 20579
+    },
+    {
+      "path": "renders/mas-worksheet-maritime.log",
+      "sha256": "0f9d63cb50f910222b3108e4d15cc41d22268927e14686563dec784598adea72",
+      "size": 21101
+    },
+    {
+      "path": "renders/mas-worksheet-maritime.pdf",
+      "sha256": "5c684cad9784329f2b52d75e0a07a25b2ccb48f463f8ec010b51ccfaf70d9348",
+      "size": 131708
+    },
+    {
+      "path": "renders/mas-worksheet-maritime.png",
+      "sha256": "358c52f336426dbd706e57cff5700db18bbe15d76f891448639ed7afdf0ffd2c",
+      "size": 92671
+    },
+    {
+      "path": "renders/mas-worksheet-swiss-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-swiss-page.fls",
+      "sha256": "34e8182fa5d9c9177f4aed9d6302e1aee1a610600934517fc23da87b958b086b",
+      "size": 20925
+    },
+    {
+      "path": "renders/mas-worksheet-swiss-page.log",
+      "sha256": "5e389d25de946bd5d9346d83c16b538746207a5ae94e87a053959af427a41e8d",
+      "size": 21793
+    },
+    {
+      "path": "renders/mas-worksheet-swiss-page.pdf",
+      "sha256": "0b7b1e0d0de3e650b534291393e900e57add8e52c68c07d2e01d9ca042e1a59e",
+      "size": 124431
+    },
+    {
+      "path": "renders/mas-worksheet-swiss-page.png",
+      "sha256": "fc6bcae90bff29b03c168f3bc97c25fa7f087fc5e0dda03faf962a0c3a4c95a1",
+      "size": 137466
+    },
+    {
+      "path": "renders/mas-worksheet-swiss.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-swiss.fls",
+      "sha256": "660f46749690660a8ab397f61eff4956bde61b4544a55e7d9767b90f09064ef8",
+      "size": 21564
+    },
+    {
+      "path": "renders/mas-worksheet-swiss.log",
+      "sha256": "9613c97c2dc8d8eecb308ccb59d6e33f857795c0952aa6a15deb0a4a3dd21478",
+      "size": 21435
+    },
+    {
+      "path": "renders/mas-worksheet-swiss.pdf",
+      "sha256": "a9f5f03f91bd4a01fdd5c9dc3fabfdcdfb29b311eefd6cd3b582990cca6ad701",
+      "size": 75423
+    },
+    {
+      "path": "renders/mas-worksheet-swiss.png",
+      "sha256": "2d4a98a4c68fc20f013efdc522291fad62aa4574fdb7cc2d917fa4a4fa907d8b",
+      "size": 91927
+    },
+    {
+      "path": "renders/mas-worksheet-technical-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-technical-page.fls",
+      "sha256": "24ddfebeb244ad7521e2a9c48ca2521d5312e0b27e85bff9d7b90dc3f8b16e50",
+      "size": 20977
+    },
+    {
+      "path": "renders/mas-worksheet-technical-page.log",
+      "sha256": "3a00e60739fd1efbbc7e73786882e78b7edf4b6586484cf5edde6b6665ed6a8b",
+      "size": 21821
+    },
+    {
+      "path": "renders/mas-worksheet-technical-page.pdf",
+      "sha256": "1667121da648b12a62aa96a70e563a94e53ab0498584971acc929798a6b1820e",
+      "size": 124425
+    },
+    {
+      "path": "renders/mas-worksheet-technical-page.png",
+      "sha256": "164bb1a5809973173450d3f22c9387dfa7b73a10fa892f5f4ce4170f7a618578",
+      "size": 137025
+    },
+    {
+      "path": "renders/mas-worksheet-technical.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/mas-worksheet-technical.fls",
+      "sha256": "906c12b68de754ef8835ef93bf18c21cca6099ddf23236c8398fde498a11487e",
+      "size": 21616
+    },
+    {
+      "path": "renders/mas-worksheet-technical.log",
+      "sha256": "80bd7f740cc025597ecab952f0bd0f305ca98a0edfa6532728c239f6fd24ff6f",
+      "size": 21463
+    },
+    {
+      "path": "renders/mas-worksheet-technical.pdf",
+      "sha256": "f61210ea62fb175adf67da87f6b6b973a97af8eb643ee714366f1f50820b9c9e",
+      "size": 75412
+    },
+    {
+      "path": "renders/mas-worksheet-technical.png",
+      "sha256": "1efe04be3961568876639f0b4a62036e458035ee1da7547558bc91018925de0d",
+      "size": 91351
+    },
+    {
+      "path": "source-receipt.json",
+      "sha256": "08e68e251599a67d1846a5899f1e30340ad2e840546bde24915f5db8ad316a5a",
+      "size": 823
+    },
+    {
+      "path": "validate.py",
+      "sha256": "60980ce5d25087a40c5db3094acbf30b3655d936f07438d1ea1fb3c270577250",
+      "size": 3586
+    }
+  ]
+}

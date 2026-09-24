@@ -1,242 +1,115 @@
 ---
 license: Apache-2.0
 name: bellifemine-2007-jade-fipa
-description: JADE platform for building FIPA-compliant multi-agent systems with standardized agent communication
+description: Design a bounded FIPA-style conversation and map it cautiously to JADE behavior APIs.
 metadata:
   category: Research & Academic
-  tags:
-    - jade
-    - fipa
-    - agents
-    - middleware
-    - multi-agent-platform
+  tags: [jade, fipa, agent-communication, protocol, ontology]
   io-contract:
     kind: deliverable
     produces:
       - kind: design-doc
-        description: >-
-          Multi-agent system architecture decision tree: ontology-first vs behavior-first, protocol selection (Contract
-          Net/Request/Subscribe), resource constraints, agent patterns
+        description: A bounded conversation contract with message roles, correlation, deadline policy, and failure disposition.
         format: markdown
       - kind: code
-        description: >-
-          JADE agent implementations using SemanticAgent, protocol initiators/responders, behavior composition, ontology
-          definitions, and FIPA-compliant message handling
+        description: Java-like behavior sketch whose release-specific API calls are checked against the selected JADE documentation.
         language: java
-        format: java
-      - kind: critique
-        description: >-
-          Failure mode analysis and detection strategies: Byzantine behavior, schema bloat, cascade failures, message
-          queue overflow, DF bottlenecks with diagnostic patterns and fixes
-        format: markdown
-      - kind: refactor-plan
-        description: >-
-          Protocol composition patterns for resource-constrained environments, timeout budgets, workflow isolation, and
-          distributed service discovery optimization
-        format: markdown
 allowed-tools: Read,Write,Edit,Glob,Grep
 ---
 
-# SKILL: Developing Multi-Agent Systems with JADE
+# Developing bounded FIPA-style conversations with JADE
 
-## Decision Points
+## Source boundary
 
-### Ontology-First vs Behavior-First Agent Design
-```
-IF agents built by different teams/languages need semantic interoperability
-  → START with ontology definition (concepts, predicates, actions)
-  → THEN implement behaviors that use ontology
-  → Example: Commerce ontology with PurchaseOrder, Price concepts
+Bellifemine, Caire, and Greenwood’s *Developing Multi-Agent Systems with JADE* (Wiley, 2007; DOI `10.1002/9780470058411`) is the topic source. The accessible Wiley record establishes bibliographic identity; the book body was not accessed for this draft. Current implementation guidance is from official JADE 4.6.0 API documentation and the official Programmer’s and LEAP User Guides, accessed 2026-09-24. Treat every deployment timeout, retry, score, persistence choice, and external effect as an application policy, not as a property supplied by FIPA or JADE.
 
-ELSE IF rapid prototyping single-team system
-  → START with behavior implementation (protocols, workflows)
-  → ADD ontology later when integration needed
-  → Example: Internal workflow automation
-```
+## Choose a conversation before choosing a class
 
-### Protocol Selection for Task Coordination
-```
-IF task requires competitive selection among multiple candidates
-  → Contract Net Protocol
-  → Coordinator announces CFP, agents bid, select winner
-  
-ELSE IF task is conditional future execution
-  → Request-When Protocol  
-  → "Execute X when condition Y becomes true"
-  
-ELSE IF task requires ongoing data subscription
-  → Subscribe Protocol
-  → Register for updates, receive INFORMs until unsubscribe
-  
-ELSE IF simple synchronous request-response
-  → Request Protocol
-  → AGREE/REFUSE followed by INFORM/FAILURE
+```mermaid
+flowchart TD
+  A[Describe the intended result and evidence] --> B{Many candidates offer a bounded task?}
+  B -->|yes| C[CFP: freeze eligibility, reply-by, proposal schema, selection rule]
+  B -->|no| D{One known party is asked to act?}
+  D -->|yes| E[REQUEST: define refusal, completion evidence, and deadline]
+  D -->|no| F{Ongoing observations wanted?}
+  F -->|yes| G[SUBSCRIBE: define update scope, cancellation, and stale-data handling]
+  F -->|no| H[Use an application-defined exchange and document its semantics]
+  C --> I[Bind conversation ID, ontology/content language, and correlation]
+  E --> I
+  G --> I
 ```
 
-### Resource-Constrained Protocol Composition
-```
-IF mobile/edge agents with limited battery/connectivity
-  → Use split-container architecture
-  → Lightweight front-end + stateful back-end + mediator
-  
-ELSE IF high-throughput server environment  
-  → Direct peer-to-peer protocols
-  → No mediation overhead needed
+A performative classifies a message in a conversation. It does not authenticate a sender, prove a proposition, transfer a capability, or make an external action happen. Admit identity, validate content, and authorize effects independently.
 
-IF timeout budget < 5 seconds
-  → Avoid nested Contract Net (too many round trips)
-  → Use direct Request with pre-cached service discovery
-  
-ELSE IF timeout budget > 30 seconds
-  → Safe to use Contract Net → Request composition
-  → Full negotiation + execution workflow
-```
+## A worked local policy: selecting a document converter
 
-### Agent Architecture Patterns
-```
-IF agent needs standard FIPA semantics only
-  → Extend SemanticAgent
-  → Declare Capability (actions, beliefs)
-  → Get QUERY/INFORM/SUBSCRIBE for free via SIPs
-  
-ELSE IF custom message interpretation required
-  → Override specific SIPs (Semantic Interpretation Principles)
-  → Keep default SIPs where possible
-  
-ELSE IF complex workflow coordination needed
-  → Compose behaviors: Sequential/Parallel/FSM
-  → Use protocol templates as building blocks
+The following is an **application policy**, not a FIPA or JADE default. A requester sends a CFP with immutable `conversationId`, input digest, allowed output format, reply-by time, and evaluation fields. It records every `PROPOSE` and `REFUSE` received before the reply-by time, selects at most one proposal with a declared local comparator, sends `ACCEPT-PROPOSAL` to that proposal and `REJECT-PROPOSAL` to the other recorded proposals. The selected party later emits either `INFORM` containing an output reference or `FAILURE` containing an attempted-stage record. The requester checks the output independently before using it.
+
+```mermaid
+sequenceDiagram
+  participant R as requester
+  participant A as candidateA
+  participant B as candidateB
+  R->>A: CFP request digest reply-by and proposal schema
+  R->>B: CFP request digest reply-by and proposal schema
+  A-->>R: proposal with declared terms
+  B-->>R: refusal with reason
+  R->>A: accept proposal
+  Note over R,B: B refused, so it receives no rejection
+  A-->>R: later report or reported failure
+  R->>R: independently validate output and record disposition
 ```
 
-## Failure Modes
+A Java-like sketch preserves the source bundle’s separation between proposal collection, local evaluation, and completion. It is deliberately not a copy-paste release contract; verify constructors, callbacks, and templates against the selected JADE release.
 
-### **Byzantine Agent Behavior**
-**Symptoms**: Agent accepts REQUEST (sends AGREE) but never responds with INFORM/FAILURE, or sends semantically invalid responses
-**Detection**: `if (timeoutExpired && lastReceived == AGREE) { /* Byzantine behavior detected */ }`
-**Diagnosis**: Agent implementation bug or malicious behavior - violating FIPA protocol contract
-**Fix**: Implement timeout handling with explicit FAILURE generation, blacklist unreliable agents, add protocol validation layers
-
-### **Schema Bloat in Ontology Evolution** 
-**Symptoms**: Ontology grows to 500+ concepts, agents spend seconds parsing/reasoning about messages
-**Detection**: `if (ontology.getConcepts().size() > threshold || messageParsingTime > 100ms)`
-**Diagnosis**: Monolithic ontology without modular decomposition
-**Fix**: Split into domain-specific sub-ontologies, use ontology import/composition, implement lazy concept loading
-
-### **Cascade Failure in Sequential Workflows**
-**Symptoms**: Single agent failure brings down entire multi-step workflow, no partial progress recovery
-**Detection**: `if (behavior instanceof SequentialBehaviour && childFailureCount > 0)`
-**Diagnosis**: No failure isolation between workflow steps
-**Fix**: Replace SequentialBehaviour with FSMBehaviour for explicit error states, add compensating actions for partial rollback
-
-### **Message Queue Overflow Under Load**
-**Symptoms**: OutOfMemoryError in message delivery subsystem, agents stop receiving messages
-**Detection**: Monitor `containerMessageQueueSize > maxThreshold`
-**Diagnosis**: Producer/consumer rate mismatch, no backpressure mechanism
-**Fix**: Set message TTL, implement priority queues, add flow control at protocol level
-
-### **Directory Facilitator Bottleneck**
-**Symptoms**: Service discovery taking >5 seconds, DF becomes single point of failure
-**Detection**: `if (dfSearchTime > threshold || dfRequestCount > maxConcurrent)`
-**Diagnosis**: Centralized service registry pattern under high load
-**Fix**: Implement distributed DF federation, cache service advertisements locally, use gossip-based discovery
-
-## Worked Examples
-
-### Example: Multi-Vendor Book Purchase with Failure Handling
-
-**Scenario**: Agent needs to buy "JADE Programming Guide" at lowest price from multiple online sellers
-
-**Decision Point Navigation**:
-1. **Task Type**: Competitive selection among vendors → **Contract Net Protocol**
-2. **Architecture**: Standard request-response needed → **Basic Agent + Request Protocol for execution**
-3. **Failure Requirements**: Timeout budget 30 seconds, need graceful degradation → **Sequential workflow with timeout handling**
-
-**Expert Implementation**:
 ```java
-// Top level: Contract Net for vendor selection
-ContractNetInitiator bookPurchaseNegotiation = new ContractNetInitiator(this, cfpMessage) {
-    protected void handlePropose(ACLMessage propose, Vector acceptances) {
-        // Expert: Evaluate proposals by price + delivery time + vendor reputation
-        double score = calculateVendorScore(propose);
-        if (score > bestScore) {
-            bestScore = score;
-            bestProposal = propose;
-        }
-    }
-    
-    protected void handleFailure(ACLMessage failure) {
-        // Expert: Contract Net failure means no valid bids - try backup strategy
-        addBehaviour(new FallbackBehavior(searchAmazonDirect()));
-    }
-};
-
-// Execution level: Request Protocol for actual purchase  
-RequestInitiator purchaseExecution = new RequestInitiator(this, purchaseMessage) {
-    protected void handleInform(ACLMessage inform) {
-        // Expert: Validate purchase confirmation against ontology
-        if (validatePurchaseConfirmation(inform)) {
-            logger.info("Purchase confirmed: " + inform.getContent());
-        }
-    }
-    
-    protected void handleFailure(ACLMessage failure) {
-        // Expert: Payment failure - try next best vendor from Contract Net results
-        retryWithNextVendor();
-    }
-};
+// Illustrative Java-like behavior sketch; local policy owns time and ranking.
+void onCfpClosed(List<ACLMessage> replies, String conversationId) {
+  List<ACLMessage> proposals = replies.stream()
+      .filter(m -> m.getPerformative() == ACLMessage.PROPOSE)
+      .filter(m -> conversationId.equals(m.getConversationId()))
+      .toList();
+  Optional<ACLMessage> chosen = chooseUnderLocalPolicy(proposals);
+  for (ACLMessage p : proposals) send(replyTo(p, p == chosen.orElse(null)
+      ? ACLMessage.ACCEPT_PROPOSAL : ACLMessage.REJECT_PROPOSAL));
+  if (chosen.isEmpty()) recordNoSelection(conversationId, replies);
+}
 ```
 
-**Novice Would Miss**:
-- No timeout handling - would wait forever for responses
-- No proposal evaluation logic - would accept first response  
-- No backup strategy when Contract Net finds no bidders
-- No validation of purchase confirmation semantics
+## Content and behavior boundaries
 
-**Expert Catches**:
-- Explicit timeout in Contract Net CFP message
-- Multi-criteria vendor scoring (price + delivery + reputation)
-- Fallback behavior when no proposals received
-- Ontology-based validation of purchase confirmation content
-- Retry mechanism with next-best vendor on payment failure
+Use an ontology/content-language agreement when independently built parties must share a meaning for fields such as `inputDigest`, `format`, or `declaredTerms`. A matching JSON field name or a successful Java decode is only syntactic interoperability. Version each schema, reject messages outside the agreed version, and retain the original bytes/digest so the application can explain what it accepted.
 
-## Reference Files
+JADE behavior composition remains useful as a local implementation technique: a short setup behavior may register a service description; a conversation behavior may wait for matching messages; a final behavior may record a disposition. Do not infer that a Directory Facilitator result proves suitability, availability, authorization, or delivery. It is discovery input.
 
-- `diagrams/01_sequenceDiagram_fipa_protocol_interaction_patt.md` — Mermaid sequence diagram showing Contract Net, Request, and Subscribe protocol message flows. **Read when** choosing or implementing a FIPA protocol.
-- `diagrams/02_stateDiagram-v2_agent_behavior_state_machine_c.md` — State machine diagram for behavior composition (OneShotBehavior, CyclicBehavior, Sequential/Parallel/FSM). **Read when** designing agent behavior lifecycle.
-- `diagrams/03_flowchart_decision_tree-_which_jade_coor.md` — Decision tree flowchart for selecting coordination mechanism (Contract Net vs Request vs Subscribe). **Read when** unsure which protocol fits your task.
-- `references/coordination-without-bottlenecks.md` — Decentralized task allocation patterns avoiding central coordinator bottleneck; scales to 180+ agents. **Read when** designing multi-agent workflows at scale.
-- `references/failure-resilient-distributed-coordination.md` — Production failure modes (message loss, agent crashes, network partitions) and resilience patterns from OASIS/industrial systems. **Read when** hardening system against Byzantine behavior or cascade failures.
-- `references/hierarchical-task-decomposition-patterns.md` — Composable behavior state machines for complex workflows (discovery → negotiation → evaluation → commitment). **Read when** breaking down multi-step tasks into agent behaviors.
-- `references/semantic-grounding-for-skill-composition.md` — Ontology design and FIPA-SL for semantic interoperability across teams/languages; Content Reference Model. **Read when** defining shared concepts for agent communication.
-- `references/split-container-architecture-for-heterogeneous-environments.md` — Lightweight front-end + stateful back-end + mediator for mobile/IoT/edge agents with battery/connectivity constraints. **Read when** deploying agents on resource-constrained or unreliable networks.
+Within one agent, JADE schedules ready behaviours cooperatively and non-preemptively: `action()` returns to yield, and a waiting behaviour calls `block()` then returns. Persist the phase and correlation data in fields or a `DataStore`; a Java call stack is not preserved across scheduler turns. Use `SequentialBehaviour` for ordered local steps, `ParallelBehaviour` with `WHEN_ALL` or `WHEN_ANY` only for completion semantics, and `FSMBehaviour` when refusal, no-selection, report, and validation need explicit transitions. None turns remote work into CPU-parallel work.
 
-## Quality Gates
+For a dynamic candidate list, `DFService.search`, `register`, `modify`, and `deregister` are convenient but block the caller until completion or exception. Keep that work out of a latency-sensitive behaviour, or use the asynchronous DF request/subscription path (`AchieveREInitiator` or `SubscriptionInitiator`) with a documented update policy. A `MessageTemplate` selects queued ACL messages by header predicates; include `conversation-id`, protocol, performative, and a `reply-with`/`in-reply-to` pair as appropriate, then validate sender role and content separately.
 
-- [ ] All agent interactions use FIPA-ACL performatives (REQUEST, INFORM, AGREE, REFUSE, FAILURE)
-- [ ] Ontology coverage: All message content grounded in formal ontology with defined concepts and predicates  
-- [ ] Protocol timeout budgets: Every blocking protocol interaction has explicit timeout (recommend 5-30 seconds)
-- [ ] Message delivery guarantees: Persistent delivery enabled for critical workflows, TTL set for non-critical messages
-- [ ] Failure path validation: Every protocol success path has corresponding REFUSE/FAILURE handling
-- [ ] Behavior composition correctness: Sequential behaviors handle child failure propagation, Parallel behaviors have appropriate termination conditions
-- [ ] Service discovery scalability: Directory Facilitator queries cached or federated for systems >50 agents
-- [ ] Split-container deployment: Mobile/edge agents use lightweight front-end with server-side back-end for state persistence
-- [ ] Semantic interpretation: Custom SIPs override only specific interpretation rules, preserving standard FIPA semantics elsewhere
-- [ ] Protocol compliance testing: Agent behaviors tested against FIPA protocol state machines for conformance
+## Failure dispositions
 
-## NOT-FOR Boundaries
+| Observation | Conversation disposition | What remains unproved |
+| --- | --- | --- |
+| `REFUSE` before selection | Candidate declined this request | Cause, future availability, and truth of a supplied reason |
+| no response by the declared reply-by | Reply missing for this local window | Network state or remote execution state |
+| `FAILURE` after acceptance | Candidate reports an unsuccessful attempt | The report’s accuracy and any external rollback |
+| `INFORM` with output reference | Candidate reports completion | Output integrity, fitness, and any downstream effect |
 
-**This skill should NOT be used for**:
-- Simple HTTP REST APIs → Use standard web service frameworks instead
-- Batch processing pipelines → Use workflow engines like Apache Airflow instead  
-- Real-time streaming data → Use event streaming platforms like Apache Kafka instead
-- Single-machine concurrency → Use standard threading/async frameworks instead
-- Database transactions → Use ACID database systems instead
+Do not label an absent response “Byzantine,” choose arbitrary global thresholds, promise persistent delivery, or automatically blacklist/retry. Those are separate threat-model and operations decisions.
 
-**Delegation Guidelines**:
-- For message queuing without agent semantics → Use `message-queue-architecture` skill instead
-- For distributed system consensus → Use `distributed-consensus-algorithms` skill instead  
-- For service mesh networking → Use `service-mesh-patterns` skill instead
-- For event-driven architecture → Use `event-sourcing-cqrs` skill instead
-- For microservices orchestration → Use `microservices-coordination` skill instead
+## Quality gates
 
-**Core Trigger**: Use JADE when you need **semantic interoperability** between **autonomous components** that must **coordinate without central control** using **standardized protocols**. If any of these requirements is missing, simpler alternatives will be more appropriate.
+- [ ] The chosen protocol has a written message grammar, correlation identifier, and local terminal condition.
+- [ ] CFP policy freezes who may be considered, reply-by interpretation, proposal fields, and selection comparator before proposals are evaluated.
+- [ ] Request, refusal, missing-response, reported failure, and reported completion have distinct recorded dispositions.
+- [ ] Content validation and independently authorized external effects occur outside performative handling.
+- [ ] Any JADE API use is checked against a named release’s official documentation.
+- [ ] Time, retries, caches, queueing, and discovery behavior are measured local policies with explicit assumptions.
+
+## Read next
+
+- [Conversation contract and JADE mapping](references/conversation-contract-and-jade-mapping.md)
+- [Behavior composition and message correlation](references/behavior-composition-and-correlation.md)
+- [Source access and implementation boundary](references/source-access-and-implementation-boundary.md)
+- [CFP lifecycle diagram](diagrams/01_cfp-lifecycle.md)
+- [Implementation boundary diagram](diagrams/02_implementation-boundary.md)

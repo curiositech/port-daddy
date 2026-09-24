@@ -1,0 +1,30 @@
+[
+  {
+    "name": "dricopdf",
+    "url": "https://openreview.net/pdf?id=j7SaOMt2j4",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "name": "drico-metadata",
+    "url": "https://api2.openreview.net/notes?id=j7SaOMt2j4",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "name": "grite",
+    "url": "https://arxiv.org/html/2606.19616v1",
+    "final_url": "https://arxiv.org/html/2606.19616v1",
+    "type": "text/html; charset=utf-8",
+    "bytes": 97761,
+    "sha256": "94f90996ba69aa526e67e007882bd479fc581653bf92786ab32ac09a571f1eb5",
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-current-prior-art-followup/grite.html"
+  },
+  {
+    "name": "storm",
+    "url": "https://arxiv.org/html/2605.20563v1",
+    "final_url": "https://arxiv.org/html/2605.20563v1",
+    "type": "text/html; charset=utf-8",
+    "bytes": 301843,
+    "sha256": "61a7d51d51f18abba6278b7cd1a7f8f9a10729ad32dc80b0dee7bfe84e4d53cb",
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-current-prior-art-followup/storm.html"
+  }
+]

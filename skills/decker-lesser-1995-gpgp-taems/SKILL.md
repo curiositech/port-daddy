@@ -1,266 +1,59 @@
 ---
-license: Apache-2.0
 name: decker-lesser-1995-gpgp-taems
-description: Generalized Partial Global Planning with TAEMS task structures for multi-agent coordination
-metadata:
-  category: Research & Academic
-  tags:
-    - gpgp
-    - taems
-    - coordination
-    - multi-agent
-    - task-structures
-  io-contract:
-    kind: deliverable
-    produces:
-      - kind: coordination-design
-        description: >-
-          Task relationship analysis and mechanism selection for multi-agent systems, including commitment protocols and
-          information sharing strategies tailored to enables/facilitates/hinders/redundancy relationships
-        format: markdown
-      - kind: protocol-specification
-        description: >-
-          Formal commitment protocol definitions with negotiability indices, renegotiation triggers, and
-          quality/deadline constraints for distributed agent coordination
-        format: markdown
-      - kind: failure-mode-analysis
-        description: >-
-          Detection criteria and remediation strategies for schema bloat, rubber stamp commitments, information
-          hoarding, cascade failures, and premature termination in multi-agent systems
-        format: markdown
-      - kind: implementation-guide
-        description: >-
-          Worked examples demonstrating decision tree navigation for real-world scenarios (microservices, robotics,
-          distributed systems) with expert vs novice comparisons
-        format: markdown
-allowed-tools: Read,Write,Edit,Glob,Grep
+description: Apply GPGP/TAEMS coordination as local-scheduler constraints under explicit task, view, commitment, and delivery assumptions.
+category: Research & Academic
+tags: [gpgp, taems, coordination, task-networks, multi-agent]
 ---
 
-# SKILL: GPGP Multi-Agent Coordination
+# GPGP/TAEMS: a family of local-scheduling coordination mechanisms
 
-## Overview
-Build coordination mechanisms for distributed systems using task structure analysis and commitment protocols. Select minimal coordination mechanisms based on specific task relationship types rather than universal approaches.
+Decker and Lesser’s 25-page UMass Technical Report 94-14, cover dated 1995-08-09, describes an extensible GPGP family over subjective TÆMS task structures. It is distinct from the shorter ICMAS-95 conference version. The coordination module exchanges selected views/results, posts commitments, invokes the existing local scheduler, and communicates revisions; it does not centrally assign actions or prove global completion.
 
-## Decision Points
+The initial mechanisms are M1 non-local viewpoints, M2 results, M3 exact simple redundancy, M4 hard predecessor relationships, and M5 positive facilitates relationships. M3 depends on stated MAX-QAF and exact-duplicate assumptions; MIN is not an interchangeable redundancy rule. Hinders is not handled by these five.
 
-### Primary Mechanism Selection Decision Tree
-
-**IF** analyzing new coordination requirement **THEN**:
-```
-1. Identify task relationship type:
-   ├─ Enables (B cannot start until A completes)
-   │  └─ Use strict deadline commitments, low negotiability
-   ├─ Facilitates (A helps B but B can proceed without A)  
-   │  └─ Use opportunistic information sharing, high negotiability
-   ├─ Hinders (A competes with B for resources)
-   │  └─ Use deconfliction protocols, resource allocation
-   └─ Redundancy (A and B achieve same goal)
-      └─ Use result sharing, early termination triggers
-
-2. Assess relationship strength (power factor 0.0-1.0):
-   ├─ > 0.7: Coordinate with full protocol
-   ├─ 0.3-0.7: Coordinate with lightweight mechanisms  
-   └─ < 0.3: Skip coordination, act independently
+```mermaid
+flowchart LR
+  V[Subjective task view] --> D[Detect relevant relationship]
+  D --> M{M1 M2 M3 M4 or M5?}
+  M -->|M1| I[Exchange selected non-local views]
+  M -->|M2| J[Communicate required results]
+  M -->|M3 M4 M5| C[Post or revise applicable commitments]
+  I --> Q
+  J --> Q
+  C --> S[Local scheduler returns schedule or alternative]
+  S --> R[Communicate selected change or available result]
+  R --> Q{Local quiescence conditions clear?}
+  Q -- no --> V
+  Q -- yes --> L[Local task-group stop only]
 ```
 
-### Commitment Protocol Decision Tree
-
-**IF** establishing commitment between agents **THEN**:
-```
-1. Determine commitment type needed:
-   ├─ Hard deadline + quality requirement
-   │  └─ Use C(DL(T,q,tdl)): "achieve quality q by time tdl"
-   └─ Quality achievement without strict timing
-      └─ Use C(Do(T,q)): "achieve quality q when feasible"
-
-2. Set negotiability index:
-   ├─ Critical path task: negotiability = 0.1-0.3
-   ├─ Important but flexible: negotiability = 0.4-0.7
-   └─ Nice-to-have: negotiability = 0.8-1.0
-
-3. Establish renegotiation triggers:
-   ├─ Resource availability changes > 20%
-   ├─ Task priority shifts
-   └─ Blocking dependencies emerge
+```mermaid
+flowchart TD
+  X[Two exact duplicate methods quality 0.8] --> A{QAF}
+  A -- MAX --> B[One selected executor can supply result]
+  A -- MIN --> C[Missing required child keeps parent low]
+  B --> D[Shared tie-break and result delivery]
+  C --> E[Do not call this simple redundancy]
 ```
 
-### Information Sharing Decision Tree
+## Constructed fixtures
 
-**IF** deciding what information to share **THEN**:
-```
-1. Calculate sharing value:
-   ├─ IF information affects another agent's task success > 10%
-   │  └─ Share immediately
-   ├─ IF information enables better resource allocation
-   │  └─ Share if communication cost < expected utility gain
-   └─ IF information is local status update
-      └─ Share only to committed partners
+- **MAX/MIN:** for two equivalent results 0.8, `MAX(0.8,0.8)=0.8`; a missing MIN-required child remains a gap.
+- **Hard predecessor:** A estimates quality 40 by local time 7 and, under an explicitly assumed one-unit communication delay, sends `C(DL(p,40,8))` to B. A later violation requires a communicated alternative or NIL.
+- **Local quiescence:** an idle A with an outstanding commitment or expected B result is not locally quiescent. Local quiescence does not prove global termination.
 
-2. Determine sharing mechanism:
-   ├─ Urgent commitment changes: Direct notification
-   ├─ Task structure updates: Broadcast to affected agents
-   └─ Status updates: Periodic bulletin
-```
+## Navigation
 
-## Failure Modes
+- [Task hierarchy, QAF, and relationship mechanisms](references/task-decomposition-through-relationship-types.md)
+- [Commitment lifecycle and revision](references/commitments-as-social-contracts.md)
+- [Local scheduler boundary](references/coordination-as-constraint-posting-not-control.md)
+- [M1 views and M2 results](references/subjective-views-and-partial-information.md)
+- [Overhead categories and bounded evaluation](references/overhead-as-first-class-design-concern.md)
+- [Local quiescence limit](references/termination-and-quiescence-in-distributed-coordination.md)
+- [Family selection and experiment scope](references/no-universal-coordination-mechanism.md)
 
-### Schema Bloat
-**Symptoms**: Coordination mechanisms handle too many task types, slow decision-making, high overhead
-**Detection**: IF coordination overhead > 30% of total compute time OR mechanism has >20 conditional branches
-**Fix**: Decompose into specialized mechanisms, each handling 1-2 relationship types
+## Evidence boundary
 
-### Rubber Stamp Commitments  
-**Symptoms**: Agents make commitments they cannot keep, frequent commitment breaks, cascading failures
-**Detection**: IF commitment break rate > 15% OR agents consistently miss deadlines by >50%
-**Fix**: Add negotiability indices, implement realistic resource estimation, create commitment verification protocols
+Primary source: Decker & Lesser, *Designing a Family of Coordination Algorithms*, UMass CS TR 94-14, §§1–5 targeted-read via the official institutional PDF on 2026-09-24. Table 2 symbolic coefficients and some equations were not visually recovered, so this skill does not repeat them. Report simulations use generated abstract episodes, not production services or a global-optimality guarantee.
 
-### Information Hoarding
-**Symptoms**: Agents act on stale information, redundant work, missed coordination opportunities  
-**Detection**: IF agents request same information multiple times OR duplicate work detected
-**Fix**: Implement strategic information sharing based on expected value calculation, create information marketplaces
-
-### Commitment Cascade Failures
-**Symptoms**: Breaking one commitment forces breaking many others, system-wide coordination collapse
-**Detection**: IF single commitment break causes >5 secondary breaks OR system cannot reach quiescence
-**Fix**: Design commitment networks with circuit breakers, prioritize commitments, implement graceful degradation
-
-### Premature Coordination Termination
-**Symptoms**: Coordination stops while agents still have pending work, incomplete task execution
-**Detection**: IF agents terminate with unfinished commitments OR coordination ends before all constraints satisfied
-**Fix**: Implement explicit quiescence detection, track commitment lifecycle states, add termination protocols
-
-## Worked Examples
-
-### Example 1: Microservice SLA Design
-
-**Scenario**: Designing coordination between payment service (A) and order service (B) in e-commerce system.
-
-**Task Analysis**:
-- Relationship type: Enables (orders cannot complete without payment processing)
-- Power factor: 0.9 (high - failed payments block orders completely)
-- Information locality: Payment status known only to payment service
-
-**Mechanism Selection Process**:
-1. Strong enables relationship → strict deadline commitments required
-2. High power factor (0.9) → full coordination protocol needed
-3. Apply decision tree: Use C(DL(T,q,tdl)) commitment type
-
-**Implementation**:
-```
-Payment Service commits to Order Service:
-- Commitment: C(DL(ProcessPayment, 0.95, order_timeout-30sec))  
-- Quality: 95% success rate
-- Deadline: 30 seconds before order timeout
-- Negotiability: 0.2 (low - critical path)
-- Renegotiation triggers: fraud_score > threshold, payment_gateway_down
-```
-
-**Expert vs Novice**:
-- **Novice**: Creates synchronous API call with fixed timeout
-- **Expert**: Recognizes this as enables relationship requiring commitment protocol with renegotiation capability
-
-### Example 2: Multi-Robot Task Scheduling with Trade-offs  
-
-**Scenario**: Three robots (A, B, C) cleaning warehouse with overlapping patrol zones.
-
-**Task Analysis**:
-- A-B relationship: Facilitates (A's cleaning helps B but not required)  
-- B-C relationship: Hinders (compete for charging station)
-- A-C relationship: Redundancy (both can clean central zone)
-
-**Decision Tree Navigation**:
-1. A-B (facilitates, power=0.4) → lightweight coordination, high negotiability
-2. B-C (hinders, power=0.8) → deconfliction protocol needed  
-3. A-C (redundancy, power=0.6) → result sharing mechanism
-
-**Mechanism Implementation**:
-```
-A-B Coordination:
-- Opportunistic info sharing: "cleaned zone X at quality 0.8"
-- Negotiability: 0.7 (flexible timing)
-
-B-C Coordination:  
-- Resource allocation: charging station scheduler
-- Strict deconfliction: mutex on station access
-- Negotiability: 0.3 (safety critical)
-
-A-C Coordination:
-- Result sharing: "central zone cleaned, terminating redundant task" 
-- Early termination trigger on result quality > 0.9
-```
-
-**Trade-off Analysis**:
-- Overhead cost: 12% compute time for coordination
-- Benefit: 25% reduction in duplicate work, 40% improvement in charging conflicts
-- Decision: Coordination value exceeds cost, implement all mechanisms
-
-## Reference Files
-
-- `references/commitments-as-social-contracts.md` — Defines commitments as social contracts with specific semantics and lifecycle properties, not simple message passing. **Read when** designing commitment protocols or understanding GPGP's coordination model.
-
-- `references/coordination-as-constraint-posting-not-control.md` — Explains how GPGP modulates local control via domain-independent mechanisms rather than central scheduling. **Read when** deciding whether to use centralized vs. distributed coordination.
-
-- `references/no-universal-coordination-mechanism.md` — Establishes the foundational principle that no single mechanism fits all environments; GPGP is an extensible family. **Read when** justifying why mechanism selection depends on task relationship types.
-
-- `references/overhead-as-first-class-design-concern.md` — Analyzes coordination overhead across communication, information gathering, and computation dimensions with concrete metrics. **Read when** evaluating whether coordination cost exceeds benefit or detecting schema bloat.
-
-- `references/subjective-views-and-partial-information.md` — Formalizes how agents maintain partial, subjective views of task structure using BA^t(x) notation. **Read when** handling incomplete information or agent belief divergence.
-
-- `references/task-decomposition-through-relationship-types.md` — Describes TAEMS framework for representing enables/facilitates/hinders/redundancy relationships in domain-independent way. **Read when** analyzing task structures or selecting coordination mechanisms.
-
-- `references/termination-and-quiescence-in-distributed-coordination.md` — Addresses detecting termination in distributed systems where agents have partial information. **Read when** implementing early termination triggers or handling premature completion.
-
-## Quality Gates
-
-**Task Structure Analysis Complete**:
-- [ ] All task relationships identified and categorized (enables/facilitates/hinders/redundancy)
-- [ ] Power factors quantified for each relationship (0.0-1.0 scale)
-- [ ] Information locality mapped (which agent knows what, when)
-- [ ] Coordination trigger conditions specified explicitly
-
-**Mechanism Selection Justified**:
-- [ ] Decision tree applied to select coordination type for each relationship
-- [ ] Overhead vs. benefit calculated for each mechanism
-- [ ] Mechanisms combined appropriately (no conflicting protocols)
-- [ ] Fallback behavior defined when coordination fails
-
-**Commitment Protocol Design**:  
-- [ ] Commitment types specified (Do vs. Deadline) with quality levels
-- [ ] Negotiability indices assigned based on criticality (0.0-1.0)
-- [ ] Renegotiation triggers defined with measurable thresholds
-- [ ] Commitment lifecycle tracked (pending/active/satisfied/broken)
-- [ ] Notification protocols established for commitment changes
-
-**Information Sharing Strategy**:
-- [ ] Information sharing decisions based on expected value calculation  
-- [ ] Communication costs estimated and compared to benefits
-- [ ] Sharing mechanisms match information urgency and scope
-- [ ] Information freshness requirements specified
-
-**Failure Mode Coverage**:
-- [ ] Detection rules implemented for each major failure mode
-- [ ] Recovery protocols defined for commitment breaks and cascades
-- [ ] Overhead monitoring in place with alert thresholds
-- [ ] Graceful degradation paths specified when coordination fails
-
-**Performance Validation**:
-- [ ] Coordination overhead measured and stays <30% of total compute
-- [ ] Commitment break rate <15% under normal conditions  
-- [ ] System reaches quiescence within expected time bounds
-- [ ] Coordination produces measurable improvement over independent action
-
-## NOT-FOR Boundaries
-
-**This skill should NOT be used for**:
-- **Real-time control systems**: For hard real-time requirements with microsecond precision, use deterministic scheduling instead
-- **Simple request-response patterns**: For basic client-server interactions, use standard RPC/REST patterns instead  
-- **Hierarchical command structures**: For military/organizational command chains, use authority-based coordination instead
-- **Fully observable environments**: When all agents have complete information, use global optimization algorithms instead
-- **Homogeneous agent systems**: When all agents are identical, use distributed consensus algorithms instead
-
-**Delegate to other skills**:
-- For Byzantine fault tolerance → use `byzantine-fault-tolerance` skill
-- For leader election → use `distributed-consensus` skill  
-- For transaction coordination → use `distributed-transactions` skill
-- For load balancing → use `distributed-load-balancing` skill
-- For real-time scheduling → use `real-time-systems` skill
+See [substrate choice and fixture limits](references/substrate-choice-and-fixture-boundary.md) before implementing schedule selection; a strict no-violation filter is a different policy.

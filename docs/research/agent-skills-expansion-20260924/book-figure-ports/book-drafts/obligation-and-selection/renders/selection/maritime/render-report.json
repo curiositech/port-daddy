@@ -1,0 +1,31 @@
+{
+  "tool": "render_tikz_figure",
+  "engine": "pdflatex",
+  "strict": true,
+  "dpi": 160,
+  "preview": false,
+  "figures": [
+    {
+      "source": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/selection-maritime.tex",
+      "engine": "pdflatex",
+      "command": [
+        "pdflatex",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "-output-directory=/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/renders/selection/maritime/selection-maritime",
+        "-jobname=selection-maritime",
+        "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/selection-maritime.tex"
+      ],
+      "compiled": true,
+      "fatal": [],
+      "warnings": [],
+      "pdf": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/renders/selection/maritime/selection-maritime/selection-maritime.pdf",
+      "png": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/renders/selection/maritime/selection-maritime/selection-maritime.png",
+      "width_in": 4.5988750000000005,
+      "height_in": 4.008333333333334,
+      "log": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/obligation-and-selection/renders/selection/maritime/selection-maritime/selection-maritime.log",
+      "tail": "al> papersize=332.3611pt,289.68242pt\n{/Users/erichowens/Library/texlive/2026basic/texmf-var/fonts/map/pdftex/updmap/\npdftex.map}{/Users/erichowens/Library/texmf/fonts/enc/dvips/tex-gyre/q-ec.enc}]\n)\n(/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-draf\nts/obligation-and-selection/renders/selection/maritime/selection-maritime/selec\ntion-maritime.aux)\n ***********\nLaTeX2e <2025-11-01>\nL3 programming layer <2026-01-19>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 13832 strings out of 469006\n 294856 string characters out of 5454814\n 679262 words of memory out of 5000000\n 42272 multiletter control sequences out of 15000+600000\n 642239 words of font info for 52 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 117i,7n,121p,533b,624s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9\n.pfb></Users/erichowens/Library/texmf/fonts/type1/public/tex-gyre/qplb.pfb></Us\ners/erichowens/Library/texmf/fonts/type1/public/tex-gyre/qplr.pfb></Users/erich\nowens/Library/texmf/fonts/type1/public/tex-gyre/qplri.pfb>\nOutput written on /Users/erichowens/coding/tmp/agent-skills-expansion-20260924-\nhandoff/book-drafts/obligation-and-selection/renders/selection/maritime/selecti\non-maritime/selection-maritime.pdf (1 page, 172877 bytes).\nPDF statistics:\n 32 PDF objects out of 1000 (max. 8388607)\n 20 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 13 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n"
+    }
+  ],
+  "contact_sheet_error": null
+}

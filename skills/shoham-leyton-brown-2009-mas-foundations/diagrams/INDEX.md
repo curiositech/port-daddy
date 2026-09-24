@@ -1,13 +1,9 @@
 # Diagrams for shoham-leyton-brown-2009-mas-foundations
 
-**Primary Focus:** Strategic design of distributed systems and mechanisms where autonomous agents have private information and computational constraints, using game theory, mechanism design, and representation choices to balance tractability, truthfulness, efficiency, and incentive alignment.
+These diagrams are complementary worksheets. They do not choose a mechanism or equilibrium before its representation and hypotheses are supplied.
 
-## Generated Diagrams
-
-1. **Multiagent System Design Decision Tree** (flowchart)
-2. **Information Structure & Equilibrium Tractability States** (stateDiagram-v2)
-3. **Mechanism Design Tradeoff Space** (quadrantChart)
-
-| [01_flowchart_multiagent_system_design_decis.md](01_flowchart_multiagent_system_design_decis.md) | Multiagent System Design Decision Tree |
-| [02_stateDiagram-v2_information_structure_&_equili.md](02_stateDiagram-v2_information_structure_&_equili.md) | Information Structure & Equilibrium Tractability States |
-| [03_quadrantChart_mechanism_design_tradeoff_spac.md](03_quadrantChart_mechanism_design_tradeoff_spac.md) | Mechanism Design Tradeoff Space |
+| Diagram | Use |
+|---|---|
+| [01_flowchart_multiagent_system_design_decis.md](01_flowchart_multiagent_system_design_decis.md) | Separate feasibility and incentive analysis, then bind system evidence. |
+| [02_flowchart_model_and_solution_question.md](02_flowchart_model_and_solution_question.md) | Distinguish representation and verify/find/enumerate/property questions. |
+| [03_flowchart_mechanism_preconditions.md](03_flowchart_mechanism_preconditions.md) | Check VCG/Groves and alternative mechanism preconditions. |

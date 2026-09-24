@@ -1,0 +1,9 @@
+# MAS worksheet: accepted planning figure draft
+
+Root accepts one Book-style worksheet in three editions (three standalone PDFs/PNGs and three 7x10 page previews) at accepted-artifact-manifest.json hashes. No manuscript integration or teaching efficacy is claimed.
+
+Root read the TikZ fragment, wrapper/import mechanism, construction/validation scripts, source/geometry/arithmetic records and Astra planning review; independently verified manifest bytes, four current style-source hashes and eight current manuscript hashes. All match their receipts. Independently recomputed every pure-profile payoff/deviation/capacity row. The B,B pure equilibrium is a sufficient counterexample to the universal welfare claim even allowing mixed equilibria. The changed capacity invalidates the old model certificate; no unspecified revised game is solved.
+
+Root directly viewed each of the three final page-context PNGs. Text, matrix, ruled worksheet, changed-model band and separate execution band are readable with distinct rows and no visible overlaps or clipping. Caption has clear separation. Existing manuscript-compatible palette and edition import order are retained; these actual bytes use the documented older role names. Source use is established by digests and compiler input receipts, not by screenshot inference.
+
+All six PDF hashes bind their geometry checks; all six compilation logs have no Overfull/Missing character/Undefined control sequence/LaTeX Error markers. Page text width 4.480497625 inches fits the 4.5-inch column; rounded font metadata is 9pt. Poppler-based bounds/overlap checks and actual render inspection passed. PyMuPDF-dependent figcheck/beauty_lint remain unavailable and are not claimed. This is narrower than full figure-system or full-book certification. No source code, manuscript, PD runtime, Git publication or deployment changed.

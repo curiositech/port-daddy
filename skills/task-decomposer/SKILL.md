@@ -1,195 +1,98 @@
 ---
 name: task-decomposer
 license: Apache-2.0
-description: Breaks natural-language problem descriptions into sub-tasks suitable for DAG nodes. The entry point of the meta-DAG. Identifies phases, dependencies, parallelization opportunities, and vague/pluripotent nodes that can't yet be specified. Uses domain meta-skills when available. Activate on "decompose task", "break down problem", "plan workflow", "what are the steps", "sub-tasks", "task breakdown". NOT for executing the decomposed tasks (use dag-runtime), building the DAG structure (use dag-planner), or matching skills to nodes (use dag-skills-matcher).
+description: >-
+  Turn a stated outcome into a reviewable task graph with deliverables, decision/unknown
+  nodes, typed dependency reasons, and authority gates. It plans work; it does not execute,
+  schedule, or prove that a DAG can run concurrently. NOT for runtime orchestration or granting effect authority.
 allowed-tools: Read,Grep,Glob
 argument-hint: '[problem-description]'
 metadata:
-  tags:
-    - task
-    - decomposer
-    - decompose-task
-    - break-down-problem
-    - plan-workflow
+  category: Agent & Orchestration
+  tags: [task, decomposer, decompose-task, break-down-problem, plan-workflow]
   pairs-with:
-    - skill: output-contract-enforcer
-      reason: Decomposed tasks define output schemas that the enforcer validates between nodes
-    - skill: skillful-subagent-creator
-      reason: Decomposed tasks map to subagent specializations with curated skill sets
+    - skill: dag-planner
+      reason: Converts validated node/edge requirements into a graph representation.
     - skill: human-gate-designer
-      reason: Task decomposition identifies which stages need human review gates
-category: Agent & Orchestration
-tags:
-  - task-decomposition
-  - planning
-  - subtasks
-  - agents
-  - orchestration
+      reason: Defines authority required before irreversible actions.
 ---
 
 # Task Decomposer
 
-Breaks natural-language problems into sub-tasks suitable for DAG nodes. The first step of the meta-DAG: before you can build or execute a DAG, you need to understand what the pieces are.
+## Status and boundary
 
-## Decision Points
+This is a first-party planning scaffold. It preserves phase, dependency, vagueness, and decision workflows from the inherited skill. Domain labels are prompts for investigation, not keyword routing: a mixed request can have research, product, data, and operational concerns. A planned DAG represents prerequisite claims; it is neither an execution trace nor proof of parallel safety.
 
-```
-1. DOMAIN CLASSIFICATION
-   ├─ Contains {"build", "implement", "code", "app"} → Use software-project-decomposition
-   ├─ Contains {"research", "analyze", "report"} → Use research-synthesis-decomposition
-   ├─ Contains {"design", "UI", "prototype"} → Use product-design-decomposition
-   ├─ Contains {"data", "model", "train", "ML"} → Use ml-project-decomposition
-   └─ No clear domain signals → Zero-shot decomposition
+Use an HTN only when a task-network formalism with primitive tasks, method applicability, preconditions, effects, and solution semantics is actually supplied. This skill does not supply those semantics. See [method boundaries](references/method-boundaries.md).
 
-2. SUB-TASK GRANULARITY
-   ├─ Can one agent complete in one call? → Correct granularity
-   ├─ Requires multiple agent calls/skills? → Split into smaller sub-tasks
-   └─ Too trivial (open file, read line)? → Merge with adjacent sub-task
+## Decomposition procedure
 
-3. DEPENDENCY DETECTION
-   ├─ B needs A's output data? → Create data dependency A→B
-   ├─ B needs A's knowledge/decisions? → Create knowledge dependency A→B
-   ├─ A and B share no inputs/outputs? → Mark as parallelizable
-   └─ Circular reference detected? → Invalid, restructure phases
+### 1. Write an outcome contract
 
-4. VAGUENESS CLASSIFICATION
-   ├─ Can specify concrete steps now? → Create concrete sub-task
-   ├─ Depends on upstream discoveries? → Create vague node with 3+ potential paths
-   └─ Requires human decision? → Mark as human-gate candidate
+State the observable deliverable, acceptance evidence, hard constraints, authority boundary, irreversible actions, and unknowns. Do this before proposing phases or domain treatments.
 
-5. COMPLEXITY ESTIMATION
-   ├─ Single skill, clear inputs/outputs? → Mark as "simple" (Tier 1 model)
-   ├─ 2-3 skills, moderate reasoning? → Mark as "moderate" (Tier 2 model)
-   └─ Complex reasoning, multiple domains? → Mark as "complex" (Tier 3 model)
-```
+For each unknown that can change downstream work, create an evidence or decision node with a named output. “Resolve Node 3” is not a task. `choose-storage` becomes a valid decision node only when its inputs, decision record, output, and consumers are named.
 
-## Failure Modes
+### 2. Propose phases as a hypothesis
 
-| Anti-Pattern | Symptom | Diagnosis | Fix |
-|-------------|---------|-----------|-----|
-| **Sequential Fallacy** | All tasks form single chain, no parallelism | Missed independent work streams | Identify tasks with no shared inputs/outputs, mark parallelizable |
-| **Premature Specification** | Concrete details for tasks depending on undone research | Forcing certainty where none exists | Convert to vague nodes with potential paths |
-| **Granularity Mismatch** | Sub-tasks either trivial (1-line) or massive (whole project) | Wrong decomposition level | Apply one-agent-one-call rule for sizing |
-| **Circular Dependencies** | Task A needs B's output, B needs A's output | Invalid dependency graph | Restructure into sequential phases or split conflated tasks |
-| **Domain Blindness** | Generic decomposition for specialized domain (e.g., treating ML project like web app) | Missed domain-specific phase patterns | Re-classify domain, apply appropriate meta-skill |
+Use domain treatment as a hypothesis, not a classifier result. A software-shaped request may include contract, decision, implementation, test, approval, and verification phases; a research request may include question, source collection, analysis method, synthesis, and review. Merge trivial reads into the deliverable they support; split a node when its output/acceptance evidence cannot be stated coherently.
 
-## Worked Examples
+### 3. Add typed dependency reasons
 
-### Example 1: Software Project - "Build a URL shortener API"
+For each edge, name one reason and the required producer output:
 
-**Step 1: Domain Classification**
-- Keywords: "build", "API" → software-project-decomposition
-- Load phases: [requirements, design, implement, test, deploy]
+- `data`: consumer needs a versioned value or artifact.
+- `decision`: consumer needs a decision record and rationale.
+- `evidence`: consumer needs a test, research, or review receipt.
+- `authority`: an approval must exist before an irreversible action.
 
-**Step 2: Phase Application**
-- Requirements: Concrete (can specify API endpoints now)
-- Design: Concrete (database schema, API structure)
-- Implement: Vague (depends on design decisions)
-- Test: Vague (depends on implementation approach)
-- Deploy: Concrete (standard containerization)
+A shared input is not an edge by itself. Two nodes are only *candidates* for concurrent work after their inputs, write/effect sets, resources, authority, and semantic coupling are examined.
 
-**Step 3: Sub-task Creation**
-```yaml
-phase_1_requirements:
-  - id: "api-spec"
-    type: concrete
-    description: "Define REST endpoints, request/response schemas"
-    complexity: simple
+### 4. Classify commitment honestly
 
-phase_2_design:
-  - id: "data-model"
-    type: concrete
-    description: "Design database schema for URLs, clicks, users"
-    complexity: moderate
-  
-  - id: "system-architecture"
-    type: concrete
-    description: "Choose tech stack, define service boundaries"
-    complexity: moderate
+- `concrete`: inputs, output, acceptance check, and dependencies are known.
+- `evidence-gathering`: output reduces a named uncertainty.
+- `decision`: produces a choice/rationale that changes consumers.
+- `deferred`: a future node whose contract cannot yet be fixed.
+- `human-gate`: records required authority; it is not satisfied by intent.
 
-phase_3_implement:
-  - id: "core-logic"
-    type: vague
-    depends_on: ["data-model", "system-architecture"]
-    potential_paths:
-      - "Microservices with Redis cache"
-      - "Monolith with in-memory cache"
-      - "Serverless with DynamoDB"
-```
+No confidence score is a probability unless calibration data, outcome definition, and validation set are stated. Record confidence as a qualitative planning assessment or abstain and add an evidence node.
 
-**Step 4: Dependency Mapping**
-- api-spec → data-model (knowledge dependency)
-- data-model + system-architecture → core-logic (data dependency)
-- api-spec and data-model parallelizable (no shared inputs)
+### 5. Hand-check the graph
 
-**Expert insight**: Novice would make implementation concrete too early. Expert keeps it vague until design completes.
+Run a topological check, verify each typed edge names an existing producer output, and inspect every candidate-concurrent pair for conflicts. [02-typed-edge-check.md](diagrams/02-typed-edge-check.md) separates graph layers from actual admission.
 
-### Example 2: Research Project - "Analyze remote work impact on productivity"
+## Worked example: URL shortener
 
-**Step 1: Domain Classification**
-- Keywords: "analyze", "research" → research-synthesis-decomposition
-- Load phases: [scope, gather, analyze, synthesize, report]
+| ID | Kind | Output / acceptance | Depends on |
+|---|---|---|---|
+| `contract` | concrete | Versioned endpoint/response contract artifact reviewed | — |
+| `choose-storage` | decision | Storage decision record with evidence | — |
+| `implement` | concrete | Versioned implementation satisfying contract | `contract` (data), `choose-storage` (decision) |
+| `test` | evidence-gathering | Passing test receipt tied to implementation digest | `implement` (data) |
+| `approve-release` | human-gate | Release approval bound to the implementation digest and test receipt | `test` (evidence) |
+| `deploy` | concrete | Deploy receipt | `implement` (data), `test` (evidence), `approve-release` (authority) |
+| `verify` | evidence-gathering | Observed endpoint result tied to deploy receipt | `deploy` (data) |
 
-**Step 2: Critical Decisions**
-- Scope concrete: Can define research questions now
-- Gather vague: Data sources depend on scoping decisions
-- Analysis vague: Methods depend on what data we find
+`contract` and `choose-storage` may be worked in parallel only if the storage investigation is constrained not to redefine the API contract. The inherited `api-spec -> data-model` edge and its claimed parallelism were contradictory; this example makes the decision dependency explicit. The deploy contract requires the versioned implementation artifact and matching test/approval receipts. A missing receipt or mismatched subject digest fails that declared contract; this plan does not enforce it at runtime.
 
-**Step 3: Decomposition**
-```yaml
-phase_1_scope:
-  - id: "research-questions"
-    type: concrete
-    description: "Define 3-5 specific research questions about remote work productivity"
+## Diagnostics
 
-phase_2_gather:
-  - id: "data-collection"
-    type: vague
-    depends_on: ["research-questions"]
-    potential_paths:
-      - "Academic papers + industry reports"
-      - "Survey new dataset of remote workers"
-      - "Interview case studies from companies"
+| Observation | Repair |
+|---|---|
+| A node says “resolve” without a deliverable | Split it into evidence and/or decision nodes with outputs and consumers. |
+| A cycle appears | Find the mutually required facts; introduce an earlier evidence/decision boundary or a deliberate iterative contract. |
+| “Parallel” is justified only by no shared input | Review effects, writes, resources, authority, and semantic/API coupling before treating it as an admission candidate. |
+| A numerical complexity/cost threshold decides a route | Label it local policy and expose an abstain/research path; do not call it evidence. |
+| A downstream action lacks an acceptance receipt | Keep it blocked; a plan or dispatch is not success. |
 
-phase_3_analyze:
-  - id: "statistical-analysis"
-    type: vague
-    depends_on: ["data-collection"]
-    potential_paths:
-      - "Quantitative analysis if numerical data"
-      - "Qualitative coding if interview data"
-      - "Meta-analysis if literature review"
-```
+## References and diagrams
 
-**Expert insight**: Research decomposition keeps analysis methods vague until data characteristics are known. Novice would prematurely commit to statistical methods.
+- [Method boundaries and HTN contrast](references/method-boundaries.md)
+- [URL-shortener graph fixture](examples/url-shortener-fixture.md)
+- [Outcome-to-node procedure](diagrams/01-outcome-to-nodes.md)
+- [Typed edges and admission check](diagrams/02-typed-edge-check.md)
 
-## Quality Gates
+## NOT-FOR boundaries
 
-**Task decomposition is complete when**:
-
-- [ ] Every vague node has 3+ potential paths listed
-- [ ] No concrete sub-task requires more than 3 skills
-- [ ] All dependencies form valid DAG (no cycles)
-- [ ] At least 30% of sub-tasks are parallelizable
-- [ ] Each sub-task has clear output description
-- [ ] Domain meta-skill selected (or justified why zero-shot)
-- [ ] Complexity estimates assigned (simple/moderate/complex)
-- [ ] Total estimated cost under $5 for initial wave
-- [ ] Critical path identified (longest dependency chain)
-- [ ] Human gates marked for irreversible decisions
-
-## NOT-FOR Boundaries
-
-**This skill should NOT be used for**:
-- **DAG Structure Building**: Once you have sub-tasks, use `dag-planner` to create node/edge graph
-- **Task Execution**: Use `dag-runtime` to actually run the decomposed tasks
-- **Skill Assignment**: Use `dag-skills-matcher` to assign specific skills to each node
-- **Project Management**: For tracking progress/deadlines, use project management tools
-- **Code Generation**: This creates task plans, not code. Use appropriate coding skills for implementation
-- **Data Processing**: This plans data workflows, doesn't process data. Use data analysis skills for execution
-
-**Delegation rules**:
-- For executing any decomposed sub-task → Use appropriate domain skill
-- For building DAG from sub-tasks → Use `dag-planner`
-- For assigning skills to nodes → Use `dag-skills-matcher`
-- For runtime orchestration → Use `dag-runtime`
+Do not use this skill to execute nodes, choose a runtime schedule, assign skills as a proof of adequacy, or authorize deployment. Those require their own contracts and evidence.

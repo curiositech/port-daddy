@@ -1,68 +1,22 @@
-# Voice (Experimental)
+# Voice (beta)
 
-Fetch https://developers.cloudflare.com/agents/api-reference/voice/ for complete documentation.
+Cloudflare’s [Voice documentation](https://developers.cloudflare.com/agents/communication-channels/voice/) was read on 2026-09-24 through the overview, quick start, `withVoice`, `onTurn`, lifecycle, and pipeline-hook sections. It documents `withVoice` for STT, LLM response, TTS, and persistence, and `withVoiceInput` for transcription only.
 
-`@cloudflare/voice` — real-time speech-to-text and text-to-speech for agents. Audio streams over WebSocket.
-
-```bash
-npm install @cloudflare/voice
-```
-
-## Server
-
-```typescript
+```ts
 import { Agent } from "agents";
-import { withVoice, WorkersAITTS, WorkersAINova3STT } from "@cloudflare/voice";
-
-export class VoiceAgent extends withVoice(Agent)<Env> {
-  transcriber = new WorkersAINova3STT(this);
-  tts = new WorkersAITTS(this);
-
-  async onTurn(transcript: string, context: VoiceTurnContext) {
-    const result = streamText({
-      model: createWorkersAI({ binding: this.env.AI })("@cf/meta/llama-4-scout-17b-16e-instruct"),
-      messages: [
-        { role: "system", content: "You are a voice assistant." },
-        ...context.conversationHistory,
-        { role: "user", content: transcript }
-      ]
-    });
-
-    for await (const chunk of result.textStream) {
-      if (context.signal.aborted) break;
-      context.speak(chunk);
-    }
-  }
+import { withVoice, WorkersAIFluxSTT, WorkersAITTS, type VoiceTurnContext } from "@cloudflare/voice";
+const VoiceAgent = withVoice(Agent);
+export class MyAgent extends VoiceAgent<Env> {
+  transcriber = new WorkersAIFluxSTT(this.env.AI);
+  tts = new WorkersAITTS(this.env.AI);
+  async onTurn(transcript: string, context: VoiceTurnContext) { return `I heard: ${transcript}`; }
 }
 ```
 
-## Lifecycle Hooks
-
-| Hook | Purpose |
-|------|---------|
-| `onTurn(transcript, ctx)` | Handle transcribed speech (required) |
-| `beforeCallStart(conn)` | Auth/validation before call starts |
-| `onCallStart(conn)` | Call connected |
-| `onCallEnd(conn)` | Call disconnected |
-| `onInterrupt()` | User interrupted agent speech |
-
-## Client (React)
+`onTurn` receives completed prior conversation in `context.messages` and an abort signal on interruption/disconnect; it may return a string, async iterable, or readable stream. Append the current transcript once when building a prompt. The source documents `beforeCallStart` (return false to reject), call-start/end and interrupt hooks, and `afterTranscribe`, `beforeSynthesize`, `afterSynthesize` hooks that may return `null` to skip an utterance.
 
 ```tsx
-import { useVoiceAgent } from "@cloudflare/voice/react";
-
-function VoiceUI() {
-  const { isConnected, isSpeaking, connect, disconnect } = useVoiceAgent({
-    agent: "VoiceAgent",
-    name: "session-1"
-  });
-
-  return <button onClick={isConnected ? disconnect : connect}>
-    {isConnected ? "End Call" : "Start Call"}
-  </button>;
-}
+const { status, transcript, interimTranscript, startCall, endCall, toggleMute } = useVoiceAgent({ agent: "MyAgent" });
 ```
 
-## STT/TTS Providers
-
-Workers AI (default), Deepgram, ElevenLabs — install the provider package and swap the `transcriber`/`tts` properties.
+Authenticate before accepting a call, retain audio/transcripts under application policy, and use a separate confirmation/receipt for sensitive effects. The original `WorkersAINova3STT`, fixed model, and old `connect`/`disconnect` names were corrected because the checked current page uses `WorkersAIFluxSTT` and `startCall`/`endCall`; verify other providers and deployment configuration at the installed version.

@@ -1,0 +1,73 @@
+{
+  "at": "2026-09-24T16:50:36.957184+00:00",
+  "boundary": {
+    "root": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924",
+    "branch": "codex/agent-skills-expansion-20260924",
+    "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/agent-skills-expansion-20260924",
+    "status": ""
+  },
+  "manuscript": [
+    {
+      "path": "/Users/erichowens/coding/port-daddy/whitepaper/single-writer-kernel.tex",
+      "sha256": "666473b5ad3db54a40d8386a923ead47a574e55b1a96132dbda8dcae701e6eea",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "sha256": "67f7c74dbf48249f04f5904bd1218fddf1360c7386f3b3968d97f2c9345bbe5f",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/sealed-harbor.tex",
+      "sha256": "611b99e1096aa78440728001a4855512bc72a88576768ff09409c405573f2664",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/whitepaper/legible-swarm.tex",
+      "sha256": "ca2b4dd5b9d91698ee5550b908a0fa8a4bd0d80ea86f938cb2c98289ef27c8a6",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "8b629d39d9a24e312ad1c17b1e0bdbcda01b0194fcabb081f7671d4130536684",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "9fe6ec5d66f848ae05edc863f2eac0036a0445f4cb55ed8b513352bf1153e14f",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "573b9fc39eb89859a9bd54e927d097b9d0225d388f8d79e05245eb3a0a9b02a5",
+      "matches_snapshot": true
+    },
+    {
+      "path": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "4e770b7839cec82fa3be1f34d2405c0bf4beffe397d1c9079be9ec060e99e1a8",
+      "matches_snapshot": true
+    }
+  ],
+  "source_inputs": [
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/harbor-results/SKILL.md",
+      "sha256": "8d6bd6590ece3e0e9ba2aaf2e0f3e9bc6ce1424cf9be36d4d63b22a5238cb3fa"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/harbor-results/references/results-compendium.md",
+      "sha256": "1cc69d90919dc9aa414c011eb36254473d89e951d023b7d0efb512905907b32a"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/harbor-results/references/l3-tacit-lessons.md",
+      "sha256": "77351151404b83c74b96d871fd1aed4ae88a916c269d1885b6d726045987f46d"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/harbor-results/scripts/sheaf_repair_and_2complex.py",
+      "sha256": "73b29e95eb57e54657ff38bd4c3f36bfd5706b3551cf0ed1ab013e77bc5fbe44"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B05/validation/harbor-root-audit/CR4-COUNTEREXAMPLES.json",
+      "sha256": "3a27f6f9c2649eaca31d38a4f80f06d23218cccf0d2d590f7da032634d67a732"
+    }
+  ]
+}

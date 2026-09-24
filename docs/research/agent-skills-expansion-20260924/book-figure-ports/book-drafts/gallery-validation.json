@@ -1,0 +1,98 @@
+{
+  "desktop": {
+    "figures": 21,
+    "images": [
+      {
+        "src": "renders/maritime/unknown-effect-maritime/unknown-effect-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "renders/swiss/unknown-effect-swiss/unknown-effect-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "renders/technical/unknown-effect-technical/unknown-effect-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "four-graphs-renders/maritime/four-graphs-maritime/four-graphs-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "four-graphs-renders/swiss/four-graphs-swiss/four-graphs-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "four-graphs-renders/technical/four-graphs-technical/four-graphs-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/obligation/maritime/obligation-maritime/obligation-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/obligation/swiss/obligation-swiss/obligation-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/obligation/technical/obligation-technical/obligation-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/selection/maritime/selection-maritime/selection-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/selection/swiss/selection-swiss/selection-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "obligation-and-selection/renders/selection/technical/selection-technical/selection-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/judges/maritime/judges-maritime/judges-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/judges/swiss/judges-swiss/judges-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/judges/technical/judges-technical/judges-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/revisions/maritime/revisions-maritime/revisions-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/revisions/swiss/revisions-swiss/revisions-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/revisions/technical/revisions-technical/revisions-technical.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/conflicts/maritime/conflicts-maritime/conflicts-maritime.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/conflicts/swiss/conflicts-swiss/conflicts-swiss.png",
+        "loaded": true
+      },
+      {
+        "src": "judges-revisions-conflicts/renders/conflicts/technical/conflicts-technical/conflicts-technical.png",
+        "loaded": true
+      }
+    ],
+    "overflow": false
+  },
+  "mobile": {
+    "overflow": false,
+    "columns": "356px"
+  },
+  "errors": [],
+  "scope": "Local gallery and image loading only; manuscript integration remains unproven."
+}

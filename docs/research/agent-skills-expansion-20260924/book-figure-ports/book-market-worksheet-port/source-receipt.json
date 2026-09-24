@@ -1,0 +1,47 @@
+{
+  "accepted_skill_bundle_sha256": "d81776f1c12db316dad6414610443b6825259bf4ad20aff84bc5fcdfe5e7d569",
+  "inputs": [
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/market-root-final/BOOK-REVIEW.md",
+      "sha256": "59aae16b8fed9dc998a18d334e8f6b3a9c59d39941a8afb8062f06d4763b159e"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/validation/market-root-final/accepted-bundle-manifest.json",
+      "sha256": "311857c7670bd05f4260b6c69bb77e0e94cd8fad23cc1047c6d14f8ffa44b827"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/skills/three-sided-agent-labor-market/SKILL.md",
+      "sha256": "d1a3f71240aa68a7f147ae4bbd5c2887fa9e6d14b7f499b2b158a9d1128e47c7"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/skills/three-sided-agent-labor-market/references/03-worked-settlement-cases.md",
+      "sha256": "b3dfe06190fd90e93b81f18a151b3312a26972b3a695ac46c31e6ff7fd799ebb"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/architecture-skill-drafts/B06/skills/three-sided-agent-labor-market/references/04-market-experiment-worksheet.md",
+      "sha256": "c27609144acd962d24bed82709c66438818b86df47392b705af1df82e2e57597"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B06-order-exercise/figures/pd-figure-language-swiss.tex",
+      "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B06-order-exercise/figures/pd-figure-language-technical.tex",
+      "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B06-order-exercise/figures/pd-figure-language.tex",
+      "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B06-order-exercise/figures/pd-palette.tex",
+      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec"
+    }
+  ],
+  "style_import_order": [
+    "pd-palette.tex",
+    "pd-figure-language.tex",
+    "pd-figure-language-{edition}.tex"
+  ],
+  "construction": "One Book-scale two-panel figure; 3 standalone and 3 page-context edition wrappers; manuscript untouched."
+}

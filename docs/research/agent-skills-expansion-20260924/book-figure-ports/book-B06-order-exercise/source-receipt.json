@@ -1,0 +1,18 @@
+[
+  {
+    "source": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/figures/pd-palette.tex",
+    "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec"
+  },
+  {
+    "source": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/figures/pd-figure-language.tex",
+    "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f"
+  },
+  {
+    "source": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex",
+    "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1"
+  },
+  {
+    "source": "/Users/erichowens/coding/port-daddy/website-v2/public/whitepaper/figures/pd-figure-language-technical.tex",
+    "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820"
+  }
+]

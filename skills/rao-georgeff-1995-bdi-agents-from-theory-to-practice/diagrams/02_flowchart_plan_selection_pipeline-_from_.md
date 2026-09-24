@@ -1,53 +1,18 @@
-# Plan Selection Pipeline: From Triggering Event to Execution
+# Plan selection: invocation then precondition
 
 ```mermaid
 flowchart TD
-    Start([Triggering Event Occurs]) --> DetectChange{Event potentially<br/>significant for<br/>current intention?}
-    
-    DetectChange -->|No| Continue["Continue Executing<br/>Current Plan"]
-    Continue --> Execute["Execute Next Action<br/>or Subgoal"]
-    
-    DetectChange -->|Yes| Reconsider["Invoke Deliberation<br/>Process"]
-    Reconsider --> MatchLib["Match Event Against<br/>Plan Library"]
-    
-    MatchLib --> FilterContext["Filter Candidate Plans<br/>by Context Preconditions"]
-    
-    FilterContext --> ContextOK{All preconditions<br/>satisfied?}
-    ContextOK -->|No| ContextFail["Context Failure:<br/>Remove Plan from Candidates"]
-    ContextFail --> CheckExhausted{Plans remaining<br/>in library?}
-    CheckExhausted -->|No| Backtrack["Backtrack:<br/>Request Parent Goal<br/>Decomposition"]
-    CheckExhausted -->|Yes| FilterContext
-    
-    ContextOK -->|Yes| RankOptions["Rank Remaining Options<br/>by Desirability/Cost"]
-    
-    RankOptions --> CommitPlan["Commit to<br/>Selected Plan"]
-    
-    CommitPlan --> Execute
-    
-    Execute --> IsComposite{Plan Body<br/>contains subgoals?}
-    
-    IsComposite -->|Yes| Decompose["Recursively Decompose<br/>Subgoals"]
-    Decompose --> Execute
-    
-    IsComposite -->|No| Primitive["Execute Primitive<br/>Action"]
-    Primitive --> CheckGoal{Goal State<br/>Achieved?}
-    
-    CheckGoal -->|Yes| Success["Success:<br/>Intention Satisfied"]
-    Success --> End([Plan Execution Complete])
-    
-    CheckGoal -->|No| CheckFailure{Plan Provably<br/>Failed?}
-    
-    CheckFailure -->|Yes| PlanFail["Plan Failure:<br/>Remove from Active Set"]
-    PlanFail --> Backtrack
-    
-    CheckFailure -->|No| Continue
-    
-    style Start fill:#90EE90
-    style End fill:#FFB6C6
-    style DetectChange fill:#FFE4B5
-    style ContextOK fill:#FFE4B5
-    style IsComposite fill:#FFE4B5
-    style CheckGoal fill:#FFE4B5
-    style CheckFailure fill:#FFE4B5
-    style CheckExhausted fill:#FFE4B5
+    E[queued event] --> M[match invocation conditions]
+    M --> C[candidate plans]
+    C --> P[test preconditions against current beliefs]
+    P --> S[applicable options; possibly empty]
+    P -. rejected candidates and reasons .-> R[diagnostic record]
+    S --> D[deliberate; select subset]
+    D --> I[update intention stacks<br/>empty selection adds no plan]
+    I --> A{Enabled action on any stack?}
+    A -->|yes| X[execute next atomic action]
+    A -->|no| Q[continue interpreter cycle]
+    X --> Q
 ```
+
+Invocation and precondition must both hold for a new plan to be an option ([Rao–Georgeff 1995, pp. 317–318](https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf)). The selected subset can be empty while an existing intention remains executable. The practical representation also posts subgoals as internal events; this figure isolates filtering and the action boundary rather than enumerating every plan-body transition. Diagnostic recording is a local instrumentation choice.

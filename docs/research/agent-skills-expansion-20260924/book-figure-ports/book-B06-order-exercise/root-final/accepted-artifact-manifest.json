@@ -1,0 +1,336 @@
+{
+  "schema": "offline-book-artifact-v1",
+  "bundle_sha256": "3b82212d1ea095ebdc414d5b477ecfbc5c865b62e4c970c2d28a4741976353a3",
+  "files": [
+    {
+      "path": "PLAN.md",
+      "sha256": "e868765af0b3cfe3e2c75b32222cadc9c8634862b6c7975da9672ad0b1d60f1b",
+      "size": 5769
+    },
+    {
+      "path": "VALIDATION.md",
+      "sha256": "bdf849fca312bb2de929a47299202b0fe0fb37d830009968a952c8cef7792319",
+      "size": 2159
+    },
+    {
+      "path": "applied-sources.json",
+      "sha256": "fbc2d174ce6e870735f764496c981d9c8365adf17100320f83b147da33ca5a84",
+      "size": 2122
+    },
+    {
+      "path": "boundary-check.json",
+      "sha256": "deeb3f5ae649d2c20689a303e43eff6e2f1d63a22ef46b883c652188dc34c882",
+      "size": 1110
+    },
+    {
+      "path": "build.py",
+      "sha256": "efc12e543a06d8f96d3157301ccb4eddcaeea59f5d8120d7c4a6d3ed8d32e49d",
+      "size": 1112
+    },
+    {
+      "path": "chain-vs-path-figure.tex",
+      "sha256": "d5f1484123c615525142d7005fba3f3c79e0cd3e5ba9d3d94b4b7967f61ab8a7",
+      "size": 2845
+    },
+    {
+      "path": "chain-vs-path-maritime-page.tex",
+      "sha256": "a14bee242905a4adce3d570d8f779ac510fe0a6e0ca841afdfd7de0f9b8a4708",
+      "size": 1273
+    },
+    {
+      "path": "chain-vs-path-maritime.tex",
+      "sha256": "f32aa1da7ad41dfef210bf71de7870099a84f590c69081a254bc553d5be195f6",
+      "size": 629
+    },
+    {
+      "path": "chain-vs-path-swiss-page.tex",
+      "sha256": "0e726aae651d11e5b9ea6735f8ecbfc95bfee5fc21fb5b48b1b10a1734bb62bd",
+      "size": 1270
+    },
+    {
+      "path": "chain-vs-path-swiss.tex",
+      "sha256": "17f0ced8fd463c77629c483106b9092569b3223e202668e5ecba50019b3269a5",
+      "size": 626
+    },
+    {
+      "path": "chain-vs-path-technical-page.tex",
+      "sha256": "1716704d81fedcb0d6b142779006247cd1f9cddd7cd581a49aa2f607e0b12bff",
+      "size": 1274
+    },
+    {
+      "path": "chain-vs-path-technical.tex",
+      "sha256": "3327a4dff80166730291c97bed995b7a7576fc21fd23c8d8a9e82f53806336a2",
+      "size": 630
+    },
+    {
+      "path": "contact.png",
+      "sha256": "edbdb3d25fa7b3316d3ae161db8fe31bbf184ea08ef5cccdf5cf5e14bd17501e",
+      "size": 629816
+    },
+    {
+      "path": "figures/pd-figure-language-swiss.tex",
+      "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
+      "size": 2430
+    },
+    {
+      "path": "figures/pd-figure-language-technical.tex",
+      "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
+      "size": 2842
+    },
+    {
+      "path": "figures/pd-figure-language.tex",
+      "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
+      "size": 3409
+    },
+    {
+      "path": "figures/pd-palette.tex",
+      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+      "size": 2409
+    },
+    {
+      "path": "fixture-checks.json",
+      "sha256": "4092afb843f25061efd55b2e5b87a3b5147f2b330dc796b474ecdff9ba6aaecf",
+      "size": 839
+    },
+    {
+      "path": "geometry-font-checks.json",
+      "sha256": "b103f88b96ac1e7be7292bdc90a0a3a2a35ac35be91e74141382574afefd8511",
+      "size": 7762
+    },
+    {
+      "path": "index.html",
+      "sha256": "cbc57ec6308f6a1024ee0f89fff44d9f5e008a09976fc799bb42cf9fb3d2987f",
+      "size": 1570
+    },
+    {
+      "path": "output-manifest.json",
+      "sha256": "97004d5fe0b3261fc511ec133803c7a984c928cca9ef8e54e01ac2b0fa41295a",
+      "size": 4927
+    },
+    {
+      "path": "page-contact.png",
+      "sha256": "0636a837d55cc946aa3dee16819dc80ec5dbb9cf92765dc99d9e7fa519e6d217",
+      "size": 494322
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-bbox.html",
+      "sha256": "98ace3a14b2966c160ab35c2e11fac6a5be8ff27a9e02cf7a1287cb2616119bd",
+      "size": 8925
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-fonts.txt",
+      "sha256": "4370e8b7d0625f39bbca355ea657e03372f8ac04d39e0f6bd409c7b23645c459",
+      "size": 564
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page-bbox.html",
+      "sha256": "fc481a0781bd9c2d96cec9f6d2f41478643fe444ae9ed20a48e936d60b5bcbc0",
+      "size": 15722
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page-fonts.txt",
+      "sha256": "b3d565e4181196ed0709cc4e13f584f17f4437fdfbc8839357faf3fba59d23f4",
+      "size": 564
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page.fls",
+      "sha256": "71a08ede236d10962dfd208932faf02474090ff97f35d0f4697b2ea280443e8d",
+      "size": 18998
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page.log",
+      "sha256": "9bd61e89d8b13368ec1e0478bb2064cd1872ed6d3e5852a2dba280cd7e3f70aa",
+      "size": 21121
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page.pdf",
+      "sha256": "251cf1bd9c5e5995896e660463a05ccda74e98aa21fba900fe82fdeec5a5894d",
+      "size": 127645
+    },
+    {
+      "path": "renders/chain-vs-path-maritime-page.png",
+      "sha256": "da8f31538ad3c607e1caf4d38f2a8800cd3bc911289a4bc9727c48f81b3687d4",
+      "size": 116366
+    },
+    {
+      "path": "renders/chain-vs-path-maritime.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-maritime.fls",
+      "sha256": "459155f6aa04ea52c6976904930d46fbd240168e6d918594b58e9bc7903a9821",
+      "size": 19803
+    },
+    {
+      "path": "renders/chain-vs-path-maritime.log",
+      "sha256": "e24b701b903d1b21339a226953399e87d2ec206410897b17ab99443fe56b1276",
+      "size": 20835
+    },
+    {
+      "path": "renders/chain-vs-path-maritime.pdf",
+      "sha256": "0352ca28a88a7a8724cc9404e0a606670fdee1178c7917d248ea4c0001c740dc",
+      "size": 119354
+    },
+    {
+      "path": "renders/chain-vs-path-maritime.png",
+      "sha256": "ddb103ac83f7f436d6e604df80aeae92d762202e041aae40effb1dc0aacb710a",
+      "size": 63587
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-bbox.html",
+      "sha256": "6db59311c9331b249a9ead5107c7f1437ce53c15a2ce357714d1decacd1f7058",
+      "size": 8926
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-fonts.txt",
+      "sha256": "9a871548a5e08e59cf169c9650475641b328fc71dc4e9621ae89e5af5d9470b9",
+      "size": 564
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page-bbox.html",
+      "sha256": "26f7b1ef40bf02c96159b2a646c628a43136faeeac320ac173ccf39b0fc65d19",
+      "size": 15734
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page-fonts.txt",
+      "sha256": "120cb8194bdd41baf94dd3a052a243e8117aa3095e14e2ee8d43c2d262295ab6",
+      "size": 658
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page.fls",
+      "sha256": "c8bf6090b05b965cb9015d0daf0edbed8931fced5a7203ea69941d7d2eeea1da",
+      "size": 20088
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page.log",
+      "sha256": "d5602597e558d7f4fa7ecc52078b22decc31a5a71b06651a867fdeced0c37a62",
+      "size": 21516
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page.pdf",
+      "sha256": "adbc994419d4ae4a659a0857ee9fee062a9ae9024faa1c3b472c458b4c1d3148",
+      "size": 121012
+    },
+    {
+      "path": "renders/chain-vs-path-swiss-page.png",
+      "sha256": "82eabb9d424fd2797c467952083f6801efcb4f02c9058f11d1ad5fc1d07e7ea9",
+      "size": 117344
+    },
+    {
+      "path": "renders/chain-vs-path-swiss.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-swiss.fls",
+      "sha256": "b95aef1ef9bb1b7de9c3a9e64c37272f12f4dcf4fe894ae497eef2e1270fad39",
+      "size": 20818
+    },
+    {
+      "path": "renders/chain-vs-path-swiss.log",
+      "sha256": "59714fbb70c2124dc6b5fe9336fd485213fb0155bef428b29285d34a2971e549",
+      "size": 21158
+    },
+    {
+      "path": "renders/chain-vs-path-swiss.pdf",
+      "sha256": "bc94691ea6a53c84f17be3c61b02dc7f3cbf96106e6df779b049fd219f7dc66e",
+      "size": 66089
+    },
+    {
+      "path": "renders/chain-vs-path-swiss.png",
+      "sha256": "0fdd3476ad5121db5388c4ede029dbd279a65a54d32959c2981661605c0dacdd",
+      "size": 63803
+    },
+    {
+      "path": "renders/chain-vs-path-technical-bbox.html",
+      "sha256": "4a6bf84b915d69ac379c530fcd30fa98ce37d29be55333fa778821af088265cc",
+      "size": 8926
+    },
+    {
+      "path": "renders/chain-vs-path-technical-fonts.txt",
+      "sha256": "9a871548a5e08e59cf169c9650475641b328fc71dc4e9621ae89e5af5d9470b9",
+      "size": 564
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page-bbox.html",
+      "sha256": "60a592c4a0af0c416dede95f2fb9b97e288f1ed008c0a4d7a874a0465b5520bb",
+      "size": 15734
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page-fonts.txt",
+      "sha256": "120cb8194bdd41baf94dd3a052a243e8117aa3095e14e2ee8d43c2d262295ab6",
+      "size": 658
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page.fls",
+      "sha256": "03fd604cd1ee7d72c1dd13308943ef1d9962a3d49ce1369f85311440a7f86437",
+      "size": 20128
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page.log",
+      "sha256": "29fae03e58785561922912dc6e53c348351f093e3b5a3105034345dcecbcf117",
+      "size": 21544
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page.pdf",
+      "sha256": "4f9fd8045233aa2e801a6f8f42d1af1eabbe86dc19c562ca2dfcbc636bd1985e",
+      "size": 121013
+    },
+    {
+      "path": "renders/chain-vs-path-technical-page.png",
+      "sha256": "2dd712a0317194b05a7418f7726ddcb2f8b4102c144d35a32c5cdb4e1f4a23ef",
+      "size": 115936
+    },
+    {
+      "path": "renders/chain-vs-path-technical.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "size": 32
+    },
+    {
+      "path": "renders/chain-vs-path-technical.fls",
+      "sha256": "d3f6d9c3febe0b7d9fdcb9860521f4baa92865752d316a06b47d59ec6d2592f9",
+      "size": 20858
+    },
+    {
+      "path": "renders/chain-vs-path-technical.log",
+      "sha256": "7753ccbe3ca1de085319a5c1e1e3e147669bf8a0899c5b9d3825b52b00e3f5ad",
+      "size": 21186
+    },
+    {
+      "path": "renders/chain-vs-path-technical.pdf",
+      "sha256": "e29c27e1e6abbffa59ba628820cb38044243c1f77c51569c97f42deedb42f651",
+      "size": 66100
+    },
+    {
+      "path": "renders/chain-vs-path-technical.png",
+      "sha256": "a987edd4112f417896d5bd1f25b796e0acdfcfb8273af62f2c861aeaa2ee8d3c",
+      "size": 62298
+    },
+    {
+      "path": "renders/compile-results.json",
+      "sha256": "98fe762ae0b0b2e2881a837d5448ea013d38bc13e71e45caca095caf9fb3d738",
+      "size": 1094
+    },
+    {
+      "path": "source-receipt.json",
+      "sha256": "08e68e251599a67d1846a5899f1e30340ad2e840546bde24915f5db8ad316a5a",
+      "size": 823
+    }
+  ]
+}

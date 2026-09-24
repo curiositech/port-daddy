@@ -1,214 +1,93 @@
 ---
 license: Apache-2.0
 name: fipa-00086-ontology-service
-description: Framework for coordinating meaning across autonomous agents that use different conceptual models, vocabularies, and knowledge representations. Treats ontologies as first-class negotiable resources rather than hardcoded implementation details.
+description: Plan and diagnose FIPA-style ontology-service interactions while keeping declared ontology relations, provider capability, and application authorization separate.
 category: Research & Academic
-tags:
-  - fipa
-  - ontology
-  - agents
-  - knowledge-representation
-  - standards
+tags: [fipa, ontology, semantic-interoperability, agents]
 ---
 
-# SKILL: FIPA Ontology Service — Semantic Coordination for Multi-Agent Systems
+# FIPA ontology-service design
 
-## Decision Points
+Use this skill when agents must select a shared ontology, query a declared ontology relation, or request an expression translation. It does not establish provider availability, application suitability, or shared conceptualization.
 
-### Mismatch Type → Coordination Strategy
+## Source and version boundary
 
-```
-Agent A & B have semantic mismatch:
+The accessible predecessor body is FIPA **XC00086C**, Experimental, 2000-06-15: <https://www.fipa.org/specs/fipa00086/XC00086C.html>. The catalog identifies **XC00086D**, Experimental, 2001-08-15: <https://www.fipa.org/specs/fipa00086/index.html>; D's body remains unread. A contemporaneous implementer paper reports no functional change between the then-latest experimental service specification and FIPA 98 Part 12; that supports using C to recover methods, not treating C and D as textually or normatively identical. See [source access](references/source-access.md).
 
-├─ Syntactic mismatch (different formats/protocols)?
-│  └─ NOT an ontology problem → use protocol adapters/formatters
-│
-├─ Same ontology by reference?
-│  └─ SUCCESS → direct communication, no translation needed
-│
-├─ Different ontologies, assess relationship:
-│  ├─ Equivalent conceptualizations, different vocabularies?
-│  │  └─ Create bidirectional term mapping → strong translatability
-│  │
-│  ├─ One ontology subsumes the other?
-│  │  ├─ Task requires specialized concepts → use richer ontology
-│  │  └─ Task works with general concepts → use simpler ontology
-│  │
-│  ├─ Partial overlap with acceptable information loss?
-│  │  ├─ Task tolerates approximation → implement lossy translation
-│  │  └─ Task requires precision → negotiate shared ontology or mediator
-│  │
-│  └─ No meaningful translation possible?
-│     ├─ Find mediating ontology both can translate to
-│     ├─ Renegotiate task to use compatible concepts
-│     └─ ESCALATE: coordination impossible at ontology level
-```
+## Working method
 
-See `references/translation-hierarchy-as-coordination-strategy.md` for the six formal relationship levels (Identical → Equivalent → Extension → Strongly-Translatable → Weakly-Translatable → Approximately-Translatable) and their operational implications as coordination constraints.
+1. Name source and target ontology identifiers exactly as they will appear on the message. Record `source -> target`; reverse direction is a separate claim.
+2. Separate four questions: does syntax parse; what vocabulary/axioms are declared; what intended model is relied on; and is an application effect authorized. A yes at one layer is not a yes at another.
+3. Discover an OA or translation service through the Directory Facilitator only when needed. Registration is advertisement, not validation.
+4. Ask for the declared relation or translation capability. Preserve who asserted it, names, version/revision identifiers if available, and the response or refusal.
+5. Before using translation, test a task-essential expression against a local fixture. Record unmapped terms, changed constraints, and result. This receipt is local practice, not a FIPA requirement.
+6. Apply explicit local policy to loss or possible inconsistency. FIPA does not supply a command-permission matrix, mandatory confirmation loop, or safety classification.
 
-### Explicit vs Implicit Ontology Choice
-
-```
-System requirements analysis:
-
-Will unknown agents join at runtime?
-├─ YES → EXPLICIT ontologies required
-│  └─ Need discovery/negotiation infrastructure
-│
-└─ NO → Analyze further:
-   │
-   ├─ Performance critical (real-time, embedded)?
-   │  └─ IMPLICIT → hard-code shared conceptualization
-   │
-   ├─ Requirements likely to evolve?
-   │  └─ EXPLICIT → enable runtime adaptation
-   │
-   └─ Stable, closed system?
-      └─ IMPLICIT → optimize for execution speed
+```mermaid
+flowchart TD
+    S([Need shared meaning]) --> I[Name source and target ontology]
+    I --> R[Discover declared relation or translation capability]
+    R --> Q{Capability returned?}
+    Q -->|no or refusal| N[Keep mismatch; negotiate another shared ontology]
+    Q -->|yes| D{Direction and task fixture acceptable?}
+    D -->|no| N
+    D -->|yes| T[Request translation]
+    T --> Z{Translation result returned?}
+    Z -->|no: nil/refuse/failure| N
+    Z -->|yes| V{Task fixture validates?}
+    V -->|no| N
+    V -->|yes| G{Local authorization granted?}
+    G -->|no| X[No effect; authority handling]
+    G -->|yes| A[Authorized application effect]
 ```
 
-### Integration Approach Selection
+## Relationship facts are not a ladder
 
+| Relation | C-body semantics | Engineering check |
+|---|---|---|
+| Extension | Directional preservation of base vocabulary and properties | Use named shared vocabulary; do not infer reverse |
+| Identical | Vocabulary, axiomatization, representation language physically identical | Does not prove shared conceptualization |
+| Equivalent | Same vocabulary and logical axiomatization; representation may differ | Server deductions can differ by implementation |
+| Strong | Total source vocabulary translation; source axioms hold; no loss/inconsistency in that direction | Test exact direction |
+| Weak | Translation can lose information but should not add inconsistency | Check whether loss defeats task |
+| Approx | Weak translation with possible inconsistency | Treat as candidate under local validation |
+
+Only these implications are stated: Strong => Weak => Approx; Equivalent implies Strong both directions; Identical implies Equivalent. Extension is not another rung. Relation determination can be difficult or undecidable, so record provenance and allow manual review.
+
+## Source-shaped interaction patterns
+
+These are illustrative summaries of XC00086C, not wire captures. For `assert`, `retract`, and domain `query-if`/`query-ref`, ACL `:ontology` names the service ontology and affected domain ontology. For `translate`, ACL `:ontology` names the service ontology; the source and target ontologies are `translation-description :from` and `:to`.
+
+```lisp
+(query-ref
+  :ontology FIPA-Ontol-Service-Ontology
+  :content (iota ?level (ontol-relationship source-ontology target-ontology ?level)))
+
+(request
+  :ontology FIPA-Ontol-Service-Ontology
+  :content (action ontology-agent
+    (translate source-expression
+      (translation-description :from source-ontology :to target-ontology))))
 ```
-Integrating existing heterogeneous systems:
 
-Proposed approach is "find ontology intersection"?
-├─ YES → RED FLAG: Bottom-up integration
-│  ├─ Syntactic overlap ≠ semantic overlap
-│  ├─ Risk of silent semantic failures
-│  └─ ALTERNATIVE: Top-down foundation approach
-│
-└─ NO → Assess current approach:
-   │
-   ├─ Starting with shared conceptual primitives?
-   │  └─ GOOD → verify intended models align
-   │
-   ├─ Mapping to existing standard ontology?
-   │  └─ GOOD → validate translation completeness
-   │
-   └─ Building custom mediating ontology?
-      └─ VERIFY: covers both systems' essential concepts
-```
+In C §5.2.6, `nil` illustrates an OA unable to provide **any translation between the two ontologies**. It is not the generic result for unknown relationships or individual unmapped expressions. `not-understood`, `failure`, and `refuse` remain distinct conversational outcomes; `READ-ONLY` and `INCONSISTENT` are modification-refusal reasons. Preserve the actual response rather than relabeling every absence as semantic failure.
 
-See `references/bottom-up-integration-fallacy.md` for why intersection-based integration fails even when vocabularies appear to overlap.
+## Shared-ontology routes (C §5.3)
 
-## Failure Modes
+Choose a route whose prerequisite is actually met: (1) request B's service under O1; `not-understood` shows B does not understand O1; (2) ask the DF for a provider supporting O1; (3) ask an OA for an `ontol-relationship` to a differently named Identical/Equivalent ontology or a usable sub-ontology; (4) ask the DF for a translation service and use that service as proxy. These are alternatives, not a mandatory protocol. See [translation routing](references/translation-hierarchy-as-coordination-strategy.md).
 
-### 1. Rubber Stamp Translation
-**Symptoms**: Systems exchange messages successfully, but agents take incompatible actions based on "translated" content
-**Detection Rule**: If agents claim successful communication but exhibit contradictory behaviors, check for semantic misalignment despite syntactic compatibility
-**Root Cause**: Assumed same vocabulary means same conceptualization
-**Fix**: Verify intended models, not just formal models; implement semantic validation checks
+## Hand checks
 
-### 2. Intersection Illusion
-**Symptoms**: Integration project finds "common concepts" between ontologies but coordination fails mysteriously during testing
-**Detection Rule**: If ontology intersection contains terms with identical names but agents interpret them differently, this is intersection illusion
-**Root Cause**: Bottom-up integration assuming syntactic overlap guarantees semantic overlap
-**Fix**: Switch to top-down approach; establish shared conceptual foundation first
+Positive: for task-essential terms covered by a declared `Strongly-Translatable(source,target)` relation, confirm the result satisfies a target-vocabulary fixture. This validates the fixture, not all expressions.
 
-### 3. Perfect Translation Trap
-**Symptoms**: Integration project stalls because "perfect" translation between ontologies is impossible to achieve
-**Detection Rule**: If project blocks on achieving lossless bidirectional translation when task only requires approximate coordination
-**Root Cause**: Over-engineering translation requirements beyond task needs
-**Fix**: Match translation quality to task requirements using hierarchy (identical → equivalent → strongly translatable → weakly translatable → approximate)
+Negative: reverse the direction or add an extension-only term. If no relation/capability covers it, retain the unknown relation or unmapped term as a local unresolved outcome; do not silently make the relation bidirectional or drop the term. Record `nil` only when actually returned for the source-described no-translation-between-pair case.
 
-### 4. Silent Semantic Drift
-**Symptoms**: System appears to work initially but produces increasingly incorrect results over time
-**Detection Rule**: If coordination quality degrades without syntax errors, check for conceptualization divergence
-**Root Cause**: Implicit ontologies evolving independently without coordination
-**Fix**: Make ontologies explicit; implement semantic version control and change notification
+## Read next
 
-### 5. Ontology Service Neglect
-**Symptoms**: Each agent implements its own translation logic, creating N² complexity and inconsistent translations
-**Detection Rule**: If translation code is duplicated across agents and produces different results for same inputs
-**Root Cause**: Treating ontology coordination as per-agent concern rather than system infrastructure
-**Fix**: Implement centralized Ontology Agent service; standardize on OKBC interlingua for meta-knowledge operations (see `references/ontology-agent-as-coordination-infrastructure.md`)
-
-## Worked Examples
-
-### Example 1: Weather Data Integration
-
-**Scenario**: Emergency response system needs weather data from two sources: MeteoService (European, Celsius, wind in km/h) and WeatherAPI (US, Fahrenheit, wind in mph).
-
-**Symptom**: Both services provide "temperature" and "wind_speed" but emergency system makes wrong evacuation decisions.
-
-**Diagnosis Process**:
-1. Check syntactic compatibility ✓ (both use JSON)
-2. Check ontology relationship: Different vocabularies, same conceptualization (weather measurements)
-3. Assess translation requirement: Emergency system needs "hot enough to cause fire risk" (approximate translation sufficient)
-
-**Decision Navigation**:
-- Mismatch type: Different ontologies, partial overlap with acceptable loss
-- Task tolerates approximation: YES (fire risk threshold has safety margins)
-- Strategy: Implement lossy translation with explicit bounds
-
-**Solution**: Create translation service with conversion functions and explicit error bounds (±2°C, ±5km/h). Emergency system uses "hot enough for fire risk" threshold that accounts for translation uncertainty.
-
-**Expert vs Novice**: 
-- Novice would try to achieve perfect translation or assume same field names mean same semantics
-- Expert recognizes approximate translation suffices for task and implements explicit error bounds
-
-### Example 2: Multi-Organization Agent Coordination
-
-**Scenario**: Healthcare agents from Hospital-A (using HL7 FHIR) and Research-Lab (custom medical ontology) need to coordinate patient data for clinical trial.
-
-**Symptom**: Agents exchange messages but Research-Lab misinterprets "patient status" leading to wrong treatment group assignments.
-
-**Diagnosis Process**:
-1. Both claim FHIR compatibility but Research-Lab extends concepts differently
-2. Check conceptualization alignment: Different interpretations of "patient status" (Hospital: administrative, Research: clinical)
-3. Translation hierarchy assessment: Weakly translatable (Hospital→Research works, reverse loses information)
-
-**Decision Navigation**:
-- Mismatch type: Extension relationship with semantic drift
-- Information loss acceptable: NO (clinical trial requires precision)
-- Strategy: Negotiate shared subset or use mediating ontology
-
-**Solution**: Deploy Ontology Agent with mediating vocabulary covering both systems' essential concepts. Both agents translate to/from mediator rather than direct translation.
-
-**Trade-offs Discussed**:
-- Performance cost of mediated translation vs. risk of semantic errors
-- Complexity of three-way ontology maintenance vs. benefits of precision
-- Option to constrain Hospital system to Research concepts vs. developing comprehensive mediator
-
-## Quality Gates
-
-- [ ] Ontology relationships formally verified (not assumed based on syntax similarity)
-- [ ] Translation completeness validated for task-essential concepts
-- [ ] Semantic failure detection mechanisms implemented (not just syntactic error handling)
-- [ ] Error bounds established for approximate translations with explicit uncertainty propagation
-- [ ] Intended model alignment confirmed through test cases, not just formal model compatibility
-- [ ] Runtime ontology negotiation protocols specified if system supports dynamic agent joining
-- [ ] Escalation paths defined for untranslatable semantic mismatches
-- [ ] Performance impact of explicit ontologies measured against coordination benefits
-- [ ] Conceptualization vs ontology vs knowledge base layers explicitly distinguished in design
-- [ ] Silent semantic failure prevention measures in place (validation, bounds checking, compatibility verification)
-
-## NOT-FOR Boundaries
-
-**Do NOT use this skill for**:
-- **Syntactic data format conversion** → Use data mapping/ETL tools instead
-- **Database schema integration** → Use database integration patterns instead  
-- **API versioning and compatibility** → Use API evolution strategies instead
-- **Performance optimization of knowledge queries** → Use database optimization techniques instead
-- **Natural language processing and understanding** → Use NLP/NLU frameworks instead
-- **Closed systems with stable, shared conceptual models** → Use direct integration patterns instead
-- **Real-time systems where translation overhead is prohibitive** → Use pre-compiled shared ontologies instead
-
-**When to delegate**:
-- For syntactic transformations: Use `data-transformation-pipelines` skill
-- For performance-critical knowledge operations: Use `knowledge-base-optimization` skill  
-- For natural language semantic understanding: Use `semantic-nlp-processing` skill
-- For API design and evolution: Use `api-design-patterns` skill
-
-This skill focuses specifically on **coordination between autonomous agents with different conceptual models**. It is not a general-purpose semantic technology or data integration solution.
-
-## Bundled Assets
-
-### Diagrams
-
-`diagrams/INDEX.md` — visual decision tree, coordination protocol sequence, and three-layer ontological model.
-
-### Reference Deep-Dives
-
-`references/INDEX.md` — detailed explorations of the translation hierarchy, bottom-up integration fallacy, OKBC interlingua, Ontology Agent architecture, and all five failure modes.
+- [Conceptualization and ontology](references/conceptualization-vs-ontology-for-coordination.md)
+- [Relationship and translation procedure](references/translation-hierarchy-as-coordination-strategy.md)
+- [OA discovery and boundary](references/ontology-agent-as-coordination-infrastructure.md)
+- [OKBC operation vocabulary](references/okbc-knowledge-model-as-interlingua.md)
+- [Failure diagnosis](references/failure-modes-semantic-interoperability.md)
+- [Optional Annex B authoring method](references/ontology-authoring-guidelines.md)
+- [Historical provenance](historical-provenance.md)

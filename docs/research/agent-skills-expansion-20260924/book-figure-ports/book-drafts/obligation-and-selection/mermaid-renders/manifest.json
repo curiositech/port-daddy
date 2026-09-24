@@ -1,0 +1,22 @@
+{
+  "engine": "mermaid@12.0.0",
+  "input": "MERMAID-SOURCES.md",
+  "diagrams": [
+    {
+      "line": 5,
+      "type": "flowchart",
+      "sourceSha256": "d8e5d4078cd4d88ce6c4e3cda0456816948ca8efab052fd40a0fce5a002161cf",
+      "svg": "01-flowchart-d8e5d4078cd4.svg",
+      "png": "01-flowchart-d8e5d4078cd4.png",
+      "result": "parsed-and-rendered"
+    },
+    {
+      "line": 17,
+      "type": "flowchart",
+      "sourceSha256": "73d498908881e368dd2b7949922d301413eb4c4e1e4d9fc42032afcda4be5051",
+      "svg": "02-flowchart-73d498908881.svg",
+      "png": "02-flowchart-73d498908881.png",
+      "result": "parsed-and-rendered"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "id": "cli-fixture",
+    "name": "CLI failure fixture",
+    "basis": "Constructed test input only.",
+    "requiredVerbs": ["interrupt"],
+    "requiredLifecycleStates": ["requested", "policy-denied", "delivered", "acknowledged", "effect-observed", "failed", "expired-before-delivery", "outcome-unknown"]
+  },
+  "verbs": [{ "name": "interrupt", "intent": "Request an interruption." }],
+  "backends": [{ "name": "adapter-test", "description": "Constructed test backend.", "supportedVerbs": ["interrupt"] }],
+  "authorization": {
+    "source": "lease-store",
+    "checkedAtAdmission": true,
+    "bindings": { "principal": "p", "target": "t", "scope": "s", "policyRevision": "v", "expiresAt": "e", "fencingEpoch": "f" },
+    "checks": { "principal": true, "target": true, "scope": true, "currentPolicy": true, "notExpired": true, "fencingEpoch": true }
+  },
+  "matrix": []
+}

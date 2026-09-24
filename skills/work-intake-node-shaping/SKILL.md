@@ -1,164 +1,105 @@
 ---
 name: work-intake-node-shaping
-description: >-
-  Classify a single operator WorkIntent's signal vector (coupling, context pressure, skill
-  boundary, review independence, budget, operator burden) into exactly one of the seven
-  topology archetypes (node, scout, chain, DAG-workgroup, tournament, ambient-watcher,
-  human-gate), and audit that legacy launch verbs (spawn/dispatch/sortie/conjure/nightshift)
-  stay compatibility metadata instead of writing independent Agent Node/session/transcript
-  state. Use when routing a new WorkIntent to a topology before any Agent Node is materialized,
-  auditing whether a launch path secretly opens parallel governance state, or reviewing a
-  control-plane PR that adds a new legacy-verb compatibility shim. NOT for the inter-agent
-  protocol mechanics once a workgroup or tournament is actually summoned (use
-  swarm-invocation-designer), decomposing the work into sub-tasks or building/scheduling the
-  DAG graph after a DAG-workgroup archetype is chosen (use task-decomposer or next-move),
-  picking which specific skill or subagent fills a chosen node (use skillful-subagent-creator),
-  or designing the approval mechanics of a chosen human-gate archetype (use
-  human-gate-designer).
+description: >
+  Capture one WorkIntent, record six local topology signals with reasons, select
+  one local work shape, and audit supplied route-trace evidence before admitting
+  the canonical WorkIntent to WorkPlan pipeline. Use when a request may need a
+  node, scout, chain, DAG workgroup, tournament, watcher, or human gate.
+  NOT for universal topology classification, proving a route never writes state
+  from a boolean alone, or preserving a legacy launch route by default.
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Agent & Orchestration
-  tags:
-    - work-intake
-    - topology-archetype
-    - single-operator-action
-    - legacy-verb-compat
-    - agent-node-governance
+  tags: [work-intake, workintent, topology, route-audit, human-gate]
   provenance:
     kind: first-party
-    owners:
-      - port-daddy
-  pairs-with:
-    - skill: swarm-invocation-designer
-      reason: Once a chain/dag-workgroup/tournament archetype is chosen, this skill hands off the actual inter-agent invocation and coordination mechanics to it.
-    - skill: task-decomposer
-      reason: A dag-workgroup or chain archetype still needs its sub-tasks decomposed; this skill only proves the archetype call itself is singular and legacy-safe.
-    - skill: next-move
-      reason: next-move's synthesizer picks a planning/runtime topology per subtask; this skill is the upstream gate proving the operator-level WorkIntent resolved to one archetype before that DAG is even built.
-  io-contract:
-    kind: deliverable
-    consumes:
-      - kind: work-intent-signal-vector
-        format: json
-      - kind: legacy-route-manifest
-        format: json
-    produces:
-      - kind: topology-archetype-decision
-        format: markdown
-      - kind: node-shaping-audit
-        format: json
+    source: repaired work-intake-node-shaping bundle
 ---
 
 # Work Intake Node Shaping
 
-Route one operator WorkIntent to exactly one topology archetype, and keep legacy launch verbs as compatibility metadata instead of a second, ungoverned path to an Agent Node.
+The seven labels are a local planning policy, not a universal taxonomy. The
+planner records coupling, context pressure, skill boundary, review independence,
+budget and operator burden with reasons. A human or policy chooses exactly one
+shape; the script validates the supplied declaration and route evidence, it
+does not calculate a score or prove a call path.
 
-## Use This For
+## Method 1 — capture judgment before materialization
 
-- Classifying a new WorkIntent's signal vector into exactly one of the seven topology archetypes before any Agent Node is materialized.
-- Auditing a `spawn`/`dispatch`/`sortie`/`conjure`/`nightshift` compatibility shim to confirm it routes into the shared WorkIntent -> WorkPlan pipeline instead of writing its own session/transcript state.
-- Reviewing a control-plane PR that adds a new launch entrypoint, to catch a second, independent archetype decision hiding behind a different verb.
-- Deciding whether ambiguous work (a "quick fix" vs. a "long research chain" vs. a "recurring watcher") should be a node, scout, or ambient-watcher before committing budget and skills to it.
-- Grading a proposed WorkIntent-to-archetype mapping against the "exactly one archetype" invariant before it reaches the daemon.
-
-## Do Not Use This For
-
-- Inter-agent protocol/IPC mechanics once a workgroup or tournament is actually summoned (`swarm-invocation-designer`).
-- Decomposing the work into sub-tasks or building/scheduling the DAG graph after a DAG-workgroup archetype is chosen (`task-decomposer`, `next-move`).
-- Picking which specific skill or subagent fills a chosen node, or designing a chosen human-gate's approval mechanics (`skillful-subagent-creator`, `human-gate-designer`).
-
-## Decision Model
+1. Capture one WorkIntent and its acceptance artifact, constraints, authority and
+   unknowns.
+2. Select values from the six enumerated signals and give a reason for each.
+3. Compare nearest shapes using the local archetype table. Record why the runner
+   up lost; if that cannot be stated, use scout or hold for clarification.
+4. Select exactly one of node, scout, chain, dag-workgroup, tournament,
+   ambient-watcher or human-gate. A human-gate is structural: its action remains
+   blocked until explicit approval, even if all other signals are favorable.
 
 ```mermaid
 flowchart TD
-  A[Operator WorkIntent + six-signal vector] --> B{Score coupling, context pressure, skill boundary, review independence, budget, operator burden}
-  B --> C{Exactly one archetype fits?}
-  C -->|Zero or many tie| D[Reject: rescore the signal vector, do not launch multiple]
-  C -->|Yes| E[Select one: node / scout / chain / dag-workgroup / tournament / ambient-watcher / human-gate]
-  E --> F{Legacy verb reachable? spawn/dispatch/sortie/conjure/nightshift}
-  F -->|Yes| G{Does it write its own Agent Node/session/transcript?}
-  G -->|Yes| H[FAIL: legacy verb bypasses the shared WorkPlan pipeline]
-  G -->|No| I[OK: legacy verb is compatibility metadata only]
-  F -->|No| I
-  I --> J[Materialize exactly one governed Agent Node]
+  A[WorkIntent, acceptance, constraints, unknowns] --> B[Six signals with reasons]
+  B --> C{One local shape justified?}
+  C -->|no| S[Scout or hold for clarification]
+  C -->|yes| D[Record selected shape and runner-up reason]
+  D --> E{Structural approval required?}
+  E -->|yes| H[human-gate: block action until approval]
+  E -->|no| R[Route-trace audit]
+  H --> R
 ```
 
-1. **Capture the WorkIntent's six-signal vector** — coupling, context pressure, skill boundary, review independence, budget, operator burden. See `references/seven-archetypes.md` for what each signal measures.
-2. **Map the signal vector to exactly one of the seven canonical archetypes** using the disambiguation heuristics in `references/seven-archetypes.md`. If two archetypes seem to fit, that is a scoring bug, not a tie to break by picking both.
-3. **Record `selectedArchetypes` as a single-element array.** A WorkIntent that produces zero or multiple archetypes must be rejected before any Agent Node is materialized.
-4. **Enumerate every legacy launch verb** (`spawn`, `dispatch`, `sortie`, `conjure`, `nightshift`) reachable from this WorkIntent's entrypoint and trace whether each one independently opens its own Agent Node, session id, or transcript instead of routing through the shared WorkIntent -> WorkPlan -> Agent Node pipeline. See `references/legacy-verb-compatibility.md`.
-5. **Flag any legacy route that writes independent state.** It means an old code path is quietly bypassing the daemon's governance predicates (session, worktree, transcript chain, cost cap) that the Official-Agent Definition requires.
-6. **Run `scripts/node_shaping_audit.mjs`** against the assembled spec and fail closed: unresolved cardinality or a leaking legacy route blocks materializing the Agent Node.
-7. **Only after `pass: true`** does the daemon proceed to attach a Body, open a transcript, and persist a Work Receipt path for the single archetype selected.
+## Method 2 — audit the current canonical pipeline
 
-## Output Contract
+The current desired pipeline is WorkIntent → WorkPlan → governed materialization.
+When auditing an existing legacy entrypoint, record an actual call trace reference
+and persisted-state readback reference for every reachable route. A false boolean
+is only a supplied assertion until that evidence exists. Unknown/legacy route
+identity or missing trace blocks this supplied-data audit; it must not score 90
+and pass.
 
-`scripts/node_shaping_audit.mjs` reads a spec with: `workIntent.id`, `workIntent.signals` (`coupling`, `contextPressure`, `skillBoundary`, `reviewIndependence`, `budget`, `operatorBurden`), `selectedArchetypes[]`, and `legacyRoutes[]` (`{ verb, writesIndependentState }`). It is safe only when `selectedArchetypes` has exactly one entry drawn from the seven canonical archetypes **and** every `legacyRoutes[].writesIndependentState` is `false` — an empty `legacyRoutes` array is safe (vacuously true), but any route proven to write independent state is never safe regardless of how many other routes are clean.
+This is an audit of existing routes, not an instruction to create or preserve a
+compatibility shim. Under supplant-not-migrate, new work uses the canonical
+pipeline; retaining an old route needs separate authorization.
 
-Use `scripts/node_shaping_audit.mjs` to audit a work-intake spec JSON and return `{ pass, score, findings, recommendations }`.
+```mermaid
+flowchart TD
+  I[Selected local shape] --> T[Trace existing reachable route]
+  T --> C{Call trace reaches canonical WorkIntent to WorkPlan pipeline?}
+  C -->|no, unknown, or absent evidence| X[Hold: investigate route and state readback]
+  C -->|yes| P{Independent persisted node/session/transcript write?}
+  P -->|yes| X
+  P -->|no evidence or false assertion| X
+  P -->|no with evidence| G{Graph, authority, resources, approval all admitted?}
+  G -->|no| H[Hold declared plan; name unsatisfied gate]
+  G -->|yes| M[Admit declared plan; not runtime proof]
+```
 
-## Anti-Patterns
+## Method 3 — use the shapes as contrasts
 
-### Zero or Many Archetypes
+- node: one coherent, bounded change.
+- scout: reduce an unknown that prevents a safe shape decision.
+- chain: ordered handoff where each output is the next required input.
+- dag-workgroup: distinct branches with explicit interfaces and independent
+  validation; a shared input alone is not proof of parallel safety.
+- tournament: independent attempts at the same task with a declared evaluator.
+- ambient-watcher: recurring/event-driven work, not merely a lengthy task.
+- human-gate: explicit approval before a specified action.
 
-**Novice**: Leaves `selectedArchetypes` empty ("still deciding, will figure it out at runtime") or lists both `node` and `chain` to hedge because the signal vector felt ambiguous.
-**Expert**: Forces a single call before any Agent Node materializes. Ambiguity gets resolved in the signal vector, before governance state exists — never by launching more than one archetype and letting them race.
-**Detection**: `node_shaping_audit.mjs` fires `no-archetype-selected` (critical) when `selectedArchetypes` is empty, and `multiple-archetypes-selected` (critical) when it has more than one entry.
+Use the five disambiguation recipes in [Seven local archetypes](references/seven-archetypes.md): node/scout, chain/DAG, DAG/tournament, watcher/other, and human-gate/node. A release needing external approval is human-gate even if implementation resembles a node; a vague request with unknown files and acceptance condition is scout. These are local judgments, not deterministic scores, generic invariants, or validator output.
 
-### Legacy Verb Smuggles Independent State
+## Verify a supplied record
 
-**Novice**: A `sortie`/`spawn`/`nightshift` compatibility shim quietly opens its own session id or starts its own transcript instead of routing through the shared WorkPlan pipeline, producing a second, ungoverned Agent Node for the same WorkIntent.
-**Expert**: Legacy verbs are compatibility metadata only — they annotate provenance (`{ sourceVerb: "sortie" }`) and then every one of them terminates in the same materialize-one-Agent-Node path.
-**Detection**: `node_shaping_audit.mjs` fires `legacy-route-writes-independent-state` (critical) when any `legacyRoutes[].writesIndependentState` is `true`.
-
-### Invented Archetype
-
-**Novice**: Introduces an eighth topology ("swarm", "batch", "pipeline") because none of the seven canonical ones felt like a perfect fit, quietly fragmenting a taxonomy the operator was never supposed to see.
-**Expert**: The seven archetypes (node, scout, chain, dag-workgroup, tournament, ambient-watcher, human-gate) are exhaustive by design. A WorkIntent that doesn't fit needs its signal vector rescored against `references/seven-archetypes.md`, not a new archetype invented.
-**Detection**: `node_shaping_audit.mjs` fires `unknown-archetype` (critical) whenever a selected archetype isn't one of the seven canonical names.
+Run node scripts/node_shaping_audit.mjs --input examples/sample-input.json.
+The audit compiles its Draft 2020 schema before cross-field checks. `pass` and
+`declarationValid` mean the supplied record is coherent; `eligibleToAdmit`
+additionally requires any declared approval plus authority and resources. A
+valid-but-blocked human gate must not be treated as admitted, and the CLI exits
+nonzero unless `eligibleToAdmit` is true. It does not prove
+the trace exists, the readback is authentic, or any daemon/runtime behavior.
+See [Schema enforcement](references/schema-enforcement.md).
 
 ## References
 
-| File | Load When |
-| --- | --- |
-| `references/seven-archetypes.md` | Need the six-signal definitions or the disambiguation heuristics for picking one of the seven archetypes. |
-| `references/legacy-verb-compatibility.md` | Need to trace whether a `spawn`/`dispatch`/`sortie`/`conjure`/`nightshift` route writes independent state, or need the Official-Agent Definition citation grounding why that matters. |
-| `examples/expected-output.md` | Need to see a bad intake spec audited, then the same intake fixed and passing. |
-| `examples/sample-input.json` | Need a complete, already-passing spec to copy as a starting point. |
-| `templates/output-template.md` | Need a reusable template for the signal vector, archetype decision, and legacy route audit. |
-| `schemas/work-intake-spec.schema.json` | Need to validate a work-intake JSON payload's structure before auditing it. |
-| `scripts/node_shaping_audit.mjs` | Need deterministic, fail-closed scoring of a WorkIntent's archetype cardinality and legacy-route safety. |
-| `agents/openai.yaml` | Need a subagent descriptor for delegated work-intake shaping. |
-
-<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
-
-## Skill Bundle Index
-
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
-
-**root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Work Intake Node Shaping — Changelog — - Initial skill creation - Core process defined: signal-vector-to-archetype mapping plus legacy-verb compatibility audit - Reference files a
-- [`README.md`](README.md) — Work Intake Node Shaping — Route one operator WorkIntent to exactly one topology archetype (node, scout, chain, dag-workgroup, tournament, ambient-watcher, human-gate)
-
-**`agents/`**
-- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
-
-**`examples/`**
-- [`examples/expected-output.md`](examples/expected-output.md) — Example Output: Work Intake Node Shaping — Scenario: a `nightshift` compatibility shim resolves one WorkIntent to two archetypes at once ("dag-workgroup" and an invented "swarm") beca
-- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
-
-**`references/`**
-- [`references/legacy-verb-compatibility.md`](references/legacy-verb-compatibility.md) — Legacy Verb Compatibility — Use this when auditing a `spawn`/`dispatch`/`sortie`/`conjure`/`nightshift` code path, or when reviewing a control-plane PR that adds a new 
-- [`references/seven-archetypes.md`](references/seven-archetypes.md) — The Seven Topology Archetypes — Use this when scoring a WorkIntent's signal vector and you're not sure which of the seven canonical archetypes it resolves to, or when a pro
-
-**`schemas/`**
-- [`schemas/work-intake-spec.schema.json`](schemas/work-intake-spec.schema.json) — work intake spec.schema (data/schema)
-
-**`scripts/`**
-- [`scripts/node_shaping_audit.mjs`](scripts/node_shaping_audit.mjs)
-
-**`templates/`**
-- [`templates/output-template.md`](templates/output-template.md) — Work Intake Decision Template — Fill in every section before materializing an Agent Node.
-
-<!-- END BUNDLE INDEX -->
+- [First-party method boundary](references/method-boundaries.md)
+- [Seven local archetypes](references/seven-archetypes.md)
+- [Existing-route audit](references/legacy-verb-compatibility.md)

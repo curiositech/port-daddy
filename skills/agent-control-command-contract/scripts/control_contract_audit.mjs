@@ -1,263 +1,275 @@
 #!/usr/bin/env node
-// control_contract_audit.mjs — deterministic audit of an operator control-command
-// contract (steer/interrupt/pause/kill/checkpoint/fork over live agent bodies)
-// before a control panel is allowed to render those verbs as clickable.
-// Pure stdlib, no deps.
-//
-// Usage:
-//   node control_contract_audit.mjs --input <control-contract-spec>.json
-//
-// Exports:
-//   auditControlContract(spec) -> { pass, score, findings, recommendations }
+// Static audit of a declared operator-control contract. This checks declarations
+// for internal completeness and consistency; it does not probe an adapter,
+// verify a live authority source, or prove that a UI is safe to enable.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The six terminal-state vocabulary a verb's delivery lifecycle can draw from.
-// See references/verb-state-machine.md for why each one exists.
-const ALLOWED_TERMINAL_STATES = ['queued', 'delivered', 'acknowledged', 'failed', 'expired', 'unsupported'];
+export const LIFECYCLE_STATES = Object.freeze([
+  'requested',
+  'policy-denied',
+  'queued',
+  'delivered',
+  'acknowledged',
+  'effect-observed',
+  'failed',
+  'expired-before-delivery',
+  'outcome-unknown',
+  'unsupported',
+]);
 
-// A verb must at minimum distinguish these four outcomes, or "delivered" and
-// "it actually happened" collapse into the same claim — see anti-pattern
-// "Incomplete Delivery Lifecycle" in SKILL.md.
-const REQUIRED_TERMINAL_SUBSET = ['delivered', 'acknowledged', 'failed', 'expired'];
+const SUPPORTED_MINIMUM = Object.freeze([
+  'requested', 'policy-denied', 'delivered', 'acknowledged',
+  'effect-observed', 'failed', 'expired-before-delivery', 'outcome-unknown',
+]);
+const UNSUPPORTED_MINIMUM = Object.freeze(['requested', 'policy-denied', 'unsupported']);
+const AUTH_SOURCES = Object.freeze(['lease-store', 'event-store', 'policy-service', 'cached-projection', 'ui-state']);
+const AUTH_BINDINGS = Object.freeze(['principal', 'target', 'scope', 'policyRevision', 'expiresAt', 'fencingEpoch']);
+const AUTH_CHECKS = Object.freeze(['principal', 'target', 'scope', 'currentPolicy', 'notExpired', 'fencingEpoch']);
 
-// The four control verbs the binder names as separate claims (redteam packet
-// #13). checkpoint/fork are real verbs in this domain too but are not part of
-// the specific "collapsed into one stop button" failure mode this constant
-// guards against.
-const CORE_DISTINCT_VERBS = ['interrupt', 'pause', 'kill', 'steer'];
-
-// Authorization sources that read authoritative daemon state (a lease record
-// or an appended event) versus sources that can be stale by construction.
-const AUTHORITATIVE_SOURCES = ['authoritative-lease', 'authoritative-event'];
-const STALE_SOURCES = ['cached-projection', 'ui-state'];
-const ALLOWED_AUTHORIZATION_SOURCES = [...AUTHORITATIVE_SOURCES, ...STALE_SOURCES];
-
-const SEVERITY_WEIGHT = { critical: 12, high: 8, medium: 4, low: 2 };
-
-function severityWeight(severity) {
-  if (!Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)) {
-    throw new Error(`unknown finding severity "${severity}" (expected one of ${Object.keys(SEVERITY_WEIGHT).join(', ')})`);
-  }
-  return SEVERITY_WEIGHT[severity];
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function assertShape(spec) {
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
-    throw new Error('auditControlContract: input must be a JSON object');
-  }
-  if (!Array.isArray(spec.verbs) || spec.verbs.length === 0) {
-    throw new Error('auditControlContract: "verbs" must be a non-empty array');
-  }
-  for (const [i, verb] of spec.verbs.entries()) {
-    if (!verb || typeof verb.name !== 'string' || verb.name.trim() === '') {
-      throw new Error(`auditControlContract: verbs[${i}] must have a non-empty string "name"`);
-    }
-    if (!Array.isArray(verb.terminalStates) || verb.terminalStates.length === 0) {
-      throw new Error(`auditControlContract: verbs[${i}] ("${verb.name}") must have a non-empty "terminalStates" array`);
-    }
-    for (const state of verb.terminalStates) {
-      if (!ALLOWED_TERMINAL_STATES.includes(state)) {
-        throw new Error(
-          `auditControlContract: verbs[${i}] ("${verb.name}") has unknown terminal state "${state}"; must be one of ${ALLOWED_TERMINAL_STATES.join(', ')}`,
-        );
-      }
-    }
-  }
-  if (!Array.isArray(spec.backends) || spec.backends.length === 0) {
-    throw new Error('auditControlContract: "backends" must be a non-empty array');
-  }
-  for (const [i, backend] of spec.backends.entries()) {
-    if (!backend || typeof backend.name !== 'string' || backend.name.trim() === '') {
-      throw new Error(`auditControlContract: backends[${i}] must have a non-empty string "name"`);
-    }
-    if (!Array.isArray(backend.supportedVerbs)) {
-      throw new Error(`auditControlContract: backends[${i}] ("${backend.name}") must have a "supportedVerbs" array (may be empty)`);
-    }
-  }
-  if (typeof spec.authorizationSource !== 'string' || !ALLOWED_AUTHORIZATION_SOURCES.includes(spec.authorizationSource)) {
-    throw new Error(
-      `auditControlContract: "authorizationSource" must be one of ${ALLOWED_AUTHORIZATION_SOURCES.join(', ')}`,
-    );
-  }
-  if (!Array.isArray(spec.matrix)) {
-    throw new Error('auditControlContract: "matrix" must be an array (may be empty)');
-  }
-  for (const [i, cell] of spec.matrix.entries()) {
-    if (!cell || typeof cell.verb !== 'string' || typeof cell.backend !== 'string') {
-      throw new Error(`auditControlContract: matrix[${i}] must have string "verb" and "backend"`);
-    }
-    if (typeof cell.hasDistinctTerminalStates !== 'boolean') {
-      throw new Error(`auditControlContract: matrix[${i}] ("${cell.verb}"/"${cell.backend}") must have boolean "hasDistinctTerminalStates"`);
-    }
+function requireRecord(value, path) {
+  if (!isRecord(value)) throw new TypeError(`${path} must be an object`);
+}
+
+function requireKeys(value, allowed, path) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) throw new TypeError(`${path}.${key} is an unknown property`);
   }
 }
 
-function pushFinding(findings, severity, id, message, recommendation, recommendations) {
-  findings.push({ severity, id, message });
-  if (recommendation) recommendations.push(recommendation);
+function requireString(value, path) {
+  if (typeof value !== 'string' || value.trim() === '') throw new TypeError(`${path} must be a non-empty string`);
 }
 
-function findMatrixCell(matrix, verbName, backendName) {
-  return matrix.find((cell) => cell.verb === verbName && cell.backend === backendName) ?? null;
+function requireStringArray(value, path, { nonEmpty = true } = {}) {
+  if (!Array.isArray(value) || (nonEmpty && value.length === 0)) {
+    throw new TypeError(`${path} must be ${nonEmpty ? 'a non-empty' : 'an'} array of strings`);
+  }
+  value.forEach((item, i) => requireString(item, `${path}[${i}]`));
+}
+
+function requireUnique(values, path) {
+  const seen = new Set();
+  values.forEach((value, i) => {
+    if (seen.has(value)) throw new TypeError(`${path}[${i}] duplicates "${value}"`);
+    seen.add(value);
+  });
+}
+
+function validateInputShape(spec) {
+  requireRecord(spec, 'input');
+  requireKeys(spec, ['$schema', 'profile', 'verbs', 'backends', 'authorization', 'matrix'], 'input');
+  if ('$schema' in spec && spec.$schema !== '../schemas/control-contract.schema.json') throw new TypeError('input.$schema must name ../schemas/control-contract.schema.json');
+  requireRecord(spec.profile, 'profile');
+  requireKeys(spec.profile, ['id', 'name', 'basis', 'requiredVerbs', 'requiredLifecycleStates'], 'profile');
+  requireString(spec.profile.id, 'profile.id');
+  requireString(spec.profile.name, 'profile.name');
+  requireString(spec.profile.basis, 'profile.basis');
+  requireStringArray(spec.profile.requiredVerbs, 'profile.requiredVerbs');
+  requireUnique(spec.profile.requiredVerbs, 'profile.requiredVerbs');
+  requireStringArray(spec.profile.requiredLifecycleStates, 'profile.requiredLifecycleStates');
+  requireUnique(spec.profile.requiredLifecycleStates, 'profile.requiredLifecycleStates');
+
+  if (!Array.isArray(spec.verbs) || spec.verbs.length === 0) throw new TypeError('verbs must be a non-empty array');
+  spec.verbs.forEach((verb, i) => {
+    requireRecord(verb, `verbs[${i}]`);
+    requireKeys(verb, ['name', 'intent'], `verbs[${i}]`);
+    requireString(verb.name, `verbs[${i}].name`);
+    requireString(verb.intent, `verbs[${i}].intent`);
+  });
+  requireUnique(spec.verbs.map((v) => v.name), 'verbs[].name');
+
+  if (!Array.isArray(spec.backends) || spec.backends.length === 0) throw new TypeError('backends must be a non-empty array');
+  spec.backends.forEach((backend, i) => {
+    requireRecord(backend, `backends[${i}]`);
+    requireKeys(backend, ['name', 'description', 'supportedVerbs'], `backends[${i}]`);
+    requireString(backend.name, `backends[${i}].name`);
+    requireString(backend.description, `backends[${i}].description`);
+    requireStringArray(backend.supportedVerbs, `backends[${i}].supportedVerbs`, { nonEmpty: false });
+    requireUnique(backend.supportedVerbs, `backends[${i}].supportedVerbs`);
+  });
+  requireUnique(spec.backends.map((b) => b.name), 'backends[].name');
+
+  requireRecord(spec.authorization, 'authorization');
+  requireKeys(spec.authorization, ['source', 'checkedAtAdmission', 'bindings', 'checks'], 'authorization');
+  requireString(spec.authorization.source, 'authorization.source');
+  if (!AUTH_SOURCES.includes(spec.authorization.source)) {
+    throw new TypeError(`authorization.source must be one of ${AUTH_SOURCES.join(', ')}`);
+  }
+  if (typeof spec.authorization.checkedAtAdmission !== 'boolean') {
+    throw new TypeError('authorization.checkedAtAdmission must be a boolean');
+  }
+  requireRecord(spec.authorization.bindings, 'authorization.bindings');
+  requireKeys(spec.authorization.bindings, AUTH_BINDINGS, 'authorization.bindings');
+  for (const name of AUTH_BINDINGS) requireString(spec.authorization.bindings[name], `authorization.bindings.${name}`);
+  requireRecord(spec.authorization.checks, 'authorization.checks');
+  requireKeys(spec.authorization.checks, AUTH_CHECKS, 'authorization.checks');
+  for (const name of AUTH_CHECKS) {
+    if (typeof spec.authorization.checks[name] !== 'boolean') {
+      throw new TypeError(`authorization.checks.${name} must be a boolean`);
+    }
+  }
+
+  if (!Array.isArray(spec.matrix)) throw new TypeError('matrix must be an array');
+  spec.matrix.forEach((cell, i) => {
+    requireRecord(cell, `matrix[${i}]`);
+    requireKeys(cell, ['verb', 'backend', 'support', 'lifecycleStates'], `matrix[${i}]`);
+    requireString(cell.verb, `matrix[${i}].verb`);
+    requireString(cell.backend, `matrix[${i}].backend`);
+    if (cell.support !== 'supported' && cell.support !== 'unsupported') {
+      throw new TypeError(`matrix[${i}].support must be "supported" or "unsupported"`);
+    }
+    requireStringArray(cell.lifecycleStates, `matrix[${i}].lifecycleStates`);
+    requireUnique(cell.lifecycleStates, `matrix[${i}].lifecycleStates`);
+  });
+}
+
+function finding(findings, code, message) {
+  findings.push({ severity: 'critical', code, message });
 }
 
 /**
- * Audit an operator control-command contract: does every verb (steer,
- * interrupt, pause, kill, checkpoint, fork, ...) get modeled as a distinct
- * claim with a real delivery lifecycle, does every backend that can't
- * perform a verb say so honestly, and does authorization read authoritative
- * state instead of a stale projection.
- *
- * FAILS CLOSED: an empty matrix, a missing cell, or an unproven combination
- * is never treated as safe — it is scored as though the gap were unsafe.
- *
- * @param {object} spec
- * @param {Array<{name:string, terminalStates:string[]}>} spec.verbs
- * @param {Array<{name:string, supportedVerbs:string[]}>} spec.backends
- * @param {'authoritative-lease'|'authoritative-event'|'cached-projection'|'ui-state'} spec.authorizationSource
- * @param {Array<{verb:string, backend:string, hasDistinctTerminalStates:boolean}>} spec.matrix
- * @returns {{pass:boolean, score:number, findings:Array, recommendations:string[]}}
+ * Return whether a declared contract is internally complete. `declarationPass`
+ * is deliberately not runtime evidence or authorization to render UI controls.
  */
 export function auditControlContract(spec) {
-  assertShape(spec);
-
+  validateInputShape(spec);
   const findings = [];
-  const recommendations = [];
-
-  const verbByName = new Map(spec.verbs.map((v) => [v.name, v]));
   const verbNames = spec.verbs.map((v) => v.name);
+  const backendNames = spec.backends.map((b) => b.name);
+  const verbSet = new Set(verbNames);
+  const backendByName = new Map(spec.backends.map((b) => [b.name, b]));
+  const matrixByPair = new Map();
+  const source = spec.authorization.source;
 
-  // --- 1. Authorization source: authoritative or stale? ---------------------
-  if (STALE_SOURCES.includes(spec.authorizationSource)) {
-    pushFinding(
-      findings, 'critical', 'authorizes-from-stale-projection',
-      `authorizationSource is "${spec.authorizationSource}" — a control command would be authorized from a projection or UI state that can be stale, corrupted, or frozen, not authoritative daemon truth.`,
-      'Re-check authoritative lease/event state (an appended control_commands event or an active lease record) at the moment of authorization; a pane may display stale data, but a command must never be authorized from it.',
-      recommendations,
-    );
-  }
-
-  // --- 2. Collapsed verbs: are interrupt/pause/kill/steer distinct claims? --
-  const missingCoreVerbs = CORE_DISTINCT_VERBS.filter((name) => !verbNames.includes(name));
-  if (missingCoreVerbs.length > 0) {
-    pushFinding(
-      findings, 'critical', 'collapsed-verbs',
-      `Verb set is missing distinct claim(s) for: ${missingCoreVerbs.join(', ')}. interrupt, pause, kill, and steer each have different runtime truth and must not be merged into a single generic "stop" or "control" claim.`,
-      `Add a separate verb entry (with its own terminalStates) for each of: ${missingCoreVerbs.join(', ')}.`,
-      recommendations,
-    );
-  }
-
-  // A matrix cell among the core four verbs that reports no distinct terminal
-  // states is the same failure mode surfacing at the backend level: the verb
-  // exists on paper but a specific backend can't actually tell it apart from
-  // another verb's outcome.
-  const collapsedCoreCells = spec.matrix.filter(
-    (cell) => CORE_DISTINCT_VERBS.includes(cell.verb) && cell.hasDistinctTerminalStates === false,
-  );
-  if (collapsedCoreCells.length > 0) {
-    const pairs = collapsedCoreCells.map((c) => `${c.verb}/${c.backend}`).join(', ');
-    pushFinding(
-      findings, 'critical', 'collapsed-verbs',
-      `Matrix reports non-distinct terminal states for core verb/backend pair(s): ${pairs}. A backend that cannot tell interrupt, pause, kill, or steer apart is not honoring them as separate claims.`,
-      'Give each core verb its own tracked terminal-state sequence per backend, or mark the backend as not supporting that verb (with an "unsupported" terminal) instead of silently merging outcomes.',
-      recommendations,
-    );
-  }
-
-  // --- 3. Verb-level terminal state completeness -----------------------------
-  for (const verb of spec.verbs) {
-    const missing = REQUIRED_TERMINAL_SUBSET.filter((s) => !verb.terminalStates.includes(s));
-    if (missing.length > 0) {
-      pushFinding(
-        findings, 'critical', 'verb-missing-terminal-states',
-        `Verb "${verb.name}" is missing required terminal state(s): ${missing.join(', ')}. A verb without the full delivered/acknowledged/failed/expired set cannot distinguish "sent" from "actually happened" from "gave up."`,
-        `Add ${missing.join(', ')} to verb "${verb.name}"'s terminalStates.`,
-        recommendations,
-      );
+  for (const requiredVerb of spec.profile.requiredVerbs) {
+    if (!verbSet.has(requiredVerb)) {
+      finding(findings, 'required-verb-missing', `Profile requires "${requiredVerb}", but it has no verb declaration.`);
     }
   }
+  for (const state of spec.profile.requiredLifecycleStates) {
+    if (!LIFECYCLE_STATES.includes(state)) {
+      finding(findings, 'unknown-profile-lifecycle-state', `Profile declares unknown lifecycle state "${state}".`);
+    }
+  }
+  for (const requiredState of SUPPORTED_MINIMUM) {
+    if (!spec.profile.requiredLifecycleStates.includes(requiredState)) {
+      finding(findings, 'profile-lifecycle-distinction-missing', `Profile must distinguish "${requiredState}" for supported commands.`);
+    }
+  }
+  if (spec.profile.requiredLifecycleStates.includes('unsupported')) {
+    finding(findings, 'unsupported-not-supported-lifecycle', 'unsupported is a capability result for an unsupported pair, not a required state of supported pairs.');
+  }
 
-  // --- 4. Backend honesty: unsupported verbs need an unsupported terminal ---
   for (const backend of spec.backends) {
-    for (const verbName of verbNames) {
-      const backendSupportsVerb = backend.supportedVerbs.includes(verbName);
-      if (backendSupportsVerb) continue;
-
-      const verb = verbByName.get(verbName);
-      const cell = findMatrixCell(spec.matrix, verbName, backend.name);
-      const verbDeclaresUnsupported = verb?.terminalStates.includes('unsupported') === true;
-      const cellProvesIt = cell !== null && cell.hasDistinctTerminalStates === true && verbDeclaresUnsupported;
-
-      if (!cellProvesIt) {
-        pushFinding(
-          findings, 'critical', 'backend-verb-no-unsupported-state',
-          `Backend "${backend.name}" does not support verb "${verbName}" but has no proven "unsupported" terminal for that pair (matrix cell ${cell ? 'exists but is not distinct or verb lacks "unsupported"' : 'is missing'}).`,
-          `Add "unsupported" to verb "${verbName}"'s terminalStates and a matrix cell for ("${verbName}", "${backend.name}") with hasDistinctTerminalStates:true, so the control panel disables that combination honestly instead of hiding it.`,
-          recommendations,
-        );
+    for (const supportedName of backend.supportedVerbs) {
+      if (!verbSet.has(supportedName)) {
+        finding(findings, 'undeclared-supported-verb', `Backend "${backend.name}" lists undeclared supported verb "${supportedName}".`);
       }
     }
   }
 
-  // --- 5. Matrix completeness for supported combinations (fail closed) ------
-  // An unproven verb×backend combination is not evidence of safety — it is a
-  // gap. Every combination the contract claims to support needs a matrix cell
-  // that actually proves distinct terminal states.
-  for (const backend of spec.backends) {
-    for (const verbName of verbNames) {
-      const backendSupportsVerb = backend.supportedVerbs.includes(verbName);
-      if (!backendSupportsVerb) continue; // covered by the unsupported check above
+  for (const cell of spec.matrix) {
+    const key = JSON.stringify([cell.verb, cell.backend]);
+    if (matrixByPair.has(key)) {
+      finding(findings, 'duplicate-matrix-pair', `Matrix contains more than one row for ${cell.verb}/${cell.backend}; duplicate rows may not contradict each other.`);
+      const prior = matrixByPair.get(key);
+      if (prior.support !== cell.support || JSON.stringify(prior.lifecycleStates) !== JSON.stringify(cell.lifecycleStates)) {
+        finding(findings, 'contradictory-matrix-duplicate', `Repeated rows for ${cell.verb}/${cell.backend} declare different support or lifecycle states.`);
+      }
+    } else {
+      matrixByPair.set(key, cell);
+    }
+    if (!verbSet.has(cell.verb)) finding(findings, 'undeclared-matrix-verb', `Matrix references undeclared verb "${cell.verb}".`);
+    if (!backendByName.has(cell.backend)) finding(findings, 'undeclared-matrix-backend', `Matrix references undeclared backend "${cell.backend}".`);
+    for (const state of cell.lifecycleStates) {
+      if (!LIFECYCLE_STATES.includes(state)) finding(findings, 'unknown-lifecycle-state', `Matrix ${cell.verb}/${cell.backend} uses unknown lifecycle state "${state}".`);
+    }
+  }
 
-      const cell = findMatrixCell(spec.matrix, verbName, backend.name);
+  for (const verbName of verbNames) {
+    for (const backendName of backendNames) {
+      const cell = matrixByPair.get(JSON.stringify([verbName, backendName]));
       if (!cell) {
-        pushFinding(
-          findings, 'high', 'missing-matrix-cell',
-          `No matrix cell proves the ("${verbName}", "${backend.name}") combination — backend claims support but the contract has no evidence of a real delivery lifecycle for it.`,
-          `Add a matrix cell for ("${verbName}", "${backend.name}") with hasDistinctTerminalStates set from real probe evidence, not assumed.`,
-          recommendations,
-        );
-      } else if (cell.hasDistinctTerminalStates !== true) {
-        pushFinding(
-          findings, 'high', 'supported-verb-not-distinct',
-          `Backend "${backend.name}" claims to support "${verbName}" but the matrix cell reports hasDistinctTerminalStates:false — the claim is not backed by a distinct delivery lifecycle.`,
-          `Either prove distinct terminal states for ("${verbName}", "${backend.name}") or remove "${verbName}" from that backend's supportedVerbs.`,
-          recommendations,
-        );
+        finding(findings, 'matrix-pair-missing', `Matrix is missing the declared pair ${verbName}/${backendName}.`);
+        continue;
+      }
+      const backend = backendByName.get(backendName);
+      const listedSupported = backend.supportedVerbs.includes(verbName);
+      const expectedSupport = listedSupported ? 'supported' : 'unsupported';
+      if (cell.support !== expectedSupport) {
+        finding(findings, 'matrix-support-contradiction', `${verbName}/${backendName} is "${cell.support}" in matrix but backend.supportedVerbs implies "${expectedSupport}".`);
+      }
+      if (cell.support === 'supported') {
+        for (const state of SUPPORTED_MINIMUM) {
+          if (!cell.lifecycleStates.includes(state)) finding(findings, 'supported-lifecycle-gap', `Supported pair ${verbName}/${backendName} does not declare "${state}".`);
+        }
+        for (const state of spec.profile.requiredLifecycleStates) {
+          if (!cell.lifecycleStates.includes(state)) finding(findings, 'profile-lifecycle-gap', `Supported pair ${verbName}/${backendName} does not declare profile-required state "${state}".`);
+        }
+        if (cell.lifecycleStates.includes('unsupported')) {
+          finding(findings, 'supported-pair-marked-unsupported', `Supported pair ${verbName}/${backendName} also declares unsupported.`);
+        }
+      } else {
+        for (const state of UNSUPPORTED_MINIMUM) {
+          if (!cell.lifecycleStates.includes(state)) finding(findings, 'unsupported-lifecycle-gap', `Unsupported pair ${verbName}/${backendName} does not declare "${state}".`);
+        }
+        for (const state of ['queued', 'delivered', 'acknowledged', 'effect-observed', 'failed', 'expired-before-delivery', 'outcome-unknown']) {
+          if (cell.lifecycleStates.includes(state)) finding(findings, 'unsupported-pair-has-effect-state', `Unsupported pair ${verbName}/${backendName} also claims "${state}".`);
+        }
       }
     }
   }
 
-  const totalWeight = findings.reduce((sum, f) => sum + (severityWeight(f.severity)), 0);
-  const score = Math.max(0, 100 - totalWeight);
-  const hasCritical = findings.some((f) => f.severity === 'critical');
-  const pass = !hasCritical && score >= 75;
-
-  if (pass) {
-    recommendations.push(
-      'Contract meets the control-command bar: authorization reads authoritative state, every verb is a distinct claim with a full terminal-state lifecycle, and every backend is honest about what it cannot do. Safe to render these controls as clickable.',
-    );
+  for (const requiredVerb of spec.profile.requiredVerbs) {
+    if (verbSet.has(requiredVerb) && !spec.backends.some((backend) => backend.supportedVerbs.includes(requiredVerb))) {
+      finding(findings, 'required-verb-no-supporting-backend', `Profile requires "${requiredVerb}", but no declared backend supports it.`);
+    }
   }
 
-  return { pass, score, findings, recommendations };
+  if (source === 'cached-projection' || source === 'ui-state') {
+    finding(findings, 'stale-authorization-source', `authorization source "${source}" cannot authorize a command.`);
+  }
+  if (spec.authorization.checkedAtAdmission !== true) {
+    finding(findings, 'authorization-not-rechecked', 'Authorization is not declared as rechecked at effect admission.');
+  }
+  for (const name of AUTH_CHECKS) {
+    if (spec.authorization.checks[name] !== true) finding(findings, 'authorization-binding-gap', `Admission declaration does not check ${name}.`);
+  }
+
+  return {
+    declarationPass: findings.length === 0,
+    scope: 'static declaration completeness only; runtime evidence not assessed',
+    safeToRenderControls: false,
+    findings,
+    recommendations: findings.length === 0
+      ? ['Declaration is internally complete. Collect adapter, authority-boundary, effect-observation, and UI evidence before enabling controls.']
+      : ['Repair every reported declaration gap, then separately test the adapter, authority boundary, effect observation, expiry, and UI gating.'],
+  };
 }
 
 function parseArgs(argv) {
-  const i = argv.indexOf('--input');
-  if (i === -1 || !argv[i + 1]) throw new Error('usage: control_contract_audit.mjs --input <spec>.json');
-  return { input: argv[i + 1] };
+  if (argv.length !== 2 || argv[0] !== '--input' || !argv[1]) {
+    throw new Error('usage: control_contract_audit.mjs --input <spec>.json');
+  }
+  return { input: argv[1] };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
     const { input } = parseArgs(process.argv.slice(2));
     const spec = JSON.parse(readFileSync(input, 'utf8'));
-    process.stdout.write(`${JSON.stringify(auditControlContract(spec), null, 2)}\n`);
+    const result = auditControlContract(spec);
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (!result.declarationPass) process.exitCode = 1;
   } catch (error) {
     process.stderr.write(`control_contract_audit: ${error.message}\n`);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }

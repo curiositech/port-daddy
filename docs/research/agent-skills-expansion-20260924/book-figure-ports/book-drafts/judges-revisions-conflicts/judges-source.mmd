@@ -1,0 +1,15 @@
+flowchart TB
+  PA[Principal PA] --> A[Judge A]
+  PB[Principal PB] --> B[Judge B]
+  PC[Principal PC] --> C[Judge C]
+  S[Shared evidence S] --> A
+  S --> B
+  S --> C
+  A --> EA["Toy errors: 1,0,1,0"]
+  B --> EB["Toy errors: 1,0,1,0"]
+  C --> EC["Toy errors: 1,0,1,0"]
+  EA --> M[Measure dependence on labeled items]
+  EB --> M
+  EC --> M
+  M --> H[Freeze rule; evaluate on fresh held-out items]
+  H --> L[Ordinary error results do not certify strategic clique independence]

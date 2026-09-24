@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: agent-interchange-formats
 description: |
-  Data structures and serialization formats for agent-to-agent communication. Covers message envelopes, structured output schemas, capability declarations, task handoff payloads, error/retry signaling, and context windows as data structures. Deep comparison of A2A protocol, MCP, OpenAI function calling, and LangChain message types. Teaches when to use rigid schemas vs free-form with validation, typed vs untyped, streaming vs batch. Activate on: "agent message format", "agent communication schema", "agent-to-agent protocol", "A2A protocol", "MCP message format", "structured output for agents", "agent interop", "interchange format", "agent serialization", "task handoff format", "capability declaration". NOT for: what agents say to each other (use agent-conversation-protocols), orchestration topology (use multi-agent-coordination), building agent infrastructure (use agentic-infrastructure-2026).
+  Data structures and serialization formats for agent-to-agent communication. Covers message envelopes, structured output schemas, capability declarations, task handoff payloads, error/retry signaling, and context windows as data structures. Compares the version-pinned A2A, MCP, and JSON-RPC role boundaries covered by this bundle; OpenAI and LangChain-specific APIs require their own current sources. Teaches when to use rigid schemas versus free-form content with validation, typed versus untyped boundaries, and streaming versus batch. Activate on: "agent message format", "agent communication schema", "agent-to-agent protocol", "A2A protocol", "MCP message format", "structured output for agents", "agent interop", "interchange format", "agent serialization", "task handoff format", "capability declaration". NOT for: what agents say to each other (use agent-conversation-protocols), orchestration topology (use multi-agent-coordination), building agent infrastructure (use agentic-infrastructure-2026).
 allowed-tools:
   - Read
   - Write
@@ -50,56 +50,67 @@ You are an expert in the data structures agents use to communicate. You understa
 
 ### Protocol Selection Tree
 
+```mermaid
+flowchart TD
+  S[Communication role] --> T{Tool invocation?}
+  T -->|Yes| M[MCP transport selected by its versioned contract]
+  T -->|No| A{Remote agent task exchange?}
+  A -->|Yes| A2A[Evaluate a pinned A2A version and Agent Card] 
+  A -->|No| R[Choose a documented application transport/envelope]
+  S --> O{Structured output required?}
+  O -->|Yes| V[Validate an explicit schema at the receiving boundary]
+  O -->|No| P[Preserve text/parts with a documented parsing policy]
 ```
-Agent communication scenario?
-├── Single agent calling tools?
-│   ├── Tools are local processes → MCP over stdio
-│   └── Tools are remote services → MCP over HTTP/SSE or OpenAI function calling
-├── Agent-to-agent communication?
-│   ├── Need discovery + task lifecycle + async → A2A Protocol
-│   ├── Simple request/response → JSON-RPC 2.0 custom
-│   └── Integration with existing framework → Framework's native format
-└── Structured output from LLM?
-    ├── Machine-readable payload (APIs, schemas) → Schema-first (Zod/JSON Schema)
-    └── Creative/exploratory content → Validate-after parsing
-```
+
+JSON-RPC defines a request/response envelope; it does not establish the caller’s
+identity, authorization, or agent capability semantics. A bridge must map those
+separately.
 
 ### Schema Strictness Decision
 
+```mermaid
+flowchart TD
+  P[Payload boundary] --> C{Receiver needs fields to decide or execute?}
+  C -->|Yes| S[Use a versioned schema; reject or safely quarantine invalid fields]
+  C -->|No| X{Text carries an instruction or assertion?}
+  X -->|Yes| V[Parse only the declared structured part; preserve text separately]
+  X -->|No| T[Keep text with size, encoding, and provenance limits]
+  S --> M[For mixed payloads, validate each typed part independently]
 ```
-If payload type is:
-├── Tool call parameters → Always schema-first (breaks without structure)
-├── Agent capability cards → Always schema-first (discovery needs reliability)  
-├── Task handoff data → Always schema-first (automation requires structure)
-├── Error/retry signals → Always schema-first (programmatic retry logic)
-├── Creative text output → Always validate-after (schema kills creativity)
-├── Analysis results → Validate-after with fallback extraction
-└── Mixed content → Use Parts array: schema-first for DataPart, validate-after for TextPart
-```
+
+Schema-first is a boundary decision, not a claim that a schema prevents semantic or
+authorization errors. A text field can be valuable while remaining non-executable.
 
 ### Streaming vs Batch Decision
 
+```mermaid
+flowchart TD
+  W[Work/result delivery need] --> I{Need incremental, resumable progress?}
+  I -->|Yes| S[Use the selected protocol's documented streaming model]
+  I -->|No| B[Use batch request/response or a polled task resource]
+  S --> R[Define cancellation, resume token, duplicate, and final-receipt semantics]
+  B --> R
+  R --> O[Record application outcome separately from transport acknowledgement]
 ```
-If user experience requires:
-├── Progressive output (user-facing) → Streaming (SSE/WebSocket)
-├── Long-running tasks (>30s) → Streaming with status updates
-├── Agent-to-agent pipelines → Batch (cleaner error handling)
-├── Cost tracking critical → Batch (known token count upfront)
-├── Mid-stream recovery needed → Batch (streaming error handling is complex)
-└── Simple integration → Batch (HTTP request/response)
-```
+
+Choose streaming from the actual protocol contract and deployment recovery model; task
+duration, token use, and a “simple” integration are not universal selectors.
 
 ## FAILURE MODES
 
 ### Schema Drift
 **Symptoms:** Runtime validation errors between agents that worked before, TypeScript compilation succeeds but runtime fails
 **Diagnosis:** Version mismatch between schema definitions, one agent updated schema without coordinating
-**Fix:** Add explicit version field to all schemas; implement backward compatibility checking; use schema registry for coordination
+**Fix:** Version the contract where independent deployments need compatibility; state
+which changes are accepted, rejected, or transformed, then test those cases at the
+receiving parser. A registry is one coordination option, not a requirement.
 
 ### Message Loss
 **Symptoms:** Conversations appear incomplete, agents retry indefinitely, duplicate processing occurs
 **Diagnosis:** No deduplication mechanism, missing correlation IDs, network issues without recovery
-**Fix:** Add UUID message IDs; implement seen-message tracking; use conversationId for threading; add retry logic with exponential backoff
+**Fix:** Define an application idempotency key, a deduplication store/lifetime, and a
+retry policy for the operation. A UUID transport/message id alone does not deduplicate
+a side effect; a conversation id alone does not establish causal order.
 
 ### Context Window Overflow 
 **Symptoms:** Agent tasks fail with "context too long", truncated conversations, incomplete tool results
@@ -114,67 +125,67 @@ If user experience requires:
 ### Protocol Tower of Babel
 **Symptoms:** Each agent pair needs custom translation, integration complexity explodes, maintenance burden
 **Diagnosis:** Every team invented their own wire format, no standardization, NIH syndrome
-**Fix:** Adopt JSON-RPC 2.0 as wire standard; use A2A for multi-agent; implement format adapters for legacy systems
+**Fix:** Choose a versioned protocol by role and contract; A2A, MCP, and JSON-RPC have distinct scopes and require an explicit adapter where bridged
 
 ## WORKED EXAMPLES
 
 ### Example 1: Task Handoff with Context Window Limits
 
-**Scenario:** Research agent (32k context) hands off to code generation agent (128k context) with 50k tokens of research data.
+**Scenario:** A sender hands off research to a receiver with a locally configured
+context budget. The numeric values below are constructed fixture inputs, not model
+limits or protocol defaults.
 
 **Decision Process:**
-1. Check receiving agent's context budget: 128k - 8k (system) - 8k (output) = 112k available
-2. Research data (50k) fits, but apply context budgeting anyway for robustness
-3. Structure handoff with priority dropping for non-critical context
+1. Obtain the receiver's declared capacity, output reserve, and fixed overhead outside the measured handoff envelope.
+2. Measure the complete candidate envelope in source order after every optional-part
+   removal; an estimate is not the admission decision.
+3. Drop optional parts by documented deterministic priority only. If the required
+   envelope cannot fit, record an unresolved handoff rather than truncating it.
 
 ```typescript
-// Research agent prepares handoff
-const contextHandoff: ContextHandoff = {
-  context: [
-    { kind: 'text', text: summary, mimeType: 'text/markdown' },
-    { kind: 'data', data: criticalFindings, schema: FindingsSchema },
-    { kind: 'text', text: detailedNotes, mimeType: 'text/plain' }
-  ],
-  estimatedTokens: 50000,
-  droppable: [
-    { partIndex: 2, priority: 1, tokenEstimate: 30000 }, // Detailed notes first
-    { partIndex: 0, priority: 2, tokenEstimate: 15000 }  // Summary if desperate
-  ],
-  summary: "Key findings: API rate limits, async patterns needed",
-  summaryTokens: 500
-};
+import { selectContextParts } from "./scripts/context-budget.mjs";
 
-// Code generation agent receives and budgets
-const budget = calculateContextBudget(128000);
-if (contextHandoff.estimatedTokens > budget.available) {
-  // Drop low-priority context
-  let remainingBudget = budget.available;
-  const finalContext = contextHandoff.context.filter((part, index) => {
-    const droppable = contextHandoff.droppable?.find(d => d.partIndex === index);
-    if (droppable && droppable.tokenEstimate > remainingBudget) {
-      return false; // Drop this part
-    }
-    remainingBudget -= droppable?.tokenEstimate || 1000;
-    return true;
-  });
+// Local data model, not a provider or A2A wire object. The measurement callback must
+// include the encoded envelope, headers, separators, and selected parts.
+const selection = selectContextParts({
+  capacityTokens: localReceiver.capacityTokens,
+  reservedTokens: localReceiver.outputReserveTokens,
+  overheadTokens: localReceiver.outsideEnvelopeOverheadTokens,
+  parts: [
+    { id: "summary", tokenEstimate: 500, required: true, priority: 0 },
+    { id: "findings", tokenEstimate: 12_000, required: true, priority: 0 },
+    { id: "notes", tokenEstimate: 30_000, required: false, priority: 1 }
+  ],
+  measureEnvelope: localTokenizer.measureCompleteEnvelope
+});
+if (selection.status !== "READY") {
+  recordUnresolvedHandoff(selection.reason); // no silent truncation of required context
+} else {
+  sendLocallyAuthorizedHandoff(selection.parts, selection.measuredTokens);
 }
 ```
 
 **Novice miss:** Would pass raw research data without token estimates, causing downstream context overflow.
-**Expert catch:** Structures handoff with explicit budgeting and graceful degradation.
+**Expert catch:** Measures each source-ordered complete envelope, drops only optional
+parts under deterministic local policy, and records an unresolved result when mandatory
+material cannot fit.
 
 ### Example 2: A2A vs MCP Protocol Choice
 
 **Scenario:** Building a document processing system with OCR agent, analysis agent, and formatting agent.
 
 **Decision Process:**
-1. Multiple agents need to discover each other → Rules out OpenAI function calling
-2. Agents run on different servers, need async task lifecycle → A2A Protocol wins over MCP
-3. Need bidirectional communication and task status → Confirms A2A choice
+1. Separate service discovery, tool invocation, and remote task lifecycle; one does
+   not automatically rule out the others.
+2. If a version-pinned A2A contract fits remote task exchange, evaluate its task and
+   streaming semantics alongside the deployment’s authorization model.
+3. If a host needs tool access, retain MCP for that host–tool boundary; bridge it to
+   A2A only through an explicit adapter with mapped identities and operation keys.
 
 ```typescript
-// Document flows through agent pipeline
-const ocrCard: AgentCard = {
+// Illustrative application-domain pseudocode. This is not an A2A Agent Card wire
+// representation; use fields from the pinned A2A specification when implementing one.
+const localOcrDescriptor: LocalOcrDescriptor = {
   agentId: 'ocr-service-v2',
   name: 'OCR Document Reader', 
   url: 'https://ocr.company.com',
@@ -184,14 +195,14 @@ const ocrCard: AgentCard = {
     outputSchema: { /* structured text schema */ }
   }],
   capabilities: {
-    streaming: true,  // Long OCR tasks need status updates
-    pushNotifications: true,  // Notify when OCR completes
-    stateTransitionHistory: true  // Track progress through pipeline
+    streaming: true,  // Local deployment elects incremental status updates
+    pushNotifications: true,  // Local delivery policy may notify on completion
+    stateTransitionHistory: true  // Local audit policy retains pipeline progress
   }
 };
 
 // Task submission to OCR agent
-const ocrTask: Task = {
+const localOcrTaskDraft: LocalTaskDraft = {
   id: generateTaskId(),
   state: 'submitted',
   messages: [{
@@ -210,79 +221,72 @@ const ocrTask: Task = {
 };
 ```
 
-**Novice miss:** Would choose MCP because "it's simpler" without considering bidirectional async requirements.
-**Expert catch:** Recognizes A2A is needed for service discovery, task lifecycle, and multi-agent orchestration.
+**Novice miss:** Assigns discovery, tool invocation, task lifecycle, and authorization
+to one unexamined protocol.
+**Expert catch:** Pins each contract version and documents the adapter boundary, because
+A2A and MCP address different roles rather than being interchangeable defaults.
 
 ### Example 3: Error Recovery with Retry Logic
 
 **Scenario:** Analysis agent fails during processing due to rate limiting, needs intelligent retry.
 
 **Decision Process:**
-1. Detect error type from structured error codes
-2. Check retryable flag and backoff parameters
-3. Implement exponential backoff with jitter
-4. Escalate to human after max retries
+1. Decode a received error into a local classification; remote classification is not
+   itself proof that no external effect occurred.
+2. Apply a locally validated retry/attempt/deadline policy, and use a trusted
+   `Retry-After` value only as a minimum delay.
+3. Preserve the business operation key and plan only a next start that leaves positive
+   wall-clock time; separately bound request execution and reconcile the key remotely.
+4. Return a confirmed known rejection only under a trusted absence/reconciliation
+   contract; otherwise retain an unresolved external outcome.
 
 ```typescript
-// Agent returns structured error
-const rateLimitError: AgentError = {
-  code: 'RATE_LIMITED',
-  message: 'API quota exceeded. Try again in 60 seconds.',
-  retryable: true,
-  retryAfterMs: 60000,
-  maxRetries: 3,
-  details: {
-    quotaType: 'requests_per_minute',
-    resetTime: '2025-01-08T10:15:00Z'
-  }
-};
+import { planLocalRetry } from "./scripts/retry-policy.mjs";
 
-// Calling agent implements retry logic
-async function callAgentWithRetry(agent: AgentCard, task: Task, attempt = 1): Promise<Task> {
-  try {
-    return await callAgent(agent, task);
-  } catch (error) {
-    if (error instanceof AgentError && error.retryable && attempt <= error.maxRetries) {
-      // Exponential backoff with jitter
-      const baseDelay = error.retryAfterMs || 1000;
-      const jitter = Math.random() * 0.1 * baseDelay;
-      const delay = baseDelay * Math.pow(2, attempt - 1) + jitter;
-      
-      await sleep(delay);
-      return callAgentWithRetry(agent, task, attempt + 1);
-    } else {
-      // Not retryable or max attempts exceeded
-      return {
-        ...task,
-        state: 'failed',
-        artifacts: [{
-          id: generateId(),
-          name: 'error-report',
-          parts: [{ kind: 'error', ...error }],
-          createdAt: new Date().toISOString(),
-          index: 0
-        }]
-      };
-    }
-  }
+// Local error record, not a protocol-defined exception class. The local policy, not
+// remote `maxRetries`, binds attempt count and wall-clock budget.
+const next = planLocalRetry({
+  operationKey: persistedOperationKey,
+  completedAttempts,
+  nowMs: clock.now(),
+  error: decodedRemoteError,
+  policy: localRetryPolicy
+});
+if (next.kind === "RETRY") {
+  persistRetryPlan(next); // reuse next.operationKey for the next local attempt
+} else if (next.kind === "KNOWN_REJECTION") {
+  recordKnownRejection(next);
+} else {
+  recordUnresolvedExternalOutcome(next); // no claim that a prior request had no effect
 }
 ```
 
 **Novice miss:** Would retry immediately without backoff, or give up after first failure.
-**Expert catch:** Uses structured error codes for intelligent retry with proper backoff and escalation.
+**Expert catch:** Couples a locally bounded retry policy to a stable operation key,
+next-start deadline, explicit classification, and an unresolved external outcome. A
+stable key is a reconciliation prerequisite, not proof that a remote effect is idempotent
+or absent; the helper plans a start and does not bound its execution. The pure helpers and their
+boundary fixtures are [context-budget.mjs](scripts/context-budget.mjs),
+[retry-policy.mjs](scripts/retry-policy.mjs), and
+[test-local-helpers.mjs](scripts/test-local-helpers.mjs).
+
+The measurement callback must resolve each part ID to its actual immutable content. Do not count its headers twice: `overheadTokens` covers only context outside the measured envelope. Token counts are exact only for the chosen tokenizer and serialization; reserve for any unmeasured provider framing. Local selectors receive a validated argument object and a trusted measurement function.
 
 ## QUALITY GATES
 
-- [ ] Every message envelope includes unique `id`, `conversationId`, and ISO-8601 `timestamp`
-- [ ] Parts use discriminated union with `kind` field for type safety
-- [ ] Agent Cards are published at discoverable `.well-known/agent.json` URL  
-- [ ] Error objects include `retryable` boolean and typed `code` enum
-- [ ] Context handoffs include token estimates and priority-based dropping
-- [ ] All schemas validate round-trip: serialize → deserialize → equals original
-- [ ] Binary content uses URI references, not base64 embedding
-- [ ] Backward compatibility maintained across schema versions
-- [ ] Streaming events include monotonic sequence numbers for ordering
-- [ ] No sensitive data in message metadata (use proper auth headers)
+- [ ] The application contract identifies its operation/idempotency key, causal or
+  conversation relationship, and time semantics where they are needed. A stable key is
+  paired with a remote idempotency/reconciliation contract; it is not proof by itself.
+- [ ] Each declared part has a parser and a bounded failure path; a discriminated union
+  is one implementation option.
+- [ ] Retrieve the versioned Agent Card through the selected discovery mechanism and
+  verify its configured trust binding before use.
+- [ ] Error/retry fields distinguish a transport response from a completed external effect.
+- [ ] Context handoffs use safe local numeric inputs, measure the complete envelope in
+  source order after every reduction, and never silently remove required parts.
+- [ ] Compatibility fixtures exercise accepted, rejected, and unknown-field inputs.
+- [ ] Binary data, URI references, metadata redaction, ordering, and streaming resume
+  are selected from the actual protocol/deployment contract and tested accordingly.
 
 ## NOT-FOR Boundaries
 
@@ -297,3 +301,10 @@ async function callAgentWithRetry(agent: AgentCard, task: Task, attempt = 1): Pr
 - Schema validation logic → Use `typescript-advanced-patterns` for Zod/branded types
 - Network transport → Use `systems-architecture` for HTTP/WebSocket setup
 - Authentication flows → Use `auth-patterns` for OAuth2/JWT implementation
+
+## Evidence and diagrams
+
+- [Versioned interchange boundary](references/versioned-interchange-boundary.md)
+  maps MCP, A2A, and JSON-RPC roles without treating an envelope as identity proof.
+- [MCP–A2A bridge sequence](diagrams/01_mcp-a2a-bridge.md)
+- [Validation and provenance path](diagrams/02_validation-provenance.md)

@@ -1,79 +1,69 @@
-# Queue & Retries
+# Queue tasks and retries
 
-Fetch https://developers.cloudflare.com/agents/api-reference/queue-tasks/ and https://developers.cloudflare.com/agents/api-reference/retries/ for complete documentation.
+Primary sources read 2026-09-24: [Queue tasks](https://developers.cloudflare.com/agents/runtime/execution/queue-tasks/) and [Retries](https://developers.cloudflare.com/agents/runtime/execution/retries/). Queue tasks are SQLite-backed FIFO work owned by an Agent. Retry behavior repeats a callback after a thrown error; it does not settle an external outcome.
 
-## Built-in Queue
+## Queue lifecycle
 
-FIFO queue persisted in SQLite. Sequential processing, one item at a time.
+    type Mail = { operationKey: string; recipientId: string; summary: string };
 
-```typescript
-export class MyAgent extends Agent<Env, State> {
-  async onRequest(request: Request) {
-    this.queue("processItem", { id: "abc", data: "..." });
-    this.queue("processItem", { id: "def", data: "..." }, { retry: { maxAttempts: 5 } });
-    return new Response("Queued");
-  }
+    class MailAgent extends Agent {
+      async accept(mail: Mail) {
+        // Validate/authorize before admitting durable work.
+        const taskId = await this.queue("processMail", mail, {
+          retry: { maxAttempts: 5 }, // constructed local policy
+        });
+        return { status: "accepted", taskId, operationKey: mail.operationKey };
+      }
 
-  async processItem(payload: { id: string; data: string }, queueItem: QueueItem) {
-    await doWork(payload);
-  }
-}
-```
-
-### Queue Management
-
-```typescript
-const items = this.getQueue();
-const byCallback = this.getQueues("processItem");
-this.dequeue(itemId);
-this.dequeueAll();
-this.dequeueAllByCallback("processItem");
-```
-
-## Retries
-
-Exponential backoff with full jitter. Defaults: 3 attempts, 100ms base, 3000ms max.
-
-```typescript
-const result = await this.retry(
-  async () => {
-    const res = await fetch("https://api.example.com/data");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  },
-  {
-    maxAttempts: 5,
-    baseDelayMs: 200,
-    maxDelayMs: 5000,
-    shouldRetry: (err, nextAttempt) => {
-      if (err.message.includes("429")) return true;
-      if (err.message.includes("401")) return false;
-      return nextAttempt <= 3;
+      async processMail(mail: Mail, item: QueueItem<Mail>) {
+        const prior = await this.findEffectReceipt(mail.operationKey);
+        if (prior?.status === "completed") return;
+        await this.recordAttempt(item.id, mail.operationKey);
+        await this.deliverOrRecordUnknown(mail);
+      }
     }
-  }
-);
-```
 
-### Retry on Schedules and Queue
+The documented queue signature returns a task ID. QueueItem contains an ID, payload, callback, created timestamp, and optional retry configuration. The queue validates the callback, processes tasks FIFO, removes successfully executed tasks, stores tasks through restart, and retries a throwing callback with configured RetryOptions.
 
-```typescript
-await this.schedule(60, "task", payload, { retry: { maxAttempts: 3 } });
-await this.scheduleEvery(30, "poll", undefined, { retry: { maxAttempts: 2 } });
-this.queue("handler", payload, { retry: { maxAttempts: 5 } });
-```
+The documented management methods are dequeue(id), dequeueAll(), dequeueAllByCallback(callback), getQueue(id), and getQueues(key, value). Removing a task is queue management, not reversal of an already dispatched provider request.
 
-### Class-level Defaults
+## Retry classification and unknown outcomes
 
-```typescript
-export class MyAgent extends Agent<Env, State> {
-  static options = {
-    retry: { maxAttempts: 5, baseDelayMs: 200, maxDelayMs: 10000 }
-  };
-}
-```
+    // Local example: retry only an authorized, repeatable HTTP read.
+    // This is not an SDK error class or a policy for provider writes.
+    class ReadFailure extends Error {
+      constructor(readonly kind: "http" | "transport", readonly status?: number) {
+        super("read failed");
+      }
+    }
+    const retryableStatuses = new Set([429, 502, 503, 504]); // local policy
+    const result = await this.retry(
+      async () => {
+        let response: Response;
+        try {
+          response = await fetch(authorizedReadUrl, { method: "GET" });
+        } catch {
+          throw new ReadFailure("transport");
+        }
+        if (!response.ok) throw new ReadFailure("http", response.status);
+        return response.json();
+      },
+      {
+        maxAttempts: 3,
+        shouldRetry: (error, nextAttempt) =>
+          nextAttempt <= 3 && error instanceof ReadFailure &&
+          (error.kind === "transport" || retryableStatuses.has(error.status ?? 0)),
+      },
+    );
 
-## Important
+The typed classifier leaves invalid JSON, programming errors and HTTP authorization
+failures outside this retry set. Supply request timeout, backoff, rate-limit handling
+and the allowed destination in application policy. Never classify an error by a
+substring of its human-readable message. A transport retry is appropriate here
+only because this example's operation is a repeatable read.
 
-- `shouldRetry` only works on `this.retry()` — not on schedule/queue (callbacks aren't serializable)
-- Queue retries block head-of-line; long delays keep the DO awake — use `schedule` for long waits instead
-- No dead-letter queue — failed items are removed after retries exhausted
+The retry callback receives a one-indexed attempt; thrown errors retry by default, while shouldRetry can classify an error for this call. Queue/schedule callbacks use serializable retry options rather than this function predicate. Do not carry source defaults or a sample attempt count into product policy.
+
+Classify invalid input and authorization failure as terminal. For timeout/disconnect after a provider request, persist the attempt and lookup/receipt key, then retain unknown until a provider readback or an explicit retry/compensation policy resolves it. Queue acceptance, a task ID, and a successful handler return are distinct evidence claims.
+
+Examples are illustrative and package-untypechecked. No queue, retry, fetch, or provider request ran.

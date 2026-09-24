@@ -1,54 +1,52 @@
 # Agent Labor Pricing Decision Brief
 
-[One sentence naming the product feature, buyer segment, and pricing decision being made.]
+## Evidence label
 
-## Chosen Model
+- **Decision status**: [draft / revised / blocked]
+- **Evidence scope**: [declared planning inputs; dated official price source; measured internal ledger]
+- **Not established**: [market acceptance, runtime enforcement, demand, theorem property]
 
-- **Model**: [per-seat | metered | credits | hybrid | outcome]
-- **Why this model fits**: [one paragraph tying the model to the value metric and buyer sophistication, citing `references/pricing-model-decision-guide.md`]
+## Buyer, service, and metric
 
-## Value Metric
+- **Buyer and authority**: [who decides and forecast horizon]
+- **Service boundary**: [what is and is not included]
+- **Buyer-facing value unit**: [unit and why it is predictable before commitment]
+- **Seller cost unit**: [calls/tool/review basis; distinct from value unit]
 
-- **Name / unit**: [e.g. "completed fleet task" / completed-task]
-- **Buyer can predict it before running work?**: [Yes/No — if No, name the replacement metric]
-- **Why the buyer would trust this metric**: [what they already track that maps to it]
+## Model choice
 
-## Cost Floor
-
-| Component | $ per unit |
-| --- | --- |
-| Model token cost | [value] |
-| Tool/compute cost | [value] |
-| Overhead | [value] |
-| **Total unit cost floor** | **[sum]** |
-
-## Price Points
-
-| Tier | Base price | Included units | Overage rate |
+| Chosen model | Why it fits | Rejected model | Reconsider if |
 | --- | --- | --- | --- |
-| [tier] | [$] | [units] | [$/unit or "unmetered — see margin-erosion note"] |
+| [model] | [buyer/use distribution] | [model] | [observable condition] |
 
-## Guardrails
+## Cost ledger and price points
 
-| Guardrail | Status | Notes |
+| Component | Allocation rule | $ per unit | Source/date/status |
+| --- | --- | ---: | --- |
+| Model work | [calls and token basis] | | |
+| Tools/compute | | | |
+| Support/review/infra | | | |
+| Collection/payment | | | |
+| **Fully-loaded total** | | **[sum]** | |
+
+| Tier | Base | Included unit | Excess-use treatment | Heavy-persona result |
+| --- | ---: | ---: | --- | --- |
+| | | | | |
+
+## Guardrails and outcome policy
+
+| Requirement | Declared state | Hand-check artifact |
 | --- | --- | --- |
-| Spend cap | [present/planned/missing] | |
-| Budget preview | [present/planned/missing] | |
-| Per-task estimate | [present/planned/missing] | |
-| Transparent metering | [present/planned/missing] | |
+| Buyer cap | [true/false] | |
+| Pre-commitment preview | [true/false] | |
+| Per-task estimate | [true/false] | |
+| Line-item receipt | [true/false] | |
+| Outcome verifier / unknown policy | [not applicable or named] | |
 
-## Persona Stress Test
+## Stress report
 
-Run `node scripts/pricing_stress.mjs --input <plan>.json` and paste the result:
+Paste `pricing_stress.mjs` JSON and identify each blocked, negative, thin, retry, missing excess-treatment, and unknown-result case. `marginByPersona` is an array so every named input is preserved. A `pass` is static evidence limited to this input; default CLI output is report-only, while `--strict` turns `blocked` into exit status 2.
 
-```json
-[paste the full JSON output here]
-```
+## Decision and next check
 
-- **Pass**: [true/false]
-- **Bill-shock risk level**: [none/low/medium/high]
-- **Findings requiring action before launch**: [list]
-
-## Decision
-
-[Ship / revise — and the specific change required if revising, tied to a finding above.]
+[Revision, rejection, or scoped draft decision.] Name the changed assumption and the event that requires a re-run.

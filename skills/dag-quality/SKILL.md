@@ -22,7 +22,7 @@ tags:
 
 # DAG Quality
 
-Validates outputs, scores confidence, detects hallucinations, monitors convergence, decides on iteration, and synthesizes feedback. The quality gate between DAG nodes. Consolidates dag-output-validator, dag-confidence-scorer, dag-hallucination-detector, dag-convergence-monitor, dag-iteration-detector, and dag-feedback-synthesizer.
+Coordinates separate quality evidence lanes between DAG nodes. Use [Multidimensional Quality and Evidence Status](references/multidimensional-quality-and-evidence-status.md): schema conformance, claim evidence, provenance, uncertainty, acceptance, and user preference are not interchangeable scores.
 
 ---
 
@@ -30,7 +30,7 @@ Validates outputs, scores confidence, detects hallucinations, monitors convergen
 
 ✅ **Use for**:
 - Validating node output against declared schema
-- Scoring confidence on agent outputs (0-1)
+- Evaluating a defined confidence forecast with an outcome oracle and calibration evidence
 - Detecting fabricated content, false citations, unverifiable claims
 - Deciding whether to iterate (re-execute a node or loop)
 - Generating structured improvement feedback for re-execution
@@ -47,16 +47,15 @@ Validates outputs, scores confidence, detects hallucinations, monitors convergen
 
 ```mermaid
 flowchart TD
-  O[Node output] --> SV[Schema validation]
-  SV -->|Invalid| REJ[Reject + specific errors]
-  SV -->|Valid| CV[Content validation]
-  CV --> CS[Confidence scoring]
-  CS --> HD[Hallucination detection]
-  HD --> D{Quality above threshold?}
-  D -->|Yes| ACC[Accept → pass to downstream]
-  D -->|Below threshold, iteration < max| FB[Generate feedback]
-  FB --> RE[Re-execute with feedback]
-  D -->|Below threshold, iteration = max| ESC[Escalate to human]
+  O[Node output] --> SV[Structural contract result]
+  O --> CE[Claim-evidence result]
+  O --> PV[Provenance and authority result]
+  O --> UP[User/task preference result]
+  SV --> D[Declared acceptance evaluator]
+  CE --> D
+  PV --> D
+  UP --> D
+  D --> ACC[Accept, hold, reject, or escalate with reasons]
 ```
 
 ### Schema Validation
@@ -77,32 +76,25 @@ Semantic check: is the content reasonable?
 
 ### Confidence Scoring
 
-Aggregate four evaluator signals (see skill-lifecycle.md for full architecture):
-
-| Evaluator | Weight | Signal |
-|-----------|--------|--------|
-| Self-evaluation | 0.15 | Agent's own assessment (sycophancy-biased) |
-| Peer evaluation | 0.25 | Separate judge agent with skill-grader |
-| Downstream evaluation | 0.35 | Next node reports usability |
-| Human evaluation | 0.50 | At human gates, gold standard |
-
-Final score = weighted average of available signals (normalize weights to sum to 1.0).
+Record confidence only as a forecast of a defined event with a resolution source and calibrated cohort. Do not combine self, peer, downstream, or human observations into a universal score; an aggregate requires a declared decision loss and validation.
 
 ### Hallucination Detection
 
-Specific checks for fabricated content:
-- **Citation verification**: Do cited sources exist? Do they say what's claimed?
+Claim-evidence checks:
+- **Citation verification**: Is the source identity, passage, date, and entailment/contradiction relation inspectable?
 - **Internal consistency**: Does the output contradict itself or the input?
-- **Confidence calibration**: High-confidence claims on topics where uncertainty is expected
+- **Uncertainty**: Missing or inaccessible evidence is insufficient evidence, not falsity.
 - **Entity verification**: Do named entities (people, tools, APIs) actually exist?
 
 ### Iteration Decision
 
-```
-If quality_score >= 0.8: ACCEPT
-If quality_score < 0.8 AND iterations < max_iterations: ITERATE with feedback
-If quality_score < 0.5 AND iterations >= max_iterations: ESCALATE to human
-If quality_score < 0.3 on first attempt: ESCALATE immediately (fundamentally wrong)
+```mermaid
+flowchart TD
+    A[Acceptance condition unmet or new evidence] --> B[Identify affected evidence lane and artifact]
+    B --> C{Authorized bounded change can test a causal factor?}
+    C -->|Yes| D[Propose revision with acceptance/regression checks]
+    C -->|No| E[Hold or escalate with unresolved evidence]
+    D --> F[Record new result without overwriting prior evidence]
 ```
 
 ### Feedback Synthesis
@@ -110,10 +102,11 @@ If quality_score < 0.3 on first attempt: ESCALATE immediately (fundamentally wro
 When iterating, produce structured improvement guidance:
 ```json
 {
-  "overall_score": 0.65,
+  "acceptance_status": "needs_revision",
+  "contract": "illustrative-five-recommendation-contract",
   "specific_issues": [
     {"field": "recommendations", "issue": "Only 2 of 5 required recommendations provided", "fix": "Add 3 more recommendations addressing scalability, testing, and deployment"},
-    {"field": "citations", "issue": "Source [3] returns 404", "fix": "Replace with a working source or remove the claim"}
+    {"field": "citations", "issue": "Source [3] was not retrievable at review time", "fix": "Record insufficient evidence and verify source identity/claim entailment before retaining the claim"}
   ],
   "strengths_to_preserve": ["Clear structure", "Good code examples"],
   "iteration_guidance": "Focus on completeness (missing recommendations) and citation accuracy. Do not rewrite the well-structured sections."
@@ -124,14 +117,14 @@ When iterating, produce structured improvement guidance:
 
 ## Convergence Monitoring
 
-Track quality scores across iterations to detect:
-- **Improving**: Score trending up → continue iterating
-- **Plateauing**: Score stable for 2+ iterations → stop, accept current best
-- **Degrading**: Score declining → stop, revert to best previous iteration
-- **Oscillating**: Score alternating up/down → stop, the feedback is contradictory
+Track declared acceptance conditions and comparable evidence across revisions:
+- **Improving**: a comparable acceptance measure improves; continue only if a bounded useful revision and remaining authority/resources justify it
+- **Plateauing**: the same acceptance condition is unmet and no changed-factor experiment remains → hold or escalate
+- **Degrading**: a revision fails its declared regression check → retain the prior artifact and investigate
+- **Oscillating**: evaluators disagree → preserve their evidence and route by the declared conflict policy
 
 ---
 
-## Replaces
+## Related specialisms
 
-Consolidates: `dag-output-validator`, `dag-confidence-scorer`, `dag-hallucination-detector`, `dag-convergence-monitor`, `dag-iteration-detector`, `dag-feedback-synthesizer`
+This coordinating skill routes to these narrower skills; their existence is not a claim that a runtime implementation has been replaced: `dag-output-validator`, `dag-confidence-scorer`, `dag-hallucination-detector`, `dag-convergence-monitor`, `dag-iteration-detector`, `dag-feedback-synthesizer`

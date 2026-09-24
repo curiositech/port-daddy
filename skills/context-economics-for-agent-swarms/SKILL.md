@@ -63,18 +63,18 @@ halt, or issue a rebodiment verdict. During a halt, work only from inert files,
 schemas, fixtures, PR evidence, and fake observations. Any live observation or
 durable note must use an independently authorized interface outside this skill.
 
-**The two-sentence thesis.** In a fleet of coding agents, *tokens are simultaneously
-the bill and the map.* They are the **cost-of-goods-sold (COGS)** — the metered,
-per-task variable cost any economy must account for — and they are the **legibility
-mechanism**: the only way a human (or another agent) ever sees what a swarm did is a
-*compaction* of its raw trajectory. The digest IS compaction. So the same engineering
-choice — what to keep, what to drop — is at once a cost-control decision and a
-truth-telling decision. Optimize one without the other and you ship a fleet that is
-either bankrupt or illegible.
+**Working thesis.** Token usage can be a directly metered API cost, a provider-native
+subscription allowance, or both under different routes. Input tokens also occupy
+context even when a pricing rule discounts cached input. A compaction changes the
+working representation and may affect evidence retention, but files, diffs, database
+records, tool receipts, UI views, and permissioned links can also carry the work's
+provenance. Budget, compaction, and digest design therefore need separate ledgers and
+separate checks.
 
-This skill is for deciding **how many tokens each agent gets, how that context is
-compacted as it fills, how the swarm's shared digest is produced, and how to detect
-the failure cascade when compaction lies.**
+This skill helps plan per-role context budgets, choose compaction methods, construct
+reader-specific digests, record cost and capacity evidence, and evaluate whether a
+particular compression policy preserves the task facts it needs. It does not assume
+compression is cheaper or safer without measurement.
 
 ---
 
@@ -82,15 +82,16 @@ the failure cascade when compaction lies.**
 
 | Identity | What a token is here | Who pays attention | The optimization target |
 |---|---|---|---|
-| **COGS** | a metered variable cost charged per task | the operator / the market | minimize $ per landed unit of work |
-| **Working memory** | a slot in a finite **attention budget** | the agent mid-task | maximize signal density before degradation |
-| **Legibility lens** | a unit of the digest someone else reads | the human + successor agents | maximize recall-of-truth, zoom preserved |
-| **Scarce allowance** | a provider-native subscription window consumed without a stable per-call price | the operator + capacity broker | preserve useful headroom and reset-aware optionality |
+| **Cash cost** | metered API, tools, labor, credits, and recurring commitments, as applicable | the operator or payer | compare complete costs for the same task and quality target |
+| **Context occupancy** | input/output tokens and other content counted in the model's working window | the acting model and caller | preserve required information within measured route constraints |
+| **Evidence access** | artifacts, receipts, permissions, links, and derived digests | operators, reviewers, successors | keep claims traceable and access-controlled |
+| **Scarce allowance** | provider-native request/token/percentage windows and reset rules | account owner and scheduler | retain native units and make unknown capacity explicit |
 
-> **Legibility-with-zoom (the cardinal rule).** Every digest is a *lens onto the real
-> artifact, never a replacement for it.* Over-flattening — a summary you cannot zoom
-> back from to the source — is the failure mode, not the goal. (This is Scott's warning
-> about high-modernist over-legibility crushing local knowledge, applied to compaction.)
+> **Legibility-with-zoom.** Treat each digest as a derived view with source pointers,
+> not as a replacement for underlying evidence. This is a local design analogy to
+> Scott's critique of high-modernist simplification; it is not an empirical result
+> about language-model summaries. Pointers still require correct identity, permission,
+> availability, and source-version checks.
 
 ---
 
@@ -98,26 +99,30 @@ the failure cascade when compaction lies.**
 
 ### 1. Per-agent context budget allocation
 
-```
-What is this agent's role on the task?
-├─ Orchestrator / planner
-│   └─ SMALL working budget, LARGE digest-read budget.
-│      It should hold the plan + sub-agent summaries, NOT raw tool output.
-│      Budget: ~system 4K + plan 4K + N×(1–2K sub-agent digests).
-├─ Deep worker (edits files, runs tools)
-│   └─ LARGE working budget, but CLEAN window (sub-agent isolation).
-│      Give it ≤3–5 always-loaded tools; discover the rest. Return a
-│      1–2K distilled summary upward, NOT its transcript.
-└─ Reviewer / auditor
-    └─ MEDIUM budget anchored on the DIFF + the obligation, not history.
-       Re-derive from artifacts (git, claims) over scrollback.
+```mermaid
+flowchart LR
+    T[Task and route] --> P[Role budgets]
+    P --> O[Planner context]
+    P --> W[Worker context]
+    W --> D[Evidence handoff]
+    D --> O
+    D --> R[Review diff]
+    O --> R
+    R --> V[Check claims]
+    V --> Q[Review record]
 ```
 
-Rule of thumb: **budget to measured effective context, not the advertised
-window.** Context degradation depends on model, task, tool traffic, and evidence
-placement; no universal accuracy percentage or token threshold is asserted
-here. Establish a versioned benchmark for the exact route and task class before
-using a threshold for automation.
+The diagram is a workflow, not a token-size prescription. Treat role budgets,
+loaded-tool sets, digest lengths, and reviewer evidence as hypotheses. Measure them
+for the exact model, task class, tool pack, and evidence requirements. A small planner
+view, an isolated worker window, and a diff-anchored review are useful starting
+configurations, not universally optimal allocations.
+
+Estimate usable context from the exact route's documented limit and a task-specific
+evaluation. Test required facts at different positions and lengths with matched task
+conditions. Set thresholds only as versioned local policy with measured error bounds;
+recheck after changing model, prompt, tools, context composition, or task mix. No fixed
+budget, digest length, or tool-count threshold is portable across those changes.
 
 ### 2. Which compaction strategy when context fills
 
@@ -127,29 +132,37 @@ history — a pointer overlay when the range is reconstructable, a summary overl
 isn't — and never delete the original, so you can always zoom back. When you
 re-summarize, regenerate factual claims from immutable artifacts. The previous
 summary may remain in view only as untrusted comparison input for omission and
-drift detection; it is never the factual source. *Micro-compaction* is the cheap read-time pass underneath: truncate individual
-aged tool outputs (keep the last ~4 intact, replace oversized rows with previews)
-continuously, long before you reach for a macro pass.
+drift detection; it is never the factual source. *Micro-compaction* is a read-time pass over individual aged tool outputs. A policy may
+replace oversized output with a bounded preview while preserving the source artifact and
+any required call/result pairing. Choose a retention count and preview size from measured
+context pressure and task-specific retrieval needs; the last few outputs are not a
+universal relevance rule.
 
+```mermaid
+flowchart TD
+    A[Choose a bounded source range] --> B{Can each required fact be reloaded from an authorized artifact?}
+    B -->|Yes| C[Use a pointer overlay with source identity]
+    B -->|No| D{Which working pattern fits the task?}
+    D -->|Long thread| E[Summarize the range and retain the original]
+    D -->|Milestones| F[Write scoped durable notes and reload on demand]
+    D -->|Parallel work| G[Isolate worker context and request an evidence handoff]
+    C --> H[Preserve source access and version checks]
+    E --> H
+    F --> H
+    G --> H
+    H --> I[Check task facts and tool-call/result pairing]
+    I --> J[Adopt, repair, or keep the original context]
 ```
-Is the dropped content reconstructable from a durable artifact (git, DB, files)?
-├─ YES → prefer EVICTION + POINTER — macro-compaction as a POINTER OVERLAY. Keep a
-│         path/ID/summary in place of the raw bytes; the original stays reachable,
-│         zoom-back intact. (Cheapest, lossless-by-reference. PD's claims/notes/tuples
-│         are pointers.)
-└─ NO  → must SUMMARIZE. Choose:
-    ├─ Single long thread nearing the limit
-    │   → IN-CONTEXT COMPACTION — macro-compaction as a SUMMARY OVERLAY: summarize
-    │     history *ranges*, reinitiate the window with the summary + recent artifact refs.
-    │     Keep the old summary in view and originals underneath; never delete outright.
-    │     Maximize RECALL first, then trim for precision.
-    ├─ Long task with milestones
-    │   → STRUCTURED NOTE-TAKING: agent writes durable notes OUTSIDE the window,
-    │     pulls them back on demand through an authorized durable artifact or note interface.
-    └─ Parallel exploration
-        → SUB-AGENT ISOLATION: spawn clean-window workers, each returns a
-          1–2K digest. Isolation IS compaction — the parent never sees the bloat.
-```
+
+**Pointer and summary overlays are different.** A pointer is reconstructable only
+when the referenced artifact is durable, available, authorized for this reader, and
+bound to the correct source version. Otherwise it is a missing input, not lossless
+compression. A summary is a lossy derived view even when its source remains available.
+Do not overwrite the source artifact with the summary. Tool-call/result pairing must
+be preserved whenever the target protocol requires it; verify that rule against the
+specific harness/version rather than assuming all providers use the same history
+format. Sub-agent isolation reduces what the parent receives but still incurs worker,
+merge, and handoff context costs.
 
 > **Boundary rule — never split a pair.** Any move that summarizes or truncates message
 > history — macro range overlays and micro tool-output truncation alike — must shift its
@@ -162,35 +175,46 @@ Is the dropped content reconstructable from a durable artifact (git, DB, files)?
 *Durable-agents cross-reference:* micro/macro compaction, overlays, and boundary-aware
 ranges are the *in-session* half of the durable-agent picture. For the full industry
 comparison (Cloudflare, Temporal, LangGraph, Letta) and how Port Daddy's primitives map
-onto it, see `docs/research/durable-agents-landscape-2026-07.md`.
+onto it, see `docs/research/durable-agents-landscape-2026-07.md`. This cross-reference
+is not a provider capability claim; refresh the cited landscape before relying on it.
 
 ### 3. Shared digest (the swarm's compaction) — granularity
 
+```mermaid
+flowchart TD
+    E[Source artifacts and access policy] --> D[Build a derived digest]
+    D --> H[Human view: decision, status, linked evidence]
+    D --> S[Successor view: open obligations, owners, source pointers]
+    D --> M[Accounting view: attempts, token classes, tools, outcome]
+    H --> Z[Reader follows permitted source links]
+    S --> Z
+    M --> Z
+    Z --> C[Check source identity and current access]
 ```
-Who reads this digest, and can they zoom?
-├─ The human operator (Attention Queue)
-│   → headline + counts + the ONE thing needing a decision. Must deep-link to
-│     the PR/diff/note. If it can't zoom, it's over-flattened — reject.
-├─ An arriving / successor agent (briefing, resurrection handoff)
-│   → "what happened before you got here": open claims, recent notes, unfinished
-│     obligations. Bias toward POINTERS over prose (cheaper, re-fetchable, honest).
-└─ The market / billing layer (L3)
-    → not prose at all: a metered ledger of tokens-per-task keyed to outcomes.
-```
+
+Choose fields for each reader's decision. A link is useful only if it resolves to the
+right artifact and the reader is authorized. A digest must not imply that a source was
+read or a task succeeded merely because it has a link.
 
 ### 4. Metering / charging token spend across a fleet (mechanism design)
 
+```mermaid
+flowchart TD
+    A[Identify payer, owners, and shared resources] --> B{One accountable operator or multiple strategic parties?}
+    B -->|One operator| C[Record per-task usage and local caps]
+    C --> D[Compare spend with task outcome and quality]
+    B -->|Multiple parties| E[Specify utility, attribution, and shared-cost model]
+    E --> F[Analyze externality and identity-splitting incentives]
+    F --> G[Compare accounting, allocation, or pricing rules]
+    D --> H[Review model assumptions]
+    G --> H
 ```
-Are agents under one operator (cooperative) or across operators (strategic)?
-├─ Cooperative (single-player wedge)
-│   → ACCOUNT, don't auction. Per-agent/per-task token ledger, budget caps,
-│     loud-fail when an agent blows its cap. No incentive problem — just visibility.
-└─ Strategic (multi-operator market)
-    → token spend is real COGS that must be priced. Charge the externality
-      (an agent that floods shared context degrades everyone). Beware sybil:
-      cheap identities let a fleet split work to dodge caps — tie spend to a
-      costly, persistent identity (see reputation/continuity).
-```
+
+The one-operator case often begins with accounting rather than an auction, but it can
+still involve internal incentives, shared limits, and policy constraints. In a
+multi-party design, an externality charge is one candidate mechanism, not a generally
+correct price. State the identity, budget, and cost-incidence assumptions and analyze
+them with the mechanism-design skill before making incentive claims.
 
 ### 5. Subscription capacity when per-call cost is unknowable
 
@@ -215,62 +239,71 @@ subject to the active operator/runtime policy. Never invoke them merely to fill
 or persist a capacity report, especially while a halt is active.
 
 Read `references/subscription-capacity-ledger.md` before designing an allowance
-observer, backend ranking, model switch, or subscription-backed fleet budget.
+observer, backend ranking, model switch, or subscription-backed fleet budget. Read
+`references/compaction-methods-and-cost-example.md` before adopting an ACON/PCC/Slipstream
+procedure or claiming compaction reduces cost or preserves behavior.
 Emit `capacity-evidence` that validates against
 `schemas/capacity-evidence.schema.json`, then run
 `scripts/validate-capacity-evidence.mjs` for native-unit arithmetic, alias
 conservation, forecast-route ownership, observation freshness, strict
 `issuedAt <= evaluatedAt < expiresAt` reservation freshness, reservation
-coverage, and execution-class separation.
-`fake-or-replay` evidence can fit only a simulation; `real-provider` evidence
-that supports automatic use must come from a documented structured provider or
-first-party client source. The evidence says whether a route fits; it never
-grants admission or launch authority.
+coverage, strict calendar timestamps, and execution-class separation. The checker
+requires Ajv 8 with the JSON Schema 2020 API resolvable by Node; it does not install
+dependencies.
+`fake-or-replay` evidence describes a simulation only. A separate, authorized
+real-observation pipeline may consume a documented structured provider or
+first-party-client source, but this schema and validator still do not authenticate
+that source, establish capacity, grant admission, or authorize launch.
 
 ---
 
-## FAILURE MODES (the context-degradation cascade)
+## FAILURE MODES AND LOCAL HYPOTHESES
 
-**Lost-in-the-middle starvation.** *Symptom:* agent retrieves the right document/tool but
-reasons as if it didn't; accuracy depends on *where* in the window the fact sat.
-*Root cause:* models use the beginning and end of context far better than the middle.
-*Detection:* same fact, two positions, two answers. *Fix:* put the foundational fact at
-an edge; shorten the window; don't bury the obligation in scrollback.
+Treat each entry as a testable possibility, not a universal causal law. Record the exact
+model, route, prompt, tools, task class, evidence positions, and evaluation set.
 
-**Context rot.** *Symptom:* quality silently decays as the session grows even though nothing
-was dropped. *Root cause:* every token spends the finite attention budget; transformer
-attention is n² and stretches thin. *Detection:* accuracy vs. token-count curve bends down
-well before the advertised limit. *Fix:* compact earlier and more aggressively; budget to
-effective context.
+**Position-sensitive retrieval.** Liu et al. report position-sensitive performance,
+including U-shaped patterns, for the models and tasks they evaluated. This does not
+establish a universal positional law or current-model threshold. *Local check:* hold the
+task, model, prompt, and evidence constant while moving a required fact through the
+context. *Response:* if a position effect appears, use a structured high-risk-fact section
+and verify it against its source pointer.
 
-**Recursive-summarization collapse.** *Symptom:* after several compaction rounds the agent
-confidently asserts things that never happened. *Root cause:* each summary injects a little
-LLM noise; recursion compounds it into cascading hallucination. *Detection:* claims in the
-digest with no backing artifact; drift from the source on re-read. *Fix:* compact from the
-*artifacts* (git, notes, DB) on each round, not from the previous summary; keep zoom-back
-links so every claim is auditable.
+**Context-length effects.** Task accuracy or latency may change as context length grows,
+even when needed facts remain present. Architecture-level compute cost and model behavior
+are separate claims; an attention-complexity expression does not establish why an answer
+failed. *Local check:* compare controlled lengths and positions, score task success and
+evidence use, and record versions. *Response:* choose a local budget from the measured
+quality/cost frontier; do not assume monotone degradation or a fixed safe threshold.
 
-**Over-flattening (the Scott failure).** *Symptom:* the digest reads clean and green, but the
-operator can't act because the real situation isn't reachable. *Root cause:* summary became a
-replacement, not a lens. *Detection:* a digest line with no deep-link to its artifact. *Fix:*
-every digest item must zoom; ban terminal summaries that can't be drilled into.
+**Summary drift across rounds.** A later summary may change, omit, or invent a consequential
+claim; repeated summarization can propagate an earlier error. *Detection:* compare each
+summary with immutable artifacts, required task facts, denied actions, and next-step intent.
+*Response:* regenerate from authorized artifacts, retain source pointers, and evaluate a
+finite continuation as well as immediate fact coverage. The linked ACON and Slipstream
+references provide source-specific procedures and do not claim error-free summaries.
 
-**Compaction-as-cost-blindness.** *Symptom:* fleet bill balloons; nobody can say which agent
-or task spent it. *Root cause:* tokens never metered per task. *Detection:* no token ledger
-keyed to outcomes. *Fix:* account first (a per-task token row), price later (only in the
-multi-operator market).
+**Over-flattening.** A digest may remove a distinction needed by a decision or point to an
+artifact the reader cannot access. This is a design risk, not an empirical result attributed
+to Scott. *Detection:* test required facts and source access with the intended reader.
+*Response:* preserve the source, provide permitted links, and mark missing evidence rather
+than turning it into a claim.
 
-**Subscription-as-free fiction.** *Symptom:* the scheduler exhausts the operator's
-included Codex or Claude allowance while the ledger reports `$0`. *Root cause:*
-incremental cash was confused with economic scarcity and authentication mode was
-not witnessed. *Detection:* subscription route has no native-window observation,
-reset horizon, reserve, or before/after delta. *Fix:* preserve provider units,
-show observation quality, reserve p95 burden, and block autonomous launch when
-remaining capacity is unknown.
+**Cost attribution gaps.** A task may use metered API calls, recurring subscriptions,
+credits, tools, and human time. Without per-task records, the operator cannot compare
+complete cost with outcome. Record actual usage by route, token class, attempt, cache state,
+tool, and result; calculate cash only where the actual billing mode supports it.
 
-**Schema/tool bloat.** *Symptom:* agents pick the right tool with wrong params; high cost,
-low accuracy. *Root cause:* 50 tools loaded into every window. *Detection:* >30% of context
-unused per response. *Fix:* 3–5 always-loaded tools, discover the rest (context precision).
+**Unknown or exhausted subscription allowance.** A missing or stale native-window reading
+must not be converted into unlimited capacity or zero marginal scarcity. Preserve the
+provider's unit, observation time, reset window, parser version, and uncertainty. Keep
+capacity eligibility separate from lifecycle authority and launch permission.
+
+**Tool-definition overhead.** Tool schemas may consume input and alter cache reuse, but no
+fixed tool count or unused-context percentage is a general quality threshold. Measure
+schema token share, selection/argument errors, latency, cache effects, and task outcome with
+the actual tool set. Load tools progressively only if the measured policy preserves the
+required capabilities and improves the target trade-off.
 
 ---
 
@@ -279,25 +312,33 @@ unused per response. *Fix:* 3–5 always-loaded tools, discover the rest (contex
 **Task:** ship a feature across 6 parallel agents under one operator, cash- and
 subscription-capacity-capped.
 
-1. **Budget by role.** Orchestrator: 12K (plan + six 1.5K digests). Each worker: 40K clean
-   window, ≤4 tools. Reviewer: 8K anchored on the diff.
+1. **Budget by role.** In this constructed scenario, suppose the orchestrator uses a
+   12K working cap, each worker 40K, and the reviewer 8K; the caps and four-tool worker
+   pack are examples to evaluate, not universal recommendations. Record input, cache,
+   output, route, and effort separately.
 2. **Compact by reconstructability.** Worker tool output that's in git → evict + pointer.
-   Worker reasoning that isn't → an authorized structured artifact or note so the successor can re-read it.
-3. **Build the shared digest twice, for two readers.** For the operator's Attention Queue:
-   "6 agents, 4 landed, 1 blocked on a claim conflict (→PR #123), 1 over budget (→kill?)."
-   Every clause deep-links. For an arriving 7th agent: open claims + unfinished obligations
-   as pointers, not prose.
-4. **Meter.** One token-ledger row per agent-task. Agent 5 blows its cap → loud-fail, surfaced
-   in the same digest. No auction (single operator) — just visibility.
+   Worker state that is not reconstructable → an authorized artifact recording verified
+   decisions, unresolved questions, and source pointers. Do not ask for private reasoning
+   traces as a substitute for evidence.
+3. **Build the shared digest twice, for two readers.** For an operator view, present
+   status, the decision needed, and authorized links to the diff or evidence. For a successor,
+   provide open obligations, current owners, and source pointers. The sample's agent counts
+   are illustrative; verify each claim from its artifact and do not imply a risky action
+   such as termination without a separate authorization.
+4. **Meter.** Record usage per agent-task and its outcome. In this constructed case, an
+   internal cap breach becomes a review event; the specific block/continue policy belongs
+   to the operator and must include any API or tool charges already incurred.
 5. **Watch the cascade.** Reviewer compacts from the *diff*, never from worker summaries, so a
-   worker's hallucinated claim can't propagate into the merge decision.
-6. **Preserve allowance.** The five-hour window enters `TIGHTENING`; the scheduler
-   launches no seventh worker, checkpoints the two longest episodes, and waits
-   rather than calling the subscription route free.
+   worker's unsupported claim is checked against its source before the merge decision;
+   this reduces one propagation path but does not guarantee that unsupported claims are caught.
+6. **Preserve allowance.** If a current, attributable native window becomes tight, compare
+   the projected request plus checkpoint tail with allocatable capacity; block or checkpoint
+   according to the explicit policy. A scenario state is not provider telemetry.
 
-**Novice vs expert:** novice gives all 6 agents 200K windows and one flat end-of-run summary
-(bankrupt + illegible + hallucinated). Expert budgets to effective context, isolates workers,
-compacts from artifacts, and ships a zoomable digest plus a per-task bill.
+Treat the role budgets and outcomes above as a planning example only. Compare candidate
+allocations under equal task, model, tool, and evidence conditions. Measure task completion,
+critical-fact retention, tool cost, cache behavior, latency, and failure recovery before
+choosing one as a local default.
 
 ---
 
@@ -306,7 +347,7 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Each agent has an explicit per-tier token budget sized to *effective* context, not the advertised window.
 - [ ] Every compaction step has a chosen strategy (evict+pointer / in-context summary / structured note / sub-agent isolation) with a stated reason.
 - [ ] Recursive summaries compact from durable artifacts, not from the previous summary.
-- [ ] Every digest item deep-links to its source artifact (zoom-back enforced; no terminal summaries).
+- [ ] Consequential digest claims identify source artifact/version and reader access state; links do not imply a successful read or verified claim.
 - [ ] The digest is produced per-reader (operator vs successor agent vs billing), not one-size-fits-all.
 - [ ] Token spend is metered per agent-task in a ledger keyed to outcomes; cap breaches loud-fail.
 - [ ] Cash, product credits, and subscription windows remain distinct native-unit ledgers.
@@ -314,10 +355,10 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Missing capacity is `UNKNOWN`; no scheduler infers unlimited, empty, or zero-cost capacity.
 - [ ] p95 action burn plus checkpoint tail fits allocatable capacity after reserve, outstanding reservations, unresolved-attempt holds, and drift margin.
 - [ ] Every forecast route belongs to the same bucket's canonical route aliases; no caller-selected outsider route can borrow its allowance.
-- [ ] Every admissible committed reservation is live at evaluation time under `issuedAt <= evaluatedAt < expiresAt`.
-- [ ] Pricing/auctions appear ONLY in the multi-operator case; the single-operator case accounts, it does not charge.
-- [ ] Tool exposure ≤3–5 always-loaded; the rest discovered (context precision).
-- [ ] A position/length sanity check exists (critical facts at edges; accuracy-vs-length curve known).
+- [ ] Every admissible committed reservation is live at evaluation time under `issuedAt <= evaluatedAt < expiresAt`; `CHECKPOINT_NOW` blocks a new admission even when previous evidence has a committed reservation.
+- [ ] Accounting, internal budget rules, and any pricing mechanism match the actual payer/owner model; no auction is presumed necessary or sufficient.
+- [ ] Tool exposure has a measured budget for the target task and route; no universal tool count is assumed.
+- [ ] Position/length comparisons use controlled task conditions, required-fact checks, and versioned route details.
 
 ## NOT-FOR BOUNDARIES
 
@@ -329,27 +370,26 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 
 ## KEY SOURCES
 
-- Anthropic, *Effective Context Engineering for AI Agents* (2025) — compaction, structured note-taking, attention budget, context rot, sub-agent isolation.
-- Liu et al., *Lost in the Middle* (TACL 2024 / arXiv:2307.03172) — positional degradation.
-- Acon (arXiv:2510.00615), Parallel Context Compaction (arXiv:2605.23296), Slipstream (arXiv:2605.08580) — compaction validation + collapse.
+- Anthropic, *Effective Context Engineering for AI Agents* (2025) — engineering guidance on retrieval, compaction, note-taking, and long-horizon context.
+- Liu et al., *Lost in the Middle* (TACL 2024 / arXiv:2307.03172) — position-sensitive performance in the evaluated models and tasks.
+- Kang et al., ACON v3 (arXiv:2510.00615v3); *Parallel Context Compaction* v1 (arXiv:2605.23296v1); *Slipstream* v1 (arXiv:2605.08580v1) — distinct source-specific algorithms, setup, and limits in the linked methods reference.
 - Nisan, Roughgarden, Tardos, Vazirani, *Algorithmic Game Theory* (2007) — metering, externalities, sybil.
-- Scott, *Seeing Like a State* (1998); Hobbes, *Leviathan* (1651) — legibility-with-zoom, the consented authority.
-- `references/subscription-capacity-ledger.md` — official provider observation
-  surfaces, native-unit schema, evidence quality, and fail-cheap preemption.
+- Scott, *Seeing Like a State* (1998) — an analogy for retaining source detail when building derived operational views; not evidence about LLM summaries.
+- `references/subscription-capacity-ledger.md` — dated official provider evidence pointers, native-unit schema, and policy boundaries.
+- `references/compaction-methods-and-cost-example.md` — source-grounded ACON/PCC/Slipstream procedures, a controlled local evaluation recipe, and corrected illustrative price/context arithmetic.
 
 ## Bundle Index
 
-- `references/subscription-capacity-ledger.md` — subscription-capacity truth and
-  preemption rules.
+- `references/subscription-capacity-ledger.md` — dated subscription-capacity evidence and preemption rules.
 - `schemas/capacity-evidence.schema.json` — versioned native-unit evidence and
   reservation contract; load whenever capacity may gate a body or model call.
-- `scripts/validate-capacity-evidence.mjs` — reusable structural and semantic
-  verifier for arithmetic, freshness, route ownership, aliases, and
-  reservations.
+- `scripts/validate-capacity-evidence.mjs` — static shape and consistency checker for arithmetic, timestamps, route ownership, aliases, forecasts, and reservation declarations. It does not authenticate or commit them.
+- `references/compaction-methods-and-cost-example.md` — compaction procedures, evaluation steps, and cost/context example.
 - `examples/capacity-evidence.ready.json` — admissible fake-observer fixture.
 - `examples/capacity-evidence.unknown.json` — supported fail-closed unknown
   fixture.
 - `agents/openai.yaml` — optional specialist descriptor with explicit
   non-authority and no-live-observation boundaries.
+- `tests/validate-capacity-evidence.test.mjs` — schema parity, nine root-audit regressions, and capacity/alias/time boundary cases. Requires the same Ajv 8 dependency.
 - `tests/activation.md` — positive and negative routing cases.
 - `CHANGELOG.md` — evolution of the skill contract.

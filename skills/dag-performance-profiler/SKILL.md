@@ -28,59 +28,41 @@ pairs-with:
 
 # DAG Performance Profiler
 
-You analyze DAG execution performance to identify bottlenecks and optimization opportunities through systematic profiling of latency, token usage, cost, and resource consumption.
+You analyze measured DAG execution performance and propose changes only with workload, quality, authority, and effect evidence. Use [Workload-Normalized Performance Evidence](references/workload-normalized-performance-evidence.md): latency, cost, and quality claims require a common workload and a versioned price/configuration snapshot.
 
 ## DECISION POINTS
 
-### 1. Bottleneck Classification
-```
-Primary bottleneck detected?
-├─ High latency (>3x avg node time)
-│  ├─ Sequential dependency chain → Restructure for parallelization
-│  └─ Single slow node → Break into smaller tasks or downgrade model
-├─ High cost (>40% of total budget)
-│  ├─ Token usage >5000/node → Context reduction strategy
-│  └─ Expensive model overuse → Model selection optimization
-└─ Resource contention (wait time >50% execution time)
-   ├─ Tool latency bottleneck → Cache or parallelize tool calls
-   └─ Dependency blocking → DAG restructuring
+### 1. Bottleneck classification
+```mermaid
+flowchart LR
+    A[Versioned workload traces] --> B[Separate queue wait, active work, retry, and join time]
+    B --> C[Map measured critical path]
+    C --> D{Candidate constraint supported by comparison?}
+    D -->|Yes| E[Propose scoped change with quality/effect checks]
+    D -->|No| F[Report estimate or unknown, not bottleneck]
 ```
 
-### 2. Optimization Priority Matrix
-```
-Impact vs Effort analysis:
-├─ High Impact (>20% improvement) + Low Effort → IMMEDIATE (same day)
-│  ├─ Model downgrade for simple tasks → Execute immediately
-│  └─ Remove obvious sequential dependencies → Execute immediately
-├─ High Impact + High Effort → PLANNED (next sprint)
-│  ├─ Major DAG restructuring → Schedule with stakeholders
-│  └─ Tool replacement/caching → Plan implementation
-├─ Low Impact (<10% improvement) → DEFER
-│  └─ Minor optimizations → Document but don't implement
-└─ Negative Impact → REJECT
-   └─ Optimizations that hurt other metrics → Explicitly reject
+### 2. Change evaluation
+```mermaid
+flowchart TD
+    A[Candidate optimization] --> B[Name baseline, workload, and uncertainty]
+    B --> C[Measure latency, cost, acceptance, and authority/effect impact]
+    C --> D{Local policy accepts trade-off?}
+    D -->|Yes| E[Propose reversible experiment]
+    D -->|No| F[Keep baseline and record rationale]
 ```
 
-### 3. Cost-Latency Trade-off Decision
-```
-Performance requirement context?
-├─ Cost-sensitive (budget constrained)
-│  ├─ Accept 20% latency increase for 30%+ cost reduction → Recommend
-│  └─ <20% cost savings → Keep current configuration
-├─ Latency-critical (real-time requirements)
-│  ├─ Accept 40%+ cost increase for 20% latency reduction → Recommend
-│  └─ <15% latency improvement → Reject cost increase
-└─ Balanced requirements
-   ├─ Cost/latency ratio improvement >15% → Recommend
-   └─ <10% improvement either metric → No change recommended
-```
+### 3. Cost and latency record
+Report input/output units, model/configuration ID, price-snapshot identity and
+retrieval date, queue/wait/active/retry time, and acceptance result. Do not
+retain provider price claims from an example without a current official source.
 
 ## FAILURE MODES
 
 ### Over-Optimization Syndrome
-**Symptoms**: Recommending micro-optimizations that save <5% while ignoring major bottlenecks
-**Detection**: If optimization list has >5 items with <10% individual impact each
-**Fix**: Rank by impact percentage, focus only on top 2-3 optimizations with >15% impact. Defer others explicitly.
+**Symptoms**: Recommending small local changes while a measured critical-path constraint remains unaddressed.
+**Detection**: The proposal lacks a workload-normalized estimate, baseline, or acceptance trade-off.
+**Fix**: Rank candidate changes under the local decision policy and preserve lower-priority observations without a universal cutoff.
 
 ### False Bottleneck Attribution  
 **Symptoms**: Misidentifying wait time as execution bottleneck, blaming wrong nodes
@@ -89,8 +71,8 @@ Performance requirement context?
 
 ### Cost Underestimation Trap
 **Symptoms**: Providing token savings calculations without accounting for model pricing differences
-**Detection**: If cost savings percentages don't match token reduction ratios by model type
-**Fix**: Always calculate actual cost: (token_change / 1000) × model_price_per_1k. Show both token AND dollar impact.
+**Detection**: Recompute charges from disaggregated input/output, cached or other billable units and the exact price snapshot; token percentage alone need not equal cost percentage.
+**Fix**: Use input/output units and the dated, exact price snapshot for the recorded configuration; show units and currency separately.
 
 ### Parallelization Fantasy
 **Symptoms**: Suggesting parallelization for inherently sequential tasks with data dependencies
@@ -98,57 +80,49 @@ Performance requirement context?
 **Fix**: Map actual data dependencies before suggesting parallelization. Only truly independent nodes can run parallel.
 
 ### Single-Metric Tunnel Vision
-**Symptoms**: Optimizing one metric while catastrophically degrading another
-**Detection**: If optimizing for cost increases latency >50% or optimizing latency increases cost >100%
-**Fix**: Always provide trade-off analysis: "20% cost savings, 15% latency increase, 5% accuracy impact"
+**Symptoms**: Optimizing one metric while an acceptance, authority, cost, or latency condition degrades.
+**Detection**: The comparable result lacks one of the declared decision dimensions.
+**Fix**: Provide the measured trade-off with uncertainty and route it through the local acceptance policy.
 
 ## WORKED EXAMPLES
 
 ### Code Review DAG Analysis
-**Initial State**: 5-node code review DAG: 45s total, $0.42 cost
-- `extract-code`: 4.2s, 2,400 tokens, Sonnet
-- `analyze-complexity`: 8.1s (3.4s wait + 4.7s exec), 4,200 tokens, Sonnet  
-- `check-security`: 6.8s, 3,100 tokens, Sonnet
-- `review-performance`: 12.4s, 8,900 tokens, Opus
-- `generate-report`: 13.5s (9.2s wait + 4.3s exec), 5,200 tokens, Sonnet
+**Constructed input, not measured:** five-node code-review report claims 45 seconds wall time and a $0.42 charge. These values are not provider prices or a reproducible benchmark; the profiler must request timestamps and billing inputs.
+- `extract-code`: 4.2s, 2,400 tokens, profile A
+- `analyze-complexity`: 8.1s (3.4s wait + 4.7s exec), 4,200 tokens, profile A  
+- `check-security`: 6.8s, 3,100 tokens, profile A
+- `review-performance`: 12.4s, 8,900 tokens, profile B
+- `generate-report`: 13.5s (9.2s wait + 4.3s exec), 5,200 tokens, profile A
 
 **Step 1 - Bottleneck Classification**
-Primary bottleneck: `review-performance` at 12.4s (27% of total) - Single slow node pattern
-Secondary: Dependency blocking causing 12.6s total wait time
+The 12.4-second performance-analysis span is 27.6% of the reported wall time, but that ratio does not establish critical-path contribution. The two labeled waits sum to 12.6 seconds; their intervals may overlap. Obtain start/end times, causal dependencies, queue/active boundaries and missing wait classifications before naming a bottleneck.
 
-**Step 2 - Apply Decision Tree** 
-High latency bottleneck + resource contention → Restructure for parallelization + break down slow node
+**Step 2 - Candidate diagnosis**
+The trace suggests both an active-work candidate and dependency wait. Compare a revised graph only after confirming data/effect independence and preserving the acceptance contract.
 
 **Step 3 - Optimization Recommendations**
-1. **HIGH IMPACT**: Split `review-performance` into `check-patterns` (3s, Sonnet) + `assess-complexity` (4s, Sonnet) 
-   - Saves: 5.4s latency, $0.08 cost (model downgrade)
-2. **MEDIUM IMPACT**: Parallelize `analyze-complexity` + `check-security` (currently sequential)
-   - Saves: 6.8s latency by removing wait time
-3. **DEFER**: Context reduction could save $0.05 but <5% impact
+1. **Candidate**: split `review-performance` only if a contract review finds independently acceptable sub-artifacts.
+2. **Candidate**: parallelize `analyze-complexity` and `check-security` only if their input revision, authority, and effects are independent.
+3. **Measure** each proposal against the same workload and its acceptance outcome before estimating a benefit.
 
-**Final Result**: 28s total (38% faster), $0.34 cost (19% cheaper)
+**Disposition**: no performance improvement is claimed until the revised run is measured against the recorded baseline and accepted under policy.
 
 ### High-Cost Analytics Pipeline
-**Initial State**: 8-node data analysis: 67s total, $2.40 cost, 95% Opus usage
+**Initial State**: Constructed eight-node data analysis with only four node records shown; do not infer complete cost from this partial view. Model/configuration and price snapshot are recorded separately rather than inferred from product labels.
 
 **Step 1 - Cost Analysis Discovery**
-- `extract-tables`: 2,800 tokens, Opus ($0.42) - Simple extraction task
-- `clean-data`: 3,200 tokens, Opus ($0.48) - Pattern matching task  
-- `statistical-analysis`: 12,600 tokens, Opus ($1.89) - Complex reasoning
-- `generate-insights`: 9,400 tokens, Opus ($1.41) - Moderate analysis
+- `extract-tables`: 2,800 input/output units under recorded configuration
+- `clean-data`: 3,200 units under recorded configuration
+- `statistical-analysis`: 12,600 units under recorded configuration
+- `generate-insights`: 9,400 units under recorded configuration
 
 **Step 2 - Model Selection Decision Tree**
-Using complexity assessment:
-- Extract/clean: Simple → Haiku ($0.007 vs $0.15/1k) 
-- Statistical: Complex reasoning → Keep Opus
-- Insights: Moderate → Sonnet ($0.003 vs $0.15/1k)
+Use an approved capability/profile policy and a dated official price snapshot. Task labels alone do not authorize a downgrade.
 
 **Step 3 - Impact Calculation**
-- Extract + clean: 6,000 tokens × $0.143 savings/1K = $0.86 savings
-- Insights: 9,400 tokens × $0.012 savings/1K = $0.11 savings  
-- **Total: $0.97 savings (40% cost reduction), 2s latency increase (3%)**
+- Construct a comparable A/B workload, record the two price snapshots and acceptance results, then calculate a bounded estimate with uncertainty.
 
-**Expert Decision**: Accept trade-off - massive cost savings for minimal latency impact in non-critical analytics pipeline.
+**Expert Decision**: Propose the experiment only if the local policy accepts its cost, latency, quality, and effect risk.
 
 ## QUALITY GATES
 
@@ -158,12 +132,12 @@ Performance profiling complete when:
 - [ ] Token usage calculated per node with model cost attribution  
 - [ ] Wait time separated from execution time for each node
 - [ ] Critical path identified with percentage of total duration
-- [ ] Bottlenecks ranked by impact (>15% improvement threshold)
+- [ ] Candidate constraints distinguish measurements from estimates and competing explanations
 - [ ] Cost-latency trade-offs quantified for major recommendations
-- [ ] Model selection recommendations matched to task complexity levels
+- [ ] Capability/profile changes cite a task policy and dated price/configuration snapshot
 - [ ] Parallelization suggestions verified against actual data dependencies
 - [ ] Implementation effort estimated (immediate/planned/complex) for each optimization
-- [ ] Performance improvement projections include confidence intervals
+- [ ] Separate measured comparisons from projections; justify uncertainty estimates and avoid invented intervals when no sampling/model basis exists
 
 ## NOT-FOR BOUNDARIES
 

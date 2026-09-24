@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "capacity-evidence",
+  "digestAlgorithm": "sha256",
+  "canonicalEncoding": "RFC8785-JCS",
+  "evidenceId": "capacity-demo-0004",
+  "operatorScope": {
+    "operatorId": "operator-demo",
+    "provider": "provider-demo",
+    "accountId": "seat-demo",
+    "authMode": "subscription",
+    "productScope": "coding-agent"
+  },
+  "executionClass": "fake-or-replay",
+  "evaluatedAt": "2026-09-11T18:01:00Z",
+  "observation": {
+    "sourceKind": "fake-fixture",
+    "sourceRef": "fixture://subscription-window/demo-4",
+    "parserProfileId": "fake-capacity-observer@1.0.0",
+    "parserSchemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rawEvidenceDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "observedAt": "2026-09-11T18:00:00Z",
+    "expiresAt": "2026-09-11T18:05:00Z"
+  },
+  "buckets": [
+    null
+  ],
+  "reservation": {
+    "state": "committed",
+    "reservationId": "capacity-reservation-demo-4",
+    "atomicAcrossBucketsAndAliases": true,
+    "issuedAt": "2026-09-11T18:01:00Z",
+    "expiresAt": "2026-09-11T18:06:00Z",
+    "items": [
+      {
+        "capacityBucketId": "bucket:provider-demo:seat-demo:five-hour",
+        "expectedRevision": 12,
+        "reservedUnits": 12
+      }
+    ]
+  },
+  "preemptionState": "TIGHTENING",
+  "admissible": true,
+  "launchAuthority": false,
+  "discrepancies": []
+}

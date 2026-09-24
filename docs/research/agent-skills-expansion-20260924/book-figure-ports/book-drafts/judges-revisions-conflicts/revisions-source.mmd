@@ -1,0 +1,17 @@
+flowchart TB
+  subgraph I[Source input changed]
+    I1[Compile evidence stale] --> I2[Acceptance evidence stale]
+    I2 --> I3[Revalidate artifact and publication authority]
+  end
+  subgraph P[Acceptance policy changed]
+    P1[Compile evidence: reuse candidate] --> P2[Acceptance evidence stale]
+    P2 --> P3[Revalidate acceptance and publication authority]
+  end
+  subgraph A[Publication authority revoked]
+    A1[Compile evidence: reuse candidate] --> A2[Acceptance evidence: reuse candidate]
+    A2 --> A3[Publication blocked]
+  end
+  U[An earlier UNKNOWN publication still requires reconciliation]
+  I3 -. independent unresolved obligation .-> U
+  P3 -. independent unresolved obligation .-> U
+  A3 -. independent unresolved obligation .-> U

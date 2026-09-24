@@ -1,6 +1,3 @@
-# Memory
+# Historical-memory boundary
 
-Internal memory files for the sheaf-cohomology-multiagent-debug skill.
-
-- `core_memory.json`: persistent core memory and anti-patterns for the sheaf cohomologist persona.
-- `self_feedback.md`: self-feedback, epistemic reflections, compute architecture, and verification milestones.
+The pre-repair persona memory was moved to the bounded receipt with hashes because it contains unsupported runtime, theorem, attribution, and deployment assertions. Active guidance is the entrypoint and references; it treats finite algebraic fixtures as documentation checks only.

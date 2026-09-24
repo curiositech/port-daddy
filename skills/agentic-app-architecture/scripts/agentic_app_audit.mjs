@@ -3,247 +3,43 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SEVERITY_DEDUCTION = { critical: 60, high: 30, medium: 15, low: 5 };
-const COVERAGE_PASS_THRESHOLD = 70;
-const MCP_CORE_SANE_THRESHOLD = 8;
-const UNSAFE_SECRET_MODES = new Set(['argv', 'inline', 'none']);
-const SAFE_SECRET_MODES = new Set(['hidden-stdin', 'secret-store', 'env-scoped']);
-const AGENT_TYPES = new Set(['coding', 'non-coding']);
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
+const E={disclosure:['not-applicable','summary','detailed'],privateReasoning:['not-requested','redacted-summary-only'],interrupt:['not-applicable','before-dispatch','between-steps','mid-run'],status:['used','not-applicable'],strategy:['bounded-input','provider-cache','eviction-or-summary','memory-promotion'],secret:['not-applicable','secret-store-reference','scoped-environment','stdin','argv','inline'],effect:['none','reversible-local','external-or-irreversible'],control:['not-applicable','automated-policy','human-approval'],agent:['coding','non-coding'],isolation:['not-applicable','declared']};
+const object=x=>Boolean(x)&&typeof x==='object'&&!Array.isArray(x);
+const text=x=>typeof x==='string'&&x.trim().length>0;
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+const isoDate=x=>{if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;const [y,m,d]=x.split('-').map(Number);const z=new Date(0);z.setUTCFullYear(y,m-1,d);return z.getUTCFullYear()===y&&z.getUTCMonth()===m-1&&z.getUTCDate()===d};
+const https=x=>{if(typeof x!=='string'||!x.startsWith('https://'))return false;try{const u=new URL(x);return u.protocol==='https:'&&Boolean(u.hostname)}catch{return false}};
 
 /**
- * Audit an agentic LLM app's architecture across five axes: interaction
- * transparency, state/history/memory, context & caching economics,
- * capability integration (tools/skills/MCP/secrets), and execution substrate
- * & side effects.
- *
- * This is a design-time gate, not a runtime monitor: it flags shapes that are
- * known to produce untrustworthy, un-resumable, cost-blown-up, or unsafe
- * agentic apps, using the same deterministic per-axis scoring approach as
- * other port-daddy audit scripts (weighted deduction, critical findings force
- * pass=false regardless of score).
- *
- * @param {unknown} spec - parsed JSON spec matching schemas/agentic-app-spec.schema.json.
- * @returns {{pass: boolean, coverageByAxis: Record<string, number>, findings: Array<{id: string, axis: string, severity: string, message: string}>, recommendations: string[]}}
+ * Portable declaration validation: the JSON Schema supplies structural checks;
+ * this API additionally checks calendar dates, URL hosts and conditional fields.
+ * It checks an input declaration only; it does not inspect accounts, providers,
+ * deployments, enforcement, or effect execution.
  */
-export function auditAgenticAppArchitecture(spec) {
-  if (!isPlainObject(spec)) {
-    throw new Error('spec must be a JSON object matching schemas/agentic-app-spec.schema.json');
-  }
-
-  const findings = [];
-  const recommendations = [];
-  const axisDeductions = { transparency: 0, stateModel: 0, contextStrategy: 0, capabilities: 0, execution: 0 };
-
-  function fail(axis, id, severity, message, recommendation) {
-    findings.push({ id, axis, severity, message });
-    if (recommendation) recommendations.push(recommendation);
-    axisDeductions[axis] += SEVERITY_DEDUCTION[severity] ?? 0;
-  }
-
-  // ---------- axis 1: transparency ----------
-  const t = isPlainObject(spec.transparency) ? spec.transparency : {};
-  if (t.thinkingVisible !== true || t.toolUseVisible !== true) {
-    fail(
-      'transparency',
-      'hidden-thinking-or-tool-use',
-      'critical',
-      'Thinking and/or tool use is not surfaced to the human: this is a "chat box with secret hands."',
-      'Stream thinking and tool calls inline or into a collapsible workbench pane; an un-shown tool call is un-steerable.'
-    );
-  }
-  if (t.planBeforeAct !== true) {
-    fail(
-      'transparency',
-      'no-plan-before-act',
-      'medium',
-      'The agent does not show a plan before acting on anything consequential.',
-      'Surface a short plan (files to touch, commands to run, stop condition) before the first side-effecting action.'
-    );
-  }
-  if (t.interruptible !== true) {
-    fail(
-      'transparency',
-      'not-interruptible',
-      'high',
-      'There is no interruption/steering affordance while the agent is working.',
-      'Add a cancel/steer control that takes effect mid-run, not just before the run starts.'
-    );
-  }
-
-  // ---------- axis 2: state, history & memory ----------
-  const s = isPlainObject(spec.stateModel) ? spec.stateModel : {};
-  if (s.durableHistory !== true) {
-    fail(
-      'stateModel',
-      'no-durable-history',
-      'high',
-      'Conversation history is not durably persisted; a lost session is unrecoverable.',
-      'Persist thread history so sessions survive process restarts and can be salvaged.'
-    );
-  }
-  if (s.forking !== true && s.episodicMemory !== true) {
-    fail(
-      'stateModel',
-      'transcript-only-state',
-      'critical',
-      'Neither thread forking nor episodic memory exists: the transcript is treated as the entire state.',
-      'Add thread forking to explore alternates without destroying the main line, and/or episodic memory to promote salient facts out of the transcript.'
-    );
-  }
-  if (s.durableHistory === true && s.rename !== true) {
-    recommendations.push('Durable history exists but sessions cannot be renamed/organized; add rename so a long history stays navigable.');
-  }
-
-  // ---------- axis 3: context & caching economics ----------
-  const c = isPlainObject(spec.contextStrategy) ? spec.contextStrategy : {};
-  if (c.caching !== true && c.eviction !== true && c.memoryPromotion !== true) {
-    fail(
-      'contextStrategy',
-      'no-context-caching-strategy',
-      'critical',
-      'No caching, eviction, or memory-promotion strategy: context grows unbounded, which is a direct cost and latency blowup.',
-      'Pick at least one: prompt caching for stable prefixes, eviction/summarization for stale turns, or promotion of durable facts into memory.'
-    );
-  } else {
-    if (c.caching !== true) {
-      fail(
-        'contextStrategy',
-        'no-prompt-caching',
-        'medium',
-        'No prompt caching strategy declared; the Anthropic prompt cache has a ~5-minute TTL, so poll/sleep cadence and context stability directly affect cache hit rate.',
-        'Keep the cached prefix (system prompt, tool schemas, pinned context) stable and re-touch it inside the 5-minute TTL window, or accept the cost of cold reads.'
-      );
-    }
-    if (c.eviction !== true) {
-      fail(
-        'contextStrategy',
-        'no-eviction-strategy',
-        'medium',
-        'No eviction/summarization strategy for stale context.',
-        'Summarize or drop old turns once the window fills instead of letting it grow until requests fail or costs spike.'
-      );
-    }
-    if (c.memoryPromotion !== true) {
-      fail(
-        'contextStrategy',
-        'no-memory-promotion',
-        'medium',
-        'No path to promote durable facts out of the context window into memory.',
-        'Promote salient, reusable facts to episodic memory so they do not have to be re-paid-for on every turn.'
-      );
-    }
-  }
-
-  // ---------- axis 4: capability integration ----------
-  const cap = isPlainObject(spec.capabilities) ? spec.capabilities : {};
-  const mcp = isPlainObject(cap.mcp) ? cap.mcp : {};
-  const secretCustody = isPlainObject(cap.secretCustody) ? cap.secretCustody : {};
-  const hasAnyCapability = cap.tools === true || cap.skills === true || (typeof mcp.coreSize === 'number' && mcp.coreSize > 0);
-
-  if (hasAnyCapability) {
-    const mode = secretCustody.mode;
-    if (typeof mode !== 'string' || UNSAFE_SECRET_MODES.has(mode) || !SAFE_SECRET_MODES.has(mode)) {
-      fail(
-        'capabilities',
-        'unsafe-secret-custody',
-        'critical',
-        `Capabilities are wired up (tools/skills/MCP) but secretCustody.mode is '${mode ?? 'unset'}': secrets can land in argv, logs, or the transcript.`,
-        "Route secrets through a hidden-stdin or secret-store path scoped to the tool call, never argv/inline/env-dumped-into-prompt. See `pd secret set` for the pattern."
-      );
-    }
-  }
-
-  if (typeof mcp.coreSize === 'number' && mcp.coreSize > MCP_CORE_SANE_THRESHOLD && mcp.perProjectSpecialists !== true) {
-    fail(
-      'capabilities',
-      'mcp-boot-storm-risk',
-      'high',
-      `MCP core size is ${mcp.coreSize} servers with no per-project specialist split: over-broad global MCP config causes a boot storm and frozen sessions.`,
-      'Keep the always-on global MCP core small (a handful of servers) and push project-specific servers to per-project config instead of the global core.'
-    );
-  }
-
-  if (cap.tools === true && cap.skills !== true) {
-    recommendations.push('Tools are wired up without skills: consider progressive-disclosure skill packs so large toolsets stay lazy-loaded rather than all schemas resident at once.');
-  }
-
-  // ---------- axis 5: execution substrate & side effects ----------
-  const e = isPlainObject(spec.execution) ? spec.execution : {};
-  const agentType = AGENT_TYPES.has(e.agentType) ? e.agentType : undefined;
-  if (e.agentType !== undefined && agentType === undefined) {
-    throw new Error("execution.agentType must be 'coding' or 'non-coding' when present");
-  }
-
-  const sideEffecting = e.isolation !== true || e.sideEffectHumanGate !== true || e.artifactReceipts !== true;
-  if (sideEffecting) {
-    const severity = agentType === 'coding' ? 'critical' : 'high';
-    if (e.isolation !== true) {
-      fail(
-        'execution',
-        'no-execution-isolation',
-        severity,
-        agentType === 'coding'
-          ? 'Coding agent has no isolation (no worktree/branch separation): writes land directly in a shared checkout.'
-          : 'Non-coding agent produces side effects with no sandbox/isolation boundary.',
-        agentType === 'coding'
-          ? 'Give every writer its own worktree/branch with advisory claims; never write directly against a shared checkout.'
-          : 'Sandbox side-effecting actions (file writes, API calls, generated tools) so a bad run cannot corrupt shared state.'
-      );
-    }
-    if (e.sideEffectHumanGate !== true) {
-      fail(
-        'execution',
-        'no-human-gate-on-side-effects',
-        severity,
-        'Irreversible or outward-facing actions have no human checkpoint before they execute.',
-        'Gate merges/pushes/sends/purchases/publishes behind an explicit human approval step; never let an irreversible action fire unattended.'
-      );
-    }
-    if (e.artifactReceipts !== true) {
-      fail(
-        'execution',
-        'no-artifact-receipt',
-        severity,
-        'Side-effecting work leaves no durable, artifact-backed receipt.',
-        'Produce a receipt (diff summary, validation evidence, rollback pointer) for every side-effecting task, not just a chat message claiming success.'
-      );
-    }
-  }
-
-  // ---------- coverage + pass ----------
-  const coverageByAxis = {};
-  for (const axis of Object.keys(axisDeductions)) {
-    coverageByAxis[axis] = Math.max(0, Math.min(100, 100 - axisDeductions[axis]));
-  }
-
-  const hasCritical = findings.some((f) => f.severity === 'critical');
-  const allAxesAboveThreshold = Object.values(coverageByAxis).every((v) => v >= COVERAGE_PASS_THRESHOLD);
-  const pass = !hasCritical && allAxesAboveThreshold;
-
-  if (findings.length === 0) {
-    recommendations.push('Architecture covers all five axes at a passing level. Spot-check that the declared booleans reflect what actually ships, not just what is planned.');
-  }
-
-  return { pass, coverageByAxis, findings, recommendations };
+export function validateAgenticAppSpec(spec){
+ const errors=[]; const req=(o,k,p)=>{if(!own(o,k))errors.push(`${p}.${k} is required`)}; const val=(x,values,p)=>{if(!values.includes(x))errors.push(`${p} has an invalid value`)}; const nonempty=(x,p)=>{if(!text(x))errors.push(`${p} must be nonempty trimmed text`)}; const obj=(x,p)=>{if(!object(x)){errors.push(`${p} must be an object`);return false}return true};
+ if(!obj(spec,'spec'))return {valid:false,errors}; nonempty(spec.appName,'appName');
+ const t=spec.transparency;if(obj(t,'transparency')){for(const k of ['actionDisclosure','evidenceDisclosure','uncertaintyDisclosure','privateReasoningPolicy','interruptMode','rationale'])req(t,k,'transparency');val(t.actionDisclosure,E.disclosure,'transparency.actionDisclosure');val(t.evidenceDisclosure,E.disclosure,'transparency.evidenceDisclosure');val(t.uncertaintyDisclosure,E.disclosure,'transparency.uncertaintyDisclosure');val(t.privateReasoningPolicy,E.privateReasoning,'transparency.privateReasoningPolicy');val(t.interruptMode,E.interrupt,'transparency.interruptMode');nonempty(t.rationale,'transparency.rationale');}
+ const s=spec.stateModel;if(obj(s,'stateModel')){for(const k of ['conversationTranscript','durableTaskState','userMemory','provenanceEvidence','retention','restoreForkPolicy','rationale'])req(s,k,'stateModel');for(const k of ['conversationTranscript','durableTaskState','userMemory','provenanceEvidence'])val(s[k],E.status,`stateModel.${k}`);for(const k of ['retention','restoreForkPolicy','rationale'])nonempty(s[k],`stateModel.${k}`);}
+ const c=spec.contextStrategy;if(obj(c,'contextStrategy')){req(c,'strategies','contextStrategy');req(c,'rationale','contextStrategy');if(!Array.isArray(c.strategies)||!c.strategies.length)errors.push('contextStrategy.strategies must be a nonempty array');else {for(const x of c.strategies)val(x,E.strategy,'contextStrategy.strategies item');if(new Set(c.strategies).size!==c.strategies.length)errors.push('contextStrategy.strategies must be unique')}nonempty(c.rationale,'contextStrategy.rationale');if(own(c,'providerCache')){const pc=c.providerCache;if(obj(pc,'contextStrategy.providerCache')){for(const k of ['provider','modelOrFamily','documentationUrl','checkedOn'])req(pc,k,'contextStrategy.providerCache');nonempty(pc.provider,'contextStrategy.providerCache.provider');nonempty(pc.modelOrFamily,'contextStrategy.providerCache.modelOrFamily');if(!https(pc.documentationUrl))errors.push('contextStrategy.providerCache.documentationUrl must be an HTTPS URL with host');if(!isoDate(pc.checkedOn))errors.push('contextStrategy.providerCache.checkedOn must be a real ISO calendar date')}}}
+ const p=spec.capabilities;if(obj(p,'capabilities')){for(const k of ['tools','skills','mcp','secretCustody','rationale'])req(p,k,'capabilities');val(p.tools,E.status,'capabilities.tools');val(p.skills,E.status,'capabilities.skills');nonempty(p.rationale,'capabilities.rationale');const m=p.mcp;if(obj(m,'capabilities.mcp')){for(const k of ['status','rationale'])req(m,k,'capabilities.mcp');val(m.status,E.status,'capabilities.mcp.status');nonempty(m.rationale,'capabilities.mcp.rationale');if(own(m,'coreSize')&&(!Number.isInteger(m.coreSize)||m.coreSize<0))errors.push('capabilities.mcp.coreSize must be a finite nonnegative integer');if(own(m,'perProjectSpecialists')&&typeof m.perProjectSpecialists!=='boolean')errors.push('capabilities.mcp.perProjectSpecialists must be boolean');if(m.status==='used'&&!own(m,'coreSize'))errors.push('capabilities.mcp.coreSize is required when MCP is used');if(m.status==='used'&&!own(m,'perProjectSpecialists'))errors.push('capabilities.mcp.perProjectSpecialists is required when MCP is used')}const sc=p.secretCustody;if(obj(sc,'capabilities.secretCustody')){for(const k of ['required','mode','scope','rationale'])req(sc,k,'capabilities.secretCustody');if(typeof sc.required!=='boolean')errors.push('capabilities.secretCustody.required must be boolean');val(sc.mode,E.secret,'capabilities.secretCustody.mode');nonempty(sc.scope,'capabilities.secretCustody.scope');nonempty(sc.rationale,'capabilities.secretCustody.rationale');}}
+ const e=spec.execution;if(obj(e,'execution')){for(const k of ['agentType','effectClass','isolation','control','authority','receiptPolicy','rationale'])req(e,k,'execution');val(e.agentType,E.agent,'execution.agentType');val(e.effectClass,E.effect,'execution.effectClass');val(e.isolation,E.isolation,'execution.isolation');for(const k of ['authority','receiptPolicy','rationale'])nonempty(e[k],`execution.${k}`);if(obj(e.control,'execution.control')){for(const k of ['kind','rationale'])req(e.control,k,'execution.control');val(e.control.kind,E.control,'execution.control.kind');nonempty(e.control.rationale,'execution.control.rationale')}}
+ return {valid:errors.length===0,errors};
 }
-
-function parseArgs(argv) {
-  const i = argv.indexOf('--input');
-  if (i === -1 || !argv[i + 1]) throw new Error('usage: agentic_app_audit.mjs --input <spec>.json');
-  return { input: argv[i + 1] };
+export function auditAgenticAppArchitecture(spec){
+ const v=validateAgenticAppSpec(spec);if(!v.valid)return {pass:false,schemaValid:false,coverageByAxis:{},findings:v.errors.map(message=>({id:'invalid-declaration',axis:'schema',severity:'critical',message})),recommendations:['Repair the declaration before interpreting design findings.'],scope:'Static declaration audit only; no runtime, enforcement, provider, account, or effect evidence was observed.'};
+ const findings=[];const add=(axis,id,severity,message)=>findings.push({axis,id,severity,message});const {transparency:t,stateModel:s,contextStrategy:c,capabilities:p,execution:e}=spec;const consequential=e.effectClass==='external-or-irreversible';const effectful=e.effectClass!=='none';const powered=p.tools==='used'||p.mcp.status==='used';
+ if((powered||effectful)&&t.actionDisclosure==='not-applicable')add('transparency','missing-action-disclosure','high','Declared tools, MCP or effects require an action disclosure level.');
+ if(consequential&&(t.evidenceDisclosure==='not-applicable'||t.uncertaintyDisclosure==='not-applicable'))add('transparency','missing-consequential-disclosure','high','Consequential effects require evidence and uncertainty disclosure.');
+ if(effectful&&s.durableTaskState!=='used')add('stateModel','missing-effect-task-state','high','Effectful work requires durable task state for restore/replay handling.');
+ if(consequential&&s.provenanceEvidence!=='used')add('stateModel','missing-consequential-provenance','high','Consequential effects require declared provenance evidence.');
+ if(c.strategies.includes('provider-cache')&&!own(c,'providerCache'))add('contextStrategy','missing-provider-cache-receipt','high','Provider-cache strategy requires versioned provider cache metadata.');
+ if(p.mcp.status==='not-applicable'&&(own(p.mcp,'coreSize')||own(p.mcp,'perProjectSpecialists')))add('capabilities','incoherent-mcp-scope','high','MCP is not applicable but MCP configuration fields were supplied.');
+ if(p.secretCustody.required&&['argv','inline','not-applicable'].includes(p.secretCustody.mode))add('capabilities','secret-exposure-path','high','Required secret custody uses argv, inline text, or an inapplicable path.');
+ if(effectful&&e.isolation!=='declared')add('execution','missing-effect-isolation','high','Effectful work requires a declared isolation boundary.');
+ if(consequential&&e.control.kind==='not-applicable')add('execution','missing-consequential-control','critical','External or irreversible effects cannot use a not-applicable control.');
+ const coverage={transparency:100,stateModel:100,contextStrategy:100,capabilities:100,execution:100};for(const f of findings)coverage[f.axis]=0;
+ return {pass:!findings.some(f=>f.severity==='critical'||f.severity==='high'),schemaValid:true,coverageByAxis:coverage,findings,recommendations:findings.length?['Resolve each applicable high or critical finding; marked-inapplicable features remain valid only with their supplied scope rationale.']:['Declaration is coherent for the stated scope. This does not prove implementation or enforcement.'],scope:'Static declaration audit only; no runtime, enforcement, provider, account, or effect evidence was observed.'};
 }
-
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  try {
-    const { input } = parseArgs(process.argv.slice(2));
-    const data = JSON.parse(readFileSync(input, 'utf8'));
-    process.stdout.write(`${JSON.stringify(auditAgenticAppArchitecture(data), null, 2)}\n`);
-  } catch (error) {
-    process.stderr.write(`agentic_app_audit: ${error.message}\n`);
-    process.exit(1);
-  }
-}
+function input(argv){const i=argv.indexOf('--input');if(i<0||!argv[i+1])throw Error('usage: agentic_app_audit.mjs --input <spec.json>');return argv[i+1]}
+if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){try{const r=auditAgenticAppArchitecture(JSON.parse(readFileSync(input(process.argv.slice(2)),'utf8')));process.stdout.write(JSON.stringify(r,null,2)+'\n');process.exit(r.pass?0:1)}catch(error){process.stderr.write(`agentic_app_audit: ${error.message}\n`);process.exit(1)}}

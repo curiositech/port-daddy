@@ -6,7 +6,7 @@ description: "Formal game theory for advisory file claims and repeated agent int
 
 # Game-Theoretic Agent Incentives
 
-Advisory claims only work when deviation is more expensive than compliance. This skill gives you the formal machinery to prove it, detect when it breaks, and fix the protocol.
+Use a stated game to analyze strategic coordination. Advisory signals can help aligned participants without punishments; when interests conflict, compute incentives rather than assuming credibility. Keep equilibrium existence, learning/convergence, welfare, authorization, and fault tolerance as separate questions.
 
 ## When to Use
 
@@ -21,183 +21,74 @@ Advisory claims only work when deviation is more expensive than compliance. This
 
 ## Primary Decision Tree: Classifying the Game
 
-```
-START: You have agents making strategic decisions about claims/coordination
-|
-+-- Is this a ONE-SHOT interaction or REPEATED?
-|   |
-|   +-- ONE-SHOT (agents meet once, no history)
-|   |   |
-|   |   +-- Is there a binding enforcement mechanism?
-|   |   |   +-- YES -> Standard mechanism design (not this skill)
-|   |   |   +-- NO  -> Advisory claims are CHEAP TALK in one-shot games
-|   |   |         |
-|   |   |         +-- Can the daemon add a correlation signal?
-|   |   |             +-- YES -> Go to CORRELATED EQUILIBRIUM tree
-|   |   |             +-- NO  -> Advisory claims have NO credibility
-|   |   |                        WARN: One-shot + no enforcement + no
-|   |   |                        correlation = claims are meaningless
-|   |   |
-|   +-- REPEATED (agents interact over multiple rounds)
-|       |
-|       +-- Is the history OBSERVABLE?
-|       |   +-- YES (immutable note trail, audit log)
-|       |   |   +-- Is the shadow of the future LONG?
-|       |   |   |   +-- YES -> Go to FOLK THEOREM tree
-|       |   |   |   +-- NO  -> Cooperation unravels via backward induction
-|       |   |   |             WARN: Short horizon = agents defect on last round,
-|       |   |   |             then second-to-last, etc.
-|       |   |   |
-|       |   +-- NO (history private or forgettable)
-|       |       +-- Reputation cannot form
-|       |       +-- Treat as repeated one-shot
-|       |       +-- WARN: Without observable history, repeated game
-|       |               collapses to one-shot incentives
-|       |
-+-- Who benefits from deviation?
-    |
-    +-- AGENT deviates (lies about file claim to avoid conflict)
-    |   +-- Go to CLAIM SIGNALING EQUILIBRIUM analysis
-    |
-    +-- PRINCIPAL deviates (misreports to monopolize resources)
-    |   +-- Go to PRINCIPAL DEVIATION analysis
-    |
-    +-- COALITION deviates (multiple agents collude)
-        +-- Go to COLLUSION RESISTANCE analysis
+```mermaid
+flowchart TD
+ A[Specify game] --> B{One shot or repeated}
+ B -->|One shot| C[Check deviations]
+ B -->|Repeated| D[State monitoring identity horizon]
+ C --> E{Declared recommendation distribution?}
+ D --> E
+ E -->|Yes| F[Check obedience by signal]
+ E -->|No| G[Check strategy deviations]
+ F --> H[Check coalitions and faults separately]
+ G --> H
 ```
 
 ## Decision Tree: Folk Theorem Application
 
-The folk theorem says: in infinitely repeated games with observable actions and sufficiently patient players, ANY individually rational payoff vector can be sustained as a Nash equilibrium.
+Folk theorems characterize sustainable **feasible** payoffs in repeated games under particular monitoring, patience, rationality and game assumptions. Strict individual rationality and additional conditions vary with the theorem and equilibrium concept. Choose an exact theorem before using it; a long task or an audit log alone does not establish its premises. The finite-punishment calculation below is a direct strategy check, not an application of every folk-theorem variant.
 
+```mermaid
+flowchart TD
+ A[Define stage game] --> B[State monitoring continuation assumptions]
+ B --> C[Choose trigger and forgiveness]
+ C --> D[Compute strategy-specific inequality]
+ D --> E{Relevant deviations deterred?}
+ E -->|Yes| F[Conditional equilibrium]
+ E -->|No| G[Revise or reject]
 ```
-START: You want to sustain cooperation in a repeated claim game
-|
-+-- Step 1: Define the STAGE GAME
-|   +-- Players: Set of agents {A1, A2, ..., An}
-|   +-- Actions: {Claim truthfully, Claim falsely, No claim}
-|   +-- Payoffs: Cooperation payoff (c), Deviation payoff (d), Punishment payoff (p)
-|   +-- Requirement: d > c > p (deviation tempting, punishment painful)
-|
-+-- Step 2: Check FOLK THEOREM CONDITIONS
-|   |
-|   +-- Observable actions?
-|   |   +-- Immutable note trail? -> YES, actions are observable
-|   |   +-- Agent heartbeats logged? -> YES, presence is observable
-|   |   +-- File claims recorded with timestamps? -> YES
-|   |   +-- No audit trail? -> FAIL: Folk theorem requires observability
-|   |
-|   +-- Discount factor delta close to 1? (agents value future interactions)
-|   |   +-- Agent expected to run many sessions? -> delta ~ 0.9+, GOOD
-|   |   +-- Agent is ephemeral (one task, gone)? -> delta ~ 0, BAD
-|   |   +-- Agent's identity persists across projects? -> delta HIGH
-|   |   +-- Agent identity is disposable (can re-register)? -> delta ~ 0, BAD
-|   |       WARN: Sybil attacks destroy the shadow of the future
-|   |
-|   +-- Punishment credible?
-|       +-- Other agents can detect deviation? -> Check note trail
-|       +-- Other agents will actually punish? -> Need trigger strategy
-|       +-- Punishment hurts punisher too? -> Check mutual punishment cost
-|
-+-- Step 3: Construct TRIGGER STRATEGY
-|   +-- Grim trigger: Defect once, punished forever
-|   |   +-- Pro: Maximum deterrence
-|   |   +-- Con: No forgiveness, single error cascades
-|   |   +-- Con: Punisher bears cost too (mutual destruction)
-|   |
-|   +-- Tit-for-tat: Mirror last observed action
-|   |   +-- Pro: Forgiving, recovers from single defections
-|   |   +-- Con: Can enter defection cycles from observation errors
-|   |
-|   +-- Graduated punishment: Escalate on repeated defection
-|       +-- Pro: Proportional, robust to noise
-|       +-- Con: Complex to implement, harder to reason about
-|       +-- RECOMMENDED for advisory claim systems
-|
-+-- Step 4: Verify EQUILIBRIUM CONDITION
-    +-- Deviation payoff NOW < Discounted future cooperation payoff
-    +-- Formula: d - c < delta / (1 - delta) * (c - p)
-    +-- If inequality holds: Cooperation is a Nash equilibrium
-    +-- If not: Either increase punishment (lower p) or increase delta
-```
+
+Use this workflow before selecting punishment:
+
+1. Define the stage game, feasible payoffs, each player's information, and outside options.
+2. Specify horizon, monitoring errors, identity reset cost and who observes which history.
+3. Compare candidate strategies: grim trigger has no recovery; tit-for-tat can cycle under noisy observations; finite triggers forgive but weaken deterrence. None is universally recommended.
+4. Check credible continuation in every state. A severe punishment that other players want to abandon is not justified by its severity.
+5. Compute the strategy-specific deviation inequality. The grim-trigger condition `(d-c) <= delta*(c-p)/(1-delta)` does not equal a finite three-round loss.
+6. Evaluate false accusations, missed deviations and recovery separately before proposing an implementation.
 
 ## Decision Tree: Correlated Equilibrium (Daemon as Correlating Device)
 
 A correlated equilibrium uses a trusted third party (the daemon) to send private recommendations to agents. Each agent's best response is to follow the recommendation, given that others follow theirs.
 
-```
-START: You want the daemon to coordinate agent behavior
-|
-+-- Step 1: Can the daemon OBSERVE the full game state?
-|   +-- Active claims, agent identities, file conflict graph? -> YES
-|   +-- Only partial state visible? -> Correlated equilibrium is approximate
-|
-+-- Step 2: Can the daemon send PRIVATE signals to agents?
-|   +-- Per-agent recommendations via pub/sub? -> YES
-|   +-- Only broadcast signals? -> Reduces to public correlation
-|   |   (still useful but weaker)
-|
-+-- Step 3: Design the CORRELATION SCHEME
-|   +-- Daemon computes: who should claim what, when
-|   +-- Daemon sends recommendation to each agent privately
-|   +-- Key property: No agent benefits from deviating from recommendation
-|   |   given that all others follow theirs
-|   |
-|   +-- Example: Two agents want the same file
-|       +-- Daemon flips weighted coin based on priority/history
-|       +-- Sends "claim" to winner, "wait" to loser
-|       +-- Both follow because: winner gets file; loser knows
-|       |   fighting yields conflict penalty worse than waiting
-|       +-- This is STRICTLY BETTER than Nash equilibrium
-|           (avoids the inefficient "both claim" or "both wait" outcomes)
-|
-+-- Step 4: Verify OBEDIENCE CONSTRAINTS
-    +-- For each agent, for each recommendation they might receive:
-    +-- Expected payoff from following >= Expected payoff from any deviation
-    +-- If violated: Adjust the correlation distribution or payoffs
+```mermaid
+flowchart TD
+ A[Declare signal distribution] --> B[Privately recommend]
+ B --> C[For each signal compare follow with every deviation]
+ C --> D{Obedience holds?}
+ D -->|Yes| E[CE candidate]
+ D -->|No| F[Revise distribution]
 ```
 
 ## Decision Tree: Price of Anarchy Analysis
 
-The price of anarchy (PoA) measures how much efficiency is lost because claims are advisory (agents choose freely) rather than enforced (daemon assigns optimally).
+For a specified welfare-maximization game and equilibrium class, PoA compares optimal feasible welfare with the worst equilibrium welfare. It does not measure enforcement versus advice in general. The ordinary welfare ratio needs a meaningful common payoff scale and positive denominator; a cost-minimization convention instead divides worst equilibrium cost by optimal cost.
 
+```mermaid
+flowchart TD
+ A[Define welfare and equilibrium set] --> B{Worst welfare positive?}
+ B -->|Yes| C[Compute OPT divided by worst equilibrium]
+ B -->|No| D[Handle zero or negative welfare explicitly]
+ C --> E[Establish model mapping before a bound]
 ```
-START: Measure efficiency loss from advisory claims
-|
-+-- Step 1: Compute OPTIMAL SOCIAL WELFARE
-|   +-- If daemon could enforce assignments, what's the best total payoff?
-|   +-- This is the centralized optimum (OPT)
-|   +-- Usually: maximum parallel work, minimum conflict, minimum idle time
-|
-+-- Step 2: Compute WORST-CASE EQUILIBRIUM WELFARE
-|   +-- Among all Nash equilibria of the advisory claim game,
-|       which one has the LOWEST total payoff?
-|   +-- This is the equilibrium floor (EQ_worst)
-|   +-- Common bad equilibria:
-|       +-- All agents claim the same popular file
-|       +-- No agent claims risky files (bystander effect)
-|       +-- Agents hoard claims defensively
-|
-+-- Step 3: PoA = OPT / EQ_worst
-|   +-- PoA = 1.0 -> Advisory claims lose NOTHING vs enforcement
-|   +-- PoA = 2.0 -> Advisory claims lose HALF the efficiency
-|   +-- PoA = N   -> Advisory claims lose almost everything
-|       (N agents all competing for same resource)
-|
-+-- Step 4: REDUCE the Price of Anarchy
-    +-- Add information (publish who claimed what) -> Reduces PoA
-    +-- Add correlation (daemon recommends) -> Can achieve PoA ~ 1
-    +-- Add mild penalties (reputation cost for conflict) -> Reduces PoA
-    +-- Add commitment (time-limited claim locks) -> Reduces PoA
-    +-- NEVER go straight to full enforcement
-        (it kills agent autonomy and creates brittle single points of failure)
-```
+
+For a welfare analysis, first enumerate feasible outcomes, then the named equilibrium class, then the worst equilibrium. State whether optima and extrema are attained. Report instance calculations separately from bounds over a class of games. Adding information, recommendation, penalties or commitment changes the game; recompute equilibria rather than assuming each intervention lowers PoA.
 
 ## Worked Example: Truthful File Claim Signaling as Nash Equilibrium
 
 ### Setup
 
-Port Daddy uses advisory file claims. When agent A claims `src/auth.ts`, other agents see the claim but nothing stops them from editing the file anyway. We want to prove that truthful claiming is a Nash equilibrium in the repeated game.
+Consider two agents with advisory claims on `src/auth.ts`. The claim is a message in this model, with no assumed enforcement. The constructed payoffs are chosen to illustrate a repeated Prisoner's Dilemma; they are not measured Port Daddy utilities or proof of any runtime capability.
 
 ### Step 1: Define the Stage Game
 
@@ -209,35 +100,46 @@ Port Daddy uses advisory file claims. When agent A claims `src/auth.ts`, other a
 
 **Stage game payoff matrix (per round):**
 
-```
-                    Agent B
-                 T           F
-Agent A   T    (3, 3)      (1, 4)
-          F    (4, 1)      (0, 0)
-```
+| A / B | T | F |
+|---|---:|---:|
+| T | (3, 3) | (0, 4) |
+| F | (4, 0) | (1, 1) |
 
 - (T, T) = 3 each: Both claim truthfully, no conflicts, efficient parallel work
-- (T, F) = (1, 4): Truthful agent suffers (wasted coordination, surprise conflicts); deviator gains (monopolized files, avoided scrutiny)
-- (F, F) = 0 each: Both lie, claims are meaningless noise, constant merge conflicts
+- (T, F) = (0, 4): the prescribed cooperative player loses while the deviator gains
+- (F, F) = 1 each: mutual non-cooperation is worse than T,T but is the one-shot equilibrium
 
 This is a Prisoner's Dilemma. In the one-shot game, F strictly dominates T. Truthful signaling is NOT a one-shot Nash equilibrium.
 
 ### Step 2: Move to the Repeated Game
 
-Agents interact over many sessions. Port Daddy provides:
-- **Immutable note trail**: Every claim, every edit, every heartbeat is logged
-- **Observable history**: Any agent can query `pd notes` to see full audit trail
-- **Persistent identity**: Agent IDs survive across sessions (no free re-registration)
+Assume agents interact again, actions are publicly and correctly observed, continuation is known, and identities cannot cheaply evade the consequence. These are model premises; verify them for any system before applying the result.
 
-The discount factor delta represents how much agents value future interactions. For long-lived agents: delta = 0.9.
+Assume an infinite discounted interaction with bounded stage payoffs, a common discount factor `0 <= delta < 1`, and perfect public monitoring. Use `delta = 0.9` as an illustrative parameter, not an estimate inferred from agent longevity.
 
 ### Step 3: Construct the Strategy Profile
 
-**Strategy (Graduated Trigger):**
-1. Start by playing T (truthful claims)
-2. If opponent played T last round, play T
-3. If opponent played F last round, play F for the next 3 rounds (punishment phase), then return to T
-4. If opponent deviates during punishment phase, restart the 3-round punishment
+**Strategy (finite trigger):**
+1. Start in the cooperative state, prescribing `(T,T)`.
+2. After a deviation from the currently prescribed action, enter a three-round punishment state prescribing `(F,F)`.
+3. Each compliant punishment round reduces the remaining count; after three, return to cooperation. A deviation from prescribed F restarts the count at three.
+4. F is an action label, not always a deviation. Noisy or inconclusive observations need a separately analyzed policy; this calculation assumes neither.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Cooperate
+  Cooperate: prescribe T,T
+  Punish3: prescribe F,F for three rounds
+  Punish2: prescribe F,F for two rounds
+  Punish1: prescribe F,F for one round
+  Cooperate --> Punish3: deviation from prescribed action
+  Punish3 --> Punish2: prescribed F,F complied
+  Punish2 --> Punish1: prescribed F,F complied
+  Punish1 --> Cooperate: prescribed F,F complied
+  Punish3 --> Punish3: deviation restarts count
+  Punish2 --> Punish3: deviation restarts count
+  Punish1 --> Punish3: deviation restarts count
+```
 
 ### Step 4: Deviation Analysis
 
@@ -245,58 +147,56 @@ The discount factor delta represents how much agents value future interactions. 
 
 Immediate gain from deviation: 4 - 3 = 1 (one extra unit this round)
 
-Cost of punishment: 3 rounds of (F, F) = 0 payoff each, versus (T, T) = 3 each.
-Lost payoff during punishment: 3 rounds * 3 per round = 9
+Cost relative to T,T is 2 per punishment round. Discounted cost is
+`2(delta + delta^2 + delta^3)=2(.9+.81+.729)=4.878`.
 
-Discounted cost: 9 * delta^1 (starts next round) = 9 * 0.9 = 8.1
+**Net payoff from deviation: 1 - 4.878 = -3.878**
 
-**Net payoff from deviation: 1 - 8.1 = -7.1**
-
-Deviation is strictly unprofitable. Truthful signaling is sustained as a Nash equilibrium.
+This deviation from cooperation is strictly unprofitable at delta=.9. During punishment, changing F to T against F lowers the current payoff from 1 to 0 and restarts punishment, delaying the return to payoff 3. Thus that deviation is also unprofitable. Under the stated discounted, bounded-payoff, perfect-monitoring model, the one-shot-deviation principle reduces the strategy check to these states. This conditional equilibrium argument does not establish learning convergence, strategic robustness to coalitions, or product behavior.
 
 ### Step 5: Why Observable History Is Critical
 
-Remove the immutable note trail. Now deviation is undetectable. Agent A can play F, and B cannot observe it to trigger punishment. The game collapses to repeated one-shot: both play F every round.
+If monitoring cannot distinguish the relevant deviation, this trigger cannot be applied. That does not prove all repeated coordination collapses; it limits this strategy.
 
-**This is why Port Daddy's immutable notes are pivotal for incentive compatibility.** They are not a convenience feature. They are the observability infrastructure that makes the folk theorem applicable.
+A note can record a report; it does not by itself establish which action occurred, whether reports were omitted, or whether observation was correct. Bind observations to the relevant action and independently assess monitoring accuracy before using them as this game's public history.
 
 ### Step 6: Why Persistent Identity Is Critical
 
-Allow agents to re-register with new IDs (Sybil attack). Now an agent can deviate, abandon its identity before punishment, and re-enter as a "new" agent with a clean slate. The discount factor effectively becomes 0 because the future reputation cost is zero.
+If agents can re-register, punishment may fail to reach the decision-maker. The effective future consequence may shrink; it is not automatically zero without a model of re-entry and alternative identity cost.
 
-**Countermeasure:** Make identity creation costly (registration bond, human approval, rate limiting) or tie identity to something hard to forge (worktree path, SSH key).
+**Candidate mitigations:** Analyze registration cost, authenticated principal continuity, admission rules and appeal/recovery. A worktree path is not a hard-to-forge identity; possession of a replaceable key alone does not prevent Sybils. Include re-entry and honest recovery costs in the model.
 
 ### Equilibrium Proof Summary
 
 | Component | Value |
 |-----------|-------|
 | Strategy profile | Graduated trigger: cooperate, punish for 3 rounds on observed defection |
-| Deviation analysis | Gain = 1, Cost = 8.1 (discounted), Net = -7.1 |
-| Conditions | Observable history (immutable notes), persistent identity (no Sybil), delta >= 0.53 |
-| Result | Truthful claim signaling is a Nash equilibrium for delta >= 0.53 |
+| Deviation analysis | Gain = 1, discounted loss = 4.878 at delta=.9, net = -3.878 |
+| Conditions | public correct monitoring, continuation, identity continuity, and strategy adherence |
+| Result | illustrative one-shot-deviation condition; not product evidence |
 
-The critical delta threshold: d - c < (delta / (1 - delta)) * (c - p), which gives 1 < (delta / (1 - delta)) * 3, so delta > 1/4 = 0.25 under grim trigger, or delta > 0.53 under 3-round graduated punishment. Any agent expecting more than ~2 future interactions will cooperate.
+For this finite trigger, `2(delta + delta^2 + delta^3)>1` gives delta > .342508. Grim trigger for this table gives delta >= 1/3. Neither is a portable threshold.
 
 ## Failure Modes
 
 ### Failure Mode 1: Identity Sybil Attack
 
-**What happens:** An agent deviates (false claims, file conflicts), then re-registers under a new identity before punishment can take effect. Reputation cost is zero. The folk theorem breaks because the shadow of the future is destroyed.
+**What happens:** A decision-maker may escape a reputation consequence by re-entering under another identity. Whether this eliminates or only reduces the consequence depends on admission cost, linking, future access and the decision-maker's utility. Recompute continuation incentives; do not declare the discount factor zero by inspection.
 
 **Detection:**
 - Spike in new agent registrations correlated with salvage events
 - Short-lived agent IDs that never accumulate history
-- Same worktree path appearing under multiple agent IDs
+- Shared worktree or registration patterns, treated as investigation leads rather than identity or malice proof
 
 **Fix:**
 - Registration cost: require a bond or approval for new identities
-- Identity anchoring: tie agent ID to something persistent (worktree path, SSH key, hardware token)
+- Identity continuity: use an authenticated principal and explicit key replacement/admission rules; a stable-looking path alone is insufficient
 - Cool-down periods: new agents get lower priority in claim conflicts
 - History migration: allow re-registration but carry forward reputation score
 
 ### Failure Mode 2: Punishment Cascade (Grim Trigger Doom Loop)
 
-**What happens:** Agent A experiences a transient failure (network issue, OOM kill) that looks like defection. Agent B triggers grim punishment. Agent A, now being punished for something it did not do, has no incentive to cooperate. Both agents defect forever. One accidental defection destroys all cooperation.
+**What happens:** A noisy observation can send a grim-trigger strategy into its permanent punishment state. That model has no recovery transition. Real participants may appeal, leave or change policy; evaluate those responses instead of asserting inevitable permanent defection in every system.
 
 **Detection:**
 - Sudden transition from mutual cooperation to mutual defection
@@ -305,28 +205,28 @@ The critical delta threshold: d - c < (delta / (1 - delta)) * (c - p), which giv
 
 **Fix:**
 - Use graduated punishment, not grim trigger (forgive after N rounds)
-- Distinguish crash from defection: crashed agents enter salvage queue (involuntary), defectors have active sessions with conflicting claims (voluntary)
-- Allow "cheap talk" apology: agent can post a note explaining the deviation. While cheap talk is not credible in one-shot games, in repeated games with reputation, false apologies are detectable over time
-- Build noise tolerance into trigger strategy: require K defections in N rounds before punishing
+- Separate confirmed actions, ambiguous outcomes and suspected crashes. A timeout or active session alone cannot establish intent; reconcile before attributing blame.
+- Allow an explanation and evidence-based review. Whether an unverifiable explanation is informative depends on incentives; repetition alone does not make false explanations detectable.
+- Compare candidate noise-tolerance policies, such as K confirmed violations in N observations, under a stated error and adversary model; choose and validate parameters rather than treating them as a guarantee.
 
 ### Failure Mode 3: Collusion (Coalition Deviation)
 
-**What happens:** Two or more agents coordinate to monopolize files. Agent A claims files it will not use, blocking others. Agent B (A's collaborator) gets exclusive access to remaining files. They split the benefit. Individual deviation analysis misses this because no single agent is deviating.
+**What happens:** Two or more agents coordinate to monopolize files. Agent A claims files it will not use, blocking others. Agent B (A's collaborator) gets exclusive access to remaining files. They split the benefit. A profile can deter each unilateral deviation while remaining vulnerable to a jointly profitable coalition deviation.
 
-**Detection:**
-- Agent pairs that always claim complementary (non-overlapping) file sets
+**Investigation signals, not collusion findings:**
+- Repeated complementary claims after controlling for legitimate task specialization
 - One agent consistently claims files it never modifies
-- Correlated timing: claims from colluding agents arrive in suspiciously tight windows
+- Correlated timing after controlling for shared schedules and dependencies
 
 **Fix:**
-- Monitor claim-to-edit ratio: agents that claim but do not edit are flagged
+- Audit unexplained claim-to-work gaps; review, testing and investigation may legitimately produce no edit
 - Implement claim expiration: unused claims auto-release after a timeout
 - Cross-reference claim patterns: statistical anomaly detection on claim co-occurrence
-- Daemon as correlating device: if the daemon assigns claim priority randomly, collusion cannot guarantee monopolization
+- Analyze randomized admission or allocation against the explicit coalition model. Random priority alone does not prove collusion resistance or fair long-run access.
 
 ### Failure Mode 4: Race to the Bottom (Price of Anarchy Blow-Up)
 
-**What happens:** When many agents compete for few high-value files, the equilibrium degrades. All agents rush to claim popular files. Nobody claims unglamorous but necessary files (tests, docs, configs). The social welfare of the advisory claim system approaches zero even though each agent is individually rational.
+**What happens:** A chosen payoff model may reward hoarding or neglect necessary low-reward tasks. This can produce inefficient equilibria. Derive or measure the effect for the specified game; a larger team or scarce files alone does not prove welfare approaches zero.
 
 **Detection:**
 - High claim collision rate on a small subset of files
@@ -334,10 +234,10 @@ The critical delta threshold: d - c < (delta / (1 - delta)) * (c - p), which giv
 - Increasing merge conflict rate despite claim system being in place
 
 **Fix:**
-- Daemon recommendation: use correlated equilibrium to distribute agents across files
+- Compute a feasible recommendation distribution, check obedience, and compare welfare with the named baseline equilibria
 - Priority scoring: agents with domain expertise on a file get higher claim priority
 - Bundling: claim a "task" (set of related files) rather than individual files, making cherry-picking harder
-- Publish efficiency metrics: show agents the global claim distribution so they self-correct
+- Publish scoped efficiency evidence, then test how behavior changes; more information can change incentives without necessarily improving welfare
 
 ## Quality Gates
 
@@ -347,7 +247,7 @@ An equilibrium proof is complete ONLY when it specifies ALL of:
 
 1. **Strategy profile**: The exact strategy for every player (not just "cooperate"). Must specify: initial action, response to each observable history, punishment duration, forgiveness conditions.
 
-2. **Deviation analysis**: For EACH player, show that NO unilateral deviation is profitable. This means checking every alternative strategy, not just "what if they defect once." At minimum, check: one-shot deviation, permanent deviation, delayed deviation.
+2. **Deviation analysis**: For EACH player, cover all relevant histories and unilateral alternative strategies. When a one-shot-deviation principle applies, state its assumptions and check every relevant continuation state. Otherwise do not infer a full equilibrium from one cooperative-state deviation.
 
 3. **Conditions**: The exact parameter ranges under which the equilibrium holds. At minimum: discount factor threshold, observability requirements, identity persistence requirements. State what breaks when each condition is violated.
 
@@ -357,18 +257,18 @@ If any of these three components is missing, the proof is incomplete. Do not pre
 
 A PoA analysis is complete ONLY when it includes:
 
-1. **Optimal welfare computation**: What is the best possible total payoff under centralized assignment?
+1. **Optimal welfare computation**: What is the best feasible welfare under the same resource and information constraints? An imaginary omniscient assignment is a different benchmark.
 2. **Equilibrium identification**: Which equilibria exist? Which is worst?
-3. **Bound**: The ratio OPT / EQ_worst, with the exact game parameters that determine it.
+3. **Bound**: The ratio OPT / EQ_worst with positive denominator, declared welfare scale and equilibrium concept. Handle zero/negative welfare explicitly; do not manufacture a finite bound.
 4. **Tightness**: Is the bound tight (achieved by some game instance) or loose?
 
 ### Gate: Correlated Equilibrium Design
 
-A correlated equilibrium is valid ONLY when:
+A correlated-equilibrium claim needs the first two conditions. Welfare improvement is a separate claim:
 
 1. **Correlation device specified**: What signal does the daemon send, to whom, drawn from what distribution?
 2. **Obedience constraints verified**: For each agent and each possible signal, following the signal is at least as good as any deviation.
-3. **Welfare improvement shown**: The correlated equilibrium Pareto-dominates or welfare-dominates at least one Nash equilibrium.
+3. **If improvement is claimed**: Identify the comparison equilibrium and compute welfare or each player's payoff. A CE need not strictly improve either; every Nash distribution is also a CE.
 
 ## Anti-Patterns
 
@@ -376,25 +276,25 @@ A correlated equilibrium is valid ONLY when:
 
 **Symptom:** When advisory claims fail, the instinct is to make them mandatory (lock files, block edits, reject conflicting claims).
 
-**Why it is wrong:** Full enforcement eliminates agent autonomy, creates deadlocks when an agent crashes while holding a lock, and makes the system brittle. The price of anarchy may be 1.0 but the price of fragility is unbounded. A crashed agent holding an enforced lock blocks the entire team. An advisory claim from a crashed agent is simply ignored.
+**Risk:** A lock or admission mechanism needs failure detection, fencing and recovery. That does not make enforcement inherently wrong: protected effects may require it. Advisory coordination and enforced authority solve different problems, and neither establishes the other's resilience or welfare.
 
-**Instead:** Use reputation, graduated punishment, and correlated equilibria to make advisory claims credible without making them mandatory. Accept a small PoA in exchange for resilience.
+**Instead:** Define the invariant and threat model, select the enforcement boundary it needs, and separately analyze incentives. Compare recovery cost and welfare rather than presuming advice always wins or that its PoA is small.
 
 ### Anti-Pattern: "One-Shot Reasoning for Repeated Games"
 
 **Symptom:** Analyzing a repeated interaction as if it were one-shot. Concluding "agents will always defect" because defection dominates in the stage game.
 
-**Why it is wrong:** The folk theorem guarantees that cooperation can be sustained in repeated games with observable history and patient agents. One-shot analysis is correct only when delta is near 0 (agents are ephemeral) or history is unobservable.
+**Risk:** The stage game alone does not determine incentives in a repeated game. Equally, repetition does not guarantee that participants learn or select a cooperative equilibrium. Monitoring, horizon, continuation credibility and reset options matter.
 
-**Instead:** Always check: is this repeated? Is history observable? Is delta high? If all three are yes, cooperation is achievable. Design the trigger strategy.
+**Instead:** Specify the repeated game and strategy, choose an applicable result or direct proof, and check deviations after cooperation and punishment. A known finite horizon or imperfect monitoring can require a different analysis.
 
 ### Anti-Pattern: "Trusting Cheap Talk"
 
 **Symptom:** Treating agent claims as credible without any verification mechanism. "Agent A said it would only edit `README.md`, so we planned around that."
 
-**Why it is wrong:** In a one-shot game, claims are cheap talk: costless to make, costless to break. They carry zero information about true intent. Even in repeated games, claims are only credible if false claims are detectable and punished.
+**Risk:** Costless nonbinding messages are cheap talk, but they can convey information when preferences and equilibrium behavior support it. Conflicting interests can also produce uninformative messages. Neither credibility nor zero information follows merely from the term.
 
-**Instead:** Claims become credible ONLY when backed by: observable history (deviation is detectable), reputation (deviation has future cost), or correlation (the daemon verifies compliance). Design the backing mechanism before trusting the claim.
+**Instead:** Model sender information, incentives, receiver responses and any verification mechanism. A correlating device recommends actions; it does not automatically verify compliance. Keep claimed intent, observed action and binding authority distinct.
 
 ### Anti-Pattern: "Symmetric Analysis of Asymmetric Games"
 
@@ -414,14 +314,40 @@ A correlated equilibrium is valid ONLY when:
 
 ## Reference: Key Theorems (Informal Statements)
 
-**Nash Existence Theorem:** Every finite game has at least one Nash equilibrium (possibly in mixed strategies). You never need to worry about whether an equilibrium exists; the question is which one, and whether it is efficient.
+**Nash existence:** A finite normal-form game has a mixed-strategy Nash equilibrium. This does not ensure a pure equilibrium, efficient computation, convergence of a chosen learning rule, or existence for every infinite/discontinuous game used to approximate a system.
 
-**Folk Theorem (Repeated Games):** In an infinitely repeated game with observable actions and discount factor delta sufficiently close to 1, any feasible payoff vector that gives each player more than their minimax value can be sustained as a Nash equilibrium. Translation: if agents are patient and can see what others do, almost any reasonable outcome can be made stable.
+**Folk theorems:** Choose the exact theorem and equilibrium concept, including feasible payoffs, individual-rationality requirements, monitoring, discounting and any dimensionality assumptions. Existence of sustaining strategies is not a learning or implementation theorem. See the Fudenberg–Maskin source in the linked reference.
 
-**Correlated Equilibrium Existence:** For any Nash equilibrium, there exists a correlated equilibrium that is at least as good for all players. The daemon-as-correlator can never make things worse and usually makes them better.
+**Correlated equilibrium:** A Nash distribution satisfies correlated-equilibrium obedience inequalities. This inclusion does not mean an arbitrary chosen mediator distribution improves welfare or obeys incentives. Compute both properties for the selected distribution.
 
-**Price of Anarchy Bound (Routing Games):** In congestion games (which model file claim competition), the price of anarchy is at most 5/2 for linear latency functions. This gives a concrete upper bound on how bad advisory claims can get in common settings.
+**Price of anarchy:** Routing/congestion bounds depend on assumptions such as atomic versus nonatomic players, weights, latency class and equilibrium concept. Do not transfer a numerical routing bound to file claims without an explicit model mapping and proof of its assumptions.
 
 ## Bundled Assets
 
 **Skill Evaluations:** See [`evals/evals.json`](evals/evals.json) for benchmark prompts and expected outputs used to validate this skill across typical game-theoretic agent coordination problems.
+
+## Corrected analysis limits and references
+
+F is an action label; deviating means choosing an action different from the one prescribed in that continuation state. Nash existence does not imply best-response convergence, implementation
+reachability, coalition resistance, authorization, or fault tolerance. A PoA
+ratio requires positive equilibrium welfare and a demonstrated mapping to its
+model; zero worst welfare with positive OPT gives an unbounded ratio, while 0/0 is undefined. Negative welfare requires reconsidering the metric rather than silently reporting the usual efficiency ratio.
+
+For a constructed two-agent allocation game, W means work and Q means wait:
+
+| A / B | W | Q |
+|---|---:|---:|
+| W | (-1,-1) | (3,2) |
+| Q | (2,3) | (0,0) |
+
+A device selects `(W,Q)` or `(Q,W)` with probability 1/2 each and privately recommends the selected action. Given W, working returns 3 versus 0 from waiting. Given Q, waiting returns 2 versus -1 from racing. Both conditional obedience inequalities hold. Each participant's ex ante payoff is 2.5 and total welfare is 5. Each of the two pure Nash equilibria also has welfare 5, so this CE does **not** strictly improve total welfare over either. It randomizes access fairly in this symmetric model; implementation fairness and strategic coalition behavior need separate analysis.
+
+In general, for every player i, recommended action a and alternative b:
+
+`sum over a_-i of mu(a,a_-i) * [u_i(a,a_-i) - u_i(b,a_-i)] >= 0`.
+
+This unconditional form handles zero-probability recommendations without dividing by zero. Check that mu is a probability distribution over feasible joint actions. A public signal reveals different information from private recommendations; recheck incentives under what participants actually observe.
+
+See [incentive-foundations.md](references/incentive-foundations.md) for source
+links and theorem limits. Monitoring noise, identity exit, and coalitions require
+separate models.

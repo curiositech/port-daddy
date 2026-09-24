@@ -81,32 +81,27 @@ Before selecting a label, draw four small artifacts: the **planning graph**
 not create a message bus; a manager role does not grant tool authority; a queue
 does not prove a semantic dependency graph.
 
+```mermaid
+flowchart TB
+  P[Planning dependencies] --> X[Topology decision]
+  C[Communication evidence routes] --> X
+  A[Authority grant deny commit] --> X
+  E[Execution workers queues gates] --> X
+  P -. label advisory or enforced .-> C
+  C -. label observed evidence .-> A
+```
+
+For each edge, state whether it is advisory, enforced, or only observed.
+
 Write the single-agent baseline first. Add a topology only for a stated task
 dependency or capacity constraint, then specify equal-budget evaluation and a
 stop/escalation condition. Research on agent-system scaling reports strong
 task–architecture dependence, so do not import a universal worker threshold.
-See `references/four-plane-topology.md`.
+See `references/four-plane-topology.md` and `references/topology-evidence-addendum.md`.
 
 ### Primary Selection Tree
 
-```mermaid
-flowchart TD
-  A[What makes work become eligible?] --> B{Stable feed-forward dependencies?}
-  B -->|Yes| C[DAG]
-  B -->|No| D{Reviewer or gate decides routing?}
-  D -->|Yes| E[Workflow]
-  D -->|No| F{Manager decides which roles work each round?}
-  F -->|Yes| G[Manager-Driven Team]
-  F -->|No| H{Agents discover work from messages or signals?}
-  H -->|Yes| I[Swarm]
-  H -->|No| J{Specialists update one shared diagnostic artifact?}
-  J -->|Yes| K[Blackboard]
-  J -->|No| L{Do we first need to discover the team itself?}
-  L -->|Yes| M[Team-Builder]
-  L -->|No| N{One action repeats until a measurable stop condition?}
-  N -->|Yes| O[Recurring]
-  N -->|No| C
-```
+Use the [canonical selection tree](diagrams/01_flowchart_primary-selection-tree.md), then apply the rules below. Keep that diagram as the single editable source so selection logic does not drift across copies.
 
 ### Fast Disambiguation Rules
 

@@ -1,0 +1,132 @@
+{
+  "updated_at_utc": "2026-09-24T09:54:22.754484+00:00",
+  "source_origin": "ASTRA-BOOK-REVIEW.md additions 6 and 7",
+  "source_origin_sha256": "2b8573f2547e231a948ec58eec19bcc5d73b179aebf53e8a411ad4196066e8b8",
+  "mermaid_markdown": "MERMAID-SOURCES.md",
+  "mermaid_markdown_sha256": "17d1ac89c22f98b2985d189fb44c105e4b1d91b41d1ad08fa179c87a1273d932",
+  "mermaid_manifest": "mermaid-renders/manifest.json",
+  "mermaid_manifest_sha256": "6946384fadc989efaf5ffcf119860402129fb5422542f99889d47ed4dcf5d76c",
+  "proof_scope": "Six standalone Book-edition strict compiles at <=4.61 in width, final PNG inspection, and Mermaid 12 parse/render plus PNG inspection. No full manuscript page, novelty, or efficacy proof.",
+  "style_sha256": {
+    "pd-figure-language-swiss.tex": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
+    "pd-figure-language-technical.tex": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
+    "pd-figure-language.tex": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
+    "pd-palette.tex": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec"
+  },
+  "figures": [
+    {
+      "draft_id": "draft/obligation-context-receipt",
+      "mermaid": "obligation-source.mmd",
+      "mermaid_file_sha256": "dde4381e392098f214e2975a2768e1d8be4f220e8ffb50603ffcd3ab487a7d1e",
+      "mermaid_rendered_source_sha256": "d8e5d4078cd4d88ce6c4e3cda0456816948ca8efab052fd40a0fce5a002161cf",
+      "mermaid_render": {
+        "engine": "mermaid@12.0.0",
+        "svg": "mermaid-renders/01-flowchart-d8e5d4078cd4.svg",
+        "svg_sha256": "3fec356567c2f1ff98bac68fca626a6d763099bf66aeb7f1055335d588343690",
+        "png": "mermaid-renders/01-flowchart-d8e5d4078cd4.png",
+        "png_sha256": "bf1bc2a748f34f7f600ddd10ecc5a69ee0c57f769cb61eb1956fd540c3a7d0f3",
+        "visual_review": "Opened rendered PNG at original resolution; semantics and labels are readable."
+      },
+      "tikz": "obligation-figure.tex",
+      "tikz_sha256": "9039cd1a1c1cfbeca3267297b4c360a8ffb425cc30c1f59e24514fe2a84b8f93",
+      "editions": [
+        {
+          "edition": "maritime",
+          "wrapper": "obligation-maritime.tex",
+          "wrapper_sha256": "0f370b2d2b4202ae56fe00ccbcf4e49444d44e50f67acd9cd30cc138ec46cce4",
+          "width_in": 4.5988750000000005,
+          "height_in": 3.6540000000000004,
+          "report": "renders/obligation/maritime/render-report.json",
+          "png": "renders/obligation/maritime/obligation-maritime/obligation-maritime.png",
+          "png_sha256": "ffecfcd3ed57ccc0bce03251d3e446f945ed2f316027ced668197c117f24da61",
+          "pdf": "renders/obligation/maritime/obligation-maritime/obligation-maritime.pdf",
+          "pdf_sha256": "2334494822a7eb17c2ffb980434b3b4910a692d4cb07d4c14cc11934c2f770f3",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        },
+        {
+          "edition": "swiss",
+          "wrapper": "obligation-swiss.tex",
+          "wrapper_sha256": "ae126e436d75c5e6269e35fed87c14dd9a0ffa3ce29b2886a56e60cbcfb380bf",
+          "width_in": 4.5988750000000005,
+          "height_in": 3.6540000000000004,
+          "report": "renders/obligation/swiss/render-report.json",
+          "png": "renders/obligation/swiss/obligation-swiss/obligation-swiss.png",
+          "png_sha256": "baf9800f15d2fd37c9ad04ac8e6be115135dcf34d180710fecfd0b25458e0ae2",
+          "pdf": "renders/obligation/swiss/obligation-swiss/obligation-swiss.pdf",
+          "pdf_sha256": "39c001ff27e1385a3b00702158a8bfdc7d39e4688639d75ad7db814214d4a5ad",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        },
+        {
+          "edition": "technical",
+          "wrapper": "obligation-technical.tex",
+          "wrapper_sha256": "e26db8b87976dff56f1681491944fe4fd9a8ea45c448e6ba16156a2455a13aca",
+          "width_in": 4.5988750000000005,
+          "height_in": 3.6540000000000004,
+          "report": "renders/obligation/technical/render-report.json",
+          "png": "renders/obligation/technical/obligation-technical/obligation-technical.png",
+          "png_sha256": "8b79b6d3bcff42ab579a85439dfedbdf60d4e39ad26016a36ed6f77278a03a53",
+          "pdf": "renders/obligation/technical/obligation-technical/obligation-technical.pdf",
+          "pdf_sha256": "08c5cec8717722a2d8ef3b9b8faa4122d2efd07f405eb1ac6519ac212af9f12c",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        }
+      ]
+    },
+    {
+      "draft_id": "draft/selection-aware-skill-promotion",
+      "mermaid": "selection-source.mmd",
+      "mermaid_file_sha256": "f96b94a6100a17ea4b6778904c77955cc2527b717b3aedc01a8656ecc6a60a89",
+      "mermaid_rendered_source_sha256": "73d498908881e368dd2b7949922d301413eb4c4e1e4d9fc42032afcda4be5051",
+      "mermaid_render": {
+        "engine": "mermaid@12.0.0",
+        "svg": "mermaid-renders/02-flowchart-73d498908881.svg",
+        "svg_sha256": "afaa6335ff3f3b0ba007fc18d0daccf290f62ee5e13065ae1cce15272773635c",
+        "png": "mermaid-renders/02-flowchart-73d498908881.png",
+        "png_sha256": "1b6960d192b0d99b09dbe6b90b9120ad12abc852c09d759515294d97b8166cfb",
+        "visual_review": "Opened rendered PNG at original resolution; semantics and labels are readable."
+      },
+      "tikz": "selection-figure.tex",
+      "tikz_sha256": "6abc37dc120e423fe4df130c174087dd8fd2b770c9d373cfaf5d27f7f16b440f",
+      "editions": [
+        {
+          "edition": "maritime",
+          "wrapper": "selection-maritime.tex",
+          "wrapper_sha256": "8adbaf9299da73fe701de5625acfda2f65e5a3bf978f9615dfc23fd8052badbc",
+          "width_in": 4.5988750000000005,
+          "height_in": 4.008333333333334,
+          "report": "renders/selection/maritime/render-report.json",
+          "png": "renders/selection/maritime/selection-maritime/selection-maritime.png",
+          "png_sha256": "69893e25970f1e7937f91848826ed2ad0bb348f29f056c24304d45608aa866db",
+          "pdf": "renders/selection/maritime/selection-maritime/selection-maritime.pdf",
+          "pdf_sha256": "3f1a034742bd108bd418ddf86fd1daf367f04089eece08666eec6aecca87b3c7",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        },
+        {
+          "edition": "swiss",
+          "wrapper": "selection-swiss.tex",
+          "wrapper_sha256": "d8d6aaad74a70f214f5a691d5ebdc535cf2a614c9fcbd72baaf71d10d32a4519",
+          "width_in": 4.5988750000000005,
+          "height_in": 4.008333333333334,
+          "report": "renders/selection/swiss/render-report.json",
+          "png": "renders/selection/swiss/selection-swiss/selection-swiss.png",
+          "png_sha256": "b9f23aae3b0c758a0313415bcd59a03cc0e01a5a01b3233758718fdb6f8aba41",
+          "pdf": "renders/selection/swiss/selection-swiss/selection-swiss.pdf",
+          "pdf_sha256": "8fdf6fd9bfb36fa5b93cf1931a6427d0fe4b33041e816223480c1d2cdb4b6dcb",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        },
+        {
+          "edition": "technical",
+          "wrapper": "selection-technical.tex",
+          "wrapper_sha256": "70da94f61dda5fd5fc30b8f34ec23237dcb445e951b9b2d099cdf39de3272985",
+          "width_in": 4.5988750000000005,
+          "height_in": 4.008333333333334,
+          "report": "renders/selection/technical/render-report.json",
+          "png": "renders/selection/technical/selection-technical/selection-technical.png",
+          "png_sha256": "e2abbf9e7a4c59178c6482835189799f367c396c594be0aa22c9bce3500abb16",
+          "pdf": "renders/selection/technical/selection-technical/selection-technical.pdf",
+          "pdf_sha256": "67b36a01a3a36d337296afad55d7c6b6ba8c60a8152cf50690aa818eb4402617",
+          "visual_review": "Opened final PNG at original resolution; labels, rules and marks are readable with no observed clipping or overlap."
+        }
+      ]
+    }
+  ]
+}

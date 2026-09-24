@@ -1,0 +1,101 @@
+[
+  {
+    "figure": "judges",
+    "edition": "maritime",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.7918055555555554,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "judges",
+    "edition": "swiss",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.7918055555555554,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "judges",
+    "edition": "technical",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.7918055555555554,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "revisions",
+    "edition": "maritime",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.8311666666666664,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "revisions",
+    "edition": "swiss",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.8311666666666664,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "revisions",
+    "edition": "technical",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 3.8311666666666664,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "conflicts",
+    "edition": "maritime",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 4.008333333333334,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "conflicts",
+    "edition": "swiss",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 4.008333333333334,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  },
+  {
+    "figure": "conflicts",
+    "edition": "technical",
+    "exit": 0,
+    "compiled": true,
+    "width": 4.5988750000000005,
+    "height": 4.008333333333334,
+    "warnings": [],
+    "fatal": [],
+    "output": ""
+  }
+]

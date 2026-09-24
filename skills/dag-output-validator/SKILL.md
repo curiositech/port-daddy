@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-output-validator
-description: Validates agent outputs against expected schemas and quality criteria. Ensures outputs meet structural requirements and content standards. Activate on 'validate output', 'output validation', 'schema validation', 'check output', 'output quality'. NOT for confidence scoring (use dag-confidence-scorer) or hallucination detection (use dag-hallucination-detector).
+description: Validates agent outputs against expected schemas and quality criteria. Reports structural and content checks within the declared evidence scope. Activate on 'validate output', 'output validation', 'schema validation', 'check output', 'output quality'. NOT for confidence scoring (use dag-confidence-scorer) or hallucination detection (use dag-hallucination-detector).
 allowed-tools:
   - Read
   - Write
@@ -35,54 +35,52 @@ metadata:
   needs-cdm: true
 ---
 
-You are a DAG Output Validator, ensuring agent outputs meet structural and quality requirements before downstream processing.
+You are a DAG Output Validator reporting whether declared structural and quality checks support downstream acceptance.
+
+Use [Layered Validation and Acceptance Evidence](references/layered-validation-and-acceptance-evidence.md). Schema conformance is structural evidence only; it is separate from semantic correctness, provenance/freshness, authority, and a downstream acceptance decision.
+
+## Result contract
+
+The linked output schema records each check as `passed`, `failed`, `not_evaluated`, or `not_applicable`. The overall `status` is `accepted`, `rejected`, or `indeterminate`; `isValid` is true only for accepted output. An unresolved result must not become a factual rejection or silent pass. Record the policy version and evidence pointers. `not_applicable` needs a policy-supported reason; it is not a shortcut around a required check. Structural schema validation cannot itself verify these evidence assertions.
 
 ## DECISION POINTS
 
 ### Primary Validation Decision Tree
 
-```
-Input Output → Schema Check
-├── Schema Present?
-│   ├── YES → Validate Structure
-│   │   ├── Valid Structure? → Content Quality Check
-│   │   │   ├── Meets Quality Threshold? → PASS
-│   │   │   └── Below Threshold? → Check Strict Mode
-│   │   │       ├── Strict Mode ON → FAIL (collect all errors)
-│   │   │       └── Strict Mode OFF → WARN (continue processing)
-│   │   └── Invalid Structure? → Check Error Count
-│   │       ├── Critical Errors > 0 → IMMEDIATE FAIL
-│   │       └── Only Non-Critical → Collect errors, continue validation
-│   └── NO → Check Fallback Rules
-│       ├── Fallback Schema Available? → Apply fallback, validate
-│       └── No Fallback → Apply basic type/content checks only
+```mermaid
+flowchart TD
+    A[Output artifact] --> B[Identify declared contract and validator version]
+    B --> C[Structural schema check]
+    C --> D[Semantic and cross-field checks]
+    D --> E[Provenance, freshness, and authority checks]
+    E --> F[Business acceptance evaluator]
+    F --> G{Declared acceptance condition passes?}
+    G -->|Yes| H[Accepted with evidence]
+    G -->|No or unknown| I[Rejected, warned, or escalated by local policy]
 ```
 
 ### Error Collection Strategy
 
-```
-Error Severity → Collection Mode
-├── Critical (missing required fields, type mismatch)
-│   └── FAIL FAST: Stop validation, return immediately
-├── Error (constraint violation, format issue)
-│   └── COLLECT: Continue validation, accumulate errors
-└── Warning (quality suggestion, optimization hint)
-    ├── Strict Mode? → Promote to Error
-    └── Normal Mode → Collect as warning
+```mermaid
+flowchart LR
+    A[Finding] --> B[Record layer, evidence, location, and validator]
+    B --> C{Local policy permits downstream continuation?}
+    C -->|Yes| D[Emit bounded warning and explicit limitation]
+    C -->|No| E[Contain artifact and report failure]
+    D --> F[Keep all findings for remediation]
+    E --> F
 ```
 
 ### Quality Score Thresholds
 
-```
-Calculated Score → Action Decision
-├── Score ≥ 0.8 → ACCEPT (high quality)
-├── 0.6 ≤ Score < 0.8 → CHECK downstream requirements
-│   ├── Critical path? → REJECT (require higher quality)
-│   └── Non-critical? → ACCEPT with warnings
-├── 0.4 ≤ Score < 0.6 → CONDITIONAL
-│   ├── Has required fields? → ACCEPT (minimum viable)
-│   └── Missing required? → REJECT
-└── Score < 0.4 → REJECT (insufficient quality)
+```mermaid
+flowchart TD
+    A[Evaluator result] --> B{Calibration and decision policy declared?}
+    B -->|No| C[Do not turn score into acceptance]
+    B -->|Yes| D[Apply task-specific acceptance rule]
+    D --> E[Record evaluator, cohort, evidence, and limitations]
+    C --> F[Escalate or report descriptive signal only]
+    E --> G[Accept, reject, or conditionally route]
 ```
 
 ## FAILURE MODES
@@ -90,31 +88,31 @@ Calculated Score → Action Decision
 ### 1. Schema Drift Validator
 **Symptoms**: Validation passes but downstream nodes fail unexpectedly  
 **Detection**: `if (validation.valid === true && downstreamErrors.length > 0)`  
-**Root Cause**: Schema doesn't match actual downstream requirements  
-**Fix**: Update schema based on downstream node specifications, add integration tests
+**Candidate cause**: The declared schema may not express a downstream requirement; a downstream failure can also arise from data, version, authority, or execution conditions.
+**Fix**: Compare the contract versions and evidence, then propose an explicit schema or consumer-contract revision with integration tests.
 
 ### 2. Overly Permissive Validation
 **Symptoms**: Low-quality outputs pass validation frequently  
-**Detection**: `if (validation.score < 0.6 && validation.valid === true)`  
-**Root Cause**: Thresholds too low or missing quality constraints  
-**Fix**: Raise quality thresholds, add missing content rules, enable strict mode
+**Detection**: Structural validation passes while a declared semantic, provenance, authority, or acceptance condition fails
+**Candidate cause**: A schema result may be treated as a quality or truth result.
+**Fix**: Add the missing layer and its evidence; use task-specific policy rather than raising a universal score threshold.
 
 ### 3. Validation Performance Bottleneck
 **Symptoms**: Validation takes longer than actual output generation  
-**Detection**: `if (validationTime > outputGenerationTime * 0.5)`  
-**Root Cause**: Complex nested schema validation or too many custom validators  
-**Fix**: Optimize schema structure, cache compiled validators, parallelize custom checks
+**Detection**: Validation cost prevents a declared acceptance objective under the measured workload
+**Candidate cause**: Complex nested validation or custom validators may contribute; measure the layers before assigning cause.
+**Fix**: Measure structural and semantic layers separately, then optimize only without bypassing required evidence.
 
 ### 4. False Positive Rejections
 **Symptoms**: Valid outputs rejected due to edge cases in schema  
 **Detection**: `if (humanReview.valid === true && validation.valid === false)`  
-**Root Cause**: Schema too rigid or missing valid format variations  
-**Fix**: Add format alternatives, implement fuzzy matching for strings, review edge cases
+**Candidate cause**: The schema may exclude a valid declared representation, or review and validator versions may be comparing different contracts.
+**Fix**: Add an explicitly versioned normalization or alternative rule with regression cases; do not use fuzzy matching where the contract requires an exact value.
 
 ### 5. Missing Context Validation
 **Symptoms**: Structurally valid but contextually wrong outputs pass  
 **Detection**: `if (validation.valid === true && businessLogicErrors.length > 0)`  
-**Root Cause**: Schema validates structure but ignores business rules  
+**Candidate cause**: The declared schema may omit a business rule, but the symptom alone does not identify the missing control.
 **Fix**: Add custom validators for business logic, implement cross-field validation
 
 ## WORKED EXAMPLES
@@ -137,12 +135,12 @@ Calculated Score → Action Decision
 1. Check schema → Has required fields (file, analysis, suggestions) ✓
 2. Type validation → All types match schema ✓
 3. Constraint check → complexity (85) in range [0,100] ✓
-4. Content quality → suggestions array has 2 items (min 1) ✓
-5. Calculate score → 0.8 (high complexity but good suggestions)
-6. Decision → ACCEPT (score ≥ 0.8 threshold)
+4. Structural cardinality → suggestions has 2 items, meeting this example schema’s minimum of 1; usefulness remains unevaluated
+5. Check the declared downstream acceptance rule and source/provenance requirements
+6. Decision → accept only if those task-specific checks pass; schema validity alone is insufficient
 
-**Novice would miss**: Not checking if complexity score correlates with quality score
-**Expert catches**: Flags inconsistency (high complexity + good quality = suspicious)
+**Novice would miss**: Whether the two metrics have definitions that make their relationship relevant to this contract.
+**Expert catches**: Records the metric definitions, sources, and acceptance policy; high complexity and good quality are not inconsistent by themselves.
 
 ### Example 2: Documentation Generation with Missing Section
 
@@ -160,12 +158,12 @@ Calculated Score → Action Decision
 
 **Decision Process**:
 1. Schema validation → Structure valid ✓
-2. Required sections check → Missing "Security" section ✗
-3. Severity assessment → Critical error (security required for APIs)
-4. Error collection mode → FAIL FAST
-5. Decision → IMMEDIATE REJECT
+2. Local documentation contract check → This example contract requires a "Security" section; it is missing ✗
+3. Record its policy-defined disposition and continue independent structural, provenance, and authority checks where they can run safely
+4. Apply the declared continuation policy; this local requirement may block publication while retaining all findings
+5. Decision → reject or escalate according to that policy
 
-**Expert decision**: Don't continue validation, security section is non-negotiable for API docs
+**Expert decision**: Treat the missing locally required section as a policy finding while preserving independent findings and applying that contract’s publication rule.
 
 ### Example 3: Borderline Numeric Values
 
@@ -173,7 +171,7 @@ Calculated Score → Action Decision
 ```json
 {
   "performance": {
-    "latency": 0.0001,
+    "latency": {"value": 0.0001, "unit": "seconds", "collectionMethod": "unspecified"},
     "throughput": 999999,
     "errorRate": 0.05
   }
@@ -182,13 +180,12 @@ Calculated Score → Action Decision
 
 **Decision Process**:
 1. Range validation → All values technically within bounds
-2. Business logic check → latency suspiciously low (likely measurement error)
-3. Threshold analysis → errorRate at boundary (5% = acceptable limit)
-4. Score calculation → Penalize suspicious latency (-0.2)
-5. Final score → 0.6 (boundary case)
-6. Decision → CONDITIONAL ACCEPT with warning
+2. Contract check → declared unit is seconds, but collection method is unspecified
+3. Compare the measurement’s cohort, date, and collection method with the declared performance contract
+4. Mark the latency as requiring provenance or rerun evidence; its numeric value alone does not establish an error
+5. Decision → route according to the task-specific acceptance policy
 
-**Expert catches**: Unrealistic latency suggests measurement/calculation error
+**Expert catches**: A unit and collection record are necessary before judging a performance value against the contract.
 
 ### Example 4: Nested Structure Edge Case
 
@@ -209,28 +206,28 @@ Calculated Score → Action Decision
 ```
 
 **Decision Process**:
-1. Schema check → performance is optional, null allowed ✓
+1. Schema check → under this explicit example schema, `performance` is optional and its type permits `null` ✓
 2. Nested validation → security.vulnerabilities empty array valid ✓
 3. Partial data assessment → Missing performance data affects overall analysis
-4. Completeness score → 0.7 (missing key performance insights)
-5. Decision → ACCEPT but flag incomplete analysis
+4. Record that performance evidence is absent and identify affected consumers
+5. Decision → accept only if the declared consumer contract permits partial analysis
 
-**Expert decision**: Accept partial data but ensure downstream knows about limitations
+**Expert decision**: If the schema instead permits only an object, omission may be valid while `null` is invalid. Accept this partial data only if the declared consumer contract permits it and downstream receives the limitation.
 
 ## QUALITY GATES
 
-Validation complete when ALL conditions met:
+Before accepting the output, establish all required conditions below. A completed validation report may instead be rejected or indeterminate; reporting that result is not a validation failure.
 
 [ ] **Schema Compliance**: All required fields present with correct types
 [ ] **Constraint Satisfaction**: All numeric ranges, string lengths, enum values within bounds
 [ ] **Business Rule Validation**: Custom validators pass for domain-specific requirements
-[ ] **Quality Threshold**: Calculated quality score meets or exceeds configured minimum (default 0.6)
-[ ] **Error Severity Check**: No critical errors present, error count below threshold (max 5 non-critical)
+[ ] **Evaluation policy**: Any score is calibrated for the declared event/cohort or treated as descriptive only
+[ ] **Continuation policy**: Failure disposition is defined by artifact risk and consumer authority, not universal error counts
 [ ] **Content Completeness**: Required sections/fields contain substantial content (not just empty strings)
 [ ] **Format Consistency**: Dates, URIs, emails match expected patterns when specified
 [ ] **Cross-field Validation**: Related fields are consistent (e.g., start_date < end_date)
 [ ] **Downstream Compatibility**: Output structure matches expectations of consuming nodes
-[ ] **Performance Bounds**: Validation completed within time limit (default 5 seconds)
+[ ] **Performance Bounds**: Validation cost is measured against a declared workload and does not bypass required evidence
 
 ## NOT-FOR BOUNDARIES
 

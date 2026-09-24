@@ -1,0 +1,31 @@
+{
+  "tool": "render_tikz_figure",
+  "engine": "pdflatex",
+  "strict": true,
+  "dpi": 144,
+  "preview": true,
+  "figures": [
+    {
+      "source": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/judges-maritime.tex",
+      "engine": "pdflatex",
+      "command": [
+        "pdflatex",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "-output-directory=/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/renders/judges/maritime/judges-maritime",
+        "-jobname=judges-maritime",
+        "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/judges-maritime.tex"
+      ],
+      "compiled": true,
+      "fatal": [],
+      "warnings": [],
+      "pdf": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/renders/judges/maritime/judges-maritime/judges-maritime.pdf",
+      "png": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/renders/judges/maritime/judges-maritime/judges-maritime.png",
+      "width_in": 4.5988750000000005,
+      "height_in": 3.7918055555555554,
+      "log": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-drafts/judges-revisions-conflicts/renders/judges/maritime/judges-maritime/judges-maritime.log",
+      "tail": "ff/book-draf\nts/judges-revisions-conflicts/judges-figure.tex [1\n\n\nNon-PDF special ignored!\n<special> papersize=332.3611pt,274.03331pt\n{/Users/erichowens/Library/texlive/2026basic/texmf-var/fonts/map/pdftex/updmap/\npdftex.map}{/Users/erichowens/Library/texmf/fonts/enc/dvips/tex-gyre/q-ec.enc}]\n)\n(/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-draf\nts/judges-revisions-conflicts/renders/judges/maritime/judges-maritime/judges-ma\nritime.aux)\n ***********\nLaTeX2e <2025-11-01>\nL3 programming layer <2026-01-19>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 13820 strings out of 469006\n 294731 string characters out of 5454814\n 684264 words of memory out of 5000000\n 42266 multiletter control sequences out of 15000+600000\n 640416 words of font info for 46 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 117i,7n,121p,532b,736s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</Users/erichowens/Library/texmf/fonts/type1/public/tex-gyre/qplb.pfb></Users\n/erichowens/Library/texmf/fonts/type1/public/tex-gyre/qplr.pfb></Users/erichowe\nns/Library/texmf/fonts/type1/public/tex-gyre/qplri.pfb>\nOutput written on /Users/erichowens/coding/tmp/agent-skills-expansion-20260924-\nhandoff/book-drafts/judges-revisions-conflicts/renders/judges/maritime/judges-m\naritime/judges-maritime.pdf (1 page, 149914 bytes).\nPDF statistics:\n 27 PDF objects out of 1000 (max. 8388607)\n 17 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 13 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n"
+    }
+  ],
+  "contact_sheet_error": null
+}

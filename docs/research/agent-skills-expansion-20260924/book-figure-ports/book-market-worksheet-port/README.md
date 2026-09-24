@@ -1,0 +1,11 @@
+# Market claim and reversal worksheet — Book planning port
+
+This is a standalone three-edition TikZ planning artifact, not a manuscript edit. The accepted B06 market bundle and BOOK-REVIEW.md are the semantic brief. The figure separates payment, authority, evidence, and reputation records, then compares a challenge before release with one after release. It uses the constructed 11.5-credit hold and D17/D18 case. The proposed escrow and recovery behavior has not been validated against a live contract or market experiment.
+
+The visual grammar is a two-panel worksheet. A literal port of the wide Mermaid group graph would duplicate the Book's existing fig-he-three-sided overview. The figure uses the established Book palette, base figure language, and edition overrides copied from book-B06-order-exercise; wrappers load palette, base, then edition override. It draws to 11.4 cm within the 11.43 cm Book column with footnotesize labels and no resize command.
+
+Review evidence: renders/compile-results.json records six successful LaTeX builds with zero overfull, missing-character, undefined-control-sequence, or LaTeX-error flags. page-contact.png shows the three representative 7 × 10 in pages; all were opened and inspected. An initial cross-column accounting label was shortened and every edition rerendered. geometry-font-checks.json records page dimensions and embedded fonts. source-receipt.json pins the source brief and style inputs; output-manifest.json pins the final TeX/PDF/PNG artifacts.
+
+Manual review: claim separation PASS; pre/post release distinction PASS; 11.5 arithmetic PASS; title and record hierarchy PASS; page fit PASS; all three edition accents visible PASS; caption and status boundary PASS. Integration into the Book, full Book figcheck, empirical validation, and runtime escrow behavior remain untested.
+
+Root review: corrected three labels that extended into the right margin, then recompiled and opened all three final page renders. PDF word boxes now fit the page text column in every edition; all six PDFs embed every font. The original maritime font flag was a check-report error, corrected from pdffonts readback. See root-final/render-readback.json and ROOT-CORRECTIONS.md.

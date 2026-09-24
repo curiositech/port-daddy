@@ -1,0 +1,36 @@
+{
+  "status": "standalone-draft-verified",
+  "manuscript_modified": false,
+  "inspection": "Root viewed all three final PNGs individually at readable size. No clipped labels, illegible text, edge-label collision, or unintended outcome arrow observed. Initial width overflow and maritime hyphenation repaired before this receipt.",
+  "limits": "Standalone semantic/style/geometry proof only. No Book page insertion, full preamble certification, or protocol efficacy claim.",
+  "editions": [
+    {
+      "edition": "maritime",
+      "compiled": true,
+      "width_in": 4.5988750000000005,
+      "height_in": 3.319347222222222,
+      "warnings": [],
+      "pdf_sha256": "03bf59225595021ea9dd28f4b13439a52de3404e2790d10173173e6eef675d56",
+      "png_sha256": "a9155ec39d5e091b9834e374dbeba0a9a5c24141e9ea8a685d4034f123cd2252"
+    },
+    {
+      "edition": "swiss",
+      "compiled": true,
+      "width_in": 4.5988750000000005,
+      "height_in": 3.319347222222222,
+      "warnings": [],
+      "pdf_sha256": "64a32a8f7246a458da1925a937a4ef0fceddae297cbe4f4cc4913e2cab51f6d2",
+      "png_sha256": "30087d914b2a907bea6e41bc0dc4125eee1712734b7d2ea9796a656c8de40994"
+    },
+    {
+      "edition": "technical",
+      "compiled": true,
+      "width_in": 4.5988750000000005,
+      "height_in": 3.319347222222222,
+      "warnings": [],
+      "pdf_sha256": "e3dbce5b8874efeeca35685a4646974ff6388671251b304c071a3135bc0468f5",
+      "png_sha256": "45e510b23ff69e694c8348f5390f19ad87ed38e473f1946c5c464789b2373800"
+    }
+  ],
+  "source_tex_sha256": "ecac282443e623f4ce333778fd1bf0537e242e085c3004e58cf9d6d17d5d8e4d"
+}

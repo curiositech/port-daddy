@@ -1,148 +1,125 @@
-# Thought Decomposition and Problem Structure: Matching Reasoning Granularity to Task Properties
+# Thought decomposition and problem structure
 
-## Core Principle
+## Why the state boundary matters
 
-The Tree of Thoughts framework introduces a critical design decision that most prompting approaches ignore: **how to decompose the problem-solving process into intermediate "thoughts" that serve as nodes in a search tree**. This isn't a minor implementation detail—it's the foundation that determines whether deliberate search is even possible.
+Tree of Thoughts makes the intermediate unit an explicit design choice. In the paper's formalization, a search state contains the task input and the thought steps chosen so far. A transition adds a candidate continuation. The useful unit is neither fixed by the model nor equivalent to a token, sentence, subtask, or hidden mental state. It is defined by the domain and the job the search controller must perform.
 
-As the ToT paper states: "In general, a thought should be 'small' enough so that LMs can generate promising and diverse samples (e.g. generating a whole book is usually too 'big' to be coherent), yet 'big' enough so that LMs can evaluate its prospect toward problem solving (e.g. generating one token is usually too 'small' to evaluate)."
+Yao et al. give three task-specific examples: an equation for Game of 24, a paragraph-level plan and then a passage for creative writing, and an individual word placement for a mini crossword. These show how their experiments instantiate the framework. They do not prove one decomposition is optimal or that similar-looking real tasks should use the same unit.
 
-This reveals a fundamental tension in agent system design: the granularity at which you decompose a problem determines both what you can explore and what you can meaningfully evaluate.
+An operational state definition should include:
 
-## The Three-Way Balance
+- **Fields:** information needed to decide which transitions are legal or useful.
+- **Invariants:** properties every accepted transition must preserve.
+- **Transition:** what the candidate action adds, replaces, or consumes.
+- **Partial evaluation:** what can be checked before the goal is reached.
+- **Recovery:** how the controller restores the parent or reopens a state after rejection.
+- **Goal and terminal check:** when a candidate is complete and what property is actually verified.
 
-Effective thought decomposition must balance three competing demands:
+Do not call the state a thought and stop there. For example, an arithmetic search state is not just the text “subtract 9 from 13”; it also needs the remaining values, the expression tree, and the exact multiset of consumed inputs.
 
-1. **Generation Diversity**: Thoughts must be small enough that the LM can generate meaningfully different alternatives at each step. If thoughts are too large (e.g., "write the entire essay"), the LM cannot explore different structural approaches—it's forced to commit to a complete solution immediately.
+## Match generation, evaluation, and granularity
 
-2. **Evaluation Meaningfulness**: Thoughts must be large enough that partial progress can be assessed. Individual tokens cannot be evaluated for "making progress toward solving a crossword puzzle." But a proposed word for one clue can be evaluated against constraints from crossing words.
+The paper frames the unit-size choice as a balance: a unit too large may be difficult to generate as a useful alternative; a unit too small may not contain enough context for a meaningful progress judgment. The search space and evaluation budget also matter. Treat these as hypotheses to test on the task rather than a three-factor law with fixed cutoffs.
 
-3. **Search Space Tractability**: The number of possible thoughts at each step, multiplied across tree depth, determines computational feasibility. Too fine-grained decomposition explodes the search space; too coarse-grained eliminates the benefits of search.
+| Design question | If the unit is too coarse | If the unit is too fine | What to test |
+|---|---|---|---|
+| Can the generator offer distinct continuations? | A whole solution may commit before alternatives can be compared. | Candidate lists may fill with fragments that differ syntactically but not strategically. | Distinct, valid candidates per generation request. |
+| Can the evaluator judge partial progress? | A large plan or artifact may hide which decision caused risk. | A token or trivial edit may have no interpretable relation to the goal. | Agreement of heuristic judgment with later exact or human review, scoped to the task. |
+| Can a transition preserve state? | Large revisions may obscure what changed. | Many small transitions may create a long sequence of nearly redundant states. | Transition validity, duplicate rate, rollback effort, and cost. |
+| Can a failed branch be undone? | The action may bundle several decisions with different dependencies. | Excessive granularity may require many backtracks for one useful alternative. | Parent restoration, dependency invalidation, and recovery correctness. |
 
-## Task-Specific Decomposition Examples
+The objective is not to maximize branching or minimize depth. A representation is useful when candidates can be generated, differentiated, evaluated at the right scope, and restored without losing required context.
 
-The paper demonstrates three radically different decomposition strategies, each matched to problem structure:
+## Task-specific examples from the paper
 
-**Game of 24** (depth = 3, high branching):
-- Thought = one arithmetic equation using two numbers
-- Why this works: Each equation reduces the problem size (4 numbers → 3 → 2 → 1). The space of valid next equations is constrainable (basic arithmetic on remaining numbers). Evaluation is possible through quick lookahead simulation ("can these three numbers still make 24?") plus commonsense heuristics ("1, 2, 3 are too small").
-- Alternative decompositions that fail: Token-level (cannot evaluate "4" or "4 +" for progress); solution-level (no exploration of intermediate states).
+### Game of 24: equation transitions
 
-**Creative Writing** (depth = 2, creative constraints):
-- First thought = paragraph-level plan (e.g., "1. Introduce a book that connects to challenges")
-- Second thought = complete passage implementing the plan
-- Why this works: Plans are concrete enough to evaluate for coherence and constraint satisfaction, abstract enough to allow multiple implementation approaches. The two-level structure separates "what to write about" from "how to write it," enabling evaluation at both strategic and execution levels.
-- The paper notes this could be seen as a form of iterative refinement, suggesting thought generation isn't always from scratch—it can involve refining previous thoughts.
+The paper represents a state through the remaining values and equation history. Starting with `[4, 9, 10, 13]`, one path is:
 
-**Mini Crosswords** (depth = 5-10, variable, high constraint):
-- Thought = one word placement for a specific clue
-- Why this works: Each word placement adds letters that constrain future placements. Evaluation is possible by checking if remaining clues can still be satisfied given current letter constraints. The variable depth (solving clues in different orders) requires a search algorithm that can handle dynamic tree structures.
-- Critical insight: "Subsequent thoughts are constrained not to change any filled words or letters" - this prevents exponential blowup from allowing arbitrary modifications.
+| Step | Available values | Transition | Remaining values |
+|---|---|---|---|
+| 1 | `4, 9, 10, 13` | `13 - 9 = 4` | `4, 4, 10` |
+| 2 | `4, 4, 10` | `10 - 4 = 6` | `4, 6` |
+| 3 | `4, 6` | `4 * 6 = 24` | `24` |
 
-## Implications for Agent System Design
+An exact leaf check evaluates the expression `(10 - 4) * (13 - 9)`, checks that it equals 24, and checks that each input was used exactly once. A partial evaluator may estimate whether the remaining values can reach the target; it is not the leaf checker.
 
-### 1. Task Decomposition Skills Must Consider Evaluation Granularity
+One transition rule can be written without relying on a natural-language “thought” label:
 
-When an orchestration system decomposes a complex task, it typically thinks about functional decomposition (what subtasks are needed) or dependency ordering (what must happen first). ToT adds a third dimension: **at what granularity can progress be meaningfully evaluated?**
+```text
+state = (remaining-values, expression-forest, consumed-input-identities)
+action = (left-value-id, operator, right-value-id)
+child = replace the selected values by the computed result and append its expression node
+reject child if an input identity is repeated, an operand is missing, or the operation is undefined
+```
 
-For debugging a complex system failure:
-- Too coarse: "Debug the entire authentication system" (no intermediate evaluation possible)
-- Too fine: "Check if variable `x` is null on line 47" (cannot evaluate progress toward root cause)
-- Appropriate: "Verify authentication token is correctly generated" → "Verify token is correctly transmitted" → "Verify token is correctly validated" (each is evaluable for correctness and contribution to overall goal)
+This makes repeated equal numbers unambiguous: the two `4` values still have distinct input identities. It also makes subtraction and division order explicit. The expression tree is evidence for a later exact check, not a substitute for that check.
 
-### 2. Skill Design Should Enable Multiple Generation Strategies
+### Creative writing: plan then passage
 
-ToT identifies two distinct thought generation approaches:
+The paper's task supplies four random sentences and requires a four-paragraph passage ending each corresponding paragraph with one input sentence. Its ToT configuration uses a plan as the intermediate unit, then a completed passage as the next unit. It generates plan candidates, uses comparative votes to select one, and repeats the process for passages. This is one concrete way to separate global organization from realization.
 
-**i.i.d. sampling** (Creative Writing): "Sample i.i.d. thoughts from a CoT prompt... This works better when the thought space is rich (e.g. each thought is a paragraph), and i.i.d. samples lead to diversity."
+For a local writing task, the plan state might hold paragraph purpose, which required sentence closes each paragraph, and unresolved constraints. A mechanical checker can verify paragraph count and endings. A reviewer or prompted evaluator may compare coherence or thematic fit, but that preference is not a fact-check or proof of quality. Keep objective constraints and subjective ratings in separate fields.
 
-**Sequential proposal** (Game of 24, Crosswords): "Propose thoughts sequentially using a 'propose prompt'... This works better when the thought space is more constrained (e.g. each thought is just a word or a line), so proposing different thoughts in the same context avoids duplication."
+The paper also evaluates iterative refinement from an earlier output. Refinement can be treated as a generation operator that maps one artifact to a new candidate; it need not be mislabeled as a second search algorithm. Record the parent artifact and change request so an evaluator can see what changed.
 
-Agent systems should recognize that "generate alternatives" isn't a single capability but depends on constraint density:
-- Rich, unconstrained spaces: parallel independent generation
-- Constrained spaces: sequential proposal that builds on context to avoid redundancy
+### Mini crosswords: word placements and crossings
 
-### 3. Decomposition Enables or Prevents Backtracking
+A crossword state stores the grid or placed words and the letter patterns they impose on remaining clues. One transition chooses a clue and proposes a word. The exact crossing constraint can reject an entry that conflicts with already fixed letters. A language-model judgment about whether remaining clues can be filled is weaker: the paper reports that a rare valid entry (“agend”) was treated as impossible, leading to a false prune.
 
-The crossword experiments demonstrate a subtle point: decomposition strategy determines what backtracking means. By constraining thoughts to never modify previously filled words, ToT makes backtracking simple—just return to the parent state. If thoughts could modify arbitrary prior decisions, backtracking would require reasoning about which previous decisions to revise.
+The authors constrain the experiment so later placements do not alter already filled words; this bounds how the search revises its earlier commitments. That makes parent-state backtracking meaningful. It is an experimental design decision; a solver that permits word revisions needs a different transition model and dependency invalidation rule.
 
-For code refactoring agents:
-- Allowing "modify any previous change" creates exponential search complexity
-- Constraining to "add new transformations without undoing previous ones" simplifies search but may miss optimal solutions
-- The tradeoff must be explicit in task decomposition
+## Other domains: design the checker before the branch factor
 
-### 4. The Evaluation Budget Shapes Decomposition
+The following are application examples, not claims made by the ToT paper:
 
-Table 7 in the paper shows ToT uses 5.5k completion tokens to solve Game of 24, comparable to 100 independent CoT trials but with 74% success vs 49%. The thought decomposition enables investing those tokens in evaluating partial paths rather than generating complete but likely-wrong solutions.
+| Domain | Possible state | Invariant or exact check | Candidate partial evaluator |
+|---|---|---|---|
+| Code repair | patch set, files, tests run, parent revision | parser/typecheck/test for named property; diff stays within authorized files | likely coverage, risk, or suspected cause, explicitly heuristic |
+| Data analysis | question, transformations, dataset version, intermediate result | schema and transformation checks; reproducible calculation | whether a result bears on the question |
+| Travel/resource plan | remaining tasks, route, resource commitments | time windows, capacities, permissions, and hard constraints | likely utility under stated assumptions |
+| Proof search | assumptions, derived lemmas, proof obligations | checker or kernel validates each accepted inference | estimate which obligation or lemma is useful next |
+| Document revision | claim ledger, proposed wording, sources, unresolved decisions | citation existence, required-field checks, scope constraints | clarity or comparison against named reader criteria |
 
-This means decomposition should consider: *Given N tokens of evaluation budget, how should we divide the problem such that N/depth tokens per evaluation is sufficient to discriminate good from bad partial solutions?*
+For a state with irreversible real-world effects, ordinary tree backtracking is not enough: a plan can be restored in memory while an external action remains. Keep effectful execution behind the relevant authorization and recovery controls; use ToT only for the search that can safely be evaluated.
 
-### 5. Domain-Specific Decomposition Strategies Are Unavoidable
+## Decomposition worksheet
 
-The paper's three tasks require completely different decomposition strategies. There's no universal granularity for thoughts. This challenges agent systems that aim for task-agnostic decomposition:
+Before implementing search, fill in one row for each candidate representation:
 
-- Some tasks have natural evaluation points (crosswords: per word; code: per function; proofs: per lemma)
-- Some tasks require imposing artificial structure (creative writing: forcing a planning phase)
-- Some tasks have multiple valid decompositions (mathematical reasoning: by subproblem vs by technique)
+| Field | Decision to record |
+|---|---|
+| Task/goal | Exact problem statement, audience, and stopping condition. |
+| State key | Which values determine legal successors, terminal status, and future evaluation? |
+| Action shape | What one proposal changes and which earlier decisions it may revise. |
+| Invariants | Exact constraints checked at transition time. |
+| Partial evaluator | Property estimated, evidence available, output schema, and known failure cases. |
+| Terminal checker | The exact predicate, tool, or reviewer that checks a completed candidate. |
+| Backtracking | Parent snapshot, reversible update, or explicit restart requirement. |
+| Budget | Candidate generation, expansion, evaluator samples, exact checks, wall time, and cost. |
+| Stop result | Verified solution, unverified candidate, no candidate, budget exhaustion, or error. |
 
-An agent system's "task decomposition" skill cannot be a single general procedure. It must incorporate domain knowledge about where evaluation is meaningful.
+Then test at least one successful transition, one rejected transition, one duplicate state, and one deliberately misleading evaluator result. If those cannot be represented clearly, revise the state boundary before scaling the search.
 
-## Boundary Conditions and Failure Modes
+## Practical tradeoffs to measure
 
-**When Fine-Grained Decomposition Fails:**
-The paper notes crossword solving required constraining thoughts to avoid modifying previous words, "so that the ToT has at most 10 intermediate steps" for tractability. Without this constraint, the tree depth could explode. Fine-grained decomposition only works when:
-- Each step significantly reduces remaining search space
-- Constraints from previous steps limit future branching
-- Dead-ends can be detected before exhausting search budget
+The original reference used a heuristic `N / depth` formula to estimate whether an evaluation budget could discriminate states. That is not a supported model: evaluations are not necessarily independent or equally costly, and candidate generation, branching, and prompt length vary. Use measured counts instead.
 
-**When Coarse-Grained Decomposition Fails:**
-The creative writing task used only depth-2 search (plan → passage). The paper shows this works (7.56 vs 6.93 coherency score over CoT), but notes "iterative-refine is more effective on this natural language task" (7.67 from just refining IO output). This suggests:
-- For highly creative tasks, the evaluation bottleneck may be more important than exploration breadth
-- Very coarse decomposition works when the LM's generation quality is already high and evaluation provides clear signal for refinement
+For each run, record:
 
-**When Evaluation Granularity Mismatches Thought Granularity:**
-The crossword ablation (Table 3, "-prune") shows that sometimes correct solutions get pruned because "5 × 5 crosswords by design have some rare or obsolete words that GPT-4 cannot recognize." The evaluation heuristic ("is this word valid?") operates at wrong granularity for the actual goal ("will this lead to a complete solution?"). Thought decomposition must match evaluation capabilities.
+1. distinct parent states expanded;
+2. generation requests and candidate states returned;
+3. invalid and duplicate proposals;
+4. evaluator calls and samples per candidate;
+5. exact partial checks and exact terminal checks;
+6. states discarded by each named policy;
+7. backtracks, reopens, and state-restoration errors;
+8. verified results and false-prune/false-keep examples where ground truth exists;
+9. prompt/completion tokens, elapsed time, and cost if measured;
+10. typed stop reason.
 
-## Practical Application: Designing a Decomposition Strategy
+Compare different thought units on the same test inputs with the same verifier and a declared resource budget. A coarser unit may save transitions but conceal alternatives; a finer unit may make pruning informative but increase calls. Neither outcome is universal.
 
-For an agent system encountering a new complex task:
+## Limits and source
 
-**Step 1: Identify Natural Evaluation Points**
-Where can partial progress be meaningfully assessed? In code review: per file? Per function? Per logical change? The answer depends on what properties you're evaluating (correctness, style, security).
-
-**Step 2: Estimate Branching Factor**
-How many reasonable alternatives exist at each decision point? High branching (>10) suggests needing good evaluation heuristics or pruning strategies. Low branching (<3) suggests sequential exploration may suffice.
-
-**Step 3: Consider Constraint Propagation**
-Do early decisions strongly constrain later ones (like crosswords), or are decisions relatively independent (like parallel bug fixes)? High constraint propagation favors finer decomposition with frequent evaluation.
-
-**Step 4: Match Search Budget to Tree Size**
-If depth D and branching B create B^D possible paths, and you can afford E evaluations, you must either:
-- Reduce depth (coarser decomposition)
-- Reduce branching (stronger constraints on thought generation)
-- Improve evaluation efficiency (faster heuristics)
-- Accept incomplete search (DFS with pruning instead of exhaustive BFS)
-
-**Step 5: Design Evaluation That Matches Decomposition**
-The Game of 24 evaluation (sure/likely/impossible) works because thoughts are equations that can be quickly simulated. Crossword evaluation (possible/impossible to fill remaining clues) works because thoughts are word placements with checkable constraints. The evaluation strategy must be designed in tandem with decomposition, not after.
-
-## Connection to Classical AI Planning
-
-The ToT paper explicitly connects to Newell, Shaw, and Simon's work on problem-solving as search through a combinatorial problem space. The key insight from 1950s AI—that problem representation determines solution tractability—remains true:
-
-"A genuine problem-solving process involves the repeated use of available information to initiate exploration, which discloses, in turn, more information until a way to attain the solution is finally discovered."
-
-Modern LLMs don't change this fundamental principle. They provide a new mechanism for generating and evaluating intermediate states, but the requirement that these states be appropriately granular for meaningful evaluation remains. The "representation problem" is now a "thought decomposition problem," but it's the same essential challenge.
-
-## The Open Question: Can Decomposition Be Learned?
-
-The paper uses hand-designed decompositions for each task. An open question for agent systems: can appropriate decomposition strategies be learned or automatically discovered?
-
-Possible approaches:
-- Meta-learning over problem classes to identify common evaluation structures
-- Reinforcement learning where decomposition granularity is a learnable parameter
-- LLM self-reflection on what granularity enables progress assessment
-- Adaptive decomposition that starts coarse and refines when evaluation is ambiguous
-
-The paper hints at this: "fine-tuning LMs using a ToT-style high-level counterfactual decision making (e.g. deliberating over potential choices for the next paragraph, instead of predicting the next token) might present opportunities to enhance the problem-solving capabilities of LMs."
-
-This suggests the future isn't hand-designed decomposition for every task, but training systems to recognize problem structures that afford particular decomposition strategies.
+The original ToT experiments manually define the thought representation for each task. The paper does not prove that domain-specific decompositions are unavoidable, that one granularity is best, or that a chosen state representation transfers to a new workload. Its reported results are specific to the paper's prompts, model setup, benchmark samples, and metrics. The primary method, experiment descriptions, and limits are summarized in [Paper method and worked examples](paper-method-and-worked-examples.md).

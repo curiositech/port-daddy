@@ -1,0 +1,239 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "8db34c796c1d36461ba4c75c9f1c7757fb9d967214d70df113da8e1e017174d4",
+      "bytes": 2217
+    },
+    {
+      "path": "figures/pd-figure-language-swiss.tex",
+      "sha256": "80f97c64f5d57ff31fa890e99a22dac855d0194e2464786149bdab08b53b84e1",
+      "bytes": 2430
+    },
+    {
+      "path": "figures/pd-figure-language-technical.tex",
+      "sha256": "a3cb522b9f2a1375f4298ed146033883ac2267af5a57e975ebd88f5e933e3820",
+      "bytes": 2842
+    },
+    {
+      "path": "figures/pd-figure-language.tex",
+      "sha256": "b8f4f08cfc43c544ba49f5e0229f517f8a5a487a29eb9806fe186a781dd4d89f",
+      "bytes": 3409
+    },
+    {
+      "path": "figures/pd-palette.tex",
+      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+      "bytes": 2409
+    },
+    {
+      "path": "geometry-font-checks.json",
+      "sha256": "209e7b48986e3f8b38a12fb6ee5b97873cd2889ab1647e7780cf4baab331a116",
+      "bytes": 634
+    },
+    {
+      "path": "market-worksheet-figure.tex",
+      "sha256": "42df51cd3e62a584a28a3b3a470af320933269ce37daafe75d57852c0a0880f4",
+      "bytes": 2889
+    },
+    {
+      "path": "market-worksheet-maritime-page.tex",
+      "sha256": "e19fe09aa1f40910bbd76e1cf3128c17939b1aeb3123989a1165ed69c0528526",
+      "bytes": 1205
+    },
+    {
+      "path": "market-worksheet-maritime.tex",
+      "sha256": "9795ccdce11d5e0c946ff9e866c8819c1d31ceca85da787dadab5ca6cd10e3ef",
+      "bytes": 630
+    },
+    {
+      "path": "market-worksheet-swiss-page.tex",
+      "sha256": "5cef69307a5f7f84e4ad20b5fa727a6ec6c6fa4395eed965dcaf9af5c442dea5",
+      "bytes": 1202
+    },
+    {
+      "path": "market-worksheet-swiss.tex",
+      "sha256": "3e88ed5f148d15c7e5e5c012856cf3dfae425e951bfa621a47ce7a37c53eafe1",
+      "bytes": 627
+    },
+    {
+      "path": "market-worksheet-technical-page.tex",
+      "sha256": "ba6efff535aad85c30fb7e519753eeffef5b368e72fd4b8758fb5ab116e2c3c2",
+      "bytes": 1206
+    },
+    {
+      "path": "market-worksheet-technical.tex",
+      "sha256": "c9a660d11286b1f808ee008bc8b5cae2116a36a9d0ed0e30c7a01a2e4ac7e673",
+      "bytes": 631
+    },
+    {
+      "path": "output-manifest.json",
+      "sha256": "ba8306ce37c4a13f320af7830a74a5b97d71ef6a30ca0081c9c8dd9e1494473d",
+      "bytes": 4100
+    },
+    {
+      "path": "page-contact.png",
+      "sha256": "ef864eea9eef381bbbbeccf20e758a4a58e3e0726394d3044674748f8fca8cc1",
+      "bytes": 224689
+    },
+    {
+      "path": "renders/compile-results.json",
+      "sha256": "78db2b65feedea03ef24889b72405052ee87961430d7ab49946e7a8e67f5de22",
+      "bytes": 554
+    },
+    {
+      "path": "renders/market-worksheet-maritime-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-maritime-page.fls",
+      "sha256": "818d6e212a60ca528e8dcc0cc9607c26c22b7cba90e849f7a3330b864ce9896a",
+      "bytes": 17605
+    },
+    {
+      "path": "renders/market-worksheet-maritime-page.log",
+      "sha256": "b011e9621a1b937e1d6deb6417d26847f1e1f9470c9a9fd153cf6f69718e0334",
+      "bytes": 20637
+    },
+    {
+      "path": "renders/market-worksheet-maritime-page.pdf",
+      "sha256": "6601235993a305a3a0decfca46d5b630a9b4e6e02bf38bc966bb49870c83b16a",
+      "bytes": 175345
+    },
+    {
+      "path": "renders/market-worksheet-maritime-page.png",
+      "sha256": "561da25c30e8f1d99e2198c69bee77018a0511eac8475b4e04da43fee70c6aaa",
+      "bytes": 145471
+    },
+    {
+      "path": "renders/market-worksheet-maritime.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-maritime.fls",
+      "sha256": "5842fa23df30c719c5fb57092dbdc03c52e21c2260c73a6857730829f17b6eda",
+      "bytes": 18395
+    },
+    {
+      "path": "renders/market-worksheet-maritime.log",
+      "sha256": "1c101605800e82f3d4fd89b1f90989db2e752f30dc10e2b2a984b50f1c4c81d2",
+      "bytes": 20349
+    },
+    {
+      "path": "renders/market-worksheet-maritime.pdf",
+      "sha256": "3bfe162acaf3d379c5a26bfd8313735edb75eb98c29ef6665c6895ad358ab96b",
+      "bytes": 174808
+    },
+    {
+      "path": "renders/market-worksheet-maritime.png",
+      "sha256": "5e3c39d21ace989608203c51a88fe6b242ccb2f1bfbf44974fc355ffe2e4464e",
+      "bytes": 93683
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.fls",
+      "sha256": "dc105d7c586f5a6cdb39b8bff64616ea924f1d6868f6a2c3140aadbd4b82b37e",
+      "bytes": 18076
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.log",
+      "sha256": "eda8ee5ebc68103c9841adc830b8bf7b53a726f169186e50df3220627b1004dd",
+      "bytes": 20867
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.pdf",
+      "sha256": "88aa05a006b3b84e42d8d61d101bb77bbcd24cd6d142487d819125914f69e662",
+      "bytes": 122266
+    },
+    {
+      "path": "renders/market-worksheet-swiss-page.png",
+      "sha256": "4aaebd0c6cb73c51e69d781ddf850f0b2f4e5861dbc84d212f03d6f6e47a3887",
+      "bytes": 139327
+    },
+    {
+      "path": "renders/market-worksheet-swiss.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-swiss.fls",
+      "sha256": "2bfb37dd1f9d9585729a1f8e6d8be0c8aacc9a7b5e8cab815f7037cf84e4be8b",
+      "bytes": 18715
+    },
+    {
+      "path": "renders/market-worksheet-swiss.log",
+      "sha256": "bff1f3a47948500173cc23028b7390d58312b70d7d47687bec1856575ad9d99e",
+      "bytes": 20506
+    },
+    {
+      "path": "renders/market-worksheet-swiss.pdf",
+      "sha256": "9da56634172087b858f8fac8aee73b7d36b05a5aff5b8ef7d8b68140b8560ef3",
+      "bytes": 73625
+    },
+    {
+      "path": "renders/market-worksheet-swiss.png",
+      "sha256": "98c5f614bd7cc34dd68df253a074324974bdc1f36a08ac129fd3b91b12d12e0a",
+      "bytes": 87896
+    },
+    {
+      "path": "renders/market-worksheet-technical-page.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-technical-page.fls",
+      "sha256": "4b9177115b78d3b235ad3e2ed24219cbee0a73ff7bc77d5f1d3f78b95f0dff9f",
+      "bytes": 18281
+    },
+    {
+      "path": "renders/market-worksheet-technical-page.log",
+      "sha256": "e7bf3fece28fa1a077e566a6884fd2e1dd783a6ff61a7ce9b6afe093864b0fbb",
+      "bytes": 20967
+    },
+    {
+      "path": "renders/market-worksheet-technical-page.pdf",
+      "sha256": "ca049e76ac05b5fdef53b1f342802f7cc58985806f0adcaed8ce5abc6e018b16",
+      "bytes": 138493
+    },
+    {
+      "path": "renders/market-worksheet-technical-page.png",
+      "sha256": "78c380341876910d11e8a771a1b66ee86baa5edc01d1317623c9e5a39c431fab",
+      "bytes": 139514
+    },
+    {
+      "path": "renders/market-worksheet-technical.aux",
+      "sha256": "fbabe80c887f95a1ede6847f22dd91b380bda9d17ae8bfaa72e1741b16aa41e9",
+      "bytes": 32
+    },
+    {
+      "path": "renders/market-worksheet-technical.fls",
+      "sha256": "b74ddae16a19b5d2551153fc71ff46ed380fba6516d12428f10581191130af9f",
+      "bytes": 18920
+    },
+    {
+      "path": "renders/market-worksheet-technical.log",
+      "sha256": "a24646d2fbe86817710aa4550c497819d11cf66d89d00984eb59d5201fc1142b",
+      "bytes": 20607
+    },
+    {
+      "path": "renders/market-worksheet-technical.pdf",
+      "sha256": "5424b59f5b97ec79fb6fae6c195df0781fa190aa5f402fafba81fe80887d1004",
+      "bytes": 89863
+    },
+    {
+      "path": "renders/market-worksheet-technical.png",
+      "sha256": "1b24974687f0929580c3ab4bc6139780144f727da20eb8630089056ceed6d453",
+      "bytes": 88067
+    },
+    {
+      "path": "source-receipt.json",
+      "sha256": "5981fff4e1b5b96b94f2a0c8ab6a407b80ef199377bf3926b61f2f081794e7a2",
+      "bytes": 2699
+    }
+  ]
+}

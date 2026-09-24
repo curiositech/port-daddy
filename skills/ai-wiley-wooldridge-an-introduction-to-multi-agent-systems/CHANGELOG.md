@@ -1,10 +1,6 @@
-# Ai Wiley Wooldridge An Introduction To Multi Agent Systems — Changelog
+# Change log
 
-## 2026-04-20
-- Rewrote the recovered paper bundle into the canonical lean skill structure with explicit description-level and body-level `NOT for` boundaries
-- Added canonical nested `metadata.authorship` and enriched provenance attribution for the source book
-- Added doctrine-standard `Decision Points`, `Failure Modes`, `Worked Examples`, and `Quality Gates` sections plus a validated Mermaid decision flow
+## 2026-09-24 — method restoration
 
-## 2026-04-17
-- Recovered legacy frontmatter into the canonical metadata-based repo shape
-- Added provenance metadata and moved runtime/custom fields under metadata
+Replaced compressed generic references with source-bounded methods and worked design procedures for environment modeling, coordination/task and result sharing, commitment, epistemic logic, hybrid arbitration, and negotiation. Removed unsupported numeric/performance claims and marked locally constructed examples. Added linked Mermaid diagrams. Bibliographic import metadata now records source access limits rather than generated evaluative claims.
+

@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-replay-debugger
-description: Time-travel debugging for DAG executions. Inspect agent state at any node, replay decisions with modified inputs, compare execution traces side-by-side, and identify where reasoning diverged. Inspired by LangGraph Studio's state-editing model and Temporal's event history. Activate on "debug DAG", "replay execution", "time travel debug", "inspect node state", "what went wrong at step", "compare runs", "execution diff". NOT for live monitoring (use dag-runtime + websocket-streaming), failure analysis (use dag-ops), or general code debugging.
+description: Debugs recorded DAG lineage through historical inspection, deterministic decision replay when prerequisites hold, and clearly labeled counterfactual or live re-execution. Activate on "debug DAG", "replay execution", "inspect node state", "compare runs", or "execution diff". NOT for live monitoring (use dag-runtime + websocket-streaming), failure analysis (use dag-ops), or general code debugging.
 allowed-tools: Read,Grep,Glob
 metadata:
   category: DAG Framework
@@ -22,7 +22,7 @@ tags:
 
 # DAG Replay Debugger
 
-Time-travel debugging for DAG executions. Inspect any node's full state (inputs, prompt, output, reasoning), replay from any checkpoint with modifications, and compare execution traces.
+Debug recorded DAG lineage without claiming time travel or unrestricted access to private model reasoning. Use [Replay Manifest and Content-Addressed Artifacts](references/replay-manifest-and-content-addressed-artifacts.md): deterministic reconstruction, counterfactual testing, and live re-execution have different evidence and effect boundaries.
 
 ---
 
@@ -33,7 +33,7 @@ Time-travel debugging for DAG executions. Inspect any node's full state (inputs,
 - Inspecting exactly what a node received and produced
 - Replaying from a checkpoint with modified inputs or skills
 - Comparing two execution traces to find where they diverged
-- Understanding WHY a node made a specific decision
+- Forming and testing diagnosis hypotheses from recorded decision evidence
 
 ❌ **NOT for**:
 - Live monitoring of running DAGs (use `websocket-streaming`)
@@ -46,82 +46,72 @@ Time-travel debugging for DAG executions. Inspect any node's full state (inputs,
 
 ### 1. State Inspection
 
-At any node in a completed execution, view:
+Inspect only retention/authority-permitted records: run and graph revision,
+ordered event IDs, allowed input/output artifact digests, model/tool/config IDs,
+effect receipts, redaction status, and evaluator/acceptance evidence. A missing
+record remains missing; do not substitute chain-of-thought or hidden context.
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Node: analyze-codebase (Wave 2)                     │
-│  Status: completed ✓  Duration: 4.2s  Cost: $0.028  │
-│                                                      │
-│  Model: claude-sonnet-4-5                            │
-│  Skills loaded: code-review-skill, react-server-...  │
-│                                                      │
-│  ▸ System Prompt (3,421 tokens)         [Expand]     │
-│  ▸ User Message (1,205 tokens)          [Expand]     │
-│  ▸ Input from upstream nodes            [Expand]     │
-│  ▸ Full output (1,847 tokens)           [Expand]     │
-│  ▸ Evaluator scores                     [Expand]     │
-│    Self: 0.85  Peer: 0.78  Downstream: accepted      │
-│  ▸ Context Store entries used           [Expand]     │
-│                                                      │
-│  [Replay from here]  [Edit & Replay]  [Compare]      │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A[Run lineage] --> B[Permitted manifest fields]
+    B --> C[Redaction and retention check]
+    C --> D[Historical inspection]
+    C --> E[Eligible replay mode]
 ```
 
 ### 2. Replay from Checkpoint
 
-Pick any completed node and re-execute from that point forward:
-- **Same inputs**: Useful for non-deterministic debugging (did the model just get unlucky?)
-- **Modified inputs**: Edit the upstream output, then replay to see if downstream behaves differently
-- **Modified skills**: Swap in a different skill version, then replay to compare output quality
-- **Modified model**: Try the same node with Haiku vs. Sonnet to validate routing decisions
+Choose one mode explicitly:
+- **Historical inspection** reads recorded evidence only.
+- **Deterministic decision replay** uses the exact history, compatible code/configuration, and recorded activity/tool results; it must suppress new effects and consume the recorded results. A substitute mock requires an explicitly justified equivalence claim; arbitrary mock responses create a different experiment.
+- **Counterfactual branch** changes an input, skill, or model and gets a new lineage ID; it is not the historical replay.
+- **Live re-execution** calls a live model/tool and is nondeterministic unless its backend proves otherwise; effects require separate authority.
 
 ```mermaid
-flowchart LR
-  A[Select checkpoint node] --> B{Modification?}
-  B -->|None| C[Replay from here, same inputs]
-  B -->|Edit input| D[Modify upstream output]
-  B -->|Swap skill| E[Change skill assignment]
-  B -->|Change model| F[Change model tier]
-  D --> G[Re-execute node + downstream]
-  E --> G
-  F --> G
-  C --> G
-  G --> H[Compare with original execution]
+flowchart TD
+  A[Select permitted recorded lineage] --> M{Intended mode?}
+  M -->|Read only| I[Historical inspection]
+  M -->|Reconstruct historical decisions| B{Exact history and compatible deterministic decision code?}
+  B -->|Yes| C[Consume recorded activity results and suppress new effects]
+  B -->|No| F[Report missing prerequisites; inspect available history]
+  M -->|Change input, skill, model or activity| E[Counterfactual branch with new lineage]
+  M -->|Call live services| L[New run with separate authority and effect policy]
+  C --> G[Compare decisions and artifact digests]
+  E --> H[Evaluate as a new experiment]
+  L --> H
 ```
+
 
 ### 3. Execution Diff
 
 Compare two traces side-by-side:
 
-```
-Original Run (2026-02-05 14:32)      │  Replay Run (2026-02-05 14:45)
-────────────────────────────────────  │  ──────────────────────────────
-Node: analyze-codebase               │  Node: analyze-codebase
-Model: sonnet-4.5                    │  Model: haiku-4.5 ← CHANGED
-Output: 3 recommendations            │  Output: 2 recommendations ← DIFF
-  1. Extract auth module ✓            │    1. Extract auth module ✓
-  2. Add error boundaries ✓           │    2. Add error boundaries ✓
-  3. Migrate to React Query ✗         │    [missing] ← DIFF
-Downstream accepted: yes             │  Downstream accepted: no ← DIFF
-Cost: $0.028                         │  Cost: $0.001 ← 96% cheaper
-```
+| Field | Historical lineage | Counterfactual lineage |
+| --- | --- | --- |
+| Node | `analyze-codebase` | `analyze-codebase` |
+| Model configuration | recorded configuration A | changed configuration B |
+| Output artifact | three recorded recommendations | two recorded recommendations |
+| Acceptance receipt | accepted under its historical contract | rejected under the counterfactual contract |
+| Cost record | `$0.028` (illustrative) | `$0.001` (illustrative) |
 
-This tells you: Haiku saved money but missed recommendation #3, which caused downstream rejection. The routing decision (Sonnet for this node) was correct.
+This is a constructed comparison. It can show a documented output difference, but it does not establish why the difference occurred or that one routing decision is universally correct.
 
-### 4. Reasoning Trace
-
-For models with extended thinking, inspect the thinking tokens:
-
-```
-[thinking]
-The user asked me to analyze this codebase for refactoring opportunities.
-Looking at src/auth.ts — it's 450 lines with mixed concerns (auth + validation + session).
-This violates single-responsibility. I should recommend extracting...
-[/thinking]
+```mermaid
+flowchart LR
+  H[Historical lineage: configuration A] --> HA[Three recommendations, historically accepted]
+  C[New counterfactual lineage: configuration B] --> CA[Two recommendations, rejected under its contract]
+  HA --> D[Compare artifact, contract and cost records]
+  CA --> D
+  D --> L[Record differences without inferring a unique cause]
 ```
 
-This exposes WHY the agent made its decisions, not just what it decided.
+
+### 4. Decision evidence
+
+Use visible prompts, tool calls, outputs, policy/configuration IDs, and
+evaluator receipts that the retention policy permits. These records support
+diagnosis hypotheses; they do not expose private reasoning or prove a unique
+cause of an output.
 
 ---
 
@@ -129,17 +119,14 @@ This exposes WHY the agent made its decisions, not just what it decided.
 
 ```mermaid
 flowchart TD
-  P[Problem: DAG produced bad output] --> I[Identify which node's output is wrong]
-  I --> S[Inspect that node's full state]
-  S --> Q{Is the input good?}
-  Q -->|Bad input| U[Trace upstream: which node produced bad input?]
-  U --> S
-  Q -->|Good input, bad output| R{Is the skill appropriate?}
-  R -->|Wrong skill| SK[Try different skill via Edit & Replay]
-  R -->|Right skill, bad reasoning| M{Model too weak?}
-  M -->|Yes| MU[Try stronger model via Edit & Replay]
-  M -->|No| PR[Examine prompt: is the skill's process clear enough?]
-  PR --> FIX[Improve the skill and re-run]
+  P[Unexpected artifact or acceptance result] --> I[Collect permitted lineage and effect receipts]
+  I --> S[State competing input, contract, tool, and configuration hypotheses]
+  S --> Q{Exact deterministic replay prerequisites hold?}
+  Q -->|Yes| R[Reconstruct decisions using recorded activity results]
+  Q -->|No| C[Propose counterfactual branch or live re-execution]
+  R --> E[Compare evidence without overwriting historical lineage]
+  C --> E
+  E --> F[Update diagnosis or escalate unknowns]
 ```
 
 ---
@@ -148,12 +135,12 @@ flowchart TD
 
 ### Debugging Without Traces
 **Wrong**: Trying to figure out what went wrong without execution traces.
-**Right**: Every DAG execution should save full traces (input, prompt, output, timing, cost per node). Debug from data, not guesses.
+**Right**: Retain the minimum authorized manifest fields, redaction state, artifact digests, configuration IDs, and effect receipts. Debug from permitted evidence, not guesses.
 
 ### Replaying the Whole DAG
-**Wrong**: Re-running the entire 10-node DAG to test a fix to Node 7.
-**Right**: Replay from Node 7's checkpoint. Nodes 1-6 were fine — don't re-execute them.
+**Wrong**: Re-running an unbounded graph and calling the result the original replay.
+**Right**: Use a checkpoint only when its lineage, inputs, compatibility, and effects are valid; otherwise make a new counterfactual/re-execution lineage.
 
-### Ignoring the Reasoning Trace
-**Wrong**: Only looking at inputs and outputs, not the thinking process.
-**Right**: If extended thinking is available, inspect it. The reasoning trace often reveals the exact moment the agent went wrong.
+### Claiming hidden reasoning access
+**Wrong**: Treating private reasoning as required debug data or as proof of why an output occurred.
+**Right**: Use retention-permitted observable evidence and label causal conclusions as hypotheses unless a controlled test supports them.

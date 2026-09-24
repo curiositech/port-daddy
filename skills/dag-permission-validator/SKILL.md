@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-permission-validator
-description: Validates permission inheritance between parent and child agents. Ensures child permissions are equal to or more restrictive than parent. Activate on 'validate permissions', 'permission check', 'inheritance validation', 'permission matrix', 'security validation'. NOT for runtime enforcement (use dag-scope-enforcer) or isolation management (use dag-isolation-manager).
+description: Validates versioned permission requests against a grant scope and records comparison evidence. Activate on 'validate permissions', 'permission check', 'inheritance validation', 'permission matrix', 'security validation'. NOT for runtime enforcement (use dag-scope-enforcer) or isolation management (use dag-isolation-manager).
 allowed-tools:
   - Read
   - Write
@@ -24,38 +24,31 @@ pairs-with:
     reason: Validates before agent spawning
 ---
 
-You are a DAG Permission Validator, ensuring child agents never exceed parent permissions through systematic validation of permission matrices.
+You are a DAG Permission Validator, comparing a versioned requested grant against a versioned grant scope. Use [Versioned Grant Comparison and Enforcement Boundary](references/versioned-grant-comparison-and-enforcement-boundary.md): role labels, string globs, and static comparison do not prove runtime enforcement.
 
 ## DECISION POINTS
 
-### Main Validation Decision Table
-
-| Child Permission State | Parent Has Permission | Action |
-|---|---|---|
-| Requests core tool (read/write/etc) | ✓ Parent has it | APPROVE - child can inherit |
-| Requests core tool | ✗ Parent lacks it | DENY - log violation, suggest removal |
-| Requests file pattern | ✓ Pattern subset of parent | APPROVE - within boundaries |
-| Requests file pattern | ✗ Pattern exceeds parent scope | DENY - narrow to parent scope |
-| Has fewer deny patterns than parent | Parent denies pattern X | DENY - child must inherit all denials |
-| Network/bash permissions | Parent disabled | DENY - cannot enable what parent lacks |
-| Ambiguous glob pattern overlap | ? Unclear if subset | WARN - request clarification, suggest explicit patterns |
-
-### Pre-Spawn Flow
+```mermaid
+flowchart TD
+    A[Requested grant: principal, operation, resource, condition, expiry, policy version] --> B[Canonicalize under declared policy]
+    B --> C{Comparison complete and deny precedence defined?}
+    C -->|No| D[Return unknown; request policy clarification]
+    C -->|Yes| E{Request authorized by grant scope?}
+    E -->|Yes| F[Issue validation record for enforcement]
+    E -->|No| G[Deny request with evidence]
+    F --> H[Read enforcement decision separately]
 ```
-1. Merge requested permissions with defaults
-   ├─ If conflict in request → Use most restrictive
-   └─ If missing field → Use secure default (false/empty)
 
-2. Compare each permission category:
-   ├─ Core tools: child.tool ≤ parent.tool for each tool
-   ├─ File patterns: each child pattern ⊆ parent patterns  
-   ├─ Network: child domains ⊆ parent domains
-   └─ Bash: child patterns ⊆ parent patterns AND child denials ⊇ parent denials
-
-3. Generate result:
-   ├─ All valid → return PASS + child matrix
-   ├─ Violations found → return FAIL + violations + suggested fixes
-   └─ Warnings only → return WARN + proceed with corrected matrix
+```mermaid
+sequenceDiagram
+    participant R as Requester
+    participant V as Validator
+    participant E as Enforcement point
+    R->>V: request plus policy/grant versions
+    V->>V: canonical comparison and conditions
+    V-->>E: validation record, not an access grant
+    E-->>R: allow/deny readback
+    E-->>V: enforcement receipt
 ```
 
 ## FAILURE MODES
@@ -63,122 +56,98 @@ You are a DAG Permission Validator, ensuring child agents never exceed parent pe
 ### 1. Permission Escalation Bypass
 **Symptom**: Child agent spawned with permissions parent doesn't have
 **Diagnosis**: Validation skipped or enforcement not integrated with spawning
-**Fix**: Ensure `dag-parallel-executor` calls validation before Task tool execution
+**Fix**: Require a fresh validation record at the actual spawn/effect controller, then test that all in-scope routes enforce it; a planning-tool call alone cannot establish prevention.
 
 ### 2. Pattern Scope Creep  
 **Symptom**: Child requests `/home/**` when parent only has `/tmp/**`
 **Diagnosis**: Pattern subset logic fails on glob expansion
-**Fix**: Use `isPatternSubsetOf()` with proper glob matching, not string comparison
+**Fix**: Canonicalize the resource and evaluate it at the enforcement point under the versioned policy; globs can be request syntax but do not prove containment.
 
 ### 3. Denial Inheritance Failure
 **Symptom**: Child bypasses restrictions parent must enforce  
 **Diagnosis**: Child permission matrix missing parent's denial patterns
-**Fix**: Copy all parent denial patterns to child before validation
+**Fix**: Apply the declared deny-precedence and inheritance rules to canonical grant elements, then preserve the comparison evidence.
 
 ### 4. False Positive Rejections
 **Symptom**: Valid subset permissions rejected as violations
 **Diagnosis**: Overly strict pattern matching or missing parent wildcard handling
-**Fix**: Implement proper glob hierarchy checking with `**` and `*` expansion
+**Fix**: Treat comparison ambiguity as unknown/deny under the local policy and ask for explicit resource/condition scope.
 
 ### 5. Default Permission Pollution
 **Symptom**: Child gets dangerous defaults when request is partial
 **Diagnosis**: Merging logic uses permissive defaults instead of restrictive ones
-**Fix**: Use `createRestrictiveDefaults()` as base, only add what parent allows
+**Fix**: Require an explicit policy default and record every resolved default in the validation record.
 
 ## WORKED EXAMPLES
 
-### Example 1: Valid Inheritance - Research Task
-```typescript
-// Parent: research-coordinator  
-parentMatrix = {
-  coreTools: { read: true, write: false, webSearch: true },
-  fileSystem: { readPatterns: ["/workspace/**"], writePatterns: [] },
-  network: { enabled: true, allowedDomains: ["*.edu", "arxiv.org"] }
-}
+The following are **constructed policy exercises**, not a deployed grant format or executable validator. The JSON records retain familiar request syntax; every comparison also needs authenticated principal, delegator, audience, expiry, policy version and a current resource resolver. A Boolean tool name alone is not authority.
 
-// Child request: literature-scanner
-childRequest = {
-  coreTools: { read: true, webSearch: true },
-  fileSystem: { readPatterns: ["/workspace/papers/**"] },
-  network: { enabled: true, allowedDomains: ["arxiv.org"] }
-}
+### Example 1: Research request under a declared resolver
 
-// Validation process:
-1. Core tools: ✓ read≤read, webSearch≤webSearch, write not requested  
-2. File patterns: ✓ "/workspace/papers/**" ⊆ "/workspace/**"
-3. Network: ✓ "arxiv.org" ⊆ ["*.edu", "arxiv.org"]
-
-// Result: PASS - child is proper subset
-```
-
-### Example 2: Escalation Violation - Unauthorized Write
-```typescript
-// Parent: data-processor
-parentMatrix = {
-  coreTools: { read: true, write: false, edit: false },
-  fileSystem: { readPatterns: ["/data/**"], denyPatterns: ["/data/secrets/**"] }
-}
-
-// Child request: file-modifier  
-childRequest = {
-  coreTools: { read: true, write: true },  // ❌ VIOLATION
-  fileSystem: { readPatterns: ["/data/**"] }  // ❌ Missing denial
-}
-
-// Validation process:
-1. Core tools: ✗ child.write=true > parent.write=false → VIOLATION
-2. File patterns: ✗ child missing "/data/secrets/**" denial → VIOLATION
-
-// Result: FAIL  
-violations = [
-  { category: "coreTools", field: "write", message: "Child requests write but parent forbids" },
-  { category: "fileSystem", field: "denyPatterns", message: "Child must inherit secrets denial" }
-]
-
-// Auto-fix suggestion:
-suggestedChild = {
-  coreTools: { read: true, write: false },
-  fileSystem: { readPatterns: ["/data/**"], denyPatterns: ["/data/secrets/**"] }
+```json
+{
+  "parentRequestSyntax": {
+    "coreTools": {"read": true, "write": false, "webSearch": true},
+    "fileSystem": {"readPatterns": ["/workspace/**"], "writePatterns": []},
+    "network": {"enabled": true, "allowedDomains": ["*.edu", "arxiv.org"]}
+  },
+  "childRequestSyntax": {
+    "coreTools": {"read": true, "webSearch": true},
+    "fileSystem": {"readPatterns": ["/workspace/papers/**"]},
+    "network": {"enabled": true, "allowedDomains": ["arxiv.org"]}
+  }
 }
 ```
 
-### Example 3: Pattern Overlap Edge Case - Ambiguous Scope
-```typescript
-// Parent: web-crawler
-parentMatrix = {
-  network: { enabled: true, allowedDomains: ["*.research.org", "api.*.com"] }
+Under an explicitly declared path policy, the intended child reads may be a subset of the parent's scope. Resolve actual objects at the enforcement edge, including symlink/mount traversal and races; string-prefix or glob comparison cannot prove filesystem containment. For network authority, define scheme, host, port, DNS/redirect behavior and allowed operations; a hostname entry is not universal network permission.
+
+Return a **conditional validation record** only after the full grant and resolver checks succeed. Missing identity, expiry or resolver evidence makes this example incomplete. The controller must separately verify current authority before the actual access.
+
+### Example 2: Unauthorized write and inherited denial
+
+```json
+{
+  "parentRequestSyntax": {
+    "coreTools": {"read": true, "write": false, "edit": false},
+    "fileSystem": {"readPatterns": ["/data/**"], "denyPatterns": ["/data/secrets/**"]}
+  },
+  "childRequestSyntax": {
+    "coreTools": {"read": true, "write": true},
+    "fileSystem": {"readPatterns": ["/data/**"]}
+  }
 }
-
-// Child request: domain-scanner
-childRequest = {
-  network: { allowedDomains: ["sub.research.org", "api.data.com", "api.unknown.net"] }
-}
-
-// Validation process:
-1. "sub.research.org" vs "*.research.org" → ✓ clear subset
-2. "api.data.com" vs "api.*.com" → ✓ matches pattern  
-3. "api.unknown.net" vs patterns → ✗ "net" ≠ "com" → VIOLATION
-
-// Trade-off analysis:
-Option A: Strict reject → blocks legitimate "api.unknown.net" if parent meant "api.*.*"
-Option B: Permissive allow → risks domain escalation
-
-// Decision: Fail safe - reject ambiguous, suggest clarification
-Result: FAIL + suggestion to make parent pattern explicit ["api.*.com", "api.*.net"]
 ```
+
+The requested write exceeds the declared parent authorization in this exercise and is denied. The child need not be trusted to restate inherited denials: the authority service must derive the effective grant under the declared inheritance policy. Omission of a deny field is not permission to drop a parent restriction, nor is it automatically a request-schema error unless that schema requires the field.
+
+An acceptable revised **request**, subject to all other checks, can omit write and retain the allowed read scope while the issuer carries forward the secrets denial. Never auto-expand a parent grant to make validation pass. Record the denied operation, applicable policy and proposed narrower request independently of any actual grant issuance.
+
+### Example 3: Unsupported wildcard versus an ungranted domain
+
+```json
+{
+  "parentRequestSyntax": {
+    "network": {"enabled": true, "allowedDomains": ["*.research.org", "api.*.com"]}
+  },
+  "childRequestSyntax": {
+    "network": {"allowedDomains": ["sub.research.org", "api.data.com", "api.unknown.net"]}
+  }
+}
+```
+
+First validate the policy language. Does it permit a wildcard in a non-leftmost label such as `api.*.com`, and how are public suffixes, normalized names, ports and redirects handled? An unsupported pattern yields an invalid policy or unknown comparison under the declared rules, not a guessed match. If the declared language supports these patterns, the requested `.net` host still has no grant in the displayed parent scope.
+
+Ask the policy owner to clarify or authorize a separately reviewed grant change. Do not suggest adding `.net` as though it were a harmless validator auto-fix. A valid comparison does not prove that the network controller enforces it.
 
 ## QUALITY GATES
 
-- [ ] All child core tool permissions have corresponding parent permission (no tool escalation)
-- [ ] All child file patterns are proper subsets of parent patterns (no path escalation)  
-- [ ] Child inherits ALL parent denial patterns (no restriction bypass)
-- [ ] Network domains pass subset validation with proper wildcard expansion
-- [ ] Bash patterns validated as regex subsets with sandbox inheritance
-- [ ] MCP tools in child.allowed exist in parent.allowed (no external tool escalation)
-- [ ] Model access restricted to parent's allowed models subset
+- [ ] Requested grants name principal, operation, canonical resource, conditions, expiry, and policy/grant version
+- [ ] Deny precedence, inheritance, and comparison outcome are explicit; unknown comparisons fail according to policy
+- [ ] Validator output is sent to a named enforcement point and readback is kept separately
+- [ ] Tool/model/network permissions are evaluated as scoped grant elements, not role-label booleans
 - [ ] Validation result includes specific violation details for debugging
 - [ ] Generated suggestions provide actionable fixes for each violation
-- [ ] Performance under 100ms for typical permission matrices (<50 patterns)
+- [ ] Any performance claim names the measured policy shape and environment
 
 ## NOT-FOR BOUNDARIES
 
@@ -191,7 +160,7 @@ Result: FAIL + suggestion to make parent pattern explicit ["api.*.com", "api.*.n
 - **User authentication** → Use identity providers for user-level permissions
 
 **When to delegate:**
-- Runtime violations detected → `dag-scope-enforcer.enforce()`
-- Parent needs broader permissions → `dag-authorization-manager.elevate()`  
-- Container security needed → `dag-isolation-manager.isolate()`
-- New policy rules required → `dag-policy-manager.define()`
+- Runtime violations detected → the `dag-scope-enforcer` skill and the actual documented controller interface
+- Parent needs broader permissions → the authorized grant issuer; a skill name is not an elevation API  
+- Container security needed → the `dag-isolation-manager` skill and verified sandbox interface
+- New policy rules required → the policy owner and versioned policy review procedure

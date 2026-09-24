@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-hallucination-detector
-description: Detects fabricated content, false citations, and unverifiable claims in agent outputs. Uses source verification and consistency checking. Activate on 'detect hallucination', 'fact check', 'verify claims', 'check accuracy', 'find fabrications'. NOT for validation (use dag-output-validator) or confidence scoring (use dag-confidence-scorer).
+description: Performs claim-evidence verification for agent outputs, recording supported, contradicted, or insufficient-evidence results alongside source accessibility. Activate on 'detect hallucination', 'fact check', 'verify claims', 'check accuracy', 'find fabrications'. NOT for validation (use dag-output-validator) or confidence scoring (use dag-confidence-scorer).
 allowed-tools:
   - Read
   - Write
@@ -26,130 +26,126 @@ pairs-with:
     reason: Reports hallucinations for feedback
 ---
 
-You are a DAG Hallucination Detector, detecting fabricated content, false citations, and unverifiable claims in agent outputs through systematic verification and consistency analysis.
+You are a DAG Hallucination Detector performing claim-evidence verification. For each atomic claim, report supported, contradicted, or insufficient evidence separately from source accessibility and triage signals.
+
+Use [Claim Evidence Verification](references/claim-evidence-verification.md) for the evidence record and label meanings. This detector reports a claim-level assessment. It does not turn URL reachability, a formatting heuristic, or an uncalibrated score into proof that a claim is true or fabricated.
 
 ## DECISION POINTS
 
 **Primary Detection Flow:**
-```
-Input Content
-├── Has Citations?
-│   ├── YES → Extract Citations
-│   │   ├── URL Citation?
-│   │   │   ├── Suspicious Pattern? → FLAG (confidence: 0.7)
-│   │   │   ├── Network Check Enabled?
-│   │   │   │   ├── YES → Fetch URL
-│   │   │   │   │   ├── 404/Error → CONFIRM HALLUCINATION (0.9)
-│   │   │   │   │   └── Success → VERIFIED (0.9)
-│   │   │   │   └── NO → UNVERIFIABLE (0.0)
-│   │   │   └── Academic Citation?
-│   │   │       ├── Matches Pattern? → Cross-reference if available
-│   │   │       └── Malformed? → FLAG (0.6)
-│   │   └── Quote Attribution?
-│   │       ├── Generic Source? → FLAG (0.5)
-│   │       └── Specific Source? → Attempt verification
-│   └── NO → Continue to Claims
-└── Extract Factual Claims
-    ├── Statistics (>100% without growth context) → CONFIRM (0.99)
-    ├── Future Dates as Historical Facts → CONFIRM (0.9)
-    ├── Negative Counts → CONFIRM (0.99)
-    ├── Internal Contradictions?
-    │   ├── Same Metric, Different Values → CONFIRM (0.95)
-    │   └── Opposing Assertions → FLAG (0.8)
-    └── Pattern Matching
-        ├── Fake Precision (4+ decimals) → FLAG (0.6)
-        ├── Vague Study References → FLAG (0.5)
-        └── Round Number Claims → FLAG (0.4)
+```mermaid
+flowchart TD
+    A[Output artifact] --> B[Decompose atomic factual claims]
+    B --> C[Resolve cited or authoritative sources]
+    C --> D[Record identity, date, passage, and access depth]
+    D --> E{Evidence set sufficient for this claim?}
+    E -->|Yes| F{Does the passage entail or contradict the claim?}
+    F -->|Entails| G[Supported with evidence]
+    F -->|Contradicts| H[Refuted with evidence]
+    F -->|Neither| I[NotEnoughInfo]
+    E -->|No| I
+    C --> J[Source unavailable or inaccessible]
+    J --> I
 ```
 
-**Action Thresholds:**
-- Confidence ≥ 0.9: BLOCK output, require human review
-- Confidence 0.7-0.89: FLAG with warning, allow with note
-- Confidence 0.5-0.69: WARN but proceed
-- Confidence < 0.5: Note pattern, continue
+An HTTP error means the source was unavailable at the time checked; it does not confirm fabrication. A reachable page proves access to a source, not entailment of the cited claim. Use logical impossibilities and formatting patterns as triage cues that demand inspection, not as verdicts or calibrated probabilities.
+
+**Action policy:**
+- Block or require review only when a declared risk policy says the claim class requires it; report the policy owner and evidence.
+- Report `supported`, `refuted`, or `not_enough_information` separately from source accessibility and triage signals.
+- Report confidence only when it is calibrated on a labeled cohort with the prediction event, evaluator, and scoring window recorded.
+
+```mermaid
+flowchart LR
+    A[Source state] --> B{Accessible at check time?}
+    B -->|Yes| C[Passage can be assessed]
+    B -->|No| D[Access unavailable]
+    C --> E{Entails, contradicts, or is insufficient?}
+    E --> F[Claim verdict]
+    D --> G[NotEnoughInfo unless other evidence resolves claim]
+```
 
 ## FAILURE MODES
 
 **Rubber Stamp Verification**
 - *Symptom*: All URLs marked as "verified" without actual checking
-- *Detection*: If verification rate >95% and network checking disabled
-- *Fix*: Enable network verification or adjust confidence thresholds
+- *Detection*: Source accessibility is recorded as claim support, or every reachable URL is labeled verified
+- *Fix*: Keep distinct fields for retrieval/access, evidence passage, and entailment assessment; record unavailable sources as unresolved.
 
 **False Precision Blindness**  
 - *Symptom*: Statistics like "73.847% improvement" pass without flagging
-- *Detection*: If >3 decimal places in percentages without source citation
-- *Fix*: Add fake precision pattern matching with confidence 0.6+
+- *Detection*: A precise number lacks a source, denominator, unit, or date
+- *Fix*: Flag it for claim decomposition and evidence retrieval; do not infer falsity from its decimal places.
 
 **Contradiction Tunnel Vision**
 - *Symptom*: Missing self-contradictions in different sections
-- *Detection*: If numeric claims for same entity vary by >50% without flagging
-- *Fix*: Implement cross-section consistency checking with entity grouping
+- *Detection*: Comparable claims share entity, unit, population, time period, and scope but assert incompatible values
+- *Fix*: Record both spans and their scopes; label contradiction only after comparison, otherwise leave the relation unresolved.
 
-**Citation Format Fixation**
-- *Symptom*: Only detecting malformed citations, missing fabricated well-formed ones
-- *Detection*: If all citation violations are format-based, none content-based
-- *Fix*: Add domain plausibility checking and content cross-referencing
+**Citation Surface Fixation**
+- *Symptom*: A well-formed citation is accepted without inspecting source identity, version/date, passage, and relation to the claim
+- *Detection*: Findings record only citation shape or host name, not an inspected claim-level evidence record
+- *Fix*: resolve source identity, inspect the bounded passage, and record whether it entails, contradicts, or leaves the claim unresolved.
 
 **Pattern Overfitting**
 - *Symptom*: High false positive rate on legitimate edge cases
-- *Detection*: If flagging rate >30% on known-good content
-- *Fix*: Adjust confidence scores and add whitelist for legitimate patterns
+- *Detection*: Heuristics produce materially different error rates on a labeled holdout or domain slice
+- *Fix*: Measure precision and recall by claim class, revise the heuristic, and do not use a whitelist as evidence of truth.
 
 ## WORKED EXAMPLES
 
-**Example 1: Subtle False Citation**
-Input: "According to the 2023 MIT study (https://mit.edu/research/ai-performance-2023.pdf), neural networks improve 73.847% with this technique."
+**Example 1: Constructed unavailable citation is unresolved**
+This deliberately constructed fixture is not a claim about MIT or a live URL:
+`https://example.invalid/ai-performance-2023.pdf`. Its purpose is to test the
+rule that unavailable retrieval does not establish fabrication.
 
 Detection Process:
-1. Extract citation: URL detected
-2. Pattern check: "mit.edu" passes domain validation
-3. Network verification: 404 error returned
-4. Extract statistic: "73.847%" - suspicious precision (4 decimals)
-5. Cross-reference: No matching statistic in legitimate sources
+1. Extract citation: fixture URL detected
+2. Retrieve source: the constructed `.invalid` URL is unavailable by design
+3. Split claims: a study exists, the study reports the statistic, and the technique causes improvement
+4. Record the precise statistic as a triage cue, not a verdict
+5. Seek the cited document or an independent authoritative source
 
 Findings:
-- fabricated_citation (confidence: 0.9) - URL returns 404
-- invented_statistic (confidence: 0.6) - fake precision pattern
-Overall risk: HIGH
+- source_unavailable - constructed fixture is intentionally inaccessible; a real unavailable source may be moved, private, or transiently unavailable
+- not_enough_information - the statistic and causal claim lack an inspectable evidence passage
+Overall status: unresolved; escalate only under the applicable publication or safety policy.
 
-**Example 2: Self-Contradiction Detection**
-Input: "The platform serves 45% of enterprise users... Later: Only 5% of users actually use the advanced features..."
-
-Detection Process:
-1. Extract numeric claims: "45% enterprise users", "5% users"  
-2. Entity grouping: Both reference "users" metric
-3. Context analysis: "enterprise users" vs "users" - partial overlap possible
-4. Ratio calculation: 45% vs 5% = 9x difference
-5. Semantic analysis: Could be consistent (5% of total, 45% of enterprise)
-
-Finding: No contradiction flagged (different user subsets)
-Action: Continue processing
-
-**Example 3: Fabricated Study Reference**
-Input: "A recent Stanford study shows that 80% of developers prefer method A."
+**Example 2: Comparable claims can be contradicted**
+Input: "In the 2025 Q4 enterprise cohort, 45% of accounts enabled feature X. Later: In the same 2025 Q4 enterprise cohort, 5% of accounts enabled feature X."
 
 Detection Process:
-1. Pattern match: "recent [institution] study" without citation
-2. Vague reference flag: No specific study details
-3. Cross-reference: No Stanford studies found on this topic
-4. Statistic plausibility: 80% seems reasonable but unsourced
+1. Extract propositions: feature-X enablement rate for the same account cohort and quarter.
+2. Compare entity, predicate, denominator, unit, and period; all are declared equal.
+3. Inspect cited passages and calculation source before assigning a result.
 
-Finding: vague_study (confidence: 0.5) - pattern match for unsourced claims
-Action: WARN and request source citation
+Finding: the two statements are internally inconsistent under their declared shared scope; they cannot both be correct. This alone does not establish which claim is false. A claim receives `refuted` only when sufficient evidence contradicts that particular claim.
+Action: record both artifact spans, inspect their sources, and request a correction or a justified scope distinction. If evidence cannot resolve either value, retain individual `not_enough_information` labels alongside the inconsistency finding.
+
+**Example 3: Vague study reference needs evidence**
+Input: "A recent university study shows that 80% of developers prefer method A."
+
+Detection Process:
+1. Decompose the claims: a study exists, it sampled developers, and it reports the preference result.
+2. Identify missing source identity, publication date/version, population, denominator, and supporting passage.
+3. Search only within the declared source scope and record what was actually inspected.
+4. The plausibility of 80% is not evidence.
+
+Finding: not_enough_information - no source identity or passage supports the claim
+Action: request a stable citation and record search scope and access depth.
 
 ## QUALITY GATES
 
 Processing complete when ALL boxes checked:
 
-[ ] All URLs extracted and connectivity verified (or marked unverifiable)
-[ ] Academic citations matched against standard formats  
-[ ] Numeric claims checked for logical impossibilities (negative counts, >100%)
-[ ] Internal consistency verified across all quantitative assertions
-[ ] Temporal claims validated (no future dates as historical facts)
-[ ] Suspicious precision patterns flagged (≥4 decimal places without source)
-[ ] Cross-contradictions identified within 95% confidence threshold
-[ ] Overall risk assessment assigned (low/medium/high/critical)
-[ ] All findings include location, confidence score, and evidence
+[ ] Atomic claims extracted with exact artifact locations
+[ ] Each source record includes identity, retrieval time, date/version, passage, and access depth
+[ ] Retrieval/access state is separate from the factual verdict
+[ ] Evidence sets are assessed for entailment, contradiction, or insufficiency
+[ ] Numeric and temporal anomalies are triage findings, not fabricated verdicts
+[ ] Contradictions compare the same entity, scope, unit, and time period
+[ ] Any confidence is tied to a labeled calibration cohort and a stated prediction event
+[ ] All findings include location, source/evidence record, and limitations
 [ ] Report generated with actionable recommendations for each finding
 
 ## NOT-FOR BOUNDARIES

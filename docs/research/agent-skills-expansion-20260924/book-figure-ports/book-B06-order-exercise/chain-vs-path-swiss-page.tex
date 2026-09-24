@@ -1,0 +1,20 @@
+\documentclass[11pt]{article}\usepackage[paperwidth=7in,paperheight=10in,textwidth=4.5in,textheight=8in,centering]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{tgpagella,tgheros}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\input{figures/pd-palette}
+\colorlet{hhink}{pdink}
+\colorlet{hhgray}{pdinkmuted}
+\colorlet{hhpaper}{white}
+\colorlet{hhsand}{pdcreamstrong}
+\colorlet{hhteal}{pdteal}
+\colorlet{hhamber}{pdamber}
+\newcommand{\pdgrotesk}{\sffamily}
+\newcommand{\pdcurrentchaptercolor}{pdcobalt}
+\newcommand{\pdedition}{swiss}
+\input{figures/pd-figure-language}
+\tikzset{pd figure/.append style={font=\footnotesize}}
+\pagestyle{empty}\begin{document}\begin{center}
+\input{chain-vs-path-figure}
+\end{center}\medskip\noindent\footnotesize\raggedright The same five vertices admit two reachability chains but require three vertex-disjoint direct-edge paths. The dashed relation is derived reachability, not an extra original arc; a chain may skip the intermediate vertex. Every nontrivial direct-edge path uses $x$, so only one path can be nontrivial and it covers at most three vertices. These are partition counts, not worker counts or schedule lengths. [Constructed fixture; Dilworth/Fulkerson and SEA 2023 path/chain definitions.]\end{document}

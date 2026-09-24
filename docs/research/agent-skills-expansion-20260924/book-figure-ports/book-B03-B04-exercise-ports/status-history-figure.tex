@@ -1,0 +1,28 @@
+% Question: Does checked history establish present service health?
+% Claim: History verification and current service observation vary independently.
+% Evidence: constructed four-case fixture, scoped to capability C in region A.
+% Distinguish: checked proof, unavailable proof, observed failure, stale success.
+% Grammar: cross-product; reject a green/red pipeline that collapses the axes.
+% Five-second test: a checked old passing sample still leaves current health unknown.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner sep=0pt}]
+\def\left{2.15}\def\pitch{4.60}\def\row{2.25}
+\path[use as bounding box] (0,-6.45) rectangle (11.4,.55);
+\node[pd panel title,anchor=west] at (0,.3) {A history proof does not establish current health};
+\node[pd direct label,anchor=west] at (0,-.35) {Same capability $C$, region A; four constructed cases};
+\node[pd panel title,align=center] at (4.45,-1.05) {Current failure\\observed};
+\node[pd panel title,align=center] at (9.05,-1.05) {Only a stale\\passing sample};
+\draw[pd rule] (\left,-1.6) rectangle (11.35,-6.1);
+\draw[pd rule] (6.75,-1.6)--(6.75,-6.1);
+\draw[pd hairline] (\left,-3.85)--(11.35,-3.85);
+\node[pd panel title,anchor=east,align=right,text width=1.9cm] at (1.9,-2.72) {History proof\\valid};
+\node[pd panel title,anchor=east,align=right,text width=1.9cm] at (1.9,-4.97) {History proof\\unavailable};
+\foreach \y in {-2.72,-4.97} {
+\node[pd panel title,anchor=north west] at (2.45,{\y+.64}) {Degraded in A};
+\node[pd direct label,anchor=north west,text width=3.85cm] at (2.45,{\y+.13}) {Valid probe measured\\a missed deadline.};
+\node[pd panel title,anchor=north west] at (7.05,{\y+.64}) {Current state unknown};
+\node[pd direct label,anchor=north west,text width=3.9cm] at (7.05,{\y+.13}) {Past success exceeds\\the freshness limit.};}
+\draw[pd focus rule] (2.45,-3.43)--(6.43,-3.43);
+\draw[pd focus rule] (7.05,-3.43)--(11.03,-3.43);
+\draw[pd guide] (2.45,-5.68)--(6.43,-5.68);
+\draw[pd guide] (7.05,-5.68)--(11.03,-5.68);
+\end{tikzpicture}

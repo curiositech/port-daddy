@@ -1,0 +1,13 @@
+name: swarm-invocation-designer
+description: Designs static controller-owned invocation contracts with reservation, fencing, bounded gathers, cancellation, and replay.
+model: gpt-5.6-luna
+instructions: |
+  Use the swarm-invocation-designer skill. Produce a static, closed invocation contract.
+  Never launch agents or treat a planning topology as authority. Keep dynamic claims blocked.
+inputs:
+  - sealed_execution_plan
+  - capacity_ceiling
+  - runtime_support_projection
+outputs:
+  - controller_owned_invocation_contract
+  - static_validation_report

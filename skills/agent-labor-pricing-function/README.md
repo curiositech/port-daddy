@@ -1,15 +1,15 @@
 # Agent Labor Pricing Function
 
-Design a pricing/packaging function for variable-cost agent labor that clears a real cost floor and never surprises the buyer.
+An offline method bundle for designing a variable-cost agent-labor price with a buyer-visible unit, a separate cost floor, guardrails, and deterministic persona stress checks.
 
-Use this skill when a Port Daddy feature, tier, or the stalled Phase 2 pricing lane needs a pricing model choice, a buyer-predictable value metric, a unit-cost floor, and bill-shock guardrails before launch.
+## Quick start
 
-## Quick Start
+1. Read `SKILL.md`, then `references/pricing-model-decision-guide.md`.
+2. Fill a plan matching `schemas/pricing-plan.schema.json` and retain the detailed cost ledger that supports its summary fields.
+3. Run `node scripts/pricing_stress.mjs --input plan.json --status`.
+4. Default and `--status` modes are report-only and exit 0 for a well-formed pass or block. Add `--strict` in a review gate: a blocked report returns status 2; malformed input returns 1.
+5. Use `templates/output-template.md` to separate planning assumptions from measured or live evidence.
 
-1. Read `SKILL.md`.
-2. Load `references/pricing-model-decision-guide.md` to pick a model (per-seat, metered, credits, hybrid, outcome) matched to your value metric and buyer.
-3. Load `references/unit-economics-and-guardrails.md` to build the cost floor and design spend caps, budget previews, and transparent metering.
-4. Draft a pricing plan JSON matching `schemas/pricing-plan.schema.json`, with realistic persona usage profiles (solo founder, staff engineer, enterprise admin).
-5. Run `node scripts/pricing_stress.mjs --input plan.json`.
+The bundle does not bill users, invoke providers, or prove live guardrail enforcement.
 
-The output reports per-persona margin and a bill-shock risk level. Fix any negative-margin persona and any missing guardrail on a usage-exposed model before treating the plan as launch-ready.
+Run the portable regression suite with `node --test tests/pricing_stress.test.mjs`.

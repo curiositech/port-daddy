@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-24T13:27:34.217586+00:00",
+  "boundary": {
+    "root": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924",
+    "branch": "codex/agent-skills-expansion-20260924",
+    "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/agent-skills-expansion-20260924",
+    "status": ""
+  },
+  "manuscript_hashes": [
+    {
+      "path": "whitepaper/single-writer-kernel.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "matches": true
+    },
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "matches": true
+    }
+  ],
+  "compile_count": 12,
+  "compile_log_findings": "All 12 final standalone/page builds exit 0, no Overfull, Missing character, Undefined control sequence or LaTeX Error.",
+  "geometry": "4.5-inch column; drawn grid 11.4 cm; no scaling. Poppler text extents <=4.5 inches. Page previews 7x10 inches.",
+  "fonts": "T1 fontenc; tgpagella/tgheros; footnotesize 9pt labels; Computer Modern math with conventional smaller subscripts. Embedded subset fonts verified by pdffonts.",
+  "imports": "Copied primary pd-palette then legacy hh aliases then pd-figure-language then edition override (Swiss/technical; maritime base). Same chain as accepted ports. All four copied sources hashed in source-receipt.json; .fls files retain resolved import paths.",
+  "visual_review": {
+    "method": "Opened final six 144-dpi 7x10 page PNGs individually at original resolution; inspected both three-edition standalone contact sheets before final label-only refinement. Final contact sheets refreshed.",
+    "claim": "PASS: history and current observation stay separate; finite-domain negative result is scoped; no execution authority implied.",
+    "grammar": "PASS: cross-product and aligned alternative search cases.",
+    "hierarchy_spacing": "PASS: labels clear of rules and marks; explicit two-line row headings; no clipped or hyphenated figure labels.",
+    "color": "PASS: edition accent is redundant with row labels, cross/question/filled shapes.",
+    "caption": "PASS: edition-neutral filled-mark wording, coverage/domain/authority limits visible.",
+    "page_fit": "PASS: final pages readable, no downscaling."
+  },
+  "limits": [
+    "PyMuPDF unavailable in system and bundled Python, so book_figure_qa.py/figcheck/beauty_lint were not run; no claim of those gates passing.",
+    "Page wrappers match active font/palette/column settings, not full chapter furniture or manuscript integration.",
+    "Constructed pedagogy, no empirical benefit or novel theorem claimed.",
+    "No Book source integration, runtime action, publication, or repository mutation."
+  ]
+}

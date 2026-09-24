@@ -1,240 +1,121 @@
 ---
 license: Apache-2.0
 name: stanton-2006-hierarchical-task-analysis
-description: Hierarchical Task Analysis methodology for decomposing complex tasks into structured subtask hierarchies
-category: Cognitive Science & Decision Making
-tags:
-  - hta
-  - task-analysis
-  - hierarchical
-  - methodology
-  - human-factors
-io-contract:
-  kind: none
+description: Build and review a purpose-bounded hierarchical task analysis with goals, subgoals, plans, terminal markings, and source evidence. NOT for operating an incident response, certifying a design, or treating HTA as an error or allocation result.
 metadata:
+  category: Cognitive Science & Decision Making
+  tags: [hta, task-analysis, hierarchical, methodology, human-factors]
+  io-contract:
+    kind: none
   recognition-cues: []
   expectancies: []
   decision-cues: []
   adaptive-workarounds: []
   execution-pattern: sequential
-  needs-cdm: true
+  needs-cdm: false
 ---
 
-# Hierarchical Task Analysis (HTA) Skill
+# Hierarchical task analysis (HTA)
 
-license: Apache-2.0
-## Metadata
-- **Skill Name**: Hierarchical Task Analysis
-- **Source**: *Hierarchical Task Analysis: Developments, Applications and Extensions* by Neville A. Stanton
-- **Domain**: Systems analysis, human factors, design methodology
-- **Activation Triggers**: 
-  - User mentions "task analysis," "goal decomposition," "system design," "error prediction"
-  - Questions about breaking down complex work, designing training, or preventing failures
-  - Requests for systematic analysis of human-system performance
-  - Problems involving "how should this work?" vs. "how does this currently work?"
+HTA records an overall goal, included subgoals, and a **plan** that explains how the parent can be attained. Numbering alone does not impose a sequence: plans can be fixed, contingent, selection, free-order, parallel, or cyclic. Use it to make a bounded analysis reviewable. It does not turn the resulting hierarchy into an operating procedure, a safety case, an error prediction, or an automation decision.
 
-## When to Use This Skill
+## Source boundary and evidence
 
-Load this skill when facing:
+The primary source is Neville A. Stanton, “Hierarchical task analysis: Developments, applications, and extensions,” *Applied Ergonomics* 37(1) (2006), 55–79, [DOI](https://doi.org/10.1016/j.apergo.2005.06.003). A campaign audit records full-body reading of §§2–5, Figures 3 and 5–7, and Tables 1, 5–10, 15–16 through an [author-uploaded copy](https://www.researchgate.net/publication/7622539_Hierarchical_task_analysis_Developments_applications_and_extensions). This correction is limited to the source locations independently checked in the current primary-source review: §§1–2 (pp.56–58), p.60, Figure 6 (p.65), Figure 7 (p.66), and Table 10 (p.67). [Source ledger](references/01-primary-method.md) separates publication identity, access evidence, and supported claims.
 
-- **Complex system design challenges** where you need to understand what must be achieved before specifying how
-- **Error-prone processes** requiring systematic identification of failure modes
-- **Training design** where you need to specify what competence looks like
-- **Interface design** where you need to understand information requirements at each decision point
-- **Function allocation** decisions about what humans vs. automation should do
-- **Team coordination** problems requiring clarity on who does what when
-- **Over-specified processes** where procedures are bloated but performance still fails
-- **"Why do people keep making this mistake?"** questions that suggest missing context or poor feedback
-- **Analytical paralysis** where you can't decide what level of detail is sufficient
+The chemical incident material below is a short historical analysis excerpt from Stanton’s Figures 6–7 and the separately abridged Table 10. It is **not** an emergency-response instruction. The optional SGT vocabulary and SHERPA recipe are separately labelled methods, not HTA requirements.
 
-## Core Mental Models
+## Core procedure
 
-### 1. Goal-Based vs. Task-Based Thinking
-HTA describes **what the system must achieve** (goals), not what people currently do (tasks). A goal is measurable: "temperature maintained within 5°C of setpoint" not "operator monitors temperature." This distinction is profound:
-- Goals are solution-neutral—multiple methods can achieve them
-- Goals have success criteria—you can measure achievement
-- Goals enable comparative analysis—current vs. proposed methods
-- Goals reveal function—why this matters to the system
+1. **Declare purpose and boundary.** Name the consumer and decision, included roles/artifacts, starting and ending condition, and excluded work.
+2. **Collect labelled evidence.** Attach each goal or plan to observation, interview, manual, walkthrough, simulation, or another identified source. Record disagreement as a revision item.
+3. **State the overall goal in real terms.** Give an observable completion criterion. Do not substitute a current interface gesture for the purpose it serves.
+4. **Decompose one parent at a time.** Each child must contribute to the parent. Inclusion is hierarchical; it does not itself declare timing or actor authority.
+5. **Write the parent plan.** State the actual order, branch condition, selection rule, join, repetition, and exit condition that evidence supports.
+6. **Check adequacy and revise.** Ask an SME or independent source whether children, plan, evidence, and boundary explain parent attainment for the stated purpose. Preserve conflicting alternatives until resolved.
+7. **Apply the stopping decision.** Continue redescription only while another level would change the declared analysis decision. Mark a terminal node `//` and record why that level is sufficient.
+8. **Publish a traceable table.** Keep goal ID, parent, criterion, plan, evidence, terminal reason, unresolved condition, and revision together.
 
-**The shift**: From "document what happens" to "specify what must be accomplished."
+| ID | Constructed goal | Status |
+|---|---|---|
+| 0 | close a controlled change request | parent |
+| 1 | establish request evidence | active |
+| 2 | assess against stated criterion | active |
+| 3 | record and communicate decision | `//` for communication-template review |
 
-### 2. Plans as Coordination Intelligence
-Plans are **control structures**, not sequences. They specify:
-- **Conditions** for sub-goal activation (if X, then Y)
-- **Contingencies** (if normal path blocked, alternative Z)
-- **Parallel operations** (do A while monitoring B)
-- **Exit criteria** (repeat until condition met)
+**Constructed Plan 0:** do 1, then 2. If assessment is unresolved, hold and redescribe the missing condition. Otherwise do 3 to record and communicate acceptance or rejection with its reason, then exit.
 
-Plans answer: "When does this matter? What triggers it? How do you know you're done?" They encode the contextual intelligence about goal relationships. Without plans, you just have a list. With plans, you have a control model.
+This fixture is constructed for documentation review. It is not from Stanton and does not establish a production workflow. Its evidence and failed-review branch appear in [the worked fixture](references/02-worked-fixture.md).
 
-### 3. The P×C Stopping Rule: Analytical Economy
-Stop decomposing when **(Probability of inadequate performance) × (Cost of inadequate performance)** is acceptable. This principle:
-- Directs analytical effort toward high-variance, high-consequence components
-- Prevents over-specification of routine elements
-- Maintains focus on system-critical goals
-- Acknowledges that "adequate" is often sufficient
+## Plan review
 
-**The discipline**: Not "analyze everything to the same depth" but "analyze where failure matters most."
+| Plan form | What to write | Do not infer |
+|---|---|---|
+| Fixed | `do 1, then 2, then 3; exit` | all HTA children are sequential |
+| Contingent | `do 1; if condition, do 2; otherwise do 3; exit` | the branch outcome is certain |
+| Selection | `choose 2a or 2b by stated criterion; then 3` | both alternatives run |
+| Free order | `do 1, 2, and 3 in any order before exit` | simultaneous work |
+| Parallel | `start 1 and 2; do 3 when both criteria hold` | independent-looking labels prove independence |
+| Cyclic | `repeat 1 while condition holds; exit on stop condition` | an infinite loop or fixed period |
 
-### 4. Three Governing Principles (The Theoretical Foundation)
-1. **Operations are defined by goals measured in real terms** — not activities, but achievements with success criteria
-2. **Operations decompose into sub-operations** — each with its own performance standard
-3. **Relationships are hierarchical inclusion** — sub-goals contribute to superordinate goals; this is not mere temporal sequence
+For every parent, hand-check that the plan identifies condition/order/selection and exit; that every child contributes; and that the supporting source is named. A bare indented list fails the plan check.
 
-These principles prevent HTA from degenerating into procedural flowcharts. They maintain the discipline of goal-directed analysis.
+## Purpose-bounded stopping
 
-### 5. HTA as Analytical Infrastructure
-The sub-goal hierarchy is a **substrate for multiple analyses**, not an end product. Once you have the goal structure and plans:
-- Add "information required" column → interface design
-- Add "error modes" → SHERPA analysis
-- Add "allocation" → human vs. automation decisions
-- Add "training requirement" → curriculum design
-- Add "coordination requirements" → team design
+Stanton discusses probability of failure × cost of failure (P×C) as a rough prompt. The paper also says P and C can be difficult to quantify; it supplies no numeric cutoff, risk-acceptance rule, or fixed depth. Keep purpose first.
 
-**The leverage**: Build the goal framework once, annotate it for many purposes.
+| Candidate | Further detail that could change a decision | Evidence | Decision |
+|---|---|---|---|
+| assess request | exception-panel requirement | walkthroughs disagree on exception path | redescribe and resolve condition |
+| communicate decision | wording only | approved message contract | `//` for communication-template review |
 
-## Decision Frameworks
+A high apparent consequence without evidence calls for investigation, not a score. A later function-allocation “no solution” rule is a separate proposal, not Stanton’s HTA stopping rule.
 
-### When analyzing a new system or process:
+## Historical theoretical framing
 
-**IF** you're documenting how things currently work  
-**THEN** you're probably doing task analysis, not HTA—shift to specifying what must be achieved
+Stanton §§1–2 describes HTA in relation to control-theory accounts of human behavior, Miller’s (1960) test–operate–test–exit (TOTE) unit, and a nested feedback hierarchy for goal-directed performance. That is historical framing for the method, not a performance theorem, a universal decomposition depth, or an automated controller specification.
 
-**IF** your analysis reads like a procedure manual  
-**THEN** you've lost the goal-based perspective—reframe in terms of measurable achievements
+**TOTE hand check (constructed).** For the declared goal “confirm the record is complete,” test the stated criterion. If achieved, exit this check. If not, perform the named evidence-gathering operation and retest. Record the criterion and evidence; do not infer a result merely because the loop was drawn.
 
-**IF** you can't specify success criteria for a "sub-goal"  
-**THEN** it's probably an activity description, not a goal—ask "what does this accomplish?"
+## Chemical-incident source excerpt: read as an analysis, not a procedure
 
-### When deciding decomposition depth:
+Stanton’s Figures 6–7 analyse the goal **“Deal with chemical incident”**. The source labels different parts with **Police Control, Fire Control, Hospital, and Police Officer**. Do not convert those labels into a current incident command model or infer responsibility beyond the displayed analysis.
 
-**IF** the sub-goal is routine and failure consequences are minor  
-**THEN** stop—mark as "adequate" and move to higher-variance components
+| Source location | Historical numbering/text retained | Caution |
+|---|---|---|
+| Figures 6 (p.65) and 7 (p.66), Plan 0 | Wait until 1, then do 2, then 3. If there is a hazard, then 4, then 5, then exit; otherwise exit. | This is a source-paraphrased plan relation, not an emergency procedure. It differs from the abridged Table 10 plan. |
+| Figure 7, Plan 2 | 2.1 may occur at any time **if appropriate**; separately, execute 2.2 followed by 2.3, then exit. This does not order 2.1 before 2.2. | “At any time” has the source condition and does not authorize a local interruption policy. |
+| Table 10 (p.67), Plan 0 | Its abridged presentation retains 1 then 2; hazard → 3 then 4 → exit; otherwise exit. | Table 10 says its re-description is omitted to shorten the example. Preserve its abbreviated numbering; do not harmonize it with Figures 6–7. |
 
-**IF** the sub-goal has high error variance OR high failure cost  
-**THEN** continue decomposition until you understand failure modes
+Figure 7 labels 3 as **Police Control: decide incident nature** and 4 as **Fire Control: cleanup**. The plan still includes 5; its displayed label is only **“etc…”**, so do not invent a Police Control resolution action for it. Table 10’s Hospital report is constrained to the **same incident**. [The source excerpt and review prompts](references/05-chemical-incident-and-sgt.md) retain these distinctions.
 
-**IF** you're decomposing because "it feels incomplete"  
-**THEN** you're probably over-analyzing—apply the P×C rule explicitly
+## Optional SGT prompts
 
-**IF** subject matter experts say "anyone can do that part"  
-**THEN** that's a signal to stop—focus on the non-obvious elements
+Stanton’s Table 5 discusses Ormerod and Shepherd’s Sub-Goal Templates (SGTs), developed with process-control use in mind. They are optional prompts for an analyst, not an exhaustive ontology, mandatory taxonomy, or capability/authority model:
 
-### When writing plans:
+| Family | Source terms |
+|---|---|
+| Act | activate, adjust, deactivate |
+| Exchange | enter, extract |
+| Navigate | locate, move, explore |
+| Monitor | detect, anticipate, transition |
 
-**IF** your plan is just a sequence (do 1, then 2, then 3)  
-**THEN** you're missing control logic—identify decision points and conditions
+Ask whether one term helps expose an omitted candidate subgoal; then verify it against local evidence and purpose. Do not label a node solely because it resembles a term.
 
-**IF** you can't specify what triggers each sub-goal  
-**THEN** you don't understand the coordination—interview experts about context
+## Downstream use: HTA is the input, not the result
 
-**IF** the plan has no contingencies  
-**THEN** you're describing the ideal case only—probe for "what if X goes wrong?"
+An HTA can provide a stable node/plan/evidence record to later analysis. The later method owns its taxonomy, assumptions, validation, and findings.
 
-**IF** experts disagree about the plan  
-**THEN** you've found important variance—document both strategies and conditions for each
+For a **downstream SHERPA** pass, begin at bottom-level HTA steps; classify each as action, retrieval, checking, information communication, or selection; consider the corresponding error modes; keep only errors credible in the actual context; record error, consequence, and recovery; use the method’s ordinal likelihood/criticality ratings where the method calls for them; then propose remedies. This is SHERPA, not HTA, and it is not a calibrated probability model. See [the handoff recipe](references/06-sherpa-handoff.md).
 
-### When using HTA for downstream analysis:
+I/F (input/feedback) and A (action) are two historical difficulty prompts, not a three-class error taxonomy and not SHERPA’s five task classes. A distinct Patrick (1986) training form reported by Stanton has three columns; do not use that fact to relabel I/F and A as three error classes. See [historical difficulty prompts](references/07-historical-difficulty-prompts.md).
 
-**IF** designing training  
-**THEN** focus on high P×C sub-goals and complex plan structures (→ load `hta-as-springboard-for-specialized-analysis.md`)
+## Diagrams
 
-**IF** predicting errors  
-**THEN** examine each sub-goal for failure modes and each plan for coordination breakdowns (→ load `failure-modes-and-error-variance.md`)
+- [Goal, plan, and evidence procedure](diagrams/01-goal-plan-evidence.md)
+- [Purpose-bounded stopping review](diagrams/02-stopping-review.md)
+- [HTA-to-specialized-analysis handoff](diagrams/03-downstream-handoff.md)
 
-**IF** designing interfaces  
-**THEN** identify information requirements at each plan decision point (→ load `the-gap-between-knowing-and-doing.md`)
+## Historical provenance
 
-**IF** allocating functions  
-**THEN** examine which sub-goals require human judgment vs. algorithmic control
-
-**IF** you're stuck choosing between abstraction levels  
-**THEN** consider multiple parallel analyses at different levels (→ load `hierarchies-of-abstraction-enable-action.md`)
-
-## Reference Documents
-
-| Reference File | When to Load | Key Content |
-|----------------|--------------|-------------|
-| `goal-decomposition-as-problem-solving-substrate.md` | When you need to understand WHY goal-based analysis is fundamentally different from task description; when justifying HTA to stakeholders | The theoretical distinction between goals and activities; why solution-neutrality matters; how the same HTA supports multiple applications |
-| `stopping-rule-and-analytical-economy.md` | When deciding how detailed your analysis should be; when facing scope creep; when stakeholders want "complete" documentation | The P×C rule explanation; practical guidance on stopping criteria; why "adequacy" is the right standard; handling analytical effort strategically |
-| `plans-as-coordination-intelligence.md` | When writing plans; when sub-goals seem like a flat list; when analyzing decision-making or coordination | What plans actually are; how they encode control logic; examples of conditional, parallel, and iterative plans; why plans are where expertise lives |
-| `hta-as-springboard-for-specialized-analysis.md` | When moving from HTA to training design, error prediction, or interface design; when HTA feels like "just documentation" | How to extend HTA with additional columns; examples of tabular annotations; the framework pattern that makes HTA valuable |
-| `three-governing-principles-of-goal-based-systems.md` | When your analysis feels unprincipled; when teaching HTA; when someone challenges whether HTA is "theory" or just notation | The three principles; how they derive from control theory; why they prevent common degenerative patterns; theoretical grounding |
-| `failure-modes-and-error-variance.md` | When designing for reliability; when analyzing incidents; when applying SHERPA or similar error prediction methods | How to identify error modes systematically; the relationship between goals and failure; error variance as a design driver |
-| `the-gap-between-knowing-and-doing.md` | When designing interfaces, job aids, or information systems; when people "know what to do but don't do it" | Information requirements at each sub-goal; the distinction between knowledge and executable understanding; what information must be available when |
-| `hierarchies-of-abstraction-enable-action.md` | When struggling with the "right" level of analysis; when different stakeholders need different views; when detail obscures comprehension | How abstraction level affects usefulness; the problem of completeness vs. comprehensibility; strategies for multi-level analysis |
-
-## Anti-Patterns
-
-### The Procedural List Masquerading as HTA
-**Symptom**: Your "HTA" is just numbered steps with no goal statements or success criteria  
-**Why it fails**: Loses solution-neutrality, can't support multiple applications, provides no basis for improvement  
-**Antidote**: For each "step," ask "what does this achieve?" and "how would you know if it succeeded?"
-
-### Over-Decomposition of Routine Elements
-**Symptom**: Spending equal effort on high-variance critical sub-goals and routine trivial ones  
-**Why it fails**: Wastes analytical effort, obscures what matters, creates maintenance burden  
-**Antidote**: Apply P×C rule explicitly; mark adequate sub-goals and move on
-
-### Plans as Afterthoughts
-**Symptom**: Writing plans as "do 1, 2, 3" after building the hierarchy  
-**Why it fails**: Misses the control intelligence; plans and goals should co-evolve  
-**Antidote**: When decomposing a goal, immediately ask "under what conditions does each sub-goal matter?"
-
-### Confusing Goals with Activities
-**Symptom**: "Sub-goals" like "operator presses button" or "system displays screen"  
-**Why it fails**: These describe implementation, not achievement; no success criteria  
-**Antidote**: Reframe as "temperature setpoint updated" or "alarm condition communicated to operator"
-
-### HTA as Documentation Rather Than Analysis
-**Symptom**: Producing the hierarchy diagram and calling it done  
-**Why it fails**: Misses the entire point—HTA is infrastructure for further analysis  
-**Antidote**: Always ask "what decision does this HTA support?" and extend it for that purpose
-
-### The Completion Fallacy
-**Symptom**: Belief that HTA is "done" when every leaf node is equally detailed  
-**Why it fails**: Completeness is not the goal; analytical economy is  
-**Antidote**: Stopping is a principled decision, not a failure; document why you stopped at each node
-
-### Ignoring Error Variance
-**Symptom**: Analyzing to arbitrary depth without considering where failures actually occur  
-**Why it fails**: Allocates effort uniformly rather than strategically  
-**Antidote**: Gather empirical data or expert judgment about error frequency and consequences
-
-## Shibboleths: Signs of Deep Understanding
-
-### Surface-Level Understanding Says:
-- "HTA is a way to document tasks"
-- "The stopping rule is subjective"
-- "Plans are just the sequence of steps"
-- "HTA tells you what people do"
-- "Good HTA is complete and detailed throughout"
-
-### Deep Understanding Says:
-- "HTA specifies goals with measurable success criteria—it's solution-neutral"
-- "The P×C stopping rule is a principle of analytical economy—stop where failure doesn't matter enough to justify further analysis"
-- "Plans encode control logic—they're the conditions and contingencies that trigger sub-goals, not just ordering"
-- "HTA tells you what the system must achieve—current methods are just one possible solution"
-- "Good HTA decomposes high-variance, high-consequence elements and marks low-criticality elements as adequate"
-
-### Green Flags (They've Internalized It):
-- Distinguishes sharply between goals and activities
-- Immediately asks "how would you measure success?" when discussing sub-goals
-- Recognizes that plans contain the expert knowledge about context
-- Treats HTA as infrastructure and automatically thinks about what to annotate it with
-- Uses P×C reasoning explicitly when deciding scope
-- Sees hierarchical decomposition as enabling analysis, not as documentation structure
-- Understands that sub-goals can be achieved by multiple methods (solution-neutrality)
-
-### Red Flags (Superficial Application):
-- Produces hierarchies that are just procedure manuals with indentation
-- Can't explain when or why to stop decomposing
-- Writes plans that are all "do 1, then 2, then 3" with no conditionals
-- Treats HTA as a deliverable rather than an analytical tool
-- Aims for "completeness" without considering what the analysis is for
-- Can't distinguish between describing current practice and specifying required achievement
-- Missing or trivial success criteria for goals
-
----
-
-**Remember**: HTA is not notation—it's a theory of goal-directed performance grounded in control theory. The hierarchy describes what must be achieved. The plans describe how achievement is controlled. The P×C rule directs analytical effort. The three principles maintain discipline. The tabular extensions enable application-specific analysis. When you find yourself lost, return to the question: "What must be accomplished, and how will we know if it succeeded?"
+The active bundle contains source-bounded teaching material. Byte-preserved original essays, diagrams, and raw response are outside it. [Archival material](provenance/ARCHIVAL-MATERIAL.md) gives a portable canonical commit/path/SHA mapping for every omitted unit; [the raw wrapper](_raw_response.md) identifies the historical raw preimage without reproducing its ASCII diagrams.

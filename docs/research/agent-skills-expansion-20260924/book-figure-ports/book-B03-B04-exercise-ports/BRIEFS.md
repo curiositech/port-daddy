@@ -1,0 +1,13 @@
+# Two constructed Book exercise figures
+
+Planning artifacts only; no chapter prose or source integration. Both use the chapter-I cobalt subject convention and the active Book import chain, copied unchanged. The installed craft skill describes a newer v2 vocabulary; the actual active Book files and seven accepted ports use the vocabulary retained here. No palette/library migration is implied.
+
+Status/history: a cross-product with four concrete cases, adapting the quadrant grammar rather than the preventability semantics of atlas II/fig:swk-controllability-quadrant. Reader asks whether checked history implies health; repeated service outcomes across rows make independence visible. A pipeline was rejected because it would suggest proof causes health. Placement: SWK self-attestation 1696–1721, cross-reference 2150–2158. The dimensions are not binary universal status classes: these are four chosen cases; missing coverage and observed failure can coexist.
+
+Search evidence: aligned traces over the same three-item finite catalog, related to atlas II/fig:swk-commitment-oracle's evidence boundary, without borrowing its closure transition. Reader distinguishes a witness, complete declared-domain exhaustion, and unfinished work. A success/failure fork was rejected because it would turn an unfinished search into impossibility. Placement: SWK 1578–1616 with deontic pointer 1053–1070. A fixed model and exact decision checks for each declared predicate are assumed; a merely sound positive verifier would not justify the negative row; completeness means this declared catalog is fully enumerated, not that it contains every real-world repair.
+
+Full epistemic and source discussion: ../book-B03-B04-followup/REVIEW.md. These figures are teaching applications of established distinctions, not empirical results or new theorems. Standalone and 7-by-10-inch page wrappers retain a 4.5-inch column. Captions are local preview captions only.
+
+Optional follow-on Check, supplied by root: let D={p1,p2}, norm-safe set={p1}, intention-safe set={p2}. Both marginal existential checks pass; the intersection is empty. A witness certificate must bind the same plan to all required predicates. This is a constructed set-theory example, not a claim that the normative bundle is accepted. Do not expand the diagram to a third port.
+
+The search rows are three alternative constructed cases, each with its own fixed evaluation instance, model and checker; they do not claim a sound checker returns contradictory answers for the same unchanged plan instance. Filled-mark wording follows the edition: Swiss square, maritime circle, technical circle.

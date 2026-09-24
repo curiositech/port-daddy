@@ -1,7 +1,7 @@
 ---
 license: BSL-1.1
 name: dag-runtime
-description: Executes DAG workflows with parallel wave processing, agent spawning, context isolation, permission enforcement, and full execution tracing. Use when running a planned DAG, managing concurrent agent execution, enforcing isolation boundaries, or tracing execution for debugging. Activate on "execute DAG", "run workflow", "spawn agents", "parallel execution", "execution trace", "agent isolation". NOT for planning DAGs (use dag-planner), validating outputs (use dag-quality), or matching skills (use dag-skills-matcher).
+description: Specifies bounded DAG execution contracts and evaluates executor receipts for dispatch, cancellation, joins, and effect reconciliation. Use when an implementation must bind a planned DAG to named runtime controls. NOT for claiming an executor is active, spawning agents, or certifying an effect from a plan.
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: DAG Framework
@@ -22,77 +22,65 @@ tags:
 
 # DAG Runtime
 
-Executes DAG workflows with parallel wave processing, agent spawning, context isolation, permission enforcement, and full execution tracing.
+Specifies bounded DAG execution contracts and evaluates executor receipts. A plan does not establish that dispatch, isolation, cancellation, join, or external effects occurred.
+
+Use [Runtime lifecycle limits](references/runtime-lifecycle-limits.md). Planned topology does not establish dispatch, cancellation, join, or effect behavior.
 
 ## Decision Points
 
-### Isolation Level Selection
-```
-Input: threat model + node characteristics
-├── Untrusted code execution?
-│   └── YES → Container isolation
-├── Resource limits needed?
-│   └── YES → Process isolation
-├── Context contamination risk?
-│   └── YES → Context isolation
-└── Cooperative nodes on same task?
-    └── YES → None isolation
+### Boundary selection
+```mermaid
+flowchart TD
+ A[Task data/effect contract] --> B[Name file, process, network, secret, resource, and context boundaries]
+ B --> C{Named control enforces required boundary?}
+ C -->|Yes| D[Record principal, lifetime, and readback]
+ C -->|No| E[Reduce scope, add control, or stop]
 ```
 
-### Failure Escalation Strategy
-```
-Node fails → Check failure type:
-├── Timeout/Rate limit?
-│   └── Retry with exponential backoff (max 3x expensive models, 10x cheap)
-├── Invalid output schema?
-│   └── Retry with schema reminder + example (max 2x)
-├── Permission denied?
-│   └── Check parent permissions → escalate to human if mismatch
-├── Skill not found?
-│   └── Mutate DAG: remove node or find alternative skill
-└── Persistent failure after max retries?
-    └── Human review required
+### Failure disposition
+```mermaid
+flowchart TD
+ A[Failure/timeout receipt] --> B{Effect reconciled and retry safe?}
+ B -->|No| C[Contain dependents and reconcile]
+ B -->|Yes| D{Authorized changed-factor experiment?}
+ D -->|Yes| E[Propose revision/retry with acceptance check]
+ D -->|No| F[Record failure or escalate]
 ```
 
-### Wave Completion Criteria
-```
-All nodes in wave complete → Check status:
-├── All succeeded?
-│   └── Advance to next wave
-├── Some failed but non-blocking?
-│   └── Mark outputs as null, advance with warning
-├── Critical node failed?
-│   └── Halt execution, trigger failure handling
-└── Mixed success/retry?
-    └── Wait for retries to complete
+### Join and release
+```mermaid
+flowchart LR
+ A[Attempt receipts] --> B{Declared AND/OR/partial join condition met?}
+ B -->|Yes| C[Release dependents with attributed limitations]
+ B -->|No| D[Block, contain, or escalate]
 ```
 
 ## Failure Modes
 
 ### **Permission Creep**
 - **Symptoms**: Child nodes have more permissions than parent
-- **Detection**: `if child.permissions.tools ⊃ parent.permissions.tools` 
-- **Fix**: Intersect child permissions with parent before execution
+- **Detection**: Compare delegated grants by principal, operation, canonical resource, conditions, expiry and policy version. Tool-name subsets alone do not establish attenuation. 
+- **Fix**: Have the named policy evaluator derive an attenuated grant; deny or hold unresolved comparisons before dispatch.
 
 ### **Context Pollution**
 - **Symptoms**: Node sees conversation history from unrelated nodes
-- **Detection**: Node prompt contains references to other node IDs
+- **Detection**: Compare supplied context identities and disclosure scopes with declared input grants; a permitted dependency reference is not leakage.
 - **Fix**: Enforce context isolation, only pass declared inputs
 
 ### **Zombie Wave**
 - **Symptoms**: Wave never completes, some nodes stuck in "running" state
-- **Detection**: Wave active > 2x max node timeout with no status updates
-- **Fix**: Force-kill hung nodes, escalate to failure handling
+- **Detection**: The named executor has no terminal/cancellation receipt by its declared deadline or heartbeat policy.
+- **Fix**: Contain dependents and use the executor's authorized cancellation/reconciliation path; do not assert a kill occurred without its receipt.
 
 ### **Resource Exhaustion**
 - **Symptoms**: New agents fail to spawn, memory/CPU limits hit
 - **Detection**: Agent spawn returns resource error
-- **Fix**: Queue remaining nodes, increase isolation level if needed
+- **Fix**: Reconcile resource receipts, bound admission and queue eligible nodes; changing isolation alone does not create capacity.
 
 ### **Cost Spiral**
 - **Symptoms**: Nodes repeatedly retry expensive operations
-- **Detection**: Node cost > 10x budget or total DAG cost > safety limit
-- **Fix**: Halt execution, require human approval to continue
+- **Detection**: Compare attributed usage with the node and run budgets under their declared units and accounting source.
+- **Fix**: Follow the declared hold/escalation policy; budget data does not itself grant continuation authority.
 
 ## Worked Examples
 
@@ -100,20 +88,23 @@ All nodes in wave complete → Check status:
 
 **Scenario**: 3-wave codebase analysis DAG where Wave 2 node fails
 
-```yaml
-# Initial DAG state
-Wave 1: [scan-files] → completed
-Wave 2: [analyze-architecture, check-security] → analyze-architecture fails
-Wave 3: [generate-report] → blocked
+```mermaid
+flowchart LR
+  A[scan-files: completed] --> B[analyze-architecture: malformed output]
+  A --> C[check-security: completed]
+  B --> D{Declared partial join condition?}
+  C --> D
+  D -->|required architecture output| E[generate-report: blocked]
+  D -->|partial result explicitly allowed| F[generate-report: attributed limitation]
 ```
 
 **Decision Navigation**:
 1. **Failure occurs**: `analyze-architecture` returns malformed JSON
-2. **Failure type check**: Invalid schema → retry with schema reminder
-3. **Retry fails**: Still malformed → escalate to human
+2. **Reconciliation check**: Determine whether an effect was attempted, its idempotency/effect key, and the executor receipt.
+3. **Retry guard**: Retry only if the policy authorizes a changed-factor attempt, the effect state is reconciled, and its acceptance check is recorded; otherwise contain and escalate.
 4. **Wave completion check**: One node failed, one succeeded
    - `check-security` succeeded, output available
-   - `analyze-architecture` failed, mark output as null
+   - `analyze-architecture` has an unavailable/unknown attempt result; do not encode that as JSON `null`.
 5. **Dependency check**: `generate-report` requires both outputs
    - **Decision**: Can proceed with partial data? Check node config
    - If `required: false` → advance with warning
@@ -135,29 +126,31 @@ permissions: {tools: [Read, Write, Bash], paths: ["/workspace/src"]}
 
 **Decision Navigation**:
 1. **Threat assessment**: Bash tool + external code = high risk
-2. **Isolation decision tree**:
-   - Untrusted code? YES → Container isolation
-   - But: Container isolation blocks filesystem writes to host
+2. **Isolation decision**: select a named control only after its boundary, principal, mount, and readback are evaluated. A container alone does not determine host-write authority.
 3. **Trade-off resolution**:
-   - Use container with mounted volume: `/workspace/src` → `/container/workspace`
-   - Restrict bash to safe commands only
-   - Set resource limits: 1GB RAM, 30s timeout
+   - Constructed local configuration: a writable mount maps `/workspace/src` to `/container/workspace`; the mount grant, not the container label, authorizes that path.
+   - Use a named enforceable command/process policy; the phrase "safe commands" does not constrain subprocesses, filesystem access, or network effects.
+   - Constructed local limits are selected from the task workload and threat model, then recorded with the executor receipt.
 
 **Expert catches**: Need to balance security with functionality
 **Novice misses**: Would either over-isolate (breaking functionality) or under-isolate (security risk)
 
 ## Quality Gates
 
-- [ ] All wave dependencies satisfied before execution starts
+- [ ] Each node starts only after its required dependency and authority conditions are satisfied.
 - [ ] Each node has valid isolation level for its threat profile
-- [ ] Permission inheritance properly restricted (child ⊆ parent)
+- [ ] Delegation attenuation is evaluated over complete grants; unresolved resource/condition comparisons block dispatch.
 - [ ] All required trace fields populated (node_id, model, tokens, cost, duration)
-- [ ] Node timeouts set and enforced (default 300s)
+- [ ] Deadlines, cancellation semantics, and readback source are declared; no default timeout is assumed.
 - [ ] Cost budgets defined and monitored per node
-- [ ] Retry limits configured (max 3 expensive, 10 cheap models)
+- [ ] Retry is conditioned on idempotency/effect state, changed-factor rationale, budget, and acceptance check.
 - [ ] Context isolation prevents cross-node conversation leakage
-- [ ] Failed node outputs properly marked as null/unavailable
-- [ ] Execution can be resumed from any completed wave
+- [ ] Failed, unavailable, absent, and unknown output states remain distinguishable.
+- [ ] Resume eligibility preserves input/version identity, attempt receipts, and validated artifact state.
+
+## Evidence and Book candidate
+
+The reference inspected Kotlin coroutine lifecycle documentation, not an agent-runtime implementation. **Book candidate, not Book prose:** planned topology, dispatch receipt, and external-effect reconciliation are distinct claims. Compare with the Book-review files before asserting novelty or placement.
 
 ## NOT-FOR Boundaries
 

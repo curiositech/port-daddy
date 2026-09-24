@@ -1,0 +1,62 @@
+[
+  {
+    "path": "/Users/erichowens/.claude/skills/tikz-diagram-craft/SKILL.md",
+    "sha256": "f1c831e326c6fe6a61a91b1ef91f8adcbab10aeb064956861a52ce8946d45053"
+  },
+  {
+    "path": "/Users/erichowens/.claude/skills/textbook-craft/SKILL.md",
+    "sha256": "e01f4f97ecd8d0a8fa948dbc90a21a72103bbf3d931250a77f75152eb76b69b5"
+  },
+  {
+    "path": "/Users/erichowens/.claude/skills/tikz-diagram-craft/templates/tpl-grid-matrix.tex",
+    "sha256": "b01dec522804bd0aae75040492378fa6199342c9528ec0346ca91bb3bffd5f45"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/tikz-figure-engineering/SKILL.md",
+    "sha256": "7e8e99711ed6e1208258f62a7d11245417389e678e404675bc85f6595b647f11"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/whitepaper-figure-system/SKILL.md",
+    "sha256": "ebdfd45a32330a89d2de1b634380f680d84d544cd2b67f488537596833567f4a"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/solely-responsible-agent/SKILL.md",
+    "sha256": "f7486195868d04f9c3b79a142acd056ea7214f584cd4e5497025223ca28d128b"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/source-receipt.json",
+    "sha256": "08e68e251599a67d1846a5899f1e30340ad2e840546bde24915f5db8ad316a5a"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/build.py",
+    "sha256": "efc12e543a06d8f96d3157301ccb4eddcaeea59f5d8120d7c4a6d3ed8d32e49d"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-mas-foundations-followup/REVIEW.md",
+    "sha256": "eb3bcd570209d22b4e9de048767f6001652ae379f66eb93976b01dd0d96b4793"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-swiss.tex",
+    "sha256": "ad5c8881f7c5a7f9ec7c65e9ab4bf4051ff4d5e20e4ba43964e07344b981453a"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-swiss-page.tex",
+    "sha256": "43cbbe177a24582eef48a052e60e1b8c52fc93f0aa2035e440b8671e02c78a5e"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-maritime.tex",
+    "sha256": "6563119e4923caafb69536488687d65cede4cf453595c3ec9b79b5405e9b0c3d"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-maritime-page.tex",
+    "sha256": "9480f9f0b59194b36ba621bad6865cb74d61cdcf53d4af2f1225e7ffb362d59a"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-technical.tex",
+    "sha256": "3e52d518bede3b9551b064847475d7928e8e77625501309d1373cfa5ad171f32"
+  },
+  {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/book-B03-B04-exercise-ports/search-evidence-technical-page.tex",
+    "sha256": "a1661ac782b47830100a133ceb07b19fa1ee17c8206dcc329739efd911495752"
+  }
+]

@@ -32,49 +32,33 @@ Build automated evaluation pipelines for LLM applications with benchmarks, regre
 ## Quick Start
 
 1. **Define eval dimensions** — Correctness, faithfulness, relevance, coherence, safety. Pick the 2-3 that matter most for your use case.
-2. **Build eval dataset** — 50-200 curated test cases with expected outputs or rubrics. Include edge cases and adversarial inputs.
+2. **Build an eval dataset** — size it for the task mix, experimental unit, desired precision, and available oracle; include edge cases and adversarial inputs.
 3. **Choose eval methods** — LLM-as-judge for scalable scoring, exact-match for structured outputs, RAGAS for RAG systems, human eval for nuance.
-4. **Automate in CI** — Run evals on every prompt change, model upgrade, or pipeline modification. Fail the build if scores regress.
-5. **Track trends** — Store eval results over time. A 2% quality drop per release compounds into a 20% drop over 10 releases.
+4. **Automate in CI** — Run the relevant evals when a prompt, model, or pipeline change affects the measured behavior. Apply a predeclared decision rule that accounts for uncertainty and decision costs; do not fail a build on any score movement alone.
+5. **Track trends** — Store versioned task-level results and uncertainty over time; define a task-specific regression rule before inspecting release results.
 
 ## Core Capabilities
 
 | Domain | Technologies | Notes |
 |--------|-------------|-------|
 | **RAG Evaluation** | RAGAS, DeepEval, custom | Faithfulness, answer relevance, context precision |
-| **LLM-as-Judge** | Claude, GPT-4o, Llama 3.1 as evaluators | Rubric-based scoring with calibration |
-| **Exact Match** | Regex, JSON schema validation, string match | For structured outputs: classification, extraction |
-| **Human Eval** | Argilla, Label Studio, custom UI | Gold-standard quality, expensive, slow |
-| **Benchmarks** | MMLU, HumanEval, custom domain benchmarks | Standardized comparison across models |
-| **CI Integration** | GitHub Actions, pytest, Vitest | Eval-as-tests with pass/fail thresholds |
+| **LLM-as-Judge** | Explicit provider/model/revision chosen for this task | Rubric-based observations with held-out calibration |
+| **Deterministic checks** | Exact/reference match, semantic predicates, JSON Schema | Reference matching and structural validity are distinct outcomes |
+| **Human Eval** | Argilla, Label Studio, custom UI | Rubric-based judgments; quality depends on oracle, rater design, and construct |
+| **Benchmarks** | MMLU, HumanEval, custom domain benchmarks | Comparisons require aligned benchmark version, prompting, harness, and scoring protocol |
+| **CI Integration** | GitHub Actions, pytest, Vitest | Versioned regression checks with a declared, uncertainty-aware decision rule |
 
 ## Architecture Patterns
 
 ### Pattern 1: Multi-Method Evaluation Pipeline
 
-```
-Eval Dataset (N test cases)
-    │
-    ├──→ [Exact Match] ──→ Precision/Recall/F1 (for structured outputs)
-    │
-    ├──→ [LLM-as-Judge] ──→ Rubric scores 1-5 per dimension
-    │        │
-    │        └── Calibrate: run judge on 20 pre-scored examples first
-    │
-    ├──→ [RAGAS] ──→ Faithfulness, Answer Relevance, Context Precision
-    │        │
-    │        └── For RAG systems only; measures retrieval + generation quality
-    │
-    └──→ [Human Eval] ──→ Gold-standard labels (sample 10-20%)
-             │
-             └── Use for calibrating LLM-as-judge, not as primary method
-
-All results ──→ [Score Aggregation] ──→ [Trend Tracker] ──→ [CI Gate]
-```
+Route each item to a metric with an appropriate oracle; aggregate method-specific evidence without collapsing preference, task success, and effect truth into one score. See [multi-method evaluation](diagrams/research-l01-multi-method-evaluation-outputs-remain-distinct.md).
 
 ```python
-# LLM-as-judge evaluation
+# LLM-as-judge evaluation skeleton; pin the actual provider model/revision here.
 import json
+
+PINNED_JUDGE_MODEL_VERSION = "provider/model@revision"
 
 JUDGE_RUBRIC = """
 Score the following response on a scale of 1-5 for each dimension:
@@ -90,85 +74,78 @@ Response: {response}
 Return JSON: {{"correctness": N, "completeness": N, "clarity": N, "reasoning": "..."}}
 """
 
-async def evaluate_with_judge(test_cases: list[dict], model_output_fn) -> dict:
+def parse_judge_scores(raw):
+    scores = json.loads(raw)
+    dimensions = ("correctness", "completeness", "clarity")
+    if not isinstance(scores, dict) or set(scores) != {*dimensions, "reasoning"}:
+        raise ValueError("judge shape")
+    if any(type(scores[k]) is not int or not 1 <= scores[k] <= 5 for k in dimensions):
+        raise ValueError("judge scale")
+    if not isinstance(scores["reasoning"], str):
+        raise ValueError("judge explanation")
+    return scores
+
+async def evaluate_with_judge(test_cases, model_output_fn, llm_call):
+    # Caller supplies authorized, budget-bounded adapters; no implicit retries.
     results = []
     for case in test_cases:
-        response = await model_output_fn(case["question"])
-        judge_prompt = JUDGE_RUBRIC.format(
-            question=case["question"],
-            expected=case["expected"],
-            response=response
-        )
-        scores = await llm_call(judge_prompt, model="claude-sonnet-4-20250514", temperature=0)
-        results.append(json.loads(scores))
-
-    # Aggregate
-    return {
-        dim: sum(r[dim] for r in results) / len(results)
-        for dim in ["correctness", "completeness", "clarity"]
-    }
+        row = {"task_id": case["id"], "judge_model": PINNED_JUDGE_MODEL_VERSION}
+        try:
+            response = await model_output_fn(case["question"])
+        except Exception:
+            results.append({**row, "status": "system_error"})
+            continue
+        prompt = JUDGE_RUBRIC.format(question=case["question"],
+                                     expected=case["expected"], response=response)
+        try:
+            raw = await llm_call(prompt, model=PINNED_JUDGE_MODEL_VERSION, temperature=0)
+        except Exception:
+            results.append({**row, "status": "judge_error"})
+            continue
+        try:
+            scores = parse_judge_scores(raw)
+        except (ValueError, TypeError):
+            results.append({**row, "status": "invalid_judge_output"})
+            continue
+        results.append({**row, "status": "scored", "scores": scores})
+    return {"results": results}  # Keep errors in denominators and separate outcome lanes.
 ```
+
+Keep run, response and prompt digests in the surrounding evaluation manifest; do not log private raw answers by default. Parsing an ordinal score validates its shape, not the judge’s factual accuracy. Temperature zero does not guarantee deterministic judging.
 
 ### Pattern 2: RAG Evaluation with RAGAS
 
-```
-Test Case: (question, ground_truth, retrieved_contexts)
-    │
-    ├──→ Faithfulness: Is the answer supported by retrieved contexts?
-    │    Score = (claims supported by context) / (total claims in answer)
-    │
-    ├──→ Answer Relevance: Does the answer address the question?
-    │    Score = cosine_sim(question, generated_questions_from_answer)
-    │
-    ├──→ Context Precision: Are relevant contexts ranked higher?
-    │    Score = weighted precision of relevant contexts in top-k
-    │
-    └──→ Context Recall: Were all ground-truth facts retrievable?
-         Score = (ground_truth_claims in contexts) / (total ground_truth_claims)
-```
+Keep retrieval/context evidence distinct from answer support and answer relevance; report the metric definitions and dataset/oracle assumptions. See [RAG metric decomposition](diagrams/research-l02-rag-metric-decomposition.md).
+
+The [official v0.3-to-v0.4 migration guide](https://docs.ragas.io/en/stable/howtos/migrations/migrate_from_v03_to_v04/) (read 2026-09-24) documents collections metrics, keyword-argument `ascore`, and `MetricResult.value`. Pin the installed Ragas and evaluator revisions; this documentation-based example has not called a provider.
 
 ```python
-# RAGAS evaluation
-from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy, context_precision
-from datasets import Dataset
+from ragas.metrics.collections import Faithfulness
 
-eval_dataset = Dataset.from_dict({
-    "question": questions,
-    "answer": generated_answers,
-    "contexts": retrieved_contexts,
-    "ground_truth": expected_answers,
-})
-
-result = evaluate(eval_dataset, metrics=[
-    faithfulness, answer_relevancy, context_precision
-])
-print(result)  # {'faithfulness': 0.87, 'answer_relevancy': 0.92, ...}
+async def score_support(case, evaluator_llm):
+    metric = Faithfulness(llm=evaluator_llm)
+    result = await metric.ascore(
+        user_input=case["question"],
+        response=case["answer"],
+        retrieved_contexts=case["contexts"],
+    )
+    return {"task_id": case["id"], "metric": "faithfulness",
+            "value": result.value}
 ```
+
+Configure answer relevance and reference-based context precision as separate metrics with their own inputs and oracle requirements. Faithfulness concerns support from supplied context; that context can itself be false. Retain errors/unscorable cases and never relabel a diagnostic metric as verified task success.
 
 ### Pattern 3: CI Regression Gate
 
-```
-On PR / prompt change:
-    │
-    ▼
-[Run eval suite] ──→ scores
-    │
-    ▼
-[Compare to baseline]
-    ├── Score >= baseline - tolerance (2%) ──→ PASS (merge allowed)
-    └── Score < baseline - tolerance        ──→ FAIL (block merge)
-                                                  │
-                                                  └── Report: which test cases regressed, by how much
-```
+A reusable regression suite detects changes against a declared gate. Promotion claims require a fresh, untouched holdout after any rubric, prompt, or threshold tuning; never promote on items already inspected during calibration. See [regression review](diagrams/research-l03-regression-review-with-task-level-uncertainty.md).
 
 ## Anti-Patterns
 
-1. **Evaluating without a baseline** — A score of 4.2/5 means nothing without knowing the previous score was 4.5. Always track baselines and trends.
-2. **LLM-as-judge without calibration** — Judges have biases (verbosity preference, position bias). Calibrate on 20+ pre-scored examples and check inter-rater agreement.
-3. **Too few test cases** — 10 test cases produce noisy metrics. Target 50+ for reliable averages, 200+ for statistical confidence on sub-dimensions.
+1. **Evaluating without a relevant comparison** — A score needs context. Compare with a task-relevant prior version or alternative when the claim is comparative, and keep model/harness/budget changes visible.
+2. **LLM-as-judge without calibration** — Judges can prefer verbosity or positions. Measure disagreement and order sensitivity on task-relevant development items, then freeze the rubric before held-out evaluation; no universal calibration count applies.
+3. **Unjustified test-set size** — State the experimental unit, task mix, desired precision or power, and limitations. A universal item count does not establish reliable estimates.
 4. **Evaluating only happy paths** — Include adversarial inputs, edge cases, ambiguous questions, and out-of-scope queries. The model should fail gracefully.
-5. **Manual eval as the only method** — Human evaluation is expensive and slow. Use it to calibrate automated methods, then run automated evals in CI.
+5. **Treating one method as sufficient by default** — Human, deterministic, and model-judge methods answer different questions. Use the method or combination that matches the task and oracle; human judgment may remain primary when appropriate.
 6. **Structural score labeled efficacy** — A schema, lint, or rubric coverage score
    checks a release surface; it does not show that a skill improves task outcomes.
    Measure versioned skill efficacy in paired, held-out tasks.
@@ -181,17 +158,29 @@ Evaluate a skill version against its prior version or no-skill condition on a fr
 held-out task set. Hold model/harness versions, tool grants, retries, total token/time
 budget, and acceptance oracle constant. Report useful completion, cost, latency,
 failures, and uncertainty; keep structural quality and activation checks as separate
-release gates. See `references/skill-efficacy.md`.
+release gates. See `references/skill-efficacy.md`. For judge calibration, fresh holdouts, and correlated errors, use the linked protocol and cite the pinned source with its limits.
 
 ## Quality Checklist
 
-- [ ] Eval dataset has 50+ test cases with expected outputs or rubrics
+- [ ] Dataset size and task coverage are justified for the target claim
 - [ ] Multiple eval dimensions defined (correctness, completeness, safety, etc.)
-- [ ] LLM-as-judge calibrated against human scores (inter-rater agreement > 0.8)
-- [ ] Baseline scores established and tracked over time
-- [ ] Regression threshold defined (e.g., fail if any dimension drops > 2%)
-- [ ] Edge cases and adversarial inputs included in eval dataset (minimum 20%)
-- [ ] Eval runs automated in CI on every prompt/model/pipeline change
+- [ ] Where model judges are used, agreement, order sensitivity, and disagreement are audited on task-relevant examples
+- [ ] A relevant comparison is included when the release claim is comparative
+- [ ] Regression rule and decision costs are specified before release results are inspected
+- [ ] Edge cases and adversarial inputs included at a documented, task-appropriate rate
+- [ ] Regression checks run for changes affecting the evaluated behavior, under a declared decision rule
 - [ ] Results stored with timestamps for trend analysis
-- [ ] Human eval used for calibration, not as sole evaluation method
-- [ ] RAGAS metrics used for RAG systems (faithfulness, relevance, precision)
+- [ ] Human evaluation is used where the target construct or oracle requires it; it is not automatically subordinate to model scoring
+- [ ] For RAG claims, report retrieval, support, and answer relevance separately with defined metrics and oracle limits
+
+
+## Judge evidence and calibrated evaluation
+
+See [skill efficacy](references/skill-efficacy.md) for the linked procedure and source limits.
+
+An LLM judge is an evaluator observation, not ground truth. Freeze task identifiers, system/harness version, tool/budget/retry policy, rubric, and independent outcome oracle. Split by task/repository before tuning; randomize response order and repeat with swapped order where feasible. Report pairwise agreement, order-flip rate, invalid-output rate, task outcome, cost, failures, and uncertainty separately. Keep preference scores distinct from task acceptance and externally verified effects.
+
+Hossain, Yousefi, and Lim, [arXiv:2609.22512v1](https://arxiv.org/html/2609.22512v1), define a calibrated error-correlation matrix and held-out retention filters (§§2.1–2.3). Their filters did not improve the tested factuality and code tasks (§4.5/limitations). Their effective-sample-size value summarizes variance in that setup; it does not predict vote accuracy or replace judge count. Do not infer a universal correlation cutoff or tune on held-out labels.
+
+- [Judge calibration and held-out evaluation](diagrams/research-l04-judge-calibration-and-held-out-evaluation.md)
+

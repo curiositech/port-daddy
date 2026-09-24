@@ -1,0 +1,5 @@
+# Offline Book worksheet acceptance
+
+Accepted one two-panel worksheet in maritime, technical and Swiss editions: three standalone figures and three representative 7 by 10 inch page contexts. All input hashes and 24 original output entries verified before root corrections. Root read figure/wrappers/import chain, compared semantic claims to accepted market bundle and existing manuscript planning review, opened the three final page renders, and corrected overflow visible despite clean TeX logs. All six final PDFs have no overfull/missing-glyph/TeX-error flags and all fonts embedded. PDF text bounds fit the 4.5 inch page column. Palette/base/edition files match the already accepted Book figure system copies.
+
+The worksheet illustrates four record types and a constructed 11.5-credit D17/D18 release/recovery distinction. It does not claim a new economic result, implemented escrow, empirical benefit or full Book integration. Manuscript remains unchanged. Exact final bytes are pinned in accepted-artifact-manifest.json; preimages and corrections retained here.

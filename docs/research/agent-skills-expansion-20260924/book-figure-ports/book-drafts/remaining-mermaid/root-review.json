@@ -1,0 +1,39 @@
+{
+  "engine": "mermaid@12.0.0",
+  "input": "BOOK-FIGURE-BRIEFS-3-5.md",
+  "diagrams": [
+    {
+      "line": 13,
+      "type": "flowchart",
+      "sourceSha256": "497e4b89aa685b5e477b0d4fd60182b94121a251c571fd4c9e7c07d4c1b71027",
+      "svg": "01-flowchart-497e4b89aa68.svg",
+      "png": "01-flowchart-497e4b89aa68.png",
+      "result": "parsed-and-rendered"
+    },
+    {
+      "line": 47,
+      "type": "flowchart",
+      "sourceSha256": "68390d23019983e7505c5bcaba60d74ea0f9295d9509a5638ba6cbd22ab5488f",
+      "svg": "02-flowchart-68390d230199.svg",
+      "png": "02-flowchart-68390d230199.png",
+      "result": "parsed-and-rendered"
+    },
+    {
+      "line": 75,
+      "type": "flowchart",
+      "sourceSha256": "b23561eab2b9dc9a30b09c516f56f7fec9466f80e87bdfd9cf673c0132d9eed7",
+      "svg": "03-flowchart-b23561eab2b9.svg",
+      "png": "03-flowchart-b23561eab2b9.png",
+      "result": "parsed-and-rendered"
+    }
+  ],
+  "root_visual_review": {
+    "at": "2026-09-24T10:01:11.166261+00:00",
+    "scope": "Opened each full PNG; labels and edges legible without overlap. Candidate4 order differs from table but each case is explicit. TikZ adaptation pending; no manuscript integration.",
+    "reviewed_sources": [
+      "497e4b89aa685b5e477b0d4fd60182b94121a251c571fd4c9e7c07d4c1b71027",
+      "68390d23019983e7505c5bcaba60d74ea0f9295d9509a5638ba6cbd22ab5488f",
+      "b23561eab2b9dc9a30b09c516f56f7fec9466f80e87bdfd9cf673c0132d9eed7"
+    ]
+  }
+}

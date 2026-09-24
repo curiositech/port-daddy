@@ -22,7 +22,7 @@ tags:
 
 # DAG Mutation Strategist
 
-Decides HOW to mutate a DAG when things go wrong. Given a failure diagnosis from `dag-quality` or `dag-ops`, selects the optimal recovery strategy.
+Decides HOW to mutate a DAG when things go wrong. Given a failure diagnosis from `dag-quality` or `dag-ops`, selects a bounded recovery proposal. Use [Revisioned Mutation and Invalidation](references/revisioned-mutation-and-invalidation.md): a proposed graph mutation is not execution, and it must preserve the old graph revision, affected descendants, and effect disposition.
 
 ---
 
@@ -32,7 +32,7 @@ Decides HOW to mutate a DAG when things go wrong. Given a failure diagnosis from
 - Choosing a mutation strategy after a node fails
 - Deciding between retry, replan, fork, or escalate
 - Adapting to mid-execution discoveries that change the plan
-- Cost-aware recovery (don't spend $0.50 recovering a $0.01 failure)
+- Cost-aware recovery using task-specific measured or declared estimates
 
 ❌ **NOT for**:
 - Detecting failures (use `dag-quality`)
@@ -47,61 +47,66 @@ Decides HOW to mutate a DAG when things go wrong. Given a failure diagnosis from
 flowchart TD
   F[Failure detected] --> T{Failure type?}
   
-  T -->|Transient: API timeout, rate limit| R[Retry with backoff]
-  T -->|Model: wrong format, refusal| M{Budget allows upgrade?}
-  M -->|Yes| U[Replace with stronger model]
-  M -->|No| P[Rephrase prompt, same model]
+  T -->|Transient: API timeout, rate limit| R{Effect status and idempotency known?}
+  R -->|Yes| RB[Retry under bounded local policy]
+  R -->|No| RC[Reconcile external effect before rerun]
+  T -->|Model: wrong format, refusal| M{Evidence supports a changed capability or prompt?}
+  M -->|Yes| U[Propose capability/profile change]
+  M -->|No| P[Escalate missing diagnosis]
   
-  T -->|Contract: output schema mismatch| C[Retry with explicit schema in prompt]
-  T -->|Quality: below threshold| Q{Iteration count?}
-  Q -->|< max| L[Loop back with feedback from dag-quality]
-  Q -->|≥ max| E{Challenger skill available?}
-  E -->|Yes| SW[Swap to challenger skill]
-  E -->|No| HG[Escalate to human gate]
+  T -->|Contract: output schema mismatch| C[Validate producer/consumer contract and affected descendants]
+  T -->|Quality or acceptance failure| Q{Bounded changed-factor experiment exists?}
+  Q -->|Yes| L[Propose revision with acceptance and regression checks]
+  Q -->|No| HG[Escalate with evidence]
   
   T -->|Logic: wrong approach entirely| D{Cost of replan vs remaining budget?}
-  D -->|Replan < 30% of budget| RP[Replan affected subgraph]
-  D -->|Replan > 30%| HG
+  D -->|Fits declared resources and authority| RP[Replan affected subgraph]
+  D -->|Does not fit| HG
   
-  T -->|Cascade: upstream caused this| FIX[Fix root cause node first]
-  FIX --> R
+  T -->|Possible upstream contribution| FIX[Trace candidate causes and affected descendants]
+  FIX --> RC
+```
+
+```mermaid
+flowchart LR
+    A[Immutable graph revision] --> B[Mutation proposal]
+    B --> C[Contract, authority, cycle, and duplicate-effect checks]
+    C --> D{Checks pass?}
+    D -->|Yes| E[New revision plus affected-descendant set]
+    D -->|No| F[Keep prior revision and escalate]
+    E --> G[Runner may execute separately and emit receipts]
 ```
 
 ## Strategy Catalog
 
-| Strategy | When | Cost | Risk |
-|----------|------|------|------|
-| **Retry with backoff** | Transient failures (timeout, rate limit) | Same as original (~$0.001-0.01) | Low — usually works in 1-3 retries |
-| **Rephrase prompt** | Model refused or misunderstood | Same as original | Medium — may not fix the root cause |
-| **Upgrade model** | Cheap model failed on complex task | +$0.01-0.10 | Low — stronger model usually succeeds |
-| **Downgrade + simplify** | Expensive model failed, budget tight | -$0.01-0.10 | Medium — simpler approach may miss nuance |
-| **Inject schema** | Output didn't match contract | Same as original | Low — explicit schema usually works |
-| **Loop with feedback** | Quality below threshold | Same as original + eval cost | Medium — may plateau after 2-3 iterations |
-| **Swap skill** | Current skill isn't working for this task | Same as original | Medium — challenger may or may not be better |
-| **Fork parallel paths** | Ambiguous situation, multiple valid approaches | 2-3x original | Low — pick best result from parallel attempts |
-| **Replan subgraph** | Wrong approach for this section | Variable (Sonnet call for replanning) | Medium — new plan may also be wrong |
-| **Insert validator node** | Output needs additional checking | +$0.001 | Low — cheap verification step |
-| **Escalate to human** | All automated strategies exhausted or too risky | Human time | Zero technical risk — but blocks execution |
+| Strategy | Preconditions | Required record |
+|----------|---------------|-----------------|
+| **Retry** | Effect status, idempotency, and local retry policy are known | Attempt lineage and reconciliation result |
+| **Prompt or capability change** | Evidence identifies an unmet contract or capability gap | Exact changed factor and acceptance check |
+| **Contract repair** | Producer/consumer mismatch and affected descendants are known | Schema/semantic contract revision |
+| **Fork or replan** | Authority, resource, merge, and duplicate-effect policy exist | New graph revision and join rule |
+| **Insert validator** | A declared acceptance gap needs independent evidence | Evaluator identity and result provenance |
+| **Escalate** | No bounded safe experiment remains | Evidence, unknowns, and decision requested |
 
 ## Decision Principles
 
-1. **Cheapest effective fix first**: Retry before rephrase. Rephrase before model upgrade. Upgrade before replan.
-2. **Cost-proportional recovery**: Don't spend $0.50 recovering a $0.01 failure. If recovery costs more than re-running the entire DAG, re-run.
-3. **Escalate, don't loop forever**: Max 3 iterations of the same strategy. If it hasn't worked by then, escalate to a different strategy or human.
-4. **Fix root causes, not symptoms**: If Node C failed because Node A produced bad input, fixing Node C is treating the symptom. Fix Node A.
+1. **Evidence before ranking**: choose a recovery only after classifying the failure and affected effect boundary.
+2. **Cost is task-local**: compare measured or declared resource estimates, acceptance value, and authority; do not use fixed model prices.
+3. **Do not repeat an unchanged hypothesis**: escalate when no discriminating experiment remains.
+4. **Repair supported causes, not just symptoms**: when evidence shows Node A produced invalid input consumed by Node C, invalidate and repair the affected path from Node A while checking for additional causes.
 
 ---
 
 ## Anti-Patterns
 
 ### Retry Everything
-**Wrong**: Retrying every failure with the same prompt and model 10 times.
-**Right**: Retry once for transient failures. If it fails twice, the problem isn't transient — change strategy.
+**Wrong**: Retrying every failure with the same prompt and model despite unchanged evidence and hypothesis.
+**Right**: Retry only after effect reconciliation and an idempotency-safe local policy; change strategy when the next attempt would not test a different condition.
 
 ### Expensive Recovery for Cheap Failures
-**Wrong**: Spawning an Opus replan call ($0.10) to recover from a Haiku formatting error ($0.001).
-**Right**: Just retry with explicit schema injection ($0.001).
+**Wrong**: Selecting a recovery from provider/model labels or remembered prices.
+**Right**: Compare measured task-specific cost, capability evidence, and acceptance risk before proposing a change.
 
 ### Ignoring Cascade Failures
-**Wrong**: Fixing Node C when Node A was the root cause. Node C will fail again on the next run.
-**Right**: Trace backward through dependencies to find the first node that deviated. Fix that one.
+**Wrong**: Assuming Node A is the sole root cause because Node C consumed its output.
+**Right**: Trace dependency, shared-cause, and independent-failure hypotheses; invalidate and repair only the descendants supported by the evidence, while preserving unresolved alternatives.

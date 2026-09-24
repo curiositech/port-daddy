@@ -19,22 +19,45 @@
     "status"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.0.0" },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repo", "commit", "buildDigest", "boundaryId"],
+      "required": [
+        "repo",
+        "commit",
+        "buildDigest",
+        "boundaryId"
+      ],
       "properties": {
-        "repo": { "type": "string", "minLength": 1 },
-        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-        "buildDigest": { "$ref": "#/$defs/digest" },
-        "boundaryId": { "type": "string", "minLength": 1 }
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "buildDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "boundaryId": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "claim": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["level", "statement", "truthState", "scope"],
+      "required": [
+        "level",
+        "statement",
+        "truthState",
+        "scope"
+      ],
       "properties": {
         "level": {
           "enum": [
@@ -46,76 +69,240 @@
             "MEDIATION_WITNESSED"
           ]
         },
-        "statement": { "type": "string", "minLength": 1 },
-        "truthState": {
-          "enum": ["STATIC_INSPECTED", "DYNAMIC_WITNESSED", "BLOCKED_BY_HALT"]
+        "statement": {
+          "type": "string",
+          "minLength": 1
         },
-        "scope": { "type": "string", "minLength": 1 }
+        "truthState": {
+          "enum": [
+            "STATIC_INSPECTED",
+            "DYNAMIC_WITNESSED",
+            "BLOCKED_BY_HALT"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "proposal": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "digest", "requester", "principal", "bodyGeneration", "repo", "harbor",
-        "operation", "targetDigest", "parametersDigest", "expiresAt", "idempotencyKey"
+        "digest",
+        "requester",
+        "principal",
+        "bodyGeneration",
+        "repo",
+        "harbor",
+        "operation",
+        "targetDigest",
+        "parametersDigest",
+        "expiresAt",
+        "idempotencyKey"
       ],
       "properties": {
-        "digest": { "$ref": "#/$defs/digest" },
-        "requester": { "type": "string", "minLength": 1 },
-        "principal": { "type": "string", "minLength": 1 },
-        "bodyGeneration": { "type": "integer", "minimum": 0 },
-        "repo": { "type": "string", "minLength": 1 },
-        "harbor": { "type": "string", "minLength": 1 },
-        "operation": { "type": "string", "minLength": 1 },
-        "targetDigest": { "$ref": "#/$defs/digest" },
-        "parametersDigest": { "$ref": "#/$defs/digest" },
-        "expiresAt": { "type": "string", "format": "date-time" },
-        "idempotencyKey": { "type": "string", "minLength": 1 }
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "requester": {
+          "type": "string",
+          "minLength": 1
+        },
+        "principal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bodyGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harbor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "parametersDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "authority": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["receiptDigest", "proposalDigest", "issuer", "audience", "scopeDigest", "verified", "revocationChecked"],
+      "required": [
+        "receiptDigest",
+        "proposalDigest",
+        "issuer",
+        "audience",
+        "scopeDigest",
+        "verified",
+        "revocationChecked"
+      ],
       "properties": {
-        "receiptDigest": { "$ref": "#/$defs/digest" },
-        "proposalDigest": { "$ref": "#/$defs/digest" },
-        "issuer": { "type": "string", "minLength": 1 },
-        "audience": { "type": "string", "minLength": 1 },
-        "scopeDigest": { "$ref": "#/$defs/digest" },
-        "verified": { "type": "boolean" },
-        "revocationChecked": { "type": "boolean" }
+        "receiptDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "proposalDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audience": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopeDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "An asserted receipt field. This schema and the handrolled validator check shape and bindings only; they do not cryptographically verify the authority receipt."
+        },
+        "revocationChecked": {
+          "type": "boolean",
+          "description": "An asserted receipt field. This schema and the handrolled validator do not contact an issuer or prove that revocation was checked."
+        }
       }
     },
     "decision": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["receiptDigest", "proposalDigest", "authorityReceiptDigest", "policyDigest", "stateDigest", "adjudicator", "verdict", "reasonCodes", "issuedBeforeEffect"],
+      "required": [
+        "receiptDigest",
+        "proposalDigest",
+        "authorityReceiptDigest",
+        "policyDigest",
+        "stateDigest",
+        "adjudicator",
+        "verdict",
+        "reasonCodes",
+        "issuedBeforeEffect"
+      ],
       "properties": {
-        "receiptDigest": { "$ref": "#/$defs/digest" },
-        "proposalDigest": { "$ref": "#/$defs/digest" },
-        "authorityReceiptDigest": { "$ref": "#/$defs/digest" },
-        "policyDigest": { "$ref": "#/$defs/digest" },
-        "stateDigest": { "$ref": "#/$defs/digest" },
-        "adjudicator": { "type": "string", "minLength": 1 },
-        "verdict": { "enum": ["ALLOW", "DENY", "INDETERMINATE"] },
-        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "issuedBeforeEffect": { "type": "boolean" }
+        "receiptDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "proposalDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "authorityReceiptDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "stateDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "adjudicator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdict": {
+          "enum": [
+            "ALLOW",
+            "DENY",
+            "INDETERMINATE"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "issuedBeforeEffect": {
+          "type": "boolean"
+        }
       }
     },
     "effect": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["channelOwner", "permitDigest", "redemptionState", "intentRecordedBeforeEffect", "executionState", "effectReceiptDigest", "reconciliationState"],
+      "required": [
+        "channelOwner",
+        "permitDigest",
+        "redemptionState",
+        "intentRecordedBeforeEffect",
+        "executionState",
+        "effectReceiptDigest",
+        "reconciliationState"
+      ],
       "properties": {
-        "channelOwner": { "type": "string", "minLength": 1 },
-        "permitDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
-        "redemptionState": { "enum": ["NOT_APPLICABLE", "UNREDEEMED", "REDEEMED", "REPLAY_REJECTED"] },
-        "intentRecordedBeforeEffect": { "type": "boolean" },
-        "executionState": { "enum": ["NOT_EXECUTED", "EXECUTED", "AMBIGUOUS"] },
-        "effectReceiptDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
-        "reconciliationState": { "enum": ["NOT_REQUIRED", "SETTLED", "AMBIGUOUS", "UNOBSERVED"] }
+        "channelOwner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permitDigest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redemptionState": {
+          "enum": [
+            "NOT_APPLICABLE",
+            "UNREDEEMED",
+            "REDEEMED",
+            "REPLAY_REJECTED"
+          ]
+        },
+        "intentRecordedBeforeEffect": {
+          "type": "boolean"
+        },
+        "executionState": {
+          "enum": [
+            "NOT_EXECUTED",
+            "EXECUTED",
+            "AMBIGUOUS"
+          ]
+        },
+        "effectReceiptDigest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reconciliationState": {
+          "enum": [
+            "NOT_REQUIRED",
+            "SETTLED",
+            "AMBIGUOUS",
+            "UNOBSERVED"
+          ]
+        }
       }
     },
     "mediationInventory": {
@@ -124,14 +311,56 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["effectClass", "boundary", "owner", "coverage", "witnessId", "bypassCases"],
+        "required": [
+          "effectClass",
+          "boundary",
+          "owner",
+          "coverage",
+          "witnessId",
+          "bypassCases"
+        ],
         "properties": {
-          "effectClass": { "type": "string", "minLength": 1 },
-          "boundary": { "type": "string", "minLength": 1 },
-          "owner": { "type": "string", "minLength": 1 },
-          "coverage": { "enum": ["SOURCE_PRESENT", "EXTERNALLY_WITNESSED", "UNKNOWN", "OUT_OF_SCOPE"] },
-          "witnessId": { "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
-          "bypassCases": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+          "effectClass": {
+            "type": "string",
+            "minLength": 1
+          },
+          "boundary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "coverage": {
+            "enum": [
+              "SOURCE_PRESENT",
+              "EXTERNALLY_WITNESSED",
+              "UNKNOWN",
+              "OUT_OF_SCOPE"
+            ]
+          },
+          "witnessId": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bypassCases": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "Non-empty labels for declared bypass routes or cases. They describe inventory scope; bypassTests records observed verifier test cases separately."
+          }
         }
       }
     },
@@ -141,14 +370,38 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "mutation", "expected", "observed", "passed", "witnessId"],
+        "required": [
+          "id",
+          "mutation",
+          "expected",
+          "observed",
+          "passed",
+          "witnessId"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "mutation": { "type": "string", "minLength": 1 },
-          "expected": { "type": "string", "minLength": 1 },
-          "observed": { "type": "string", "minLength": 1 },
-          "passed": { "type": "boolean" },
-          "witnessId": { "type": "string", "minLength": 1 }
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mutation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed": {
+            "type": "string",
+            "minLength": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "witnessId": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -158,20 +411,125 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "class", "principal", "independentOf", "evidenceDigest"],
+        "required": [
+          "id",
+          "class",
+          "principal",
+          "independentOf",
+          "evidenceDigest"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "class": { "enum": ["SOURCE_INSPECTOR", "VERIFIER_RUNNER", "HOST_OBSERVER", "PROVIDER_RECONCILER"] },
-          "principal": { "type": "string", "minLength": 1 },
-          "independentOf": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-          "evidenceDigest": { "$ref": "#/$defs/digest" }
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "class": {
+            "enum": [
+              "SOURCE_INSPECTOR",
+              "VERIFIER_RUNNER",
+              "HOST_OBSERVER",
+              "PROVIDER_RECONCILER"
+            ]
+          },
+          "principal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "independentOf": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "evidenceDigest": {
+            "$ref": "#/$defs/digest",
+            "description": "A syntactically valid digest reference; it does not authenticate or independently validate the referenced evidence."
+          }
         }
       }
     },
-    "unknowns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-    "status": { "enum": ["PASS", "FAIL", "BLOCKED"] }
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED"
+      ]
+    }
   },
   "$defs": {
-    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
-  }
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "claim"
+        ],
+        "properties": {
+          "claim": {
+            "required": [
+              "level"
+            ],
+            "properties": {
+              "level": {
+                "const": "MEDIATION_WITNESSED"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "claim",
+          "mediationInventory"
+        ],
+        "properties": {
+          "claim": {
+            "required": [
+              "truthState"
+            ],
+            "properties": {
+              "truthState": {
+                "const": "DYNAMIC_WITNESSED"
+              }
+            }
+          },
+          "mediationInventory": {
+            "contains": {
+              "type": "object",
+              "required": [
+                "coverage"
+              ],
+              "properties": {
+                "coverage": {
+                  "const": "EXTERNALLY_WITNESSED"
+                }
+              }
+            },
+            "items": {
+              "properties": {
+                "coverage": {
+                  "enum": [
+                    "EXTERNALLY_WITNESSED",
+                    "OUT_OF_SCOPE"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

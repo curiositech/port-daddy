@@ -1,0 +1,44 @@
+{
+  "draft_id": "draft/agent-four-graphs",
+  "source_mermaid": "four-graphs-source.mmd",
+  "source_sha256": "df3c9ef1fdf27b87bae5918f02a2a8dd87a6dfd2a250c65f657844acc0033a37",
+  "source_origin": "validation/mermaid-drafts.md, T02",
+  "tikz_source": "four-graphs-figure.tex",
+  "tikz_sha256": "c6e153636dda9f3b8954c1f5542e01b4a82dee4377a11a2376a77fa6a2aa51c2",
+  "created_at": "2026-09-24T09:28:46.906449+00:00",
+  "semantic_adaptation": "Four graph roles retained as aligned relation panels. Cross-panel non-implication arrows become direct statements. The worktree-or-queue input is instantiated as a queue. A relation is not evidence of an enforced mechanism. No topology efficacy claim.",
+  "proof_scope": "Standalone compile, size and visual review passed in all three editions. Not full-manuscript page integration or protocol correctness proof.",
+  "reviewed_at": "2026-09-24T09:30:49.742428+00:00",
+  "editions": [
+    {
+      "edition": "maritime",
+      "width_in": 4.5988750000000005,
+      "height_in": 3.949277777777778,
+      "report": "four-graphs-renders/maritime/render-report.json",
+      "png": "four-graphs-renders/maritime/four-graphs-maritime/four-graphs-maritime.png",
+      "png_sha256": "09f30aa40447db6a49a5225246e649b440c312721746c90206e741264b7c893b",
+      "pdf_sha256": "2f8f3125d1ba852c6455b995d88897fc87125a34adb99e771b9e70e375281900",
+      "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
+    },
+    {
+      "edition": "swiss",
+      "width_in": 4.5988750000000005,
+      "height_in": 3.949277777777778,
+      "report": "four-graphs-renders/swiss/render-report.json",
+      "png": "four-graphs-renders/swiss/four-graphs-swiss/four-graphs-swiss.png",
+      "png_sha256": "d9ec07d08e8e599d7d403dff7137c36d0d6104daf23a4f8ce6b5411b3de58738",
+      "pdf_sha256": "1aab9aead1e8065b24003e0c52c7ca6c497a4fd2b7e78c766b2f5631c55c245f",
+      "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
+    },
+    {
+      "edition": "technical",
+      "width_in": 4.5988750000000005,
+      "height_in": 3.949277777777778,
+      "report": "four-graphs-renders/technical/render-report.json",
+      "png": "four-graphs-renders/technical/four-graphs-technical/four-graphs-technical.png",
+      "png_sha256": "dfd5764a04b63e717b845a3d256fad75912e19de84f10e64d0a08ca363ed4d3d",
+      "pdf_sha256": "5392d0c18e1d2e2edefc58072ef78625d9856fdfcd6fa56bbf9cb00976013f43",
+      "visual_review": "Root viewed final full-size PNG: labels legible, arrows unobscured, no clipping or overlap observed."
+    }
+  ]
+}
