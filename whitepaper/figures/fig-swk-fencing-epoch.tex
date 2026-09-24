@@ -1,39 +1,68 @@
-% Brief (tikz-diagram-craft). Register row ch1-14 [should].
-% Reader question: how does a holder who is asleep past reassignment get
-%   blocked from acting?
-% Claim: the epoch, not the lock, rejects the stale holder: A's late
-%   effect still names a real lease it once held, but it presents the
-%   epoch that lease had when A held it, and the effect broker rejects
-%   anything below the resource's current epoch.
-% Evidence: whitepaper/single-writer-kernel.tex thm:exclusion (every
-%   granted lease carries a strictly monotonic fencing epoch; downstream
-%   effect brokers reject any operation bearing an expired epoch); the
-%   work-unit machine's guard 1 (admit-effect: current epoch only),
-%   shortest crime: propose-authorize, start_exec, reassign_role,
-%   admit_effect(STALE), 4 steps.
-% Must distinguish: the epoch increments on reassignment, not on every
-%   write; the rejection compares the effect's carried epoch to the
-%   resource's current epoch, not to a wall-clock deadline.
-% Grammar: a four-step spine, epoch value named at each step, the stale
-%   effect crossing in from the side. Rejected: the full work-unit machine
-%   (536 states), which would bury this one guard in the machine it
-%   belongs to; this figure isolates the guard as a 3-actor sequence.
-% Five-second test: "epoch ticks 0 to 1 at reassignment; A's effect still
-%   says 0 and is rejected".
+% Swiss object-based redraw: fencing epoch rejection of stale paused agents.
+% Evidence: whitepaper/single-writer-kernel.tex Theorem 1.1 (thm:exclusion).
+% Developer story: claude:auth (paused during LLM rate limit) attempts late write after lease reassignment to codex:auth.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\sx{2.2}
-  \node[pd focus state,minimum width=3.6cm] (s1) at (\sx,5.6) {holder A, epoch $e=0$};
-  \node[pd state,minimum width=3.6cm] (s2) at (\sx,3.8) {reassign: epoch increments};
-  \node[pd focus state,minimum width=3.6cm] (s3) at (\sx,2.0) {holder B, epoch $e=1$};
-  \foreach \a/\b in {s1/s2,s2/s3}{\draw[pd focus arrow] (\a)--(\b);}
-  \node[pd breach state,minimum width=4.2cm] (lateeffect) at (8.2,3.8) {A's late effect: carries $e{=}0$};
-  \draw[pd breach arrow] (lateeffect.west) -- (s2.east);
-  \node[pd breach state,minimum width=4.2cm,text width=3.9cm,align=center] (rej) at (8.2,1.2) {rejected: carried epoch 0 is behind the resource's current epoch 1};
-  \draw[pd breach arrow] (lateeffect) -- (rej);
+\begin{tikzpicture}[sg/base,y=-1pt]
+  % Column 1: Resource Lease Timeline (x: 0 to 142)
+  \draw[sgBlue!40,line width=0.6pt,fill=sgBlue!2] (0, 10) rectangle (142, 146);
+  \node[anchor=north west,font=\fontsize{6.8}{8.0}\selectfont\sffamily\bfseries,text=sgBlue] at (6, 14) {RESOURCE TIMELINE: \texttt{src/auth/jwt.ts}};
+
+  % Step 1: Initial grant
+  \draw[sgViolet,line width=0.8pt,fill=sgViolet!8] (6, 28) rectangle (136, 56);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgViolet] at (10, 31) {Holder 1: $\alpha_{\text{auth}}$ (claude)};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 42) {epoch: 104 $\cdot$ TTL: 60s};
+
+  % Downward transition: Timeout & Reassignment
+  \draw[sg/arrow,draw=sgInk!60] (71, 56) -- (71, 74);
+  \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\color{sgRed}] at (73, 65) {65s pause (TTL expired)};
+
+  % Step 2: Epoch Increment & Reassignment
+  \draw[sgBlue,line width=0.8pt,fill=sgBlue!10] (6, 74) rectangle (136, 102);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgBlue] at (10, 77) {Kernel Reassignment};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 88) {epoch increments: 104 $\to$ 105};
+
+  % Downward transition to new holder
+  \draw[sg/arrow,draw=sgTeal] (71, 102) -- (71, 116);
+
+  % Step 3: New Holder
+  \draw[sgTeal,line width=0.8pt,fill=sgTeal!8] (6, 116) rectangle (136, 142);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgTeal] at (10, 119) {Holder 2: $\alpha_{\text{worker}}$ (codex)};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 130) {active epoch: 105 (current)};
+
+  % Column 2: Stale Subprocess & Broker Rejection (x: 162 to 305)
+  % Stale attempt box
+  \draw[sgRed,line width=0.8pt,fill=sgRed!6] (162, 28) rectangle (305, 64);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (166, 31) {Late Write: $\alpha_{\text{auth}}$ (claude)};
+  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!70}] at (166, 42) {Wakes up from pause; assumes lease valid};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text=sgRed] at (166, 52) {PUT /files (carries epoch=104)};
+
+  % Arrow to Broker Check
+  \draw[sg/arrow,draw=sgRed] (233, 64) -- (233, 80);
+
+  % Effect Broker Box
+  \draw[sgInk,line width=0.8pt,fill=white] (162, 80) rectangle (305, 112);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries] at (166, 83) {Storage Effect Broker};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (166, 94) {check: epoch$_{\text{carried}}$ == epoch$_{\text{current}}$?};
+  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgRed}\bfseries] at (166, 103) {Predicate fails: 104 < 105};
+
+  % Arrow to Rejection
+  \draw[sg/arrow,draw=sgRed] (233, 112) -- (233, 122);
+
+  % Rejection Box
+  \draw[sgRed,line width=1.0pt,fill=sgRed!12] (162, 122) rectangle (305, 146);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (166, 125) {412 PRECONDITION FAILED};
+  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!90}] at (166, 136) {Vetoed: write dropped; no files overwritten};
+
+  % Rejection crossing indicator
+  \draw[sgRed,line width=0.6pt,dashed] (136, 88) -- (162, 96);
+
+  % Bottom summary banner
+  \draw[draw=sgGrid,fill=sgInk!3,line width=0.5pt] (0, 153) rectangle (305, 172);
+  \node[anchor=center,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!80},text width=300pt,align=center] at (152.5, 162.5) {
+    \textbf{The Invariant (Theorem~\ref{thm:exclusion}):} Reassignment increments the strictly monotonic fencing epoch ($e=104 \to 105$). Downstream brokers reject late mutations bearing expired epochs, preventing paused or zombie agents from executing silent overwrites.
+  };
 \end{tikzpicture}
-\caption{Reassignment advances the fencing epoch. The broker rejects A's late effect because it carries the old epoch, even though A once held a valid lease. [internal, Theorem~\ref{thm:exclusion}, \protect\path{c0_workunit.py}]}
+\caption{Reassignment advances the fencing epoch. When agent $\alpha_{\text{auth}}$ pauses past its 60s lease TTL, the kernel increments the epoch to 105 and reassigns \texttt{src/auth/jwt.ts} to $\alpha_{\text{worker}}$. The downstream storage broker rejects $\alpha_{\text{auth}}$'s late write bearing epoch 104 with \texttt{412 Precondition Failed}, preventing silent corruption. [internal, Theorem~\ref{thm:exclusion}]}
 \label{fig:swk-fencing-epoch}
 \end{figure}

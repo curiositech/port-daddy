@@ -570,23 +570,8 @@ Let a write return success under the default WAL configuration.
   level; it would require full synchronization or a checkpoint on the commit path.
 \end{itemize}
 \end{property}
-\paragraph{Worked dramatization: Alice crashes mid-write.}
-Alice is an agent editing a file. At $t_0$ she commits a claim on a port and a
-note recording her edit; the daemon returns success. At $t_0+5\,\mathrm{ms}$ her
-host operating system kills the daemon process outright --- a forced termination,
-no clean shutdown. \emph{What survives?} Both writes. The committed pages live in
-the operating system's page cache, which the daemon process does not own and does
-not take with it when it dies; when the supervisor restarts the daemon, SQLite
-finds a dirty log, replays it, and Alice's claim and note are intact. This is I1a,
-and it is the fault class the design actually targets: agents die constantly, and
-the record must outlive them. Now change one detail. At $t_0+5\,\mathrm{ms}$,
-instead of the daemon dying, \emph{the power fails}. The committed pages were in
-the page cache but had not yet reached stable storage, because under the normal
-synchronization level the log is fsync'd only at the next checkpoint. On reboot,
-the database is uncorrupted --- but Alice's last claim and note may simply be gone,
-rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. The
-two faults differ only in whether the page cache survived; conflating them is the
-single most common over-claim about WAL-backed storage.
+\paragraph{Worked dramatization: \texttt{claude:editor} crashes mid-write.}
+$\alpha_{\text{editor}}$ (\texttt{claude:editor}) is an autonomous agent editing \texttt{src/auth.ts}. At $t_0$ it commits a claim on port~7421 and a note recording its edit (\texttt{POST /notes \{"text":"Refactoring JWT verification"\}}); the daemon returns success. At $t_0+5\,\mathrm{ms}$ its host operating system kills the daemon process outright --- a forced termination, no clean shutdown. \emph{What survives?} Both writes. The committed pages live in the operating system's page cache, which the daemon process does not own and does not take with it when it dies; when the supervisor restarts the daemon, SQLite finds a dirty log, replays it, and \texttt{claude:editor}'s claim and note are intact. This is I1a, and it is the fault class the design actually targets: agents die constantly, and the record must outlive them. Now change one detail. At $t_0+5\,\mathrm{ms}$, instead of the daemon dying, \emph{the power fails}. The committed pages were in the page cache but had not yet reached stable storage, because under the normal synchronization level the log is fsync'd only at the next checkpoint. On reboot, the database is uncorrupted --- but \texttt{claude:editor}'s last claim and note may simply be gone, rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. The two faults differ only in whether the page cache survived; conflating them is the single most common over-claim about WAL-backed storage.
 \input{figures/fig-swk-durability-dramatization}
 \pitfall[Power loss can erase commits]{The seductive misconception is ``the normal sync level is safe in WAL mode
 because WAL already guarantees crash safety.'' This conflates crash-\emph{consistency}
@@ -757,20 +742,8 @@ transaction. That is a good reason not to need Raft (the related-work section
 makes the argument by way of Fischer, Lynch and Paterson); it is not a reason
 to let the token pass as new.
 
-\paragraph{Worked dramatization: Alice and Bob race for one port.}
-Alice and Bob are two agents, started a millisecond apart, that both want to bind a
-development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm
-\ref{alg:acquire}). Both requests reach the single daemon, which serializes them:
-one insert lands first. Say Alice's does. Her insert succeeds and she is granted
-the port. Bob's insert, arriving an instant later, hits the uniqueness constraint
-on key~7421 and is rejected \emph{atomically} --- there is no moment at which both
-rows exist. Crucially, Bob does not get a bare error. The catch path reads back the
-row and hands Bob the \emph{identity of the holder}: ``port 7421 is held by
-Alice.'' Bob can now pick another port, wait, or message Alice, but he can never
-double-bind. The serialization that makes this clean is not a hand-rolled critical
-section; it is the operating system's file lock funnelling both inserts through one
-writer, and the database's primary-key uniqueness deciding the winner. One writer,
-one constraint, one holder.
+\paragraph{Worked dramatization: \texttt{claude:worker-1} and \texttt{codex:bench} race for one port.}
+Two developer agents, \texttt{claude:worker-1} (feature development) and \texttt{codex:bench} (integration testing), started a millisecond apart, both attempt to bind a development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm \ref{alg:acquire}). Both requests reach the single daemon, which serializes them: one insert lands first. Say \texttt{claude:worker-1}'s does. Its insert succeeds and it is granted the port (lease token \texttt{tk\_94a2}, epoch $e=1$). \texttt{codex:bench}'s insert, arriving an instant later ($t = +1\,\text{ms}$), hits the database uniqueness constraint on key~\texttt{port:7421} and is rejected \emph{atomically} --- there is no moment at which both rows exist. Crucially, \texttt{codex:bench} does not get a bare error. The catch path reads back the row and hands \texttt{codex:bench} the \emph{identity and lease metadata of the holder}: ``\texttt{port:7421} is held by \texttt{claude:worker-1}, epoch 1, TTL remaining 59s.'' \texttt{codex:bench} can now pick fallback port~7422, wait, or message \texttt{claude:worker-1}, but it can never double-bind. The serialization that makes this clean is not a hand-rolled critical section; it is the operating system's file lock funnelling both inserts through one writer, and the database's primary-key uniqueness deciding the winner. One writer, one constraint, one holder.
 
 \input{figures/fig-swk-race-dramatization}
 
@@ -1113,16 +1086,16 @@ eventual or bounded-recovery property, but it does not retroactively remove the 
 prefix.
 \end{proof}
 
-\paragraph{Worked dramatization: Bob attempts a forbidden action.}
-Bob is an agent under a policy that forbids editing files outside his assigned task
-scope. He nonetheless issues a write that records an out-of-scope edit. \emph{What
+\paragraph{Worked dramatization: codex:worker-2 attempts an out-of-scope edit.}
+$\alpha_{\text{worker}}$ (\texttt{codex:worker-2}) is an agent under a policy that forbids editing files outside its assigned task
+scope. It nonetheless issues a write that records an out-of-scope edit. \emph{What
 happens?} The write commits. The single writer serializes it, the uniqueness
 constraint has no objection (it is a well-formed row), and the operation lands
 durably in the log. Only \emph{then} does the policy monitor, subscribed to that
 log, observe the out-of-scope edit and raise a violation. Its response is
-compensating: it can flag Bob's session, revoke his claims, alert the operator, and
+compensating: it can flag \texttt{codex:worker-2}'s session, revoke its claims, alert the operator, and
 trigger a salvage of the affected surface --- but it cannot pretend the write never
-happened, because it did. Contrast this with Bob trying to claim a port Alice
+happened, because it did. Contrast this with \texttt{codex:bench} trying to claim a port \texttt{claude:worker-1}
 already holds (the previous dramatization): \emph{that} attempt never commits,
 because the uniqueness constraint rejects it before the commit line. The two cases
 are the whole deontic story in miniature: a uniqueness constraint and a boot-time

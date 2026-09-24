@@ -1,22 +1,7 @@
 % Brief (tikz-diagram-craft).
-% Reader question: what states can a claim enter, and what moves it between
-%   them?
-% Claim: three states and five transitions, three of them carrying a fact
-%   that is not obvious from the name alone; there is no queued state, which
-%   is the gap the next section is about.
-% Evidence: whitepaper/single-writer-kernel.tex sec:claim-lifecycle,
-%   alg:acquire (the insert-against-a-uniqueness-constraint acquire path);
-%   the sentence immediately after the figure names the missing queued state.
-% Must distinguish: which transitions are a plain rename vs. one with a
-%   non-obvious guarantee (badged, keyed to the table); that lazy sweep is
-%   deferred to the next read, not scheduled; that no queued state exists.
-% Grammar: automaton (circles, initial arrow, self-loop) with numbered
-%   badges on the three transitions that carry a fact, keyed to a legend
-%   table (S12). Rejected: the v1 rounded-rectangle flowchart with a sweep
-%   label set on its own line, which read as a step sequence rather than a
-%   state machine a caller can be denied out of.
-% Five-second test: "three circles, one loop, three numbered facts in the
-%   table -- and no fourth, queued circle".
+% Reader question: what states can a claim enter, and what moves it between them?
+% Claim: three states and five transitions, grounded in concrete developer API operations and SQLite semantics.
+% Evidence: whitepaper/single-writer-kernel.tex sec:claim-lifecycle, alg:acquire.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
@@ -43,6 +28,7 @@
   % release: held back to free, routed below so it does not cross acquire
   \draw[pd arrow] (held.south) .. controls +(-100:1.0) and +(-80:1.0) .. (free.south);
   \node[pd label] at (3.5,-1.80) {release};
+  \node[pd focus badge] at (3.5,-1.20) {4};
 
   % lazy sweep: expired back to free, on the next read, not on a schedule
   \draw[pd focus arrow,rounded corners=8pt]
@@ -50,27 +36,22 @@
   \node[pd label,anchor=north] at (5.7,-2.40) {lazy sweep};
   \node[pd focus badge] at (5.7,-1.70) {3};
 
-  \node[pd note,anchor=north west,text width=8.4cm] at (-.3,-2.85)
-    {there is no queued state: a losing acquire is simply denied, and
-    nothing schedules it a turn.};
+  \node[pd note,anchor=north west,text width=10.4cm] at (-.3,-2.85)
+    {\textbf{No Queued State:} A losing acquire is denied immediately (\texttt{409 Conflict}); there is no in-memory buffer, wait queue, or fair scheduling. Losers must explicitly retry or back off.};
 \end{tikzpicture}
 
 \medskip
-{\footnotesize
-\begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}X@{}}
+{\fontsize{4.8}{5.8}\selectfont
+\begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
- & what the badge adds to the transition name \\
+\textbf{\#} & \textbf{API Trigger} & \textbf{Database Operation} & \textbf{Invariant \& Guarantee} \\
 \midrule
-1 & one atomic uniqueness decision; a losing caller is told the current holder, not handed a bare error \\
-2 & idempotent: the same holder renews its TTL, it does not create a second claim \\
-3 & expiry is removed lazily, on the next read that touches the row, not by a background sweep \\
+1 & \texttt{POST /claims} \newline \texttt{\{"resource":"lib/auth.ts"\}} & \texttt{INSERT INTO claims ...} \newline On conflict: \texttt{SELECT holder} & Single atomic decision; winner gets \texttt{201 Created}; loser receives \texttt{409 Conflict} with current holder. \\
+2 & \texttt{POST /claims/renew} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{UPDATE claims SET expires\_at} \newline \texttt{WHERE holder = requester} & Fully idempotent; extends TTL without creating duplicate records or advancing the fencing epoch. \\
+3 & Next read / acquire \newline \texttt{GET /claims} or \texttt{POST} & \texttt{DELETE FROM claims} \newline \texttt{WHERE expires\_at < now()} & Zero background threads; expired rows are swept lazily on demand before allocating new leases. \\
+4 & \texttt{POST /claims/release} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{DELETE FROM claims} \newline \texttt{WHERE holder = requester} & Immediate deterministic cleanup; excises the lock record upon task completion. \\
 \bottomrule
 \end{tabularx}}
-\caption{The guarded claim lifecycle as a state machine. Acquire is a single
-insert against a uniqueness constraint; re-claim and release are idempotent;
-expiry moves a claim to \emph{expired}, from which the next read lazily
-sweeps it back to \emph{free}. There is no \emph{queued} state and therefore
-no fairness or bounded-wait guarantee: a losing caller must retry, and
-nothing schedules it a turn. [internal]}
+\caption{The guarded claim lifecycle as a finite-state machine. Acquire is a single atomic insert against a SQLite uniqueness constraint; re-claim and release are idempotent; expiry moves a claim to \emph{expired}, from which the next read lazily sweeps it back to \emph{free}. There is no \emph{queued} state: losing callers receive \texttt{409 Conflict} and must manage their own backoff. [internal, alg:acquire]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

@@ -1,40 +1,63 @@
-% Brief (tikz-diagram-craft). Register row ch1-13 [should].
-% Reader question: two racing acquires, one winner -- where exactly does
-%   the loser learn who won?
-% Claim: both acquire(7421) calls converge on one insert-commit point; the
-%   loser does not get a bare error, the catch path reads back the row and
-%   hands the loser the winner's identity, atomically -- there is no moment
-%   at which both rows exist.
-% Evidence: whitepaper/single-writer-kernel.tex sec:resource, the "Alice
-%   and Bob race for one port" dramatization; alg:acquire's catch path
-%   (existing = SELECT row; DENIED(holder=existing.holder)).
-% Must distinguish: the one commit point both requests race for; that the
-%   loser's outcome is a named DENIED, not a timeout or a bare failure.
-% Grammar: two lanes converging on one insert-commit point, the losing
-%   lane's catch-path callout. Rejected: a sequence diagram with a
-%   database lifeline, which would need a third participant for a fact
-%   that belongs entirely to the daemon's one atomic statement.
-% Five-second test: "two lanes converge to one dot; one continues granted,
-%   the other reads back DENIED(holder=Alice)".
+% Swiss object-based redraw: racing acquires under single-writer uniqueness constraint.
+% Evidence: whitepaper/single-writer-kernel.tex sec:resource, alg:acquire.
+% Developer story: claude:worker-1 (Feature Dev) vs codex:bench (E2E Test) racing for port 7421.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=east] at (-.25,1.55) {Alice};
-  \node[pd title,anchor=east] at (-.25,-1.55) {Bob};
-  \draw[pd hairline] (0,1.55) -- (2.35,1.55);
-  \draw[pd hairline] (0,-1.55) -- (2.35,-1.55);
-  \node[pd label,anchor=south] at (1.15,1.70) {\texttt{acquire(7421)}};
-  \node[pd label,anchor=north] at (1.15,-1.70) {\texttt{acquire(7421)}};
-  \draw[pd focus arrow] (2.35,1.55) -- (4.10,0.10);
-  \draw[pd focus arrow] (2.35,-1.55) -- (4.10,-0.10);
-  \node[pd focus datum] (fork) at (4.25,0) {};
-  \draw[pd ready arrow] (4.43,.10) -- (6.30,1.55);
-  \node[pd ready state,minimum width=2.6cm] at (7.85,1.55) {granted (Alice)};
-  \draw[pd breach arrow] (4.43,-.10) -- (6.30,-1.55);
-  \node[pd breach state,minimum width=3.3cm,text width=3.0cm,align=center] at (8.35,-1.55)
-    {\texttt{DENIED} \texttt{(holder=Alice)}};
+\begin{tikzpicture}[sg/base,y=-1pt]
+  % Left agent boxes
+  \node[anchor=north west,font=\fontsize{7.5}{9}\selectfont\sffamily\bfseries,text=sgViolet] (claude) at (0, 15) {$\alpha_{\text{worker-1}}$ (claude)};
+  \node[anchor=north west,font=\fontsize{6.2}{7.5}\selectfont\color{sgInk!70}] at (0, 27) {Feature dev $\cdot$ pid 9421};
+  \draw[sgViolet,line width=0.8pt] (0, 37) rectangle (95, 62);
+  \node[anchor=center,font=\fontsize{5.8}{7.0}\selectfont\ttfamily,align=center] at (47.5, 49.5) {POST /claims\\\{"port": 7421\}};
+
+  \node[anchor=north west,font=\fontsize{7.5}{9}\selectfont\sffamily\bfseries,text=sgAmber] (codex) at (0, 95) {$\alpha_{\text{bench}}$ (codex)};
+  \node[anchor=north west,font=\fontsize{6.2}{7.5}\selectfont\color{sgInk!70}] at (0, 107) {E2E benchmark $\cdot$ pid 9428};
+  \draw[sgAmber,line width=0.8pt] (0, 117) rectangle (95, 142);
+  \node[anchor=center,font=\fontsize{5.8}{7.0}\selectfont\ttfamily,align=center] at (47.5, 129.5) {POST /claims\\\{"port": 7421\}};
+
+  % Timestamps and arrows into Kernel
+  \node[anchor=south,font=\fontsize{5.5}{6.5}\selectfont\color{sgViolet}] at (115, 44) {$t = 0.000\,\text{s}$};
+  \draw[sg/arrow,draw=sgViolet] (95, 49.5) -- (138, 70);
+
+  \node[anchor=north,font=\fontsize{5.5}{6.5}\selectfont\color{sgAmber}] at (115, 135) {$t = +0.001\,\text{s}$};
+  \draw[sg/arrow,draw=sgAmber] (95, 129.5) -- (138, 88);
+
+  % Central Single-Writer Kernel (SQLite DB)
+  \begin{scope}[shift={(138, 38)}]
+    \path[draw=sgBlue,fill=sgBlue!6,line width=1.0pt]
+      (0, 8) -- (0, 72) arc[start angle=180,end angle=360,x radius=30pt,y radius=6pt]
+      -- (60, 8) arc[start angle=0,end angle=-180,x radius=30pt,y radius=6pt];
+    \draw[draw=sgBlue,fill=sgBlue!12,line width=1.0pt] (30, 8) ellipse[x radius=30pt,y radius=6pt];
+    \node[anchor=center,font=\fontsize{6.8}{8.0}\selectfont\sffamily\bfseries,text=sgBlue] at (30, 26) {Single Writer};
+    \node[anchor=center,font=\fontsize{5.5}{6.5}\selectfont\ttfamily] at (30, 38) {SQLite WAL};
+    \draw[draw=sgBlue!40,line width=0.5pt] (5, 47) -- (55, 47);
+    \node[anchor=center,font=\fontsize{5.2}{6.2}\selectfont\sffamily\bfseries,text=sgInk!80] at (30, 56) {\texttt{UNIQUE(port)}};
+    \node[anchor=center,font=\fontsize{4.8}{5.8}\selectfont\color{sgInk!70}] at (30, 66) {serial commit};
+  \end{scope}
+
+  % Fork decisions
+  % Winner branch (Top-Right)
+  \draw[sg/arrow,draw=sgTeal,line width=1.0pt] (198, 62) -- (224, 42);
+  \node[anchor=south west,font=\fontsize{5.8}{7.0}\selectfont\sffamily\bfseries,text=sgTeal] at (206, 44) {1st (Commit)};
+  \draw[sgTeal,fill=sgTeal!8,line width=0.8pt] (224, 18) rectangle (305, 66);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgTeal] at (228, 22) {201 CREATED (Granted)};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text width=74pt] at (228, 33) {holder: "claude"\\lease: "tk\_94a2"\\epoch: 104 (TTL 60s)};
+  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgTeal!90},text width=74pt] at (228, 55) {$\implies$ \textit{Binds 0.0.0.0:7421}};
+
+  % Loser branch (Bottom-Right)
+  \draw[sg/arrow,draw=sgRed,line width=1.0pt] (198, 96) -- (224, 116);
+  \node[anchor=north west,font=\fontsize{5.8}{7.0}\selectfont\sffamily\bfseries,text=sgRed] at (206, 112) {2nd (Constraint)};
+  \draw[sgRed,fill=sgRed!6,line width=0.8pt] (224, 94) rectangle (305, 146);
+  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (228, 98) {409 CONFLICT (Catch)};
+  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text width=74pt] at (228, 109) {error: "ResourceBusy"\\holder: "claude"\\expires\_in: 59s};
+  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgRed!90},text width=74pt] at (228, 135) {$\implies$ \textit{Fallback to 7422!}};
+
+  % Bottom summary banner
+  \draw[draw=sgGrid,fill=sgInk!3,line width=0.5pt] (0, 155) rectangle (305, 172);
+  \node[anchor=center,font=\fontsize{5.2}{6.2}\selectfont\color{sgInk!80},text width=300pt,align=center] at (152.5, 163.5) {
+    \textbf{The Invariant:} Primary-key uniqueness on the single-writer connection serializes contention. The catch path atomically returns the holder's identity, preventing blind spin-retries and eliminating dual-bind collisions.
+  };
 \end{tikzpicture}
-\caption{The uniqueness constraint admits one racing acquisition. The loser receives the current holder's identity, not merely an error; both cannot own the port. [internal, alg:acquire]}
+\caption{The uniqueness constraint admits one racing acquisition. Two developer agents (\texttt{claude:worker-1} and \texttt{codex:bench}) race for port 7421. The winner receives an exclusive lease token; the loser receives the current holder's identity and remaining TTL, enabling dynamic fallback to port 7422 without colliding. [internal, alg:acquire]}
 \label{fig:swk-race-dramatization}
 \end{figure}
