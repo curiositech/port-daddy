@@ -964,6 +964,27 @@ describe('agent-harbor routes', () => {
       });
     });
 
+    test.each(['completed', 'failed', 'cancelled'])('queries single-body %s receipts through canonical WorkIntent', async status => {
+      const { createWorkIntentSpawn } = await import('../../lib/agent-harbor/work-intent-spawn.js');
+      const started = { agentId: 'body-single', transcriptId: 'tx-single', backend: 'claude', model: 'fixture', startedAt: 1 };
+      const conductor = { launch: async intent => {
+        intent.onAdmitted({ id: 'launch-single' });
+        intent.onAgentStarted(started);
+        intent.onAgentReady({ ...started, sessionId: 'session-single' });
+        return { admitted: true, refusedReason: null, launch: { id: 'launch-single', state: status === 'cancelled' ? 'halted' : 'settled' },
+          spawn: { agentId: started.agentId, status: status === 'cancelled' ? 'killed' : status, error: status === 'failed' ? 'synthetic failure' : null } };
+      } };
+      const runtime = createWorkIntentSpawn({ db, workIntentService: deps.workIntentService, conductor });
+      const result = await runtime.run({ backend: 'claude', task: 'single goal' });
+      const response = await app.inject({ method: 'POST', url: '/agent-harbor/surface-gateway', payload: gatewayEnvelope({
+        mode: 'query', operation: 'work-intent.get', idempotencyKey: null, payload: { intentId: result.runReceipt.intentId },
+      }) });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.execution).toMatchObject({ projection: 'governed-single-body', state: status,
+        runReceiptId: result.runReceipt.id, agentId: 'body-single', transcriptId: 'tx-single', sessionId: 'session-single' });
+      expect(response.json().data.plan.state).not.toBe('materializing');
+    });
+
     test('rehydrates the mission artifact and current PR checks on the same snapshot', async () => {
       await app.inject({
         method: 'POST',

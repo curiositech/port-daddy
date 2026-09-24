@@ -83,7 +83,7 @@ describe('spawner ↔ transcripts integration', () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ success: true }),
+      json: async () => ({ success: true, sessionId: 'admitted-session' }),
       text: async () => 'OK',
     });
   });
@@ -99,6 +99,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('records a full transcript for a successful spawn', async () => {
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -155,6 +156,7 @@ describe('spawner ↔ transcripts integration', () => {
     let finishBackend;
     const backendResult = new Promise((resolve) => { finishBackend = resolve; });
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -200,6 +202,7 @@ describe('spawner ↔ transcripts integration', () => {
       runProbeAndRecord: jest.fn(async () => {}),
     };
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       harborBridge,
       costTracker: exactCostTracker(0.001),
@@ -229,6 +232,7 @@ describe('spawner ↔ transcripts integration', () => {
       result.agentId,
       'port-daddy:test:harbor-wiring',
       expect.any(Number),
+      { sessionId: 'admitted-session', runId: row.id },
     );
     expect(harborBridge.syncTranscript).toHaveBeenCalledWith(result.agentId, row.id);
     expect(harborBridge.appendTranscriptEvent).toHaveBeenCalledWith(
@@ -245,7 +249,7 @@ describe('spawner ↔ transcripts integration', () => {
     );
     expect(harborBridge.recordContext).toHaveBeenCalledWith(expect.objectContaining({
       agentNodeId: result.agentId,
-      sessionId: result.agentId,
+      sessionId: 'admitted-session',
       runId: row.id,
       transcriptId: row.id,
       sourceAdapter: 'claude',
@@ -262,6 +266,7 @@ describe('spawner ↔ transcripts integration', () => {
   it('passes a completed backend when exact telemetry stays under budget', async () => {
     const costTracker = exactCostTracker(0.0125);
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,
@@ -300,6 +305,7 @@ describe('spawner ↔ transcripts integration', () => {
   it('marks a completed backend over budget and preserves transcript telemetry', async () => {
     const costTracker = exactCostTracker(0.154863);
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,
@@ -342,6 +348,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('records error as assistant message and marks status=failed', async () => {
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -369,6 +376,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('uses ship="spawn:<backend>" as default when no ship provided', async () => {
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -384,6 +392,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('does not throw when transcripts is absent AND policy is not enforced (opt-out path)', async () => {
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -399,6 +408,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('refuses to construct a spawner with no transcripts module when enforced', () => {
     expect(() => createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -412,6 +422,7 @@ describe('spawner ↔ transcripts integration', () => {
       start() { throw new Error('db is on fire'); },
     };
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts: brokenTranscripts,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
@@ -435,6 +446,7 @@ describe('spawner ↔ transcripts integration', () => {
       finalize() { throw new Error('disk full at finalize'); },
     };
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts: brokenFinalize,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
@@ -450,6 +462,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('records codex-style structured turns (thinking + tool + assistant) as distinct messages', async () => {
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
@@ -503,6 +516,7 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
@@ -565,6 +579,7 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,
@@ -626,6 +641,7 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     const spawner = createSpawner({
+      runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
       transcripts,
       enforceTelemetryPolicy: false,
       enforceTranscriptPolicy: true,

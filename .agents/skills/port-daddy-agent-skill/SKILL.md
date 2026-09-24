@@ -469,9 +469,20 @@ because an older installed hook printed “commit blocked.” Verify installed
 behavior separately from source; never treat an unverifiable audit as green.
 
 When you open or inherit a PR, you own the machine-visible finish line unless
-an accepting successor takes the explicit handoff in Port Daddy notes. Link
+an accepting successor takes the explicit handoff. Use Port Daddy notes when
+its runtime is authorized, or the PR/task record while it is halted. Link
 the PR in the existing roadmap item's typed PR field and read it back without
 overwriting another owner's status, edges or plans.
+
+Inspect the exact current head immediately after PR creation and each push.
+Follow every review and GitHub/external CI/CD status to a verdict; delegate
+routine polling and log triage to a tool-native non-Astra lower-cost agent by
+default. Astra coordinates and reviews findings. Fix branch-caused failures,
+answer and resolve threads, and record proven external blockers with an owner
+and next action. Pending checks need an active follow-up or accepting handoff;
+an open PR is not completion. A review-PR request alone does not authorize
+merge. If local Port Daddy is operator-halted, use ordinary Git and hosted
+workflows without calling its CLI, MCP, daemon, hooks, apps, or spawn paths.
 
 - Read live PR comments, reviews, inline bot findings, and status checks before
   declaring the branch ready.
@@ -702,6 +713,17 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 Treat the daemon as the local single-writer control plane. Stable, dev-latest,
 and branch berths may all run at once, but they do not share a SQLite file and
 they are not interchangeable evidence.
+
+For source versions with canonical one-body intake, a spawn result includes a
+`runReceipt` joining its WorkIntent, WorkPlan, Conductor launch, managed session
+and transcript. Read it through `GET /spawn/receipts/:id` or the SDK's
+`getSpawnReceipt(receiptId)`. WorkIntent queries expose the same observation.
+A stop acknowledgment means requested; only terminal evidence confirms stopped
+or failed. `unknown` after interruption is not permission to relaunch. HTTP
+callers may use an `Idempotency-Key`; matching retries return the prior receipt
+without repeating work, and conflicting requests are rejected. A receipt-only
+replay has no fabricated output. These run receipts are not signed WorkReceipts;
+verify the installed surface before relying on this source contract.
 
 The Agent Harbor runtime refactor target (ADR-0100) is intentionally
 destructive: one Surface Gateway owns official command, query, and event
