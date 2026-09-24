@@ -528,6 +528,20 @@ Use these only when the task actually needs them:
   migrations, and release packaging.
 - FleetBar and Fleet Control Center for operator-visible truth.
 
+### Semantic inspection and ideation
+
+When a task needs indexed relationships or promoted history, `pd graph
+edges|stats` and `pd memory episodes|stats` provide read-only inspection. Treat
+these as views of recorded data, not as authority for the underlying work or
+relationships.
+
+For prior ideas, `pd ideas list|show` reads the repo's canonical
+`docs/recovery/IDEAS-TROVE.md`; `pd ideas search <query>` can also return notes,
+tuples, repo Markdown, and optional raw `.spark`/`.spider` residue. Search hits
+outside the trove are discovery evidence: inspect their source before treating
+an idea as established or adding it to the canonical trove. Live search inputs
+may be unavailable while the daemon is down.
+
 ## CLI Documentation Contract
 
 The CLI reference lives in this skill and the website docs; nothing should

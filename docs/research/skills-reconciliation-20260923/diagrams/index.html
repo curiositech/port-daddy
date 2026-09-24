@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evidence and recovery diagrams</title>
+  <style>
+    :root { color-scheme: light; font: 17px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172331; background: #f5f7f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 4rem; }
+    h1, h2 { line-height: 1.2; color: #172c3c; }
+    h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 .5rem; }
+    h2 { font-size: 1.45rem; margin: 2.6rem 0 .3rem; }
+    p { max-width: 74ch; margin: .55rem 0 1rem; }
+    .lede { color: #435467; }
+    figure { margin: 1rem 0 0; }
+    .canvas { overflow-x: auto; overscroll-behavior-inline: contain; border: 1px solid #d4dce2; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px #1f34400c; }
+    .canvas:focus-visible { outline: 3px solid #386d8c; outline-offset: 3px; }
+    .canvas img { display: block; width: max-content; max-width: none; height: auto; padding: 14px; }
+    .note { color: #45586a; }
+    a { color: #155a79; }
+    .sources, .diagram-actions { font-size: .95rem; }
+    .diagram-actions { margin: .5rem 0 0; color: #435467; }
+    @media (max-width: 600px) { main { padding-top: 1.3rem; } h2 { margin-top: 2rem; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Evidence boundaries and safe continuation</h1>
+  <p class="lede">Three diagrams from the 23 September 2026 research reconciliation. They explain what different evidence can support, how to compare skill or substrate treatments fairly, and how to recover from an uncertain external effect. They report no new experiment.</p>
+
+  <section aria-labelledby="evidence-heading">
+    <h2 id="evidence-heading">Evidence classes answer different questions</h2>
+    <p class="note">Read the cards independently. A theorem, bounded check, scripted replay, agent evaluation, and deployment observation each have a distinct scope; none automatically supplies the evidence required by the next class. <a href="research-evidence-classes.md">Editable Mermaid source</a>.</p>
+    <figure>
+      <div class="canvas" tabindex="0" role="region" aria-label="Scrollable evidence classes diagram">
+        <img src="research-evidence-classes.svg" alt="Five unconnected cards describe theorem or proof, finite model check, scripted replay, LLM evaluation, and deployed observation. Each card names what it supports and what it cannot establish alone.">
+      </div>
+    </figure>
+  </section>
+
+  <section aria-labelledby="evaluation-heading">
+    <h2 id="evaluation-heading">Compare at equal budgets</h2>
+    <p class="note">Freeze tasks and analysis first, randomize within blocks, and verify outcomes with an oracle independent of the treatment system. Estimate quality and total cost together, including retries and rework; scope any promotion to tested tasks and versions. <a href="research-matched-budget-evaluation.md">Editable Mermaid source</a>.</p>
+    <figure>
+      <div class="canvas" tabindex="0" role="region" aria-label="Scrollable matched-budget evaluation flow" data-focus-x="296">
+        <img src="research-matched-budget-evaluation.svg" alt="A preregistered evaluation freezes tasks, randomizes within blocks, compares skill and substrate factorial arms under equal budgets, uses a blind independent oracle, and estimates paired quality and cost before a scoped decision.">
+      </div>
+      <p class="diagram-actions">Scroll sideways to trace branches. <a href="research-matched-budget-evaluation.svg">Open full SVG</a></p>
+    </figure>
+  </section>
+
+  <section aria-labelledby="recovery-heading">
+    <h2 id="recovery-heading">A timeout leaves the effect unknown</h2>
+    <p class="note">First reconcile the receipt and external state. Retry only after proving the action is absent, using the same idempotency key and current authorization. Conflicting evidence stays on hold; a successor must re-ground and obtain fresh, narrow authority. <a href="research-uncertain-effect-recovery.md">Editable Mermaid source</a>.</p>
+    <figure>
+      <div class="canvas" tabindex="0" role="region" aria-label="Scrollable uncertain-effect recovery state machine" data-focus-x="420">
+        <img src="research-uncertain-effect-recovery.svg" alt="After a timeout, the effect enters an unknown state. Reconciliation routes confirmed application to completion, proven absence to authorization and same-key retry, and conflicting or unavailable evidence to hold. A successor needs a fresh scoped grant.">
+      </div>
+      <p class="diagram-actions">Scroll sideways to trace branches. <a href="research-uncertain-effect-recovery.svg">Open full SVG</a></p>
+    </figure>
+  </section>
+
+  <p class="sources">Sources: <a href="../manuscript-field-gaps.md">manuscript field-gap report</a> (gaps 1, 2, 3, 5, and 8) and <a href="../substrate-study-explained.md">substrate study explanation</a>. See <a href="README.md">diagram README</a> and <a href="review-layout.md">browser review</a> for source/render provenance, layout decisions and visual checks.</p>
+</main>
+<script>
+  for (const canvas of document.querySelectorAll('.canvas[data-focus-x]')) {
+    const markUserInteraction = () => { canvas.dataset.userInteracted = 'true'; };
+    for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) {
+      canvas.addEventListener(type, markUserInteraction, {passive: true});
+    }
+    const placeFocus = () => {
+      if (!window.matchMedia('(max-width: 600px)').matches || canvas.dataset.userInteracted) return;
+      const image = canvas.querySelector('img');
+      if (!image || !image.complete) return;
+      const padding = Number.parseFloat(getComputedStyle(image).paddingLeft) || 0;
+      const center = image.offsetLeft + padding + Number(canvas.dataset.focusX);
+      const desired = center - canvas.clientWidth / 2;
+      canvas.scrollLeft = Math.max(0, Math.min(desired, canvas.scrollWidth - canvas.clientWidth));
+    };
+    window.addEventListener('load', placeFocus, {once: true});
+    window.addEventListener('resize', placeFocus);
+    canvas.querySelector('img').addEventListener('load', placeFocus, {once: true});
+  }
+</script>
+</body>
+</html>

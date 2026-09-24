@@ -1,0 +1,58 @@
+{
+  "purpose": "Operator-provided WinDAGs evidence update and publication proof",
+  "priorReviewedHead": "562c1c316d13e4659330048c0e675f55a1506243",
+  "skillHygiene": [
+    {
+      "name": "skill-grader",
+      "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-grader",
+      "orphans": [],
+      "drift": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [],
+      "broken_links": [],
+      "mermaid_hazards": [],
+      "ok": true
+    },
+    {
+      "name": "llm-evaluation-harness",
+      "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/llm-evaluation-harness",
+      "orphans": [],
+      "drift": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [],
+      "broken_links": [],
+      "mermaid_hazards": [],
+      "ok": true
+    },
+    {
+      "name": "empirical-systems-evaluation",
+      "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/empirical-systems-evaluation",
+      "orphans": [],
+      "drift": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [],
+      "broken_links": [],
+      "mermaid_hazards": [],
+      "ok": true
+    }
+  ],
+  "dataEvidence": "windags-efficacy-evidence.md",
+  "datasetSha256": "1f53049597fb893b0589738809e8922f3aa875944091e910ad6ed17494fc714e",
+  "templateSources": [
+    {
+      "path": "skills/latex-authoring/templates/article.tex",
+      "sha256": "38d641ba22bb95c8878732ee42322b9b0e51dba53d680a78982644d22b87c972"
+    },
+    {
+      "path": "skills/latex-authoring/templates/beamer.tex",
+      "sha256": "f02185124bcbd6d67b4d7ae9c75b3566d175efd74b1b1542e2c911b6efa0b9b2"
+    },
+    {
+      "path": "skills/latex-authoring/templates/tikz-standalone.tex",
+      "sha256": "128db7771c802bf87668888b6f1114b8827451f18b6c2d644db19ea7b57c59e0"
+    }
+  ],
+  "templateVisualReview": "template-renders/README.md",
+  "templatePagesInspected": 12,
+  "limitations": "Article bibliography incomplete; no paid model run, effect-efficacy trial, runtime activation, or source template change."
+}

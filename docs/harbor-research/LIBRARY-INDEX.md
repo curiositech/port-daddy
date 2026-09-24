@@ -26,6 +26,8 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 - [CR -- Consistency radius of the completion residual (CR-1/2/3)](#cr)
 - [B6 -- The probation cliff (front-loaded newcomer restriction)](#b6)
 - [prop:claim-signaling-ic -- Claim-signaling incentive compatibility (mechanized discount-factor thresholds)](#propclaim-signaling-ic)
+- [lem:chain -- Fundamental simplicial identity](#lemchain)
+- [def:cellular-sheaf -- Cellular sheaf on a simplicial complex](#defcellular-sheaf)
 
 ## R1 -- Read-poverty and the information floor
 <a id="r1"></a>
@@ -453,6 +455,34 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Number | Value | Tag |
 |---|---|---|
 | delta_star | 0.3425080314 | verified |
+
+## lem:chain -- Fundamental simplicial identity
+<a id="lemchain"></a>
+
+**Kind:** lemma  **Status:** standalone-only
+
+> The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | lem:chain | Standard simplicial-cochain identity recalled and proved in paper8, lem:chain. |
+| Chapters | *(not yet folded)* | | |
+
+**Site:** `/research/paper8.pdf`
+
+## def:cellular-sheaf -- Cellular sheaf on a simplicial complex
+<a id="defcellular-sheaf"></a>
+
+**Kind:** definition  **Status:** standalone-only
+
+> A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | def:cellular-sheaf | Standard cellular-sheaf definition in sec:rosetta, attributed to Curry; not a novel result of the Harbor program. |
+| Chapters | *(not yet folded)* | | |
+
+**Site:** `/research/paper8.pdf`
 
 ## Unindexed, allowed
 

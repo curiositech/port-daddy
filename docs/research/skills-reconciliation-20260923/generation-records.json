@@ -1,0 +1,532 @@
+{
+  "count": 102,
+  "disposition": "Preserved newly imported generation drafts as provenance; added scope banners. Not indexed as canonical skill instructions or counted as reference depth.",
+  "records": [
+    {
+      "path": "skills/a-discussion-of-decision-making-applied/_raw_response.md",
+      "importedSha256": "5d70f29184e6bb3f9a1553f2180bff6268bd07d2c38ba0cef36a61a994b4609a",
+      "canonicalSha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/a-naturalistic-study-of-insight/_raw_response.md",
+      "importedSha256": "29d14fb7614d1f5267c2bf6b1ee3dc78f07e8f57738e84e8f111afe2e2805356",
+      "canonicalSha256": "b31b2053020ddff0c56c747075245da04fa4f3a0c9176898e4c369a414b072e3"
+    },
+    {
+      "path": "skills/a-normative-extension-for-the-bdi-agent/_raw_response.md",
+      "importedSha256": "91305f16fbde2361a8c1c267a75402fa2750ab0d3d1fca13a2b71071aed78786",
+      "canonicalSha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/_raw_response.md",
+      "importedSha256": "b85345e717f730fa0b585792623f93001e1c28f9c9328e0e7085f14ebfb5d7ab",
+      "canonicalSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f",
+      "beforeProseRepairSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/agentic-skill-discovery/_raw_response.md",
+      "importedSha256": "970e6df1f830f6fd3686cdc8b4757e9d25d5d0aa7d4d165631e62a84e9905ce1",
+      "canonicalSha256": "7b218158668a4c813c244294abda8908ae87e64caa9316f63907996f21b51177"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md",
+      "importedSha256": "a366a71ebab4e8bcbae288be0bdbdfd35d2995f2b972876800303fe303401632",
+      "canonicalSha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
+    },
+    {
+      "path": "skills/agentspeak-l-bdi-architecture/_raw_response.md",
+      "importedSha256": "a366a71ebab4e8bcbae288be0bdbdfd35d2995f2b972876800303fe303401632",
+      "canonicalSha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
+    },
+    {
+      "path": "skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/_raw_response.md",
+      "importedSha256": "a16b7e4c6fa360af0cb987a338035acb96f75d19af80e7a0dba6288baa20fb52",
+      "canonicalSha256": "1d1ab7958ce088692f765b05cfc44da7819d2a06bcff4c34c02fc0e4e47dd0d7"
+    },
+    {
+      "path": "skills/allen-cacm1983/_raw_response.md",
+      "importedSha256": "a2fbf97399c36451d1416abf71d0a30f6061789a54a7bb3b6b20cf1c25fd0a32",
+      "canonicalSha256": "fd3b0ec2568cfe6419628cc83f96fffa099f64bcd271574a79089eb8b9441a40"
+    },
+    {
+      "path": "skills/applied-cognitive-task-analysis-acta-met/_raw_response.md",
+      "importedSha256": "a134d3e2fd084e77b261b90a8dba897c4dbc06b6b3ba6becafa774ca38191a6e",
+      "canonicalSha256": "3b340617a38e986c55c6233e96bbe71404abfb1c155e7bef34479cdbc75cdaf7"
+    },
+    {
+      "path": "skills/applied-cognitive-task-analysis-acta/_raw_response.md",
+      "importedSha256": "a134d3e2fd084e77b261b90a8dba897c4dbc06b6b3ba6becafa774ca38191a6e",
+      "canonicalSha256": "3b340617a38e986c55c6233e96bbe71404abfb1c155e7bef34479cdbc75cdaf7"
+    },
+    {
+      "path": "skills/bdi-agents-a-soft-model-for-organisation/_raw_response.md",
+      "importedSha256": "01f5d958e7e2dddc98ac231b6cb232a438f6959497ed9abce560c9cd19df0bd6",
+      "canonicalSha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
+    },
+    {
+      "path": "skills/bdi-models-and-systems-reducing-the-gap-paper/_raw_response.md",
+      "importedSha256": "fb95c0a329a6e8cd143a75c72f62781ab8dd14224f28bf0b4c42d6cb10a53fe4",
+      "canonicalSha256": "8185fa20db0e9ab636f8761a733d004d81ce483acb50cad7335fcd30f714dee7"
+    },
+    {
+      "path": "skills/bdi-soft-model-for-organisations/_raw_response.md",
+      "importedSha256": "01f5d958e7e2dddc98ac231b6cb232a438f6959497ed9abce560c9cd19df0bd6",
+      "canonicalSha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
+    },
+    {
+      "path": "skills/belief-desire-intention-model-of-agency/_raw_response.md",
+      "importedSha256": "1d82e421c63b576a9d29ab45c519dd5b0a72ebcbecffa25f121a44c95d185b40",
+      "canonicalSha256": "4eee69e64c88a2709bae19815dbec799285847f594a387b3ef5b05e640b14a4e"
+    },
+    {
+      "path": "skills/cambridge-handbook-of-expertise/_raw_response.md",
+      "importedSha256": "7ec7265fe87dfa2cfc45200129281d0cb269f328f108d7412dae6b2228317ab4",
+      "canonicalSha256": "e7299c60d6697dfaf7cc5af4f7f2ce31343d22fc16f3dde5d22a0381e25b3137"
+    },
+    {
+      "path": "skills/causal-reasoning-initial-report-of-a-nat/_raw_response.md",
+      "importedSha256": "8e2f58c868d823ebefc9f65e26ea9c1c0015a120344a083d14fd4fcba4b4a6dd",
+      "canonicalSha256": "d866a0be6554636b627d1b9f9e59ac49ee0bef595e5399739018df87bc00437c"
+    },
+    {
+      "path": "skills/causal-reasoning-klein/_raw_response.md",
+      "importedSha256": "8e2f58c868d823ebefc9f65e26ea9c1c0015a120344a083d14fd4fcba4b4a6dd",
+      "canonicalSha256": "d866a0be6554636b627d1b9f9e59ac49ee0bef595e5399739018df87bc00437c"
+    },
+    {
+      "path": "skills/causal-reasoning-naturalistic-study/_raw_response.md",
+      "importedSha256": "8e2f58c868d823ebefc9f65e26ea9c1c0015a120344a083d14fd4fcba4b4a6dd",
+      "canonicalSha256": "d866a0be6554636b627d1b9f9e59ac49ee0bef595e5399739018df87bc00437c"
+    },
+    {
+      "path": "skills/chen-et-al-2025-hypertree-planning/_raw_response.md",
+      "importedSha256": "a8409a48cd93486c95c38d51ef0bcf8981801be00d02ff4019ab58fda9497001",
+      "canonicalSha256": "ffb2f450977f2785c5588c3bb84b5cfe787a1dc582cd9f35127503ef54cac621"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise-a-fai/_raw_response.md",
+      "importedSha256": "d3cbb24b9ae5d15c83f15ecd1bf6020d4ac0c1d9480f579820b97b002b206101",
+      "canonicalSha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/conditions-for-intuitive-expertise/_raw_response.md",
+      "importedSha256": "d3cbb24b9ae5d15c83f15ecd1bf6020d4ac0c1d9480f579820b97b002b206101",
+      "canonicalSha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/conway-1968-how-do-committees-invent/_raw_response.md",
+      "importedSha256": "f14874da258e5edf1872efd4dd79c774e3656a63879d252f8511dfb19059b53d",
+      "canonicalSha256": "18ce8c246b9ebe76f535f885da3b4089ac6fa2c01c5e06eaf039309a342b80ce"
+    },
+    {
+      "path": "skills/cse-design-process/_raw_response.md",
+      "importedSha256": "8178a81c93c1819e6e0d76e3c1cc40c60c21772260b510d7d8ed63c0d38018f2",
+      "canonicalSha256": "d52993165525491bb0cd03b52cdca82b0b077a32becd1915f765ad4611bc5074"
+    },
+    {
+      "path": "skills/cse-state-of-practice/_raw_response.md",
+      "importedSha256": "4053260a27f75d438f6fe1223b25dfd6dff944ea86bfcb58b33b362a8015f532",
+      "canonicalSha256": "e7cab0f63fe1c30b27e2772a579ee938a30dccaa6d11a217844d6a5f598858eb"
+    },
+    {
+      "path": "skills/cycle-analysis-of-directed-acyclic-graph/_raw_response.md",
+      "importedSha256": "1ce87deff936c6bddb4a7c1d691f1529515c894847fc4c13eadd76c4bea52899",
+      "canonicalSha256": "da4c7691dd5cbaa9008ebfacf5c4edd70678d880a1d50ed260e259e4c158af19"
+    },
+    {
+      "path": "skills/ddd-evans-2003/_raw_response.md",
+      "importedSha256": "cc334a3548e58044a510251ac0532e230e4d599a6f0cdb26938d4e712fe1f639",
+      "canonicalSha256": "4510aea498e95827502ba106fb87df42debc59a8cd9cfeb5866866d104328594"
+    },
+    {
+      "path": "skills/decision-models-from-the-field/_raw_response.md",
+      "importedSha256": "78eaa341496a085b1742e273612e33d1c2661edb7228f0b20661f8dba3394818",
+      "canonicalSha256": "7fbac269e500dc1d3cd8a27a0a17ec6b1475fc0fd1474fd01540126ef91eb53b"
+    },
+    {
+      "path": "skills/decision-models-some-lessons-from-the-fi/_raw_response.md",
+      "importedSha256": "78eaa341496a085b1742e273612e33d1c2661edb7228f0b20661f8dba3394818",
+      "canonicalSha256": "7fbac269e500dc1d3cd8a27a0a17ec6b1475fc0fd1474fd01540126ef91eb53b"
+    },
+    {
+      "path": "skills/decomposing-dags-into-disjoint-chains/_raw_response.md",
+      "importedSha256": "ffb352becfcbc15a2cc739b46b7e52b901fd6163aba88da6ddad623b72e44766",
+      "canonicalSha256": "6230881cac8140289ea7a21acb6077fb4f5770fb25ed6509100f41db75b8fb8a"
+    },
+    {
+      "path": "skills/designing-data-intensive-applications-the-big-ideas-behind/_raw_response.md",
+      "importedSha256": "80dcd7a07216daf4ee5800706b743817cdc4c6e0ca89cf5b883c4775d38b0a2e",
+      "canonicalSha256": "675742d28d0638e272825e627b782de0f2afff3360c9f1770e053220ff1a894b"
+    },
+    {
+      "path": "skills/evaluating-rapport-based-approach/_raw_response.md",
+      "importedSha256": "949a7ba507df054c3ae7c59329a00687e148c79db52a4acb88deef0e4fbc3976",
+      "canonicalSha256": "d4caae6e454f1509cc7f22e552429bab87ed7e080e3caf53ff4627a64dacfc02"
+    },
+    {
+      "path": "skills/evaluating-the-benefits-of-a-rapport-bas/_raw_response.md",
+      "importedSha256": "949a7ba507df054c3ae7c59329a00687e148c79db52a4acb88deef0e4fbc3976",
+      "canonicalSha256": "d4caae6e454f1509cc7f22e552429bab87ed7e080e3caf53ff4627a64dacfc02"
+    },
+    {
+      "path": "skills/expert-knowledge-elicitation/_raw_response.md",
+      "importedSha256": "7ec7265fe87dfa2cfc45200129281d0cb269f328f108d7412dae6b2228317ab4",
+      "canonicalSha256": "e7299c60d6697dfaf7cc5af4f7f2ce31343d22fc16f3dde5d22a0381e25b3137"
+    },
+    {
+      "path": "skills/fast-and-practical-dag-decomposition-wit/_raw_response.md",
+      "importedSha256": "64719dabb6b179b8c16316b9890dba8d35ee2e86bd68a0a7fbde44246c0f85cf",
+      "canonicalSha256": "33299b4b5ac08230965c79881061ee39666f893510ea1b7be3f9986c750350a1"
+    },
+    {
+      "path": "skills/focus-a-model-of-sensemaking/_raw_response.md",
+      "importedSha256": "a15307691d362457405ba4dad5ac28f1858f7a61dd60d43fdf55071a34d55bae",
+      "canonicalSha256": "3a864f26c71786326c255d485b6d757c81eeb104ca5998ca48fd29eb93649bf9"
+    },
+    {
+      "path": "skills/helm-liang-2022/_raw_response.md",
+      "importedSha256": "f42c05fc0589f4a4ec8ed091472186c35aab6dfe5dd43038bd45df52bc072018",
+      "canonicalSha256": "96132a7fcf6267b8ccf859fb4ea4ef947b04a274835385d3e3e99ca6a7d6f506",
+      "beforeProseRepairSha256": "54a435729589c51c0145c99f2434bebde659a754431cb539b54a9ff2b4d0937f",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/hierarchical-skills-and-skill-based-repr/_raw_response.md",
+      "importedSha256": "2fff6635f892dd95ddc2b354079915dea95ddc6fb906cca74c7cc32d8e5b0c24",
+      "canonicalSha256": "efc7bc0dd6c20b9397712b54bf9999ec30450335d0e36ad6b78b40199f9978df"
+    },
+    {
+      "path": "skills/how-to-solve-it-a-new-aspect-polya-g-7564/_raw_response.md",
+      "importedSha256": "cd4bb786b3f349c001f563f83054cd8ebd9d164e14348b50e8652de720cb0591",
+      "canonicalSha256": "28f3e80de390d637b6df63d9c5f32a2bceacc770793b8ad602d54b7b2fb15a3b"
+    },
+    {
+      "path": "skills/how-to-solve-it-polya/_raw_response.md",
+      "importedSha256": "cd4bb786b3f349c001f563f83054cd8ebd9d164e14348b50e8652de720cb0591",
+      "canonicalSha256": "28f3e80de390d637b6df63d9c5f32a2bceacc770793b8ad602d54b7b2fb15a3b"
+    },
+    {
+      "path": "skills/impact-of-rapport-on-intelligence-yield/_raw_response.md",
+      "importedSha256": "e12f27929b6d17ec9c872ff62012029c5b3ea39fa672514b828943f025484903",
+      "canonicalSha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/incident-command-decision-intelligence/_raw_response.md",
+      "importedSha256": "5d70f29184e6bb3f9a1553f2180bff6268bd07d2c38ba0cef36a61a994b4609a",
+      "canonicalSha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/incident-command-decisions/_raw_response.md",
+      "importedSha256": "5d70f29184e6bb3f9a1553f2180bff6268bd07d2c38ba0cef36a61a994b4609a",
+      "canonicalSha256": "d6450834764fbfb163e7ca85d59aa6e99c80ada091b980d889ef5f60bd67eb02"
+    },
+    {
+      "path": "skills/investigations-of-naturalistic-decision-making/_raw_response.md",
+      "importedSha256": "0a93b5edaf4ab5a9e66392051103488a40efdf761f425c8212d0de5315082c85",
+      "canonicalSha256": "8fac6d185973b0110b7c49e1b91d2787c82c9ac4bd75dc364fe424011e458f5e"
+    },
+    {
+      "path": "skills/investigations-of-naturalistic-decision/_raw_response.md",
+      "importedSha256": "0a93b5edaf4ab5a9e66392051103488a40efdf761f425c8212d0de5315082c85",
+      "canonicalSha256": "8fac6d185973b0110b7c49e1b91d2787c82c9ac4bd75dc364fe424011e458f5e"
+    },
+    {
+      "path": "skills/kahneman-klein-expertise/_raw_response.md",
+      "importedSha256": "d3cbb24b9ae5d15c83f15ecd1bf6020d4ac0c1d9480f579820b97b002b206101",
+      "canonicalSha256": "c6d63621d7095f8f049fe0a8f08157647a53d299337a2c4c0c9bd67d179f5234"
+    },
+    {
+      "path": "skills/kephart-chess-2003-autonomic-computing/_raw_response.md",
+      "importedSha256": "701ce026ab3cbedada37eb3e59ba2fad5ca8f1dbad6f705775f1b9931edba754",
+      "canonicalSha256": "81943e3b0cc1633242f6e07b8b2368a2d657a4b99f6e14d4d874fc6f02ab8bc2"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/_raw_response.md",
+      "importedSha256": "f593e4d4a32527d99a66358b5b20897e27df9527a7e518150dacb49d30c1d81a",
+      "canonicalSha256": "74b88598c56c45e2801eb80b5eeeb7da21ecacbb2914ef90365622827b7ba9f8",
+      "beforeCiAnnotationSha256": "7d8cc35f97454c65a2431012f7a7f0a9954b798f2437bc4ebf84bc1079205abb",
+      "ciAnnotation": "One inline Python comment marks indexing/call syntax as a citation-parser false positive. Original imported SHA and pre-annotation canonical SHA are retained; no scientific prose or code behavior changed.",
+      "beforeProseRepairSha256": "ce5e224cfa0f029c0fe0b3352bafb2ecef2974cfd12837999d18f73c7dce3cad",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/klein-1998-sources-of-power/_raw_response.md",
+      "importedSha256": "7aab358b9e096c7ca3139ec5daae6279a3a287961f397156a20e4f703568f8ab",
+      "canonicalSha256": "4bb17d37251fd0e4340a6fb9285efcade5f1c29d873e5a2e6d61c8cf83d6e640"
+    },
+    {
+      "path": "skills/kleppmann-data-intensive/_raw_response.md",
+      "importedSha256": "80dcd7a07216daf4ee5800706b743817cdc4c6e0ca89cf5b883c4775d38b0a2e",
+      "canonicalSha256": "675742d28d0638e272825e627b782de0f2afff3360c9f1770e053220ff1a894b"
+    },
+    {
+      "path": "skills/knowledge-distillation-a-survey/_raw_response.md",
+      "importedSha256": "9bff5df098496e09bf39cbc4b2d144a874b68247eaddb6bd279b5dd40b7ba968",
+      "canonicalSha256": "68e81a41cab8225b8ac26ce35bd0c93ba34bc10e94f7c89b26d8445b7cca98df"
+    },
+    {
+      "path": "skills/knowledge-distillation-deep/_raw_response.md",
+      "importedSha256": "85ab67c03bac85a7898ec44d2e2474291523467a610bcfa7fbeb10530b343e6c",
+      "canonicalSha256": "2a48b0d81c56b0814dca369c6589a48792f54d270c2494de8c14c92dd9d09a9f"
+    },
+    {
+      "path": "skills/knowledge-distillation-in-deep-learning/_raw_response.md",
+      "importedSha256": "85ab67c03bac85a7898ec44d2e2474291523467a610bcfa7fbeb10530b343e6c",
+      "canonicalSha256": "2a48b0d81c56b0814dca369c6589a48792f54d270c2494de8c14c92dd9d09a9f"
+    },
+    {
+      "path": "skills/knowledge-distillation-survey/_raw_response.md",
+      "importedSha256": "9bff5df098496e09bf39cbc4b2d144a874b68247eaddb6bd279b5dd40b7ba968",
+      "canonicalSha256": "68e81a41cab8225b8ac26ce35bd0c93ba34bc10e94f7c89b26d8445b7cca98df"
+    },
+    {
+      "path": "skills/knowledge-elicitation-of-recognition-pri/_raw_response.md",
+      "importedSha256": "da9f5630cdcb56f29cd780cdb40e195194a88e1da03fc34d926f1588fb1c23b7",
+      "canonicalSha256": "f520b399bd13541ba3d3d75ee7be1d40c83114d2276c71f935684583c6b08d4a"
+    },
+    {
+      "path": "skills/knowledge-elicitation-of-recognition-primed-decisions/_raw_response.md",
+      "importedSha256": "da9f5630cdcb56f29cd780cdb40e195194a88e1da03fc34d926f1588fb1c23b7",
+      "canonicalSha256": "f520b399bd13541ba3d3d75ee7be1d40c83114d2276c71f935684583c6b08d4a"
+    },
+    {
+      "path": "skills/lakatos/_raw_response.md",
+      "importedSha256": "e8772b77a892ef41885be7706bcedc179e5211618572d7b8aa0dc621c5538ebd",
+      "canonicalSha256": "7babe5b0a6bbd28fd14b0bb90348f104a4b89acb754688f4e967764b2a230dee"
+    },
+    {
+      "path": "skills/law-enforcement-decision-making-during-c/_raw_response.md",
+      "importedSha256": "a98beefb723f09732df6e0373f2f05bf3603bab533c34059819b0329ece7e8d3",
+      "canonicalSha256": "0673e1cbd95fb510cb4095a65e88ca8c72d8cf16cfe83e56fa30aaa349056158"
+    },
+    {
+      "path": "skills/law-enforcement-decision-making-during-crisis/_raw_response.md",
+      "importedSha256": "a98beefb723f09732df6e0373f2f05bf3603bab533c34059819b0329ece7e8d3",
+      "canonicalSha256": "0673e1cbd95fb510cb4095a65e88ca8c72d8cf16cfe83e56fa30aaa349056158"
+    },
+    {
+      "path": "skills/llm-as-judge-zheng-2023/_raw_response.md",
+      "importedSha256": "c4b5a12452510045a1df6737a711a7b5d15efa31f33afa68c53593c3b2b15867",
+      "canonicalSha256": "6468ac0dbd24a0f6d4989780fff99a146117a509b45473a2ebd1f1d6bd3e94cc"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neura/_raw_response.md",
+      "importedSha256": "dc0579bae094b7cb16edb08be65a4730a82a856ffef08ac849562183e503ad25",
+      "canonicalSha256": "a60eb2237d591482abc3c50e0b79d5c1215eff0b0957836bc0a27c5dbb75c1f7"
+    },
+    {
+      "path": "skills/mastering-the-game-of-go-with-deep-neural-networks/_raw_response.md",
+      "importedSha256": "dc0579bae094b7cb16edb08be65a4730a82a856ffef08ac849562183e503ad25",
+      "canonicalSha256": "a60eb2237d591482abc3c50e0b79d5c1215eff0b0957836bc0a27c5dbb75c1f7"
+    },
+    {
+      "path": "skills/mediator-expertise-live-interview-meli/_raw_response.md",
+      "importedSha256": "a86d1724c96eb6a37eca41df0081db746f8dbd662097f0ffe0d8feb93932bac5",
+      "canonicalSha256": "d63ada72478ee8f60ca01d9a02a1379e328ea20ae8e8cefd4a2d1b4a6c534f67"
+    },
+    {
+      "path": "skills/mediator-expertise-live-interview-method/_raw_response.md",
+      "importedSha256": "a86d1724c96eb6a37eca41df0081db746f8dbd662097f0ffe0d8feb93932bac5",
+      "canonicalSha256": "d63ada72478ee8f60ca01d9a02a1379e328ea20ae8e8cefd4a2d1b4a6c534f67"
+    },
+    {
+      "path": "skills/muscettola-nicola-1993-1/_raw_response.md",
+      "importedSha256": "4f32d84e297c062a825538ba9e20e7dccd8dff8b10f847d17b23e44764cf47ef",
+      "canonicalSha256": "fdd3bcc5610f83f39572c9e3fc8fb11a4ea962e1dd2e548ad8aa940933beeeb7"
+    },
+    {
+      "path": "skills/mythical-man-month/_raw_response.md",
+      "importedSha256": "e8188963031e51a7fc7d5099a07faeeaca586b302ac167118dd9536670db9b32",
+      "canonicalSha256": "b93fdd685b61891b19437b74ecc2c5bf3bfc72e2e7e5809a3f650f89a58f22e9"
+    },
+    {
+      "path": "skills/nasa-2017-systems-engineering-handbook/_raw_response.md",
+      "importedSha256": "6fdda2c5b33f001adc08dfc55cdd272ec391eb34c847e19704cccd7fb61c35b7",
+      "canonicalSha256": "e53f6a94244f0f6495c61c62b185c266f7f654294c19a40dc59dcdce22173a4c"
+    },
+    {
+      "path": "skills/naturalistic-decision-making/_raw_response.md",
+      "importedSha256": "601a48de190b80e5d898e4845b7408c44125a5f59e1ca03773904e5d57ab8813",
+      "canonicalSha256": "b1ae8cff1b0fcbdf8be598b3e459bd7ab97c2c6dfffa724c379c7c8a600e0c75"
+    },
+    {
+      "path": "skills/naturalistic-insight/_raw_response.md",
+      "importedSha256": "29d14fb7614d1f5267c2bf6b1ee3dc78f07e8f57738e84e8f111afe2e2805356",
+      "canonicalSha256": "b31b2053020ddff0c56c747075245da04fa4f3a0c9176898e4c369a414b072e3"
+    },
+    {
+      "path": "skills/ndm-decision-models/_raw_response.md",
+      "importedSha256": "78eaa341496a085b1742e273612e33d1c2661edb7228f0b20661f8dba3394818",
+      "canonicalSha256": "7fbac269e500dc1d3cd8a27a0a17ec6b1475fc0fd1474fd01540126ef91eb53b"
+    },
+    {
+      "path": "skills/ndm-law-enforcement/_raw_response.md",
+      "importedSha256": "a98beefb723f09732df6e0373f2f05bf3603bab533c34059819b0329ece7e8d3",
+      "canonicalSha256": "0673e1cbd95fb510cb4095a65e88ca8c72d8cf16cfe83e56fa30aaa349056158"
+    },
+    {
+      "path": "skills/normative-bdi-agent-architecture/_raw_response.md",
+      "importedSha256": "91305f16fbde2361a8c1c267a75402fa2750ab0d3d1fca13a2b71071aed78786",
+      "canonicalSha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
+    },
+    {
+      "path": "skills/nygard-2018-release-it-2nd-edition/_raw_response.md",
+      "importedSha256": "75c5af0a49b9301af23e7300ae262ff877dac49da22d2b80659e017cc02b179a",
+      "canonicalSha256": "d154ed927e59cd606989113c417a4df916a2496ea3c382b4a7ca483c504ca02a"
+    },
+    {
+      "path": "skills/polya-problem-solving/_raw_response.md",
+      "importedSha256": "cd4bb786b3f349c001f563f83054cd8ebd9d164e14348b50e8652de720cb0591",
+      "canonicalSha256": "28f3e80de390d637b6df63d9c5f32a2bceacc770793b8ad602d54b7b2fb15a3b"
+    },
+    {
+      "path": "skills/rapport-based-elicitation/_raw_response.md",
+      "importedSha256": "949a7ba507df054c3ae7c59329a00687e148c79db52a4acb88deef0e4fbc3976",
+      "canonicalSha256": "d4caae6e454f1509cc7f22e552429bab87ed7e080e3caf53ff4627a64dacfc02"
+    },
+    {
+      "path": "skills/rapport-intelligence-yield/_raw_response.md",
+      "importedSha256": "e12f27929b6d17ec9c872ff62012029c5b3ea39fa672514b828943f025484903",
+      "canonicalSha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/revisiting-interview-data-analysing-turn/_raw_response.md",
+      "importedSha256": "3c46035e889c96d0fe988812d8576f1e4fa27aeaf11e278eda46c57d7e2e1ae8",
+      "canonicalSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081",
+      "beforeProseRepairSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/revisiting-interview-data-turn-taking/_raw_response.md",
+      "importedSha256": "3c46035e889c96d0fe988812d8576f1e4fa27aeaf11e278eda46c57d7e2e1ae8",
+      "canonicalSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081",
+      "beforeProseRepairSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/rpd-klein-calderwood/_raw_response.md",
+      "importedSha256": "0a93b5edaf4ab5a9e66392051103488a40efdf761f425c8212d0de5315082c85",
+      "canonicalSha256": "8fac6d185973b0110b7c49e1b91d2787c82c9ac4bd75dc364fe424011e458f5e"
+    },
+    {
+      "path": "skills/rpd-knowledge-elicitation/_raw_response.md",
+      "importedSha256": "da9f5630cdcb56f29cd780cdb40e195194a88e1da03fc34d926f1588fb1c23b7",
+      "canonicalSha256": "f520b399bd13541ba3d3d75ee7be1d40c83114d2276c71f935684583c6b08d4a"
+    },
+    {
+      "path": "skills/self-adaptive-systems/_raw_response.md",
+      "importedSha256": "ba054af386883bd19d8357bdb65b8bb63eaf6540a7142609b5ffdbf99f0016a0",
+      "canonicalSha256": "835c2253fb52282dec07ca4495bbe266997fbcc62ddfa2357412a8022be44675"
+    },
+    {
+      "path": "skills/sensemaking-focus-model/_raw_response.md",
+      "importedSha256": "a15307691d362457405ba4dad5ac28f1858f7a61dd60d43fdf55071a34d55bae",
+      "canonicalSha256": "3a864f26c71786326c255d485b6d757c81eeb104ca5998ca48fd29eb93649bf9"
+    },
+    {
+      "path": "skills/shadowbox-expertise-transfer/_raw_response.md",
+      "importedSha256": "d3970ffa45d7e949ea530da3e9ab4d459c252ce2ff023b0ca36e17aa263da43f",
+      "canonicalSha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/simon-and-newell-human-problem-solving-theory-1971/_raw_response.md",
+      "importedSha256": "faae23a051d94e436613b303a6cec9ac15dc4edb278d811ee5170de62a1d23f4",
+      "canonicalSha256": "518719d68b3111df917f740cf1d11ef67dbc8134d61eccc681364d8f2e5eaf81"
+    },
+    {
+      "path": "skills/state-of-cognitive-systems-engineering/_raw_response.md",
+      "importedSha256": "4053260a27f75d438f6fe1223b25dfd6dff944ea86bfcb58b33b362a8015f532",
+      "canonicalSha256": "e7cab0f63fe1c30b27e2772a579ee938a30dccaa6d11a217844d6a5f598858eb"
+    },
+    {
+      "path": "skills/tacit-expertise-elicitation/_raw_response.md",
+      "importedSha256": "a86d1724c96eb6a37eca41df0081db746f8dbd662097f0ffe0d8feb93932bac5",
+      "canonicalSha256": "d63ada72478ee8f60ca01d9a02a1379e328ea20ae8e8cefd4a2d1b4a6c534f67"
+    },
+    {
+      "path": "skills/taleb-blyth-2011-black-swan-of-cairo/_raw_response.md",
+      "importedSha256": "41e85fbb76b3870d38ceadcaf8c3519c2eb4131c78a2b058c832aebbda5b9383",
+      "canonicalSha256": "cad85f5d9c305e97a9c8f2926e3397d9e72c6c8b7b5f52c0f972b40384141bef"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
+      "importedSha256": "b85345e717f730fa0b585792623f93001e1c28f9c9328e0e7085f14ebfb5d7ab",
+      "canonicalSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f",
+      "beforeProseRepairSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/the-belief-desire-intention-model-of-age/_raw_response.md",
+      "importedSha256": "1d82e421c63b576a9d29ab45c519dd5b0a72ebcbecffa25f121a44c95d185b40",
+      "canonicalSha256": "4eee69e64c88a2709bae19815dbec799285847f594a387b3ef5b05e640b14a4e"
+    },
+    {
+      "path": "skills/the-cambridge-handbook-of-expertise-and/_raw_response.md",
+      "importedSha256": "7ec7265fe87dfa2cfc45200129281d0cb269f328f108d7412dae6b2228317ab4",
+      "canonicalSha256": "e7299c60d6697dfaf7cc5af4f7f2ce31343d22fc16f3dde5d22a0381e25b3137"
+    },
+    {
+      "path": "skills/the-impact-of-rapport-on-intelligence-yi/_raw_response.md",
+      "importedSha256": "e12f27929b6d17ec9c872ff62012029c5b3ea39fa672514b828943f025484903",
+      "canonicalSha256": "0ff05859e72dd0ccd90d7411d4e6ed37491cb661e8a64ddd15d56451dbd2755c"
+    },
+    {
+      "path": "skills/the-role-of-cognitive-systems-engineerin/_raw_response.md",
+      "importedSha256": "8178a81c93c1819e6e0d76e3c1cc40c60c21772260b510d7d8ed63c0d38018f2",
+      "canonicalSha256": "d52993165525491bb0cd03b52cdca82b0b077a32becd1915f765ad4611bc5074"
+    },
+    {
+      "path": "skills/the-state-of-cognitive-systems-engineeri/_raw_response.md",
+      "importedSha256": "4053260a27f75d438f6fe1223b25dfd6dff944ea86bfcb58b33b362a8015f532",
+      "canonicalSha256": "e7cab0f63fe1c30b27e2772a579ee938a30dccaa6d11a217844d6a5f598858eb"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-shadowbox-method/_raw_response.md",
+      "importedSha256": "d3970ffa45d7e949ea530da3e9ab4d459c252ce2ff023b0ca36e17aa263da43f",
+      "canonicalSha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/thinking-inside-the-box-the-shadowbox-me/_raw_response.md",
+      "importedSha256": "d3970ffa45d7e949ea530da3e9ab4d459c252ce2ff023b0ca36e17aa263da43f",
+      "canonicalSha256": "0dbb12321da6178516251b56e4f6357e3e2708f1fabd0c09f3b3f6285c2a8886"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-ana/_raw_response.md",
+      "importedSha256": "83cbf181416abc4d238e84e578263797df1e98cab1b6af0e43edec13f16ca4a9",
+      "canonicalSha256": "ffa619b9e6d8080811d2ed48f4ce9f970496675428c3b8d7999b3dd5b1333093"
+    },
+    {
+      "path": "skills/towards-a-taxonomy-of-cognitive-task-analysis/_raw_response.md",
+      "importedSha256": "83cbf181416abc4d238e84e578263797df1e98cab1b6af0e43edec13f16ca4a9",
+      "canonicalSha256": "ffa619b9e6d8080811d2ed48f4ce9f970496675428c3b8d7999b3dd5b1333093"
+    },
+    {
+      "path": "skills/wang-2023-voyager/_raw_response.md",
+      "importedSha256": "e04c346944ee99cfb7ec196b90b33a8d42ab1590d2128e3330a3eb1399dc5137",
+      "canonicalSha256": "1b2eb6a41c41a202da0e554bc049e4fb725ded831d9289e3089e2cbb1a3f87ad"
+    },
+    {
+      "path": "skills/wei-2022-chain-of-thought/_raw_response.md",
+      "importedSha256": "222a68bc0ede5165a190cfe8f447952436ba623305915b8fc80753e877a73394",
+      "canonicalSha256": "acb688261ed2dc55f9f67b2565fb4368de6cacc5afde38147a2ce54e8f66e270",
+      "beforeProseRepairSha256": "b632a11f854c68a984b47ae4346e9d1043421ad4da46ec9bd809254c7aa36069",
+      "proseRepair": "Repository prose constraint; original Git blob and both byte hashes retained in raw-draft-phrase-rewrites.json."
+    },
+    {
+      "path": "skills/yao-2022-react/_raw_response.md",
+      "importedSha256": "84376dc35016b5167c8105ad038ea51c34ef844eed2c108c5a6a8ff9857f4242",
+      "canonicalSha256": "9d7c55a00ac6d5ccf0f5bd28527e830b017b5f9e6c73a6910ecd1953dd55bcee"
+    },
+    {
+      "path": "skills/yao-2023-tree-of-thoughts/_raw_response.md",
+      "importedSha256": "6bb5503ced92f4c306a81fb647c73b7cfc12dc5b87c6a1dcd7513776e4c53a3b",
+      "canonicalSha256": "bdfdb6dba370ffac723f97578a5b9f4e58be91147c3e3bb85bdad89100f67575"
+    },
+    {
+      "path": "skills/zhou-et-al-2026-formaljudge/_raw_response.md",
+      "importedSha256": "3f56577185f9e56416ca3036ce8cd1136425c6c796fab36bf1bf9189615cfed3",
+      "canonicalSha256": "67f3163dfcb868351b3548ea048c28e52048efbea19a98ecf2592ea98459f9e4"
+    }
+  ]
+}

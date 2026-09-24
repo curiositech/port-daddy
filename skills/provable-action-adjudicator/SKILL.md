@@ -202,3 +202,7 @@ node skills/provable-action-adjudicator/scripts/test-bundle.mjs
 | `examples/static-verifier-audit.json` | Starting a static, explicitly blocked audit packet. |
 | `scripts/test-bundle.mjs` | Running the positive and adversarial validator corpus. |
 | `tests/activation.md` | Testing skill routing. |
+
+## Evidence and unknown-effect rule
+
+Load `references/evidence-classes-and-uncertain-effects.md` for proof/model/simulation/production boundaries, timeout dispositions, and the distinction between prevention, detection, safety, and liveness.

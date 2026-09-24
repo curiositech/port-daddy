@@ -5,5 +5,5 @@
 | File | When to load |
 |------|--------------|
 | [01_flowchart_goal_decomposition_&_plan_stru.md](01_flowchart_goal_decomposition_&_plan_stru.md) | Goal Decomposition & Plan Structure |
-| [02_quadrantChart_p×c_stopping_rule:_analytical_.md](02_quadrantChart_p×c_stopping_rule:_analytical_.md) | P×C Stopping Rule: Analytical Focus Matrix |
+| [02_quadrantChart_p×c_stopping_rule-_analytical_.md](02_quadrantChart_p×c_stopping_rule-_analytical_.md) | P×C Stopping Rule: Analytical Focus Matrix |
 | [03_mindmap_hta_downstream_applications_&_.md](03_mindmap_hta_downstream_applications_&_.md) | HTA Downstream Applications & Annotation Framework |

@@ -1,0 +1,532 @@
+{
+  "base": "42bbdc2382a8f934b4ceffe1dddfc28acda84234",
+  "renames": [
+    {
+      "oldPath": "skills/belief-desire-intention-model-of-agency/diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "newPath": "skills/belief-desire-intention-model-of-agency/diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md",
+      "sha256": "883c64a7869d8f6384a38e902d75c2c02e3463694464fba286a1c0b626575356",
+      "bytes": 1801,
+      "updatedReferences": [
+        "skills/belief-desire-intention-model-of-agency/SKILL.md",
+        "skills/bdi-agency-model/SKILL.md",
+        "skills/the-belief-desire-intention-model-of-age/SKILL.md",
+        "skills/the-belief-desire-intention-model-of-age/diagrams/INDEX.md",
+        "skills/bdi-agency-model/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/cambridge-handbook-of-expertise/diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md",
+      "newPath": "skills/cambridge-handbook-of-expertise/diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md",
+      "sha256": "73eb3b7dc77dfa9e7d5803d6281e074d7f40bd64b8303ee43e44fcd8e85c99d8",
+      "bytes": 542,
+      "updatedReferences": [
+        "skills/the-cambridge-handbook-of-expertise-and/SKILL.md",
+        "skills/cambridge-handbook-of-expertise/SKILL.md",
+        "skills/the-cambridge-handbook-of-expertise-and/diagrams/INDEX.md",
+        "skills/expert-knowledge-elicitation/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/conway-1968-how-do-committees-invent/diagrams/01_flowchart_conway's_law_decision_tree:_ag.md",
+      "newPath": "skills/conway-1968-how-do-committees-invent/diagrams/01_flowchart_conway's_law_decision_tree-_ag.md",
+      "sha256": "4fa499105b23b3a6d143b2eb87f9467259f0b693488332c8f166de2c30e96acb",
+      "bytes": 5405,
+      "updatedReferences": [
+        "skills/conway-1968-how-do-committees-invent/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/conway-1968-how-do-committees-invent/diagrams/02_sequenceDiagram_homomorphic_reflection:_agent_.md",
+      "newPath": "skills/conway-1968-how-do-committees-invent/diagrams/02_sequenceDiagram_homomorphic_reflection-_agent_.md",
+      "sha256": "d67427de629d8b5d4ec315603e5b278a077f0f823eb41772179a2dd11082a54b",
+      "bytes": 1893,
+      "updatedReferences": [
+        "skills/conway-1968-how-do-committees-invent/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/expert-knowledge-elicitation/diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md",
+      "newPath": "skills/expert-knowledge-elicitation/diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md",
+      "sha256": "73eb3b7dc77dfa9e7d5803d6281e074d7f40bd64b8303ee43e44fcd8e85c99d8",
+      "bytes": 542,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/fipa-00023-agent-management/diagrams/03_flowchart_decision_tree:_agent_addressin.md",
+      "newPath": "skills/fipa-00023-agent-management/diagrams/03_flowchart_decision_tree-_agent_addressin.md",
+      "sha256": "1943cd32aafd7edbcb0d9420beb41fa52da79e1959a7bb3d17c9582abd9dbe7c",
+      "bytes": 1533,
+      "updatedReferences": [
+        "skills/fipa-00023-agent-management/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/focus-a-model-of-sensemaking/diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+      "newPath": "skills/focus-a-model-of-sensemaking/diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md",
+      "sha256": "89d141030a5cd4a9a8bc6c69d24e2257f0c05b176f3a222b4082eb8bce770b1a",
+      "bytes": 2189,
+      "updatedReferences": [
+        "skills/sensemaking-focus-model/SKILL.md",
+        "skills/focus-a-model-of-sensemaking/diagrams/INDEX.md",
+        "skills/sensemaking-focus-model/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/focus-a-model-of-sensemaking/diagrams/02_flowchart_decision_framework:_anomaly_de.md",
+      "newPath": "skills/focus-a-model-of-sensemaking/diagrams/02_flowchart_decision_framework-_anomaly_de.md",
+      "sha256": "7575aeaa6091637948f981a6382b2f5641aa911bf5504d53e1fffac983efccd5",
+      "bytes": 2312,
+      "updatedReferences": [
+        "skills/sensemaking-focus-model/SKILL.md",
+        "skills/focus-a-model-of-sensemaking/diagrams/INDEX.md",
+        "skills/sensemaking-focus-model/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/focus-a-model-of-sensemaking/diagrams/03_mindmap_focus_sensemaking_model:_knowl.md",
+      "newPath": "skills/focus-a-model-of-sensemaking/diagrams/03_mindmap_focus_sensemaking_model-_knowl.md",
+      "sha256": "d203d355e383904089aa17e8796464a07bbdd5ff4c26ab61e991ae92742d83d8",
+      "bytes": 2550,
+      "updatedReferences": [
+        "skills/sensemaking-focus-model/SKILL.md",
+        "skills/focus-a-model-of-sensemaking/diagrams/INDEX.md",
+        "skills/sensemaking-focus-model/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/huang-et-al-2026-six-sigma-agent/diagrams/03_quadrantChart_model_selection:_cost_vs._reli.md",
+      "newPath": "skills/huang-et-al-2026-six-sigma-agent/diagrams/03_quadrantChart_model_selection-_cost_vs._reli.md",
+      "sha256": "5d412347de058a5c83234793d4733570738e999073b781f708ad3dda2d0db8cd",
+      "bytes": 427,
+      "updatedReferences": [
+        "skills/huang-et-al-2026-six-sigma-agent/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/kephart-chess-2003-autonomic-computing/diagrams/02_stateDiagram-v2_cognitive_shift:_from_self-bla.md",
+      "newPath": "skills/kephart-chess-2003-autonomic-computing/diagrams/02_stateDiagram-v2_cognitive_shift-_from_self-bla.md",
+      "sha256": "85713a98bdef3af09b2040c70d82277b5226e63746e49971ec2f083db43296f2",
+      "bytes": 1662,
+      "updatedReferences": [
+        "skills/beale-rise-up-revolt/SKILL.md",
+        "skills/kephart-chess-2003-autonomic-computing/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/kephart-chess-2003-autonomic-computing/diagrams/03_quadrantChart_market_dynamics:_feature_quant.md",
+      "newPath": "skills/kephart-chess-2003-autonomic-computing/diagrams/03_quadrantChart_market_dynamics-_feature_quant.md",
+      "sha256": "8a583321718149abba4c88f4d4a49f681d63c630f9178dafc18055834c4b9690",
+      "bytes": 859,
+      "updatedReferences": [
+        "skills/beale-rise-up-revolt/SKILL.md",
+        "skills/kephart-chess-2003-autonomic-computing/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/mastering-the-game-of-go-with-deep-neura/diagrams/01_flowchart_alphago_decision_framework:_wh.md",
+      "newPath": "skills/mastering-the-game-of-go-with-deep-neura/diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "sha256": "7d3fa954f3c2ebf906e0638e255a0281365dacc2da2c0fbc82f65366bb843dd7",
+      "bytes": 3292,
+      "updatedReferences": [
+        "skills/alphago-deep-rl/SKILL.md",
+        "skills/mastering-the-game-of-go-with-deep-neural-networks/SKILL.md",
+        "skills/mastering-the-game-of-go-with-deep-neura/diagrams/INDEX.md",
+        "skills/alphago-deep-rl/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/mastering-the-game-of-go-with-deep-neura/diagrams/03_quadrantChart_cascading_approximation:_speed.md",
+      "newPath": "skills/mastering-the-game-of-go-with-deep-neura/diagrams/03_quadrantChart_cascading_approximation-_speed.md",
+      "sha256": "7314467322096b8cee51bb76108813ec12c9709387b08ab75ecb56f2ce038eaa",
+      "bytes": 455,
+      "updatedReferences": [
+        "skills/alphago-deep-rl/SKILL.md",
+        "skills/mastering-the-game-of-go-with-deep-neural-networks/SKILL.md",
+        "skills/mastering-the-game-of-go-with-deep-neura/diagrams/INDEX.md",
+        "skills/alphago-deep-rl/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/mastering-the-game-of-go-with-deep-neural-networks/diagrams/01_flowchart_alphago_decision_framework:_wh.md",
+      "newPath": "skills/mastering-the-game-of-go-with-deep-neural-networks/diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "sha256": "7d3fa954f3c2ebf906e0638e255a0281365dacc2da2c0fbc82f65366bb843dd7",
+      "bytes": 3292,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/mastering-the-game-of-go-with-deep-neural-networks/diagrams/03_quadrantChart_cascading_approximation:_speed.md",
+      "newPath": "skills/mastering-the-game-of-go-with-deep-neural-networks/diagrams/03_quadrantChart_cascading_approximation-_speed.md",
+      "sha256": "7314467322096b8cee51bb76108813ec12c9709387b08ab75ecb56f2ce038eaa",
+      "bytes": 455,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/muscettola-nicola-1993-1/diagrams/01_flowchart_decision_framework:_when_to_co.md",
+      "newPath": "skills/muscettola-nicola-1993-1/diagrams/01_flowchart_decision_framework-_when_to_co.md",
+      "sha256": "94f27d3f1adc97237ff4bab24e4b77500bd7b893d6c3ef3d14b8e497bb09f66e",
+      "bytes": 1442,
+      "updatedReferences": [
+        "skills/hsts-planning-scheduling/SKILL.md",
+        "skills/hsts-planning-scheduling/diagrams/INDEX.md",
+        "skills/muscettola-nicola-1993-1/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/muscettola-nicola-1993-1/diagrams/03_quadrantChart_problem_classification:_separa.md",
+      "newPath": "skills/muscettola-nicola-1993-1/diagrams/03_quadrantChart_problem_classification-_separa.md",
+      "sha256": "1d9abda1d20f2a084c3e6c5392ecca552d383e2439e63d3e4dcd2973266593e4",
+      "bytes": 508,
+      "updatedReferences": [
+        "skills/hsts-planning-scheduling/SKILL.md",
+        "skills/hsts-planning-scheduling/diagrams/INDEX.md",
+        "skills/muscettola-nicola-1993-1/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/ongaro-ousterhout-2014-raft/diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md",
+      "newPath": "skills/ongaro-ousterhout-2014-raft/diagrams/02_sequenceDiagram_log_replication_protocol-_happ.md",
+      "sha256": "f54acb5058a840696c4963102e40e5b5e5a2f350beec733c8ceae5e1b0ddafac",
+      "bytes": 3565,
+      "updatedReferences": [
+        "skills/ongaro-ousterhout-2014-raft/SKILL.md",
+        "skills/ongaro-ousterhout-2014-raft/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/ongaro-ousterhout-2014-raft/diagrams/03_mindmap_decomposition_hierarchy:_raft'.md",
+      "newPath": "skills/ongaro-ousterhout-2014-raft/diagrams/03_mindmap_decomposition_hierarchy-_raft'.md",
+      "sha256": "311d79d98de43490e4126025054717b4b0c7ffb274279e0dcfd326e5c77e23f9",
+      "bytes": 1046,
+      "updatedReferences": [
+        "skills/ongaro-ousterhout-2014-raft/SKILL.md",
+        "skills/ongaro-ousterhout-2014-raft/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/sensemaking-focus-model/diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+      "newPath": "skills/sensemaking-focus-model/diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md",
+      "sha256": "89d141030a5cd4a9a8bc6c69d24e2257f0c05b176f3a222b4082eb8bce770b1a",
+      "bytes": 2189,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/sensemaking-focus-model/diagrams/02_flowchart_decision_framework:_anomaly_de.md",
+      "newPath": "skills/sensemaking-focus-model/diagrams/02_flowchart_decision_framework-_anomaly_de.md",
+      "sha256": "7575aeaa6091637948f981a6382b2f5641aa911bf5504d53e1fffac983efccd5",
+      "bytes": 2312,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/sensemaking-focus-model/diagrams/03_mindmap_focus_sensemaking_model:_knowl.md",
+      "newPath": "skills/sensemaking-focus-model/diagrams/03_mindmap_focus_sensemaking_model-_knowl.md",
+      "sha256": "d203d355e383904089aa17e8796464a07bbdd5ff4c26ab61e991ae92742d83d8",
+      "bytes": 2550,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/02_mindmap_problem_space_construction:_si.md",
+      "newPath": "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/02_mindmap_problem_space_construction-_si.md",
+      "sha256": "d963e0f0e26aef299c53a8d346eb6f9f948c30c20be68250420258c3ccf00bf4",
+      "bytes": 1910,
+      "updatedReferences": [
+        "skills/simon-and-newell-human-problem-solving-theory-1971/SKILL.md",
+        "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/03_quadrantChart_search_strategy_selection:_wor.md",
+      "newPath": "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/03_quadrantChart_search_strategy_selection-_wor.md",
+      "sha256": "d056647e4d807724229b9dfb58976631f6add394fdf9a17c7a9d00b3e9dea0ab",
+      "bytes": 608,
+      "updatedReferences": [
+        "skills/simon-and-newell-human-problem-solving-theory-1971/SKILL.md",
+        "skills/simon-and-newell-human-problem-solving-theory-1971/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/taleb-blyth-2011-black-swan-of-cairo/diagrams/03_quadrantChart_domain_characterization:_linea.md",
+      "newPath": "skills/taleb-blyth-2011-black-swan-of-cairo/diagrams/03_quadrantChart_domain_characterization-_linea.md",
+      "sha256": "237546db8f35ab76a33b6c560aca36cf2bb25aa05c0e5e4b3792a5ca75386bdf",
+      "bytes": 988,
+      "updatedReferences": [
+        "skills/taleb-blyth-2011-black-swan-of-cairo/SKILL.md",
+        "skills/taleb-blyth-2011-black-swan-of-cairo/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/the-belief-desire-intention-model-of-age/diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "newPath": "skills/the-belief-desire-intention-model-of-age/diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md",
+      "sha256": "883c64a7869d8f6384a38e902d75c2c02e3463694464fba286a1c0b626575356",
+      "bytes": 1801,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/the-cambridge-handbook-of-expertise-and/diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md",
+      "newPath": "skills/the-cambridge-handbook-of-expertise-and/diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md",
+      "sha256": "73eb3b7dc77dfa9e7d5803d6281e074d7f40bd64b8303ee43e44fcd8e85c99d8",
+      "bytes": 542,
+      "updatedReferences": [],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/yao-2022-react/diagrams/01_flowchart_react_decision_loop:_when_to_r.md",
+      "newPath": "skills/yao-2022-react/diagrams/01_flowchart_react_decision_loop-_when_to_r.md",
+      "sha256": "9cd01edf33f98a0eebfdc7dec9420557a0b733e0cf6dd534f04a431adafc9a41",
+      "bytes": 2708,
+      "updatedReferences": [
+        "skills/yao-2022-react/SKILL.md",
+        "skills/yao-2022-react/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/yao-2023-tree-of-thoughts/diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md",
+      "newPath": "skills/yao-2023-tree-of-thoughts/diagrams/01_flowchart_tree_of_thoughts-_decision_fra.md",
+      "sha256": "a0937d0f4a9c7fb91b50d167fb8a4f4ffc593fdf4bc80f3185acda711c601062",
+      "bytes": 3450,
+      "updatedReferences": [
+        "skills/yao-2023-tree-of-thoughts/SKILL.md",
+        "skills/yao-2023-tree-of-thoughts/diagrams/INDEX.md"
+      ],
+      "category": "initialImported"
+    },
+    {
+      "oldPath": "skills/alphago-deep-rl/diagrams/01_flowchart_alphago_decision_framework:_wh.md",
+      "newPath": "skills/alphago-deep-rl/diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "sha256": "7d3fa954f3c2ebf906e0638e255a0281365dacc2da2c0fbc82f65366bb843dd7",
+      "bytes": 3292,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/alphago-deep-rl/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/alphago-deep-rl/diagrams/03_quadrantChart_cascading_approximation:_speed.md",
+      "newPath": "skills/alphago-deep-rl/diagrams/03_quadrantChart_cascading_approximation-_speed.md",
+      "sha256": "7314467322096b8cee51bb76108813ec12c9709387b08ab75ecb56f2ce038eaa",
+      "bytes": 455,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/alphago-deep-rl/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/bdi-agency-model/diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "newPath": "skills/bdi-agency-model/diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md",
+      "sha256": "883c64a7869d8f6384a38e902d75c2c02e3463694464fba286a1c0b626575356",
+      "bytes": 1801,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/bdi-agency-model/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/beale-rise-up-revolt/diagrams/02_stateDiagram-v2_cognitive_shift:_from_self-bla.md",
+      "newPath": "skills/beale-rise-up-revolt/diagrams/02_stateDiagram-v2_cognitive_shift-_from_self-bla.md",
+      "sha256": "85713a98bdef3af09b2040c70d82277b5226e63746e49971ec2f083db43296f2",
+      "bytes": 1662,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/beale-rise-up-revolt/SKILL.md",
+        "skills/beale-rise-up-revolt/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/beale-rise-up-revolt/diagrams/03_quadrantChart_market_dynamics:_feature_quant.md",
+      "newPath": "skills/beale-rise-up-revolt/diagrams/03_quadrantChart_market_dynamics-_feature_quant.md",
+      "sha256": "8a583321718149abba4c88f4d4a49f681d63c630f9178dafc18055834c4b9690",
+      "bytes": 859,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/beale-rise-up-revolt/SKILL.md",
+        "skills/beale-rise-up-revolt/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/hsts-planning-scheduling/diagrams/01_flowchart_decision_framework:_when_to_co.md",
+      "newPath": "skills/hsts-planning-scheduling/diagrams/01_flowchart_decision_framework-_when_to_co.md",
+      "sha256": "94f27d3f1adc97237ff4bab24e4b77500bd7b893d6c3ef3d14b8e497bb09f66e",
+      "bytes": 1442,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/hsts-planning-scheduling/SKILL.md",
+        "skills/hsts-planning-scheduling/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/hsts-planning-scheduling/diagrams/03_quadrantChart_problem_classification:_separa.md",
+      "newPath": "skills/hsts-planning-scheduling/diagrams/03_quadrantChart_problem_classification-_separa.md",
+      "sha256": "1d9abda1d20f2a084c3e6c5392ecca552d383e2439e63d3e4dcd2973266593e4",
+      "bytes": 508,
+      "category": "inheritedAlias",
+      "updatedReferences": [
+        "skills/hsts-planning-scheduling/SKILL.md",
+        "skills/hsts-planning-scheduling/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/bellifemine-2007-jade-fipa/diagrams/03_flowchart_decision_tree:_which_jade_coor.md",
+      "newPath": "skills/bellifemine-2007-jade-fipa/diagrams/03_flowchart_decision_tree-_which_jade_coor.md",
+      "sha256": "e263b411f85db87bd6617936548ea32f617f9d90d52bd14165e718f9a75ee6af",
+      "bytes": 2469,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/bellifemine-2007-jade-fipa/SKILL.md",
+        "skills/bellifemine-2007-jade-fipa/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/embedded-agency/diagrams/01_flowchart_goodhart's_law_progression:_op.md",
+      "newPath": "skills/embedded-agency/diagrams/01_flowchart_goodhart's_law_progression-_op.md",
+      "sha256": "1bb0d3dceaa9dc4b29e10e9f43a95937ae942e4e6d334e8cb7b08a5fbeb8773c",
+      "bytes": 1859,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/embedded-agency/SKILL.md",
+        "skills/embedded-agency/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/embedded-agency/diagrams/02_mindmap_dualistic_vs._embedded_agency:.md",
+      "newPath": "skills/embedded-agency/diagrams/02_mindmap_dualistic_vs._embedded_agency-.md",
+      "sha256": "8bacf8ab360c410a46d85a7ca69a2205985d911c66f512f0ea8a1fe56996ac3b",
+      "bytes": 1778,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/embedded-agency/SKILL.md",
+        "skills/embedded-agency/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/liu-2023-agentbench/diagrams/02_quadrantChart_model_selection_matrix:_task_t.md",
+      "newPath": "skills/liu-2023-agentbench/diagrams/02_quadrantChart_model_selection_matrix-_task_t.md",
+      "sha256": "176e9674f578e6ac5d5e7a958ab28161f1b4b22e6aba01cdae0b897753a94736",
+      "bytes": 359,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/liu-2023-agentbench/SKILL.md",
+        "skills/liu-2023-agentbench/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/liu-2023-agentbench/diagrams/03_stateDiagram-v2_agent_state_machine:_planning-.md",
+      "newPath": "skills/liu-2023-agentbench/diagrams/03_stateDiagram-v2_agent_state_machine-_planning-.md",
+      "sha256": "8acadda92119911241947def1c3e10667d85b20c7394343babad703e2dc402d1",
+      "bytes": 1832,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/liu-2023-agentbench/SKILL.md",
+        "skills/liu-2023-agentbench/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/park-2023-generative-agents/diagrams/02_stateDiagram-v2_agent_behavior_loop:_memory-re.md",
+      "newPath": "skills/park-2023-generative-agents/diagrams/02_stateDiagram-v2_agent_behavior_loop-_memory-re.md",
+      "sha256": "17c38c78df322f9eb81dc0a4bf59f5f199480dec886c6162b9df2713ca4262ac",
+      "bytes": 1857,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/park-2023-generative-agents/SKILL.md",
+        "skills/park-2023-generative-agents/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle:_beli.md",
+      "newPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle-_beli.md",
+      "sha256": "951a9c54dcd86ea5fdc280812a76d70b097a4d70a7c9e47b6ee28c3177cdf84b",
+      "bytes": 2240,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/SKILL.md",
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/02_flowchart_plan_selection_pipeline:_from_.md",
+      "newPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/02_flowchart_plan_selection_pipeline-_from_.md",
+      "sha256": "2cb6b94ce062c5a3b58005c93f0ad3e6b35ef6b83fc47f7ac7f7012b09455543",
+      "bytes": 2038,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/SKILL.md",
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/03_sequenceDiagram_resource-bounded_rationality:_.md",
+      "newPath": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/03_sequenceDiagram_resource-bounded_rationality-_.md",
+      "sha256": "6ce35494730117d75055776b4cf141854e7f0aae162cb577ce8b2903d1d60c21",
+      "bytes": 2495,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/SKILL.md",
+        "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/smith-1980-contract-net-protocol/diagrams/01_flowchart_knowledge_state_decision_tree:.md",
+      "newPath": "skills/smith-1980-contract-net-protocol/diagrams/01_flowchart_knowledge_state_decision_tree-.md",
+      "sha256": "8b0b247ceffce946470532762f44d8e119b7eaaab2ed84fdec92107237072223",
+      "bytes": 2392,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/smith-1980-contract-net-protocol/SKILL.md",
+        "skills/smith-1980-contract-net-protocol/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/smith-1980-contract-net-protocol/diagrams/02_sequenceDiagram_knowledge_propagation:_public_.md",
+      "newPath": "skills/smith-1980-contract-net-protocol/diagrams/02_sequenceDiagram_knowledge_propagation-_public_.md",
+      "sha256": "f0549d220324a0cd7466ee3d48c58d56b5e9cc890faf5220ed9e2894cf2db36a",
+      "bytes": 2066,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/smith-1980-contract-net-protocol/SKILL.md",
+        "skills/smith-1980-contract-net-protocol/diagrams/INDEX.md"
+      ]
+    },
+    {
+      "oldPath": "skills/stanton-2006-hierarchical-task-analysis/diagrams/02_quadrantChart_p\u00d7c_stopping_rule:_analytical_.md",
+      "newPath": "skills/stanton-2006-hierarchical-task-analysis/diagrams/02_quadrantChart_p\u00d7c_stopping_rule-_analytical_.md",
+      "sha256": "4f83092c73e57671dadc4968d965fb3ab45cd920c7201f654eba05ef01b6b2c1",
+      "bytes": 706,
+      "category": "remainingCanonical",
+      "updatedReferences": [
+        "skills/stanton-2006-hierarchical-task-analysis/diagrams/INDEX.md"
+      ]
+    }
+  ],
+  "counts": {
+    "initialImported": 30,
+    "inheritedAlias": 7,
+    "remainingCanonical": 12,
+    "total": 49
+  }
+}

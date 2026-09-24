@@ -1,0 +1,51 @@
+{
+  "libraryChecks": {
+    "blockingSteps": "pass",
+    "environment": {
+      "python": "3.12.14",
+      "PyMuPDF": "1.28.2",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "Pillow": "12.3.0",
+      "node": "26.7.0; hosted workflow uses22"
+    },
+    "suiteCounts": {
+      "harborResearch": 456,
+      "figcheck": 197,
+      "plates": 24,
+      "atlas": 25,
+      "tikzEngineering": 12,
+      "textbookCraft": 68,
+      "readersEye": 28
+    },
+    "advisories": {
+      "readerEyeFindings": 138,
+      "unwaivedFigureBlockers": 1,
+      "chapterLintBlockingCountWithinBudget": 15
+    },
+    "note": "Initial wrapper quoting and a deferred prose check were rerun successfully with exact workflow arguments; historical failed/deferred statuses remain in external logs."
+  },
+  "focusedJest": {
+    "suites": 6,
+    "tests": 75,
+    "passing": 75,
+    "failures": 0,
+    "scope": "All six previously failing unit suites; includes negative authority/provenance cases and honest20-script corpus count."
+  },
+  "paper8": "paper8-citation-repair/build-receipt.json",
+  "runtime": "No local Port Daddy runtime started.",
+  "sourceCoverage": {
+    "requestedEntries": 755,
+    "structuralProblems": [],
+    "receipt": "coverage-repair.json",
+    "portableFileRenames": 49,
+    "canonicalDestinations": 754
+  },
+  "skillHygiene": {
+    "total": 776,
+    "passing": 776,
+    "failing": 0,
+    "warning_only": 218,
+    "failing_skills": []
+  }
+}
