@@ -8,3 +8,4 @@ Reference implementations for the partitioning and pressure-estimation logic des
 | [dag_partitioner.py](dag_partitioner.py) | You're splitting a task DAG into context-sized partitions that preserve dependency order |
 | [memory_dump_schema.json](memory_dump_schema.json) | You need the schema for a knowledge dump handed between partitions |
 | [online_k_selector.py](online_k_selector.py) | You need to pick the number of partitions online as pressure changes, rather than fixing it up front |
+| [partition_feasibility.py](partition_feasibility.py) | You need a deterministic, proposal-only feasibility heuristic over supplied items and already admitted targets |

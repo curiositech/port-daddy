@@ -18,6 +18,14 @@ metadata:
 
 # Agent Conversation Protocols
 
+## Source and implementation boundary
+
+The local trace contract borrows vocabulary from external interaction protocols
+only where the referenced source establishes it. It is not a wire-conformance
+claim, and trace identifiers are neither business-operation identifiers nor
+identity or effect authority. See
+[`references/fipa-a2a-mcp-boundary.md`](references/fipa-a2a-mcp-boundary.md).
+
 Design a finite protocol over identities and authority supplied by other systems. A valid trace says which messages were accepted and why. It never creates a principal, body, lease, capability, truth verdict, or permission to cause an effect.
 
 ## Use this skill when
@@ -124,6 +132,16 @@ flowchart TD
 
 **Right:** verify per-sender sequence and explicit causation, then use a canonical tie-break only for concurrent events.
 
+## Validator coverage boundary
+
+The bundled validator checks the local JSON shape, closed enums, participant and
+gather joins, supplied message ordering, causation references, acknowledgement
+sets, and digest format. It does not verify cryptographic receipts, payload bytes,
+reducer output, delivery, storage, identity, canonical concurrency order, runtime
+liveness, or external effects. A valid `stateDigest` is format-checked input, not
+a recomputed semantic result. See [the terminal-fence sequence](diagrams/01_terminal-fence.md)
+and [the supplied-sequence boundary](diagrams/02_replay-order.md).
+
 ## Output contract
 
 Emit a JSON trace conforming to [`schemas/conversation-trace-v2.schema.json`](schemas/conversation-trace-v2.schema.json). Validate it with:
@@ -141,6 +159,8 @@ node skills/agent-conversation-protocols/scripts/test-bundle.mjs
 - [`references/envelope-and-ordering.md`](references/envelope-and-ordering.md) — exact envelope fields, duplicate handling, and canonical replay.
 - [`references/gathers-and-terminals.md`](references/gathers-and-terminals.md) — fixed gathers, reducers, terminal fences, and acknowledgements.
 - [`references/pattern-selection-boundary.md`](references/pattern-selection-boundary.md) — select a conversation pattern before instantiating this closed protocol; a pattern does not grant authority or settle an effect.
+- [`references/fipa-a2a-mcp-boundary.md`](references/fipa-a2a-mcp-boundary.md) — external protocol vocabulary and local-trace boundary.
+- [`diagrams/INDEX.md`](diagrams/INDEX.md) — terminal fence and supplied-sequence diagrams.
 - [`examples/valid-trace.json`](examples/valid-trace.json) — canonical closed trace used by the validator.
 - [`scripts/validate-conversation-trace.mjs`](scripts/validate-conversation-trace.mjs) — closed-shape and semantic validator.
 - [`scripts/test-bundle.mjs`](scripts/test-bundle.mjs) — valid fixture plus adversarial mutation suite.

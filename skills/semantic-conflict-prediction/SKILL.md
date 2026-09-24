@@ -1207,6 +1207,17 @@ Agent says "I will modify createRoutes in server.ts"
 
 ---
 
+## Candidate evidence and calibration boundary
+
+Structural analysis creates conflict candidates, not semantic verdicts. Bind each
+candidate to a source snapshot, parser and grammar version, parse coverage, and
+unknown/dynamic features. A missing edge is `UNKNOWN` unless analysis establishes
+coverage. Candidate rankings become probabilities only after calibration against
+held-out integration outcomes from the target repositories and languages; stale or
+partial parses stay advisory. See [parse and trace a claim](diagrams/02_parse-and-trace-claim.md),
+[candidate classification](diagrams/03_conflict-candidate-boundary.md), and
+[`references/evidence-and-calibration.md`](references/evidence-and-calibration.md).
+
 ## References and Further Reading
 
 - **Tree-sitter documentation:** https://tree-sitter.github.io/tree-sitter/
