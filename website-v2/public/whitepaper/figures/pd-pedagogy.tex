@@ -825,12 +825,17 @@
 % Two inks only -- hhink for a state that is asserted, hhgray for one that is
 % not yet.
 
-% 1. Maturity. The four grades single-writer-kernel.tex names in prose as
-% "the series' honest labels": implemented / partial / specified / proposed.
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+\ifpdswiss
+  \newcommand{\Built}{{\textcolor{hhink}{\pdtextface\bfseries implemented}}}
+  \newcommand{\BuiltWeak}{{\textcolor{hhink}{\pdtextface partial}}}
+  \newcommand{\Designed}{{\textcolor{hhgray}{\pdtextface specified}}}
+  \newcommand{\Vision}{{\textcolor{hhgray}{\pdtextface\itshape proposed}}}
+\else
+  \newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+  \newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+  \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+  \newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+\fi
 % Chapter 5 (From Spawn to Person) spells the same four in capitals. Aliases,
 % not second definitions -- there is still exactly one body per grade.
 \newcommand{\BUILT}{\Built}
@@ -854,20 +859,23 @@
 
 % 3. Proof obligation: discharged, partly discharged, outstanding, or carried
 % only in a specification with no mechanised check behind it.
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
-\newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
-
-% 4. Evidence for a stated result. \Unproved was called \Proposed until the
-% maturity scale above became shared: both rendered the single word
-% "proposed", in the same gray italic, eight lines apart in chapter 4's own
-% legend -- one meaning "no design document yet", the other "no proof here".
-% Two axes printing one word is the collapse this apparatus exists to
-% prevent, so the evidence scale says what it means instead.
-\newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
-\newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
-\newcommand{\Unproved}{{\textcolor{hhgray}{\textit{unproved}}}}
+\ifpdswiss
+  \newcommand{\Closed}{{\textcolor{hhink}{\pdtextface\bfseries closed}}}
+  \newcommand{\Partial}{{\textcolor{hhink}{\pdtextface partial}}}
+  \newcommand{\Open}{{\textcolor{hhgray}{\pdtextface\itshape open}}}
+  \newcommand{\SpecOnly}{{\textcolor{hhgray}{\pdtextface\itshape spec-only}}}
+  \newcommand{\Verified}{{\textcolor{hhink}{\pdtextface\bfseries verified}}}
+  \newcommand{\Proved}{{\textcolor{hhink}{\pdtextface proved here}}}
+  \newcommand{\Unproved}{{\textcolor{hhgray}{\pdtextface\itshape unproved}}}
+\else
+  \newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+  \newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+  \newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+  \newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
+  \newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
+  \newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
+  \newcommand{\Unproved}{{\textcolor{hhgray}{\textit{unproved}}}}
+\fi
 
 % Verbatim-safe inline code for use INSIDE macro arguments (callouts,
 % captions, TikZ nodes) where \verb is illegal. Detokenizes so special

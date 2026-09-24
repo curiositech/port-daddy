@@ -80,6 +80,8 @@
   % combination real leading; changing face must not squeeze adjacent lines.
   \DeclareCaptionFont{pdbookcaption}{\pdcaptionface\linespread{1.16}\selectfont}
   \AtBeginDocument{%
+    \DeclareRobustCommand{\scshape}{\upshape}%
+    \DeclareRobustCommand{\textsc}[1]{\relax\ifmmode\text{\pdtextface\upshape #1}\else{\pdtextface\upshape #1}\fi}%
     \hypersetup{pdfcreator={Book shared typography; font profile: \pdbookfontprofile}}%
     \captionsetup{font={small,pdbookcaption},labelfont=bf}%
     \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}

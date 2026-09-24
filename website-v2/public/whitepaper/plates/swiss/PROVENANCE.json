@@ -344,7 +344,7 @@
     "landmark-01": {
       "file": "landmark-01.jpg",
       "concept": "Agentic Psychosis & Hallucination Cascade",
-      "opposite": "legible-swarm.tex:1748",
+      "opposite": "coordination-papers-mega-volume-chapter-0.tex:94",
       "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Hard modular 4x4 grid of visible hairline rules on warm off-white paper #FBF7EF. In the upper-left 2x2 quadrant is a high-contrast black-and-white industrial scientific halftone photograph: looking down inside an optical kaleidoscope chamber where geometric mirror planes multiply an unlit tungsten bulb into an infinite receding tunnel of phantom reflections, cropped strictly square to the grid. Stepping across the grid to the right are three flat opaque Tonhalle Green #006B5F rectangular planes; each successive green plane is rotated by an unsettling 0.5-degree off-axis increment, breaking the grid. At the exact vanishing point of the reflections sits a tiny solitary signal red #DA291C square. Absolutely no text, no letters, no words, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
       "model": "gemini-3-pro-image-preview"
@@ -352,7 +352,7 @@
     "landmark-02": {
       "file": "landmark-02.jpg",
       "concept": "Agentic Continuity & The Overlapping Strand",
-      "opposite": "spawn-to-person.tex:625",
+      "opposite": "spawn-to-person.tex:429",
       "prompt": "A Swiss International Typographic Style full-page plate in the constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Built on a visible 3x4 asymmetric modular grid of fine hairline rules on warm off-white paper #FBF7EF. In the central vertical column of modules is a high-contrast black-and-white industrial scientific halftone photograph: a heavy multi-strand steel mooring cable being spliced together in a shipyard rigging loft, thick twisted steel wires splayed and interbraided under hydraulic tension in raking cross-light, cropped hard and square to the grid modules. Flanking the central column to left and right are staggered vertical rectangular planes of flat opaque Konkret Violet #582C83 overlapping vertically like shingle courses, creating an unbroken load-bearing sequence from top to bottom. A single sharp signal red #DA291C hairline rule cuts horizontally across the central splice overlap. Absolutely no letters, no words, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
       "model": "gemini-3-pro-image-preview"
@@ -368,7 +368,7 @@
     "landmark-04": {
       "file": "landmark-04.jpg",
       "concept": "The Front-Loaded Probation Cliff",
-      "opposite": "spawn-to-person.tex:1330",
+      "opposite": "spawn-to-person.tex:2716",
       "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Hard modular grid of fine visible hairline rules on warm off-white paper #FBF7EF with a golden-ratio vertical split. On the left third is a high-contrast black-and-white scientific geological halftone photograph: a sheer vertical columnar basalt sea cliff face dropping straight down into foaming ocean surge, stark geometric hexagonal columns in deep shadow and harsh light, cropped hard to the grid module. At the cliff edge in the center, a monumental vertical slab of flat opaque Konkret Violet #582C83 drops abruptly by 85% of the page height down to a charcoal #121212 baseline, then immediately flattens across the right two-thirds into an ultra-thin 2pt horizontal violet rule. A tiny solitary signal red #DA291C square marks the sharp drop arrival point. Absolutely no letters, no words, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
       "model": "gemini-3-pro-image-preview"
@@ -416,7 +416,7 @@
     "landmark-10": {
       "file": "landmark-10.jpg",
       "concept": "The Bonded Commons & Sacrificial Slashing",
-      "opposite": "agent-transactions-whitepaper.tex:816",
+      "opposite": "agent-transactions-whitepaper.tex:1340",
       "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Hard modular 4x4 grid of fine visible hairline rules on warm off-white paper #FBF7EF with a dramatic diagonal 45-degree split. The upper-right diagonal triangle contains a high-contrast black-and-white industrial scientific halftone photograph: a massive electrical substation ceramic insulator horn-gap fuse showing an open mechanical disconnect under high-voltage surge, sharp metallic contacts in deep shadow and harsh light, cropped hard to the grid modules. The lower-left diagonal triangle is split into two flat opaque geometric zones: a solid base of Ledger Olive #666A00 representing the staked commons treasury, and a severed corner of charcoal #121212 representing the slashed collateral. Along the fracture edge between them runs a single sharp signal red #DA291C zigzag trip threshold line. Absolutely no words, no letters, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
       "model": "gemini-3-pro-image-preview"
