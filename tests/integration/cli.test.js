@@ -959,14 +959,21 @@ describe('CLI Integration Tests', () => {
       expect(abandonDoneRes.ok).toBe(true);
 
       // Without --all: should only show active sessions
-      const activeOnly = runCli(['sessions', '--agent', agentId, '--json']);
+      // These fixtures are intentionally created through the HTTP route with no
+      // worktree context, so keep this regression about STATUS filtering rather
+      // than accidentally filtering them out through the CLI runner worktree.
+      const activeOnly = runCli(['sessions', '--agent', agentId, '--all-worktrees', '--json']);
       const activeData = JSON.parse(activeOnly.stdout);
+      expect(activeData.sessions.map(s => s.id)).toContain(activeId);
+      expect(activeData.sessions.map(s => s.id)).not.toContain(abandonedId);
       expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
 
       // With --all: should show all statuses
-      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
+      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--all-worktrees', '--json']);
       const allData = JSON.parse(allSessions.stdout);
+      expect(allData.sessions.map(s => s.id)).toEqual(expect.arrayContaining([activeId, abandonedId]));
       const statuses = new Set(allData.sessions.map(s => s.status));
+      expect(statuses.has('active')).toBe(true);
       expect(statuses.has('abandoned')).toBe(true);
 
       // Cleanup

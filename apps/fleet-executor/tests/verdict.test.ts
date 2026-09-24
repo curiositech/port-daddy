@@ -4,6 +4,8 @@ import {
   resolveVerdict,
   aggregateConclusion,
   parseShipFindings,
+  reviewablePatchesFromUnifiedDiff,
+  shipFindingLocationsAreReviewable,
   type ShipResult,
 } from '../src/verdict.js';
 
@@ -90,6 +92,19 @@ describe('parseShipFindings', () => {
     expect(parseShipFindings(fenced('[{"path":"a","line":"NaN","body":"x"}]'))).toBeNull();
   });
 
+  it.each([
+    ['a zero line', { path: 'a', line: 0, body: 'x' }],
+    ['a negative line', { path: 'a', line: -1, body: 'x' }],
+    ['a fractional line', { path: 'a', line: 1.5, body: 'x' }],
+    ['an unsafe line', { path: 'a', line: Number.MAX_SAFE_INTEGER + 1, body: 'x' }],
+    ['an empty path', { path: '', line: 1, body: 'x' }],
+    ['a whitespace-only path', { path: '   ', line: 1, body: 'x' }],
+    ['an empty body', { path: 'a', line: 1, body: '' }],
+    ['a whitespace-only body', { path: 'a', line: 1, body: '   ' }],
+  ])('returns null for %s before it can reach GitHub review publication', (_label, finding) => {
+    expect(parseShipFindings(fenced(JSON.stringify([finding])))).toBeNull();
+  });
+
   it('dedupes identical findings (path|line|body) — the 2026-07-07 line-68/86 duplicate', () => {
     // A single-chunk diff skips the REDUCE manager, so its "deduplicate" prompt
     // never runs. The same finding emitted twice must reach the operator once.
@@ -113,6 +128,104 @@ describe('parseShipFindings', () => {
         ']',
     );
     expect(parseShipFindings(out)).toHaveLength(3);
+  });
+});
+
+describe('shipFindingLocationsAreReviewable', () => {
+  const finding = (path: string, line: number) => ({
+    path,
+    line,
+    severity: 'HIGH' as const,
+    body: 'actionable defect',
+  });
+  const files = [{
+    filename: 'src/a.ts',
+    patch: [
+      '@@ -10,3 +20,4 @@',
+      ' context',
+      '-removed',
+      '+replacement',
+      ' tail',
+      '+added',
+      '@@ -40 +44,0 @@',
+      '-deleted-only',
+    ].join('\n'),
+  }];
+
+  it.each([20, 21, 22, 23])('accepts RIGHT-side hunk line %i', line => {
+    expect(shipFindingLocationsAreReviewable([finding('src/a.ts', line)], files)).toBe(true);
+  });
+
+  it.each([
+    ['an out-of-hunk line', 'src/a.ts', 99],
+    ['a deleted-only line', 'src/a.ts', 44],
+    ['an unknown path', 'src/missing.ts', 20],
+  ])('rejects %s', (_label, path, line) => {
+    expect(shipFindingLocationsAreReviewable([finding(path, line)], files)).toBe(false);
+  });
+
+  it('rejects a changed file whose patch was omitted by GitHub', () => {
+    expect(shipFindingLocationsAreReviewable(
+      [finding('src/large.ts', 1)],
+      [{ filename: 'src/large.ts' }],
+    )).toBe(false);
+  });
+
+  it('accepts an explicit empty finding set without diff-line authority', () => {
+    expect(shipFindingLocationsAreReviewable([], [])).toBe(true);
+  });
+});
+
+describe('reviewablePatchesFromUnifiedDiff', () => {
+  it('preserves paths with spaces and authorizes RIGHT-side hunk lines', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git a/docs/Harbor Notes.md b/docs/Harbor Notes.md',
+      '--- a/docs/Harbor Notes.md',
+      '+++ b/docs/Harbor Notes.md',
+      '@@ -1 +1,2 @@',
+      ' context',
+      '+new',
+    ].join('\n'));
+
+    expect(patches).toHaveLength(1);
+    expect(patches[0].filename).toBe('docs/Harbor Notes.md');
+    expect(shipFindingLocationsAreReviewable([
+      { path: 'docs/Harbor Notes.md', line: 2, severity: 'HIGH', body: 'review it' },
+    ], patches)).toBe(true);
+  });
+
+  it('uses the post-image name for renames and ignores deleted post-images', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git a/src/old.ts b/src/new.ts',
+      'similarity index 80%',
+      'rename from src/old.ts',
+      'rename to src/new.ts',
+      '--- a/src/old.ts',
+      '+++ b/src/new.ts',
+      '@@ -1 +1 @@',
+      '-old',
+      '+new',
+      'diff --git a/src/gone.ts b/src/gone.ts',
+      'deleted file mode 100644',
+      '--- a/src/gone.ts',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-gone',
+    ].join('\n'));
+
+    expect(patches.map(patch => patch.filename)).toEqual(['src/new.ts']);
+  });
+
+  it('decodes a quoted UTF-8 post-image path', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git "a/docs/caf\\303\\251.md" "b/docs/caf\\303\\251.md"',
+      '--- "a/docs/caf\\303\\251.md"',
+      '+++ "b/docs/caf\\303\\251.md"',
+      '@@ -0,0 +1 @@',
+      '+new',
+    ].join('\n'));
+
+    expect(patches.map(patch => patch.filename)).toEqual(['docs/café.md']);
   });
 });
 

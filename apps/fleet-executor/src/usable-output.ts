@@ -28,7 +28,7 @@
  *    ship must emit. For a REVIEWER the mandatory element is the trailing
  *    `FLEET-VERDICT:` line — the contract states the findings block itself may
  *    be omitted ("If you have no findings, emit an empty array `[]` (or omit
- *    the block)"), so a verdict line OR a findings fence counts as an answer.
+ *    the block)"), so the verdict line itself is the required answer.
  *    For an IDEATION ship the contract mandates BOTH a fenced JSON array (empty
  *    when there is nothing to propose) and a verdict line, so either one is
  *    accepted as a signal that the ship engaged with its contract. Output
@@ -116,7 +116,7 @@ const REASON_TEXT: Record<NoUsableOutputReason, string> = {
   'below-contract-floor':
     'the model returned less text than the shortest possible valid answer',
   'no-contract-signal':
-    'the model returned text carrying no verdict and no structured block',
+    'the model returned text without its required contract signal',
 };
 
 /**
@@ -166,13 +166,14 @@ export function classifyShipOutput(
     return { usable: false, reason: 'below-contract-floor', strippedLength };
   }
 
-  // Contract-signal test. Both classes accept either mandatory element as proof
-  // the ship engaged: a reviewer may legally omit the findings fence, and an
-  // ideation ship that emitted a proposals array but dropped its (always-PASS,
-  // never-gating) verdict line has still proposed real work.
+  // Contract-signal test. A reviewer may omit the findings fence, but the
+  // verdict line is mandatory. Accepting a fence alone previously let repair
+  // prose checkpoint as a synthetic BLOCK with zero findings. Ideation keeps
+  // its existing proposal-or-verdict signal here; its stricter schema parser
+  // separately rejects malformed proposal blocks.
   const hasVerdict = VERDICT_SIGNAL_RE.test(substance);
   const hasJsonBlock = JSON_FENCE_SIGNAL_RE.test(substance);
-  if (!hasVerdict && !hasJsonBlock) {
+  if ((!opts.ideation && !hasVerdict) || (opts.ideation && !hasVerdict && !hasJsonBlock)) {
     return { usable: false, reason: 'no-contract-signal', strippedLength };
   }
 
