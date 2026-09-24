@@ -201,6 +201,15 @@ Several mobile agents share a belief base about aisle congestion and inventory s
 - If "strategy" changes require rewriting plan bodies, policy and knowledge were never separated.
 - If the agent cannot say what interrupted it and what it will resume next, it is not really using intention stacks.
 
+## Evidence and system boundary
+
+AgentSpeak(L) specifies local operational reasoning. Keep message framing,
+authority, retries, supervision, and receipts as separate contracts; do not infer
+distributed agreement or an external effect from one local BDI transition. See
+[the interpreter boundary](diagrams/01_interpreter-boundary.md),
+[the protocol-receipt boundary](diagrams/02_protocol-receipt-boundary.md), and
+[`references/evidence-scope.md`](references/evidence-scope.md).
+
 ## Reference Routing
 
 - `references/bdi-architecture-for-agent-orchestration.md`: load for the full agent cycle and B/D/I interplay.

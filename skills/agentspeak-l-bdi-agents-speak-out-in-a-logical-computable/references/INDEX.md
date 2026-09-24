@@ -23,3 +23,4 @@ Imported supporting material. Load a listed file only when it serves the active 
 - [Proof Theory and Verifiable Agent Behavior: Making Correctness Provable](proof-theory-and-verifiable-agent-behavior.md) — imported supporting material.
 - [Selection Functions: Where Agent Policy Lives](selection-functions-as-agent-policy.md) — imported supporting material.
 - [Selection Functions as the Locus of Intelligence: Where Policy Lives in an Agent System](selection-functions-as-policy-locus.md) — imported supporting material.
+- [Evidence scope](evidence-scope.md) — source-specific limits and revalidation rule for current claims.

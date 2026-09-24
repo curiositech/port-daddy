@@ -254,3 +254,11 @@ BDI (philosophy/logic tradition) and Soar (cognitive psychology tradition) indep
 **Key diagnostic question**: "Why can't you just merge desires and intentions?"
 - **Shallow answer**: "Because you need to distinguish what you want from what you're doing"
 - **Deep answer**: "Because desires can be conflicting and unchosen—deliberation is the computational process of resolving conflicts and resource constraints to select a feasible subset as intentions. Merging them eliminates the structure that makes deliberation tractable and commitments meaningful."
+
+## Evidence boundary
+
+BDI is a design family for local practical reasoning. It does not by itself prove
+rationality, security, coordination, or an external effect. Keep beliefs
+provenance-bound, desires as candidates, intentions under a declared
+reconsideration policy, and inter-agent commitments in an explicit protocol. See
+[`references/evidence-scope.md`](references/evidence-scope.md).
