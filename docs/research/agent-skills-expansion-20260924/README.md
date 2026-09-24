@@ -7,3 +7,5 @@ This review branch applies 86 source-bound, hash-verified skill bundles under `s
 `book-figure-ports/` contains TeX and Mermaid source, validation records, and research for 12 figure ports in three styles (36 variants), including worked exercises. Rendered binary previews remain in the offline handoff and are excluded from Git; R2 publication has not yet been verified. The manuscript itself is unchanged; placement proposals are in `ASTRA-BOOK-REVIEW.md` and `BOOK-PLACEMENT-REVIEW.md`. Figure acceptance applies to the standalone renders, not page-level publication in the Book.
 
 The source handoff was mistakenly written under a different shared checkout on `master`; no Port Daddy primary-checkout file was edited. This branch copies the task-owned, selected files into a dedicated linked Port Daddy worktree.
+
+The same PR also applies the inherited substrate-study rebase fix and the `product-appeal-analyzer` YAML frontmatter repair. The four study regressions pass locally; the historical pilot is not recomputed.
