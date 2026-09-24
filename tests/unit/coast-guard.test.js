@@ -50,6 +50,10 @@ describe('buildSeatbeltProfile', () => {
   test('denies dotenv files anywhere under HOME via regex', () => {
     expect(profile).toMatch(/deny file-read\* \(regex #"\^\/home\/op.*\\.env/);
   });
+
+  test('does not broadly re-allow dotenv examples under HOME', () => {
+    expect(profile).not.toContain('(allow file-read*');
+  });
 });
 
 describe('scrubRawSecretsFromEnv (the broker)', () => {

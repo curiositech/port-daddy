@@ -377,7 +377,9 @@ export function buildSeatbeltProfile(
   const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Deny dotenv files under $HOME and under each extra root (the project
   // workdir, which may sit outside HOME). `/.env` followed by end-or-dot.
-  const dotenvRoots = [home, ...(jewels.extraDotenvRoots ?? [])].filter(Boolean);
+  const dotenvRoots = [home, ...(jewels.extraDotenvRoots ?? [])]
+    .filter(Boolean)
+    .map((root) => sbplSafePath(root));
   const dotenvDenies = dotenvRoots.map(
     (root) => `(deny file-read* (regex #"^${esc(root)}/.*/\\.env($|\\.)"))`,
   );
@@ -386,6 +388,31 @@ export function buildSeatbeltProfile(
   const dotenvDirectDenies = dotenvRoots.map(
     (root) => `(deny file-read* (regex #"^${esc(root)}/\\.env($|\\.)"))`,
   );
+  // A tracked `.env.example` is documentation, not a credential store. Git
+  // needs to read it to establish worktree cleanliness, and denying it made a
+  // clean checkout appear to contain a deletion inside Coast Guard. Re-allow
+  // only that exact basename under the explicit project roots (never the broad
+  // HOME root), and never when a root overlaps a crown-jewel directory. Exact
+  // ordering matters in Seatbelt: these narrow rules follow the broad dotenv
+  // denies while the unrelated crown-jewel paths remain outside their scope.
+  const extraDotenvRoots = (jewels.extraDotenvRoots ?? [])
+    .filter(Boolean)
+    .map((root) => sbplSafePath(root));
+  const templateRoots = extraDotenvRoots.filter(
+    (root) =>
+      !jewels.deniedDirs.some((deniedDir) => {
+        const denied = sbplSafePath(deniedDir);
+        return (
+          root === denied ||
+          root.startsWith(`${denied}/`) ||
+          denied.startsWith(`${root}/`)
+        );
+      }),
+  );
+  const dotenvTemplateAllows = templateRoots.flatMap((root) => [
+    `(allow file-read* (literal "${root}/.env.example"))`,
+    `(allow file-read* (regex #"^${esc(root)}/.*/\\.env\\.example$"))`,
+  ]);
   // SCOPE-TIER WRITE CONFINEMENT — deny writes to the project workdir for a
   // read-only tier. `(deny file-write* (subpath <root>))` blocks create/write/
   // unlink/rename under the root; reads still pass (the agent can READ the repo
@@ -403,6 +430,7 @@ export function buildSeatbeltProfile(
     ...jewels.deniedDirs.map((d) => sbplSubpathRule('deny file-read*', d)),
     ...dotenvDenies,
     ...dotenvDirectDenies,
+    ...dotenvTemplateAllows,
     ...writeDenies,
   ];
   return lines.join('\n') + '\n';
