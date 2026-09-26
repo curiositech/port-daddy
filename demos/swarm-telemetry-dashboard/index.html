@@ -381,11 +381,38 @@
       `).join('');
     }
 
-    // Initialize
+    // Initialize with fallback baseline
     renderChart(initialData.epochs);
     renderTopology(initialData.nodes, initialData.edges);
     renderLeases(initialData.leases);
     renderLogs(initialData.logs);
+
+    // Fetch live state from server and poll for updates
+    async function loadTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry');
+        if (res.ok) {
+          const liveData = await res.json();
+          if (liveData.epochs && liveData.epochs.length > 0) {
+            renderChart(liveData.epochs);
+            const latest = liveData.epochs[liveData.epochs.length - 1];
+            const rElem = document.getElementById('val-residual');
+            const treeElem = document.getElementById('val-tree');
+            const legElem = document.getElementById('val-legibility');
+            if (rElem) rElem.innerText = latest.r.toFixed(3);
+            if (treeElem) treeElem.innerText = latest.treeR.toFixed(3);
+            if (legElem) legElem.innerText = latest.L.toFixed(3);
+          }
+          if (liveData.leases) renderLeases(liveData.leases);
+          if (liveData.logs) renderLogs(liveData.logs);
+        }
+      } catch (err) {
+        // Standalone file:// viewing without active server
+      }
+    }
+
+    loadTelemetry();
+    setInterval(loadTelemetry, 2000);
   </script>
 </body>
 </html>

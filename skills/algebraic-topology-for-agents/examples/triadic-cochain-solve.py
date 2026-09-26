@@ -4,8 +4,6 @@ Demonstrates exact orthogonal Hodge decomposition on a minimal 3-agent 1-triangl
 Supports standard Python math fallback when NumPy is not installed.
 """
 
-import math
-
 def solve_triadic_hodge():
     try:
         import numpy as np

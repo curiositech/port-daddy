@@ -1,0 +1,1074 @@
+{
+  "metadata": {
+    "dimensions": {
+      "0": "Sitemap Completeness",
+      "1": "Requirements Clarity",
+      "2": "Theme Consistency (Dark/Light)",
+      "3": "WCAG Compliance Score",
+      "4": "Visual Asset Readiness (Nano Banana)",
+      "5": "Code Coverage / Implementation",
+      "6": "UI Polish Score"
+    },
+    "agents": {
+      "PM": [
+        0,
+        1,
+        3
+      ],
+      "Design": [
+        0,
+        2,
+        3,
+        4,
+        6
+      ],
+      "Dev": [
+        0,
+        2,
+        4,
+        5,
+        6
+      ],
+      "Critic": [
+        1,
+        2,
+        3,
+        5,
+        6
+      ]
+    },
+    "edges": [
+      {
+        "u": "PM",
+        "v": "Design",
+        "sharedDims": [
+          0,
+          3
+        ]
+      },
+      {
+        "u": "PM",
+        "v": "Dev",
+        "sharedDims": [
+          0
+        ]
+      },
+      {
+        "u": "PM",
+        "v": "Critic",
+        "sharedDims": [
+          1,
+          3
+        ]
+      },
+      {
+        "u": "Design",
+        "v": "Dev",
+        "sharedDims": [
+          0,
+          2,
+          4,
+          6
+        ]
+      },
+      {
+        "u": "Design",
+        "v": "Critic",
+        "sharedDims": [
+          2,
+          3,
+          6
+        ]
+      },
+      {
+        "u": "Dev",
+        "v": "Critic",
+        "sharedDims": [
+          2,
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  "timeseries": [
+    {
+      "epoch": 1,
+      "description": "Kickoff. PM has drafted the initial requirements and a very rough sitemap. Design hasn't started yet. Nothing is coded.",
+      "states": {
+        "PM": [
+          20,
+          40,
+          0
+        ],
+        "Design": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Dev": [
+          10,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Critic": [
+          30,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 300,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 100,
+          "PM-Critic": 100,
+          "Design-Dev": 100,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 1,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 1, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[20, 40, 0]",
+          "parsedState": [
+            20,
+            40,
+            0
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 1,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 1, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[20, 0, 0, 0, 0, 0]",
+          "parsedState": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 1,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 1, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[10, 0, 0, 0, 0, 0]",
+          "parsedState": [
+            10,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 1,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 1, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[30, 0, 0, 0, 0]",
+          "parsedState": [
+            30,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 2,
+      "description": "PM finalizes the Requirements. Design starts mocking up the Theme (Dark/Light) and initial Nano Banana visual assets. Sitemap is 50% done.",
+      "states": {
+        "PM": [
+          50,
+          100,
+          0
+        ],
+        "Design": [
+          50,
+          50,
+          0,
+          25,
+          0
+        ],
+        "Dev": [
+          50,
+          50,
+          50,
+          0,
+          0,
+          0
+        ],
+        "Critic": [
+          100,
+          50,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 625,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 625,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 2,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 2, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[50, 100, 0]",
+          "parsedState": [
+            50,
+            100,
+            0
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 2,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 2, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[50, 50, 0, 25, 0]",
+          "parsedState": [
+            50,
+            50,
+            0,
+            25,
+            0
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 2,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 2, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[50, 50, 50, 0, 0, 0]",
+          "parsedState": [
+            50,
+            50,
+            50,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 2,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 2, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 50, 0, 0, 0]",
+          "parsedState": [
+            100,
+            50,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 3,
+      "description": "Sitemap is locked (100%). Design finishes Theme and Visual Assets (80%). Dev starts looking at the design but hasn't coded much yet.",
+      "states": {
+        "PM": [
+          100,
+          80,
+          0
+        ],
+        "Design": [
+          100,
+          80,
+          0,
+          80,
+          0
+        ],
+        "Dev": [
+          100,
+          80,
+          80,
+          0,
+          0,
+          0
+        ],
+        "Critic": [
+          100,
+          80,
+          0,
+          0,
+          0
+        ]
+      },
+      "residuals": {
+        "total": 400,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 400,
+          "Design-Dev": 0,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 3,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 3, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 80, 0]",
+          "parsedState": [
+            100,
+            80,
+            0
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 3,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 3, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 80, 0, 80, 0]",
+          "parsedState": [
+            100,
+            80,
+            0,
+            80,
+            0
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 3,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 3, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 80, 80, 0, 0, 0]",
+          "parsedState": [
+            100,
+            80,
+            80,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 3,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 3, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 80, 0, 0, 0]",
+          "parsedState": [
+            100,
+            80,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 4,
+      "description": "Dev starts heavy implementation of the Theme. Code Coverage hits 40%. Critic agent reviews the mockups and flags a major WCAG contrast issue.",
+      "states": {
+        "PM": [
+          70,
+          60,
+          40
+        ],
+        "Design": [
+          60,
+          40,
+          20,
+          0,
+          0,
+          0
+        ],
+        "Dev": [
+          20,
+          70,
+          40,
+          0,
+          40,
+          50
+        ],
+        "Critic": [
+          70,
+          50,
+          30,
+          40,
+          60
+        ]
+      },
+      "residuals": {
+        "total": 15100,
+        "edgeResiduals": {
+          "PM-Design": 500,
+          "PM-Dev": 2500,
+          "PM-Critic": 200,
+          "Design-Dev": 5700,
+          "Design-Critic": 3800,
+          "Dev-Critic": 2400
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 4,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 4, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[70, 60, 40]",
+          "parsedState": [
+            70,
+            60,
+            40
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 4,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 4, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[60, 40, 20, 0, 0, 0]",
+          "parsedState": [
+            60,
+            40,
+            20,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 4,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 4, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[20, 70, 40, 0, 40, 50]",
+          "parsedState": [
+            20,
+            70,
+            40,
+            0,
+            40,
+            50
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 4,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 4, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[70, 50, 30, 40, 60]",
+          "parsedState": [
+            70,
+            50,
+            30,
+            40,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 5,
+      "description": "Design fixes the WCAG contrast issue (WCAG Score 90%). Dev updates the Code to match the fixed Theme. Assets are 100% ready.",
+      "states": {
+        "PM": [
+          100,
+          0,
+          90
+        ],
+        "Design": [
+          100,
+          100,
+          90,
+          100,
+          0
+        ],
+        "Dev": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          90
+        ],
+        "Critic": [
+          90,
+          100,
+          90,
+          100,
+          100
+        ]
+      },
+      "residuals": {
+        "total": 28100,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 8100,
+          "Design-Dev": 10000,
+          "Design-Critic": 10000,
+          "Dev-Critic": 0
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 5,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 5, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 0, 90]",
+          "parsedState": [
+            100,
+            0,
+            90
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 5,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 5, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 90, 100, 0]",
+          "parsedState": [
+            100,
+            100,
+            90,
+            100,
+            0
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 5,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 5, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 100, 100, 100, 90]",
+          "parsedState": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            90
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 5,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 5, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[90, 100, 90, 100, 100]",
+          "parsedState": [
+            90,
+            100,
+            90,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 6,
+      "description": "Dev pushes hard on implementation. Code Coverage is 70%. UI Polish is starting to improve. PM is happy with Requirements (100%).",
+      "states": {
+        "PM": [
+          100,
+          100,
+          70
+        ],
+        "Design": [
+          100,
+          70,
+          0,
+          50,
+          80
+        ],
+        "Dev": [
+          100,
+          0,
+          0,
+          70,
+          0
+        ],
+        "Critic": [
+          100,
+          0,
+          0,
+          70,
+          60
+        ]
+      },
+      "residuals": {
+        "total": 32500,
+        "edgeResiduals": {
+          "PM-Design": 4900,
+          "PM-Dev": 0,
+          "PM-Critic": 4900,
+          "Design-Dev": 13800,
+          "Design-Critic": 5300,
+          "Dev-Critic": 3600
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 6,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 6, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 70]",
+          "parsedState": [
+            100,
+            100,
+            70
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 6,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 6, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 70, 0, 50, 80]",
+          "parsedState": [
+            100,
+            70,
+            0,
+            50,
+            80
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 6,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 6, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 0, 0, 70, 0]",
+          "parsedState": [
+            100,
+            0,
+            0,
+            70,
+            0
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 6,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 6, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 0, 0, 70, 60]",
+          "parsedState": [
+            100,
+            0,
+            0,
+            70,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 7,
+      "description": "DIVERGENCE INJECT: Dev thinks the Theme is complete (100%), but Design just secretly changed the typography causing a mismatch! Dev's UI Polish is 50, Design's UI Polish is 90.",
+      "states": {
+        "PM": [
+          100,
+          50,
+          90
+        ],
+        "Design": [
+          100,
+          100,
+          0,
+          90,
+          0,
+          90
+        ],
+        "Dev": [
+          0,
+          100,
+          0,
+          0,
+          0,
+          50
+        ],
+        "Critic": [
+          50,
+          0,
+          100,
+          0,
+          70
+        ]
+      },
+      "residuals": {
+        "total": 76100,
+        "edgeResiduals": {
+          "PM-Design": 8100,
+          "PM-Dev": 10000,
+          "PM-Critic": 100,
+          "Design-Dev": 18100,
+          "Design-Critic": 24900,
+          "Dev-Critic": 14900
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 7,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 7, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 50, 90]",
+          "parsedState": [
+            100,
+            50,
+            90
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 7,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 7, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 0, 90, 0, 90]",
+          "parsedState": [
+            100,
+            100,
+            0,
+            90,
+            0,
+            90
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 7,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 7, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[0, 100, 0, 0, 0, 50]",
+          "parsedState": [
+            0,
+            100,
+            0,
+            0,
+            0,
+            50
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 7,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 7, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[50, 0, 100, 0, 70]",
+          "parsedState": [
+            50,
+            0,
+            100,
+            0,
+            70
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 8,
+      "description": "Critic notices the typography mismatch and yells at Dev. Dev scrambles to fix it. Code Coverage is 90%. WCAG remains 90%.",
+      "states": {
+        "PM": [
+          100,
+          80,
+          90
+        ],
+        "Design": [
+          80,
+          50,
+          90,
+          70,
+          80
+        ],
+        "Dev": [
+          0,
+          50,
+          100,
+          90,
+          90,
+          70
+        ],
+        "Critic": [
+          70,
+          50,
+          90,
+          90,
+          60
+        ]
+      },
+      "residuals": {
+        "total": 19200,
+        "edgeResiduals": {
+          "PM-Design": 400,
+          "PM-Dev": 10000,
+          "PM-Critic": 100,
+          "Design-Dev": 7400,
+          "Design-Critic": 400,
+          "Dev-Critic": 900
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 8,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 8, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 80, 90]",
+          "parsedState": [
+            100,
+            80,
+            90
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 8,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 8, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[80, 50, 90, 70, 80]",
+          "parsedState": [
+            80,
+            50,
+            90,
+            70,
+            80
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 8,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 8, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[0, 50, 100, 90, 90, 70]",
+          "parsedState": [
+            0,
+            50,
+            100,
+            90,
+            90,
+            70
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 8,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 8, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[70, 50, 90, 90, 60]",
+          "parsedState": [
+            70,
+            50,
+            90,
+            90,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 9,
+      "description": "Dev successfully aligns with Design. Theme, Assets, and Code are all highly synchronized (95%+). UI Polish is looking great.",
+      "states": {
+        "PM": [
+          100,
+          95,
+          100
+        ],
+        "Design": [
+          100,
+          95,
+          100,
+          95,
+          90
+        ],
+        "Dev": [
+          100,
+          95,
+          95,
+          95,
+          95,
+          90
+        ],
+        "Critic": [
+          100,
+          95,
+          0,
+          0,
+          95
+        ]
+      },
+      "residuals": {
+        "total": 29100,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 10025,
+          "Design-Dev": 25,
+          "Design-Critic": 10025,
+          "Dev-Critic": 9025
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 9,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 9, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 95, 100]",
+          "parsedState": [
+            100,
+            95,
+            100
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 9,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 9, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 95, 100, 95, 90]",
+          "parsedState": [
+            100,
+            95,
+            100,
+            95,
+            90
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 9,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 9, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 95, 95, 95, 95, 90]",
+          "parsedState": [
+            100,
+            95,
+            95,
+            95,
+            95,
+            90
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 9,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 9, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 95, 0, 0, 95]",
+          "parsedState": [
+            100,
+            95,
+            0,
+            0,
+            95
+          ]
+        }
+      ]
+    },
+    {
+      "epoch": 10,
+      "description": "Final Launch. Everything is complete (100%). Sitemap, Requirements, Theme, WCAG, Assets, Code, and UI Polish are all perfect.",
+      "states": {
+        "PM": [
+          100,
+          100,
+          100
+        ],
+        "Design": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "Dev": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "Critic": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "residuals": {
+        "total": 0,
+        "edgeResiduals": {
+          "PM-Design": 0,
+          "PM-Dev": 0,
+          "PM-Critic": 0,
+          "Design-Dev": 0,
+          "Design-Critic": 0,
+          "Dev-Critic": 0
+        }
+      },
+      "transcripts": [
+        {
+          "agent": "PM",
+          "epoch": 10,
+          "system": "You are the PM agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n1: Requirements Clarity\n3: WCAG Compliance Score\n\nBased on the scenario description for Epoch 10, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 100]",
+          "parsedState": [
+            100,
+            100,
+            100
+          ]
+        },
+        {
+          "agent": "Design",
+          "epoch": 10,
+          "system": "You are the Design agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n4: Visual Asset Readiness (Nano Banana)\n6: UI Polish Score\n\nBased on the scenario description for Epoch 10, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 100, 100, 100, 100]",
+          "parsedState": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ]
+        },
+        {
+          "agent": "Dev",
+          "epoch": 10,
+          "system": "You are the Dev agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n0: Sitemap Completeness\n2: Theme Consistency (Dark/Light)\n4: Visual Asset Readiness (Nano Banana)\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 10, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 100, 100, 100, 100]",
+          "parsedState": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ]
+        },
+        {
+          "agent": "Critic",
+          "epoch": 10,
+          "system": "You are the Critic agent in a multi-agent swarm tasked with building a web app from 0 to 60 over 30 minutes.\nYour role focuses on these specific capability dimensions:\n1: Requirements Clarity\n2: Theme Consistency (Dark/Light)\n3: WCAG Compliance Score\n5: Code Coverage / Implementation\n6: UI Polish Score\n\nBased on the scenario description for Epoch 10, evaluate the numerical values (0 to 100) for your observed dimensions.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [0, 50, 100]",
+          "response": "[100, 100, 100, 100, 100, 100]",
+          "parsedState": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ]
+        }
+      ]
+    }
+  ]
+}
