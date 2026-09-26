@@ -473,7 +473,12 @@ def main() -> int:
     known_keys: set[str] = set()
     conflicts: list[str] = []
 
-    for chapter in textbook["chapters"]:
+    chapters_to_parse = list(textbook["chapters"])
+    prereq_src = "website-v2/public/whitepaper/chapter-0-prerequisites.tex"
+    if os.path.exists(os.path.join(REPO_ROOT, prereq_src)):
+        chapters_to_parse.insert(0, {"source": prereq_src})
+
+    for chapter in chapters_to_parse:
         path = os.path.join(REPO_ROOT, chapter["source"])
         shortforms, unparsed = parse_chapter(path)
         known_keys.update(shortforms)

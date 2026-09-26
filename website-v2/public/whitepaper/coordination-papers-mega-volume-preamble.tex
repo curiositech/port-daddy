@@ -1025,7 +1025,9 @@
     \@dottedtocline{2}{1.2em}{4.4em}{#1}{#2}%
   \endgroup}
 \renewcommand*\l@subsubsection[2]{%
-  \@dottedtocline{3}{2.4em}{5em}{#1}{#2}}
+  \begingroup\color{hhgray}\pdcaptionface\footnotesize
+    \@dottedtocline{3}{2.4em}{5em}{#1}{#2}%
+  \endgroup}
 \newcommand{\pdtableofcontents}{%
   \clearpage
   \newgeometry{inner=0.8in,outer=0.2in,top=0.85in,bottom=0.95in}%

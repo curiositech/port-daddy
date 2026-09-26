@@ -64,16 +64,25 @@
 % ---- shared lane geometry (both pages use the same row and rule spec) -----
 \def\yTop{11.15}\def\yHead{10.35}\def\ySub{9.50}\def\yBase{0.55}
 \def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
-\def\wFat{1.8}\def\wMed{0.9}\def\wThin{0.45}
-% A river segment: #1 x start, #2 x end, #3 y, #4 line width, #5 extra style.
-\newcommand{\rmseg}[5]{\draw[pd rule,line cap=round,line width=#4pt,#5] (#1,#3) -- (#2,#3);}
-% A direct label naming the path, set once, at the far left of each page.
-\newcommand{\rmlabel}[2]{\node[pd direct label,anchor=east,align=right,text width=3.05cm,font=\pdcaptionface\bfseries\footnotesize] at (-0.30,#1) {#2};}
-% A short note pinned just above a fat segment, naming what it is fat for.
-\newcommand{\rmnote}[3]{\node[pd note,anchor=south,font=\pdcaptionface\scriptsize\itshape] at (#1,#2+0.28) {#3};}
-% The gutter mark: a light dotted rule with top/bottom corner ticks, at the
-% page's cut edge -- the printed equivalent of a map's graticule continuing
-% across a fold.
+
+% High-contrast discrete node macros
+\newcommand{\rmnodeDeep}[3]{%
+  \fill[pdink] (#1,#2) circle (4.6pt); \fill[white] (#1,#2) circle (1.8pt);
+  \node[anchor=south,font=\pdcaptionface\bfseries\footnotesize,text=pdink,fill=white,fill opacity=0.92,inner sep=1.5pt,rounded corners=1pt] at (#1,#2+0.24) {#3};
+}
+\newcommand{\rmnodeRead}[3]{%
+  \draw[pdink,line width=1.3pt,fill=white] (#1,#2) circle (4.2pt);
+  \node[anchor=south,font=\pdcaptionface\footnotesize,text=hhgray!90,fill=white,fill opacity=0.90,inner sep=1.2pt] at (#1,#2+0.22) {#3};
+}
+\newcommand{\rmnodeSkim}[2]{%
+  \fill[hhgray!60] (#1,#2) circle (2.4pt);
+  \node[anchor=south,font=\pdcaptionface\scriptsize\itshape,text=hhgray!70] at (#1,#2+0.18) {skim};
+}
+
+% Direct label naming the path on verso
+\newcommand{\rmlabel}[2]{\node[pd direct label,anchor=east,align=right,text width=3.3cm,font=\pdcaptionface\bfseries\footnotesize] at (-0.35,#1) {#2};}
+
+% The gutter mark: a light dotted rule with top/bottom corner ticks, at the cut edge
 \newcommand{\rmgutter}[1]{%
   \draw[hhgray!55,line width=0.5pt,dash pattern=on 1.4pt off 1.6pt] (#1,\yBase-0.15) -- (#1,\yTop+0.15);
   \draw[hhgray!55,line width=0.5pt] (#1-0.07,\yBase-0.15) -- (#1+0.07,\yBase-0.15);
@@ -81,129 +90,130 @@
 }
 
 % ═══════════════════════════════════════════════════════════════════════════
-% Page one (verso): Parts I-II. No \caption -- see header comment.
+% Page one (verso): Parts I-II. Spills into left outer margin and right gutter.
 % ═══════════════════════════════════════════════════════════════════════════
 \phantomsection\label{book:reader-left}
 \begin{figure}[H]
-\centering
+\begin{adjustwidth*}{-1.2cm}{-\dimexpr\marginparsep+\marginparwidth\relax}
+\noindent\hfill
 \begin{tikzpicture}[pd figure,
-  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize,text width=3.35cm},
+  pd panel title/.append style={font=\pdcaptionface\bfseries\small,text width=4.8cm},
   pd note/.append style={font=\pdcaptionface\footnotesize}]
-  % ---- column geometry: two parts, touching, no gap ---------------------
-  \def\bA{0}\def\bB{3.65}\def\bC{7.30}
-  \def\cA{1.825}\def\cB{5.475}
+  % ---- column geometry: two parts, generous 5.6cm width each -----------
+  \def\bA{0}\def\bB{5.60}\def\bC{11.20}
+  \def\cA{2.80}\def\cB{8.40}
 
-  \fill[pdcobalt!4] (\bA,\yBase) rectangle (\bB,\yTop);
-  \fill[pdteal!4] (\bB,\yBase) rectangle (\bC,\yTop);
+  \fill[pdcobalt!5] (\bA,\yBase) rectangle (\bB,\yTop);
+  \fill[pdteal!5] (\bB,\yBase) rectangle (\bC,\yTop);
+
+  % Top Legend
+  \node[anchor=south west,font=\pdcaptionface\footnotesize] at (\bA-0.2,\yTop+0.20) {%
+    \textbf{Node Key:}\enspace
+    \tikz[baseline=-0.8ex]{\fill[pdink] (0,0) circle (4.2pt); \fill[white] (0,0) circle (1.6pt);}\enspace\textbf{Close Read}\qquad
+    \tikz[baseline=-0.8ex]{\draw[pdink,line width=1.2pt,fill=white] (0,0) circle (3.8pt);}\enspace\textbf{Read}\qquad
+    \tikz[baseline=-0.8ex]{\fill[hhgray!60] (0,0) circle (2.4pt);}\enspace\textit{Skim}%
+  };
+
+  % Continuous quiet lane tracks extending past the seam into the fold
   \foreach \y in {\yPrac,\yEng,\ySec,\yEcon,\yPhil} {
-    \draw[hhgray!18,line width=0.3pt] (\bA,\y) -- (\bC,\y);
+    \draw[hhgray!30,line width=0.7pt] (\bA,\y) -- (\bC+0.60,\y);
   }
 
   \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
   \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
   \draw[pd hairline] (\bA,\yBase) -- (\bC,\yBase);
-  \node[pd panel title,text=pdcobalt,align=center] at (\cA,\yHead) {Part I\\[1pt]\footnotesize\mdseries Ground Truth};
-  \node[pd panel title,text=pdteal,align=center] at (\cB,\yHead) {Part II\\[1pt]\footnotesize\mdseries The Cost of Seeing};
+  \node[pd panel title,text=pdcobalt,align=center] at (\cA,\yHead) {Part I\\[2pt]\footnotesize\mdseries Ground Truth};
+  \node[pd panel title,text=pdteal,align=center] at (\cB,\yHead) {Part II\\[2pt]\footnotesize\mdseries The Cost of Seeing};
   \node[pd note] at (\cA,\ySub) {1 \textperiodcentered\ 2 \textperiodcentered\ 3};
   \node[pd note] at (\cB,\ySub) {4};
   \rmgutter{\bC}
 
   % 1. The Practitioner (buyer, solo developer, founder, newcomer) ---------
   \rmlabel{\yPrac}{THE PRACTITIONER}
-  \rmseg{\bA}{\bB}{\yPrac}{\wThin}{dashed}
-  \rmseg{\bB}{\bC+0.35}{\yPrac}{\wFat}{}
-  \rmnote{\cB}{\yPrac}{digest-with-zoom, consent}
+  \rmnodeSkim{\cA}{\yPrac}
+  \rmnodeDeep{\cB}{\yPrac}{digest-with-zoom, consent}
 
   % 2. The Systems Engineer (builds and verifies the mechanism) -----------
   \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
-  \rmseg{\bA}{\bB}{\yEng}{\wFat}{}
-  \rmseg{\bB}{\bC+0.35}{\yEng}{\wFat}{}
-  \rmnote{\cA}{\yEng}{single-writer proof, attenuation}
+  \rmnodeDeep{\cA}{\yEng}{single-writer proof, attenuation}
+  \rmnodeDeep{\cB}{\yEng}{formal zoom invariant}
 
   % 3. The Security / Formal-Methods Reviewer ------------------------------
   \rmlabel{\ySec}{THE SECURITY REVIEWER}
-  \rmseg{\bA}{\bB}{\ySec}{\wFat}{}
-  \rmseg{\bB}{\bC+0.35}{\ySec}{\wThin}{dashed}
-  \rmnote{\cA}{\ySec}{threat model, deontic split}
+  \rmnodeDeep{\cA}{\ySec}{threat model, deontic split}
+  \rmnodeSkim{\cB}{\ySec}
 
   % 4. The Mechanism Designer / Economist ----------------------------------
   \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
-  \rmseg{\bA}{\bB}{\yEcon}{\wThin}{dashed}
-  \rmseg{\bB}{\bC+0.35}{\yEcon}{\wMed}{}
+  \rmnodeSkim{\cA}{\yEcon}
+  \rmnodeRead{\cB}{\yEcon}{attention economics}
 
   % 5. The Institutional Theorist (legitimacy, personhood, morality) ------
   \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
-  \rmseg{\bA}{\bB}{\yPhil}{\wThin}{dashed}
-  \rmseg{\bB}{\bC+0.35}{\yPhil}{\wMed}{}
+  \rmnodeSkim{\cA}{\yPhil}
+  \rmnodeRead{\cB}{\yPhil}{epistemic dignity}
 \end{tikzpicture}
+\end{adjustwidth*}
 \end{figure}
 
 \pdreaderleftprose
 \clearpage
 
 % ═══════════════════════════════════════════════════════════════════════════
-% Page two (recto): Parts III-IV. Carries the caption and label for
-% the pair. Row labels repeat so this page stands on its own.
+% Page two (recto): Parts III-IV. Starts at left gutter, continuous tracks.
 % ═══════════════════════════════════════════════════════════════════════════
 \phantomsection\label{book:reader-right}
 \begin{figure}[H]
-\centering
+\begin{adjustwidth*}{-1.2cm}{-\dimexpr\marginparsep+\marginparwidth\relax}
 \begin{tikzpicture}[pd figure,
-  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize,text width=3.35cm},
+  pd panel title/.append style={font=\pdcaptionface\bfseries\small,text width=4.8cm},
   pd note/.append style={font=\pdcaptionface\footnotesize}]
-  % ---- column geometry: the other two parts, touching, no gap -----------
-  \def\bA{0}\def\bB{3.65}\def\bC{7.30}
-  \def\cA{1.825}\def\cB{5.475}
+  % ---- column geometry: Parts III & IV, same 5.6cm width matching verso --
+  \def\bA{0}\def\bB{5.60}\def\bC{11.20}
+  \def\cA{2.80}\def\cB{8.40}
 
-  \fill[pdviolet!4] (\bA,\yBase) rectangle (\bB,\yTop);
-  \fill[pdgold!4] (\bB,\yBase) rectangle (\bC,\yTop);
+  \fill[pdviolet!5] (\bA,\yBase) rectangle (\bB,\yTop);
+  \fill[pdgold!5] (\bB,\yBase) rectangle (\bC,\yTop);
+
+  % Continuous quiet lane tracks starting from gutter edge
   \foreach \y in {\yPrac,\yEng,\ySec,\yEcon,\yPhil} {
-    \draw[hhgray!18,line width=0.3pt] (\bA,\y) -- (\bC,\y);
+    \draw[hhgray!30,line width=0.7pt] (\bA-0.60,\y) -- (\bC,\y);
   }
 
   \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
   \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
   \draw[pd hairline] (\bA,\yBase) -- (\bC,\yBase);
-  \node[pd panel title,text=pdviolet,align=center] at (\cA,\yHead) {Part III\\[1pt]\footnotesize\mdseries What Survives the Restart};
-  \node[pd panel title,text=pdgold,align=center] at (\cB,\yHead) {Part IV\\[1pt]\footnotesize\mdseries Trade Between Strangers};
+  \node[pd panel title,text=pdviolet,align=center] at (\cA,\yHead) {Part III\\[2pt]\footnotesize\mdseries What Survives the Restart};
+  \node[pd panel title,text=pdgold,align=center] at (\cB,\yHead) {Part IV\\[2pt]\footnotesize\mdseries Trade Between Strangers};
   \node[pd note] at (\cA,\ySub) {5};
   \node[pd note] at (\cB,\ySub) {6 \textperiodcentered\ 7 \textperiodcentered\ 8};
   \rmgutter{\bA}
 
   % 1. The Practitioner -----------------------------------------------------
-  \rmlabel{\yPrac}{THE PRACTITIONER}
-  \rmseg{\bA}{\bB}{\yPrac}{\wFat}{}
-  \rmseg{\bB}{\bC}{\yPrac}{\wMed}{-{Stealth[length=2.5mm,width=1.8mm]}}
-  \rmnote{\cA}{\yPrac}{role vs.\ person}
+  \rmnodeDeep{\cA}{\yPrac}{role vs.\ person}
+  \rmnodeRead{\cB}{\yPrac}{clearing, remedy}
 
   % 2. The Systems Engineer --------------------------------------------------
-  \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
-  \rmseg{\bA}{\bB}{\yEng}{\wMed}{}
-  \rmseg{\bB}{\bC}{\yEng}{\wFat}{-{Stealth[length=2.5mm,width=1.8mm]}}
-  \rmnote{\cB}{\yEng}{transfer ceremony, settlement}
+  \rmnodeRead{\cA}{\yEng}{recovery ledger, WAL}
+  \rmnodeDeep{\cB}{\yEng}{transfer ceremony, settlement}
 
   % 3. The Security / Formal-Methods Reviewer -------------------------------
-  \rmlabel{\ySec}{THE SECURITY REVIEWER}
-  \rmseg{\bA}{\bB}{\ySec}{\wThin}{dashed}
-  \rmseg{\bB}{\bC}{\ySec}{\wFat}{-{Stealth[length=2.5mm,width=1.8mm]}}
-  \rmnote{\cB}{\ySec}{ProVerif / TLA+ status}
+  \rmnodeSkim{\cA}{\ySec}
+  \rmnodeDeep{\cB}{\ySec}{ProVerif / TLA+ status}
 
   % 4. The Mechanism Designer / Economist ------------------------------------
-  \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
-  \rmseg{\bA}{\bB}{\yEcon}{\wMed}{}
-  \rmseg{\bB}{\bC}{\yEcon}{\wFat}{-{Stealth[length=2.5mm,width=1.8mm]}}
-  \rmnote{\cB}{\yEcon}{three-sided market, conservation}
+  \rmnodeRead{\cA}{\yEcon}{reserve pricing, bond}
+  \rmnodeDeep{\cB}{\yEcon}{three-sided market, conservation}
 
   % 5. The Institutional Theorist -------------------------------------------
-  \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
-  \rmseg{\bA}{\bB}{\yPhil}{\wFat}{}
-  \rmseg{\bB}{\bC}{\yPhil}{\wMed}{-{Stealth[length=2.5mm,width=1.8mm]}}
-  \rmnote{\cA}{\yPhil}{Locke, Parfit, personhood}
+  \rmnodeDeep{\cA}{\yPhil}{Locke, Parfit, personhood}
+  \rmnodeRead{\cB}{\yPhil}{federated sovereignty}
 \end{tikzpicture}
+\end{adjustwidth*}
 \pdmargincaption[Reader paths through the four parts]{Five reader paths cross
-the book's four parts on one facing spread. Weight means read closely, medium
-means read, and a dashed hairline means skim; hue identifies the part, not the
-reader.}
+the book's four parts on one facing spread. High-contrast bullseye nodes
+indicate close reading, open rings indicate standard reading, and small pips
+indicate skimming; hue identifies the part, not the reader.}
 \label{fig:book-reader-map}
 \end{figure}
 \endgroup

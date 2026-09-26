@@ -19,10 +19,10 @@ twin_paths = [
 
 mega_lines = mega_ch0_path.read_text(encoding="utf-8").splitlines(keepends=True)
 
-# Find start line: \noindent\emph{Express lane:
+# Find start line: Express lane
 start_idx = None
 for i, line in enumerate(mega_lines):
-    if line.startswith(r"\noindent\emph{Express lane:"):
+    if line.startswith(r"\noindent\textbf{Express Lane:") or line.startswith(r"\noindent\emph{Express lane:"):
         start_idx = i
         break
 
@@ -55,12 +55,25 @@ for twin_path in twin_paths:
     
     if r"\input{figures/pd-figure-language-swiss}" not in twin_text:
         twin_text = twin_text.replace(preamble_target, preamble_replacement, 1)
+
+    if r"\providecommand{\pdmarginanalogy}" not in twin_text:
+        twin_text = twin_text.replace(
+            r"\providecommand{\pdmarginfigure}[2]{}",
+            r"\providecommand{\pdmarginfigure}[2]{}" + "\n" + r"\providecommand{\pdmarginanalogy}[4]{}" + "\n" + r"\providecommand{\pdmarginexhibit}[4]{}",
+            1
+        )
+    elif r"\providecommand{\pdmarginexhibit}" not in twin_text:
+        twin_text = twin_text.replace(
+            r"\providecommand{\pdmarginanalogy}[4]{}",
+            r"\providecommand{\pdmarginanalogy}[4]{}" + "\n" + r"\providecommand{\pdmarginexhibit}[4]{}",
+            1
+        )
         
     twin_lines = twin_text.splitlines(keepends=True)
     
     t_start = None
     for i, line in enumerate(twin_lines):
-        if line.startswith(r"\noindent\emph{Express lane:"):
+        if line.startswith(r"\noindent\textbf{Express Lane:") or line.startswith(r"\noindent\emph{Express lane:"):
             t_start = i
             break
             

@@ -1,0 +1,90 @@
+% Swiss edition overrides (v2 role names): shared Book labels, disciplined colour,
+% strong rules, right angles, and square marks. Swiss is not allowed to mean
+% ``flat solid rectangles'': hierarchy also travels through white surface,
+% pale surface, outline, hatch, and stroke weight. Solid colour is therefore
+% reserved for a climax state, a breach/refusal, or a terminal state. Ordinary
+% states keep a visible edge; focus states use a pale field and a strong edge;
+% artifacts stay white; hatching remains hatching. This gives the edition the
+% same expressive range as maritime and technical without spending extra hue.
+% Loaded by
+% pd-figure-language.tex before its concept map expands.
+%
+% Typographic law (#10191): an edition changes the FAMILY, in one command, and
+% the character of the marks; it never changes the size, and it never restates
+% a guide's width without the dash derived from it.
+\providecommand{\pdcaptionface}{\sffamily}
+\renewcommand{\pdfiglabelfamily}{\pdcaptionface}
+\renewcommand{\pdfigbasesize}{\footnotesize}
+\tikzset{
+  pd figure/.append style={font=\pdfiglabel,
+    >={Triangle[length=2.2pt 2.4,width=2.0pt 2.4]}},
+  pd title/.append style={font=\pdfiglabelbold},
+  pd label/.append style={font=\pdfiglabel},
+  pd note/.append style={font=\pdfiglabel,text=pdinkmuted},
+  pd kind/.append style={font=\pdfiglabel,text=pdinkmuted},
+  pd hairline/.append style={draw=pdink!45,line width=.5pt},
+  pd lattice/.append style={draw=pdink!28,line width=.4pt},
+  pd tick/.append style={draw=pdink,line width=.6pt},
+  pd rule/.append style={line width=1pt},
+  pd spine/.append style={line width=2pt},
+  pd thin arrow/.append style={draw=pdink!70,line width=.8pt},
+  pd state/.append style={draw=pdink!72,line width=.8pt,fill=pdinkmuted!7,rounded corners=0pt,
+    inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
+  pd terminal/.append style={fill=pdink,text=pdpage,font=\pdfiglabelbold},
+  pd artifact/.append style={draw=pdinkmuted!62,line width=.6pt,fill=pdpage,rounded corners=0pt},
+  pd panel/.append style={draw=pdink!78,line width=.8pt,
+    dash pattern=on 5pt off 2.5pt,rounded corners=0pt},
+  pd neutral fill/.append style={fill=pdinkmuted!11,draw=pdinkmuted!62,line width=.6pt},
+  pd ink fill/.append style={fill=pdink,draw=none,text=pdpage},
+  pd decision/.append style={draw=pdink,line width=.9pt,rounded corners=0pt},
+  pd reverse label/.append style={fill=none,text=pdpage},
+  pd hatch/.append style={fill=pdinkmuted!4,draw=pdinkmuted!55,line width=.5pt,
+    pattern={Lines[angle=45,distance=4pt,line width=.3pt]},pattern color=pdinkmuted!70},
+  pd focus rule/.append style={line width=2pt},
+  pd focus state/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!14,
+    text=pdink,font=\pdfiglabelbold},
+  pd climax state/.append style={draw=pdfocus,line width=2pt,fill=pdfocus,
+    text=pdpage,font=\pdfiglabelbold},
+  pd focus fill/.append style={fill=pdfocus!12,draw=pdfocus,line width=.8pt},
+  pd focus datum/.append style={circle,draw=none,inner sep=2.7pt},
+  pd datum/.append style={rectangle,draw=none,inner sep=2.3pt},
+  pd badge/.append style={rectangle,rounded corners=0pt,minimum size=5.2mm,
+    font=\pdfiglabelbold},
+  pd focus badge/.append style={draw=none,fill=pdfocus,text=pdpage},
+  pd focus outline/.append style={draw=pdfocus,line width=1.2pt,fill=pdpage,text=pdink,
+    font=\pdfiglabelbold},
+}
+% Concept states carry a light material tint as well as a hue edge.  Leaving
+% them all white made Swiss less expressive than maritime and technical and
+% forced the outline alone to do every job.  The tint is deliberately lighter
+% than a focus state: concept membership is visible, but the chapter's subject
+% still owns the strongest field.  Breach remains the categorical exception.
+\renewcommand{\pdconcept}[2]{%
+  \tikzset{%
+    #1/.style={draw=#2,text=pdink},
+    #1 rule/.style={draw=#2,line width=2pt},
+    #1 arrow/.style={draw=#2,line width=1.5pt,->},
+    #1 fill/.style={fill=#2!22,draw=none},
+    #1 datum/.style={rectangle,fill=#2,draw=none,inner sep=2.7pt},
+    #1 label/.style={pd label,text=#2!85!pdink},
+  }%
+  \def\pdcmpa{#2}\def\pdcmpb{pderror}%
+  \ifx\pdcmpa\pdcmpb
+    \tikzset{#1 state/.style={pd state,draw=none,fill=#2,text=pdpage,font=\pdfiglabelbold}}%
+  \else
+    \tikzset{#1 state/.style={pd state,fill=#2!10,draw=#2,line width=1.2pt,text=pdink,font=\pdfiglabelbold}}%
+  \fi}
+
+% Plots: square marks, heavier spines, shared sans carries the ticks.
+\pgfplotsset{
+  pd axis/.append style={axis line style={line width=1pt},tick style={line width=1pt},
+    every axis plot/.append style={line width=1pt}},
+  pd series/.append style={mark=square*},
+  pd focus series/.append style={line width=2pt,mark=square*},
+}
+% Automata keep their circles in every edition; Swiss fills the subject solid.
+\tikzset{
+  pd automaton focus/.append style={draw=none,fill=pdfocus,text=pdpage,
+    font=\pdfiglabelbold},
+  pd trust boundary/.append style={line width=1pt},
+}

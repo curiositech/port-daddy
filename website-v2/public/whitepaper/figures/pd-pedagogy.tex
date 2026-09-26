@@ -727,6 +727,11 @@
   % stay exactly as they are so nothing has to be rebuilt when they do.
   \relax}
 
+% \pddefinedin{label} -- forward pointer to where a concept or theorem is formally
+% constructed in the volume. Emits a cobalt indicator in the margin.
+\newcommand{\pddefinedin}[1]{%
+  \marginnote{\footnotesize\sffamily\color{pdcobalt}$\blacktriangleright$\,\textbf{Defined in} \S\ref{#1}}}
+
 % \pdprov{script}{seed}{tag} -- a run's provenance at the point where its
 % number appears in prose. tag is verified or internal, in the Book set in
 % small caps to match the existing \Built/\Designed/\Vision tag convention

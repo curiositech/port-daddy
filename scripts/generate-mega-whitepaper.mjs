@@ -774,7 +774,7 @@ function stripPaperApparatus(body) {
 // handled separately because its label rides in square brackets.
 const LABEL_COMMANDS = [
   'label', 'ref', 'eqref', 'pageref', 'autoref', 'nameref', 'namecref', 'nameCref',
-  'labelcref', 'labelcpageref', 'cref', 'Cref', 'cpageref', 'Cpageref',
+  'labelcref', 'labelcpageref', 'cref', 'Cref', 'cpageref', 'Cpageref', 'pddefinedin',
 ];
 const RANGE_COMMANDS = ['crefrange', 'Crefrange', 'cpagerefrange', 'Cpagerefrange'];
 
@@ -891,9 +891,10 @@ function renderCiteShortformAliases(prepared, shortforms = loadCiteShortforms())
 // entries beside their first use. Numbers follow the sorted bibliography,
 // never the unrelated mega-key allocation order. Long URLs remain live links
 // without making a narrow margin spend ten lines spelling out a path.
-function renderMarginReferenceRegistry(references, aliases, editedEntries = []) {
+function renderMarginReferenceRegistry(references, aliases, editedEntries = [], prepared = []) {
   const shortforms = new Map([...aliases.matchAll(PDCITESHORT_RE)]
     .map((match) => [match[1], match[2]]));
+  const baseShortforms = loadCiteShortforms();
   // Reviewed bibliographic editing, guarded by the exact original metadata.
   // Changing a source cannot silently reuse an older source's margin entry.
   const edits = new Map();
@@ -904,20 +905,46 @@ function renderMarginReferenceRegistry(references, aliases, editedEntries = []) 
     if (edits.has(entry.original)) throw new Error(`Duplicate edited margin entry: ${entry.key}`);
     edits.set(entry.original, entry.margin);
   }
+  const rows = references.map((ref, index) => {
+    const short = shortforms.get(ref.key) || baseShortforms.get(ref.key);
+    if (!short) throw new Error(`Margin reference ${ref.key} has no short form`);
+    // The full title is already present at first use. A repeat needs an
+    // identifiable author/year and the link, not a second truncated title.
+    // Title-led records with no named author keep their authored short form.
+    const repeat = short.replace(/,\s*\\textit\{[\s\S]*$/, '') || short;
+    const full = (edits.get(ref.body) ?? ref.body)
+      .replace(/\\url\{([^}]+)\}/g, '\\href{$1}{Online source}')
+      .replace(/\\texttt\{(https?:\/\/[^}]+)\}/g, '\\href{$1}{Online source}');
+    return `\\pdbookreference{${ref.key}}{${index + 1}}{${full}}{${repeat}}`;
+  });
+
+  const seenKeys = new Set(references.map((r) => r.key));
+  const localRows = [];
+  for (const paper of prepared) {
+    for (const [localKey, megaKey] of paper.citationMap.entries()) {
+      if (!seenKeys.has(localKey)) {
+        seenKeys.add(localKey);
+        const ref = references.find((r) => r.key === megaKey);
+        if (ref) {
+          const short = shortforms.get(megaKey) || baseShortforms.get(localKey);
+          if (short) {
+            const repeat = short.replace(/,\s*\\textit\{[\s\S]*$/, '') || short;
+            const full = (edits.get(ref.body) ?? ref.body)
+              .replace(/\\url\{([^}]+)\}/g, '\\href{$1}{Online source}')
+              .replace(/\\texttt\{(https?:\/\/[^}]+)\}/g, '\\href{$1}{Online source}');
+            const index = references.indexOf(ref);
+            localRows.push(`\\pdbookreference{${localKey}}{${index + 1}}{${full}}{${repeat}}`);
+          }
+        }
+      }
+    }
+  }
+
   return [
     '% GENERATED: complete first-use sources and identifiable repeat forms.',
-    ...references.map((ref, index) => {
-      const short = shortforms.get(ref.key);
-      if (!short) throw new Error(`Margin reference ${ref.key} has no short form`);
-      // The full title is already present at first use. A repeat needs an
-      // identifiable author/year and the link, not a second truncated title.
-      // Title-led records with no named author keep their authored short form.
-      const repeat = short.replace(/,\s*\\textit\{[\s\S]*$/, '') || short;
-      const full = (edits.get(ref.body) ?? ref.body)
-        .replace(/\\url\{([^}]+)\}/g, '\\href{$1}{Online source}')
-        .replace(/\\texttt\{(https?:\/\/[^}]+)\}/g, '\\href{$1}{Online source}');
-      return `\\pdbookreference{${ref.key}}{${index + 1}}{${full}}{${repeat}}`;
-    }),
+    ...rows,
+    '% Local chapter aliases for unrewritten sources:',
+    ...localRows,
     '',
   ].join('\n');
 }
@@ -1341,7 +1368,18 @@ function loadCorpus(path = corpusPath) {
 }
 
 function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOutDir) } = {}) {
-  const prepared = textbook.chapters.map((paper) => {
+  const prereqPath = resolve(repoRoot, 'website-v2/public/whitepaper/chapter-0-prerequisites.tex');
+  const papersToPrepare = [...textbook.chapters];
+  if (existsSync(prereqPath)) {
+    papersToPrepare.unshift({
+      id: 'prereq',
+      prefix: 'prereq',
+      title: 'Foundations and Prerequisites',
+      source: 'website-v2/public/whitepaper/chapter-0-prerequisites.tex',
+    });
+  }
+
+  const prepared = papersToPrepare.map((paper) => {
     const sourcePath = resolve(repoRoot, paper.source);
     const rawSource = readUtf8(sourcePath);
     const rootBody = documentBody(rawSource, paper.source);
@@ -1431,7 +1469,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   const marginEditsPath = resolve(repoRoot, 'whitepaper/citation-margin-entries.json');
   const marginEdits = existsSync(marginEditsPath) ? JSON.parse(readUtf8(marginEditsPath)) : [];
   writeFileSync(resolve(out, 'mega-volume-cite-aliases.tex'), citeAliases, 'utf8');
-  writeFileSync(resolve(out, 'mega-volume-margin-references.tex'), renderMarginReferenceRegistry(canonicalReferences, citeAliases, marginEdits), 'utf8');
+  writeFileSync(resolve(out, 'mega-volume-margin-references.tex'), renderMarginReferenceRegistry(canonicalReferences, citeAliases, marginEdits, prepared), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-contents.tex'), renderContents(textbook), 'utf8');

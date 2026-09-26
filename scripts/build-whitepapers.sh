@@ -345,6 +345,7 @@ build_one() {
     return 1
   fi
   cp "$outdir/$base.pdf" "$dest"
+  [ -f "$outdir/$base.aux" ] && cp "$outdir/$base.aux" "${dest%.pdf}.aux"
   echo "wrote $dest ($(wc -c < "$dest") bytes)"
   echo "::endgroup::"
   return 0
