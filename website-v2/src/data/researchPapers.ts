@@ -80,7 +80,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 452,
+    sizeKb: 451,
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
@@ -146,7 +146,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
     pages: 17,
-    sizeKb: 408,
+    sizeKb: 407,
     claim:
       'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
     pullQuote:
@@ -194,7 +194,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
     pages: 14,
-    sizeKb: 422,
+    sizeKb: 421,
     claim:
       'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
     pullQuote:
@@ -242,7 +242,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
     pdfPath: '/research/paper8.pdf',
     pages: 24,
-    sizeKb: 542,
+    sizeKb: 557,
     claim:
       'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
     pullQuote:
