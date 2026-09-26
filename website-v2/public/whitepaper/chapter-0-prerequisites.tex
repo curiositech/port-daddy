@@ -1771,117 +1771,213 @@ Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section o
   \item \textbf{The Inner Agentic Tool Loop:} Governs the iterative reasoning-action cycle: pre-tool interception and deterministic vetoes (\texttt{PreToolUse}), sandboxed execution, and reactive post-tool sanitization (\texttt{PostToolUse}).
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
+\definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
+\definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & primary text
+\definecolor{activeCobalt}{HTML}{0B4F9C}    % Active deliberation & execution dispatch
+\definecolor{activeTint}{HTML}{E8F0FE}      % Active context fill
+\definecolor{ingressTint}{HTML}{EEF4C7}     % Lifecycle initialization & prompt intake
+\definecolor{seafoamSuccess}{HTML}{D1E7DD}  % Deterministic hygiene & Exit 0 pass
+\definecolor{seafoamBorder}{HTML}{0F5132}   % Hygiene accent
+\definecolor{coralVeto}{HTML}{F8D7DA}       % Pre/Post security veto & Exit 2 block
+\definecolor{coralBorder}{HTML}{842029}     % Veto accent
+\definecolor{sandboxBg}{HTML}{F1F3F5}       % Sandboxed boundary / context lifeline
+
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  hk start/.style={draw=pdhealth!80,fill=pdhealth!12,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdhealth}\bfseries},
-  hk core/.style={draw=pdcobalt!80,fill=pdcobalt!8,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdcobalt}\bfseries},
-  hk stop/.style={draw=pderror!80,fill=pderror!12,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pderror}\bfseries},
-  hk compact/.style={draw=pdviolet!80,fill=pdviolet!10,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdviolet!90}\bfseries},
-  hk llm/.style={draw=pdgold!90,fill=pdgold!15,line width=0.9pt,rounded corners=2pt,align=center,font=\fontsize{5.8}{6.8}\selectfont\color{pdink}\bfseries},
-  hk gate/.style={draw=pdcobalt,fill=white,line width=0.9pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdcobalt}\bfseries},
-  hk sandbox/.style={draw=pdink!80,fill=pdink!6,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdink}\bfseries},
-  hk post/.style={draw=pdindigo,fill=pdindigo!10,line width=0.8pt,rounded corners=2pt,align=center,font=\fontsize{5.6}{6.6}\selectfont\color{pdindigo}\bfseries},
-  hk edge/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
-  hk allow edge/.style={draw=pdhealth!90,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  hk deny edge/.style={draw=pderror!90,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  hk loop edge/.style={draw=pdcobalt,line width=0.8pt,-{Stealth[length=4pt,width=3pt]}}
+  >=Stealth,
+  baseBox/.style={
+    draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
+    inner sep=4pt, align=left
+  },
+  flowBox/.style={
+    baseBox, text width=4.8cm, minimum height=0.88cm
+  },
+  activeBox/.style={
+    flowBox, draw=activeCobalt, fill=activeCobalt, text=white
+  },
+  vetoBox/.style={
+    flowBox, draw=coralBorder, fill=coralVeto, text=charcoal
+  },
+  caseCard/.style={
+    baseBox, text width=6.5cm, inner sep=5pt
+  },
+  sectionFrame/.style={
+    draw=charcoal, line width=0.9pt
+  },
+  secHeader/.style={
+    font=\bfseries\footnotesize, text=charcoal, anchor=west
+  }
 ]
-  \useasboundingbox (0, 0) rectangle (11.4, 9.6);
+  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
 
-  % =========================================================================
-  % CONTAINER 1: Outer Session & Turn Loop (Left Column: x: 0.1 to 4.7)
-  % =========================================================================
-  \draw[draw=pdcobalt!40,fill=pdcobalt!2,rounded corners=3pt,line width=0.6pt] (0.1, 0.65) rectangle (4.7, 9.45);
-  \node[anchor=north,font=\fontsize{6.2}{7.2}\selectfont\color{pdcobalt}\bfseries] at (2.40, 9.30) {OUTER SESSION \& TURN LIFECYCLE};
+  % ================= HEADER & SEMANTIC KEY =================
+  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.5) {LIFECYCLE HOOK ARCHITECTURE \& DETERMINISTIC ENFORCEMENT};
+  \node[anchor=west, font=\fontsize{7.5}{9}\selectfont, text=charcoal] at (0.2, 18.1) {Deterministic Interception Points \textperiodcentered\ Binary Veto Gates (Exit 0 vs Exit 2) \textperiodcentered\ Dynamic Context};
+  \node[anchor=east, font=\bfseries\scriptsize, text=charcoal] at (15.3, 18.1) {DUAL-LOOP SPECIFICATION};
+  \draw[line width=1.1pt, charcoal] (0.2, 17.85) -- (15.3, 17.85);
 
-  \node[hk start,text width=3.8cm] (start) at (2.40, 8.40) {
-    \textbf{SessionStart: Context Ingress}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Injects branch, active locks, inbox}
+  % Semantic Key (Single clean horizontal row)
+  \node[anchor=west, font=\scriptsize\bfseries, text=charcoal] at (0.2, 17.5) {SEMANTIC KEY:};
+
+  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (2.2, 17.5) {};
+  \node[anchor=west, font=\fontsize{7}{8}\selectfont, text=charcoal] at (2.55, 17.5) {Session Ingress};
+
+  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (4.7, 17.5) {};
+  \node[anchor=west, font=\fontsize{7}{8}\selectfont, text=charcoal] at (5.05, 17.5) {Active Deliberation};
+
+  \node[anchor=west, draw=coralBorder, fill=coralVeto, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (7.4, 17.5) {};
+  \node[anchor=west, font=\fontsize{7}{8}\selectfont, text=charcoal] at (7.75, 17.5) {Security Veto (Exit 2)};
+
+  \node[anchor=west, draw=seafoamBorder, fill=seafoamSuccess, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (10.6, 17.5) {};
+  \node[anchor=west, font=\fontsize{7}{8}\selectfont, text=charcoal] at (10.95, 17.5) {Clean Pass (Exit 0)};
+
+  \node[anchor=west, draw=charcoal, fill=sandboxBg, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (13.5, 17.5) {};
+  \node[anchor=west, font=\fontsize{7}{8}\selectfont, text=charcoal] at (13.85, 17.5) {Sandbox};
+
+  % ================= LEFT COLUMN: FLOWCHART =================
+  \draw[sectionFrame] (0.2, 2.05) rectangle (7.6, 17.2);
+  \node[secHeader] at (0.4, 16.85) {LIFECYCLE HOOK ARCHITECTURE};
+
+  % Flow box center is at x = 4.35 (box width 5.08cm -> x in [1.81, 6.89])
+  % Outer West bypass lane ("done"): x = 0.65
+  % Inner West veto lane ("Exit 2 Veto"): x = 1.25
+  % East loopback lane ("next"): x = 7.25
+
+  % Outer Lifecycle Hooks
+  \node[flowBox, fill=ingressTint] (session) at (4.35, 16.05) {
+    \textbf{\footnotesize SessionStart} \\[1pt]
+    \scriptsize Injects branch, lock tokens, inbox state
   };
 
-  \node[hk core,text width=3.8cm] (prompt) at (2.40, 6.95) {
-    \textbf{UserPromptSubmit: Turn Ingress}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Prompt normalization $\cdot$ Worktree lease}
-  };
-  \draw[hk edge] (start) -- (prompt);
-
-  \node[hk stop,text width=3.8cm] (stop) at (2.40, 4.45) {
-    \textbf{Stop / StopFailure: Test Gate}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Verification suite $\cdot$ Exit 0 vs Exit 2}
+  \node[flowBox, fill=ingressTint] (prompt) at (4.35, 14.65) {
+    \textbf{\footnotesize UserPromptSubmit} \\[1pt]
+    \scriptsize Ingests prompt $\cdot$ Injects clean worktree context
   };
 
-  \node[hk compact,text width=3.8cm] (precomp) at (2.40, 2.75) {
-    \textbf{PreCompact: Memory Snapshot}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont At $85\%$ tokens: dump plan to disk}
-  };
-  \draw[hk edge] (stop) -- (precomp);
+  % Agentic Tool Loop Sub-Frame (contained between x = 1.65 and x = 7.50)
+  \draw[draw=charcoal, line width=0.8pt, dashed, fill=activeTint!25] (1.65, 7.00) rectangle (7.50, 13.80);
+  \node[anchor=west, fill=activeTint!25, inner sep=1.5pt, font=\bfseries\scriptsize, text=activeCobalt] at (1.80, 13.80) {AGENTIC TOOL LOOP};
 
-  \node[hk core,text width=3.8cm] (send) at (2.40, 1.25) {
-    \textbf{SessionEnd: Clean Teardown}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Release locks $\cdot$ Graveyard salvage}
-  };
-  \draw[hk edge] (precomp) -- (send);
-
-  % =========================================================================
-  % CONTAINER 2: Inner Agentic Tool Loop (Right Column: x: 5.1 to 11.3)
-  % =========================================================================
-  \draw[draw=pdgold!90,line width=0.8pt,rounded corners=3pt,fill=pdgold!4] (5.1, 0.65) rectangle (11.3, 9.45);
-  \node[anchor=north,font=\fontsize{6.2}{7.2}\selectfont\color{pdgold!90}\bfseries] at (8.20, 9.30) {INNER AGENTIC REASONING \& TOOL LOOP};
-
-  \node[hk llm,text width=5.2cm] (agent_delib) at (8.20, 8.40) {
-    \textbf{Agent Deliberation: Policy $\pi_\theta(a_t \mid C_t)$}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Proposes tool call $a_t$ or final answer}
+  \node[activeBox] (delib) at (4.35, 12.65) {
+    \textbf{\footnotesize Agent Deliberation} \\[1pt]
+    \scriptsize Proposes tool invocation or terminal completion
   };
 
-  \node[hk gate,text width=5.2cm] (pretool) at (8.20, 6.70) {
-    \textbf{PreToolUse: Interception Gate}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Pattern match: \texttt{Bash | Edit | Write | Spawn}}
+  \node[flowBox, draw=coralBorder, line width=0.9pt] (pretool) at (4.35, 11.20) {
+    \textbf{\footnotesize PreToolUse (Security Gate)} \\[1pt]
+    \scriptsize Match: \texttt{Bash | Edit | Write | Spawn}
   };
-  \draw[hk edge] (agent_delib) -- (pretool);
 
-  % Decision branch: Exit 2 (VETO) loops back on right side
-  \draw[hk deny edge] (pretool.east) -- (11.0, 6.70) -- (11.0, 8.40) -- (agent_delib.east);
-  \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\color{pderror}\bfseries,align=left] at (10.35, 7.55) {Exit 2\\Veto};
-
-  \node[hk sandbox,text width=5.2cm] (sandbox) at (8.20, 4.85) {
-    \textbf{[Seatbelt Sandbox Confinement]}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Isolated worktree $\cdot$ Metered network egress}
+  \node[flowBox, fill=sandboxBg] (sandbox) at (4.35, 9.45) {
+    \textbf{\footnotesize {[Seatbelt OS-Sandbox]}} \\[1pt]
+    \scriptsize Worktree isolation $\cdot$ Egress spend cap
   };
-  \draw[hk allow edge] (pretool) -- (sandbox)
-    node[midway,right=2pt,font=\fontsize{4.8}{5.8}\selectfont\color{pdhealth}\bfseries] {Exit 0 (Allow)};
 
-  \node[hk post,text width=5.2cm] (posttool) at (8.20, 3.00) {
-    \textbf{PostToolUse: Hygiene \& Secret Scrubbing}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont\normalfont AST format (\texttt{biome}) $\cdot$ Redact credentials}
+  \node[flowBox, fill=seafoamSuccess, draw=seafoamBorder] (posttool) at (4.35, 7.85) {
+    \textbf{\footnotesize PostToolUse (Hygiene)} \\[1pt]
+    \scriptsize Formats AST (Biome) $\cdot$ Scrubs credentials
   };
-  \draw[hk edge] (sandbox) -- (posttool);
 
-  % Loopback from PostToolUse back to Agent Deliberation
-  \draw[hk loop edge] (posttool.west) -- (5.45, 3.00) -- (5.45, 8.40) -- (agent_delib.west);
-  \node[anchor=east,font=\fontsize{4.8}{5.8}\selectfont\color{pdcobalt}\bfseries,align=right] at (5.45, 5.70) {Next turn\\$\mathcal{O}_{t+1}$};
-
-  % Cross-Loop Edges:
-  % Prompt to Agent Deliberation
-  \draw[hk edge] (prompt.east) -- (agent_delib.south west);
-
-  % Agent done -> Stop Gate
-  \draw[hk edge] (agent_delib.south west) -- (stop.north east)
-    node[midway,above=2pt,font=\fontsize{4.8}{5.8}\selectfont\color{pderror}\bfseries] {done};
-
-  % Stop Gate Veto loopback to Agent Deliberation
-  \draw[hk deny edge] (stop.east) -- (6.0, 4.45) -- (6.0, 7.80) -- (agent_delib.south);
-  \node[anchor=south west,font=\fontsize{4.8}{5.8}\selectfont\color{pderror}\bfseries] at (6.0, 5.20) {Exit 2 (Test Fail)};
-
-  % =========================================================================
-  % Bottom Invariant Banner
-  % =========================================================================
-  \draw[draw=pdink!30,fill=pdink!3,rounded corners=2pt] (0.1, 0.05) rectangle (11.3, 0.50);
-  \node[anchor=center,font=\fontsize{4.8}{5.8}\selectfont\color{pdinkmuted},text width=10.9cm,align=center] at (5.7, 0.27) {
-    \textbf{Supervisory Control Invariant ($S/G$):} Deterministic hooks govern external execution ($\Sigma_c$) via binary vetoes (\texttt{Exit 0} vs \texttt{Exit 2}) and context injection, operating strictly outside the statistical model's weights.
+  % Terminal Lifecycle Hooks
+  \node[vetoBox] (stop) at (4.35, 5.75) {
+    \textbf{\footnotesize Stop / StopFailure} \\[1pt]
+    \scriptsize Closeout gate $\cdot$ Runs test verification suite
   };
+
+  \node[flowBox, fill=sandboxBg] (precompact) at (4.35, 4.15) {
+    \textbf{\footnotesize PreCompact (Context Lifeline)} \\[1pt]
+    \scriptsize At 85\% token cap: dumps plan state to disk
+  };
+
+  % Footnote in Left Panel
+  \node[anchor=center, font=\fontsize{6.5}{7.8}\selectfont, align=center, text width=6.8cm, text=charcoal] at (3.90, 2.55) {
+    \textbf{Dual Supervisory Hierarchy:} Outer session envelope regulates context budget; inner loop guarantees single-turn sandboxing.
+  };
+
+  % ---- Flowchart Connectors (Strict Orthogonal Dedicated Conduits) ----
+
+  % Ingress flow
+  \draw[->, line width=0.9pt, charcoal] (session.south) -- (prompt.north);
+  \draw[->, line width=0.9pt, charcoal] (prompt.south) -- (delib.north);
+  \draw[->, line width=0.9pt, activeCobalt] (delib.south) -- (pretool.north);
+
+  % Exit 0 path with dedicated gap
+  \draw[->, line width=1.0pt, seafoamBorder] (pretool.south) -- (sandbox.north);
+  \node[fill=activeTint!25, inner sep=1.5pt, font=\scriptsize\bfseries, text=seafoamBorder] at ($(pretool.south)!0.5!(sandbox.north)$) {Exit 0};
+
+  \draw[->, line width=0.9pt, charcoal] (sandbox.south) -- (posttool.north);
+
+  % Loopback Track (East track: x = 7.25)
+  \draw[->, line width=1.0pt, activeCobalt] (posttool.east) -- (7.25, 7.85) -- (7.25, 12.65) -- (delib.east);
+  \node[fill=white, inner sep=1pt, font=\fontsize{6.5}{7.5}\selectfont\bfseries, text=activeCobalt] at (7.25, 10.25) {next};
+
+  % Track 1 (Outer West: x = 0.65) -> Terminal "done" exit
+  \draw[line width=0.9pt, charcoal] (delib.west) -- (0.65, 12.65) node[midway, above=1pt, font=\fontsize{6.5}{7.5}\selectfont\bfseries, text=charcoal] {done};
+  \draw[->, line width=0.9pt, charcoal] (0.65, 12.65) -- (0.65, 5.55) -- ($(stop.west)+(0, -0.2)$);
+
+  % Track 2 (Inner West: x = 1.25) -> "Exit 2 (Veto)" security abort
+  \draw[line width=0.9pt, coralBorder] (pretool.west) -- (1.25, 11.20);
+  \draw[->, line width=0.9pt, coralBorder] (1.25, 11.20) -- (1.25, 5.95) node[pos=0.45, fill=white, inner sep=1.5pt, font=\fontsize{6}{7}\selectfont\bfseries, text=coralBorder, align=center] {Exit 2\\(Veto)} -- ($(stop.west)+(0, 0.2)$);
+
+  \draw[->, line width=0.9pt, charcoal] (stop.south) -- (precompact.north);
+
+  % ================= RIGHT COLUMN: CONCRETE SCENARIOS =================
+  \draw[sectionFrame] (7.85, 2.05) rectangle (15.3, 17.2);
+  \node[secHeader] at (8.05, 16.85) {VERIFIED HOOK EXECUTION TRACES};
+
+  % CASE A
+  \node[caseCard, draw=coralBorder, fill=coralVeto!25, anchor=north] (caseA) at (11.575, 16.55) {
+    \textbf{\footnotesize CASE A: PRE-TOOL SECURITY VETO}\\[3pt]
+    \scriptsize\textbf{Agent attempts destructive shell command:}\\[1pt]
+    \scriptsize\texttt{Bash("git push -f origin main")}\\[3pt]
+    \scriptsize\textbf{Hook Interception:} \texttt{PreToolUse} matches \texttt{push.*(-f|--force)}\\[2pt]
+    \scriptsize\textbf{Gate Decision:} \colorbox{coralVeto}{\textbf{\textcolor{coralBorder}{EXIT 2 (BLOCKED)}}} $\implies$ \textit{Killed}\\[3pt]
+    \scriptsize\textbf{Feedback Fed to Agent (stderr):}\\
+    \scriptsize\texttt{"VETO: force-push forbidden. Use topic branch."}\\
+    \scriptsize$\implies$ \textit{0 host syscalls executed; agent self-corrects.}
+  };
+
+  % CASE B
+  \node[caseCard, draw=seafoamBorder, fill=seafoamSuccess!25, anchor=north] (caseB) at (11.575, 11.85) {
+    \textbf{\footnotesize CASE B: REACTIVE CODE HYGIENE}\\[3pt]
+    \scriptsize\textbf{Agent mutates file:}\\[1pt]
+    \scriptsize\texttt{Edit("src/auth/jwt.ts", diff)}\\[3pt]
+    \scriptsize\textbf{Hook Interception:} \texttt{PostToolUse} fires on file write\\[2pt]
+    \scriptsize\textbf{Automated Action:} Spawns \texttt{npx biome format --write}\\[3pt]
+    \scriptsize\textbf{Result Injected into Context:}\\
+    \scriptsize\texttt{"Biome: formatted src/auth/jwt.ts cleanly"}\\
+    \scriptsize$\implies$ \textit{AST whitespace and lint sanitized before staging.}
+  };
+
+  % CASE C
+  \node[caseCard, draw=coralBorder, fill=white, anchor=north] (caseC) at (11.575, 7.15) {
+    \textbf{\footnotesize CASE C: CLOSEOUT TEST VERIFICATION GATE}\\[3pt]
+    \scriptsize\textbf{Agent attempts to conclude turn:}\\[1pt]
+    \scriptsize\texttt{"I have completed the JWT refactoring."}\\[3pt]
+    \scriptsize\textbf{Hook Verification:} \texttt{Stop} runs \texttt{vitest run auth}\\[2pt]
+    \scriptsize\textbf{Gate Decision:} \colorbox{coralVeto}{\textbf{\textcolor{coralBorder}{EXIT 2 (REJECTED)}}} $\implies$ \textit{Test failed}\\[3pt]
+    \scriptsize\textbf{Directive Fed to Agent:}\\
+    \scriptsize\texttt{"Stop vetoed: test 'jwt\_verify' failed. Fix it."}\\
+    \scriptsize$\implies$ \textit{Cannot leave broken code; compelled to repair.}
+  };
+
+  % ================= BOTTOM INVARIANT & SCRUBBING BANNER =================
+  \draw[sectionFrame] (0.2, 0.35) rectangle (15.3, 1.85);
+  \draw[line width=0.8pt, charcoal] (7.6, 0.35) -- (7.6, 1.85);
+
+  \node[anchor=west, font=\scriptsize, align=left, text width=7.0cm] at (0.35, 1.1) {
+    \textbf{\footnotesize The Operational Invariant:}\\[2pt]
+    Deterministic hooks govern external execution ($\Sigma_e$) via binary vetoes (\texttt{Exit 0} vs \texttt{Exit 2}) and context injection, operating strictly outside the statistical model's weights.
+  };
+
+  \node[anchor=west, font=\scriptsize, align=left, text width=7.1cm] at (7.8, 1.1) {
+    \textbf{\footnotesize Confidentiality Scrubbing:}\\[2pt]
+    The \texttt{PostToolUse} hook intercepts \texttt{stdout/stderr}, scrubbing discovered API tokens and private credentials before KV-cache injection.
+  };
+
 \end{tikzpicture}
-\caption{The Agent Lifecycle Hook cross-section, modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution is partitioned into two nested supervisory loops: the outer Session and Turn lifecycle manages user context, memory compaction (\texttt{PreCompact}), and test verification (\texttt{Stop}), while the inner \texttt{AGENTIC TOOL LOOP} supervises iterative tool invocations, pre-execution security vetoes (\texttt{PreToolUse}), sandbox execution, and reactive post-tool sanitization (\texttt{PostToolUse}).}
+\caption{The Agent Lifecycle Hook cross-section, modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution is partitioned into two nested supervisory loops: the outer Session and Turn lifecycle manages user context, memory compaction (\texttt{PreCompact}), and test verification (\texttt{Stop}), while the inner \texttt{AGENTIC TOOL LOOP} supervises iterative tool invocations, pre-execution security vetoes (\texttt{PreToolUse}), sandbox execution, and reactive post-tool sanitization (\texttt{PostToolUse}). Concrete production traces (Cases A--C) illustrate deterministic enforcement at binary interception points.}
 \label{fig:lifecycle-hooks-engines}
 \end{figure}
 
@@ -2395,6 +2491,8 @@ The remainder of this textbook is organized into eight cumulative chapters acros
   \item \textbf{Chapter 7: The Bonded Commons (Game-Theoretic Governance).} We formalize claim signaling as an incentive-compatible repeated game, proving when cooperation is sustained under bonded escrow.
   \item \textbf{Chapter 8: The Federated Harbor (Cross-Machine Consensus).} We extend governance across distrustful host boundaries via witness logs and sheaf-theoretic consistency without central sovereignty.
 \end{itemize}
+
+
 
 
 
