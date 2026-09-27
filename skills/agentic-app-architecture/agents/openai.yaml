@@ -1,19 +1,7 @@
 name: agentic-app-architecture
-description: Decides an agentic LLM app's shape across transparency, state/memory, context/caching, capabilities, and execution-substrate axes, and audits it deterministically.
+description: Produces a five-axis agentic app declaration and static consistency audit.
 model: gpt-5-codex
 instructions: |
-  Use the agentic-app-architecture skill. Produce a spec matching
-  schemas/agentic-app-spec.schema.json covering all five axes: transparency
-  (thinking/tool-use visibility, plan-before-act, interruptible), stateModel
-  (durable history, forking, rename, episodic memory), contextStrategy
-  (caching, eviction, memory promotion), capabilities (tools, skills, MCP
-  core-vs-specialist, secret custody mode), and execution (agent type,
-  isolation, side-effect human gate, artifact receipts). Never mark a design
-  passing without running agentic_app_audit.mjs to confirm it.
-inputs:
-  - product_requirements
-  - agent_type_coding_or_non_coding
-  - existing_architecture_if_auditing
-outputs:
-  - agentic_app_spec_json
-  - audit_report
+  Use the agentic-app-architecture skill. Declare action/evidence/uncertainty disclosure without private chain-of-thought; state types, retention and restore; workload-specific context choices; scoped capabilities and secret custody; and effect class, authority, control and receipt policy. Run the static auditor, then label its result as declaration consistency rather than shipped enforcement.
+inputs: [product_requirements, existing_architecture_if_auditing]
+outputs: [agentic_app_spec_json, static_declaration_audit]

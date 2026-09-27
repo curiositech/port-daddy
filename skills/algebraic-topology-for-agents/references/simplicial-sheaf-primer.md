@@ -1,29 +1,59 @@
-# Simplicial Complexes & Cellular Sheaves Primer
+# Simplicial complexes and cellular sheaves
 
-## 1. Simplicial Complexes as Coordination Topologies
+## Source scope
 
-An abstract simplicial complex $X$ on a vertex set $V$ is a collection of finite non-empty subsets of $V$ such that if $\sigma \in X$ and $\tau \subseteq \sigma$, then $\tau \in X$.
-- **0-simplices (Vertices $v \in V$)**: Individual autonomous agents.
-- **1-simplices (Edges $e = \{u, v\} \in E$)**: Pairwise communication channels or shared AST leases.
-- **2-simplices (Triangles $\tau = \{u, v, w\} \in F$)**: Triadic review contracts (e.g. Producer, Dissenter, Manager).
+This reference uses the targeted body read of Hansen and Ghrist, *Toward a Spectral Theory of Cellular Sheaves*, arXiv:1808.01513v2 (2019), DOI `10.1007/s41468-019-00038-7`: Definitions 2.4–2.5, §2.2.2, and the Hodge sections named in [the source ledger](source-boundary-and-validated-fixtures.md). It is not a claim about an agent platform, fault cause, or effect authority.
 
-## 2. Cellular Sheaves over Simplicial Complexes
+## Finite oriented simplicial model
 
-A cellular sheaf $\mathcal{F}$ over $X$ assigns:
-- To each simplex $\sigma \in X$, a vector space $\mathcal{F}(\sigma)$ called the stalk over $\sigma$.
-- To each face inclusion $\sigma \trianglelefteq \tau$, a linear map $P_{\sigma \trianglelefteq \tau}: \mathcal{F}(\sigma) \to \mathcal{F}(\tau)$ such that:
-  1. $P_{\sigma \trianglelefteq \sigma} = \text{id}_{\mathcal{F}(\sigma)}$
-  2. If $\sigma \trianglelefteq \tau \trianglelefteq \gamma$, then $P_{\tau \trianglelefteq \gamma} \circ P_{\sigma \trianglelefteq \tau} = P_{\sigma \trianglelefteq \gamma}$.
+Use the nonempty-simplex convention: an abstract simplicial complex `X` is a collection of finite **nonempty** subsets of a vertex set such that each nonempty subset of a simplex is also in `X`. The empty set is omitted throughout, so closure is over nonempty faces only.
 
-## 3. Cochain Spaces and Coboundary Operators
+Orient each simplex. For the triangle `[0,1,2]`, select oriented edges `(01,12,02)` and write its signed boundary as `(12) - (02) + (01)`. That convention yields the scalar matrices
 
-- **0-Cochains $C^0(X; \mathcal{F}) = \bigoplus_{v \in V} \mathcal{F}(v)$**: Global state assignments across all agents.
-- **1-Cochains $C^1(X; \mathcal{F}) = \bigoplus_{e \in E} \mathcal{F}(e)$**: Observed edge flows, messages, or reported disagreements.
-- **2-Cochains $C^2(X; \mathcal{F}) = \bigoplus_{\tau \in F} \mathcal{F}(\tau)$**: Circulations around triadic review joins.
+$$\delta_0=\begin{bmatrix}-1&1&0\\0&-1&1\\-1&0&1\end{bmatrix},\quad \delta_1=\begin{bmatrix}1&1&-1\end{bmatrix},\quad \delta_1\delta_0=0.$$
 
-The coboundary maps:
-- $\delta_0: C^0 \to C^1$ via $(\delta_0 x)_{e=(u,v)} = P_{v \trianglelefteq e} x_v - P_{u \trianglelefteq e} x_u$.
-- $\delta_1: C^1 \to C^2$ via $(\delta_1 g)_{\tau=(u,v,w)} = g_{(u,v)} + g_{(v,w)} - g_{(u,w)}$.
+Changing an edge orientation changes both its matrix coordinate and the coordinate of its observed cochain. It does not change the underlying geometric edge.
 
-By definition of boundary operators:
-$$\delta_1 \circ \delta_0 = 0$$
+```mermaid
+flowchart LR
+  V[C0 vertex stalks] -->|delta0| E[C1 edge stalks]
+  E -->|delta1| F[C2 face stalks]
+  V -. dimensions and orientations .-> E
+  E -. restrictions to a face .-> F
+  F --> Z[Check delta1 delta0 equals zero]
+```
+
+## Cellular sheaf data
+
+A cellular sheaf `F` assigns a vector space `F(sigma)` to each cell and a linear restriction map
+
+$$\rho_{\sigma,\tau}:F(\sigma)\rightarrow F(\tau)$$
+
+for each face inclusion `sigma <= tau`, satisfying identity and composition:
+
+$$\rho_{\tau,\upsilon}\rho_{\sigma,\tau}=\rho_{\sigma,\upsilon}.$$
+
+The degree-k cochain space is the direct sum of k-cell stalks. For an oriented face `tau=[u,v,w]` with oriented edges `(uv,vw,uw)`, the general coboundary is
+
+$$ (\delta_1g)_\tau = \rho_{uv,\tau}g_{uv}+\rho_{vw,\tau}g_{vw}-\rho_{uw,\tau}g_{uw}. $$
+
+Each summand is in `F(tau)`. Bare addition of heterogeneous edge coordinates is therefore invalid unless compatible constant coefficients and identity identifications have been declared. The maps and signs must make `delta1 delta0=0`; dimension compatibility and composition are testable inputs, not inferred metadata.
+
+```mermaid
+flowchart TD
+  A[Vertex values in F u, F v, F w] --> B[Restrict to each edge stalk]
+  B --> C[Form delta0 edge cochain]
+  C --> D[Restrict each edge value to F triangle]
+  D --> E[Signed face sum delta1]
+  E --> F{Zero for all vertex cochains?}
+  F -->|yes| G[Chain condition for declared maps]
+  F -->|no| H[Correct maps signs or dimensions]
+```
+
+## A tree is not a universal special case
+
+For a connected ordinary scalar graph, a tree has no first cycle space. This alone does not settle cellular-sheaf cohomology. On a one-edge complex, take scalar vertex and edge stalks but set both vertex-to-edge restriction maps to zero. Then `delta0=0`, so the edge cochain space survives as `H1=R`. Any tree conclusion must state the coefficient system and maps.
+
+## Observation boundary
+
+A derived value `g=delta0 x` is exact by construction, so it cannot by itself test a hypothesis that an independently measured `g` is incompatible with the model. An observed residual may arise from data, units, timing, orientation, maps, or the model. The algebra supplies a compatibility calculation, not an attribution or authorization decision.

@@ -1,6 +1,6 @@
 ---
 name: belief-desire-intention-model-of-agency
-description: "license: Apache-2.0 NOT for unrelated tasks outside this domain."
+description: "A bounded conceptual guide to Belief-Desire-Intention design: separate evidence, candidate goals, commitments, and authorized effects. Use for commitment and reconsideration trade-offs, not as a safety or authorization guarantee."
 license: Apache-2.0
 metadata:
   provenance:
@@ -247,3 +247,11 @@ BDI (philosophy/logic tradition) and Soar (cognitive psychology tradition) indep
 **Key diagnostic question**: "Why can't you just merge desires and intentions?"
 - **Shallow answer**: "Because you need to distinguish what you want from what you're doing"
 - **Deep answer**: "Because desires can be conflicting and unchosen—deliberation is the computational process of resolving conflicts and resource constraints to select a feasible subset as intentions. Merging them eliminates the structure that makes deliberation tractable and commitments meaningful."
+
+## Commitment boundary
+
+BDI separates evidence, candidate goals, and declared commitments. It does not
+create authority, settle inter-agent commitments, or prove an external effect.
+Bind an intention to the supporting evidence and reconsideration policy, then use
+a separate protocol and receipt for shared commitments. See
+[`references/commitment-boundary-and-trace.md`](references/commitment-boundary-and-trace.md).

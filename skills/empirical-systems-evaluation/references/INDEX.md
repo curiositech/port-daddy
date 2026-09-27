@@ -1,4 +1,8 @@
-# References Index
+# Reference index
 
-- [bonded-commons-crash-recovery.md](bonded-commons-crash-recovery.md): Full comparative experiment design for crash recovery and salvage behavior.
-- [evaluation-validity.md](evaluation-validity.md): Independent oracles, paired fault draws, equal budgets, and amendment trails.
+- [Bonded Commons crash-recovery design](bonded-commons-crash-recovery.md)
+- [Evaluation validity](evaluation-validity.md)
+- [Source correction ledger](source-correction-ledger.md)
+
+- [Design-conditioned methods and formulas](design-conditioned-methods.md)
+- [Evaluation methods and source scope](evaluation-methods-and-scope.md)

@@ -1,164 +1,901 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://port-daddy.dev/schemas/infra-plan.schema.json",
-  "title": "Agentic Infrastructure Plan",
-  "description": "A plan for agent infrastructure adoption, checked against this skill's Technical Infrastructure, Organizational Readiness, and Production Readiness Quality Gates by scripts/infra_readiness.mjs.",
   "type": "object",
-  "additionalProperties": true,
   "properties": {
+    "workload": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "dataClasses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "effectClasses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "read-only",
+              "reversible-write",
+              "externally-visible-effect",
+              "irreversible-effect"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Unique effect classes the workload may perform; each must have exactly one matching effectPolicy record."
+        },
+        "deploymentStage": {
+          "type": "string",
+          "enum": [
+            "prototype",
+            "pilot",
+            "production",
+            "deferred"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "summary",
+        "dataClasses",
+        "effectClasses",
+        "deploymentStage"
+      ],
+      "additionalProperties": true
+    },
     "framework": {
       "type": "object",
-      "description": "Framework selection and the decision criteria behind it.",
       "properties": {
-        "selected": {
+        "selectionStatus": {
           "type": "string",
-          "description": "e.g. LangGraph, CrewAI, Semantic Kernel, MCP, OpenAI Assistants API."
+          "enum": [
+            "selected",
+            "deferred"
+          ]
         },
-        "decisionCriteria": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Workflow shapes/constraints that drove the choice (must be non-empty to avoid Framework-First Thinking)."
-        }
-      }
-    },
-    "mcp": {
-      "type": "object",
-      "description": "MCP tool interoperability configuration, if used.",
-      "properties": {
-        "used": { "type": "boolean" },
-        "contextOverheadPct": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100,
-          "description": "Percent of context window consumed by MCP tool schemas."
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
-        "lazyLoading": {
-          "type": "boolean",
-          "description": "Whether tool schemas are loaded on-demand rather than up-front."
-        }
-      }
-    },
-    "observability": {
-      "type": "object",
-      "properties": {
-        "wired": { "type": "boolean" },
-        "platform": { "type": "string", "description": "e.g. LangSmith, Braintrust, Langfuse." },
-        "instrumentedLevels": {
+        "criteria": {
           "type": "array",
-          "items": { "type": "string", "enum": ["request", "trace", "quality", "drift"] }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "layer": {
+                "type": "string",
+                "enum": [
+                  "harness",
+                  "runtime",
+                  "model-provider",
+                  "protocol",
+                  "custom"
+                ]
+              },
+              "evidenceType": {
+                "type": "string",
+                "enum": [
+                  "documentation",
+                  "local-test",
+                  "evaluation",
+                  "unknown"
+                ]
+              },
+              "evidenceRef": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "name",
+              "layer",
+              "evidenceType",
+              "evidenceRef"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "selectedCandidate": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         }
-      }
+      },
+      "required": [
+        "selectionStatus",
+        "rationale",
+        "criteria",
+        "candidates"
+      ],
+      "additionalProperties": true
     },
     "evaluation": {
       "type": "object",
       "properties": {
-        "suiteExists": { "type": "boolean" },
-        "coverage": {
-          "type": "array",
-          "items": { "type": "string", "enum": ["unit", "trajectory", "end-to-end"] }
-        }
-      }
-    },
-    "costControls": {
-      "type": "object",
-      "properties": {
-        "perTaskCapUsd": { "type": "number", "minimum": 0 },
-        "dailyQuotaUsd": { "type": "number", "minimum": 0 },
-        "killSwitch": { "type": "boolean" }
-      }
-    },
-    "memoryArchitecture": {
-      "type": "object",
-      "properties": {
-        "documented": { "type": "boolean" },
-        "layers": {
-          "type": "array",
-          "items": { "type": "string", "enum": ["working", "short-term", "long-term", "episodic"] }
-        }
-      }
-    },
-    "pilot": {
-      "type": "object",
-      "properties": {
-        "scope": {
+        "status": {
           "type": "string",
-          "description": "e.g. single-team, single-workflow, department-wide, enterprise-wide."
+          "enum": [
+            "planned",
+            "observed",
+            "deferred"
+          ]
         },
-        "teams": { "type": "array", "items": { "type": "string" } },
-        "workflow": { "type": "string" }
-      }
-    },
-    "roiFramework": {
-      "type": "object",
-      "properties": {
-        "defined": { "type": "boolean" },
-        "baselineMetrics": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "stakeholderComms": {
-      "type": "object",
-      "properties": {
-        "audiences": {
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "baseline": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "taskSet": {
           "type": "array",
-          "items": { "type": "string", "enum": ["engineering", "product", "security", "executive"] }
+          "items": {
+            "type": "object",
+            "properties": {
+              "taskId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "class": {
+                "type": "string",
+                "enum": [
+                  "read-only",
+                  "reversible-write",
+                  "externally-visible-effect",
+                  "irreversible-effect",
+                  "failure-case"
+                ]
+              },
+              "rubricRef": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "taskId",
+              "class",
+              "rubricRef"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "heldOutSetRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "controlledConditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": [
+                  "task-success",
+                  "unauthorized-effects",
+                  "duplicate-effects",
+                  "latency",
+                  "provider-cost",
+                  "infrastructure-cost",
+                  "human-review-time",
+                  "restart-recovery",
+                  "maintenance-cost"
+                ]
+              },
+              "applicability": {
+                "type": "string",
+                "enum": [
+                  "applicable",
+                  "not-applicable"
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "measurement": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "name",
+              "applicability",
+              "rationale"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 9,
+          "uniqueItems": true
+        },
+        "releaseCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "resultRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         }
-      }
-    },
-    "hitl": {
-      "type": "object",
-      "description": "Human-in-the-loop approval gates.",
-      "properties": {
-        "approvalGatesDocumented": { "type": "boolean" },
-        "gates": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "successCriteria": {
-      "type": "object",
-      "properties": {
-        "defined": { "type": "boolean" },
-        "binaryPassFail": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "adoptionPlan": {
-      "type": "object",
-      "properties": {
-        "documented": { "type": "boolean" },
-        "pathway": { "type": "array", "items": { "type": "string" } }
-      }
+      },
+      "required": [
+        "status",
+        "rationale",
+        "baseline",
+        "taskSet",
+        "heldOutSetRef",
+        "repetitions",
+        "controlledConditions",
+        "metrics",
+        "releaseCriteria"
+      ],
+      "additionalProperties": true
     },
     "security": {
       "type": "object",
       "properties": {
-        "reviewCompleted": { "type": "boolean" },
-        "piiFiltering": { "type": "boolean" },
-        "auditTrails": { "type": "boolean" },
-        "accessControls": { "type": "boolean" }
-      }
-    },
-    "errorHandling": {
-      "type": "object",
-      "properties": {
-        "documented": { "type": "boolean" },
-        "retryLogic": { "type": "boolean" },
-        "circuitBreakers": { "type": "boolean" },
-        "escalationPath": { "type": "boolean" }
-      }
-    },
-    "performance": {
-      "type": "object",
-      "properties": {
-        "benchmarksEstablished": { "type": "boolean" },
-        "latencySlaMs": { "type": "number", "minimum": 0 },
-        "throughputTarget": { "type": "string" }
-      }
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not-applicable"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "implemented",
+            "tested"
+          ]
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "threats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale",
+        "status",
+        "owner",
+        "threats",
+        "controls",
+        "evidenceRefs"
+      ],
+      "additionalProperties": true
     },
     "incidentResponse": {
       "type": "object",
       "properties": {
-        "documented": { "type": "boolean" },
-        "pagerAssigned": { "type": "boolean" },
-        "rollbackPlan": { "type": "boolean" }
-      }
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not-applicable"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "implemented",
+            "tested"
+          ]
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "failureScenarios": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "containment": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "recovery": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale",
+        "status",
+        "owner",
+        "failureScenarios",
+        "containment",
+        "recovery",
+        "evidenceRefs"
+      ],
+      "additionalProperties": true
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "provider-spend",
+            "no-provider-spend",
+            "unknown"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "budgetOwner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "budgetWindow": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "perTaskCapUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "taskDeadlineSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "estimateMethod": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "abortAction": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "pricingEvidence": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale",
+        "budgetOwner",
+        "budgetWindow",
+        "maxRetries",
+        "taskDeadlineSeconds",
+        "estimateMethod",
+        "abortAction"
+      ],
+      "additionalProperties": true
+    },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not-applicable"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "request",
+              "trace",
+              "quality",
+              "drift"
+            ]
+          },
+          "minItems": 0
+        },
+        "retention": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale",
+        "owner",
+        "levels",
+        "retention",
+        "evidenceRefs"
+      ],
+      "additionalProperties": true
+    },
+    "effectPolicy": {
+      "type": "object",
+      "properties": {
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "effectClass": {
+                "type": "string",
+                "enum": [
+                  "read-only",
+                  "reversible-write",
+                  "externally-visible-effect",
+                  "irreversible-effect"
+                ]
+              },
+              "authority": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "approval": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "human-before-effect",
+                  "scoped-service-policy"
+                ]
+              },
+              "idempotency": {
+                "type": "string",
+                "enum": [
+                  "not-applicable",
+                  "idempotency-key",
+                  "deduplication-record",
+                  "transactional",
+                  "other"
+                ]
+              },
+              "receipt": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "effectClass",
+              "authority",
+              "approval",
+              "idempotency",
+              "receipt",
+              "rationale"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "defaultRule": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "effects",
+        "defaultRule",
+        "owner",
+        "evidenceRefs"
+      ],
+      "additionalProperties": true,
+      "description": "Domain rule enforced by the audit API: declare exactly one policy record per workload.effectClasses value, with no undeclared classes."
+    },
+    "adoption": {
+      "type": "object",
+      "properties": {
+        "pilotScope": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "stakeholders": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "communicationPlan": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "baselineMethod": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "expansionGates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "supportOwner": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "retirementPlan": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "pilotScope",
+        "stakeholders",
+        "communicationPlan",
+        "baselineMethod",
+        "expansionGates",
+        "supportOwner",
+        "retirementPlan"
+      ],
+      "additionalProperties": true
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "used": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "protocolVersion": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "contextOverheadPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "lazySchemaLoading": {
+          "type": "boolean"
+        },
+        "measurementRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "used",
+        "rationale"
+      ],
+      "additionalProperties": true
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "used": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "working",
+              "session",
+              "task-checkpoint",
+              "user-memory",
+              "event-log",
+              "provider-cache"
+            ]
+          },
+          "minItems": 0
+        },
+        "retention": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "deletionMethod": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "used",
+        "rationale"
+      ],
+      "additionalProperties": true
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not-applicable"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "latencyObjectiveMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "throughputObjective": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "measurementRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale"
+      ],
+      "additionalProperties": true
+    },
+    "returnModel": {
+      "type": "object",
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "not-planned"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "baselineMetrics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "timeWindow": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "includedCosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        },
+        "excludedCosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "applicability",
+        "rationale"
+      ],
+      "additionalProperties": true
+    },
+    "reviewedAt": {
+      "type": "string",
+      "format": "date",
+      "description": "Optional plan review date in ISO 8601 calendar-date form."
     }
-  }
+  },
+  "required": [
+    "workload",
+    "framework",
+    "evaluation",
+    "security",
+    "incidentResponse",
+    "cost",
+    "observability",
+    "effectPolicy",
+    "adoption"
+  ],
+  "additionalProperties": true,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/agent-infrastructure-plan.schema.json",
+  "title": "Agent Infrastructure Plan",
+  "description": "Planning contract for workload-specific infrastructure. A valid plan is not implementation, deployment, safety, or performance evidence."
 }

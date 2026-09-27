@@ -1,184 +1,88 @@
 ---
 license: BSL-1.1
 name: windags-decomposer
-description: Second agent in the WinDAGs meta-DAG. Receives a ProblemUnderstanding from the Sensemaker and produces a validated DecompositionResult -- a DAG with skill assignments, wave definitions, and commitment levels. Executes the three-pass protocol, enforces vague node rules, and plans waves progressively. Activate on "decomposer", "three-pass", "decomposition", "wave planning", "task hierarchy", "skill matching", "vague nodes", "DAG construction", "commitment levels". NOT for problem analysis (use windags-sensemaker), executing DAGs (use windags-architect), or understanding constitutional decisions (use windags-avatar).
+description: >-
+  First-party three-pass planning protocol that converts a ProblemUnderstanding into a
+  revisioned decomposition proposal: typed nodes, reasoned edges, uncertainty records,
+  candidate skills, and topological waves. A DAG is not an execution proof; confidence
+  values are not probabilities without calibration. NOT for execution, runtime admission, or formal HTN proofs.
 metadata:
-  tags:
-    - windags
-    - decomposer
-    - three-pass
-    - decomposition
-category: Agent & Orchestration
-tags:
-  - windags
-  - decomposition
-  - task-planning
-  - subtasks
-  - analysis
+  category: Agent & Orchestration
+  tags: [windags, decomposer, three-pass, decomposition]
 ---
 
 # WinDAGs Decomposer
 
-You are the Decomposer -- the second agent in the WinDAGs meta-DAG. You receive a `ProblemUnderstanding` from the Sensemaker and produce a `DecompositionResult`: a validated DAG with nodes, edges, skill assignments, wave definitions, and commitment levels.
+## Status and input contract
 
-## DECISION POINTS
+This is a first-party planning protocol. It receives a `ProblemUnderstanding` and proposes a `DecompositionResult`; it does not execute the result, guarantee a skill match, or establish that nodes can run concurrently. It retains the inherited three-pass shape while replacing uncalibrated confidence bands, arbitrary node/depth limits, and “resolve Node 3” shorthand with reviewable records.
 
-### Main Flow Decision Tree
-```
-START: Receive ProblemUnderstanding
-├─ Domain meta-skill available?
-│  ├─ YES → Use domain meta-skill for Pass 1
-│  └─ NO → Use general decomposition patterns
-│
-├─ Task fully specified?
-│  ├─ YES → Create concrete node
-│  │  └─ Signature matches available?
-│  │     ├─ YES → Assign skill via cascade
-│  │     └─ NO → Create vague node, defer
-│  └─ NO → Create vague node
-│     └─ Set resolution_trigger based on dependencies
-│
-├─ Commitment level assignment:
-│  ├─ Wave 0 + well-structured → COMMITTED
-│  ├─ Depends on vague nodes → TENTATIVE (max)
-│  ├─ Wicked problem domain → EXPLORATORY (max)
-│  └─ EXTENDED budget → Force TENTATIVE (max)
-│
-└─ Wave planning conflicts:
-   ├─ Same failure domain → Sequential waves
-   ├─ Topological violation → Push to later wave
-   └─ No conflicts → Parallel assignment
-```
+Minimum input: outcome, constraints, authority/irreversibility boundary, known evidence, unknowns, and intended acceptance evidence. If these are absent, return an abstention/evidence request rather than a fabricated decomposition.
 
-### Vague Node Creation Confidence Thresholds
-```
-Task specification confidence:
-├─ >= 0.8 → Create concrete node, proceed to skill matching
-├─ 0.5-0.8 → Check dependencies
-│  ├─ Depends on earlier results → Vague node (TENTATIVE)
-│  └─ Independent → Concrete node
-├─ 0.2-0.5 → Vague node (TENTATIVE)
-└─ < 0.2 → Vague node (EXPLORATORY)
-```
+## Three-pass procedure
 
-### Skill Selection Conflict Resolution
-```
-Multiple skills match at Step 3:
-├─ Pattern recognition confidence >= 0.8?
-│  ├─ YES → Use recognized skill (fast path)
-│  └─ NO → Proceed to Thompson sampling
-│
-Thompson sampling tie (within 0.05):
-├─ Check domain expertise weighting
-├─ Prefer skill with lower cascade depth impact
-└─ If still tied, prefer skill with higher success rate
-```
+### Pass 1 — extract work and uncertainty
 
-## FAILURE MODES
+List candidate deliverables, decisions, evidence tasks, and human gates. For each node, record input contract, output contract, unknowns, commitment (`committed`, `tentative`, or `exploratory`), and failure/unknown-effect handling.
 
-### Schema Bloat
-**Symptoms**: Decomposition produces >15 nodes for simple problems, excessive nesting depth >4 levels
-**Diagnosis**: P×C stopping rule threshold too low, domain meta-skill overly granular
-**Fix**: Increase threshold by 0.05, validate leaf nodes are single-skill achievable
+A vague node must name what will resolve it. `resolve Node3` is invalid because it has no input, output, or edge. Replace it, for example, with `inspect-refactoring-areas`: input `current-service-analysis`; output `area-inventory`; consumers `constructor-change` and `interface-change` in the worked revision below.
 
-### Rubber Stamp Review
-**Symptoms**: All nodes assigned COMMITTED level, no vague nodes despite uncertain dependencies
-**Detection Rule**: If commitment_distribution shows >80% COMMITTED in problems with future unknowns
-**Fix**: Force TENTATIVE for nodes depending on >2 other nodes, create vague nodes for uncertain work
+### Pass 2 — nominate skills with evidence
 
-### Cascade Depth Explosion
-**Symptoms**: Single node failure cascades to >6 downstream nodes, wave planning serial despite parallel potential
-**Diagnosis**: Failure domains not properly identified, excessive coupling in decomposition
-**Fix**: Split high-cascade nodes into smaller units, identify shared dependencies as separate failure domains
+Use known skill metadata and domain treatment as candidates, then check required outputs against the node contract. Do not keyword-route an unstructured request, promise deterministic matching, or claim zero model calls without a versioned implementation receipt. A candidate skill is not a completion proof.
 
-### Incomplete Skill Matches
-**Symptoms**: Nodes assigned skills whose output schemas don't cover all required fields
-**Detection Rule**: If skill.output_schema missing >20% of node's required outputs
-**Fix**: Split node into multiple concrete nodes, or create vague node for unmatched portion
+For a mismatch, record the missing output and choose one: refine the node, split it, request evidence, or leave it unassigned. A qualitative confidence label must name its basis; it is not a probability without calibration and a held-out evaluation procedure.
 
-### Wave Planning Deadlock
-**Symptoms**: Circular wave dependencies, nodes with no valid wave assignment
-**Diagnosis**: DAG has cycles or failure domain constraints over-restrict scheduling
-**Fix**: Break cycles by splitting nodes, relax failure domain isolation for low-risk shared dependencies
+### Pass 3 — build and check the proposal graph
 
-## WORKED EXAMPLES
+Add typed edges with concrete reasons:
 
-### Example 1: Simple DAG - Code Refactoring
-**Input**: "Refactor UserService class using dependency injection"
-**Domain**: software-engineering, **Budget**: STANDARD
+- `data`: versioned producer output is consumed.
+- `decision`: a decision record constrains the consumer.
+- `evidence`: consumer requires a receipt or finding.
+- `authority`: a human/policy gate is needed before an irreversible action.
 
-**Pass 1 Decisions**:
-- Load `meta-software-engineering` → suggests functional decomposition
-- Node 1: "Analyze current UserService" (concrete, confidence 0.9)
-- Node 2: "Design DI patterns" (concrete, confidence 0.8) 
-- Node 3: "Apply refactoring" (vague, depends on 1+2, confidence 0.6)
+Run structural checks: ID uniqueness, endpoint existence, output-to-edge correspondence, acyclicity, and topological layers. A layer is only a graph fact. Before admission to real work, independently check effects, resources, authority, semantic coupling, missing results, and cancellation/unknown-effect states.
 
-**Pass 2 Decisions**:
-- Node 1: `code-review` skill (Step 4: pattern recognized, conf 0.85)
-- Node 2: `refactoring-surgeon` skill (Step 3: domain match first)
-- Node 3: Remains vague (will resolve in Wave 1 planning)
+## Typed-edge hand check
 
-**Pass 3 Decisions**:
-- Wave 0: [Node 1] (no deps)
-- Wave 1: [Node 2] + resolve Node 3 → splits into 3a, 3b, 3c
-- Commitment: COMMITTED for 1,2 (high confidence), TENTATIVE for resolved 3x
+Let A=`inspect-current-auth` and B=`read-threat-model` be read-only evidence nodes. C=`choose-auth-policy` depends on A and B; D=`implement` depends on C; E=`test` depends on D. The valid topological layers are `{A,B}`, `{C}`, `{D}`, `{E}`. If B actually consumes A’s endpoint list, add `A -> B`; valid layers become `{A}`, `{B}`, `{C}`, `{D}`, `{E}`.
 
-### Example 2: Vague Node Resolution
-**Scenario**: Node 3 from Example 1 gets resolved after Wave 0 completes
-**Wave 0 Results**: Analysis reveals 3 distinct refactoring areas
+This proves edge/layer consistency only. It does not prove that A/B are read-only, that their results are correct, or that a scheduler may start both.
 
-**Resolution Process**:
-```
-Original vague node: "Apply refactoring based on analysis"
-↓
-Split into:
-- Node 3a: "Refactor constructor injection" (concrete, `refactoring-surgeon`)
-- Node 3b: "Update service interfaces" (concrete, `interface-designer`)  
-- Node 3c: "Add configuration validation" (vague, needs interface design first)
-```
+## Worked refactoring revision
 
-**Wave Planning Update**:
-- Wave 1: [Node 2, Node 3a] (parallel, different failure domains)
-- Wave 2: [Node 3b] (depends on 3a interface changes)
-- Wave 3: [Resolve 3c based on 3b results]
+Input: “Refactor UserService using dependency injection.”
 
-### Example 3: Skill Mismatch Recovery
-**Problem**: Node assigned `test-writer` but needs integration testing, not unit testing
-**Detection**: Post-assignment validation catches output schema mismatch
+| ID | Kind / commitment | Output | Typed dependencies |
+|---|---|---|---|
+| `analyze-service` | evidence / committed | current-service analysis | — |
+| `design-di` | decision / tentative | DI decision record | `analyze-service` (evidence) |
+| `inspect-refactoring-areas` | evidence / tentative | area inventory | `analyze-service` (evidence) |
+| `constructor-change` | concrete / tentative | constructor patch | `design-di` (decision), `inspect-refactoring-areas` (evidence) |
+| `interface-change` | concrete / tentative | interface patch | `design-di` (decision), `inspect-refactoring-areas` (evidence) |
+| `test-di` | evidence / tentative | test receipt tied to patch digests | both patches (data) |
 
-**Recovery Process**:
-1. **Symptom**: `test-writer` outputs unit test files, node needs integration test suite
-2. **Diagnosis**: Step 1 signature filter failed, missed integration vs unit distinction
-3. **Fix**: Re-run cascade with refined context conditions, assigns `fullstack-debugger`
-4. **Prevention**: Update skill library with more specific integration testing skills
+The former “resolve Node 3” now has a contract. Whether constructor and interface changes can be admitted together requires separate file/effect/API review; their common predecessors do not decide it.
 
-## QUALITY GATES
+## Diagnostics
 
-- [ ] All three passes executed in sequential order (no skips, no reordering)
-- [ ] Pass 2 made zero LLM calls (deterministic skill selection only)
-- [ ] Every vague node has only role_description and dependency_list fields
-- [ ] No vague node has skill_assignment, agent_config, or model_selection fields
-- [ ] Wave assignments respect topological order (no node before its dependencies)
-- [ ] No nodes sharing failure domains are in the same wave
-- [ ] Deferred waves marked with planned: false
-- [ ] DAG passes acyclicity check (topological sort succeeds)
-- [ ] Every concrete node has a skill assignment from the cascade
-- [ ] Commitment levels respect deliberation budget constraints
-- [ ] Cascade depth score computed and logged
-- [ ] All four decomposition log fields present (meta_skill, method, commitment_distribution, cascade_depth)
+| Finding | Required repair |
+|---|---|
+| Missing input or acceptance evidence | Abstain or add an evidence node; do not assign COMMITTED by default. |
+| Unresolved skill mismatch | Split/refine the node or keep it unassigned with a stated follow-up. |
+| Edge endpoint/output missing | Reject the proposal before wave calculation. |
+| Cycle | State the circular information need and add an earlier decision/evidence boundary. |
+| Conflict between graph layer and resource/effect policy | Keep the layer as graph information; hold affected work until admission checks pass. |
+| Prior plan assumption changes | Create a new graph revision with supersession rationale; do not silently mutate completion history. |
 
-## NOT-FOR BOUNDARIES
+## References, examples, and diagrams
 
-**Do NOT use this skill for**:
-- Problem analysis and classification → Use `windags-sensemaker` instead
-- Building execution infrastructure → Use `windags-architect` instead
-- Understanding constitutional decisions → Use `windags-avatar` instead
-- Evaluating node outputs during execution → Use `windags-evaluator` instead
-- Real-time DAG modification during execution → Use `windags-executor` instead
-- Learning from execution outcomes → Use learning engine integration instead
+- [Protocol scope and confidence limits](references/protocol-scope.md)
+- [Typed-edge fixture](examples/typed-edge-fixture.md)
+- [Three-pass procedure](diagrams/01-three-pass-procedure.md)
+- [Graph layer versus work admission](diagrams/02-graph-layer-and-admission.md)
 
-**Delegation Rules**:
-- If input lacks ProblemUnderstanding structure → Delegate to `windags-sensemaker`
-- If asked to execute the DAG → Delegate to `windags-architect` then `windags-executor`  
-- If asked to modify running DAG → Delegate to `windags-executor`
-- If asked to evaluate constitutional compliance → Delegate to `windags-avatar`
+## NOT-FOR boundaries
+
+Do not treat this skill as problem sensemaking, runtime orchestration, an HTN implementation, a live DAG mutation tool, or evidence that a planned node succeeded.

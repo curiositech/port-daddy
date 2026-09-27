@@ -14,7 +14,7 @@ Use this skill when a BDI design needs executable semantics. Specify the cycle s
 ## Interpreter contract
 
 1. Define an event vocabulary: external observations, goal adoption/drop, action results, and failure.
-2. Define the belief store and update rule, including contradiction handling and whether absence means false or unknown.
+2. Define the belief store and any observation-update adapter, including contradiction handling and whether absence means false or unknown. Name when an imported paper leaves belief update outside its model.
 3. Give plans a trigger, context guard, and body. A plan is applicable only if its guard is satisfied under the current belief semantics.
 4. Make selection functions explicit: event selection, applicable-plan choice, and intention scheduling. Record whether policy must be deterministic, fair, or priority based.
 5. Define intention lifecycle: adopt, suspend, resume, succeed, fail, and abandon. Test a failed subgoal and a changed context mid-plan.
@@ -34,9 +34,17 @@ flowchart LR
 ## Design boundaries
 
 - `bdi-agent-architecture` owns the choice to use beliefs, desires, intentions, and the reconsideration policy at the model level.
-- AgentSpeak-style plans are context-sensitive recipes; they do not themselves prove achievement. Add monitoring or verification for the claim you need.
+- AgentSpeak-style plans are context-sensitive recipes; they do not themselves prove achievement. Name the interpreter, selection functions, and environment adapter. A local transition does not establish message delivery, distributed agreement, authority, or an external effect.
+- For Móra et al. conformance, keep paper-defined explicit negation, Event Calculus, abductive feasibility, and preference-guided intention revision separate from a locally designed observation-update adapter and effect enforcement.
 - Belief revision with inconsistent information is a separate policy choice. Do not assume an imported paraconsistent or abductive method is required for every implementation.
 - For organizational accommodation use `bdi-organizational-modeling`; for obligations and prohibitions use `bdi-normative-reasoning`.
+
+## Source-bound checks
+
+- Read `sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/evidence-scope.md` and its transition/environment diagrams when tracing a running interpreter.
+- Read `sources/agentspeak-l-bdi-architecture/references/evidence-scope.md` and its interpreter/protocol diagrams when a local agent interacts with other services.
+- Read `sources/bdi-models-and-systems-reducing-the-gap-paper/references/paper-scope-and-conformance.md` before claiming conformance to the cited BDI paper.
+- Read `sources/bdi-agent-design-mora/references/evidence-scope.md` before applying paraconsistent revision to policy or authorization decisions.
 
 ## Source bundles
 

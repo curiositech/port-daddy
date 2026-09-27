@@ -11,3 +11,4 @@ Imported supporting material. Load a listed file only when it serves the active 
 - [Preference Over Consistency-Restoring Revisions: Encoding Deliberation Policy in Search Structures](preference-over-consistency-restoring-revisions.md) — imported supporting material.
 - [Revision Mechanisms as Non-Monotonic Deliberation: How Rational Inconsistency Drives Choice](revision-mechanisms-as-non-monotonic-deliberation.md) — imported supporting material.
 - [Triggers and Attention in Committed Agents: When Should Deliberation Happen?](triggers-and-attention-in-committed-agents.md) — imported supporting material.
+- [Evidence scope](evidence-scope.md) — source-specific limits and revalidation rule for current claims.

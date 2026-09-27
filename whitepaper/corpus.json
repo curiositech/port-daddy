@@ -705,6 +705,21 @@
       }
     },
     {
+      "id": "harbor-results-cr4-contract",
+      "kind": "deterministic-result-checker",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/test_cr4_contract.py"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "harbor-results-estate"
+        ]
+      }
+    },
+    {
       "id": "pareto-threat-bands-monte-carlo",
       "kind": "monte-carlo-simulation",
       "status": "current",

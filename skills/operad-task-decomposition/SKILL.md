@@ -1,17 +1,18 @@
 ---
 license: Apache-2.0
 name: operad-task-decomposition
-description: "Model hierarchical task composition with typed interfaces and colored operads. Use when designing multi-agent decompositions, checking subworkflow boundaries, or distinguishing formal substitution from scheduling and execution semantics. Covers wiring diagrams, explicit artifact bindings, and an acyclic task-workflow model. Not for runtime orchestration, proving agent correctness, or general category theory education."
-category: Research & Academic
-tags:
-  - category-theory
-  - operads
-  - task-decomposition
-  - multi-agent
-  - wiring-diagrams
-  - spivak
-  - composition
-  - applied-math
+description: "Model hierarchical task composition with typed interfaces and colored operads. Use when designing multi-agent decompositions, checking subworkflow boundaries, or distinguishing formal substitution from scheduling and execution semantics. Covers wiring diagrams, explicit artifact bindings, and an acyclic task-workflow model. NOT for runtime orchestration, proving agent correctness, or general category theory education."
+metadata:
+  category: Research & Academic
+  tags:
+    - category-theory
+    - operads
+    - task-decomposition
+    - multi-agent
+    - wiring-diagrams
+    - spivak
+    - composition
+    - applied-math
 ---
 
 # Operad Task Decomposition
@@ -19,6 +20,16 @@ tags:
 Use typed composition to make a decomposition's interfaces and substitutions explicit. An operad supplies laws for combining operations. A compatible interpretation supplies their meaning. Executable agents, permissions, effects, and schedules require additional contracts and evidence.
 
 This skill chooses an **acyclic task workflow** for execution planning. Acyclicity is a constraint of that workflow, not a law of every operad. A typed DAG alone does not establish an operad algebra or prove that agents will complete the task correctly.
+
+
+## Primary-source composition check
+
+Spivak’s wiring-diagram operad and Vagner–Spivak–Lerman’s open-dynamical-system algebra provide formal composition models, not agent correctness or scheduling theorems. With `g:(A1,A2)->B`, `h:(X)->A1`, `f:(B,C)->D`, substitution gives `(X,A2,C)->D`. In the Set interpretation `h(x)=x+1`, `g(a1,a2)=a1+a2`, `f(b,c)=b*c`; at `(2,3,4)`, either grouping of the same slot map yields 24. This checks a specified interpretation, not an implementation, effect, authority, or observed output.
+
+- [Boundary and contract review](diagrams/01_flowchart_decision-points.md)
+- [Formal substitution trace](diagrams/02-operad-substitution.md)
+- [Syntax-to-observation obligations](diagrams/03-operad-obligations.md)
+- [Source scope and fixture](references/operad-source-scope.md)
 
 ## When to Use
 

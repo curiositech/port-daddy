@@ -25,7 +25,8 @@ const audited = [
 const skillIds = audited.map((a) => a[0]);
 
 function sample(skillId) {
-  return JSON.parse(readFileSync(join(repo, 'skills', skillId, 'examples', 'sample-input.json'), 'utf8'));
+  const filename = skillId === 'agent-control-command-contract' ? 'research-sample-input.json' : 'sample-input.json';
+  return JSON.parse(readFileSync(join(repo, 'skills', skillId, 'examples', filename), 'utf8'));
 }
 
 // A committed sample plus a wall-clock assertion is a dated bomb. focus-receipt's
@@ -47,7 +48,8 @@ describe('agent-governance auditors pass their sample and reject malformed input
     expect(typeof fn).toBe('function');
 
     const report = fn(sample(skillId), { now: PINNED_NOW });
-    expect(report.pass).toBe(true);
+    const samplePass = skillId === 'agent-control-command-contract' ? report.declarationPass : report.pass;
+    expect(samplePass).toBe(true);
     expect(Array.isArray(report.findings)).toBe(true);
     expect(report.findings).toHaveLength(0);
 

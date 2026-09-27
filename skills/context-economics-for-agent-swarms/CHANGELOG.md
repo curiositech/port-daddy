@@ -1,5 +1,22 @@
 # Context Economics for Agent Swarms — Changelog
 
+## Second-review repair (2026-09-24)
+
+- Corrected the GPT-6 Luna **Standard** short-context worked rates and arithmetic; cache-write, storage, and other omitted cost classes are now explicit.
+- Replaced global route-alias uniqueness with alias ownership per declared provider `windowId`: a route can reserve separate five-hour and weekly windows, while a same-window split still fails.
+- Defined capacity eligibility from finite native arithmetic, route ownership, freshness, quality, no discrepancy, and required p95-plus-tail amount no greater than allocatable; risk is diagnostic only.
+- Added two-window positive/negative, zero-burn-negative-capacity, incomplete-reservation, and non-finite JavaScript-number regression cases.
+
+## Handoff revision (2026-09-24)
+
+- Corrected subscription cost arithmetic and separated cached-input price from context occupancy.
+- Added source-scoped ACON, parallel-compaction, and Slipstream procedures plus an inert local evaluation recipe.
+- Recast unvalidated budget/tool-count/position rules as measured local hypotheses.
+- Made provider plan/quota notes dated source pointers, not maintained capacity truth.
+- Strengthened the capacity declaration validator for malformed rows, strict calendar timestamps, limit/remaining contradictions, non-monotone forecast quantiles, aliases, and finite derived arithmetic.
+- Defined `admissible` as a local evidence consistency result only; `CHECKPOINT_NOW` blocks new admission and `launchAuthority` remains false.
+- Added regression tests for the nine root-audit reproduction classes and schema/runtime parity.
+
 ## v2.0.1 (2026-09-14)
 
 - Required every forecast route to belong to its capacity bucket's route

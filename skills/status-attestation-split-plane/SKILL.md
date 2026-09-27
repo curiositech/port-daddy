@@ -5,7 +5,7 @@ description: >-
   describes and cannot quietly attest to itself: split read plane (independently deployed
   reporter + dead-man switch), three-valued verdicts (healthy/degraded/unknown — never
   green-by-default), external anchoring of any "tamper-evident" status chain, and the
-  availability-inversion check (no client may hard-gate on the monitor). Use when adding a
+  availability-inversion check (justify monitoring dependencies per capability). Use when adding a
   status page, deep-health endpoint, reachability verdict, or signed incident ledger to a
   service — especially the service every client depends on — or when reviewing a design
   where the system signs, serves, and stores its own health claims. Keywords: shared fate,
@@ -27,9 +27,9 @@ metadata:
     - skill: observability-absences-audit
       reason: That skill finds the signals a service should emit and doesn't; this skill decides where the resulting status surface may live and who is allowed to believe it.
     - skill: pd-relay-zero-trust
-      reason: Supplies the Merkle-chain and external-anchoring primitives (ADR-0049 I2) that upgrade a status ledger from self-attested to externally verifiable.
+      reason: Related first-party relay design. Verify the current implementation, anchor custody and verifier before claiming externally checked history.
     - skill: circuit-breakers-and-retries
-      reason: Once a verdict exists, breaker behavior on `degraded`/`unknown` must degrade rather than brick — that skill covers the client-side mechanics.
+      reason: Covers client retry and breaker mechanics after this audit specifies behavior for each capability and evidence state.
   io-contract:
     kind: deliverable
     consumes:
@@ -42,8 +42,8 @@ metadata:
 
 A status surface exists to be believed when the system is broken. Most are built so
 they can only be believed when the system is fine. This skill audits the four traps
-that make a health surface a lie exactly when it matters, and prescribes the shapes
-that survive.
+that make health claims misleading, and develops an evidence contract under a
+stated failure and adversary model.
 
 ## Use This For
 
@@ -73,136 +73,124 @@ If the reporter runs in the same process, deployment, database, or control plane
 the monitored system, its most informative output — silence — is indistinguishable
 from "nobody looked." A hospital ship moored to the sinking vessel.
 
-**The fate ladder.** Classify every component of the status path (probe, storage,
+**Fate taxonomy.** Classify every component of the status path (probe, storage,
 renderer, alert delivery) by what it shares with the monitored system:
 
 | Level | Shares | Example | What its silence means |
 |---|---|---|---|
-| F0 | same process | `/health` handler in the app worker | nothing — silence is ambiguous |
-| F1 | same deployment unit | cron in the same Worker/service | nothing during deploys/outages of that unit |
-| F2 | same platform/control plane | second Worker on the same cloud, same D1 | platform-wide outage still mutes it |
-| F3 | independent platform, dead-man wired | external health checker + PagerDuty dead-man | silence itself pages |
+| F0 | same process | `/health` handler in the app worker | silence is ambiguous |
+| F1 | same deployment unit | scheduled probe in the service | deployment/unit failure may mute it |
+| F2 | same platform/control plane | separate worker/storage on the same cloud | shared control-plane failure remains |
+| F3 | independently governed failure domain | external checker and separately delivered dead-man signal | scope depends on provider, identity, network, and alert path |
 
-**Rule:** the *probe* may live at F0–F2 (it must touch the real dependencies, so
-proximity is a feature), but the *report renderer* must be ≥F2 with its own deploy
-lifecycle, and at least one *silence detector* must be F3. A dead-man switch —
-"absence of heartbeat is the page" — is the only honest answer to "what if the
-monitor is down"; anything else is an unmonitored monitor.
+**Design question:** place probe, sample store, renderer, and silence detector according to the service threat model and tolerated common-mode failures. Higher separation can improve independence, but F0–F3 are this skill’s local labels, not a standard or universal required tier. A dead-man signal is one option; document what failures it can and cannot observe.
 
-**Audit greps** (locators, not verdicts — read the surrounding code):
-`grep -rn "handleHealth\|/health"` — does it touch any dependency, or return a
-constant? `grep -rn "scheduled(\|cron"` — do probes share the monitored deployment?
+**Code locators** (literal implementation searches, not semantic verdicts; read the surrounding code):
+`rg -n 'handleHealth|/health'` — does the handler touch any dependency, or return a
+constant? `rg -n 'scheduled\(|cron'` — do probes share the monitored deployment?
 Does any config reference an external checker with a dead-man/heartbeat contract?
 
 ### Trap 2 — Green-by-default: two-valued verdicts
 
-A boolean health verdict has a forced-error problem: when the probe itself cannot
-run, the implementation must pick `ok` or `down`, and both are lies. Every verdict in
-the system must be **three-valued**: `healthy | degraded | unknown`, where `unknown`
-means "the examination did not happen," is rendered distinctly (never as green, never
-as red), and is produced *by construction* whenever a probe times out, throws, or is
-skipped — not by a default branch that falls through to `ok`.
+A bare success/failure flag cannot represent missing evidence. A useful local
+contract is `healthy | degraded | unknown`, with an explicit capability, observation
+window and coverage. Here `degraded` includes an observed objective violation,
+including complete failure for that capability; add a separately defined `down`
+state if the product needs that distinction. `unknown` means evidence is insufficient,
+not that an observed failure should be hidden.
 
-Per-dependency verdicts compose upward with `unknown` as absorbing for confidence,
-not for severity: `healthy ∧ unknown = unknown-leaning-healthy` (show last-known-good
-with age), never plain `healthy`.
+A probe that cannot execute yields unknown service evidence. A functioning probe
+that records a request exceeding the capability's defined deadline has observed a
+failure of that request from that vantage point, even if its cause is unknown.
+Do not infer a global service outage from that one observation. A thrown network
+error needs the same distinction: observed transaction failure versus a broken
+instrument. Preserve the raw observation and the interpretation rule.
 
-**Audit:** find every place a health struct is initialized. If the zero value is
+A boolean inside a structured observation is fine when separate fields preserve
+validity, coverage, age and reason. Unknown must remain visibly distinct from both
+success and known failure. Never initialize missing observations to healthy.
+
+Define dependency aggregation explicitly. Preserve unknown coverage and age; do not silently substitute a previous healthy observation. The aggregation rule should reflect the capability and consequence under review.
+
+**Review:** find every place a health struct is initialized. If the zero value is
 `ok`/`true`, the surface is green-by-default. Find every catch around a probe: does
 it record `unknown`, or swallow into the previous value?
 
 ### Trap 3 — Self-attestation: tamper-evident theater
 
-A hash-chained, signed incident ledger stored and served by the vendor it describes
-is tamper-evident **only to someone holding an external copy of the chain head**.
-Without an anchor, "we cannot quietly edit our status history" is a claim the vendor
-verifies about itself — theater.
+A signed record provides integrity and signer evidence under its key and algorithm
+assumptions. It does not prove that the reported event happened. Hash continuity
+within one served history does not by itself reveal a discarded suffix, a rewritten
+history after signer compromise, or inconsistent views shown to different clients.
+State which attack the design detects and which previously retained commitment or
+independent observation makes that detection possible.
 
-**The attestation ladder** — label every status artifact with its rung, publicly:
+**The local attestation taxonomy** — label status evidence with its evidence source and limitations:
 
-- **A0 self-reported:** JSON from the service. Trust: full trust in the service.
-- **A1 self-signed:** signed by the service's key. Adds nothing against the service
-  editing its own history; protects only against third-party tampering in transit.
-- **A2 chained:** hash-chained ledger. Detects *internal* inconsistency; still
-  rewritable wholesale.
-- **A3 externally anchored:** chain head periodically published to a place the
-  vendor cannot silently rewrite (public git repo commit, DNS TXT, transparency log,
-  a customer-side subscriber that stores heads). Rewrites now require detectable
-  divergence.
-- **A4 externally verified:** some party *actually checks* anchors against served
-  history (a CI job in the OSS repo, customer daemons comparing heads — e.g. gossip
-  chain-head "beacons" where clients republish the signed heads they saw).
+- **A0 self-reported:** service assertion with no independent attestation.
+- **A1 self-signed:** integrity/authorship evidence under the signing-key trust model; not proof the assertion is true.
+- **A2 chained:** hash-chain continuity evidence; without an external retained head, wholesale rewrite may remain undetectable.
+- **A3 externally anchored:** a separate party or system retains a commitment; protection depends on identity, custody, retention, and availability independence.
+- **A4 externally verified:** a named verifier compares retained commitments against served history under a stated procedure.
 
-**Rule:** anchor (A3) ships in v1 of any chained status ledger, not "later" — an
-unanchored chain accumulates history that can be rewritten right up until the day
-anchoring starts, which is precisely the history an incident would motivate
-rewriting. And name a verifier (A4) or admit the rung is A3.
+**Design question:** if a status ledger is called tamper-evident, identify which independent party retains its anchor and who actually checks it. A chain alone does not establish a globally consistent or complete history; A3/A4 labels are this skill’s taxonomy, not standards. See the reference for the distinct roles of signatures, inclusion proofs, consistency proofs and cross-view comparison.
 
-Second self-attestation channel: **quorum for outside-in probes.** If clients report
-their observed vitals (every daemon a probe), one lying reporter must not fake or
-mask an outage — weight by quorum across independent reporters, and keep reporter
-aggregation k-anonymous if reporters are tenants (see `derived-index-consent-boundary`
-for the tenancy side of that pipe).
+Outside-in probes can add evidence when their trust model is explicit. Multiple reporters may share software, identity, deployment, or network failures; quorum does not make them independent and cannot alone establish truth. Specify authentication, freshness, correlation/Sybil assumptions, privacy, and aggregation before using client reports.
 
 ### Trap 4 — Availability inversion: the monitor becomes the SPOF
 
-The moment a client *hard-gates* on the health verdict ("app shows nothing until the
-status service answers"), the status plane's availability bounds the product's
-availability — the hospital ship now runs the port. Inversion smells: a splash screen
-blocking on the status fetch; `unknown` treated as `impossible`; retry storms against
-the status endpoint during its own outage; a kill-switch read that fails closed for
-*reads* (kill switches should fail closed for dangerous *writes*, open for reads).
+If a client blocks all behavior on a status verdict, the status plane can become a product availability dependency. Look for splash screens blocked on fetch, `unknown` collapsed into impossibility, and retry storms. Separate status presentation from authorization of consequential writes; whether reads proceed is a per-capability security/product decision.
 
-**Rule:** verdicts **inform degradation, never gate existence.** On `unknown`:
-cached last verdict + age + retry with jitter, full local functionality preserved.
-Hard gates are permitted only on `impossible` *with machine-readable reasons the
-client renders* — and even then only for the specific capability that is impossible,
-not the app. Corollary (Goodhart): if a verdict gates anything commercially visible,
-there is pressure to keep it green — which is why Trap 3's anchoring and quorum
-measurement must already be in place before any verdict gains gating power.
+**Client contract:** for each capability, state whether unknown, degraded, or known impossibility triggers cached behavior, retry, restriction, or escalation. Avoid making monitor availability a dependency for unrelated operations. If a verdict gates a consequential action, review incentives and independently verify the evidence path; anchoring or quorum labels alone do not establish correctness.
 
 ---
 
-## Design Prescription (greenfield shape)
+## Design workflow (greenfield or review)
 
-1. **Deep probe endpoint** in the monitored service (F1): exercises each real
-   dependency (DB `SELECT 1` + hot-table head, KV/config read, a synthetic
-   end-to-end round-trip through the real delivery path with latency measured), and
-   any SLO the architecture has already committed to in writing — search ADRs for
-   promised SLOs (e.g. "revocation propagation ≤ 5s") and probe them; a committed,
-   unmeasured SLO is the highest-signal gap.
-2. **Sample store** with retention (7d ephemeral tier) + **incident ledger**
-   (durable, chained, anchored A3 on day one).
-3. **Split reporter** (≥F2): separate deploy unit rendering the report; signed;
-   pushed to client surfaces over the channel clients already hold (don't add a
-   poll).
-4. **F3 dead-man**: external checker whose *silence* pages.
-5. **Three-valued verdicts** end to end, `unknown` distinct in every renderer.
-6. **Client contract** written down: per verdict value, what each client does —
-   with "hard-gate" appearing only under `impossible`, per-capability.
-7. **The monitor's own footprint** budgeted and self-monitored (probe cost, sample
-   write amplification, dedup governor so a sustained breach logs once per window).
+1. Map service and status-path components to deployment, provider/account, credentials, control plane, region, network, storage, and alert delivery failure domains.
+2. Define probes from capabilities and objectives actually promised. Record coverage, freshness, timeout, evidence, and limits; do not invent universal latency or retention values.
+3. Set sample/incident retention from privacy, response, and regulatory needs; identify external anchor custody and the party/procedure that verifies it.
+4. Choose reporter placement and keys from the threat model. Separate deployment does not imply independence when identity or control plane is shared.
+5. Specify three-valued observation and aggregation, including stale/missing probes, partial coverage, and correlated reporters.
+6. Define per-capability behavior for healthy, degraded, unknown, and impossible. Keep monitor availability from blocking unrelated operations; authorize consequential effects separately.
+7. Budget probe cost/write amplification and measure expected and failure load before setting limits.
 
 ## Review Checklist (emit as the audit)
 
 For each item: PASS / FAIL / N/A + evidence (file:line or design-doc quote).
 
-- [ ] Fate ladder mapped for probe, store, renderer, alerting; renderer ≥F2; one F3 silence detector exists.
-- [ ] No verdict is boolean; `unknown` is constructible, rendered distinctly, and produced on probe failure by construction.
-- [ ] Every "tamper-evident" claim carries an attestation rung; chains are A3-anchored from v1; a named verifier exists or the rung is stated as A3.
-- [ ] Outside-in reporter input is quorum-weighted; a single reporter cannot flip the aggregate.
-- [ ] No client hard-gates on `unknown`; hard gates only on `impossible`, per-capability, with rendered reasons.
+- [ ] Probe, store, renderer, and alert-path failure domains are mapped; common-mode assumptions are stated.
+- [ ] Evidence validity, coverage, age and reason accompany the verdict; missing observations cannot become healthy. Observer failure and an observed deadline violation have distinct outcomes.
+- [ ] Every tamper-evident claim identifies retained external commitment and actual verification, or is narrowed to internal hash continuity.
+- [ ] Reporter identity, freshness, correlation, authentication, and aggregation are explicit; quorum alone does not prove independence.
+- [ ] Client behavior is defined per capability for unknown, degraded, and impossible, with reasons and safe fallback.
 - [ ] Every SLO already promised in an ADR/contract has a probe; the SLO page lists owner + review cadence (unowned SLOs rot).
-- [ ] Kill/pause flags: fail-closed for writes, fail-open (cached) for reads — and which is which is written down.
+- [ ] For each capability, client behavior under unknown/degraded/impossible is explicit and justified by its security and availability consequences; no blanket read/write default is assumed.
 - [ ] The monitor's own cost and failure story are stated (what melts first at 10x reporters, and what sheds).
 
 ## Failure Modes Table
 
 | Failure | Symptom | Countermeasure |
 |---|---|---|
-| Shared-fate silence | outage + green (stale) status page | F3 dead-man; renderer split |
+| Shared-fate silence | outage + stale status page | Map common-mode failures and choose a monitor/report path appropriate to the threat model |
 | Green-by-default | probe exception → `ok` | three-valued by construction; zero-value audit |
-| Theater chain | history "tamper-evident," anchor "planned" | A3 in v1; named A4 verifier |
-| Availability inversion | monitor outage bricks healthy clients | inform-don't-gate contract |
-| Goodhart green | verdict gates revenue, pressure to fudge | anchoring + quorum precede gating power |
+| Theater chain | history "tamper-evident," no independently retained head | Narrow the claim or name the actual custody and verification process |
+| Availability inversion | monitor outage blocks unrelated operations | justify each capability dependency; keep authorization and status presentation distinct |
+| Goodhart green | verdict gates a consequential choice | independently review incentives, evidence custody, and client behavior |
 | Monitor bloat | the examiner is the write-amplifier | aggregation contract + shedding, stated |
+
+
+## Independence and verification worksheet
+
+F0–F3 and A0–A4 are local labels for this skill, not assurance standards. Map monitored service, probe, storage, renderer, identity, deployment, DNS, network, notification, and verifier to their failure domains. For each claimed independent component, check shared provider/account, deployment pipeline, credentials, control plane, region, and communication path. A quorum does not ensure independent reporters; document authentication, freshness, Sybil/correlation assumptions, and aggregation. An independently retained commitment can support detection of a later conflicting history when a verifier actually compares it; it does not establish event truth, coverage or current service health.
+
+Test service outage, monitor outage, stale report, renderer failure, notification loss, and anchor/verifier divergence. Record state, report age, failure domain, and client behavior. Use `healthy`, `degraded`, or `unknown` only with a stated observation/aggregation contract.
+
+- [Independent failure domains](diagrams/research-s12-monitor-failure-domain-map.md)
+- [Attestation report lifecycle](diagrams/research-s13-attestation-report-and-verification-lifecycle.md)
+- [Observation and history verification methods](references/observation-and-history-verification.md)
+- [Source and claim correction ledger](references/source-correction-ledger.md)
+
+[NIST SP 800-137](https://csrc.nist.gov/pubs/sp/800/137/final) describes continuous monitoring in an organization/system risk context. It does not define the F/A taxonomies, require a specific cloud separation, or prove that an external anchor is independently retained or verified.
+
+

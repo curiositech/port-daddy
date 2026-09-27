@@ -1,6 +1,6 @@
-# wave-by-wave-parley — Changelog
+# Changelog
 
-## 2026-06-26
-- Initial creation: After each execution wave, agents reconvene on TENTATIVE nodes — parley as scheduled breakpoint
-- SKILL.md authored from RCP soma/jury_rig graft audit (Port Daddy #379)
-- Anatomy: diagrams, references, and examples pending enrichment pass
+## Offline repair 2026-09-24
+- Replaced timing/call-count and FIPA-conformance overclaims with source-scoped
+  graph-revision, evidence, risk, approval and assignment methods.
+- Added finite checkpoint validator and fixtures.

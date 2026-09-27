@@ -1,6 +1,6 @@
 # Preserved source bundles
 
-These are the original skill files, relocated without content edits. The canonical root `SKILL.md` is the activation entrypoint. Read a source only when its topic is needed; verify paper-specific claims against primary publications.
+These source bundles retain their original names and assets with source-bound corrections from the reconciliation branch. The canonical root `SKILL.md` is the activation entrypoint. Consult only the needed source, and verify paper-specific claims against its primary publication.
 
 ## `bdi-agents-a-soft-model-for-organisation`
 

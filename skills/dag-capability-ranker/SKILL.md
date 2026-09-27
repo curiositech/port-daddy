@@ -1,21 +1,21 @@
 ---
 license: BSL-1.1
 name: dag-capability-ranker
-description: Ranks skill matches by fit, performance history, and contextual relevance. Applies multi-factor scoring including success rate, resource usage, and task alignment. Activate on 'rank skills', 'best skill for', 'skill ranking', 'compare skills', 'optimal skill'. NOT for semantic matching (use dag-semantic-matcher) or skill catalog (use dag-skill-registry).
+description: Ranks eligible skill candidates with explicit retrieval evidence, capability
+  coverage, and uncertainty. NOT for discovery, authorization, or execution planning.
 allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-category: Agent & Orchestration
-tags:
+- Read
+- Write
+- Edit
+- Glob
+- Grep
+metadata:
+  tags:
   - dag
-  - registry
   - ranking
-  - scoring
-  - optimization
-pairs-with:
+  - retrieval
+  - capabilities
+  pairs-with:
   - skill: dag-semantic-matcher
     reason: Ranks matches from semantic search
   - skill: dag-skill-registry
@@ -24,127 +24,63 @@ pairs-with:
     reason: Provides ranked recommendations
 ---
 
-You are a DAG Capability Ranker, an expert at ranking skill candidates based on multiple factors including semantic match quality, historical performance, resource efficiency, and contextual fit.
+# DAG capability ranker
 
-## DECISION POINTS
+Rank a supplied candidate set for a stated task. A rank is a comparative recommendation, never a probability that a skill will succeed and never permission to run it. Preserve the query, catalog snapshot, policy version, and explanation so a later reviewer can reproduce the order.
 
-### Primary Ranking Decision Tree
+## 1. Establish eligibility before retrieval
 
-```
-1. Check candidate pool size:
-   ├─ 1 candidate → Return immediately with 100% confidence
-   ├─ 2-3 candidates → Use simplified scoring (semantic + success only)
-   └─ 4+ candidates → Use full multi-factor scoring
+Write the required capabilities, prohibited effects, corpus/disclosure scope, tool authority, and evaluation target. Remove candidates that cannot satisfy a hard constraint before retrieval or fusion. If no candidate remains, abstain and name the unmet capability; do not loosen a safety, disclosure, or effect constraint because the ranker found a nearby wording match.
 
-2. If semantic scores are close (<0.1 difference):
-   ├─ Success rate difference >0.2 → Rank by success rate
-   ├─ Efficiency difference >0.3 → Rank by efficiency  
-   └─ Otherwise → Use weighted composite score
+When text or code retrieval is needed, use a local policy-selected hybrid retriever. Apply repository/harbor/account, retention, and redaction filters first. Dense results may only be compared when their immutable `spaceId` matches the query's model, preprocessing, pooling, dimensions, normalization, metric, precision, and quantization recipe. A local policy label records a choice; it does not establish a source guarantee.
 
-3. If minimum confidence threshold not met:
-   ├─ Best score <0.6 → Flag as "low confidence" ranking
-   ├─ Top 2 scores within 0.05 → Return tie warning
-   └─ Otherwise → Proceed with normal ranking
-
-4. For tie-breaking (scores within 0.02):
-   ├─ Different success rates → Choose higher success rate
-   ├─ Different execution counts → Choose more proven skill
-   ├─ Different pairing bonuses → Choose better paired skill
-   └─ Otherwise → Maintain original semantic order
-
-5. Weight adjustment by context priority:
-   ├─ "reliability" → success=0.5, semantic=0.3, efficiency=0.1, context=0.1
-   ├─ "speed" → efficiency=0.4, semantic=0.3, success=0.2, context=0.1
-   ├─ "accuracy" → semantic=0.5, success=0.3, efficiency=0.1, context=0.1
-   └─ "balanced" → semantic=0.4, success=0.3, efficiency=0.2, context=0.1
+```mermaid
+flowchart LR
+  Q[Task contract and negative constraints] --> F[Authority and disclosure filter]
+  F --> E{Eligible candidates?}
+  E -->|none| A[Abstain with missing capability]
+  E -->|yes| R[Lexical and compatible dense retrieval]
+  R --> H[Rank fusion]
+  H --> C[Capability and effect review]
+  C --> V{All hard constraints still met?}
+  V -->|no| F
+  V -->|yes| O[Ranked evidence packet]
 ```
 
-## FAILURE MODES
+## 2. Fuse evidence, then inspect capability coverage
 
-### 1. Stale Metrics Syndrome
-**Symptoms**: Rankings favor skills with outdated good performance that now fail frequently
-**Detection Rule**: If success rate >0.8 but last 5 executions have >60% failures
-**Fix**: Apply recency weighting - multiply success rate by `min(1.0, recent_executions/total_executions)`
+RRF can combine independent ranked lists without treating their scores as commensurate probabilities:
 
-### 2. Inverted Weight Dominance  
-**Symptoms**: Single factor overwhelms ranking despite balanced weights
-**Detection Rule**: If top factor contributes >70% of final score in multi-factor scenario
-**Fix**: Normalize factors to [0.2, 1.0] range before weighting to prevent single-factor dominance
+`RRF(d) = sum_i 1 / (k + rank_i(d))`.
 
-### 3. Context Mismatch Blindness
-**Symptoms**: High-scoring skills recommended for incompatible contexts (wrong tools, resources)
-**Detection Rule**: If recommended skill requires unavailable tools or exceeds resource limits
-**Fix**: Apply hard context filters before scoring - eliminate incompatible skills entirely
+Record the lists, omitted candidates, `k`, and ties. Cormack, Clarke, and Buettcher describe RRF as an IR fusion method; it does not prove an agent's competence, authorization, or outcome probability. Bruch, Gai, and Ingber report that fusion behavior is benchmark-dependent, so do not claim RRF is universally best. For each fused candidate, inspect required capability evidence and prohibited-effect evidence separately; a high retrieval rank cannot repair a missing requirement.
 
-### 4. Cold Start Favoritism
-**Symptoms**: New skills with no history get middle rankings when they should be deprioritized
-**Detection Rule**: If skill with <10 executions ranks in top 3 against proven alternatives
-**Fix**: Apply confidence penalty: `adjusted_score = base_score * (execution_count / 50).clamp(0.3, 1.0)`
+```mermaid
+flowchart TB
+  L[Lexical rank] --> F[RRF with recorded k]
+  D[Dense rank: same spaceId] --> F
+  P[Provenance or dependency rank] --> F
+  F --> X[Required capabilities]
+  X --> N[Negative constraints and effect boundary]
+  N --> R[Ordered candidates plus gaps]
+```
 
-### 5. Pairing Cascade Inflation
-**Symptoms**: Skills get artificially high ranks due to multiple pairing bonuses stacking
-**Detection Rule**: If pairing bonus exceeds 0.2 or final score exceeds 1.0
-**Fix**: Cap total pairing bonus at 0.15 and clamp final scores to [0, 1] range
+## 3. Evaluate without invented universal cutoffs
 
-## WORKED EXAMPLES
+Evaluate candidate recall, capability-check precision, abstentions, and downstream task outcome on a representative labeled set or reviewed cases. Split by task family, policy, catalog revision, and effect class where those factors change the decision. Historical run data can be evidence only when its outcome predicate, cohort, missingness, and time window are recorded. Cold-start candidates should be marked as having limited evidence, not automatically penalized by a fabricated count threshold.
 
-### Example 1: Code Review Task Ranking
+### Worked positive case
 
-**Input**: 4 candidates for "Review this TypeScript code for bugs"
-- `code-reviewer`: semantic=0.85, success=0.92, efficiency=0.70, context=0.80
-- `typescript-expert`: semantic=0.82, success=0.88, efficiency=0.75, context=0.85  
-- `security-auditor`: semantic=0.78, success=0.95, efficiency=0.60, context=0.70
-- `syntax-checker`: semantic=0.90, success=0.70, efficiency=0.95, context=0.90
+The task requires static TypeScript review and forbids live requests. After authority filtering, X ranks `(lexical 1, dense 6)` and Y ranks `(lexical 4, dense 1)`. With the illustrative local choice `k=60`, RRF puts Y first. The capability review finds Y permits a live probe and lacks an offline procedure, so Y is excluded and the eligible-set ranking is recomputed. X is recommended with the retrieval ranks and the reason it satisfies the effect constraint.
 
-**Decision Process**:
-1. 4+ candidates → Use full scoring
-2. Context priority = "reliability" → weights: success=0.5, semantic=0.3, efficiency=0.1, context=0.1
-3. Calculate scores:
-   - code-reviewer: 0.85×0.3 + 0.92×0.5 + 0.70×0.1 + 0.80×0.1 = 0.87
-   - typescript-expert: 0.82×0.3 + 0.88×0.5 + 0.75×0.1 + 0.85×0.1 = 0.84
-   - security-auditor: 0.78×0.3 + 0.95×0.5 + 0.60×0.1 + 0.70×0.1 = 0.85
-   - syntax-checker: 0.90×0.3 + 0.70×0.5 + 0.95×0.1 + 0.90×0.1 = 0.84
-4. Apply pairing bonus: code-reviewer gets +0.05 for pairing with typescript-expert
-5. Final ranking: code-reviewer (0.92), security-auditor (0.85), typescript-expert (0.84), syntax-checker (0.84)
+### Worked negative case
 
-### Example 2: Speed vs Accuracy Trade-off
+Candidate Z has the best semantic rank but embeds a different `spaceId` from the query. Do not normalize or compare its vector score. Retain lexical evidence only under a policy-permitted, explicitly degraded contract. A requested hybrid contract remains unmet: report the incompatible dense evidence and either use an authorized re-embedding migration or abstain.
 
-**Input**: 2 candidates for "Generate unit tests quickly", priority="speed"
-- `test-generator-fast`: semantic=0.80, success=0.75, efficiency=0.95, context=0.85
-- `test-generator-thorough`: semantic=0.88, success=0.92, efficiency=0.60, context=0.80
+## 4. Output contract and limits
 
-**Decision Process**:
-1. 2-3 candidates but priority="speed" → Use full scoring with speed weights
-2. Weights: efficiency=0.4, semantic=0.3, success=0.2, context=0.1
-3. Calculate:
-   - fast: 0.80×0.3 + 0.75×0.2 + 0.95×0.4 + 0.85×0.1 = 0.85
-   - thorough: 0.88×0.3 + 0.92×0.2 + 0.60×0.4 + 0.80×0.1 = 0.80
-4. Speed priority correctly favors efficient option despite lower semantic match
+Return: task contract; policy and catalog snapshots; applied filters; retrieval lists and compatible `spaceId`; fusion parameters; rank order; capability/effect evidence; gaps; abstentions; and evaluation status. Read [authority-filtered hybrid ranking](references/authority-filtered-hybrid-ranking.md) for the source notes. Cite [Cormack et al., 2009](https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf) for RRF and [Bruch et al., 2022](https://arxiv.org/abs/2210.11934) for method sensitivity. These sources address retrieval experiments, not authorization or agent performance.
 
-## QUALITY GATES
+Do not use this skill for semantic discovery alone, an unstructured catalog browse, execution scheduling, or a release decision. Use `dag-semantic-matcher` for candidate discovery, `dag-skill-registry` for catalog evidence, `dag-graph-builder` for planning, and `dag-pattern-learner` for outcome-history analysis.
 
-- [ ] All candidates have computed final scores between 0.0-1.0
-- [ ] Ranking order is strictly descending by final score
-- [ ] Weight values sum to 1.0 (±0.01 tolerance)
-- [ ] No single factor contributes >70% of any final score
-- [ ] Skills requiring unavailable tools are filtered out
-- [ ] Confidence level is computed and >0.5 for production use
-- [ ] Tie-breaking logic applied for scores within 0.02
-- [ ] Pairing bonuses don't exceed 0.15 total
-- [ ] Ranking explanations generated for all results
-- [ ] Minimum data quality met (skills with <3 executions flagged)
-
-## NOT-FOR BOUNDARIES
-
-**This skill is NOT for**:
-- **Semantic matching**: Use `dag-semantic-matcher` for finding candidate skills
-- **Skill discovery**: Use `dag-skill-registry` for browsing available capabilities  
-- **Execution planning**: Use `dag-graph-builder` for orchestrating ranked skills
-- **Performance monitoring**: Use `dag-pattern-learner` for tracking execution outcomes
-- **Single-skill evaluation**: Use direct skill metadata lookup for individual assessment
-
-**Delegate when**:
-- Need initial candidate list → `dag-semantic-matcher`
-- Want skill catalog browsing → `dag-skill-registry` 
-- Ready to execute top choice → `dag-graph-builder`
-- Analyzing ranking effectiveness → `dag-pattern-learner`
+Before recommending, inspect the [operational preference worksheet and failure checks](references/authority-filtered-hybrid-ranking.md#operational-preference-worksheet). They preserve reliability, latency and resource trade-offs separately from retrieval relevance.

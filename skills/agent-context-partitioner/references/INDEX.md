@@ -8,3 +8,4 @@
 
 - [Context IR and continuation boundary](context-ir-and-continuation.md) — imported supporting material.
 - [Retrieval-space identity](retrieval-space-identity.md) — imported supporting material.
+- [Partition procedure](partition-procedure.md) — supplied-inventory constraints, greedy feasibility helper, and its limits.

@@ -1,0 +1,44 @@
+{
+  "$schema": "../schemas/control-contract.schema.json",
+  "profile": {
+    "id": "constructed-operator-controls-v1",
+    "name": "Constructed two-verb operator profile",
+    "basis": "A local example profile using the first-party steer/interrupt vocabulary. It demonstrates declaration shape only; no adapter capability was probed.",
+    "requiredVerbs": ["steer", "interrupt"],
+    "requiredLifecycleStates": ["requested", "policy-denied", "delivered", "acknowledged", "effect-observed", "failed", "expired-before-delivery", "outcome-unknown"]
+  },
+  "verbs": [
+    { "name": "steer", "intent": "Submit operator guidance for a later agent turn." },
+    { "name": "interrupt", "intent": "Request that the active body stop its current work." }
+  ],
+  "backends": [
+    { "name": "adapter-example", "description": "Constructed backend declaration; not a measured adapter.", "supportedVerbs": ["steer", "interrupt"] },
+    { "name": "observer-only-example", "description": "Constructed observer with no command channel.", "supportedVerbs": [] }
+  ],
+  "authorization": {
+    "source": "lease-store",
+    "checkedAtAdmission": true,
+    "bindings": {
+      "principal": "principal-id-field",
+      "target": "agent-run-id-field",
+      "scope": "verb-and-resource-scope-field",
+      "policyRevision": "policy-revision-field",
+      "expiresAt": "expiry-field",
+      "fencingEpoch": "authority-epoch-field"
+    },
+    "checks": {
+      "principal": true,
+      "target": true,
+      "scope": true,
+      "currentPolicy": true,
+      "notExpired": true,
+      "fencingEpoch": true
+    }
+  },
+  "matrix": [
+    { "verb": "steer", "backend": "adapter-example", "support": "supported", "lifecycleStates": ["requested", "policy-denied", "queued", "delivered", "acknowledged", "effect-observed", "failed", "expired-before-delivery", "outcome-unknown"] },
+    { "verb": "steer", "backend": "observer-only-example", "support": "unsupported", "lifecycleStates": ["requested", "policy-denied", "unsupported"] },
+    { "verb": "interrupt", "backend": "adapter-example", "support": "supported", "lifecycleStates": ["requested", "policy-denied", "queued", "delivered", "acknowledged", "effect-observed", "failed", "expired-before-delivery", "outcome-unknown"] },
+    { "verb": "interrupt", "backend": "observer-only-example", "support": "unsupported", "lifecycleStates": ["requested", "policy-denied", "unsupported"] }
+  ]
+}

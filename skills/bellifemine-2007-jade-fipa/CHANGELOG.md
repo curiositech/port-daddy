@@ -1,5 +1,5 @@
-# Bellifemine 2007 Jade Fipa — Changelog
+# Changelog
 
-## 2026-04-17
-- Recovered legacy/imported frontmatter into the canonical metadata-based repo shape
-- Recorded imported provenance and skip-oriented mutation policy metadata
+## Draft 2026-09-24
+
+Rebuilt the active guidance around a bounded local conversation contract. Historical imported prose is retained only as provenance; book metadata and current API documentation are separated from FIPA normative and deployment claims.

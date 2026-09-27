@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "2.0.0",
+  "kind": "ControllerOwnedInvocationContract",
+  "contractId": "drydock-static-review",
+  "truthState": "T0_STATIC",
+  "intent": {"intentDigest": "sha256:intent", "objective": "Review two artifacts", "completionPredicate": "Both independent reviews gathered", "excludedEffects": ["network", "deploy"]},
+  "plan": {"digest": "sha256:plan", "revision": 1, "limitDigest": "sha256:limits"},
+  "topology": {"planning": "parallel-review", "runtime": "controller-star", "supportStatus": "NARROWED", "acceptanceRef": "decision:runtime-narrowing-1"},
+  "authority": {"admissionController": "controller", "capacityOwner": "broker", "lifecycleOwner": "supervisor", "effectOwner": "effect-broker", "evidenceOwner": "recorder", "reviewer": "reviewer"},
+  "limits": {"maxConcurrency": 2, "maxAttempts": 3, "maxReworkRounds": 1, "maxRecursiveBirths": 0, "maxDurationMs": 600000, "maxMessageBytes": 65536, "resourceCeiling": {"modelTokens": 200000, "providerUsd": 10, "operatorAttentionSeconds": 900}},
+  "nodes": [
+    {"id": "review-a", "type": "work", "dependencies": [], "effectClass": "none", "outputSchemaRef": "schema:review"},
+    {"id": "review-b", "type": "work", "dependencies": [], "effectClass": "none", "outputSchemaRef": "schema:review"},
+    {"id": "gather", "type": "gather", "dependencies": ["review-a", "review-b"], "effectClass": "none", "outputSchemaRef": "schema:result-vector"}
+  ],
+  "gathers": [{"id": "gather", "members": ["review-a", "review-b"], "policy": "ALL", "reducerId": "vector-v1"}],
+  "reducers": [{"id": "vector-v1", "version": "1", "implementationDigest": "sha256:reducer", "deterministic": true}],
+  "reservationPolicy": {"planGrantIsCeiling": true, "bindingFields": ["planDigest", "planRevision", "nodeId", "attempt", "bodyGeneration", "route", "resourceVector", "expiresAt", "idempotencyKey"], "terminalDispositions": ["SETTLED", "RELEASED", "HELD_AMBIGUOUS"]},
+  "leasePolicy": {"monotonicGeneration": true, "externalFence": true, "renewalRequiresReservation": true},
+  "messagePolicy": {"ephemeralKinds": ["HEARTBEAT", "PROGRESS"], "durableKinds": ["DISPATCH_INTENT", "RENEW", "CANCEL", "GATHER", "REVIEW", "TERMINAL"], "authoritativeEphemeral": false},
+  "reviewPolicy": {"independentReviewer": true, "maxReworkRounds": 1},
+  "cancellationPolicy": {"ackDeadlineRequired": true, "fenceRequired": true, "terminationWitnessRequired": true, "providerReconciliationRequired": true},
+  "replayPolicy": {"effectsDenied": true, "projections": ["terminal", "gather", "reducer", "reservation", "ambiguity"]},
+  "evidence": {"staticLocators": ["docs/research/drydock-anchor-convention"], "dynamicEvidence": []},
+  "terminalStatus": "STATIC_VALID"
+}

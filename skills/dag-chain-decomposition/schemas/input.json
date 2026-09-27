@@ -1,38 +1,96 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["dag"],
+  "required": [
+    "graph",
+    "objective",
+    "semanticRequirements"
+  ],
   "properties": {
-    "dag": {
+    "graph": {
       "type": "object",
-      "description": "Directed acyclic graph to decompose",
+      "required": [
+        "revision",
+        "nodes",
+        "edges"
+      ],
       "properties": {
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
         "nodes": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
+            "required": [
+              "id"
+            ],
             "properties": {
-              "id": { "type": "string" },
-              "label": { "type": "string" }
-            }
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "duration": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false
           }
         },
         "edges": {
           "type": "array",
           "items": {
             "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
             "properties": {
-              "from": { "type": "string" },
-              "to": { "type": "string" }
-            }
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
-    "strategy": {
-      "type": "string",
-      "enum": ["minimize-chains", "balance-width", "optimize-depth"],
-      "default": "minimize-chains"
+    "objective": {
+      "enum": [
+        "reachability-chain-partition",
+        "direct-edge-vertex-disjoint-path-cover",
+        "weighted-schedule"
+      ]
+    },
+    "validationScope": {
+      "enum": [
+        "exact",
+        "constructed-example",
+        "proposal"
+      ]
+    },
+    "semanticRequirements": {
+      "type": "object",
+      "required": [
+        "uniqueNodeIds",
+        "edgeEndpointsExist",
+        "acyclic"
+      ],
+      "properties": {
+        "uniqueNodeIds": {"const": true},
+        "edgeEndpointsExist": {"const": true},
+        "acyclic": {"const": true}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

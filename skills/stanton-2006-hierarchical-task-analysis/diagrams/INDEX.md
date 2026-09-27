@@ -1,9 +1,15 @@
-# Diagrams for stanton-2006-hierarchical-task-analysis
+# Active diagrams
 
-**Primary Focus:** Goal-based hierarchical decomposition of complex systems to identify what must be achieved (not how), with decision frameworks for analytical depth and coordinated control logic that enables training, error prediction, interface design, and function allocation.
+| Diagram | Purpose |
+|---|---|
+| [01-goal-plan-evidence.md](01-goal-plan-evidence.md) | Build and review an HTA. |
+| [02-stopping-review.md](02-stopping-review.md) | Record purpose-bounded termination. |
+| [03-downstream-handoff.md](03-downstream-handoff.md) | Separate HTA from later specialized analyses. |
 
-| File | When to load |
-|------|--------------|
-| [01_flowchart_goal_decomposition_&_plan_stru.md](01_flowchart_goal_decomposition_&_plan_stru.md) | Goal Decomposition & Plan Structure |
-| [02_quadrantChart_p×c_stopping_rule-_analytical_.md](02_quadrantChart_p×c_stopping_rule-_analytical_.md) | P×C Stopping Rule: Analytical Focus Matrix |
-| [03_mindmap_hta_downstream_applications_&_.md](03_mindmap_hta_downstream_applications_&_.md) | HTA Downstream Applications & Annotation Framework |
+The three original generated diagrams are historical material. Their portable commit/path/SHA recovery records are in [ARCHIVAL-MATERIAL.md](../provenance/ARCHIVAL-MATERIAL.md); active diagrams are source-bounded replacements.
+
+## Bundle files
+
+- [`01_flowchart_goal_decomposition_&_plan_stru.md`](01_flowchart_goal_decomposition_&_plan_stru.md)
+- [`02_quadrantChart_p×c_stopping_rule-_analytical_.md`](02_quadrantChart_p×c_stopping_rule-_analytical_.md)
+- [`03_mindmap_hta_downstream_applications_&_.md`](03_mindmap_hta_downstream_applications_&_.md)

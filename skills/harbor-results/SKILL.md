@@ -25,11 +25,15 @@ metadata:
 
 # Harbor Results: The Executed Corpus (R1–R17)
 
-Seventeen results, executed and reproducible (program seed 20260816), each with a one-breath statement here and full depth in the references.
+Seventeen inherited result records, each with a one-breath statement here and full depth in the references. The original scripts use program seed 20260816 where stated. This repair independently checks only the bounded CR-4 fixtures; it preserves the other result records and their original evidence labels without recertifying them.
+
+## Evidence status for this repair
+
+CR-4’s general optimality and reconcile-round claims are refuted by the documented finite counterexamples. CR-1/2/3, the R6 harness, CR-5, and R1–R17 otherwise retain their own source-local `[verified]` or `[internal]` labels in the compendium; they are **unreviewed in this CR-4 repair**, rather than newly certified by it. Read the named method and boundary before relying on any result.
 
 ## When to Use
 ✅ Use for: citing or restating any R1–R17 result precisely; choosing which result underwrites a product claim; extending a result or checking whether a "new" idea is already covered or already refuted; packaging results into papers; onboarding a collaborator to the program.
-❌ NOT for: general information theory / game theory / security reference unrelated to these nine; Port Daddy engineering outside the results (kernel schemas, CLI); exposition mechanics (harbor-exposition); running the validation discipline itself (falsification-first).
+❌ NOT for: general information theory / game theory / security reference unrelated to these seventeen; Port Daddy engineering outside the results (kernel schemas, CLI); exposition mechanics (harbor-exposition); running the validation discipline itself (falsification-first).
 
 ## The Seventeen, in one breath each
 - **R1 — Information floor.** No digest below log₂C(N,k) − log₂C(m,k) bits can guarantee catching all k critical items among N while opening m; survived falsification (0/16 violations).
@@ -50,7 +54,7 @@ Seventeen results, executed and reproducible (program seed 20260816), each with 
 - **R16 — Context paging.** Landlord's k/(k−h+1) competitiveness imports to variable-size context spans; a pin oracle corrupted at rate φ costs only an ADDITIVE φN·c_refetch with repair-on-touch — and exactly one blind-trusted corruption costs Θ(N); φ is R1's forgeable-feature budget, shared.
 - **R17 — Deontic conflict fragment.** Inside Horn + ground intervals + difference constraints, commitment-conflict detection is polynomial with a witness per conflict; one expressive step out (disjunctive obligations) is NP-complete — the fragment boundary is the exact price of proposal-time checking.
 - **R6 theorem (CR).** The completion residual r is a certified lower bound on any injected lie (equality at the completion), localizes to cycles through the equivocator, and computes in Õ(|E|·L); single-equivocator only — coalitions on a cycle can cancel to r = 0.
-- **R6 theorem (CR-4 & CR-5).** Active cohomological repair (CR-4) finds minimum-cost edge interventions collapsing r to 0 in <= beta_1 rounds; simplicial Hodge decomposition on 2-complexes (CR-5) introduces the Swarm Legibility Ratio L(g) in [0, 1] separating micro-contract triadic failure (L -> 0) from macro-partition cavities (L -> 1).
+- **R6 extension (CR-4 & CR-5).** CR-4 is a finite-input energy/cost *selection heuristic*: its single-cycle sever fixture completes, while a five-edge counterexample costs 6 against an exact cost 5 and reconcile-mode zeroing takes 3 rounds with beta_1=1. A lower residual means only that the selected numerical intervention changed the modeled observations. CR-5 retains the constructed 2-complex Hodge decomposition and Legibility Ratio fixture; neither fixture classifies field incidents.
 
 ## Routing
 
@@ -63,6 +67,15 @@ flowchart TD
   Q --> P{Planning papers or next wave?}
   P -->|yes| C2[compendium end sections:\npaper map + remaining roadmap]
 ```
+
+## CR-4 intervention boundary
+
+Use the repair helper only after declaring the intervention semantics. `sever` removes an observation row from the residual calculation; it records a fenced or unavailable constraint, not a repaired observation. `reconcile` writes a selected observed coordinate to zero; it is a synthetic edit until a replacement observation, endpoint protocol, authority, and effect receipt are supplied. Both modes return `completed`, `already-consistent`, `early-stop-zero-score`, or `round-limit` with the remaining residual. None of those statuses proves the intervention was cheapest, authorized, or truthful.
+
+Read [the CR-4 counterexample and scope reference](references/cr4-repair-counterexamples-and-scope.md) before extending the helper. The first diagram separates residual telemetry from intervention authority; the second shows the sever and zeroing branches.
+
+- [Evidence and authority boundary](diagrams/01-evidence-scope.md)
+- [Intervention decision trace](diagrams/02-intervention-boundary.md)
 
 ## Anti-Patterns
 
@@ -85,6 +98,8 @@ flowchart TD
 ## References
 - `references/results-compendium.md` — Load when citing, restating, packaging, or checking scope of any R1–R17: boxed statements, [verified] vs [internal] numbers, applications, boundaries, paper map, reproducibility pointers, and the treatise-corrections consensus.
 - `references/l3-tacit-lessons.md` — Load BEFORE extending or re-implementing anything here, or designing a related experiment: the hard-won lessons (bugs hit, boundaries found, conventions that change answers) with transferable rules.
+- `references/cr4-repair-counterexamples-and-scope.md` — CR-4’s exact five-edge and triangle counterexamples, the conditional sever-only lemma, and the distinction between modeled consistency and an authorized external repair.
+- `references/source-access.md` — Source identities, access scopes, and the boundary between imported linear-algebra behavior, constructed fixtures, and local engineering policy.
 
 ## Scripts (regenerate every [internal] number)
 
@@ -113,6 +128,6 @@ Self-contained; deps: numpy, scipy, matplotlib, networkx, pinned in `scripts/req
 - `python3 scripts/sheaf_harness_v2.py` — R6 harness rebuild (W8): completion-residual detector over compared/relayed/severed visibility; gates PASS (200/200 cohomology-only on relayed cycle edges, cut edges at float epsilon, severed provably dark); D1/D2 reintroduction mutants caught; verdict COMMIT.
 - `python3 scripts/b5_engine_substitution.py` — R13: Akerlof unraveling inside one identity (swap gain price-independent, μ* threshold, death spirals), the IC flip under engine attestation (swap gain Δc−Δθ, audit stake → 0), and resurrection soundness (747-state migration machine, 0 Def-III.6.1 violations intact; 4 mutants caught with shortest crimes 1,2,2,2); exit nonzero on violation.
 - `python3 scripts/sheaf_consistency_radius.py` — R6 theorem (W8 tail): CR-1/2/3 verified — soundness (r = exact minimum lie, 0/600 violations; closed form r = |s|·√(1−R_eff), the R6 1.2247 number derived), localization (328/328 noise-free, electrical-flow support), complexity (per-coordinate Laplacian decomposition, CG slope 0.65 vs dense 1.88); coalition-cancellation boundary exhibited; D2 mutant caught; exit nonzero on violation.
-- `python3 scripts/sheaf_repair_and_2complex.py` — R6 extension: CR-4 (optimal cohomological repair min-cut collapses r to 0 in <= beta_1 rounds) & CR-5 (simplicial Hodge decomposition on 2-complexes, Legibility Ratio L(g) separating micro triadic breaches from macro cavities); exit nonzero on violation.
+- `python3 scripts/sheaf_repair_and_2complex.py --cr4-fixtures` — bounded CR-4 fixture suite: input validation, a positive single-cycle sever fixture, and two counterexamples. The helper is import-safe and returns an explicit mode, action list, residual trajectory, completion status, and remaining residual. `eligibleEdges` and `retainedEdges` are distinct in reconcile mode; `modeledObservations` records retained-row values. `python3 scripts/test_cr4_contract.py` runs portable contract regressions. Running without the flag preserves the broader local fixture suite; it is not a production or field validation.
 - `python3 scripts/b9_context_paging.py` — R16: Landlord k/(k−h+1) import verified vs exact OPT (122 pairs, cycles at equality) + linear φ-degradation under a corrupted pin oracle (additive φN·c_refetch bound, 0 violations incl. adaptive corruption; slope 1.9% of ceiling, R²=0.994); blind pin-trust mutant catastrophic (Θ(N) staleness from one corruption); exit nonzero on violation.
 - `python3 scripts/b8_specialization.py` — R15: exact Erlang-C specialization boundary g(ρ,c) (falsifies the proposed 1+(c−1)ρ/(1−ρ) threshold in both directions, crossing at ρ=(3−√5)/2) + succession-price theorem W_bd closed form, D* = ηK/(1−ηK); DES/matrix-geometric/CTMC cross-checks, 60-instance sweep, breakdown-blind mutant caught; exit nonzero on violation.

@@ -1,0 +1,9 @@
+# GPGP primary-body recovery
+
+Root accessed 2026-09-24: [UMass institutional PDF](https://web.cs.umass.edu/publication/docs/1994/UM-CS-1994-014.pdf), *Designing a Family of Coordination Algorithms*, Decker and Lesser, Technical Report 94–14, dated August 9, 1995, 25 pages. Its cover explicitly distinguishes the shorter ICMAS-95 version. The mas.cs.umass.edu PDF endpoint still failed. This supersedes the earlier metadata-only access limit for this report, not for every published version.
+
+Targeted body read: introduction, §1.1, §2, §3.4, commitment-negotiability passages in §§3.1/3.5/3.6, §4.1 and selected evaluation passages. **Not all25pages read.** PDF screenshots failed with cache miss; extracted mathematical symbols are garbled, so exact equations/table2 remain unverified visually.
+
+Methods recovered: coordination posts constraints to a local scheduler; it does not replace local scheduling. The five mechanisms address nonlocal views, result communication, redundancy, hard relations, and soft relations. In §3.4, simple redundancy uses a max quality accumulator under stated relationship assumptions. The inherited reference wrongly calls it min in two places, then contradicts itself later. Negotiability is a heuristic commitment attribute, distinct from priority or effect authority. Overhead includes communication/information gathering, scheduler calls and mechanism computation. Evaluation uses generated abstract task environments and bounded comparators; no generic coding-agent performance result follows.
+
+Next authoring repair: retain useful task hierarchies, commitment/retraction workflow, mechanism mapping, overhead accounting and quiescence counterexamples. Supply actual constructed fixtures and compare to original sections; the current seven13line GPGP reference sketches are not sufficient. Cite report sections, not conference page numbers for this25page file.

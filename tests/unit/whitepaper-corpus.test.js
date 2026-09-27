@@ -134,6 +134,12 @@ describe('proof-estate corpus manifest', () => {
     expect(rScripts.ci).toEqual({ status: 'wired', job: ['harbor-results-estate'] });
   });
 
+  test('the CR4 contract test has its own wired research-program entry', () => {
+    const cr4 = corpus.researchProgramArtifacts.find((a) => a.id === 'harbor-results-cr4-contract');
+    expect(cr4.paths).toEqual(['skills/harbor-results/scripts/test_cr4_contract.py']);
+    expect(cr4.ci).toEqual({ status: 'wired', job: ['harbor-results-estate'] });
+  });
+
   test('only threat-bands.mjs is wired; the other three Monte Carlo scripts are retired', () => {
     const monteCarlo = corpus.researchProgramArtifacts.filter((a) => a.paths[0].endsWith('.mjs'));
     expect(monteCarlo).toHaveLength(4);

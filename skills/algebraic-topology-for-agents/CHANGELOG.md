@@ -1,15 +1,15 @@
 # Changelog: algebraic-topology-for-agents
 
-## [1.0.0] - 2026-09-19
+## [1.1.0-draft] - 2026-09-24
 
-### Added
-- Initial canonical release built in accordance with `skill-architect` specification.
-- Three-layer progressive disclosure architecture with lean SKILL.md (<500 lines).
-- Algebraic formalization of cellular sheaves, stalks, and simplicial boundary operators ($\delta_0, \delta_1$).
-- Mathematical formulation of the Tree Blindness Invariant ($\Pi_{\text{tree}} \equiv \mathbf{0}$) and closed-form effective resistance sensitivity ($r = |s|\sqrt{1 - R_{\text{eff}}(e)}$).
-- Simplicial Hodge orthogonal decomposition separating gradient gauge, harmonic cavity, and curl micro-contracts.
-- Swarm Legibility Ratio formula $\mathcal{L}(g)$ for boundary classification.
-- 4 domain failure modes: Tree Blindness, Gauge Conflation, Orientation Clashes, Singular Laplacians.
-- 4 temporal anti-patterns (Novice vs Expert vs Timeline).
-- 3 comprehensive worked examples with exact mathematical steps.
-- Reference deep dives in `references/simplicial-sheaf-primer.md`, `references/hodge-decomposition-derivation.md`, and executable `examples/triadic-cochain-solve.py`.
+### Corrected and retained
+
+- Restored conditional scalar graph rank, pseudoinverse/grounding, effective-resistance, orientation, and three worked calculations with their coefficient, metric, and observation hypotheses.
+- Replaced the bare general-sheaf face sum with signed edge-to-face restriction maps, and added metric-adjoint requirements for weighted Hodge calculations.
+- Replaced causal ratio labels with an undefined-on-zero descriptive residual-energy fraction.
+- Preserved the triangle solver while making its floating-point tolerance, model, checked values, and output non-diagnostic.
+- Added a source-access and fixture boundary for targeted Hansen–Ghrist access.
+
+### Historical note on 1.0.0
+
+The 1.0.0 entries described a “Tree Blindness Invariant,” a universal effective-resistance claim, a “Swarm Legibility Ratio,” and named operational classifications. Those names record the historical draft, not established theorems or deployed evidence. The corrected versions are now explicitly limited to the corresponding finite scalar or cellular-sheaf model and do not imply attribution, health, safety, or authority.

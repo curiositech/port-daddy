@@ -1,114 +1,51 @@
-# Negotiation, Resource Allocation, and Game-Theoretic Coordination
+# Negotiation and resource allocation: distinguish protocol from incentives
 
-## The Shift from Benevolent to Self-Interested Agents
+A protocol structures interaction; it does not make participants honest or guarantee an efficient outcome.
 
-Wooldridge identifies a pivotal moment in multi-agent systems research:
+## Specify the interaction model
 
-**Rosenschein (1985)** in *"Deals Among Rational Agents"*:
-- Coined the term **"benevolent agent"**
-- Recognized that early distributed AI systems **implicitly assumed common interests** among agents
-- Introduced **game theory** as the framework for analyzing agent interactions when interests conflict
+Record agents/actions, preferences or utility assumptions, feasible outcomes, outside options, knowledge, cooperative vs self-interested incentives, and what agreement/completion means. If preferences are not numeric or comparable, do not invent utility merely to run an optimizer.
 
-**The fundamental reframing**:
+## Contract Net for task sharing
 
-- **Benevolent agents** (pre-1985 assumption): All agents share the same goals; coordination is pure problem-solving
-- **Self-interested agents** (post-1985 reality): Agents have private goals that may conflict; coordination requires **negotiation** and **mechanism design**
+For its five stages and message sequence, see [coordination](coordination-as-necessity-not-luxury.md). Contract Net structures announcement, proposals, selection, and execution in a cooperative task-sharing setting. It does not by itself define a payment rule, truthfulness, fairness, or complete failure recovery.
 
-This distinction splits MAS research into two tracks:
-1. **Cooperative problem solving** (benevolent case): How to coordinate efficiently when all agents want the same outcome
-2. **Negotiation and mechanism design** (self-interested case): How to coordinate when agents have conflicting preferences
+### Feasibility before ranking
 
-**Transfer principle**: In a 180-skill orchestration system, treat skills as **self-interested** when they:
-- Compete for limited resources (CPU, memory, API quotas)
-- Have different quality/latency trade-offs
-- Represent different organizational units (billing, compliance, operations) with distinct priorities
+A task requires a supported format and completion before deadline. First exclude proposals violating hard constraints; then apply the declared ranking rule. If none remain, report no feasible award. Keep evidence for exclusion and selection.
 
-## Contract Net: The Canonical Negotiation Protocol
+## Bargaining and agreement
 
-**Reid Smith (1977-1980)** introduced the **Contract Net Protocol** using an economic metaphor:
+Author chapter 15 slides summarize monotonic concession and Zeuthen strategy. In the monotonic concession protocol summarized in the slides, agents make simultaneous proposals from the negotiation set. Agreement occurs when one agent finds the other's proposal at least as good as its own. In later rounds an agent may not propose a deal the other prefers less than the previous proposal; if neither concedes, the protocol ends at the conflict deal. This procedure presupposes that the parties can compare deals under a shared preference model.
 
-### Core Mechanism
+For a task-oriented domain (TOD), the lecture models a finite task set T, agents, and a cost function c over subsets of tasks. In an encounter, each agent begins with its assigned task set T_i. A deal reallocates the union of tasks; utility for agent i is its original standalone cost c(T_i) minus its cost under the deal. The conflict deal preserves original allocations and has utility zero under this definition. The negotiation set contains deals that are individually rational relative to that conflict deal and Pareto efficient under the modeled costs.
 
-1. **Task Announcement**: Manager broadcasts task description with eligibility criteria
-   ```
-   Task: "Solve optimization problem for region R"
-   Eligibility: "Must have solver capability + available compute"
-   Deadline: T
-   ```
+Constructed counterexample: two delivery tasks to the same destination have standalone costs 5 and 6. If one agent can perform both for cost 7, aggregate cost falls from 11 to 7. But assigning both to the first agent gives utilities 5−7=−2 and 6; assigning both to the second gives 5 and 6−7=−1. Neither pure assignment is individually rational for both under the lecture’s cost-only utility rule. The aggregate saving does not create a mutually beneficial deal unless a permitted transfer or another allocation rule is added. The numbers are illustrative; the cost model must include real capacity/deadline constraints before use.
 
-2. **Bidding**: Contractors evaluate their suitability and submit bids
-   ```
-   Bid from Contractor_A:
-     Capability: "Can solve with accuracy 95%, time 10 min, cost $5"
-     Availability: "Free now"
-     Past performance: "Solved 23 similar tasks, avg quality 93%"
-   ```
+Zeuthen-style reasoning starts from each party’s most preferred deal, asks which is less willing to risk conflict, and has that party concede just enough to change the risk balance. Willingness to risk conflict depends on the utility gap between current proposal and conflict outcome in the model. The slides state an equilibrium result under assumptions; that result does not establish robustness to deception, changed utilities, bounded computation, or a different protocol. Specify utilities, disagreement outcome, proposal space, timing, and beliefs before applying it.
 
-3. **Award**: Manager selects best contractor(s) based on multi-criteria evaluation
-   ```
-   Award to Contractor_A:
-     Reason: "Lowest cost among bids meeting accuracy threshold"
-     Contract terms: "Deliver by T, payment $5"
-   ```
+## Bounded single-item Vickrey example
 
-4. **Execution**: Awarded contractor(s) execute, may recursively subcontract
-   ```
-   Contractor_A:
-     Subtask 1: "Preprocess data" → Subcontract to Contractor_C
-     Subtask 2: "Run solver" → Execute locally
-     Subtask 3: "Validate output" → Subcontract to Contractor_D
-   ```
+A second-price sealed-bid auction awards one item to the highest bidder and charges the winner the second-highest bid. Under standard private values and quasi-linear utility, truthful bidding is weakly dominant. This does not establish truthfulness with collusion, budget constraints, interdependent values, multiple items, or changed rules. This is a mechanism example, not a recommendation for task dispatch.
 
-5. **Reporting**: Contractors report results; manager validates and pays
-   ```
-   Result from Contractor_A:
-     Status: "Success"
-     Output: [solution data]
-     Actual metrics: "Accuracy 96%, time 9 min"
-   ```
+With values A=10 and B=7, truthful bids make A win and pay 7. A bidding 6 loses and yields 0 rather than 3; bidding 12 still wins and pays 7. This hand check is not proof of the general result.
 
-### Why This Is Coordination, Not Just Task Allocation
+## Worked design procedure
 
-The Contract Net solves multiple coordination problems simultaneously:
+1. Define resource/task and feasible outcomes.
+2. Separate hard constraints from preferences.
+3. Establish shared vs strategic objectives.
+4. Select task-sharing, bargaining, or specified auction protocol.
+5. Define proposals, rejection, acceptance, outcomes.
+6. State no-proposal, tie, timeout, changed-task, and nonperformance paths.
+7. Analyze incentives within actual utility/information model.
+8. Test profiles and edge cases; distinguish tests from theorem.
 
-1. **Information asymmetry**: Manager doesn't know contractors' capabilities; bidding **reveals** private information
+## Sources and access
 
-2. **Load balancing**: Contractors with high load bid higher costs or decline; naturally distributes work
+- Wooldridge, [chapter 14 author lecture slides](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/distrib/pdf-slides/lect14.pdf), source for auction families; scoped Vickrey statement is standard private-value theory, not a universal resource-allocation claim.
+- Wooldridge, [chapter 15 author lecture slides](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/distrib/pdf-slides/lect15.pdf), full deck read for bargaining parameters, monotonic concession, and Zeuthen summaries.
+- Wooldridge, [chapter 8 author lecture slides](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/distrib/pdf-slides/lect08.pdf), full deck read for Contract Net.
+- Smith, [1980 Contract Net paper](https://cse-robotics.engr.tamu.edu/dshell/cs631/papers/smith80contract.pdf), full copy opened for historical scope/assumptions.
+- Full book not accessed. Removed old utility figures, “95% accurate” bidding, optimality, and broad truthful-bidding claims.
 
-3. **Failure recovery**: If contractor fails, manager can **reopen bidding** with remaining contractors
-
-4. **Recursive decomposition**: Contractors can themselves become managers for subtasks (hierarchical coordination)
-
-### Transfer to Skill Orchestration
-
-**Scenario**: Workflow requires "data validation" step; 3 skills can perform it:
-- Skill_A: Fast (2 sec), low accuracy (90%), low CPU
-- Skill_B: Medium (5 sec), high accuracy (98%), medium CPU
-- Skill_C: Slow (10 sec), very high accuracy (99.9%), high CPU
-
-**Contract Net protocol**:
-
-```python
-# Manager (orchestrator) announces task
-task = {
-    "type": "data_validation",
-    "input": dataset,
-    "min_accuracy": 95%,
-    "deadline": now + 30 seconds
-}
-broadcast_task(task)
-
-# Skills bid
-bids = [
-    Skill_A.bid(task),  # → None (accuracy < 95%, doesn't bid)
-    Skill_B.bid(task),  # → {cost: 5, time: 5, accuracy: 98%}
-    Skill_C.bid(task),  # → {cost: 10, time: 10, accuracy: 99.9%}
-]
-
-# Manager evaluates
-winning_bid = min(bids, key=lambda b: b.cost if b.time < task.deadline else float('inf'))
-# Skill_B wins (cheapest among eligible)
-
-# Award contract
-award_contract(Skill_B, task)
-result = execute_with_monitoring(Skill_B, task)

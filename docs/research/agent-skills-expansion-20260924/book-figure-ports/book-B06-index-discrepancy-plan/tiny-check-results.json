@@ -1,0 +1,831 @@
+{
+  "scope": "Only supplied 3- and 4-node fixtures, independent traversal oracle and four local transcriptions; not actual author Java execution or full sweep.",
+  "cases": [
+    {
+      "names": [
+        "a",
+        "b",
+        "c"
+      ],
+      "edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "cover": [
+        [
+          0,
+          1
+        ],
+        [
+          2
+        ]
+      ],
+      "expected": [
+        [
+          true,
+          true,
+          true
+        ],
+        [
+          false,
+          true,
+          true
+        ],
+        [
+          false,
+          false,
+          true
+        ]
+      ],
+      "implementations": {
+        "literal-printed": {
+          "rows": {
+            "a": [
+              0,
+              "infinity"
+            ],
+            "b": [
+              1,
+              0
+            ],
+            "c": [
+              "infinity",
+              0
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              false
+            ],
+            [
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": false,
+          "trace": [
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                1,
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                0
+              ],
+              "merged": true,
+              "after": [
+                1,
+                0
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                0,
+                "infinity"
+              ],
+              "target": [
+                1,
+                0
+              ],
+              "merged": false,
+              "after": [
+                0,
+                "infinity"
+              ]
+            }
+          ]
+        },
+        "local-all-merge": {
+          "rows": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              1,
+              0
+            ],
+            "c": [
+              "infinity",
+              0
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              true
+            ],
+            [
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                1,
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                0
+              ],
+              "merged": true,
+              "after": [
+                1,
+                0
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                0,
+                "infinity"
+              ],
+              "target": [
+                1,
+                0
+              ],
+              "merged": true,
+              "after": [
+                0,
+                0
+              ]
+            }
+          ]
+        },
+        "delayed-self": {
+          "rows": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              1,
+              0
+            ],
+            "c": [
+              "infinity",
+              0
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              true
+            ],
+            [
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                0
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                0
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                1,
+                0
+              ],
+              "merged": true,
+              "after": [
+                1,
+                0
+              ]
+            }
+          ]
+        },
+        "author-representation-port": {
+          "rows": {
+            "a": [
+              1,
+              0
+            ],
+            "b": [
+              "infinity",
+              0
+            ],
+            "c": [
+              "infinity",
+              "infinity"
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              true
+            ],
+            [
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                "infinity"
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                0
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                0
+              ],
+              "merged": true,
+              "after": [
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "names": [
+        "a",
+        "b",
+        "d",
+        "c"
+      ],
+      "edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cover": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "expected": [
+        [
+          true,
+          true,
+          false,
+          true
+        ],
+        [
+          false,
+          true,
+          false,
+          true
+        ],
+        [
+          false,
+          false,
+          true,
+          true
+        ],
+        [
+          false,
+          false,
+          false,
+          true
+        ]
+      ],
+      "implementations": {
+        "literal-printed": {
+          "rows": {
+            "a": [
+              0,
+              "infinity"
+            ],
+            "b": [
+              1,
+              1
+            ],
+            "d": [
+              "infinity",
+              0
+            ],
+            "c": [
+              "infinity",
+              1
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              false,
+              false
+            ],
+            [
+              false,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": false,
+          "trace": [
+            {
+              "edge": [
+                "d",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                0
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": false,
+              "after": [
+                "infinity",
+                0
+              ]
+            },
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                1,
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                1,
+                1
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                0,
+                "infinity"
+              ],
+              "target": [
+                1,
+                1
+              ],
+              "merged": false,
+              "after": [
+                0,
+                "infinity"
+              ]
+            }
+          ]
+        },
+        "local-all-merge": {
+          "rows": {
+            "a": [
+              0,
+              1
+            ],
+            "b": [
+              1,
+              1
+            ],
+            "d": [
+              "infinity",
+              0
+            ],
+            "c": [
+              "infinity",
+              1
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "d",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                0
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                0
+              ]
+            },
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                1,
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                1,
+                1
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                0,
+                "infinity"
+              ],
+              "target": [
+                1,
+                1
+              ],
+              "merged": true,
+              "after": [
+                0,
+                1
+              ]
+            }
+          ]
+        },
+        "delayed-self": {
+          "rows": {
+            "a": [
+              0,
+              1
+            ],
+            "b": [
+              1,
+              1
+            ],
+            "d": [
+              "infinity",
+              0
+            ],
+            "c": [
+              "infinity",
+              1
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "d",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                1
+              ]
+            },
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                1
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                1,
+                1
+              ],
+              "merged": true,
+              "after": [
+                1,
+                1
+              ]
+            }
+          ]
+        },
+        "author-representation-port": {
+          "rows": {
+            "a": [
+              1,
+              1
+            ],
+            "b": [
+              "infinity",
+              1
+            ],
+            "d": [
+              "infinity",
+              1
+            ],
+            "c": [
+              "infinity",
+              "infinity"
+            ]
+          },
+          "answers": [
+            [
+              true,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              true,
+              false,
+              true
+            ],
+            [
+              false,
+              false,
+              true,
+              true
+            ],
+            [
+              false,
+              false,
+              false,
+              true
+            ]
+          ],
+          "matches_traversal": true,
+          "trace": [
+            {
+              "edge": [
+                "d",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                "infinity"
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                1
+              ]
+            },
+            {
+              "edge": [
+                "b",
+                "c"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                "infinity"
+              ],
+              "merged": true,
+              "after": [
+                "infinity",
+                1
+              ]
+            },
+            {
+              "edge": [
+                "a",
+                "b"
+              ],
+              "before": [
+                "infinity",
+                "infinity"
+              ],
+              "target": [
+                "infinity",
+                1
+              ],
+              "merged": true,
+              "after": [
+                1,
+                1
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "query_comparisons": 100
+}

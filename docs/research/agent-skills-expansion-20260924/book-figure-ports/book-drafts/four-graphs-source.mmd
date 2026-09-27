@@ -1,0 +1,22 @@
+flowchart TB
+  subgraph Planning[Planning graph: dependencies]
+    P1[Task A] --> P2[Task B]
+  end
+  subgraph Communication[Communication topology: evidence routes]
+    C1[Agent A] -. evidence message .-> C2[Agent B]
+  end
+  subgraph Authority[Authority graph: decisions]
+    A1[Proposed action] --> A2{Who can approve or deny?}
+    A2 --> A3[Authorized action]
+  end
+  subgraph Execution[Execution substrate: actual resources]
+    E1[Worktree or queue] --> E2[Tool, service, or human gate]
+  end
+  P1 -. does not define .-> C1
+  P2 -. does not grant .-> A3
+  C2 -. does not prove execution .-> E2
+  Labels[Label every edge as advisory, enforced, or observed]
+  Labels -.-> P1
+  Labels -.-> C1
+  Labels -.-> A1
+  Labels -.-> E1

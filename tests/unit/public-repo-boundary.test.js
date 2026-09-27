@@ -12,6 +12,7 @@ function listTrackedFiles() {
   const output = execFileSync('git', ['ls-files'], {
     cwd: repoRoot,
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   });
 
   return output.split('\n').map((line) => line.trim()).filter(Boolean);

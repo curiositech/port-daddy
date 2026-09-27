@@ -95,14 +95,17 @@ the claim. Radial "organs" and sand-dollar rings are forbidden unless radial ord
 
 ## Volume I: The Legible Swarm
 
-Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
+Canonical root: `whitepaper/legible-swarm.tex`.
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
 | `I/fig:state-of-nature` | How does consent change concurrent writes into a legible order? | aligned before/after schedules on the same time scale | overlapping writer intervals; collision window; ordered queue; one commit spine; audit fields | actor bubbles around an artifact; membership graph; free-form arrows |
+| `I/fig:ls-plan-revision` | Which earlier receipt remains usable after source, policy, or authority changes? | aligned disposition matrix | three typed revision rows; compile/accept/publish columns; conditional reuse; blocked publication; independent unknown-effect reconciliation | automatic reuse; deleting a plan node as rollback; minimal-invalidation claim |
+| `I/fig:judge-dependence` | Can separate reviewers repeat one error when they share evidence? | common-source provenance branch with aligned error vectors | one source; three distinct principals; identical constructed error vector; constructed-data label; no collusion inference | three independent-source arrows; an empirical error-rate claim; agreement as proof |
 | `I/fig:zoom-vs-potemkin` | Can each summary claim reach reviewable evidence? | aligned two-panel evidence-reachability comparison | identical summary surfaces; total zoom paths on left; opaque boundary and unreachable evidence on right | twisted arrows; paragraph boxes; scenic lens/facade art |
 | `I/fig:specialization` | When does a sole specialist beat a pooled service, and where does a shortcut err? | phase-boundary plot | labeled axes; exact boundary; approximate boundary; two error regions; winning regimes | yes/no slogan; unscaled curve; legend covering plot |
 | `I/fig:sdt` | How does the forced-zoom threshold trade misses against false alarms? | two-distribution decision plot | axes; safe/dangerous distributions; criterion; miss and false-alarm regions; separation; cost asymmetry outside data field | text over curves; callouts inside peaks; decorative icons |
+| `I/fig:ls-obligation-coverage` | Which declared requirement stays uncovered after an authorized context pack fills its budget? | authorization-filtered coverage matrix with a budget strip | A covers R1/R2 at cost 4; denied B alone covers R3 at cost 3; C covers R4 at cost 2; budget 6; blocked receipt | budget fit as completeness; unauthorized source admitted; coverage as effect authority |
 | `I/fig:readpoverty` | How does indexed lookup scale against eyeball search, and when does the L2 wedge begin paying? | two aligned population-scale panels: search cost and L2 value | shared swarm-size logic; O(n) eyeball and O(log n) index curves; nonzero value at n=1; approximately n=50 discovery bottleneck; distinct y-axes and panel titles | cumulative time curves; shaded backlog gap; funnel metaphor; unscaled piles; prose-only warning |
 | `I/fig:split-ranker` | How can one substrate support two incompatible rankings? | shared substrate splitting into two aligned scoring lanes or paired ranked lists | same candidate pool; shared decay; discovery objective; regret objective; reversed example ordering | homogeneous node diagram; telescope/lantern/chart art; one weighted score |
 | `I/fig:roles` | What grants authority, who exercises it, who is governed, and how is override returned? | differentiated institutional route | operator/principal; scoped grant; authority/actor; multitude; enforcement; legibility; revocation/override; mutual covenant | sand-dollar ring; stacked ovals; anonymous hierarchy; reciprocal arrows without labels |
@@ -111,8 +114,7 @@ Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `whitepaper/single-writer-kernel.tex` (9 graphical figures, 2 recorded terminal
-sessions set as listings, and 2 algorithm exhibits). The seven-organs, communication-organ and
+Canonical root: `whitepaper/single-writer-kernel.tex`. The seven-organs, communication-organ and
 deontic-split exhibits are tables in the chapter (round 4, 2026-09-06); the bouncer sketch and the
 dual-runtime mirror were cut with a written rationale in the figure triage.
 
@@ -125,6 +127,7 @@ dual-runtime mirror were cut with a written rationale in the figure triage.
 | `II/fig:swk-controllability-quadrant` | Which events can a runtime prevent rather than merely detect? | two-by-two regime plane: controllable × witnessed-at-the-boundary, one concrete event per cell, the preventable cell marked | the two axes as clauses; the single preventable cell; that the other three are detect-only | a bouncer illustration; a 2×2 with empty cells; prose in the cells |
 | `II/alg:acquire` | Which atomic decision selects the single winner? | annotated pseudocode with a short transaction sequence | unique-key insert; competing callers; commit/constraint outcome; no race gap | node graph; source code shrunk below print size |
 | `II/fig:swk-reference-monitor` | Does every effect pass through a small complete mediator? | effect path through one narrow mediation gate | all request origins; reference monitor; allowed/denied branches; audited effect | broad hub; firewall clip art; hidden bypass paths |
+| `II/fig:swk-unknown-effect` | What may a caller infer after an external operation times out? | three-lane sequence with an outcome ledger | submitted key; lost reply; authoritative readback; committed, final-absence, and inconclusive outcomes; late-commit exclusion before retry | timeout as failure; not-found as final absence; automatic retry loop; exactly-once transport claim |
 | `II/fig:swk-commitment-oracle` | What evidence permits a commitment to close? | state machine with oracle-gated terminal transition | open state; candidate evidence; typed oracle; close/refuse outcomes; freshness | sequence of prose boxes; magic checkmark |
 | `II/alg:close` | How does a finite oracle vocabulary decide closure? | annotated pseudocode plus decision table | allowed oracle types; validation order; terminal result; failure behavior | node graph; untyped decision diamond chain |
 | `II/fig:swk-continuity-organs` | How do memory, checkpoint, identity, continuity, and reputation depend on one another? | layered dependency spine | dependency direction; durable artifacts; identity anchor; computed reputation | organic anatomy; equal boxes with crossing arrows |

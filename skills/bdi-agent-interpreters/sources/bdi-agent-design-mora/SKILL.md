@@ -317,4 +317,12 @@ current_intentions(Result) :-
 
 ---
 
+## Evidence boundary
+
+Name the source language, interpreter, negation forms, and revision semantics.
+Paraconsistency can represent conflicting evidence in a defined formalism; it
+does not settle policy conflict or authorize an effect. Test contradiction,
+non-derivation, feasibility selection, and external authorization separately.
+See [`references/evidence-scope.md`](references/evidence-scope.md).
+
 *Load reference files on-demand for detailed algorithms, proof procedures, and implementation patterns.*

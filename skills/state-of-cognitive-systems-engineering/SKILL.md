@@ -1,8 +1,10 @@
 ---
 name: state-of-cognitive-systems-engineering
-description: "license: Apache-2.0 NOT for unrelated tasks outside this domain."
+description: Analyze human-automation work as situated activity, then test recovery and observability on representative scenarios. NOT for proving universal automation failures or replacing empirical user research.
 license: Apache-2.0
 metadata:
+  category: Research & Academic
+  tags: [cognitive-systems-engineering, human-factors, automation, task-analysis, recovery]
   provenance:
     kind: legacy-recovered
     owners:
@@ -18,29 +20,39 @@ metadata:
       - tacit expertise and knowledge elicitation
       - resilience engineering and failure mode prediction
 ---
-# SKILL.md — Cognitive Systems Engineering
+# Cognitive Systems Engineering
 
-license: Apache-2.0
-```yaml
-name: cognitive-systems-engineering
-version: 1.0
-description: >
-  Apply insights from cognitive systems engineering research to the design
-  of agent architectures, task decomposition, skill specification, and
-  human-machine coordination. Draws on Hoffman, Klein, Woods, Vicente,
-  Rasmussen, Hutchins, and the broader naturalistic decision-making corpus.
-activation_triggers:
-  - designing multi-agent orchestration or pipelines
-  - specifying what an agent or skill should do
-  - diagnosing why an automated system is failing or surprising users
-  - building systems that encode expert knowledge
-  - reasoning about human-AI handoffs, escalation, or oversight
-  - decomposing complex tasks into agent subtasks
-  - evaluating agent architectures for brittleness
-  - asking "why does this system keep breaking in unexpected ways"
+## Situated-work and recovery boundary
+
+CSE treats people, automation, representations, environment, and control
+authority as a work system. It does not prove that every fixed pipeline fails
+or that interviews fully reproduce expertise. For a critical decision, record
+cues, competing hypotheses, expected evolution, permitted action, authority,
+observable effect, and escalation. Test one familiar scenario and one novel
+disturbance with comparable aggregate metrics.
+
+```mermaid
+flowchart LR
+  C[Situation cues] --> H[Working hypothesis]
+  H --> E[Expected trajectory]
+  E --> A[Permitted action]
+  A --> O[Observed trajectory]
+  O --> M{Mismatch?}
+  M -->|no| C
+  M -->|yes| R[Reclassify seek evidence or escalate]
+  R --> C
 ```
 
----
+```mermaid
+flowchart TB
+  U[Operator] --> R[Shared representation]
+  A[Automation or agent] --> R
+  ENV[Environment] --> R
+  R --> D[Decision and authority boundary]
+  D --> X[Effect]
+  X --> F[Feedback and recovery cue]
+  F --> R
+```
 
 ## When to Use This Skill
 

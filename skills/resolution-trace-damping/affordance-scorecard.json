@@ -5,10 +5,14 @@
     "kind": "rcp-graft-mint",
     "sourceRepo": "soma + workgroup-ai",
     "createdAt": "2026-06-26T00:00:00",
-    "owners": ["soma-windags-graft"]
+    "owners": [
+      "soma-windags-graft"
+    ]
   },
   "authorship": {
-    "maintainers": ["soma-windags-graft"]
+    "maintainers": [
+      "soma-windags-graft"
+    ]
   },
   "lineCount": 135,
   "structuralComplete": true,
@@ -32,5 +36,7 @@
     "diagramCompanions": 1,
     "visualPreviewCapability": false
   },
-  "validatorPassed": true
+  "validatorPassed": true,
+  "assessmentStatus": "historical-unrevalidated",
+  "assessmentNote": "Original 2026-06-26 metrics retained below; not validation of the current bundle. Current evidence lives in the campaign receipt."
 }

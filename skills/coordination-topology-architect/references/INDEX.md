@@ -10,3 +10,7 @@ Load only the file that matches the current blocking question. Do not read the e
 | `references/topology-decomposition-playbook.md` | Topology Decomposition Playbook | 92 | Load when you need details about topology decomposition playbook. | `rg -n "topology-decomposition-playbook" /Users/erichowens/coding/some_claude_skills/.claude/skills/coordination-topology-architect/references/topology-decomposition-playbook.md` |
 | `references/workflow-patterns-review-gates.md` | Workflow Patterns, Review Gates, and Rework | 61 | Load when you need details about workflow patterns review gates. | `rg -n "workflow-patterns-review-gates" /Users/erichowens/coding/some_claude_skills/.claude/skills/coordination-topology-architect/references/workflow-patterns-review-gates.md` |
 | `references/four-plane-topology.md` | Four-plane topology | 12 | Load when planning, communication, authority, and execution differ. | `rg -n "Four planes" skills/coordination-topology-architect/references/four-plane-topology.md` |
+
+## Bundle files
+
+- [`topology-evidence-addendum.md`](topology-evidence-addendum.md)
