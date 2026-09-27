@@ -528,6 +528,15 @@ mod tests {
     }
 
     #[test]
+    fn refuses_buffer_content_that_does_not_match_opened_file() {
+        let (root, path) = fixture("disk version\n");
+        let reason = SaveTarget::open(path.to_str().unwrap(), "stale buffer\n").unwrap_err();
+        assert!(reason.contains("changed during open"));
+        assert_eq!(fs::read(&path).unwrap(), b"disk version\n");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn relative_path_uses_same_worktree_file_as_buffer_open() {
         let (root, path) = fixture("opened relative\n");
         let relative = path.strip_prefix(std::env::current_dir().unwrap()).unwrap();

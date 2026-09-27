@@ -150,11 +150,12 @@ and error states. Save verification and writes run off the render thread;
 initial `load()` and its target-witness capture still run synchronously. This is
 published draft source and headless proof, not a native-observed feature.
 
-Offline validation: 14 focused save tests pass, including edit-during-save,
+Offline validation: 15 focused save tests pass, including edit-during-save,
 clean-buffer external content and target replacement, controlled pre-replace
 write failure with temporary-file cleanup, target/parent replacement,
-symlink/hard-link refusal and Unicode round-trip. The 151 selected editor tests
-pass after the review repairs; the complete headless target graph builds with
+symlink/hard-link refusal, opened-buffer mismatch and Unicode round-trip. The
+152 selected editor tests pass after the review repairs; the complete headless
+target graph builds with
 `cargo test --offline -q -p pd-console --no-run`, and the
 GPUI binary type-checks with `gpui/runtime_shaders`. No app or service was
 started. Two P1 review findings on relative targets and metadata preservation
