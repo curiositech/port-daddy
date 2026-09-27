@@ -1152,27 +1152,30 @@
   \else
     \usebox{\pd@picbox}%
   \fi}
-\NewDocumentCommand\pdwidecaption{O{} m O{}}{%
+\NewDocumentCommand\pdpagecentered{O{\pdfullwidth} m}{%
+  \par\noindent\checkoddpage
+  \makebox[\textwidth][c]{%
+    \ifoddpage\hspace*{0.45in}\else\hspace*{-0.45in}\fi
+    \makebox[#1][c]{#2}%
+  }\par
+}
+\NewDocumentCommand\pdpagecaption{O{} m O{}}{%
   \par\vspace{6pt}%
   \begingroup
   \let\pd@captiontype\relax
   \pd@routecaptionfalse
   \noindent\checkoddpage
-  \ifoddpage
-    \makebox[\textwidth][l]{%
-      \begin{minipage}{\pdfullwidth}%
-        \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
-        \if\relax\detokenize{#3}\relax\else\label{#3}\fi
-      \end{minipage}%
-    }%
-  \else
-    \makebox[\textwidth][r]{%
-      \begin{minipage}{\pdfullwidth}%
-        \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
-        \if\relax\detokenize{#3}\relax\else\label{#3}\fi
-      \end{minipage}%
-    }%
-  \fi
+  \makebox[\textwidth][c]{%
+    \ifoddpage\hspace*{0.45in}\else\hspace*{-0.45in}\fi
+    \begin{minipage}{\dimexpr\pdfullwidth-0.2in\relax}%
+      \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
+      \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+    \end{minipage}%
+  }%
   \endgroup
+  \par
+}
+\NewDocumentCommand\pdwidecaption{O{} m O{}}{%
+  \pdpagecaption[#1]{#2}[#3]%
 }
 \makeatother

@@ -183,7 +183,7 @@ class ActualBook(unittest.TestCase):
         self.assertEqual(len(candidates), 1)
         text, = candidates
         self.assertRegex(text, r'stopping-\s*time formu(?:-\s*)?las are approxima(?:-\s*)?tions')
-        self.assertRegex(text, r'model input that requires measure(?:-\s*)?ment')
+        self.assertRegex(text, r'(?:model input that requires measure(?:-\s*)?ment|measured property of the suppressor)')
         self.assertRegex(text, r'statistical leak signa(?:-\s*)?tures;')
         for phrase in ('single-shot', "3.6.1’s job."):
             self.assertIn(phrase, text)

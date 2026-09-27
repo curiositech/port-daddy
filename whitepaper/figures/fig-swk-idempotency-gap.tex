@@ -5,7 +5,7 @@
 \begin{figure}[H]
 \centering
 \newcommand{\RGRow}[6]{%
-  \node[anchor=west] at (0,#2) {#3};
+  \node[anchor=west] at (5,#2) {#3};
   \node at (144,#2) {#4};
   \node at (213,#2) {#5};
   \node at (288,#2) {#6};}
@@ -13,7 +13,7 @@
 \begin{tikzpicture}[sg/base,y=-1pt]
   \node[anchor=west,font=\SGType\bfseries] at (0,0)
     {Before recovery};
-  \fill[sgGrid!20] (66,20) rectangle (321,167);
+  \draw[draw=sgGrid!50,fill=sgGrid!20,line width=0.5pt] (58,18) rectangle (321,167);
   \node[align=center] at (80,34) {sender\\intent};
   \node[align=center] at (137,34) {receiver\\effect};
   \node[align=center] at (192,34) {sender\\receipt};
@@ -27,7 +27,7 @@
   \draw[sgInk,line width=.9pt] (80,76)--(106,76);
   \draw[sgInk,line width=.9pt] (80,139)--(162,139);
   \foreach \x/\y in {106/76,162/139}{%
-    \draw[sgRed,line width=1.5pt] (\x-3,\y-3)--(\x+3,\y+3)
+    \draw[sgRed,line width=1.6pt] (\x-3,\y-3)--(\x+3,\y+3)
       (\x-3,\y+3)--(\x+3,\y-3);}
   \draw[sgInk!55,fill=white,line width=.8pt] (137,76) circle (2.6pt);
   \fill[sgTeal] (137,139) circle (2.6pt);
@@ -41,7 +41,7 @@
   \node[anchor=west] at (11,183) {committed};
   \draw[sgInk!55,fill=white,line width=.8pt] (88,183) circle (2.6pt);
   \node[anchor=west] at (96,183) {not reached};
-  \draw[sgRed,line width=1.5pt] (178,180)--(184,186) (178,186)--(184,180);
+  \draw[sgRed,line width=1.6pt] (178,180)--(184,186) (178,186)--(184,180);
   \node[anchor=west] at (191,183) {crash};
   \node[anchor=east,text=sgInk!65] at (321,183) {order only};
 
@@ -52,7 +52,7 @@
   \node[align=center] at (213,240) {sender\\hold};
   \node[align=center] at (288,240) {receiver\\dedup + retry};
   \draw[sgInk,line width=.7pt] (0,256)--(321,256);
-  \fill[sgAmber!12] (0,299) rectangle (321,322);
+  \draw[draw=sgAmber!40,fill=sgAmber!12,line width=0.5pt] (0,299) rectangle (321,322);
   % Policy/cutpoint values are checked against the retained observed dataset.
   \RGRow{none}{271}{No crash}{1 / done}{1 / done}{1 / done}
   \RGRow{before_effect}{291}{Before effect}{1 / done}{0 / pending}{1 / done}

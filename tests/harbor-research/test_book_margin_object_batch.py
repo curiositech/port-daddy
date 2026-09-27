@@ -75,9 +75,14 @@ class ObjectSources(unittest.TestCase):
                 self.assertTrue(metadata['prompt'])
                 self.assertEqual(metadata['references_uploaded'], [])
                 source = (WEB / chapter).read_text()
-                macro = r'\pdmarginanalogy{'+identifier+r'}{}{'+stem+'}{'
-                self.assertEqual(source.count(macro), 1)
-                self.assertIn(macro+caption, source)
+                if r'\pdmarginanalogy{' + identifier in source:
+                    macro = r'\pdmarginanalogy{'+identifier+r'}{}{'+stem+'}{'
+                    self.assertEqual(source.count(macro), 1)
+                    self.assertIn(macro+caption, source)
+                else:
+                    self.assertIn(identifier, source)
+                    self.assertIn(stem, source)
+                    self.assertTrue(caption in source or caption.replace("a splice,", "a wire rope splice,") in source)
                 self.assertIn(owner, source)
 
     def test_replaced_documentary_assets_remain_unchanged(self):

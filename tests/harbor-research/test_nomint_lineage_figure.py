@@ -79,7 +79,7 @@ def substantial_continuation(page, ending):
               if d['type'] == 's' and 300 < d['rect'].width < 340
               and d['rect'].contains(ending)]
     assert frames, 'Continuation must retain its complete frame'
-    frame = min(frames, key=lambda r: r.get_area())
+    frame = min(frames, key=lambda r: (r.width * r.height))
     rows = {round(w[1], 1) for w in page.get_text('words')
             if frame.contains(fitz.Rect(w[:4]))}
     assert len(rows) >= 4, 'Reject a short stranded continuation'

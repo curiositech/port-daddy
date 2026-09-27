@@ -1,66 +1,78 @@
-% Swiss object-based redraw: fencing epoch rejection of stale paused agents.
+% II/fig:swk-fencing-epoch. Fencing epoch rejection of stale paused agents.
 % Evidence: whitepaper/single-writer-kernel.tex Theorem 1.1 (thm:exclusion).
 % Developer story: claude:auth (paused during LLM rate limit) attempts late write after lease reassignment to codex:auth.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[sg/base,y=-1pt]
-  % Column 1: Resource Lease Timeline (x: 0 to 142)
-  \draw[sgBlue!40,line width=0.6pt,fill=sgBlue!2] (0, 10) rectangle (142, 146);
-  \node[anchor=north west,font=\fontsize{6.8}{8.0}\selectfont\sffamily\bfseries,text=sgBlue] at (6, 14) {RESOURCE TIMELINE: \texttt{src/auth/jwt.ts}};
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 9.4);
 
-  % Step 1: Initial grant
-  \draw[sgViolet,line width=0.8pt,fill=sgViolet!8] (6, 28) rectangle (136, 56);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgViolet] at (10, 31) {Holder 1: $\alpha_{\text{auth}}$ (claude)};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 42) {epoch: 104 $\cdot$ TTL: 60s};
+  % Coordinates of the 4 lifelines
+  \coordinate (A1) at (1.35, 8.5);  % Agent 1 (claude:auth)
+  \coordinate (K)  at (4.30, 8.5);  % Single-Writer Kernel
+  \coordinate (A2) at (7.25, 8.5);  % Agent 2 (codex:auth)
+  \coordinate (B)  at (10.15, 8.5); % Storage Broker
 
-  % Downward transition: Timeout & Reassignment
-  \draw[sg/arrow,draw=sgInk!60] (71, 56) -- (71, 74);
-  \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\color{sgRed}] at (73, 65) {65s pause (TTL expired)};
+  % Actor Header Nodes
+  \node[pd state, draw=pdviolet, fill=pdviolet!8, text width=2.3cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (A1) {
+    \textbf{\color{pdviolet}$\alpha_{\text{auth}}$} (claude)\\[1pt]
+    {\pdfigsub initial holder}
+  };
+  \node[pd focus state, text width=2.4cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (K) {
+    \textbf{\color{pdcobalt}Kernel}\\[1pt]
+    {\pdfigsub single-writer WAL}
+  };
+  \node[pd state, draw=pdteal, fill=pdteal!8, text width=2.3cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (A2) {
+    \textbf{\color{pdteal}$\alpha_{\text{worker}}$} (codex)\\[1pt]
+    {\pdfigsub new holder}
+  };
+  \node[pd state, draw=pdink!60, fill=pdink!6, text width=2.2cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (B) {
+    \textbf{Storage Broker}\\[1pt]
+    {\pdfigsub effect gate}
+  };
 
-  % Step 2: Epoch Increment & Reassignment
-  \draw[sgBlue,line width=0.8pt,fill=sgBlue!10] (6, 74) rectangle (136, 102);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgBlue] at (10, 77) {Kernel Reassignment};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 88) {epoch increments: 104 $\to$ 105};
+  % Lifelines (vertical dashed)
+  \draw[pd guide] (1.35, 7.9) -- (1.35, 1.2);
+  \draw[pd guide] (4.30, 7.9) -- (4.30, 1.2);
+  \draw[pd guide] (7.25, 7.9) -- (7.25, 1.2);
+  \draw[pd guide] (10.15, 7.9) -- (10.15, 1.2);
 
-  % Downward transition to new holder
-  \draw[sg/arrow,draw=sgTeal] (71, 102) -- (71, 116);
+  % 1. Initial Grant (t = 0s)
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdviolet] (4.30, 7.1) -- (1.35, 7.1)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdviolet, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {grant: epoch 104 (TTL 60s)};
 
-  % Step 3: New Holder
-  \draw[sgTeal,line width=0.8pt,fill=sgTeal!8] (6, 116) rectangle (136, 142);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgTeal] at (10, 119) {Holder 2: $\alpha_{\text{worker}}$ (codex)};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (10, 130) {active epoch: 105 (current)};
+  % 2. Stall / Pause on Agent 1 Lifeline
+  \node[pd state, draw=pderror, fill=pderror!6, text width=2.1cm, align=center, inner ysep=4.5pt] at (1.35, 4.7) {
+    \textbf{\color{pderror}Pause (65s)}\\[2pt]
+    {\color{pderror}exceeds TTL}\\[2pt]
+    {\pdfigsub rate-limit stall}
+  };
 
-  % Column 2: Stale Subprocess & Broker Rejection (x: 162 to 305)
-  % Stale attempt box
-  \draw[sgRed,line width=0.8pt,fill=sgRed!6] (162, 28) rectangle (305, 64);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (166, 31) {Late Write: $\alpha_{\text{auth}}$ (claude)};
-  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!70}] at (166, 42) {Wakes up from pause; assumes lease valid};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text=sgRed] at (166, 52) {PUT /files (carries epoch=104)};
+  % 3. Kernel Expiry & Reassignment
+  \node[pd state, draw=pdcobalt, fill=pdcobalt!8, text width=2.4cm, align=center, inner ysep=4pt] at (4.30, 5.8) {
+    \textbf{\color{pdcobalt}Lease Expired}\\[1pt]
+    \texttt{epoch 104 $\to$ 105}
+  };
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (4.30, 4.4) -- (7.25, 4.4)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {reassign: epoch 105};
 
-  % Arrow to Broker Check
-  \draw[sg/arrow,draw=sgRed] (233, 64) -- (233, 80);
+  % 4. Agent 2 Valid Write & Commit
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (7.25, 3.5) -- (10.15, 3.5)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{write} (epoch 105)};
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (10.15, 2.7) -- (7.25, 2.7)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{\color{pdteal}200 OK} ($105 \ge 105$)};
 
-  % Effect Broker Box
-  \draw[sgInk,line width=0.8pt,fill=white] (162, 80) rectangle (305, 112);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries] at (166, 83) {Storage Effect Broker};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily] at (166, 94) {check: epoch$_{\text{carried}}$ == epoch$_{\text{current}}$?};
-  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgRed}\bfseries] at (166, 103) {Predicate fails: 104 < 105};
+  % 5. Agent 1 Wakes Up and Sends Late Write
+  \draw[pd breach rule, -{Stealth[length=3.5pt,width=2.5pt]}] (1.35, 2.0) -- (10.15, 2.0)
+    node[pos=0.60, above=1pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{Late Write:} \texttt{PUT} (stale epoch 104)};
 
-  % Arrow to Rejection
-  \draw[sg/arrow,draw=sgRed] (233, 112) -- (233, 122);
+  % 6. Broker Rejection Response
+  \draw[pd breach rule, dashed, -{Stealth[length=3.5pt,width=2.5pt]}] (10.15, 1.3) -- (1.35, 1.3)
+    node[pos=0.45, above=1pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{412 Precondition Failed} (rejected: carried $104 < 105$)};
 
-  % Rejection Box
-  \draw[sgRed,line width=1.0pt,fill=sgRed!12] (162, 122) rectangle (305, 146);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (166, 125) {412 PRECONDITION FAILED};
-  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!90}] at (166, 136) {Vetoed: write dropped; no files overwritten};
-
-  % Rejection crossing indicator
-  \draw[sgRed,line width=0.6pt,dashed] (136, 88) -- (162, 96);
-
-  % Bottom summary banner
-  \draw[draw=sgGrid,fill=sgInk!3,line width=0.5pt] (0, 153) rectangle (305, 172);
-  \node[anchor=center,font=\fontsize{5.0}{6.0}\selectfont\color{sgInk!80},text width=300pt,align=center] at (152.5, 162.5) {
-    \textbf{The Invariant (Theorem~\ref{thm:exclusion}):} Reassignment increments the strictly monotonic fencing epoch ($e=104 \to 105$). Downstream brokers reject late mutations bearing expired epochs, preventing paused or zombie agents from executing silent overwrites.
+  % Invariant banner at bottom
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.45) {
+    \textbf{Fencing Invariant (Theorem~\ref{thm:exclusion}):} Reassignment increments the monotonic epoch ($104 \to 105$). Downstream effect brokers reject mutations bearing stale epochs, eliminating silent write-races under arbitrary agent pause.
   };
 \end{tikzpicture}
 \caption{Reassignment advances the fencing epoch. When agent $\alpha_{\text{auth}}$ pauses past its 60s lease TTL, the kernel increments the epoch to 105 and reassigns \texttt{src/auth/jwt.ts} to $\alpha_{\text{worker}}$. The downstream storage broker rejects $\alpha_{\text{auth}}$'s late write bearing epoch 104 with \texttt{412 Precondition Failed}, preventing silent corruption. [internal, Theorem~\ref{thm:exclusion}]}

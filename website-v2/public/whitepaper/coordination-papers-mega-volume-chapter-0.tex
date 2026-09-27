@@ -121,7 +121,7 @@ When a second agent receives this ungrounded natural language report, it incorpo
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
   \centering
-  \pdswisslandmarkplate{01}{\linewidth}
+  \pdpagecentered{\pdswisslandmarkplate{01}{0.96\pdfullwidth}}
 \end{figure}
 \fi
 
@@ -362,189 +362,8 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-% Brief (bdi-execution-flow)
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  baseBox/.style={
-    draw=pdink, line width=0.8pt, fill=pdpage, text=pdink,
-    inner xsep=5pt, inner ysep=5pt, align=left, font=\pdfiglabel
-  },
-  gridBox/.style={
-    baseBox, text width=3.25cm, minimum height=1.35cm
-  },
-  activeBox/.style={
-    gridBox, draw=pdcobalt, fill=pdcobalt, text=pdpage
-  },
-  successBox/.style={
-    baseBox, draw=pdteal, fill=pdteal!12, text=pdink, text width=4.1cm, minimum height=1.35cm
-  },
-  recoveryBox/.style={
-    baseBox, draw=pderror, fill=pderror!12, text=pdink, text width=4.1cm, minimum height=1.35cm
-  },
-  sectionFrame/.style={
-    draw=pdink!60, line width=0.8pt
-  }
-]
-  \useasboundingbox (0, -0.10) rectangle (15.5, 18.80);
-
-  % ================= HEADER & SEMANTIC KEY =================
-  \node[anchor=west, font=\pdfiglabelbold\large, text=pdink] at (0.2, 18.45) {BDI AGENT OPERATIONAL ARCHITECTURE};
-  \node[anchor=east, font=\pdfiglabel, text=pdink!70] at (15.3, 18.45) {Rao \& Georgeff (1995)};
-  \node[anchor=west, font=\pdfiglabel, text=pdink!80] at (0.2, 17.90) {AgentSpeak(L) Operational Cycle \textperiodcentered\ Rao--Georgeff State Transition System};
-  \draw[line width=1.0pt, pdink] (0.2, 17.60) -- (15.3, 17.60);
-
-  % Semantic Key
-  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.2, 17.20) {SEMANTIC KEY:};
-  
-  \node[anchor=west, draw=pdink, fill=pdlime!25, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.8, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (3.25, 17.20) {Problem Spec};
-
-  \node[anchor=west, draw=pdcobalt, fill=pdcobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.6, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (6.05, 17.20) {Active Deliberation};
-
-  \node[anchor=west, draw=pdteal, fill=pdteal!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.0, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (9.45, 17.20) {Nominal (Exit 0)};
-
-  \node[anchor=west, draw=pderror, fill=pderror!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.0, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (12.45, 17.20) {Failure Trap ($-!g$)};
-
-  % ================= SECTION 1: PARADIGM SELECTION =================
-  \draw[sectionFrame] (0.2, 12.35) rectangle (15.3, 16.85);
-  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.45, 16.50) {1. ARCHITECTURAL PARADIGM SELECTION (GOAL DYNAMICS VS INTERRUPT ABSORPTION)};
-
-  % Unified Spec & Decision Banner
-  \node[baseBox, fill=pdlime!25, text width=14.2cm, align=center, anchor=north] (req) at (7.75, 16.20) {
-    \textbf{Task Requirement:} \texttt{"Refactor auth to JWT and pass CI"} \\[2pt]
-    \textbf{Deliberation Criterion:} Persistent goals across clock ticks plus real-time interrupt recovery needed?
-  };
-
-  % Three Columns of Architectures (Aligned with Section 2 columns at x = 2.50, 7.75, 13.00)
-  \node[gridBox, anchor=north] (reactive) at (2.50, 13.95) {
-    \textbf{Reactive Rules} \\[2pt]
-    Event-driven triggers; \\[2pt]
-    no persistent goals
-  };
-
-  \node[gridBox, anchor=north] (classical) at (7.75, 13.95) {
-    \textbf{Classical Planner} \\[2pt]
-    Static STRIPS / HTN; \\[2pt]
-    brittle to failures
-  };
-
-  \node[activeBox, anchor=north] (bdi) at (13.00, 13.95) {
-    \textbf{BDI Architecture} \\[2pt]
-    Beliefs, Plans, \\[2pt]
-    Intentions; recovery
-  };
-
-  % Connectors: ample vertical gap leaves visible arrow line above and below knockout labels
-  \draw[pd arrow] (req.south -| reactive.north) -- (reactive.north)
-    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {No interrupts};
-  \draw[pd arrow] (req.south -| classical.north) -- (classical.north)
-    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {Static goals};
-  \draw[pd focus arrow] (req.south -| bdi.north) -- (bdi.north)
-    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold, text=pdcobalt] {Goals + Interrupts};
-
-  % ================= SECTION 2: DELIBERATION CYCLE =================
-  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!4] (0.2, 0.00) rectangle (15.3, 12.05);
-  \node[anchor=west, font=\pdfiglabelbold, text=pdcobalt] at (0.45, 11.70) {2. AGENTSPEAK(L) OPERATIONAL DELIBERATION CYCLE (STATE TRANSITIONS)};
-
-  % Row 1: Deliberation Steps (Uniform 3-line content & equal height for perfect horizontal alignment)
-  \node[gridBox, draw=pdcobalt, anchor=north] (step1) at (2.50, 11.30) {
-    \textbf{1. Select Event ($S_E$)} \\[2pt]
-    Pop event from $\mathcal{E}$: \\[2pt]
-    $\langle +!g, i_{\text{auth}} \rangle \leftarrow S_E(\mathcal{E})$
-  };
-
-  \node[gridBox, draw=pdcobalt, anchor=north] (step2) at (7.75, 11.30) {
-    \textbf{2. Select Plan ($S_O$)} \\[2pt]
-    Match: $\text{App} \subseteq \mathcal{P}$ \\[2pt]
-    Select: $p_{\text{jwt}} \leftarrow S_O(\text{App})$
-  };
-
-  \node[activeBox, anchor=north] (step3) at (13.00, 11.30) {
-    \textbf{3. Intention ($S_I$)} \\[2pt]
-    Schedule: $i_{\text{auth}} \leftarrow S_I(\mathcal{I})$ \\[2pt]
-    Commit slice to stack
-  };
-
-  % Row 1 Connectors: perfectly horizontal connectors aligned to fixed offset from top
-  \draw[pd arrow] ($(step1.north east)+(0,-0.65)$) -- ($(step2.north west)+(0,-0.65)$)
-    node[midway, above=2pt, font=\pdfiglabelbold] {Relevant};
-  \draw[pd focus arrow] ($(step2.north east)+(0,-0.65)$) -- ($(step3.north west)+(0,-0.65)$)
-    node[midway, above=2pt, font=\pdfiglabelbold, text=pdcobalt] {Applicable};
-
-  % Row 2: Ingestion, Status, and Commitment (y = 8.45)
-  \node[gridBox, anchor=north] (queue) at (2.50, 8.45) {
-    \textbf{Queue Ingestion} \\[2pt]
-    Add subgoals: $+!g$ \\[2pt]
-    Add beliefs: $+b$
-  };
-
-  \node[baseBox, draw=pdink, line width=0.9pt, text width=3.25cm, align=center, anchor=north, minimum height=1.35cm] (status) at (7.75, 8.45) {
-    \textbf{Status Check} \\[2pt]
-    Environmental exit code \\[2pt]
-    Verify sandbox result
-  };
-
-  \node[gridBox, anchor=north] (commit) at (13.00, 8.45) {
-    \textbf{Commitment Review} \\[2pt]
-    Check drop conditions \\[2pt]
-    Prevent goal thrashing
-  };
-
-  % Row 2 Connectors
-  \draw[pd focus arrow] (step3.south) -- (commit.north);
-  \draw[pd arrow] ($(commit.north west)+(0,-0.65)$) -- ($(status.north east)+(0,-0.65)$);
-  \draw[pd arrow] (queue.north) -- (step1.south)
-    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {New Cycle};
-
-  % Row 3: Outcomes & Recovery (Moved down ~2 font heights to y = 4.85, symmetric at x = 4.65 & 10.85)
-  \node[recoveryBox, anchor=north] (recovery) at (4.65, 4.85) {
-    \textbf{Post $-!g$ Recovery} \\[2pt]
-    Pop failed intention stack frame; \\[2pt]
-    Post failure event $-!g$ to queue $\mathcal{E}$
-  };
-
-  \node[successBox, anchor=north] (advance) at (10.85, 4.85) {
-    \textbf{Advance Intention} \\[2pt]
-    Push validated plan body to $i_{\text{auth}}$; \\[2pt]
-    Execute next action in slice
-  };
-
-  % Split Branching from Status Check: moved down, with transparent background
-  \draw[pd arrow, draw=pderror, line width=1.0pt]
-    (status.south) -- ++(0,-0.90) coordinate (splitL)
-    -- (splitL -| recovery.north) node[midway, above=2pt, font=\pdfiglabelbold, text=pderror] {Exit $\neq 0$ (Failure)}
-    -- (recovery.north);
-
-  \draw[pd focus arrow, draw=pdteal, line width=1.0pt]
-    (status.south) -- ++(0,-0.90) coordinate (splitR)
-    -- (splitR -| advance.north) node[midway, above=2pt, font=\pdfiglabelbold, text=pdteal] {Exit $= 0$ (Nominal)}
-    -- (advance.north);
-
-  % Recovery Feedback Loop: shifted right slightly (pos=0.44), transparent background
-  \draw[pd arrow, draw=pderror, line width=1.0pt, dashed]
-    (recovery.west) -- (0.50, 0 |- recovery.west)
-    node[pos=0.44, above=2pt, font=\pdfiglabelbold, text=pderror] {$-!g$ Trigger}
-    -- (0.50, 0 |- queue.west)
-    -- (queue.west);
-
-  % Advance Intention Loopback: shifted slightly, transparent background
-  \draw[pd focus arrow, draw=pdteal, line width=1.0pt]
-    (advance.east) -- (15.00, 0 |- advance.east)
-    node[pos=0.44, above=2pt, font=\pdfiglabelbold, text=pdteal] {Next Slice}
-    -- (15.00, 0 |- commit.east)
-    -- (commit.east);
-
-  % Deliberation Invariant Footer Box (Enclosed inside Section 2)
-  \node[baseBox, text width=14.2cm, align=center, inner xsep=8pt, inner ysep=9pt, anchor=north] at (7.75, 2.40) {
-    \textbf{Operational Cycle Invariant $\mathcal{I}_{\text{BDI}}$:} $\forall t, \;\mathcal{E}_{t+1} = \big(\mathcal{E}_t \setminus \{e\}\big) \cup \mathsf{ExtEvents} \cup \mathsf{IntSubgoals}$.\\[3pt]
-    Intention commitments persist across clock ticks until explicitly achieved or dropped by commitment review.
-  };
-
-\end{tikzpicture}
-
-\pdwidecaption{BDI execution flow and operational choice architecture, grounded in real-world software engineering workflows. Adapted from AgentSpeak(L) semantics~\pdcite{bordini2007agentspeak}, contrasting reactive rule triggers, static STRIPS-style planners, and dynamic BDI agents. The three core selection functions ($S_E$ for events, $S_O$ for applicable plans, and $S_I$ for intention stacks) arbitrate runtime goal scheduling, with explicit plan failure handling via the $-!g$ recovery event.}[fig:bdi-execution-flow]
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-bdi-diagram.jpg}}
+\pdwidecaption{BDI execution flow and operational choice architecture, grounded in real-world software engineering workflows. Adapted from AgentSpeak(L) semantics (Bordini et al., 2007), contrasting reactive rule triggers, static STRIPS-style planners, and dynamic BDI agents. The three core selection functions ($S_E$ for events, $S_O$ for applicable plans, and $S_I$ for intention stacks) arbitrate runtime goal scheduling, with explicit plan failure handling via the $-!g$ recovery event.}[fig:bdi-execution-flow]
 \end{figure}
 \pdmarginpagebreak
 
@@ -632,187 +451,15 @@ When deploying autonomous LLM agents (such as Codex, Claude, or local reasoning 
   \end{enumerate}
 \end{itemize}
 
-Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concurrency architecture, while Figure~\ref{fig:csp-concurrency} articulates Hoare's Communicating Sequential Processes (CSP) synchronous rendezvous, guarded external choice, and deadlock resolution mechanics.
+Figure~\ref{fig:actor-concurrency} details the dual concurrency architecture: Hewitt--Agha virtual actor isolation for stochastic deliberation, and Hoare's Communicating Sequential Processes (CSP) synchronous rendezvous for physical state mutations.
 
 \pdmarginanalogy{prereq-token-staff}{}{ch01-railway-token-staff}{Like the physical railway token staff that guarantees exclusive single-track authority, an actor holds sovereign right over its private mailbox and sequential state transitions.}%
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-% Brief (actor-concurrency)
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  baseBox/.style={
-    draw=pdink, line width=0.8pt, fill=pdpage, text=pdink,
-    inner xsep=6pt, inner ysep=5pt, align=left, font=\pdfiglabelsize
-  },
-  gridBox/.style={
-    baseBox, text width=3.8cm, minimum height=1.30cm
-  },
-  ingressBox/.style={
-    gridBox, fill=pdlime!25, text width=4.0cm
-  },
-  activeBox/.style={
-    gridBox, draw=pdcobalt, fill=pdcobalt, text=pdpage
-  },
-  remedyBox/.style={
-    gridBox, fill=pdteal!12, draw=pdteal, text width=4.0cm, minimum height=1.30cm
-  },
-  sectionFrame/.style={
-    draw=pdink!60, line width=0.8pt
-  },
-  secHeader/.style={
-    font=\pdfiglabelbold, text=pdink, anchor=north west
-  }
-]
-  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
-
-  % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
-  \node[anchor=west, font=\pdfiglabelbold\large, text=pdink] at (0.2, 18.45) {HEWITT--AGHA ACTOR ARCHITECTURE};
-  \node[anchor=east, font=\pdfiglabel, text=pdink!70] at (15.3, 18.45) {Hewitt (1973) \textperiodcentered\ Agha (1986)};
-  \node[anchor=west, font=\pdfiglabel, text=pdink!80] at (0.2, 17.95) {Asynchronous Mailbox Queue \textperiodcentered\ Capability-Attenuated Seatbelt Confinement};
-  \draw[line width=1.0pt, pdink] (0.2, 17.65) -- (15.3, 17.65);
-
-  % Semantic Legend
-  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.2, 17.20) {SEMANTIC KEY:};
-  
-  \node[anchor=west, draw=pdink, fill=pdlime!25, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.8, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (3.25, 17.20) {External Ingress};
-
-  \node[anchor=west, draw=pdcobalt, fill=pdcobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.9, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (6.35, 17.20) {Active Execution};
-
-  \node[anchor=west, draw=pdteal, fill=pdteal!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (9.85, 17.20) {Supervisory Remedy};
-
-  \node[anchor=west, draw=pdink, fill=pdpage, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (13.0, 17.20) {};
-  \node[anchor=west, font=\pdfiglabel, text=pdink] at (13.45, 17.20) {Evidence Log};
-
-  % ================= SECTION 1: INGRESS & DISPATCH =================
-  \draw[sectionFrame] (0.2, 14.40) rectangle (15.3, 16.85);
-  \node[secHeader] at (0.45, 16.70) {1. INGRESS \& CAPABILITY-ATTENUATED DISPATCH};
-
-  \node[gridBox, text width=3.6cm, anchor=north] (peer) at (2.2, 16.15) {
-    \textbf{Peer Actor} $\alpha_{\text{orch}}$ \\[2pt]
-    \texttt{claim\_port(9876)} \\[1pt]
-    Capability $\mathcal{C}$
-  };
-
-  \node[ingressBox, anchor=north] (ingress) at (7.75, 16.15) {
-    \textbf{Task Ingress Queue} $Q_{\text{in}}$ \\[2pt]
-    Task: \texttt{"refactor"} $\cdot$ Cap $\mathcal{C}$ \\[1pt]
-    \$5 Budget $\cdot$ 300s Lease
-  };
-
-  \node[gridBox, text width=3.6cm, anchor=north] (heartbeat) at (13.3, 16.15) {
-    \textbf{Supervisory Heartbeat} \\[2pt]
-    Telemetry: $\langle\text{ping}, 30\text{s}\rangle$ \\[1pt]
-    Dead-man channel
-  };
-
-  \draw[pd arrow] (peer.east) -- (ingress.west)
-    node[midway, above=1pt, font=\pdfiglabelbold, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {send($m$)};
-
-  % ================= SECTION 2: MAILBOX QUEUE =================
-  \draw[sectionFrame] (0.2, 12.55) rectangle (15.3, 14.35);
-  \node[secHeader] at (0.45, 14.20) {2. BOUNDED FIFO MAILBOX QUEUE $Q_\alpha$};
-  \node[anchor=north east, font=\pdfiglabel, text=pdink!70] at (15.1, 14.20) {$|Q_\alpha| \le N_{\max}$, Backpressure Active};
-
-  \node[font=\pdfiglabelbold, text=pdink] (tail) at (1.2, 13.15) {TAIL};
-  \node[baseBox, text width=2.4cm, fill=pdink!5, draw=pdink!30, align=center] (m3) at (3.6, 13.15) {$m_3$: \texttt{ping}};
-  \node[baseBox, text width=3.2cm, fill=pdink!5, draw=pdink!30, align=center] (m2) at (7.75, 13.15) {$m_2$: \texttt{dispatch\_task}};
-  \node[baseBox, text width=2.7cm, fill=pdcobalt, draw=pdcobalt, text=pdpage, align=center] (m1) at (11.8, 13.15) {\textbf{$m_1$: claim\_port}};
-  \node[font=\pdfiglabelbold, text=pdink] at (14.2, 13.15) {HEAD $\to$};
-
-  % Clean vertical Enqueue Path from Ingress to m2
-  \draw[pd arrow] (ingress.south) -- (m2.north)
-    node[midway, font=\pdfiglabelbold, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {enqueue};
-
-  % ================= SECTION 3: SEATBELT SANDBOX =================
-  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!5] (0.2, 6.60) rectangle (15.3, 12.35);
-  \node[secHeader, text=pdcobalt] at (0.45, 12.20) {3. ISOLATED ACTOR ENCLAVE ($\alpha_{42}$)};
-
-  % Private state vector
-  \node[baseBox, text width=14.0cm, align=center, anchor=north] (state) at (7.75, 11.45) {
-    \textbf{Private Internal State Vector $S_t$ (Encapsulated in Seatbelt Sandbox)} \\[2pt]
-    \texttt{$\langle$actor\_id: $\alpha_{42}$ $\vert$ status: PROCESSING $\vert$ budget: \$4.82 $\vert$ lease: $t+30$s $\vert$ locks: \{port:9876\}$\rangle$}
-  };
-
-  % Dequeue Arrow (label placed cleanly inside Section 3)
-  \draw[pd focus arrow] (m1.south) -- (state.north -| m1.south)
-    node[pos=0.60, fill=pdpage, inner xsep=4.5pt, inner ysep=4.0pt, font=\pdfiglabelbold, text=pdcobalt] {atomic pop $(m_1)$};
-
-  % Three Atomic Capabilities
-  \node[gridBox, anchor=north] (send) at (2.4, 9.40) {
-    \textbf{1. Send Message} \\[2pt]
-    \texttt{send(}$\alpha_{\text{relay}}, \text{port}\rangle$\texttt{)} \\[1pt]
-    Asynchronous dispatch
-  };
-
-  \node[gridBox, anchor=north] (spawn) at (7.75, 9.40) {
-    \textbf{2. Create New Actor} \\[2pt]
-    \texttt{spawn(}$\alpha_{\text{sub}}, \text{Seatbelt}, \mathcal{C}'$\texttt{)} \\[1pt]
-    Attenuates cap: $\mathcal{C}' \subset \mathcal{C}$
-  };
-
-  \node[activeBox, anchor=north] (become) at (13.1, 9.40) {
-    \textbf{3. Become Next State} \\[2pt]
-    \texttt{become(}$S_{t+1}: \text{AWAIT}$\texttt{)} \\[1pt]
-    \textbf{Atomic replacement}
-  };
-
-  % Capability dispatch arrows
-  \draw[pd arrow] (state.south -| send.north) -- (send.north)
-    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=4.5pt, font=\pdfiglabelbold] {$M_{\text{out}}$};
-  \draw[pd arrow] (state.south -| spawn.north) -- (spawn.north)
-    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=4.5pt, font=\pdfiglabelbold] {$A_{\text{spawn}}$};
-  \draw[pd focus arrow] (state.south -| become.north) -- (become.north)
-    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=5.5pt, font=\pdfiglabelbold, text=pdcobalt] {$S_{t+1}$};
-
-  % Sequential Invariant Note
-  \node[baseBox, anchor=north, align=center, text width=14.0cm, inner ysep=5.5pt] at (7.75, 7.75) {
-    \textbf{Sequential Invariant $\mathcal{I}_{\text{seq}}$:} $\forall \alpha_i$, state transitions $\langle S_t, m_k \rangle \xrightarrow{\tau} S_{t+1}$ are strictly totally ordered; concurrent execution occurs exclusively across distinct identities $\alpha_i \neq \alpha_j$.
-  };
-
-  % ================= SECTION 4: SUPERVISION HIERARCHY =================
-  \draw[sectionFrame] (0.2, 3.80) rectangle (15.3, 6.35);
-  \node[secHeader] at (0.45, 6.20) {4. SUPERVISION HIERARCHY \& FAULT ISOLATION (``LET IT CRASH'')};
-
-  \node[gridBox, text width=3.8cm, minimum height=1.30cm, anchor=north] (sup) at (2.4, 5.65) {
-    \textbf{Supervisor} $\alpha_{\text{sup}}$ \\[2pt]
-    \texttt{trap(}$\alpha_{\text{err}}$\texttt{)} $\to$ recover \\[1pt]
-    Dead-man telemetry
-  };
-
-  \node[gridBox, text width=4.3cm, minimum height=1.30cm, anchor=north] (crash) at (7.75, 5.65) {
-    \textbf{Fault Classification} $\mathcal{F}$ \\[2pt]
-    $\blacksquare$ \textbf{OOM} $\lor$ \textbf{SeatbeltFault} \\[1pt]
-    $\blacksquare$ \textbf{SpendCap} $\lor$ \textbf{LeaseExpiry}
-  };
-
-  \node[remedyBox, text width=4.0cm, minimum height=1.30cm, anchor=north] (recovery) at (13.1, 5.65) {
-    \textbf{Supervisory Remedy} $\mathcal{R}$ \\[2pt]
-    $\blacksquare$ \texttt{salvage} to Graveyard \\[1pt]
-    $\blacksquare$ \texttt{restart} $\lor$ Attenuate
-  };
-
-  \draw[pd arrow] (sup.east) -- (crash.west);
-  \draw[pd focus arrow, draw=pdteal] (crash.east) -- (recovery.west);
-
-  % ================= SECTION 5: APPEND-ONLY WAL LEDGER =================
-  \draw[sectionFrame] (0.2, 0.50) rectangle (15.3, 3.65);
-  \node[secHeader] at (0.45, 3.50) {5. APPEND-ONLY DURABLE EVIDENCE LOG (SQLITE WAL / SHA-256 WITNESS)};
-
-  \node[baseBox, fill=pdpage, draw=pdink!40, text width=14.0cm, align=left, anchor=north] at (7.75, 2.95) {
-    \texttt{entry(seq=49182, actor="worker:42", msg="claim\_port", port=9876, lease=30s,}\\[1pt]
-    \texttt{\quad prev="7f9a1b...", hash="c3d4e5...")}
-  };
-
-  \node[baseBox, anchor=north, align=center, text width=14.0cm, inner ysep=5.5pt] at (7.75, 1.70) {
-    \textbf{Durable Lineage Invariant $\mathcal{I}_{\text{WAL}}$:} $\forall \tau \in \mathcal{T}$, $\text{WAL}.\mathtt{append}(\tau) \prec_{\text{commit}} \text{effectuate}(\tau)$. Crash recovery restores $\sup_t S_t$ with zero amnesiac replay.
-  };
-
-\end{tikzpicture}
-
-\pdwidecaption{Hewitt--Agha virtual actor architecture: capability-attenuated mailbox ingress, sequential transitions via $\mathtt{send}$, $\mathtt{spawn}$, and $\mathtt{become}$, and fault recovery under dead-man supervision.}[fig:actor-concurrency]
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-concurrency-diagram.jpg}}
+\pdwidecaption{Concurrency foundations for multi-agent operating kernels: synthesizing Hewitt--Agha virtual actor isolation (asynchronous mailboxes, capability tokens, and $\mathtt{become}$ state transitions) with Hoare's Communicating Sequential Processes (synchronous rendezvous barriers, $\Delta t = 0$, and guarded external choice with lease timeouts). Sovereign actors deliberate in isolated sandboxes, while physical host resource contention (TCP ports, SQLite WAL writes, git locks) is arbitrated via synchronous CSP rendezvous.}[fig:actor-concurrency]
+\label{fig:csp-concurrency}%
 \end{figure}
 
 \subsection{From Asynchronous Isolation to Synchronous Rendezvous}
@@ -828,288 +475,8 @@ The fundamental divergence between Hewitt's Actor model and Hoare's Communicatin
 \end{enumerate}
 
 \pdmarginanalogy{prereq-railway-lever}{}{ch08-interlocking-railway-lever}{Like an interlocking railway lever frame mechanically locking switches until signals align, unbuffered CSP channels require simultaneous rendezvous to advance.}%
-\begin{figure}[p]
-\centering
-\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
-\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & invariants (ebony)
-\definecolor{activeCobalt}{HTML}{003FB8}    % Active: Mutating execution & hot-path message (cobalt)
-\definecolor{remedyBorder}{HTML}{00564C}    % Supervisory Accent (teal)
-\definecolor{hazardBorder}{HTML}{8B0000}    % Deadlock hazard border (mayday)
-\colorlet{ingressTint}{pdlime!25!white}
-\colorlet{activeTint}{activeCobalt!12!white}
-\colorlet{remedySeafoam}{remedyBorder!15!white}
-\colorlet{seafoamSuccess}{remedyBorder!15!white}
-\colorlet{seafoamBorder}{remedyBorder}
-\colorlet{codeBg}{codebg}
-\colorlet{hazardTint}{hazardBorder!15!white}
+% Hoare CSP synthesized into Figure 0.2
 
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,  >=Stealth,
-  baseBox/.style={
-    draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
-    inner sep=3.5pt, align=left, font=\footnotesize
-  },
-  cardBox/.style={
-    baseBox, text width=3.2cm, minimum height=1.15cm
-  },
-  hazardBox/.style={
-    baseBox, fill=hazardTint, draw=hazardBorder, text=charcoal
-  },
-  remedyBox/.style={
-    baseBox, fill=remedySeafoam, draw=remedyBorder, text=charcoal
-  },
-  sectionFrame/.style={
-    draw=charcoal, line width=0.9pt
-  },
-  secHeader/.style={
-    font=\bfseries\footnotesize, text=charcoal, anchor=west
-  }
-]
-  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
-
-  % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
-  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {COMMUNICATING SEQUENTIAL PROCESSES (CSP)};
-  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal!70] at (15.3, 18.45) {Hoare (1978)};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 18.05) {Synchronous Rendezvous \textperiodcentered\ Guarded Choice \textperiodcentered\ Deadlock Breaking \textperiodcentered\ Actor Duality};
-  \draw[line width=1.2pt, charcoal] (0.2, 17.8) -- (15.3, 17.8);
-
-  % Semantic Legend
-  \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.48) {SEMANTIC KEY:};
-  
-  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (3.3, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.75, 17.48) {Rendezvous};
-
-  \node[anchor=west, draw=charcoal, fill=codeBg, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (6.3, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.75, 17.48) {Choice ($\mathbin{\square}$)};
-
-  \node[anchor=west, draw=hazardBorder, fill=hazardTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.85, 17.48) {Deadlock Hazard};
-
-  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.8, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.25, 17.48) {Lease Break};
-
-  % ================= SECTION 1: SYNCHRONOUS RENDEZVOUS BARRIER =================
-  \draw[sectionFrame, draw=activeCobalt, line width=1.2pt, fill=activeTint!35] (0.2, 13.55) rectangle (15.3, 17.25);
-  \node[secHeader, text=activeCobalt] at (0.45, 16.95) {1. INSTANTANEOUS SYNCHRONOUS RENDEZVOUS BARRIER ($|Q_c| = 0$)};
-
-  % Left Card: Writer P1
-  \node[cardBox, draw=activeCobalt, anchor=west] (cardP1) at (0.5, 15.8) {
-    \includegraphics[height=9pt]{figures/lucide/terminal.pdf} \textbf{Writer $P_1$} \\[2pt]
-    \footnotesize Expr: $c!\langle\mathtt{commit}\rangle$ \\[1pt]
-    \footnotesize\color{hazardBorder}\textbf{Status: BLOCKED}
-  };
-
-  % Right Card: Auditor P2
-  \node[cardBox, draw=activeCobalt, anchor=east] (cardP2) at (15.0, 15.8) {
-    \includegraphics[height=9pt]{figures/lucide/list-checks.pdf} \textbf{Auditor $P_2$} \\[2pt]
-    \footnotesize Expr: $c?x$ \\[1pt]
-    \footnotesize\color{hazardBorder}\textbf{Status: BLOCKED}
-  };
-
-  % Visual Pipe Channel Between P1 and P2
-  \draw[draw=activeCobalt, line width=1.4pt, fill=white] (4.0, 15.3) rectangle (11.5, 16.3);
-  
-  % Left side feed arrow
-  \draw[->, line width=1.6pt, activeCobalt] (4.2, 15.7) -- (6.6, 15.7)
-    node[midway, above=1pt, font=\footnotesize\bfseries] {$v$ (send)};
-
-  % Right side recv arrow
-  \draw[<-, line width=1.6pt, activeCobalt] (8.9, 15.7) -- (11.3, 15.7)
-    node[midway, above=1pt, font=\footnotesize\bfseries] {$x$ (recv)};
-
-  % Central Physical Barrier Gate
-  \draw[draw=hazardBorder, fill=hazardTint, line width=1.4pt] (7.1, 15.0) rectangle (8.4, 16.6);
-  \node at (7.75, 15.95) {\includegraphics[height=12pt]{figures/lucide/lock-keyhole.pdf}};
-  \node[anchor=center, font=\footnotesize\bfseries\color{hazardBorder}] at (7.75, 14.75) {Gate: $\Delta t = 0$};
-
-  % Crossed-out Buffer Memory Representation
-  \begin{scope}[shift={(0.8, 13.9)}]
-    % 4 queue slots
-    \draw[draw=charcoal!60, line width=0.8pt, fill=white] (0, 0) rectangle (2.4, 0.45);
-    \draw[draw=charcoal!60, line width=0.8pt] (0.6, 0) -- (0.6, 0.45);
-    \draw[draw=charcoal!60, line width=0.8pt] (1.2, 0) -- (1.2, 0.45);
-    \draw[draw=charcoal!60, line width=0.8pt] (1.8, 0) -- (1.8, 0.45);
-    % Big Red X
-    \draw[draw=hazardBorder, line width=1.8pt] (-0.1, -0.05) -- (2.5, 0.5);
-    \draw[draw=hazardBorder, line width=1.8pt] (-0.1, 0.5) -- (2.5, -0.05);
-  \end{scope}
-
-  \node[anchor=west, font=\footnotesize, align=left, text width=11.2cm] at (3.6, 14.1) {
-    \textbf{Zero Heap Storage ($|Q_c| = 0$):} Direct register handoff across threads.\\
-    \footnotesize Neither process advances past primitive until both arrive simultaneously ($\Delta t = 0$).
-  };
-
-  % ================= SECTION 2: GUARDED EXTERNAL CHOICE =================
-  \draw[sectionFrame] (0.2, 10.15) rectangle (15.3, 13.4);
-  \node[secHeader] at (0.45, 13.1) {2. GUARDED EXTERNAL CHOICE COMMUTATOR (HOARE'S $\mathbin{\square}$ OPERATOR)};
-
-  % Left: Code snippet in crisp terminal card
-  \node[baseBox, fill=codeBg, text width=4.6cm, font=\footnotesize\ttfamily, inner sep=5pt, anchor=west] (codecard) at (0.5, 11.65) {
-    \textbf{select} \{\\
-    \ \ $\mathtt{c\_req?j} \implies \textsf{dispatch(j)}$\\
-    \ \ $\mathbin{\square}\;\mathtt{c\_die?s} \implies \textsf{abort()}$\\
-    \ \ $\mathbin{\square}\;\mathtt{30s} \implies \textsf{salvage()}$\\
-    \}
-  };
-
-  % Center: Multi-Way Commutator Schematic
-  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in1) at (7.5, 12.45) {$\mathtt{c\_req?j}$};
-  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in2) at (7.5, 11.65) {$\mathtt{c\_die?s}$};
-  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in3) at (7.5, 10.85) {$\Delta t = 30\text{s}$};
-
-  % Clock icon next to timer
-  \begin{scope}[shift={(6.0, 10.85)}]
-    \draw[line width=0.8pt, charcoal] circle (0.18);
-    \draw[line width=0.8pt, charcoal] (0,0) -- (0,0.11);
-    \draw[line width=0.8pt, charcoal] (0,0) -- (0.08,0);
-  \end{scope}
-
-  % Central Switch Hub
-  \draw[draw=activeCobalt, fill=activeTint, line width=1.3pt] (9.1, 11.65) circle (0.55);
-  \node[font=\bfseries\large, text=activeCobalt] at (9.1, 11.65) {$\mathbin{\square}$};
-  \node[font=\footnotesize\bfseries, text=activeCobalt] at (9.1, 10.9) {COMMUTATOR};
-
-  % Feed lines into switch
-  \draw[->, line width=1.0pt, charcoal] (in1.east) -- (8.6, 11.9);
-  \draw[->, line width=1.0pt, activeCobalt] (in2.east) -- (8.55, 11.65);
-  \draw[->, line width=1.0pt, charcoal] (in3.east) -- (8.6, 11.4);
-
-  % Switch output branch
-  \draw[->, line width=1.8pt, activeCobalt] (9.65, 11.65) -- (11.0, 11.65);
-
-  % Right Output: Execution action
-  \node[baseBox, draw=seafoamBorder, fill=seafoamSuccess, text width=3.5cm, anchor=west, inner sep=4pt] at (11.0, 11.65) {
-    \includegraphics[height=9pt]{figures/lucide/workflow.pdf} \textbf{Winner Action}\\[2pt]
-    \footnotesize First arrival fires;\\
-    \footnotesize others discarded;\\
-    \footnotesize zero CPU burn.
-  };
-
-  % ================= SECTION 3: DEADLOCK HAZARD & LEASE GUILLOTINE =================
-  \draw[sectionFrame] (0.2, 4.35) rectangle (15.3, 10.0);
-  \node[secHeader] at (0.45, 9.7) {3. CIRCULAR WAIT DEADLOCK HAZARD \& MANDATORY LEASE TIMEOUT};
-
-  % Left: Visual Circular Dependency Ring (Triangle of Processes)
-  \begin{scope}[shift={(0.2, 5.95)}]
-    % Process A
-    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeA) at (1.1, 2.7) {
-      \textbf{\footnotesize Proc $A$}\\[1pt]\footnotesize waits on $c_1$
-    };
-    % Process B
-    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeB) at (4.5, 2.7) {
-      \textbf{\footnotesize Proc $B$}\\[1pt]\footnotesize waits on $c_2$
-    };
-    % Process C
-    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeC) at (2.8, 1.3) {
-      \textbf{\footnotesize Proc $C$}\\[1pt]\footnotesize waits on $c_3$
-    };
-
-    % Circular directed arrows
-    \draw[->, line width=1.3pt, hazardBorder] (nodeA.east) -- (nodeB.west)
-      node[midway, above=1pt, font=\footnotesize\bfseries] {$c_1$};
-    \draw[->, line width=1.3pt, hazardBorder] (nodeB.south) -- (nodeC.east)
-      node[midway, right=1pt, font=\footnotesize\bfseries] {$c_2$};
-    \draw[->, line width=1.3pt, hazardBorder] (nodeC.west) -- (nodeA.south)
-      node[midway, left=1pt, font=\footnotesize\bfseries] {$c_3$};
-
-    % Center circular deadlock badge
-    \node[anchor=center, align=center] at (2.8, 2.2) {
-      \color{hazardBorder}\textbf{\footnotesize $\mathcal{W}_{\text{circ}}$}\\[-1pt]
-      \color{hazardBorder}\textbf{\footnotesize DEADLOCK}
-    };
-  \end{scope}
-
-  % Center: The Countdown Timer Clock and Snip Shears
-  \begin{scope}[shift={(6.9, 7.65)}]
-    % Clock face
-    \draw[line width=1.0pt, charcoal] circle (0.45);
-    \draw[line width=1.0pt, charcoal] (0, 0) -- (0, 0.28);
-    \draw[line width=1.0pt, charcoal] (0, 0) -- (0.2, 0);
-    \node[font=\footnotesize\bfseries\color{remedyBorder}] at (0, -0.68) {$\tau \le t_{\text{lease}}$};
-
-    % Cutting Shears / Scissors (Physical Break)
-    \begin{scope}[shift={(1.2, 0)}]
-      % Blade 1 & handle
-      \draw[line width=1.1pt, hazardBorder] (-0.3, 0.18) circle (0.11);
-      \draw[line width=1.4pt, hazardBorder] (-0.2, 0.14) -- (0.3, -0.14);
-      % Blade 2 & handle
-      \draw[line width=1.1pt, hazardBorder] (-0.3, -0.18) circle (0.11);
-      \draw[line width=1.4pt, hazardBorder] (-0.2, -0.14) -- (0.3, 0.14);
-      % Pivot screw
-      \fill[charcoal] (0, 0) circle (0.035);
-      \node[above=2pt, font=\footnotesize\bfseries\color{hazardBorder}] at (0.12, 0.16) {SNIP!};
-    \end{scope}
-
-    % Direct trigger arrow into recovery card
-    \draw[->, line width=1.3pt, remedyBorder] (1.8, 0) -- (2.6, 0);
-  \end{scope}
-
-  % Right: Deterministic Recovery Card
-  \node[remedyBox, text width=4.8cm, anchor=west] at (9.8, 7.65) {
-    \textbf{\footnotesize Deterministic Lease Break}\\[2pt]
-    \footnotesize $\bullet$ \textbf{Clock expiry:} $t > t_{\text{lease}}$\\
-    \footnotesize $\bullet$ \textbf{Kernel intervention:} Force-kill lock\\
-    \footnotesize $\bullet$ \textbf{Salvage pool:} Resources released
-  };
-
-  % Full-width Invariant banner below
-  \node[baseBox, text width=14.3cm, inner sep=3.5pt, anchor=north] at (7.75, 5.45) {
-    \textbf{Kernel Liveness Invariant:} No unbuffered channel may block indefinitely. Every synchronous wait is bounded by mandatory lease timeout ($t_{\text{lease}}$).
-  };
-
-  % ================= SECTION 4: ARCHITECTURAL DUALITY (ACTORS VS CSP) =================
-  \draw[sectionFrame, fill=codeBg!40] (0.2, 0.3) rectangle (15.3, 4.2);
-  \node[secHeader] at (0.45, 3.9) {4. ARCHITECTURAL DUALITY: ASYNCHRONOUS ACTORS VS. SYNCHRONOUS CSP};
-
-  % Left Card: Actor Model (explicit rectangle)
-  \draw[draw=activeCobalt, fill=white, line width=0.9pt] (0.5, 1.35) rectangle (7.6, 3.6);
-  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (0.7, 3.35) {Hewitt--Agha Actors};
-  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal!60] at (7.4, 3.35) {Async Mailbox};
-  
-  % Diagram inside Actor Card (positioned at y = 2.65)
-  \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\footnotesize\bfseries] (actA) at (1.3, 2.65) {Actor $A$};
-  \draw[draw=activeCobalt, line width=0.8pt, fill=white] (2.3, 2.5) rectangle (4.3, 2.8);
-  \node[draw=activeCobalt, fill=white, inner sep=1pt, font=\footnotesize] at (2.6, 2.65) {$\Box$};
-  \node[draw=activeCobalt, fill=white, inner sep=1pt, font=\footnotesize] at (3.3, 2.65) {$\Box$};
-  \node[draw=activeCobalt, fill=activeCobalt, text=white, inner sep=1pt, font=\footnotesize] at (4.0, 2.65) {$\Box$};
-  \node[draw=charcoal, fill=activeTint, inner sep=2pt, font=\footnotesize\bfseries] (actB) at (5.7, 2.65) {Actor $B$};
-  \draw[->, line width=0.8pt] (actA.east) -- (2.2, 2.65);
-  \draw[->, line width=0.8pt] (4.4, 2.65) -- (actB.west);
-
-  % Bullets inside Actor Card
-  \node[anchor=north west, font=\footnotesize, text width=6.8cm, align=left] at (0.65, 2.25) {
-    $\bullet$ \textbf{Decoupled:} Sender proceeds; mailbox buffers queue.\\[2pt]
-    $\bullet$ \textbf{Risk:} Mailbox heap exhaustion under packet flood.
-  };
-
-  % Right Card: CSP Model (explicit rectangle)
-  \draw[draw=activeCobalt, fill=white, line width=0.9pt] (7.9, 1.35) rectangle (15.0, 3.6);
-  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (8.1, 3.35) {Hoare CSP};
-  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal!60] at (14.8, 3.35) {Sync Rendezvous};
-
-  % Diagram inside CSP Card (positioned at y = 2.65)
-  \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\footnotesize\bfseries] (proc1) at (9.1, 2.65) {Proc $P_1$};
-  \draw[line width=2.2pt, draw=activeCobalt] (11.45, 2.35) -- (11.45, 2.95);
-  \node[font=\footnotesize\bfseries, text=activeCobalt] at (11.45, 3.12) {$\Delta t = 0$};
-  \node[draw=charcoal, fill=activeTint, inner sep=2pt, font=\footnotesize\bfseries] (proc2) at (13.8, 2.65) {Proc $P_2$};
-  \draw[->, line width=1pt] (proc1.east) -- (11.35, 2.65);
-  \draw[<-, line width=1pt] (11.55, 2.65) -- (proc2.west);
-
-  % Bullets inside CSP Card
-  \node[anchor=north west, font=\footnotesize, text width=6.8cm, align=left] at (8.05, 2.15) {
-    $\bullet$ \textbf{Coupled:} Sender \& receiver meet in lockstep.\\[2pt]
-    $\bullet$ \textbf{Risk:} Circular wait deadlocks without lease timeouts.
-  };
-
-  % Bottom Synthesis Strip
-  \node[baseBox, draw=remedyBorder, fill=remedySeafoam, text width=14.3cm, anchor=north, align=center, inner sep=3.5pt] at (7.75, 1.15) {
-    \textbf{The Kernel Synthesis:} Confined \textbf{Actors} run autonomous agent deliberation; synchronous \textbf{CSP rendezvous} serializes physical file/port mutations without mailbox heap overhead.
-  };
-
-\end{tikzpicture}
-
-\pdwidecaption{Hoare's Communicating Sequential Processes (CSP): unbuffered synchronous rendezvous ($\Delta t = 0$), guarded external choice ($\mathbin{\square}$), and circular deadlock resolution via bounded lease timeouts.}[fig:csp-concurrency]
-\end{figure}
 \pdmarginpagebreak
 
 \subsection{Communicative Action and Speech Acts (FIPA-00037)}
@@ -1144,148 +511,7 @@ Figure~\ref{fig:fipa-speech-acts} formalizes this state transition machine, popu
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,  pd card/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
-  pd focus card/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
-  pd health card/.style={draw=pdhealth!90,line width=1.0pt,fill=pdhealth!10,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
-  pd error card/.style={draw=pderror!90,line width=0.9pt,fill=pderror!8,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
-  pd edge/.style={draw=pdink!80,line width=0.8pt,-{Stealth[length=4.5pt,width=3.5pt]}},
-  pd focus edge/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
-  pd fail edge/.style={draw=pderror,line width=0.9pt,-{Stealth[length=4.5pt,width=3pt]}},
-  pd success edge/.style={draw=pdhealth,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}}
-]
-  \useasboundingbox (0, 0) rectangle (15.5, 16.0);
-
-  % =========================================================================
-  % LEFT COLUMN: CLIENT AGENT DISPATCH (x = 0.1 to 3.2)
-  % =========================================================================
-  \draw[draw=pdink!20,fill=pdinkmuted!4,rounded corners=2pt,line width=0.6pt] (0.1, 0.2) rectangle (3.2, 15.8);
-  \draw[draw=none,fill=pdink!12] (0.1, 15.1) rectangle (3.2, 15.8);
-  \node[anchor=west,font=\footnotesize\bfseries\color{pdink}] at (0.25, 15.45) {CLIENT DISPATCH};
-
-  \node[pd card, text width=2.6cm] (init) at (1.65, 7.6) {%
-    {\footnotesize\bfseries Client Agent}\\[2pt]
-    {\footnotesize State: \texttt{READY}\\[1pt]
-    Task: \texttt{"add\_mfa"}\\[1pt]
-    Role: Orchestrator\\[1pt]
-    Cap: Root $\mathcal{C}_0$}%
-  };
-
-  % =========================================================================
-  % TRACK 1: DIRECTIVE SPEECH ACT (y = 8.8 to 15.8)
-  % =========================================================================
-  \draw[draw=pdcobalt!25,fill=pdcobalt!3,rounded corners=2pt,line width=0.6pt] (3.5, 8.8) rectangle (15.4, 15.8);
-  \draw[draw=none,fill=pdcobalt!14] (3.5, 15.1) rectangle (15.4, 15.8);
-  \node[anchor=west,font=\footnotesize\bfseries\color{pdcobalt}] at (3.7, 15.45) {TRACK 1: DIRECTIVE SPEECH ACT};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (15.2, 15.45) {\texttt{request} $\to$ \texttt{done} / \texttt{failure}};
-
-  % Track 1 Nominal (y = 13.3)
-  \node[pd card, text width=3.1cm] (req_sent) at (5.2, 13.3) {%
-    {\footnotesize\bfseries Request Pending}\\[2pt]
-    {\footnotesize Awaiting DB lock lease\\[1pt]
-    Timeout: $30\,\text{s}$ window\\[1pt]
-    Action: \texttt{exec(migration)}}%
-  };
-
-  \node[pd focus card, text width=3.4cm] (exec) at (10.0, 13.3) {%
-    {\footnotesize\bfseries\color{pdcobalt} Action Agreed}\\[2pt]
-    {\footnotesize Lock: \texttt{0x9a} (exclusive)\\[1pt]
-    DDL channel verified\\[1pt]
-    Worker running migration}%
-  };
-
-  \node[pd health card, text width=2.3cm] (done) at (14.0, 13.3) {%
-    {\footnotesize\bfseries\color{pdhealth} Inform-Done}\\[2pt]
-    {\footnotesize LSN: \texttt{0x48a12}\\[1pt]
-    Committed WAL\\[1pt]
-    Exit 0 Pass}%
-  };
-
-  % Track 1 Exceptions (y = 10.2)
-  \node[pd error card, text width=3.1cm] (refuse) at (5.2, 10.2) {%
-    {\footnotesize\bfseries\color{pderror} Refused ($\neg\mathtt{agree}$)}\\[2pt]
-    {\footnotesize Reason: \texttt{busy(ETL)}\\[1pt]
-    Retry window: $+60\,\text{s}$}%
-  };
-
-  \node[pd error card, text width=3.4cm] (fail) at (10.0, 10.2) {%
-    {\footnotesize\bfseries\color{pderror} Failure Execution}\\[2pt]
-    {\footnotesize Error: \texttt{"dup column"}\\[1pt]
-    Rollback \& emit $-!g$\\[1pt]
-    Lock released closed}%
-  };
-
-  % Track 1 Transitions
-  \draw[pd edge] (init.north) |- (3.5, 13.3) -- (req_sent.west);
-  \node[above=2pt, font=\footnotesize\color{pdcobalt}\bfseries, fill=white, draw=pdcobalt!30, rounded corners=1pt, inner sep=2pt] at (4.35, 13.55) {\texttt{request(migrate)}};
-
-  \draw[pd focus edge] (req_sent) -- (exec)
-    node[midway, above=2pt, font=\footnotesize\color{pdcobalt}\bfseries, fill=white, inner sep=2pt] {\texttt{agree} $\langle 60\,\text{s}\rangle$};
-
-  \draw[pd success edge] (exec) -- (done)
-    node[midway, above=2pt, font=\footnotesize\color{pdhealth}\bfseries, fill=white, inner sep=2pt] {\texttt{done}};
-
-  \draw[pd fail edge] (req_sent.south) -- (refuse.north)
-    node[midway, right=3pt, font=\footnotesize\color{pderror}\bfseries] {\texttt{refuse}};
-
-  \draw[pd fail edge] (exec.south) -- (fail.north)
-    node[midway, right=3pt, font=\footnotesize\color{pderror}\bfseries] {\texttt{failure}};
-
-  % =========================================================================
-  % TRACK 2: ASSERTIVE SPEECH ACT (y = 5.4 to 8.5)
-  % =========================================================================
-  \draw[draw=pdindigo!25,fill=pdindigo!3,rounded corners=2pt,line width=0.6pt] (3.5, 5.4) rectangle (15.4, 8.5);
-  \draw[draw=none,fill=pdindigo!14] (3.5, 7.8) rectangle (15.4, 8.5);
-  \node[anchor=west,font=\footnotesize\bfseries\color{pdindigo}] at (3.7, 8.15) {TRACK 2: ASSERTIVE SPEECH ACT};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (15.2, 8.15) {\texttt{inform} $\implies$ Belief Mutation};
-
-  \node[pd card, text width=9.2cm] (inf_done) at (10.3, 6.5) {%
-    {\footnotesize\bfseries Belief Base Synchronously Mutated} ($bs \leftarrow bs \cup \{\phi\}$)\\[2pt]
-    {\footnotesize Proposition: $bs \models \mathtt{Schema}(\text{"users"}, \mathtt{mfa\_secret})$ verified against catalog.\\[1pt]
-    Language Server Protocol (LSP) TypeScript definitions regenerated (\path{db.d.ts}).\\[1pt]
-    AST symbol index refreshed across all linked worktree sessions.}%
-  };
-
-  \draw[pd edge] (init.east) -- (inf_done.west);
-  \node[font=\footnotesize\color{pdindigo}\bfseries, fill=white, draw=pdindigo!40, rounded corners=1pt, inner sep=2pt] at (4.35, 7.2) {\texttt{inform(types\_gen)}};
-
-  % =========================================================================
-  % TRACK 3: COMMISSIVE SPEECH ACT (y = 0.2 to 5.1)
-  % =========================================================================
-  \draw[draw=pdink!20,fill=pdinkmuted!3,rounded corners=2pt,line width=0.6pt] (3.5, 0.2) rectangle (15.4, 5.1);
-  \draw[draw=none,fill=pdink!10] (3.5, 4.4) rectangle (15.4, 5.1);
-  \node[anchor=west,font=\footnotesize\bfseries\color{pdink}] at (3.7, 4.75) {TRACK 3: COMMISSIVE SPEECH ACT};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (15.2, 4.75) {\texttt{propose} $\implies$ \texttt{accept} / \texttt{reject}};
-
-  \node[pd card, text width=3.1cm] (prop_sent) at (5.2, 2.3) {%
-    {\footnotesize\bfseries Proposal Pending}\\[2pt]
-    {\footnotesize Evaluate utility function:\\[1pt]
-    $\mathcal{U}(\text{bid}) \ge \theta_{\text{min}}$ threshold\\[1pt]
-    Resource bid: $\$0.02$ cap}%
-  };
-
-  \node[pd focus card, text width=6.5cm] (accept) at (11.8, 3.4) {%
-    {\footnotesize\bfseries\color{pdcobalt} Proposal Accepted \& SLA Bound}\\[2pt]
-    {\footnotesize SLA: $5\%$ canary routing applied via Envoy proxy\\[1pt]
-    Escrow: \texttt{PO:0x99} committed to kernel settlement ledger}%
-  };
-
-  \node[pd error card, text width=6.5cm] (reject) at (11.8, 1.2) {%
-    {\footnotesize\bfseries\color{pderror} Proposal Rejected}\\[2pt]
-    {\footnotesize Budget cap exceeded: Bid $\$0.02 > \text{cap } \$0.01$ (hard spend cap)\\[1pt]
-    Task remains in open pool for alternative contractor bids}%
-  };
-
-  \draw[pd edge] (init.south) |- (3.5, 2.3) -- (prop_sent.west);
-  \node[above=2pt, font=\footnotesize\color{pdink}\bfseries, fill=white, draw=pdink!30, rounded corners=1pt, inner sep=2pt] at (4.35, 2.55) {\texttt{propose(canary)}};
-
-  \draw[pd focus edge] (prop_sent.east) |- (accept.west)
-    node[pos=0.45, above=1pt, font=\footnotesize\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{accept}};
-
-  \draw[pd fail edge] (prop_sent.east) |- (reject.west)
-    node[pos=0.45, below=1pt, font=\footnotesize\color{pderror}\bfseries, fill=white, inner sep=1.5pt] {\texttt{reject}};
-
-\end{tikzpicture}
-
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-fipa-speech-acts.jpg}}
 \pdwidecaption{FIPA-00037 Communicative Speech Act state transition machine, populated with practical software engineering payloads. Top: Directive \texttt{request} lifecycle executing an atomic database migration under lock arbitration. Middle: Assertive \texttt{inform} directly mutating an agent's belief base. Bottom: Commissive \texttt{propose} negotiating an SLA for canary deployment routing.}[fig:fipa-speech-acts]
 \end{figure}
 
@@ -1306,95 +532,19 @@ Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp
 
 Figure~\ref{fig:cnp-part1} traces the announcement and bidding phase of this lifecycle. The Manager broadcasts an urgent OpenSSL CVE upgrade across the fleet; Contractor~1 assesses idle tools and submits a formal bid, while Contractor~2 explicitly refuses due to AST lock contention, allowing the auction to clear without timeout.
 
-\begin{figure}[!b]
+\begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  every node/.append style={font=\sffamily},
-  pd line/.style={draw=pdink!30,line width=0.9pt,dashed},
-  pd box/.style={draw=pdink!30,line width=0.5pt,fill=white,rounded corners=2pt,align=center},
-  pd focus box/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!6,rounded corners=2pt,align=center},
-  pd msg/.style={draw=pdink!70,line width=0.9pt,-{Stealth[length=4.5pt,width=3pt]}},
-  pd focus msg/.style={draw=pdcobalt,line width=1.6pt,-{Stealth[length=5pt,width=3.5pt]}},
-  pd fail msg/.style={draw=pderror,line width=0.9pt,dashed,-{Stealth[length=4.5pt,width=3pt]}},
-  pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt}
-]
-  \useasboundingbox (0, 0) rectangle (15.5, 9.4);
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-cnp-diagram.jpg}}
+\pdwidecaption{Smith's (1980) Contract Net Protocol (CNP) task allocation lifecycle and settlement under kernel confinement. Phase~1 (left): Manager agent broadcasts a Call for Proposals (CFP) with task spec and spend cap; eligible contractors submit capability bids or return explicit refusals under resource contention. Phase~2 (right): Manager awards an exclusive worktree lease; the winning contractor executes inside a Seatbelt sandbox under zero spend cap, streaming diff receipts, with cryptographic test run receipts unlocking escrow settlement.}[fig:cnp-protocol]
+\label{fig:cnp-part1}\label{fig:cnp-part2}%
+\end{figure}
 
-  % Header Banner
-  \draw[draw=pdcobalt!60,fill=pdcobalt!4,rounded corners=2pt,line width=0.5pt] (0.1, 8.5) rectangle (15.4, 9.25);
-  \node[anchor=west,font=\sffamily\bfseries\color{pdcobalt}] at (0.35, 8.87) {CONTRACT NET PROTOCOL (CNP) \enspace\textbar\enspace \textmd{Part 1: CFP \& Bidding}};
-  \node[anchor=east,font=\sffamily\footnotesize\color{pdinkmuted}] at (15.15, 8.87) {Smith (1980) $\cdot$ FIPA-00025};
-
-  % Lifeline Headers
-  \node[pd focus box, text width=3.4cm, minimum height=0.95cm] (mgr) at (2.2, 7.65) {%
-    \textbf{\color{pdcobalt}Manager Agent}\\[2pt]%
-    \scriptsize Orchestrator $\cdot$ Root Lease%
-  };
-
-  \node[pd box, text width=3.6cm, minimum height=0.95cm, draw=pdcobalt!50, fill=pdcobalt!5] (c1) at (8.0, 7.65) {%
-    \textbf{\color{pdcobalt}Contractor 1} \textmd{\scriptsize(Worker A)}\\[2pt]%
-    \scriptsize Vitest Worker $\cdot$ Available%
-  };
-
-  \node[pd box, text width=3.8cm, minimum height=0.95cm] (c2) at (13.5, 7.65) {%
-    \textbf{\color{pdink}Contractor 2} \textmd{\scriptsize(Worker B)}\\[2pt]%
-    \scriptsize Build Engine $\cdot$ Saturated%
-  };
-
-  % Lifelines
-  \draw[pd line] (2.2, 7.15) -- (2.2, 1.7);
-  \draw[pd line] (8.0, 7.15) -- (8.0, 1.7);
-  \draw[pd line] (13.5, 7.15) -- (13.5, 1.7);
-
-  % Activation Bars
-  \draw[pd actbar] (2.05, 6.0) rectangle (2.35, 1.7);
-  \draw[draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt] (7.85, 5.75) rectangle (8.15, 3.35);
-  \draw[draw=pderror!70,fill=pderror!12,rounded corners=1pt,line width=0.5pt] (13.35, 4.85) rectangle (13.65, 2.45);
-
-  % 1a. CFP Broadcast to Contractor 1
-  \draw[pd focus msg] (2.35, 5.75) -- (7.85, 5.75)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdcobalt}1a. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
-    \scriptsize Task: CVE-2024-XXXX $\cdot$ Budget: \$12.00 $\cdot$ TTL: 300s};
-
-  % 1b. CFP Broadcast to Contractor 2
-  \draw[pd msg] (2.35, 4.85) -- (13.35, 4.85)
-    node[pos=0.7, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{1b. CFP Fleet Broadcast}\\[1pt]
-    \scriptsize Identical specification payload};
-
-  % Contractor Assessment Notes
-  \node[fill=pdcobalt!8, draw=pdcobalt!40, rounded corners=2pt, inner sep=2.5pt, font=\sffamily\scriptsize\color{pdcobalt}, align=center] at (10.7, 4.15) {Self-Assessment: queue idle $\cdot$ tools matched};
-  \node[fill=pderror!8, draw=pderror!40, rounded corners=2pt, inner sep=2.5pt, font=\sffamily\scriptsize\color{pderror}] at (13.5, 3.45) {4 active locks $\implies$ saturated};
-
-  % 2a. Contractor 1 Submits Competitive Bid
-  \draw[pd focus msg] (7.85, 3.55) -- (2.35, 3.55)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdcobalt}2a. PROPOSE (Formal Bid Submission)}\\[1pt]
-    \scriptsize Bid \texttt{0x4a} $\cdot$ Cost: \$4.20 $\cdot$ ETA: 180s $\cdot$ Reputation: 0.98};
-
-  % 2b. Contractor 2 Refusal
-  \draw[pd fail msg] (13.35, 2.55) -- (2.35, 2.55)
-    node[pos=0.6, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pderror}2b. REFUSE (Explicit Capacity Refusal)}\\[1pt]
-    \scriptsize Queue saturated (4 locks held) $\cdot$ Available in 420s};
-
-  % Utility Scoring Card
-  \node[draw=pdcobalt!50,fill=pdcobalt!4,rounded corners=2pt,inner sep=4pt,text width=9.2cm,align=left] at (4.9, 0.95) {
-    \textbf{\color{pdcobalt}Manager Multi-Attribute Evaluation (FIPA-00025):}\\[2pt]
-    \scriptsize $\bullet$ \textbf{Contractor 1:} Lowest cost (\$4.20) and verified tools $\implies$ \textbf{\color{pdcobalt}Award Winner}\\[1pt]
-    $\bullet$ \textbf{Contractor 2:} Explicit refusal received $\implies$ \textbf{Auction Clears Without Timeout}
-  };
-
-  % Continuation Prompt
-  \node[anchor=east, font=\sffamily\scriptsize\bfseries, text=pdcobalt, fill=white, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=5pt, text width=4.8cm, align=center] at (15.4, 0.95) {
-    Continued on facing page\\(Part 2: Award \& Escrow) $\,\blacktriangleright$
-  };
-
-\end{tikzpicture}
-
-\pdwidecaption{Smith's (1980) Contract Net Protocol (Part 1 of 2: Task Announcement \& Bidding; continued on facing page~\pageref{fig:cnp-part2}). An Orchestrator broadcasts a Call for Proposals (CFP) to patch a critical dependency CVE across competing agent workers. Competing workers assess tools and queue capacity to submit bids.}[fig:cnp-part1]
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\pdswissfigplate{fig-ch0-cnp-bidding}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.A: Smith's Contract Net Protocol---Annunciator signaling and bilateral bid clearing in autonomous agent task allocation.}[plate:cnp-bidding]
 \end{figure}
 
 \newpage
@@ -1407,105 +557,11 @@ Figure~\ref{fig:cnp-part1} traces the announcement and bidding phase of this lif
 
 Figure~\ref{fig:cnp-part2} traces the execution and settlement phase on this facing page. Contractor~1 receives an exclusive worktree lease ($\mathtt{0x09b}$), executes under strict Coast Guard sandbox confinement (Seatbelt profile, zero-spend cap), and streams progress over \texttt{pd tube}. Escrow funds unlock strictly under a dual-control invariant requiring cryptographic test verification receipts.
 
-\begin{figure}[!b]
+\begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  every node/.append style={font=\sffamily},
-  pd line/.style={draw=pdink!30,line width=0.9pt,dashed},
-  pd box/.style={draw=pdink!30,line width=0.5pt,fill=white,rounded corners=2pt,align=center},
-  pd focus box/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!6,rounded corners=2pt,align=center},
-  pd msg/.style={draw=pdink!70,line width=0.9pt,-{Stealth[length=4.5pt,width=3pt]}},
-  pd focus msg/.style={draw=pdcobalt,line width=1.6pt,-{Stealth[length=5pt,width=3.5pt]}},
-  pd fail msg/.style={draw=pderror,line width=0.9pt,dashed,-{Stealth[length=4.5pt,width=3pt]}},
-  pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt}
-]
-  \useasboundingbox (0, 0) rectangle (15.5, 11.8);
-
-  % Header Banner
-  \draw[draw=pdcobalt!60,fill=pdcobalt!4,rounded corners=2pt,line width=0.5pt] (0.1, 10.95) rectangle (15.4, 11.65);
-  \node[anchor=west,font=\sffamily\bfseries\color{pdcobalt}] at (0.35, 11.30) {CONTRACT NET PROTOCOL \enspace\textbar\enspace \textmd{Part 2: Award \& Settlement}};
-  \node[anchor=east,font=\sffamily\scriptsize\color{pdinkmuted}] at (15.15, 11.30) {FIPA-00025 $\cdot$ Coast Guard};
-
-  % Lifeline Headers
-  \node[pd focus box, text width=3.4cm, minimum height=0.85cm] (mgr) at (2.2, 10.05) {%
-    \textbf{\color{pdcobalt}Manager Agent}\\[2pt]%
-    \scriptsize Orchestrator $\cdot$ Root Lease%
-  };
-
-  \node[pd focus box, text width=3.6cm, minimum height=0.85cm, draw=pdteal!70, fill=pdteal!6] (c1) at (8.0, 10.05) {%
-    \textbf{\color{pdteal!90!black}Contractor 1} \textmd{\scriptsize(Worker A)}\\[2pt]%
-    \scriptsize Award Winner $\cdot$ \texttt{fix/cve-2024}%
-  };
-
-  \node[pd focus box, text width=3.9cm, minimum height=0.85cm, draw=pdhealth!70, fill=pdhealth!6] (escrow) at (13.5, 10.05) {%
-    \textbf{\color{pdhealth!90!black}Escrow Vault \& Ledger}\\[2pt]%
-    \scriptsize Settlement Authority $\cdot$ TCB%
-  };
-
-  % Lifelines
-  \draw[pd line] (2.2, 9.50) -- (2.2, 1.8);
-  \draw[pd line] (8.0, 9.50) -- (8.0, 1.8);
-  \draw[pd line] (13.5, 9.50) -- (13.5, 1.8);
-
-  % Activation Bars
-  \draw[pd actbar] (2.05, 8.65) rectangle (2.35, 4.90);
-  \draw[draw=pdteal!70,fill=pdteal!12,rounded corners=1pt,line width=0.5pt] (7.85, 8.55) rectangle (8.15, 2.60);
-  \draw[draw=pdhealth!70,fill=pdhealth!12,rounded corners=1pt,line width=0.5pt] (13.35, 4.30) rectangle (13.65, 2.70);
-
-  % 3a. ACCEPT_PROPOSAL (Exclusive Worktree Lease)
-  \draw[pd focus msg] (2.35, 8.45) -- (7.85, 8.45)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdcobalt}3a. ACCEPT\_PROPOSAL (Exclusive Worktree Lease)}\\[1pt]
-    \scriptsize Lease: \texttt{0x09b} $\cdot$ Branch: \texttt{fix/cve-2024} $\cdot$ Seatbelt profile};
-
-  % 3b. REJECT_PROPOSAL (Fleet Broadcast)
-  \draw[draw=pdink!50,line width=0.8pt,dashed,-{Stealth[length=4.5pt,width=3pt]}] (2.35, 7.40) -- (5.6, 7.40)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdinkmuted}3b. REJECT\_PROPOSAL (Broadcast)}\\[1pt]
-    \scriptsize Alternative bids rejected $\cdot$ Capacity reservations cleared};
-
-  % Sandbox Confinement Note (to the right of Contractor 1 lifeline)
-  \node[anchor=west, fill=pdteal!8, draw=pdteal!50, rounded corners=2pt, inner sep=3pt, font=\sffamily\scriptsize\color{pdteal!90!black}] at (8.35, 6.30)
-    {Seatbelt Sandbox Active $\cdot$ Commit \texttt{e71a4f} $\cdot$ Spend: \$0.00};
-
-  % 4a. Progress Telemetry over pd tube
-  \draw[draw=pdteal!90!black, line width=1.1pt, -{Stealth[length=4.5pt,width=3pt]}] (7.85, 5.20) -- (2.35, 5.20)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdteal!90!black}4a. Progress Telemetry (\texttt{pd tube})}\\[1pt]
-    \scriptsize Streaming test deltas $\cdot$ 42 unit tests pass $\cdot$ Clean tree};
-
-  % 4b. Claim Settlement to Escrow Vault
-  \draw[draw=pdteal!90!black, line width=1.1pt, -{Stealth[length=4.5pt,width=3pt]}] (8.15, 4.10) -- (13.35, 4.10)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdteal!90!black}4b. Claim Settlement (Dual Witness)}\\[1pt]
-    \scriptsize Patch diff committed $\cdot$ Cryptographic test receipt attached};
-
-  % 5. Dual-Control Escrow Release
-  \draw[draw=pdhealth!90!black, line width=1.4pt, -{Stealth[length=5pt,width=3.5pt]}] (13.35, 2.90) -- (8.15, 2.90)
-    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
-    {\textbf{\color{pdhealth!90!black}5. Dual-Control Escrow Settlement}\\[1pt]
-    \scriptsize \$4.20 USDC paid $\cdot$ Worktree lease \texttt{0x09b} retired $\cdot$ WAL logged};
-
-  % Dual-Control Settlement Invariant Card
-  \node[draw=pdhealth!60,fill=pdhealth!4,rounded corners=2pt,inner sep=5pt,text width=9.2cm,align=left] at (4.9, 1.05) {
-    \textbf{\color{pdhealth!90!black}Dual-Control Settlement Invariant (ADR-0050 / Coast Guard):}\\[2pt]
-    \scriptsize $\bullet$ \textbf{Seatbelt Sandbox:} Confinement verified zero unmetered network egress and clean exit.\\[1pt]
-    $\bullet$ \textbf{Escrow Vault:} Funds release requires both verified commit diff and test pass receipt.
-  };
-
-  % Protocol Completion Card
-  \node[anchor=east, font=\sffamily\scriptsize, fill=pdcobalt!4, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=5pt, text width=4.8cm, align=left] at (15.4, 1.05) {
-    \textbf{\color{pdcobalt}Protocol Completion:}\\[2pt]
-    $\checkmark$ CVE patch merged\\
-    $\checkmark$ All bids cleared\\
-    $\checkmark$ Immutable WAL receipt
-  };
-
-\end{tikzpicture}
-
-\addtocounter{figure}{-1}
-\pdwidecaption{Smith's (1980) Contract Net Protocol (Part 2 of 2: Lease Award, Telemetry, and Escrow Settlement; continued from page~\pageref{fig:cnp-part1}). The winner receives an exclusive worktree lease, streams progress deltas, and claims escrow upon verified test execution.}[fig:cnp-part2]
+\pdpagecentered{\pdswissfigplate{fig-ch0-cnp-settlement}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.B: Escrow Settlement---Verified receipt unlocking and cryptographic execution closure under Coast Guard sandboxing.}[plate:cnp-settlement]
 \end{figure}
 
 \clearpage
@@ -1525,122 +581,15 @@ Figure~\ref{fig:big-brother-logic} formalizes directed observation cones, episte
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\providecolor{charcoal}{HTML}{121212}
-\providecolor{swissCanvas}{HTML}{F8F8F8}
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,  agentNode/.style={draw=charcoal,line width=1.1pt,fill=white,rounded corners=2pt,align=center,inner sep=5pt},
-  focusNode/.style={draw=pdcobalt,line width=1.3pt,fill=pdcobalt!8,rounded corners=2pt,align=center,inner sep=5pt},
-  propNode/.style={draw=pdhealth!80!black,line width=1.2pt,fill=pdhealth!20,rounded corners=2pt,align=center,inner sep=5pt},
-  epistemicCard/.style={draw=charcoal!40,fill=white,rounded corners=2pt,align=left,inner sep=6pt,line width=0.7pt,minimum height=3.6cm}
-]
-  \useasboundingbox (0, 0) rectangle (15.5, 13.8);
-
-  % ================= HEADER BANNER =================
-  \draw[draw=charcoal,fill=white,line width=0.8pt] (0.2, 12.3) rectangle (15.3, 13.6);
-  \node[anchor=west,font=\footnotesize\bfseries\color{charcoal}] at (0.45, 13.1) {DYNAMIC EPISTEMIC OBSERVATION CONES (BBL)};
-  \node[anchor=west,font=\footnotesize\color{pdinkmuted}] at (0.45, 12.65) {Charrier et al.\ (2014) \textperiodcentered\ Spatial Modal Epistemics \textperiodcentered\ Multi-Agent Visibility \& Knowledge Verification};
-  \node[anchor=east,font=\footnotesize\bfseries\color{pdcobalt}] at (15.05, 13.1) {$\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$};
-
-  % ================= 2D OBSERVATION FIELD =================
-  \draw[draw=charcoal!30,fill=swissCanvas,line width=0.8pt] (0.2, 4.4) rectangle (15.3, 12.0);
-
-  % Grid lines for spatial coordinate field
-  \foreach \gx in {1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2, 12.2, 13.2, 14.2} {
-    \draw[draw=charcoal!10,line width=0.3pt] (\gx, 4.4) -- (\gx, 12.0);
-  }
-  \foreach \gy in {5.4, 6.4, 7.4, 8.4, 9.4, 10.4, 11.4} {
-    \draw[draw=charcoal!10,line width=0.3pt] (0.2, \gy) -- (15.3, \gy);
-  }
-
-  % ================= OBSERVATION CONES =================
-  % Agent 1 Cone V(a_1) pointing towards a_2: apex at (2.0, 7.8)
-  \fill[pdcobalt!14] (2.0, 7.8) -- (9.8, 11.6) -- (10.0, 5.0) -- cycle;
-  \draw[draw=pdcobalt,line width=1.1pt,dashed] (2.0, 7.8) -- (9.8, 11.6);
-  \draw[draw=pdcobalt,line width=1.1pt,dashed] (2.0, 7.8) -- (10.0, 5.0);
-  \draw[draw=pdcobalt,line width=1.0pt] (9.8, 11.6) arc (26:-20:8.7);
-
-  \node[font=\footnotesize\bfseries\color{pdcobalt},fill=white,draw=pdcobalt!50,rounded corners=2pt,inner sep=2.5pt]
-    at (4.6, 10.1) {Observation Cone $V(a_1)$};
-
-  % Agent 2 Cone V(a_2) pointing towards Proposition phi: apex at (7.0, 8.6)
-  \fill[pdcobalt!16] (7.0, 8.6) -- (14.6, 11.5) -- (14.6, 7.0) -- cycle;
-  \draw[draw=pdcobalt,line width=1.1pt,dashed] (7.0, 8.6) -- (14.6, 11.5);
-  \draw[draw=pdcobalt,line width=1.1pt,dashed] (7.0, 8.6) -- (14.6, 7.0);
-  \draw[draw=pdcobalt,line width=1.0pt] (14.6, 11.5) arc (22:-12:7.8);
-
-  \node[font=\footnotesize\bfseries\color{pdcobalt},fill=white,draw=pdcobalt!50,rounded corners=2pt,inner sep=2.5pt]
-    at (9.8, 10.4) {Observation Cone $V(a_2)$};
-
-  % Dynamic Cone Steering Arc for a_1
-  \draw[draw=pdgold!90!black,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
-    (5.4, 6.2) arc (-20:-50:3.6);
-  \node[font=\footnotesize\bfseries\color{pdgold!90!black},fill=white,inner sep=1.5pt]
-    at (6.8, 5.4) {Dynamic Steering: $\Delta \theta$ Reconfiguration};
-
-  % ================= AGENTS & TARGET OBJECTS =================
-  % Agent 1 (Observer / Verifier)
-  \node[focusNode, text width=2.9cm] (a1) at (2.0, 7.8) {%
-    {\footnotesize\bfseries\color{pdcobalt} Agent $a_1$ (Supervisor)}\\[2pt]
-    {\footnotesize Position $p_1 = (x_1, y_1)$\\[1pt]
-    Orientation $\theta_1 = 8^\circ$}%
-  };
-
-  % Agent 2 (Target Worker inside V(a_1))
-  \node[agentNode, text width=3.1cm, draw=pdcobalt, fill=pdcobalt!5] (a2) at (7.0, 8.6) {%
-    {\footnotesize\bfseries\color{pdcobalt} Agent $a_2$ (Worker A)}\\[2pt]
-    {\footnotesize $a_2 \in V(a_1)$ \textbf{\color{pdcobalt}[Observed]}\\[1pt]
-    Observes $\phi \in V(a_2)$}%
-  };
-
-  % Target Proposition / Shared Artifact phi
-  \node[propNode, text width=3.2cm] (phi) at (13.5, 9.4) {%
-    {\footnotesize\bfseries Ground Truth $\phi$}\\[2pt]
-    {\footnotesize Git Commit \texttt{0x4a12}\\[1pt]
-    Migration Lock Released}%
-  };
-
-  % Agent 3 (Unobserved Agent / Epistemic Shadow)
-  \node[agentNode, text width=3.1cm, draw=charcoal!60, fill=charcoal!4] (a3) at (13.0, 5.4) {%
-    {\footnotesize\bfseries\color{charcoal} Agent $a_3$ (Worker B)}\\[2pt]
-    {\footnotesize $a_3 \notin V(a_1)$ \textbf{\color{pderror}[In Shadow]}\\[1pt]
-    $\neg K_{a_1} K_{a_3}(\psi)$}%
-  };
-
-  % Visibility Proof Arrows
-  \draw[draw=pdcobalt,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
-    (a1.east) -- (a2.west)
-    node[midway,above=2pt,font=\footnotesize\bfseries\color{pdcobalt},fill=white,inner sep=1.5pt]
-    {$a_2 \in V(a_1)$};
-
-  \draw[draw=pdcobalt,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
-    (a2.east) -- (phi.west)
-    node[midway,above=2pt,font=\footnotesize\bfseries\color{pdcobalt},fill=white,inner sep=1.5pt]
-    {$\phi \in V(a_2)$};
-
-  % ================= BOTTOM FORMAL SEMANTICS CARDS =================
-  \node[epistemicCard, text width=4.5cm] at (2.6, 2.1) {%
-    {\footnotesize\bfseries 1. Spatial Visibility Axiom}\\[3pt]
-    {\footnotesize An agent $a_i$ observes agent $a_j$ iff $p_j$ falls within its directed vision cone:\\[2pt]
-    $a_j \in V(a_i) \iff \angle(p_j - p_i, \vec{d}_i) \le \frac{\alpha_i}{2}$\\[2pt]
-    Observation is \emph{directed and asymmetric}: $a_j \in V(a_i) \centernot\implies a_i \in V(a_j)$.}%
-  };
-
-  \node[epistemicCard, text width=4.5cm, draw=pdcobalt!80] at (7.75, 2.1) {%
-    {\footnotesize\bfseries\color{pdcobalt} 2. Higher-Order Epistemic Deduction}\\[3pt]
-    {\footnotesize If $a_1$ sees $a_2$, and $a_2$ observes state proposition $\phi$, knowledge cascades:\\[2pt]
-    $a_2 \in V(a_1) \land \phi \in V(a_2) \implies \mathbf{K_{a_1} K_{a_2} \phi}$\\[2pt]
-    Supervisor $a_1$ verifies that Worker $a_2$ is executing against valid ground truth.}%
-  };
-
-  \node[epistemicCard, text width=4.5cm, draw=pdhealth!80!black] at (12.9, 2.1) {%
-    {\footnotesize\bfseries\color{pdhealth!80!black} 3. Epistemic Planning Goal $\Phi$}\\[3pt]
-    {\footnotesize When coordination requires mutual knowledge, the kernel plans steering actions $\mathtt{turn}(\theta)$:\\[2pt]
-    $\Phi = C_{\{a_1, a_2\}} \phi \quad \text{(Common Knowledge)}$\\[2pt]
-    Achieved by aligning witness channels, tube streams, and WAL receipt broadcasts.}%
-  };
-
-\end{tikzpicture}
-
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-bbl-diagram.jpg}}
 \pdwidecaption{Dynamic Epistemic Observation Cones in Big Brother Logic (BBL)~(Charrier et al., 2014). Directed vision cones formalize asymmetric visibility, epistemic shadows, and higher-order knowledge verification ($K_{a_1} K_{a_2} \phi$) in autonomous multi-agent systems.}[fig:big-brother-logic]
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\pdswissfigplate{fig-ch0-big-brother-logic}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.C: Dynamic Epistemic Cones---Refractive prism of observation and unobserved epistemic shadows in spatial modal logic.}[plate:bbl-swiss]
 \end{figure}
 
 \pdmarginpagebreak
@@ -1669,11 +618,11 @@ If an orchestrator attempts to schedule these competing pull requests democratic
 \end{equation}
 Evaluating pairwise majorities reveals the collective deadlock: two agents prefer $PR_A$ over $PR_B$; two prefer $PR_B$ over $PR_C$; and two prefer $PR_C$ over $PR_A$. Every candidate pull request is rejected by a $2/3$ majority in favor of another!
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\includegraphics[width=0.88\linewidth]{figures/fig-arrows-impossibility.png}
-\caption{Arrow's Impossibility Theorem across civic municipal governance and multi-agent merge queues, creating an intransitive Condorcet cycle ($PR_A \succ PR_B \succ PR_C \succ PR_A$).}
-\label{fig:arrows-theorem}
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-arrows-impossibility.png}}
+\pdwidecaption{Arrow's Impossibility Theorem across civic municipal governance and multi-agent merge queues, creating an intransitive Condorcet cycle ($PR_A \succ PR_B \succ PR_C \succ PR_A$).}[fig:arrows-theorem]
 \end{figure}
 
 \begin{table}[htbp]
@@ -1857,88 +806,18 @@ Modern agent harnesses resolve this dilemma via \textbf{Three-Tier Progressive D
 \end{enumerate}
 
 \providecolor{pdcyan}{HTML}{006B5F}
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \useasboundingbox (0, 0.4) rectangle (11.4, 7.2);
-  
-  % 1. Logarithmic Graph Paper Background (4 Decades: 10^-4 to 10^0) across 11.4cm
-  \draw[draw=pdcyan!35,fill=pdcyan!3,line width=0.6pt] (1.2, 0.5) rectangle (11.2, 6.9);
-  
-  % Vertical grid lines across graph paper
-  \foreach \gx in {2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2} {
-    \draw[draw=pdcyan!14,line width=0.2pt] (\gx, 0.5) -- (\gx, 6.9);
-  }
-  
-  % Horizontal log sub-grid lines within each decade (height = 1.55cm per decade)
-  % Decade 0: 10^-4 to 10^-3 (y: 0.6 to 2.15)
-  % Decade 1: 10^-3 to 10^-2 (y: 2.15 to 3.70)
-  % Decade 2: 10^-2 to 10^-1 (y: 3.70 to 5.25)
-  % Decade 3: 10^-1 to 10^0  (y: 5.25 to 6.80)
-  \foreach \dec in {0, 1, 2, 3} {
-    \foreach \sub in {2, 3, 4, 5, 6, 7, 8, 9} {
-      \pgfmathsetmacro{\suby}{0.6 + \dec*1.55 + 1.55*log10(\sub)}
-      \draw[draw=pdcyan!18,line width=0.2pt] (1.2, \suby) -- (11.2, \suby);
-    }
-    \pgfmathsetmacro{\decy}{0.6 + \dec*1.55}
-    \draw[draw=pdcyan!50,line width=0.6pt] (1.2, \decy) -- (11.2, \decy);
-  }
-  \draw[draw=pdcyan!50,line width=0.6pt] (1.2, 6.8) -- (11.2, 6.8);
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-skills-diagram.jpg}}
+\pdwidecaption{Progressive disclosure of skills across contracting logarithmic decades of activation frequency ($10^0$ to $10^{-4}$). By partitioning capabilities from static frontmatter metadata down to host-executed scripts and formal schemas consuming zero LLM context tokens, context consumption contracts exponentially with task specialization.}[fig:progressive-skills-iceberg]
+\end{figure}
 
-  % Y-Axis Ticks and Logarithmic Labels
-  \node[anchor=east,font=\footnotesize\bfseries] at (1.15, 6.8) {$10^0$};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (1.15, 6.55) {100\%};
-
-  \node[anchor=east,font=\footnotesize\bfseries] at (1.15, 5.25) {$10^{-1}$};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (1.15, 5.0) {10\%};
-
-  \node[anchor=east,font=\footnotesize\bfseries] at (1.15, 3.70) {$10^{-2}$};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (1.15, 3.45) {1\%};
-
-  \node[anchor=east,font=\footnotesize\bfseries] at (1.15, 2.15) {$10^{-3}$};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (1.15, 1.90) {0.1\%};
-
-  \node[anchor=east,font=\footnotesize\bfseries] at (1.15, 0.60) {$10^{-4}$};
-  \node[anchor=east,font=\footnotesize\color{pdinkmuted}] at (1.15, 0.40) {0.01\%};
-
-  \node[anchor=center,rotate=90,font=\footnotesize\color{pdcobalt}\bfseries] at (0.35, 3.7) {ACTIVATION PROBABILITY $P(\text{task})$ PER TURN (LOG SCALE)};
-
-  % Prompt Waterline (boundary between prompt injection and on-disk files)
-  \draw[draw=pdcobalt,line width=1.1pt,dashed] (1.2, 5.26) -- (11.2, 5.26);
-  \node[anchor=center, font=\footnotesize\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] at (6.2, 5.26) {PROMPT WATERLINE (IN-CONTEXT) $\blacktriangledown$ \quad {\color{pdinkmuted}\textperiodcentered \quad $\blacktriangle$ ON-DISK REPOSITORY (SUBPROCESS)}};
-
-  % Logarithmic Decay Sparkline Curve
-  \draw[draw=pdcobalt!85,line width=1.8pt,-{Stealth[length=5pt,width=3.5pt]}]
-    (2.5, 6.25) .. controls (3.8, 5.8) and (4.2, 4.4) ..
-    (5.2, 3.65) .. controls (6.2, 2.9) and (7.0, 1.7) .. (10.0, 1.15);
-  \node[anchor=south west,font=\footnotesize\bfseries\color{pdcobalt},fill=white,fill opacity=0.9,inner sep=1.2pt]
-    at (4.4, 4.25) {Log Decay Sparkline: Context Consumption $\propto \log(P)$};
-
-  % TIER 1: YAML Frontmatter Header (P = 1.0)
-  \draw[draw=pdcobalt,fill=white,fill opacity=0.96,line width=0.8pt,rounded corners=2pt] (2.7, 5.85) rectangle (9.9, 6.65);
-  \node[anchor=west,font=\footnotesize\color{pdcobalt}\bfseries] at (2.9, 6.40) {TIER 1: YAML FRONTMATTER INDEX};
-  \node[anchor=east,font=\footnotesize\ttfamily\color{pdink}] at (9.7, 6.40) {SKILL.md};
-  \node[anchor=west,font=\footnotesize\color{pdink}] at (2.9, 6.08) {$P = 1.0$ (Every Turn) $\;\cdot\;$ $\approx 30$ tok/skill $\;\cdot\;$ \textbf{HBM Prefix Cached}};
-
-  % TIER 2: SKILL.md Markdown Body (P ~ 10^-1)
-  \draw[draw=pdindigo,fill=white,fill opacity=0.96,line width=0.8pt,rounded corners=2pt] (2.7, 4.45) rectangle (9.9, 5.20);
-  \node[anchor=west,font=\footnotesize\color{pdindigo}\bfseries] at (2.9, 4.97) {TIER 2: ON-DEMAND INSTRUCTION MANUAL};
-  \node[anchor=east,font=\footnotesize\ttfamily\color{pdink}] at (9.7, 4.97) {SKILL.md Body};
-  \node[anchor=west,font=\footnotesize\color{pdink}] at (2.9, 4.67) {$P \approx 10^{-1}$ (On-Demand) $\;\cdot\;$ $2\text{k}$--$5\text{k}$ tok/task $\;\cdot\;$ \textbf{Active Working Context}};
-
-  % TIER 2.5: Subagents & References (P ~ 10^-2)
-  \draw[draw=pdviolet!80,fill=white,fill opacity=0.96,line width=0.8pt,rounded corners=2pt] (2.7, 2.95) rectangle (9.9, 3.70);
-  \node[anchor=west,font=\footnotesize\color{pdviolet!90}\bfseries] at (2.9, 3.47) {TIER 2.5: SPECIALIZED SUBAGENTS \& REFERENCES};
-  \node[anchor=east,font=\footnotesize\ttfamily\color{pdink}] at (9.7, 3.47) {agents/ \& refs/};
-  \node[anchor=west,font=\footnotesize\color{pdink}] at (2.9, 3.17) {$P \approx 10^{-2}$ (Spawn/Lookup) $\;\cdot\;$ $10\text{k}$--$30\text{k}$ tok/delegate $\;\cdot\;$ \textbf{Isolated Subagent}};
-
-  % TIER 3: Executables & Schemas (P ~ 10^-3 to 10^-4)
-  \draw[draw=pdink!80,fill=white,fill opacity=0.96,line width=0.8pt,rounded corners=2pt] (2.7, 1.35) rectangle (9.9, 2.10);
-  \node[anchor=west,font=\footnotesize\color{pdink}\bfseries] at (2.9, 1.87) {TIER 3: HOST EXECUTABLES \& FORMAL SCHEMAS};
-  \node[anchor=east,font=\footnotesize\ttfamily\color{pdink}] at (9.7, 1.87) {scripts/ \& schemas/};
-  \node[anchor=west,font=\footnotesize\color{pdink}] at (2.9, 1.57) {$P \approx 10^{-3}$--$10^{-4}$ (Subprocess) $\;\cdot\;$ \textbf{\color{pdhealth}0 TOKENS IN CONTEXT} $\;\cdot\;$ \textbf{Native Sandbox}};
-\end{tikzpicture}
-\pdwidecaption{The Progressive Disclosure of Skills drafted across logarithmic graph paper. By partitioning capabilities across four decades of activation frequency---from baseline YAML frontmatter ($P=1.0$), through on-demand \texttt{SKILL.md} manuals ($P \approx 10^{-1}$) and specialized \texttt{agents/} and \texttt{references/} ($P \approx 10^{-2}$), down to host-executed \texttt{scripts/} and \texttt{schemas/} ($P \approx 10^{-3}$--$10^{-4}$) consuming zero LLM context tokens---the log curve acts as a visual sparkline showing how context consumption contracts exponentially with task specialization.}[fig:progressive-skills-iceberg]
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\pdswissfigplate{fig-ch0-skills-logarithmic}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.D: Progressive Skill Disclosure---Contracting geometric tiers of capability activation frequency across logarithmic decades.}[plate:skills-swiss]
 \end{figure}
 
 \subsection{Lifecycle Hooks and Supervisory Control}
@@ -1959,211 +838,16 @@ Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section o
 
 \begin{figure}[p]
 \centering
-\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
-\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & primary text (ebony)
-\definecolor{activeCobalt}{HTML}{003FB8}    % Active deliberation & execution dispatch (cobalt)
-\definecolor{seafoamBorder}{HTML}{00564C}   % Hygiene accent (teal)
-\definecolor{coralBorder}{HTML}{8B0000}     % Veto accent (mayday)
-\colorlet{activeTint}{activeCobalt!12!white}
-\colorlet{ingressTint}{pdlime!25!white}
-\colorlet{seafoamSuccess}{seafoamBorder!15!white}
-\colorlet{coralVeto}{coralBorder!15!white}
-\colorlet{sandboxBg}{codebg}
-
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  >=Stealth,
-  baseBox/.style={
-    draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
-    inner sep=4pt, align=left
-  },
-  flowBox/.style={
-    baseBox, text width=4.8cm, minimum height=0.88cm
-  },
-  activeBox/.style={
-    flowBox, draw=activeCobalt, fill=activeCobalt, text=white
-  },
-  vetoBox/.style={
-    flowBox, draw=coralBorder, fill=coralVeto, text=charcoal
-  },
-  caseCard/.style={
-    baseBox, text width=6.5cm, inner sep=5pt
-  },
-  sectionFrame/.style={
-    draw=charcoal, line width=0.9pt
-  },
-  secHeader/.style={
-    font=\bfseries\footnotesize, text=charcoal, anchor=west
-  }
-]
-  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
-
-  % ================= HEADER & SEMANTIC KEY =================
-  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.5) {LIFECYCLE HOOK ARCHITECTURE \& DETERMINISTIC ENFORCEMENT};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 18.1) {Deterministic Interception Points \textperiodcentered\ Binary Veto Gates (Exit 0 vs Exit 2) \textperiodcentered\ Dynamic Context};
-  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal] at (15.3, 18.1) {DUAL-LOOP SPECIFICATION};
-  \draw[line width=1.1pt, charcoal] (0.2, 17.85) -- (15.3, 17.85);
-
-  % Semantic Key (Single clean horizontal row)
-  \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.5) {SEMANTIC KEY:};
-
-  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (2.2, 17.5) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (2.55, 17.5) {Session Ingress};
-
-  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (4.7, 17.5) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (5.05, 17.5) {Active Deliberation};
-
-  \node[anchor=west, draw=coralBorder, fill=coralVeto, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (7.4, 17.5) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (7.75, 17.5) {Security Veto (Exit 2)};
-
-  \node[anchor=west, draw=seafoamBorder, fill=seafoamSuccess, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (10.6, 17.5) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (10.95, 17.5) {Clean Pass (Exit 0)};
-
-  \node[anchor=west, draw=charcoal, fill=sandboxBg, line width=0.5pt, minimum width=0.3cm, minimum height=0.2cm] at (13.5, 17.5) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.85, 17.5) {Sandbox};
-
-  % ================= LEFT COLUMN: FLOWCHART =================
-  \draw[sectionFrame] (0.2, 2.05) rectangle (7.6, 17.2);
-  \node[secHeader] at (0.4, 16.85) {LIFECYCLE HOOK ARCHITECTURE};
-
-  % Flow box center is at x = 4.35 (box width 5.08cm -> x in [1.81, 6.89])
-  % Outer West bypass lane ("done"): x = 0.65
-  % Inner West veto lane ("Exit 2 Veto"): x = 1.25
-  % East loopback lane ("next"): x = 7.25
-
-  % Outer Lifecycle Hooks
-  \node[flowBox, fill=ingressTint] (session) at (4.35, 16.05) {
-    \textbf{\footnotesize SessionStart} \\[1pt]
-    \footnotesize Injects branch, lock tokens, inbox state
-  };
-
-  \node[flowBox, fill=ingressTint] (prompt) at (4.35, 14.65) {
-    \textbf{\footnotesize UserPromptSubmit} \\[1pt]
-    \footnotesize Ingests prompt $\cdot$ Injects clean worktree context
-  };
-
-  % Agentic Tool Loop Sub-Frame (contained between x = 1.65 and x = 7.50)
-  \draw[draw=charcoal, line width=0.8pt, dashed, fill=activeTint!25] (1.65, 7.00) rectangle (7.50, 13.80);
-  \node[anchor=west, fill=activeTint!25, inner sep=1.5pt, font=\bfseries\footnotesize, text=activeCobalt] at (1.80, 13.80) {AGENTIC TOOL LOOP};
-
-  \node[activeBox] (delib) at (4.35, 12.65) {
-    \textbf{\footnotesize Agent Deliberation} \\[1pt]
-    \footnotesize Proposes tool invocation or terminal completion
-  };
-
-  \node[flowBox, draw=coralBorder, line width=0.9pt] (pretool) at (4.35, 11.20) {
-    \textbf{\footnotesize PreToolUse (Security Gate)} \\[1pt]
-    \footnotesize Match: \texttt{Bash | Edit | Write | Spawn}
-  };
-
-  \node[flowBox, fill=sandboxBg] (sandbox) at (4.35, 9.45) {
-    \textbf{\footnotesize {[Seatbelt OS-Sandbox]}} \\[1pt]
-    \footnotesize Worktree isolation $\cdot$ Egress spend cap
-  };
-
-  \node[flowBox, fill=seafoamSuccess, draw=seafoamBorder] (posttool) at (4.35, 7.85) {
-    \textbf{\footnotesize PostToolUse (Hygiene)} \\[1pt]
-    \footnotesize Formats AST (Biome) $\cdot$ Scrubs credentials
-  };
-
-  % Terminal Lifecycle Hooks
-  \node[vetoBox] (stop) at (4.35, 5.75) {
-    \textbf{\footnotesize Stop / StopFailure} \\[1pt]
-    \footnotesize Closeout gate $\cdot$ Runs test verification suite
-  };
-
-  \node[flowBox, fill=sandboxBg] (precompact) at (4.35, 4.15) {
-    \textbf{\footnotesize PreCompact (Context Lifeline)} \\[1pt]
-    \footnotesize At 85\% token cap: dumps plan state to disk
-  };
-
-  % Footnote in Left Panel
-  \node[anchor=center, font=\footnotesize, align=center, text width=6.8cm, text=charcoal] at (3.90, 2.55) {
-    \textbf{Dual Supervisory Hierarchy:} Outer session envelope regulates context budget; inner loop guarantees single-turn sandboxing.
-  };
-
-  % ---- Flowchart Connectors (Strict Orthogonal Dedicated Conduits) ----
-
-  % Ingress flow
-  \draw[->, line width=0.9pt, charcoal] (session.south) -- (prompt.north);
-  \draw[->, line width=0.9pt, charcoal] (prompt.south) -- (delib.north);
-  \draw[->, line width=0.9pt, activeCobalt] (delib.south) -- (pretool.north);
-
-  % Exit 0 path with dedicated gap
-  \draw[->, line width=1.0pt, seafoamBorder] (pretool.south) -- (sandbox.north);
-  \node[fill=activeTint!25, inner sep=1.5pt, font=\footnotesize\bfseries, text=seafoamBorder] at ($(pretool.south)!0.5!(sandbox.north)$) {Exit 0};
-
-  \draw[->, line width=0.9pt, charcoal] (sandbox.south) -- (posttool.north);
-
-  % Loopback Track (East track: x = 7.25)
-  \draw[->, line width=1.0pt, activeCobalt] (posttool.east) -- (7.25, 7.85) -- (7.25, 12.65) -- (delib.east);
-  \node[fill=white, inner sep=1pt, font=\footnotesize\bfseries, text=activeCobalt] at (7.25, 10.25) {next};
-
-  % Track 1 (Outer West: x = 0.65) -> Terminal "done" exit
-  \draw[line width=0.9pt, charcoal] (delib.west) -- (0.65, 12.65) node[midway, above=1pt, font=\footnotesize\bfseries, text=charcoal] {done};
-  \draw[->, line width=0.9pt, charcoal] (0.65, 12.65) -- (0.65, 5.55) -- ($(stop.west)+(0, -0.2)$);
-
-  % Track 2 (Inner West: x = 1.25) -> "Exit 2 (Veto)" security abort
-  \draw[line width=0.9pt, coralBorder] (pretool.west) -- (1.25, 11.20);
-  \draw[->, line width=0.9pt, coralBorder] (1.25, 11.20) -- (1.25, 5.95) node[pos=0.45, fill=white, inner sep=1.5pt, font=\footnotesize\bfseries, text=coralBorder, align=center] {Exit 2\\(Veto)} -- ($(stop.west)+(0, 0.2)$);
-
-  \draw[->, line width=0.9pt, charcoal] (stop.south) -- (precompact.north);
-
-  % ================= RIGHT COLUMN: CONCRETE SCENARIOS =================
-  \draw[sectionFrame] (7.85, 2.05) rectangle (15.3, 17.2);
-  \node[secHeader] at (8.05, 16.85) {VERIFIED HOOK EXECUTION TRACES};
-
-  % CASE A
-  \node[caseCard, draw=coralBorder, fill=coralVeto!25, anchor=north] (caseA) at (11.575, 16.55) {
-    \textbf{\footnotesize CASE A: PRE-TOOL SECURITY VETO}\\[3pt]
-    \footnotesize\textbf{Agent attempts destructive shell command:}\\[1pt]
-    \footnotesize\texttt{Bash("git push -f origin main")}\\[3pt]
-    \footnotesize\textbf{Hook Interception:} \texttt{PreToolUse} matches \texttt{push.*(-f|--force)}\\[2pt]
-    \footnotesize\textbf{Gate Decision:} \colorbox{coralVeto}{\textbf{\textcolor{coralBorder}{EXIT 2 (BLOCKED)}}} $\implies$ \textit{Killed}\\[3pt]
-    \footnotesize\textbf{Feedback Fed to Agent (stderr):}\\
-    \footnotesize\texttt{"VETO: force-push forbidden. Use topic branch."}\\
-    \footnotesize$\implies$ \textit{0 host syscalls executed; agent self-corrects.}
-  };
-
-  % CASE B
-  \node[caseCard, draw=seafoamBorder, fill=seafoamSuccess!25, anchor=north] (caseB) at (11.575, 11.85) {
-    \textbf{\footnotesize CASE B: REACTIVE CODE HYGIENE}\\[3pt]
-    \footnotesize\textbf{Agent mutates file:}\\[1pt]
-    \footnotesize\texttt{Edit("src/auth/jwt.ts", diff)}\\[3pt]
-    \footnotesize\textbf{Hook Interception:} \texttt{PostToolUse} fires on file write\\[2pt]
-    \footnotesize\textbf{Automated Action:} Spawns \texttt{npx biome format --write}\\[3pt]
-    \footnotesize\textbf{Result Injected into Context:}\\
-    \footnotesize\texttt{"Biome: formatted src/auth/jwt.ts cleanly"}\\
-    \footnotesize$\implies$ \textit{AST whitespace and lint sanitized before staging.}
-  };
-
-  % CASE C
-  \node[caseCard, draw=coralBorder, fill=white, anchor=north] (caseC) at (11.575, 7.15) {
-    \textbf{\footnotesize CASE C: CLOSEOUT TEST VERIFICATION GATE}\\[3pt]
-    \footnotesize\textbf{Agent attempts to conclude turn:}\\[1pt]
-    \footnotesize\texttt{"I have completed the JWT refactoring."}\\[3pt]
-    \footnotesize\textbf{Hook Verification:} \texttt{Stop} runs \texttt{vitest run auth}\\[2pt]
-    \footnotesize\textbf{Gate Decision:} \colorbox{coralVeto}{\textbf{\textcolor{coralBorder}{EXIT 2 (REJECTED)}}} $\implies$ \textit{Test failed}\\[3pt]
-    \footnotesize\textbf{Directive Fed to Agent:}\\
-    \footnotesize\texttt{"Stop vetoed: test 'jwt\_verify' failed. Fix it."}\\
-    \footnotesize$\implies$ \textit{Cannot leave broken code; compelled to repair.}
-  };
-
-  % ================= BOTTOM INVARIANT & SCRUBBING BANNER =================
-  \draw[sectionFrame] (0.2, 0.35) rectangle (15.3, 1.85);
-  \draw[line width=0.8pt, charcoal] (7.6, 0.35) -- (7.6, 1.85);
-
-  \node[anchor=west, font=\footnotesize, align=left, text width=7.0cm] at (0.35, 1.1) {
-    \textbf{\footnotesize The Operational Invariant:}\\[2pt]
-    Deterministic hooks govern external execution ($\Sigma_e$) via binary vetoes (\texttt{Exit 0} vs \texttt{Exit 2}) and context injection, operating strictly outside the statistical model's weights.
-  };
-
-  \node[anchor=west, font=\footnotesize, align=left, text width=7.1cm] at (7.8, 1.1) {
-    \textbf{\footnotesize Confidentiality Scrubbing:}\\[2pt]
-    The \texttt{PostToolUse} hook intercepts \texttt{stdout/stderr}, scrubbing discovered API tokens and private credentials before KV-cache injection.
-  };
-
-\end{tikzpicture}
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-lifecycle-diagram.jpg}}
 \pdwidecaption{The Agent Lifecycle Hook cross-section, modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution is partitioned into two nested supervisory loops: the outer Session and Turn lifecycle manages user context, memory compaction (\texttt{PreCompact}), and test verification (\texttt{Stop}), while the inner \texttt{AGENTIC TOOL LOOP} supervises iterative tool invocations, pre-execution security vetoes (\texttt{PreToolUse}), sandbox execution, and reactive post-tool sanitization (\texttt{PostToolUse}). Concrete production traces (Cases A--C) illustrate deterministic enforcement at binary interception points.}[fig:lifecycle-hooks-engines]
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\pdswissfigplate{fig-ch0-lifecycle-hooks}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.E: Supervisory Interception---Dual-loop lifecycle hooks and confinement barriers.}[plate:hooks-swiss]
 \end{figure}
 
 \subsubsection{Case Studies in Lifecycle Hook Enforcement}
@@ -2230,82 +914,10 @@ Figure~\ref{fig:swarm-topologies-detailed} contrasts these five communication pa
 
 \begin{figure}[p]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  every node/.append style={font=\sffamily},
-  pd panel/.style={draw=pdink!30,line width=0.5pt,fill=white,rounded corners=2pt},
-  pd focus panel/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!4,rounded corners=2pt},
-  pd agent/.style={draw=pdink!70,line width=0.5pt,fill=white,rounded corners=2pt,align=center,font=\sffamily\footnotesize,inner sep=3pt},
-  pd lead/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!12,rounded corners=2pt,align=center,font=\sffamily\footnotesize\bfseries,inner sep=3pt},
-  pd kernel/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!15,rounded corners=2pt,align=center,font=\sffamily\footnotesize\bfseries,inner sep=4pt},
-  pd edge/.style={draw=pdink!70,line width=0.6pt,-{Stealth[length=3.5pt,width=2.5pt]}},
-  pd focus edge/.style={draw=pdcobalt,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  pd clash edge/.style={draw=pderror,line width=0.8pt,dashed,{Stealth[length=3pt]}-{Stealth[length=3pt]}}
-]
-  \useasboundingbox (0, 0) rectangle (11.4, 10.2);
-
-  % Panel A: Peer Mesh
-  \draw[pd panel] (0.1, 0.2) rectangle (3.7, 10.0);
-  \draw[fill=pdink!8,draw=pdink!20,line width=0.5pt] (0.1, 9.2) rectangle (3.7, 10.0);
-  \node[anchor=center,font=\sffamily\footnotesize\bfseries] at (1.9, 9.6) {(a) Peer-to-Peer Mesh};
-
-  \node[pd agent] (p1) at (1.0, 7.8) {Agent $A$};
-  \node[pd agent] (p2) at (2.8, 7.8) {Agent $B$};
-  \node[pd agent] (p3) at (1.9, 6.0) {Agent $C$};
-
-  \draw[pd clash edge] (p1) -- (p2);
-  \draw[pd clash edge] (p2) -- (p3);
-  \draw[pd clash edge] (p3) -- (p1);
-
-  \node[draw=pderror!40,fill=pderror!8,rounded corners=2pt,inner sep=3pt,text width=3.1cm,align=center] at (1.9, 3.2) {
-    \textbf{\color{pderror}Quadratic Chatter}\\[2pt]
-    \footnotesize $\bullet$ $\mathcal{O}(N^2)$ message storm\\
-    $\bullet$ Silent git overwrites\\
-    $\bullet$ Divergent assumptions
-  };
-
-  % Panel B: Central Orchestrator
-  \draw[pd panel] (3.9, 0.2) rectangle (7.5, 10.0);
-  \draw[fill=pdink!8,draw=pdink!20,line width=0.5pt] (3.9, 9.2) rectangle (7.5, 10.0);
-  \node[anchor=center,font=\sffamily\footnotesize\bfseries] at (5.7, 9.6) {(b) Orchestrator};
-
-  \node[pd lead] (lead) at (5.7, 7.8) {Lead Agent};
-  \node[pd agent] (w1) at (4.7, 6.0) {Sub A};
-  \node[pd agent] (w2) at (6.7, 6.0) {Sub B};
-
-  \draw[pd edge] (lead) -- (w1);
-  \draw[pd edge] (lead) -- (w2);
-  \draw[pd edge] (w1) -- (lead);
-  \draw[pd edge] (w2) -- (lead);
-
-  \node[draw=pdamber!50,fill=pdamber!8,rounded corners=2pt,inner sep=3pt,text width=3.1cm,align=center] at (5.7, 3.2) {
-    \textbf{\color{pdamber!90!black}Context Bottleneck}\\[2pt]
-    \footnotesize $\bullet$ Single point of failure\\
-    $\bullet$ Lead context saturation\\
-    $\bullet$ High review latency
-  };
-
-  % Panel C: Stigmergic Kernel
-  \draw[pd focus panel] (7.7, 0.2) rectangle (11.3, 10.0);
-  \draw[fill=pdcobalt!15,draw=pdcobalt!30,line width=0.5pt] (7.7, 9.2) rectangle (11.3, 10.0);
-  \node[anchor=center,font=\sffamily\footnotesize\bfseries\color{pdcobalt}] at (9.5, 9.6) {(c) Stigmergic Kernel};
-
-  \node[pd kernel,text width=3.0cm] (kern) at (9.5, 7.8) {Operating Kernel};
-  \node[pd agent] (ka1) at (8.5, 6.0) {Worker 1};
-  \node[pd agent] (ka2) at (10.5, 6.0) {Worker 2};
-
-  \draw[pd focus edge] (ka1) -- (kern);
-  \draw[pd focus edge] (ka2) -- (kern);
-
-  \node[draw=pdcobalt!50,fill=pdcobalt!8,rounded corners=2pt,inner sep=3pt,text width=3.1cm,align=center] at (9.5, 3.2) {
-    \textbf{\color{pdcobalt}Linear Scaling $\mathcal{O}(N)$}\\[2pt]
-    \footnotesize $\bullet$ Single-writer WAL\\
-    $\bullet$ AST region locks\\
-    $\bullet$ Zero peer chatter
-  };
-
-\end{tikzpicture}
-\caption{Taxonomy of Multi-Agent Swarm Topologies. While naive peer-to-peer swarms suffer from $\mathcal{O}(N^2)$ message explosion, git merge conflicts, and agentic hallucination drift, the Stigmergic Blackboard coordinates agents via environmental state mutations mediated by the authoritative operating kernel.}
-\label{fig:swarm-topologies-detailed}
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-wonham-supervisory.jpg}}
+\pdwidecaption{Ramadge--Wonham supervisory control ($S / G$) of autonomous agent execution. The supervisor (the kernel TCB) evaluates generator events $L(G)$ against the specification language $K$, selectively disabling illegal controllable events $\Sigma_c$ via disablement mask $\gamma(s)$ while leaving uncontrollable events $\Sigma_u$ unhindered.}[fig:ramadge-wonham-supervisory]
+\label{fig:swarm-topologies-detailed}%
 \end{figure}
 
 \subsection{Stigmergy and Shared Coordination Mediums}
@@ -2395,95 +1007,18 @@ An LLM is a stateless mathematical function mapping an input sequence of tokens 
 
 Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified into three architectural tiers: the probabilistic Deliberation Layer, the confined Execution Layer, and the deterministic Governance Layer.
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  every node/.append style={font=\sffamily},
-  pd box/.style={draw=pdink!70,line width=0.6pt,fill=white,rounded corners=0pt,align=center,inner xsep=4pt,inner ysep=4pt},
-  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=0pt,align=center,inner xsep=4pt,inner ysep=4pt},
-  pd layer panel/.style={draw=pdink!20,line width=0.5pt,fill=pdinkmuted!3,rounded corners=0pt},
-  pd edge/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
-  pd focus edge/.style={draw=pdcobalt,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}}
-]
-  \useasboundingbox (0, 0) rectangle (11.4, 9.8);
-
-  % =============================================================
-  % LAYER 1: DELIBERATION (y: 6.80 to 9.50)
-  % =============================================================
-  \draw[pd layer panel] (0.1, 6.80) rectangle (11.3, 9.50);
-  \node[anchor=north west, pd title] at (0.3, 9.32) {\textbf{DELIBERATION LAYER}};
-  \node[anchor=north east, pd kind] at (11.1, 9.32) {Probabilistic Reasoning Engine};
-
-  \node[pd box, text width=2.4cm] (ctx) at (1.70, 7.75) {
-    \textbf{Context Buffer}\\[2pt]
-    \footnotesize History $\mathcal{H}_t$ $\cdot$ Prompt $\mathcal{P}$
-  };
-  \node[pd box, text width=2.6cm] (llm) at (5.70, 7.75) {
-    \textbf{Reasoning Engine}\\[2pt]
-    \footnotesize Policy $\pi_\theta(a_t \mid C_t)$
-  };
-  \node[pd box, text width=2.4cm] (parse) at (9.70, 7.75) {
-    \textbf{Validation Gate}\\[2pt]
-    \footnotesize Schema check $\mathcal{V}(a_t)$
-  };
-
-  \draw[pd edge] (ctx) -- (llm) node[midway, above=1pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {tokens $C_t$};
-  \draw[pd edge] (llm) -- (parse) node[midway, above=1pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {proposal $a_t \sim \pi_\theta$};
-
-  % =============================================================
-  % LAYER 2: EXECUTION & ACTUATION (y: 3.50 to 6.20)
-  % =============================================================
-  \draw[pd layer panel] (0.1, 3.50) rectangle (11.3, 6.20);
-  \node[anchor=north west, pd title] at (0.3, 6.02) {\textbf{EXECUTION LAYER} \quad {\color{pdinkmuted}\mdseries\textperiodcentered \quad Confined Host Runtime}};
-
-  \node[pd box, text width=2.6cm] (host) at (5.70, 4.45) {
-    \textbf{Host Runtime}\\[2pt]
-    \footnotesize Worker process $\mathcal{W}_k$
-  };
-  \node[pd box, text width=2.4cm] (sandbox) at (9.70, 4.45) {
-    \textbf{Seatbelt Enclave}\\[2pt]
-    \footnotesize Confined Sandbox $\mathcal{E}$
-  };
-
-  % Descent from Layer 1 to Layer 2 at x = 9.70
-  \draw[pd edge] (parse) -- (sandbox) node[midway, right=2pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {dispatch $a_t^*$};
-  % Horizontal confinement in Layer 2
-  \draw[pd edge] (sandbox) -- (host) node[midway, above=1pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {confine $\mathcal{E}$};
-
-  % =============================================================
-  % LAYER 3: COORDINATION & GOVERNANCE (y: 0.20 to 2.90)
-  % =============================================================
-  \draw[pd layer panel] (0.1, 0.20) rectangle (11.3, 2.90);
-  \node[anchor=north west, pd title] at (0.3, 2.72) {\textbf{GOVERNANCE LAYER}};
-  \node[anchor=north east, pd kind] at (11.1, 2.72) {Kernel Authority};
-
-  \node[pd box, text width=2.4cm] (hook) at (1.70, 1.15) {
-    \textbf{Hook Interceptor}\\[2pt]
-    \footnotesize Filter $\Sigma_c \to \mathcal{O}_{t+1}$
-  };
-  \node[pd focus box, text width=2.6cm] (kernel) at (5.70, 1.15) {
-    \textbf{Supervisory Kernel}\\[2pt]
-    \footnotesize Authoritative TCB
-  };
-  \node[pd box, text width=2.4cm] (ledger) at (9.70, 1.15) {
-    \textbf{Evidence Ledger}\\[2pt]
-    \footnotesize Append-only WAL
-  };
-
-  % Descent from Layer 2 to Layer 3 at x = 5.70
-  \draw[pd edge] (host) -- (kernel) node[midway, right=2pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {syscall $\sigma \in \Sigma_c$};
-  % Layer 3 horizontal flows
-  \draw[pd edge] (kernel) -- (hook) node[midway, above=1pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {witness $\rho$};
-  \draw[pd edge] (kernel) -- (ledger) node[midway, above=1pt, pd kind, font=\scriptsize, fill=white, inner sep=1pt] {commit $\tau$};
-
-  % =============================================================
-  % LOOP CLOSURE: Hook -> Context Buffer (Straight up at x = 1.70)
-  % =============================================================
-  \draw[pd focus edge] (hook.north) -- (ctx.south)
-    node[midway, right=2pt, pd kind, align=left, font=\scriptsize, fill=white, inner sep=1pt] {observation\\[1pt]\scriptsize\color{pdcobalt}sanitized $\mathcal{O}_{t+1}$};
-
-\end{tikzpicture}
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\includegraphics[width=0.96\pdfullwidth]{figures/fig-ch0-closed-loop-diagram.jpg}}
 \pdwidecaption{The closed agentic architecture loop: three architectural tiers separating probabilistic deliberation from deterministic kernel coordination.}[fig:pre-agent-loop]
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\pdpagecentered{\pdswissfigplate{fig-ch0-closed-loop}{0.96\pdfullwidth}}
+\pdwidecaption{Plate 0.F: The Closed Loop---Stratified tiers of deliberation, execution, and authoritative kernel governance.}[plate:closed-loop-swiss]
 \end{figure}
 
 The harness operates as a deterministic finite-state machine driving an indeterminate generator:

@@ -162,73 +162,24 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 % Begin folios on physical page v with the abstract.
 \setcounter{page}{5}
 \renewcommand{\thepage}{\roman{page}}
-\begin{abstract}\noindent
-Between late 2022 and late 2026, the marginal economic cost of generating software syntax fell by more than four orders of magnitude. The arrival of frontier reasoning models turned coding from a manual typing discipline into an automated generation firehose: autonomous subagents spin up in parallel, write complete test suites, compose microservices, and refactor distributed systems in minutes.
+\begin{abstract}
+\noindent Between late 2022 and late 2026, the marginal economic cost of generating software syntax fell by more than four orders of magnitude. The arrival of frontier reasoning models turned coding from a manual typing discipline into an automated generation firehose: autonomous subagents spin up in parallel, write complete test suites, compose microservices, and refactor distributed systems in minutes.
 
+\par\vspace{6pt}\noindent
 Yet by late 2026, software development has crashed into an institutional wall. The bottleneck is no longer code synthesis; the bottleneck is \emph{concurrency without accountability}. When an engineer launches ten autonomous processes against a single codebase, classical distributed-systems pathologies emerge with semantic unpredictability: silent commit overwrites where one model reverts a peer's changes without error; fabricated test passes where an agent satisfies an objective by deleting the failing test; hundreds of lines of plausible pull-request diffs generated faster than human attention can verify them; and irreversible external side effects executed without durable provenance. The failure of autonomous AI agents is not a deficiency of intelligence. It is the absence of an operating kernel.
 
+\par\vspace{6pt}\noindent
 This textbook makes one fundamental claim: \emph{autonomy scales only when authority, evidence, and consequence remain strictly coupled at every effect boundary}. Over eight chapters organized in dependency order, this volume builds the architecture required for trustworthy autonomous agency:
 \begin{itemize}[leftmargin=1.8em,itemsep=3pt,topsep=4pt]
 \item \textbf{Level I: Ground Truth and Local Enclosure (Chapters 1--3).} We establish a deterministic single-writer kernel that orders event history under happened-before causality; formalize attenuated capability chains (Harbor Cards) where delegated authority can only narrow at every hop; and construct sealed execution harbors that bound information leakage between distrustful principals.
 \item \textbf{Level II: The Economics of Human Attention (Chapter 4).} We derive the information-theoretic lower bounds on digest summaries, formulate the force-zoom invariant for irreversible risk, and prove the comonotonicity conditions governing split-ranker alignment between algorithmic routing and human supervisory attention.
 \item \textbf{Level III: Durable Agency, Market Governance, and Federation (Chapters 5--8).} We define non-forgeable agent personhood with append-only outcome ledgers that outlive process restarts; design competitive underwriting and reserve pricing that protect the shared commons; formulate double-liability bilateral clearing and bounded contestable remedy; and prove the sheaf-theoretic consistency conditions under which independent harbors can federate work without ceding local machine sovereignty.
 \end{itemize}
+
+\par\vspace{6pt}\noindent
 The result is not an appeal to trust autonomous systems. It is an engineering discipline for making trust unnecessary where structure can enforce invariants, measurable where economic uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
-\section*{What is built, what is modelled, what is proposed}
-\addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
-The book maintains strict epistemic honesty: every architectural mechanism is explicitly partitioned across shipped reference code, machine-checked models, and proposed designs (\hyperref[app:volume-status]{Appendix~\ref{app:volume-status}}):
-
-\par\vspace{6pt}\noindent
-\begingroup
-\fontsize{7.0}{8.5}\selectfont
-\begin{tabularx}{\linewidth}{@{} >{\bfseries}p{3.1cm} p{1.6cm} >{\raggedright\arraybackslash}X @{}}
-\toprule
-\multicolumn{3}{@{}l}{\textbf{Volume Implementation Ratio:}\enspace
-  \textbf{\BuiltWeak{}} (50\%)\enspace\textcolor{hhgray!60}{\textperiodcentered}\enspace
-  \textbf{\Designed{}} (30\%)\enspace\textcolor{hhgray!60}{\textperiodcentered}\enspace
-  \textbf{\Vision{}} (20\%)} \\[2pt]
-\multicolumn{3}{@{}l}{%
-  {\color{hhink}\rule{0.50\linewidth}{3.5pt}}%
-  {\color{hhgray!70}\rule{0.30\linewidth}{3.5pt}}%
-  {\color{hhgray!30}\rule{0.20\linewidth}{3.5pt}}%
-} \\[4pt]
-\midrule
-\textbf{Subsystem} & \textbf{Maturity} & \textbf{Implementation Scope \& Assurance Mode} \\
-\midrule
-Local Coordination Core   & \BuiltWeak{} & SQLite/WAL single-writer path: sessions, claims, locks, inbox. \\
-Operator Projections      & \BuiltWeak{} & Derived artifacts, attention stream, reverse routes to source. \\
-Durable Obligations       & \BuiltWeak{} & Append-only outcome records surviving individual process exit. \\
-Rust Card Verifier        & \BuiltWeak{} & Bounded proof harnesses; attenuated Macaroon token check. \\
-Relay Event Fabric        & \BuiltWeak{} & Outbound authenticated SSE stream across machine boundaries. \\
-\midrule
-Sealed Harbors \& Ledger  & \Designed{}  & Noninterference guarantees and release-ledger invariants. \\
-Truthful Signaling        & \Designed{}  & Collateral bond escrow, reserve pricing, commons pool. \\
-Multi-Hop Attenuation     & \Designed{}  & Transitive authority delegation checked via TLA+ and ProVerif. \\
-\midrule
-Subprocess Confinement    & \Vision{}    & Sub-agent OS sandbox: Seatbelt/Landlock with metered egress. \\
-Cross-Harbor Settlement   & \Vision{}    & Bilateral clearing, double-liability custody, witness log. \\
-\bottomrule
-\end{tabularx}
-\endgroup
-\par\vspace{6pt}
-
-Two consequences follow for how to read the chapters. First, the kernel
-chapter's supervisory-control result says that an interceptor at the tool
-level can observe but not regiment; the git shim and the coordination guard
-that ship today are such interceptors, and the book treats them as interim.
-The confinement the book prescribes requires the enforcement point below the
-agent. Second, whether the single-writer rail is the right \emph{collaboration}
-model, and not only the right confinement model, is an open empirical
-question, and a pre-registered study kept separate from the product
-(\texttt{studies/substrate-study} in the repository) is testing it against
-per-agent worktrees with a merge queue. Until that study reports, the rail
-stands as a design invariant, not an empirically established collaboration
-model. Every
-important statement in the chapters is labelled by kind (theorem, design
-invariant, model-checked property, or empirical hypothesis), every runtime
-claim names its assurance mode, and the appendix keeps the ledger of both.
 
 \section*{How to use this textbook}
 \addcontentsline{toc}{section}{How to use this textbook}

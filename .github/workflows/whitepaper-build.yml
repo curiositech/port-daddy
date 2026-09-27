@@ -245,6 +245,7 @@ jobs:
           name: book-caption-inventory
           if-no-files-found: error
           retention-days: 1
+          include-hidden-files: true
           path: |
             .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.aux
             .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.log

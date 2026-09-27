@@ -251,6 +251,8 @@ def enumerate_figures(textbook: dict) -> list[dict]:
 
         for m in _SITE_RE.finditer(chapter_tex):
             kind, name = m.group(1), m.group(2)
+            if name.startswith("pd-"):
+                continue
 
             if kind == "includegraphics":
                 fid = name[:-4] if name.lower().endswith(".pdf") else name
@@ -279,7 +281,7 @@ def enumerate_figures(textbook: dict) -> list[dict]:
                 frag = fh.read()
             # A figure fragment is one that actually sets a figure with a
             # caption. Style files (pd-*) and terminal listings are not.
-            if "\\begin{figure}" not in frag or "\\caption" not in frag:
+            if not (r"\begin{figure}" in frag or r"\begin{figure*}" in frag or r"\begin{table}" in frag) or r"\caption" not in frag:
                 continue
             rec = by_id.get(name)
             if rec is None:
@@ -507,6 +509,7 @@ def shape_add_rows(adds: list[dict], figs: list[dict], pins: dict) -> tuple[list
         ("B6 probation cliff", "fig-stp-probation-cliff"),
         ("R12 copy-fork attack", "fig-stp-nomint-lineage"),
         ("R6 consistency radius", "fig-fh-cycle-vs-cut"),
+        ("three-step settlement protocol", "fig-fh-settle-protocol"),
     ]
     fulfilled_by_fig: dict[str, str] = {}
     undrawn: list[dict] = []
@@ -942,9 +945,16 @@ def build() -> tuple[list[tuple[str, str]], dict]:
 
     fig_ids = {f["id"] for f in figs}
     judged_ids = set(pixel_rows)
+    REPLACED_JUDGED_IDS = {
+        "fig-swk-durability-dramatization": "fig-swk-durability-faultclass",
+        "fig-pareto-dominance-tikz": "fig-pareto-dominance",
+        "fig-bonded-cartel-folk-theorem-tikz": "fig-cartel-folk-theorem",
+        "fig-bonded-sybil-deposit-floor-tikz": "fig-sybil-deposit-floor",
+    }
+    fig_ids_reconciled = fig_ids | {REPLACED_JUDGED_IDS[fid] for fid in fig_ids if fid in REPLACED_JUDGED_IDS}
     recon = {
         "deskOnly": sorted(fig_ids - judged_ids),
-        "judgedOnly": sorted(judged_ids - fig_ids),
+        "judgedOnly": sorted(judged_ids - fig_ids_reconciled),
         "both": sorted(fig_ids & judged_ids),
         "undrawn": [u["id"] for u in undrawn],
         "renderDrift": [

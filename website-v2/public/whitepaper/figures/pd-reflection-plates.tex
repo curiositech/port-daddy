@@ -38,6 +38,7 @@
     \thispagestyle{empty}%
     \ifcsname pd@reflection@title@#1\endcsname
       \phantomsection\label{plate:#1}%
+      \addcontentsline{toc}{pdplate}{\protect\texorpdfstring{\protect\pdreflectiontocentry{#1}{\csname pd@reflection@title@#1\endcsname}}{Plate: \csname pd@reflection@title@#1\endcsname}}%
     \else
       \PackageError{pd-reflection-plates}{Missing contents title for #1}%
         {Register this plate with pdreflectiontitle before placing it.}%

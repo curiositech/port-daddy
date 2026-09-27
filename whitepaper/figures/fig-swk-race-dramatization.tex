@@ -1,63 +1,67 @@
-% Swiss object-based redraw: racing acquires under single-writer uniqueness constraint.
+% II/fig:swk-race-dramatization. Racing acquires under single-writer uniqueness constraint.
 % Evidence: whitepaper/single-writer-kernel.tex sec:resource, alg:acquire.
 % Developer story: claude:worker-1 (Feature Dev) vs codex:bench (E2E Test) racing for port 7421.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[sg/base,y=-1pt]
-  % Left agent boxes
-  \node[anchor=north west,font=\fontsize{7.5}{9}\selectfont\sffamily\bfseries,text=sgViolet] (claude) at (0, 15) {$\alpha_{\text{worker-1}}$ (claude)};
-  \node[anchor=north west,font=\fontsize{6.2}{7.5}\selectfont\color{sgInk!70}] at (0, 27) {Feature dev $\cdot$ pid 9421};
-  \draw[sgViolet,line width=0.8pt] (0, 37) rectangle (95, 62);
-  \node[anchor=center,font=\fontsize{5.8}{7.0}\selectfont\ttfamily,align=center] at (47.5, 49.5) {POST /claims\\\{"port": 7421\}};
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 6.6);
 
-  \node[anchor=north west,font=\fontsize{7.5}{9}\selectfont\sffamily\bfseries,text=sgAmber] (codex) at (0, 95) {$\alpha_{\text{bench}}$ (codex)};
-  \node[anchor=north west,font=\fontsize{6.2}{7.5}\selectfont\color{sgInk!70}] at (0, 107) {E2E benchmark $\cdot$ pid 9428};
-  \draw[sgAmber,line width=0.8pt] (0, 117) rectangle (95, 142);
-  \node[anchor=center,font=\fontsize{5.8}{7.0}\selectfont\ttfamily,align=center] at (47.5, 129.5) {POST /claims\\\{"port": 7421\}};
+  % Left Column: Competing Requesting Agents
+  % Agent 1 (Claude Worker)
+  \node[pd state, draw=pdviolet, fill=pdviolet!8, text width=3.1cm, minimum height=1.35cm, align=left, inner xsep=4pt, inner ysep=4pt] (a1) at (1.65, 5.3) {
+    \textbf{\color{pdviolet}$\alpha_{\text{worker-1}}$} (claude)\\[1pt]
+    pid 9421 $\cdot$ $t = 0.000\,\text{s}$\\[1pt]
+    \texttt{POST /claims :7421}
+  };
 
-  % Timestamps and arrows into Kernel
-  \node[anchor=south,font=\fontsize{5.5}{6.5}\selectfont\color{sgViolet}] at (115, 44) {$t = 0.000\,\text{s}$};
-  \draw[sg/arrow,draw=sgViolet] (95, 49.5) -- (138, 70);
+  % Agent 2 (Codex Benchmark)
+  \node[pd state, text width=3.1cm, minimum height=1.35cm, align=left, inner xsep=4pt, inner ysep=4pt] (a2) at (1.65, 2.3) {
+    \textbf{$\alpha_{\text{bench}}$} (codex)\\[1pt]
+    pid 9428 $\cdot$ $t = +0.001\,\text{s}$\\[1pt]
+    \texttt{POST /claims :7421}
+  };
 
-  \node[anchor=north,font=\fontsize{5.5}{6.5}\selectfont\color{sgAmber}] at (115, 135) {$t = +0.001\,\text{s}$};
-  \draw[sg/arrow,draw=sgAmber] (95, 129.5) -- (138, 88);
+  % Center Column: Single-Writer Kernel
+  \node[pd focus state, text width=2.8cm, minimum height=2.2cm, align=center, inner xsep=4pt, inner ysep=4pt] (db) at (5.7, 3.8) {
+    \textbf{\color{pdcobalt}Single-Writer}\\[2pt]
+    \textbf{\color{pdcobalt}Kernel}\\[3pt]
+    \texttt{SQLite WAL}\\[2pt]
+    \rule{2.4cm}{0.4pt}\\[2pt]
+    \texttt{UNIQUE(port)}\\[1pt]
+    {\pdfiglabelmono serial commit}
+  };
 
-  % Central Single-Writer Kernel (SQLite DB)
-  \begin{scope}[shift={(138, 38)}]
-    \path[draw=sgBlue,fill=sgBlue!6,line width=1.0pt]
-      (0, 8) -- (0, 72) arc[start angle=180,end angle=360,x radius=30pt,y radius=6pt]
-      -- (60, 8) arc[start angle=0,end angle=-180,x radius=30pt,y radius=6pt];
-    \draw[draw=sgBlue,fill=sgBlue!12,line width=1.0pt] (30, 8) ellipse[x radius=30pt,y radius=6pt];
-    \node[anchor=center,font=\fontsize{6.8}{8.0}\selectfont\sffamily\bfseries,text=sgBlue] at (30, 26) {Single Writer};
-    \node[anchor=center,font=\fontsize{5.5}{6.5}\selectfont\ttfamily] at (30, 38) {SQLite WAL};
-    \draw[draw=sgBlue!40,line width=0.5pt] (5, 47) -- (55, 47);
-    \node[anchor=center,font=\fontsize{5.2}{6.2}\selectfont\sffamily\bfseries,text=sgInk!80] at (30, 56) {\texttt{UNIQUE(port)}};
-    \node[anchor=center,font=\fontsize{4.8}{5.8}\selectfont\color{sgInk!70}] at (30, 66) {serial commit};
-  \end{scope}
+  % Arrows from agents into Kernel
+  \draw[pd focus rule, -{Stealth[length=4pt,width=3pt]}, draw=pdviolet] (a1.east) -- (db.160)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdviolet, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {1st};
+  \draw[pd rule, -{Stealth[length=4pt,width=3pt]}] (a2.east) -- (db.200)
+    node[pos=0.5, below=1pt, font=\pdfiglabelsize, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {2nd};
 
-  % Fork decisions
-  % Winner branch (Top-Right)
-  \draw[sg/arrow,draw=sgTeal,line width=1.0pt] (198, 62) -- (224, 42);
-  \node[anchor=south west,font=\fontsize{5.8}{7.0}\selectfont\sffamily\bfseries,text=sgTeal] at (206, 44) {1st (Commit)};
-  \draw[sgTeal,fill=sgTeal!8,line width=0.8pt] (224, 18) rectangle (305, 66);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgTeal] at (228, 22) {201 CREATED (Granted)};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text width=74pt] at (228, 33) {holder: "claude"\\lease: "tk\_94a2"\\epoch: 104 (TTL 60s)};
-  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgTeal!90},text width=74pt] at (228, 55) {$\implies$ \textit{Binds 0.0.0.0:7421}};
+  % Right Column: Outcomes
+  % Winner Outcome (Top Right)
+  \node[pd state, draw=pdhealth, fill=pdhealth!8, text width=3.2cm, minimum height=1.35cm, align=left, inner xsep=4pt, inner ysep=4pt] (out1) at (9.75, 5.3) {
+    \textbf{\color{pdhealth}201 Created (Granted)}\\[1pt]
+    \texttt{lease: "tk\_94a2" (60s)}\\[1pt]
+    \textbf{\color{pdhealth}Binds 0.0.0.0:7421}
+  };
 
-  % Loser branch (Bottom-Right)
-  \draw[sg/arrow,draw=sgRed,line width=1.0pt] (198, 96) -- (224, 116);
-  \node[anchor=north west,font=\fontsize{5.8}{7.0}\selectfont\sffamily\bfseries,text=sgRed] at (206, 112) {2nd (Constraint)};
-  \draw[sgRed,fill=sgRed!6,line width=0.8pt] (224, 94) rectangle (305, 146);
-  \node[anchor=north west,font=\fontsize{6.5}{7.8}\selectfont\sffamily\bfseries,text=sgRed] at (228, 98) {409 CONFLICT (Catch)};
-  \node[anchor=north west,font=\fontsize{5.2}{6.2}\selectfont\ttfamily,text width=74pt] at (228, 109) {error: "ResourceBusy"\\holder: "claude"\\expires\_in: 59s};
-  \node[anchor=north west,font=\fontsize{5.0}{6.0}\selectfont\color{sgRed!90},text width=74pt] at (228, 135) {$\implies$ \textit{Fallback to 7422!}};
+  % Loser Outcome (Bottom Right)
+  \node[pd state, draw=pderror, fill=pderror!6, text width=3.2cm, minimum height=1.35cm, align=left, inner xsep=4pt, inner ysep=4pt] (out2) at (9.75, 2.3) {
+    \textbf{\color{pderror}409 Conflict (Catch)}\\[1pt]
+    \texttt{holder: "claude"}\\[1pt]
+    \textbf{\color{pderror}Fallback to 7422}
+  };
+
+  % Arrows from Kernel to Outcomes
+  \draw[pd focus rule, -{Stealth[length=4pt,width=3pt]}, draw=pdhealth] (db.20) -- (out1.west);
+  \draw[pd breach rule, -{Stealth[length=4pt,width=3pt]}] (db.340) -- (out2.west);
 
   % Bottom summary banner
-  \draw[draw=sgGrid,fill=sgInk!3,line width=0.5pt] (0, 155) rectangle (305, 172);
-  \node[anchor=center,font=\fontsize{5.2}{6.2}\selectfont\color{sgInk!80},text width=300pt,align=center] at (152.5, 163.5) {
-    \textbf{The Invariant:} Primary-key uniqueness on the single-writer connection serializes contention. The catch path atomically returns the holder's identity, preventing blind spin-retries and eliminating dual-bind collisions.
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.5) {
+    \textbf{Serial Contention Invariant:} Primary-key uniqueness on the single-writer connection serializes concurrent acquires. Atomic conflict payloads return the active holder, preventing blind retries.
   };
 \end{tikzpicture}
-\caption{The uniqueness constraint admits one racing acquisition. Two developer agents (\texttt{claude:worker-1} and \texttt{codex:bench}) race for port 7421. The winner receives an exclusive lease token; the loser receives the current holder's identity and remaining TTL, enabling dynamic fallback to port 7422 without colliding. [internal, alg:acquire]}
+\caption{Port race under the single-writer kernel. Two agents request port 7421 one millisecond apart. SQLite's single-writer serialization commits Claude's claim first (yielding \texttt{201 Created}); Codex's racing acquire hits the primary-key uniqueness constraint and catches an atomic \texttt{409 Conflict} identifying the active holder, triggering a clean fallback to 7422. [internal, alg:acquire]}
 \label{fig:swk-race-dramatization}
 \end{figure}

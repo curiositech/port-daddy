@@ -14,12 +14,12 @@
   % acquire: the uniqueness decision that also tells the loser who holds it
   \draw[pd focus arrow] (free.east) -- (held.west)
     node[pd label,midway,above=2pt] {acquire};
-  \node[pd focus badge] at (3.5,.95) {1};
+  \node[pd focus badge,minimum size=6.2mm,inner sep=2.5pt] at (3.5,.95) {1};
 
   % re-claim: idempotent self-loop on held
   \draw[pd focus arrow] (held.115) .. controls +(115:1.1) and +(65:1.1) .. (held.65);
-  \node[pd label,anchor=base] at (5.7,1.62) {re-claim};
-  \node[pd focus badge] at (6.55,1.30) {2};
+  \node[pd label,anchor=base] at (5.5,1.62) {re-claim};
+  \node[pd focus badge,minimum size=6.2mm,inner sep=2.5pt] at (6.75,1.30) {2};
 
   % TTL elapses: held to expired, a plain rename, no badge
   \draw[pd arrow] (held.east) -- (expired.west)
@@ -28,20 +28,20 @@
   % release: held back to free, routed below so it does not cross acquire
   \draw[pd arrow] (held.south) .. controls +(-100:1.0) and +(-80:1.0) .. (free.south);
   \node[pd label] at (3.5,-1.80) {release};
-  \node[pd focus badge] at (3.5,-1.20) {4};
+  \node[pd focus badge,minimum size=6.2mm,inner sep=2.5pt] at (3.5,-1.20) {4};
 
   % lazy sweep: expired back to free, on the next read, not on a schedule
   \draw[pd focus arrow,rounded corners=8pt]
     (expired.south) -- ++(0,-1.55) -- ($(free.south)+(0,-1.55)$) -- (free.south);
   \node[pd label,anchor=north] at (5.7,-2.40) {lazy sweep};
-  \node[pd focus badge] at (5.7,-1.70) {3};
+  \node[pd focus badge,minimum size=6.2mm,inner sep=2.5pt] at (5.7,-1.70) {3};
 
   \node[pd note,anchor=north west,text width=10.4cm] at (-.3,-2.85)
     {\textbf{No Queued State:} A losing acquire is denied immediately (\texttt{409 Conflict}); there is no in-memory buffer, wait queue, or fair scheduling. Losers must explicitly retry or back off.};
 \end{tikzpicture}
 
 \medskip
-{\fontsize{4.8}{5.8}\selectfont
+\begingroup\footnotesize
 \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{\#} & \textbf{API Trigger} & \textbf{Database Operation} & \textbf{Invariant \& Guarantee} \\
@@ -51,7 +51,7 @@
 3 & Next read / acquire \newline \texttt{GET /claims} or \texttt{POST} & \texttt{DELETE FROM claims} \newline \texttt{WHERE expires\_at < now()} & Zero background threads; expired rows are swept lazily on demand before allocating new leases. \\
 4 & \texttt{POST /claims/release} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{DELETE FROM claims} \newline \texttt{WHERE holder = requester} & Immediate deterministic cleanup; excises the lock record upon task completion. \\
 \bottomrule
-\end{tabularx}}
+\end{tabularx}\endgroup
 \caption{The guarded claim lifecycle as a finite-state machine. Acquire is a single atomic insert against a SQLite uniqueness constraint; re-claim and release are idempotent; expiry moves a claim to \emph{expired}, from which the next read lazily sweeps it back to \emph{free}. There is no \emph{queued} state: losing callers receive \texttt{409 Conflict} and must manage their own backoff. [internal, alg:acquire]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}
