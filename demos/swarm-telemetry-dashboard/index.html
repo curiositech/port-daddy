@@ -359,26 +359,43 @@
     // Populate Leases Table
     function renderLeases(leases) {
       const tbody = document.getElementById('leases-tbody');
-      tbody.innerHTML = leases.map(l => `
-        <tr>
-          <td style="color: var(--accent-blue);">${l.agent}</td>
-          <td style="color: var(--text-muted);">${l.role}</td>
-          <td>${l.symbol}</td>
-          <td><span class="badge ${l.mode === 'EXCLUSIVE' ? 'badge-alarm' : 'badge-live'}">${l.mode}</span></td>
-          <td>E${l.epoch}</td>
-        </tr>
-      `).join('');
+      const rows = leases.map(l => {
+        const row = document.createElement('tr');
+        for (const [value, color] of [[l.agent, 'var(--accent-blue)'], [l.role, 'var(--text-muted)'], [l.symbol, null]]) {
+          const cell = document.createElement('td');
+          cell.textContent = String(value ?? '');
+          if (color) cell.style.color = color;
+          row.append(cell);
+        }
+        const modeCell = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = `badge ${l.mode === 'EXCLUSIVE' ? 'badge-alarm' : 'badge-live'}`;
+        badge.textContent = String(l.mode ?? '');
+        modeCell.append(badge);
+        const epochCell = document.createElement('td');
+        epochCell.textContent = `E${l.epoch ?? ''}`;
+        row.append(modeCell, epochCell);
+        return row;
+      });
+      tbody.replaceChildren(...rows);
     }
 
     // Populate Logs
     function renderLogs(logs) {
       const container = document.getElementById('log-stream');
-      container.innerHTML = logs.map(l => `
-        <div class="log-item ${l.type}">
-          <span style="color: var(--text-muted); margin-right: 8px;">[${l.time}]</span>
-          <span>${l.text}</span>
-        </div>
-      `).join('');
+      const entries = logs.map(l => {
+        const item = document.createElement('div');
+        item.className = `log-item ${['lease', 'alarm', 'repair'].includes(l.type) ? l.type : ''}`;
+        const time = document.createElement('span');
+        time.style.color = 'var(--text-muted)';
+        time.style.marginRight = '8px';
+        time.textContent = `[${l.time ?? ''}]`;
+        const message = document.createElement('span');
+        message.textContent = String(l.text ?? '');
+        item.append(time, message);
+        return item;
+      });
+      container.replaceChildren(...entries);
     }
 
     // Initialize with fallback baseline
@@ -393,9 +410,11 @@
         const res = await fetch('/api/telemetry');
         if (res.ok) {
           const liveData = await res.json();
-          if (liveData.epochs && liveData.epochs.length > 0) {
-            renderChart(liveData.epochs);
-            const latest = liveData.epochs[liveData.epochs.length - 1];
+          const validEpochs = Array.isArray(liveData.epochs) ? liveData.epochs.filter(e =>
+            e && [e.epoch, e.r, e.treeR, e.L].every(Number.isFinite)) : [];
+          if (validEpochs.length > 1) {
+            renderChart(validEpochs);
+            const latest = validEpochs[validEpochs.length - 1];
             const rElem = document.getElementById('val-residual');
             const treeElem = document.getElementById('val-tree');
             const legElem = document.getElementById('val-legibility');
