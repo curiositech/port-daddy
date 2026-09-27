@@ -1,0 +1,181 @@
+% Brief (bdi-execution-flow)
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  baseBox/.style={
+    draw=pdink, line width=0.8pt, fill=pdpage, text=pdink,
+    inner xsep=5pt, inner ysep=5pt, align=left, font=\pdfiglabel
+  },
+  gridBox/.style={
+    baseBox, text width=3.25cm, minimum height=1.35cm
+  },
+  activeBox/.style={
+    gridBox, draw=pdcobalt, fill=pdcobalt, text=pdpage
+  },
+  successBox/.style={
+    baseBox, draw=pdteal, fill=pdteal!12, text=pdink, text width=4.1cm, minimum height=1.35cm
+  },
+  recoveryBox/.style={
+    baseBox, draw=pderror, fill=pderror!12, text=pdink, text width=4.1cm, minimum height=1.35cm
+  },
+  sectionFrame/.style={
+    draw=pdink!60, line width=0.8pt
+  }
+]
+  \useasboundingbox (0, -1.25) rectangle (15.5, 18.80);
+
+  % ================= HEADER & SEMANTIC KEY =================
+  \node[anchor=west, font=\pdfiglabelbold\large, text=pdink] at (0.2, 18.45) {BDI AGENT OPERATIONAL ARCHITECTURE};
+  \node[anchor=east, font=\pdfiglabel, text=pdink!70] at (15.3, 18.45) {Rao \& Georgeff (1995)};
+  \node[anchor=west, font=\pdfiglabel, text=pdink!80] at (0.2, 17.90) {AgentSpeak(L) Operational Cycle \textperiodcentered\ Rao--Georgeff State Transition System};
+  \draw[line width=1.0pt, pdink] (0.2, 17.60) -- (15.3, 17.60);
+
+  % Semantic Key
+  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.2, 17.20) {SEMANTIC KEY:};
+  
+  \node[anchor=west, draw=pdink, fill=pdlime!25, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.8, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (3.25, 17.20) {Problem Spec};
+
+  \node[anchor=west, draw=pdcobalt, fill=pdcobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.6, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (6.05, 17.20) {Active Deliberation};
+
+  \node[anchor=west, draw=pdteal, fill=pdteal!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.0, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (9.45, 17.20) {Nominal (Exit 0)};
+
+  \node[anchor=west, draw=pderror, fill=pderror!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.0, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (12.45, 17.20) {Failure Trap ($-!g$)};
+
+  % ================= SECTION 1: PARADIGM SELECTION =================
+  \draw[sectionFrame] (0.2, 11.20) rectangle (15.3, 16.85);
+  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.45, 16.50) {1. ARCHITECTURAL PARADIGM SELECTION (GOAL DYNAMICS VS INTERRUPT ABSORPTION)};
+
+  % Unified Spec & Decision Banner
+  \node[baseBox, fill=pdlime!25, text width=14.2cm, align=center, anchor=north] (req) at (7.75, 16.20) {
+    \textbf{Task Requirement:} \texttt{"Refactor auth to JWT and pass CI"} \\[2pt]
+    \textbf{Deliberation Criterion:} Persistent goals across clock ticks plus real-time interrupt recovery needed?
+  };
+
+  % Three Columns of Architectures (Aligned with Section 2 columns at x = 2.50, 7.75, 13.00)
+  \node[gridBox, anchor=north] (reactive) at (2.50, 13.50) {
+    \textbf{Reactive Rules} \\[2pt]
+    Event-driven triggers; \\[2pt]
+    no persistent goals
+  };
+
+  \node[gridBox, anchor=north] (classical) at (7.75, 13.50) {
+    \textbf{Classical Planner} \\[2pt]
+    Static STRIPS / HTN; \\[2pt]
+    brittle to failures
+  };
+
+  \node[activeBox, anchor=north] (bdi) at (13.00, 13.50) {
+    \textbf{BDI Architecture} \\[2pt]
+    Beliefs, Plans, \\[2pt]
+    Intentions; recovery
+  };
+
+  % Connectors: ample vertical gap leaves visible arrow line above and below knockout labels
+  \draw[pd arrow] (req.south -| reactive.north) -- (reactive.north)
+    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {No interrupts};
+  \draw[pd arrow] (req.south -| classical.north) -- (classical.north)
+    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {Static goals};
+  \draw[pd focus arrow] (req.south -| bdi.north) -- (bdi.north)
+    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold, text=pdcobalt] {Goals + Interrupts};
+
+  % ================= SECTION 2: DELIBERATION CYCLE =================
+  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!4] (0.2, -1.15) rectangle (15.3, 10.90);
+  \node[anchor=west, font=\pdfiglabelbold, text=pdcobalt] at (0.45, 10.55) {2. AGENTSPEAK(L) OPERATIONAL DELIBERATION CYCLE (STATE TRANSITIONS)};
+
+  % Row 1: Deliberation Steps (Uniform 3-line content & equal height for perfect horizontal alignment)
+  \node[gridBox, draw=pdcobalt, anchor=north] (step1) at (2.50, 10.15) {
+    \textbf{1. Select Event ($S_E$)} \\[2pt]
+    Pop event from $\mathcal{E}$: \\[2pt]
+    $\langle +!g, i_{\text{auth}} \rangle \leftarrow S_E(\mathcal{E})$
+  };
+
+  \node[gridBox, draw=pdcobalt, anchor=north] (step2) at (7.75, 10.15) {
+    \textbf{2. Select Plan ($S_O$)} \\[2pt]
+    Match: $\text{App} \subseteq \mathcal{P}$ \\[2pt]
+    Select: $p_{\text{jwt}} \leftarrow S_O(\text{App})$
+  };
+
+  \node[activeBox, anchor=north] (step3) at (13.00, 10.15) {
+    \textbf{3. Intention ($S_I$)} \\[2pt]
+    Schedule: $i_{\text{auth}} \leftarrow S_I(\mathcal{I})$ \\[2pt]
+    Commit slice to stack
+  };
+
+  % Row 1 Connectors: perfectly horizontal connectors aligned to fixed offset from top
+  \draw[pd arrow] ($(step1.north east)+(0,-0.65)$) -- ($(step2.north west)+(0,-0.65)$)
+    node[midway, above=2pt, font=\pdfiglabelbold] {Relevant};
+  \draw[pd focus arrow] ($(step2.north east)+(0,-0.65)$) -- ($(step3.north west)+(0,-0.65)$)
+    node[midway, above=2pt, font=\pdfiglabelbold, text=pdcobalt] {Applicable};
+
+  % Row 2: Ingestion, Status, and Commitment (y = 7.30)
+  \node[gridBox, anchor=north] (queue) at (2.50, 7.30) {
+    \textbf{Queue Ingestion} \\[2pt]
+    Add subgoals: $+!g$ \\[2pt]
+    Add beliefs: $+b$
+  };
+
+  \node[baseBox, draw=pdink, line width=0.9pt, text width=3.25cm, align=center, anchor=north, minimum height=1.35cm] (status) at (7.75, 7.30) {
+    \textbf{Status Check} \\[2pt]
+    Environmental exit code \\[2pt]
+    Verify sandbox result
+  };
+
+  \node[gridBox, anchor=north] (commit) at (13.00, 7.30) {
+    \textbf{Commitment Review} \\[2pt]
+    Check drop conditions \\[2pt]
+    Prevent goal thrashing
+  };
+
+  % Row 2 Connectors
+  \draw[pd focus arrow] (step3.south) -- (commit.north);
+  \draw[pd arrow] ($(commit.north west)+(0,-0.65)$) -- ($(status.north east)+(0,-0.65)$);
+  \draw[pd arrow] (queue.north) -- (step1.south)
+    node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {New Cycle};
+
+  % Row 3: Outcomes & Recovery (Moved down ~2 font heights to y = 3.70, symmetric at x = 4.65 & 10.85)
+  \node[recoveryBox, anchor=north] (recovery) at (4.65, 3.70) {
+    \textbf{Post $-!g$ Recovery} \\[2pt]
+    Pop failed intention stack frame; \\[2pt]
+    Post failure event $-!g$ to queue $\mathcal{E}$
+  };
+
+  \node[successBox, anchor=north] (advance) at (10.85, 3.70) {
+    \textbf{Advance Intention} \\[2pt]
+    Push validated plan body to $i_{\text{auth}}$; \\[2pt]
+    Execute next action in slice
+  };
+
+  % Split Branching from Status Check: moved down, with transparent background
+  \draw[pd arrow, draw=pderror, line width=1.0pt]
+    (status.south) -- ++(0,-0.90) coordinate (splitL)
+    -- (splitL -| recovery.north) node[midway, above=2pt, font=\pdfiglabelbold, text=pderror] {Exit $\neq 0$ (Failure)}
+    -- (recovery.north);
+
+  \draw[pd focus arrow, draw=pdteal, line width=1.0pt]
+    (status.south) -- ++(0,-0.90) coordinate (splitR)
+    -- (splitR -| advance.north) node[midway, above=2pt, font=\pdfiglabelbold, text=pdteal] {Exit $= 0$ (Nominal)}
+    -- (advance.north);
+
+  % Recovery Feedback Loop: shifted right slightly (pos=0.44), transparent background
+  \draw[pd arrow, draw=pderror, line width=1.0pt, dashed]
+    (recovery.west) -- (0.50, 0 |- recovery.west)
+    node[pos=0.44, above=2pt, font=\pdfiglabelbold, text=pderror] {$-!g$ Trigger}
+    -- (0.50, 0 |- queue.west)
+    -- (queue.west);
+
+  % Advance Intention Loopback: shifted slightly, transparent background
+  \draw[pd focus arrow, draw=pdteal, line width=1.0pt]
+    (advance.east) -- (15.00, 0 |- advance.east)
+    node[pos=0.44, above=2pt, font=\pdfiglabelbold, text=pdteal] {Next Slice}
+    -- (15.00, 0 |- commit.east)
+    -- (commit.east);
+
+  % Deliberation Invariant Footer Box (Moved down to y = 1.25)
+  \node[baseBox, text width=14.2cm, align=center, inner xsep=8pt, inner ysep=9pt, anchor=north] at (7.75, 1.25) {
+    \textbf{Operational Cycle Invariant $\mathcal{I}_{\text{BDI}}$:} $\forall t, \;\mathcal{E}_{t+1} = \big(\mathcal{E}_t \setminus \{e\}\big) \cup \mathsf{ExtEvents} \cup \mathsf{IntSubgoals}$.\\[3pt]
+    Intention commitments persist across clock ticks until explicitly achieved or dropped by commitment review.
+  };
+
+\end{tikzpicture}

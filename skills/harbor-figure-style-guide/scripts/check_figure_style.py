@@ -84,7 +84,7 @@ class FigureReport:
 
 def strip_latex_comments(content: str) -> str:
     """Strip LaTeX comments (%...) while preserving newlines and line counts."""
-    lines = content.splitlines(keepends=True)
+    lines = content.splitlines()
     clean_lines = []
     for line in lines:
         in_escape = False
@@ -98,8 +98,8 @@ def strip_latex_comments(content: str) -> str:
             else:
                 in_escape = False
                 clean_chars.append(ch)
-        clean_lines.append("".join(clean_chars) + "\n")
-    return "".join(clean_lines)
+        clean_lines.append("".join(clean_chars))
+    return "\n".join(clean_lines)
 
 
 def audit_tex_source(file_path: Path, strict: bool = False) -> FigureReport:
@@ -122,160 +122,186 @@ def audit_tex_source(file_path: Path, strict: bool = False) -> FigureReport:
             snippet=lines[0] if lines else ""
         ))
 
-    # Rule S1: Bounding box and Measure
-    bbox_match = re.search(r"\\useasboundingbox\s*\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)\s*rectangle\s*\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)", clean_content)
+    # Identify whether file contains multiple tikzpicture environments (e.g. whole chapter)
+    tikz_ranges = []
+    start_l = None
+    for idx, l in enumerate(clean_lines, start=1):
+        if r"\begin{tikzpicture}" in l:
+            start_l = idx
+        elif r"\end{tikzpicture}" in l and start_l is not None:
+            tikz_ranges.append((start_l, idx))
+            start_l = None
+
+    if len(tikz_ranges) <= 1:
+        blocks_to_audit = [(1, len(clean_lines), clean_content)]
+    else:
+        blocks_to_audit = [
+            (s, e, "\n".join(clean_lines[s-1:e])) for s, e in tikz_ranges
+        ]
+
     bbox_tuple = None
-    if bbox_match:
-        x1, y1, x2, y2 = map(float, bbox_match.groups())
-        width_cm = abs(x2 - x1)
-        height_cm = abs(y2 - y1)
-        bbox_tuple = (x1, y1, x2, y2)
-        if width_cm > WIDE_WIDTH_CM_MAX:
+    for s_line, e_line, block_content in blocks_to_audit:
+        block_hues: Set[str] = set()
+        # Rule S1: Bounding box and Measure
+        bbox_match = re.search(r"\\useasboundingbox\s*\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)\s*rectangle\s*\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)", block_content)
+        if bbox_match:
+            x1, y1, x2, y2 = map(float, bbox_match.groups())
+            width_cm = abs(x2 - x1)
+            height_cm = abs(y2 - y1)
+            if bbox_tuple is None:
+                bbox_tuple = (x1, y1, x2, y2)
+            if width_cm > WIDE_WIDTH_CM_MAX:
+                findings.append(Finding(
+                    rule_id="S1-measure",
+                    severity="FAIL",
+                    message=f"Bounding box width ({width_cm:.2f} cm) exceeds maximum full-width limit ({WIDE_WIDTH_CM_MAX:.2f} cm).",
+                    snippet=bbox_match.group(0),
+                    line_number=s_line
+                ))
+            elif width_cm > COLUMN_WIDTH_CM_DEFAULT + 0.2:
+                findings.append(Finding(
+                    rule_id="S1-measure",
+                    severity="WARN",
+                    message=f"Figure width ({width_cm:.2f} cm) exceeds single-column measure ({COLUMN_WIDTH_CM_DEFAULT:.2f} cm). Must be justified as full-width in brief.",
+                    snippet=bbox_match.group(0),
+                    line_number=s_line
+                ))
+
+        # Rule S1: Resizebox / scaling prohibition
+        resize_match = re.search(r"\\resizebox\s*\{([^}]+)\}", block_content)
+        if resize_match:
             findings.append(Finding(
-                rule_id="S1-measure",
+                rule_id="S1-scaling",
                 severity="FAIL",
-                message=f"Bounding box width ({width_cm:.2f} cm) exceeds maximum full-width limit ({WIDE_WIDTH_CM_MAX:.2f} cm).",
-                snippet=bbox_match.group(0)
-            ))
-        elif width_cm > COLUMN_WIDTH_CM_DEFAULT + 0.2:
-            findings.append(Finding(
-                rule_id="S1-measure",
-                severity="WARN",
-                message=f"Figure width ({width_cm:.2f} cm) exceeds single-column measure ({COLUMN_WIDTH_CM_DEFAULT:.2f} cm). Must be justified as full-width in brief.",
-                snippet=bbox_match.group(0)
+                message="Forbidden \\resizebox detected. Draw directly to physical dimensions; do not scale.",
+                snippet=resize_match.group(0),
+                line_number=s_line
             ))
 
-    # Rule S1: Resizebox / scaling prohibition
-    resize_match = re.search(r"\\resizebox\s*\{([^}]+)\}", clean_content)
-    if resize_match:
-        findings.append(Finding(
-            rule_id="S1-scaling",
-            severity="FAIL",
-            message="Forbidden \\resizebox detected. Draw directly to physical dimensions; do not scale.",
-            snippet=resize_match.group(0)
-        ))
-
-    # Check for [scale=...] in tikzpicture options
-    scale_match = re.search(r"\\begin\{tikzpicture\}\s*\[[^\]]*\bscale\s*=\s*([0-9.]+)", clean_content)
-    if scale_match and float(scale_match.group(1)) != 1.0:
-        findings.append(Finding(
-            rule_id="S1-scaling",
-            severity="FAIL",
-            message=f"Forbidden tikzpicture scale={scale_match.group(1)} detected. Draw to physical 1cm coordinates.",
-            snippet=scale_match.group(0)
-        ))
-
-    # Line-by-line checks
-    for idx, line in enumerate(clean_lines, start=1):
-        # Rule S2: Banned small font sizes
-        if re.search(r"\\tiny\b", line):
+        # Check for [scale=...] in tikzpicture options
+        scale_match = re.search(r"\\begin\{tikzpicture\}\s*\[[^\]]*\bscale\s*=\s*([0-9.]+)", block_content)
+        if scale_match and float(scale_match.group(1)) != 1.0:
             findings.append(Finding(
-                rule_id="S2-font-tiny",
+                rule_id="S1-scaling",
                 severity="FAIL",
-                message="Forbidden \\tiny detected. Minimum size is \\pdfiglabelsize (\\footnotesize).",
-                line_number=idx,
-                snippet=line.strip()
-            ))
-        if re.search(r"\\scriptsize\b", line):
-            findings.append(Finding(
-                rule_id="S2-font-scriptsize",
-                severity="FAIL",
-                message="Forbidden \\scriptsize detected. Use \\pdfiglabelsize (\\footnotesize).",
-                line_number=idx,
-                snippet=line.strip()
+                message=f"Forbidden tikzpicture scale={scale_match.group(1)} detected. Draw to physical 1cm coordinates.",
+                snippet=scale_match.group(0),
+                line_number=s_line
             ))
 
-        # Rule S2: Hardcoded \fontsize
-        if re.search(r"\\fontsize\s*\{", line):
-            findings.append(Finding(
-                rule_id="S2-fontsize-override",
-                severity="FAIL",
-                message="Inline \\fontsize override detected inside drawing. Use standard typographic roles.",
-                line_number=idx,
-                snippet=line.strip()
-            ))
+        # Line-by-line checks
+        for idx in range(s_line, e_line + 1):
+            line = clean_lines[idx - 1]
+            # Rule S2: Banned small font sizes
+            if re.search(r"\\tiny\b", line):
+                findings.append(Finding(
+                    rule_id="S2-font-tiny",
+                    severity="FAIL",
+                    message="Forbidden \\tiny detected. Minimum size is \\pdfiglabelsize (\\footnotesize).",
+                    line_number=idx,
+                    snippet=line.strip()
+                ))
+            if re.search(r"\\scriptsize\b", line):
+                findings.append(Finding(
+                    rule_id="S2-font-scriptsize",
+                    severity="FAIL",
+                    message="Forbidden \\scriptsize detected. Use \\pdfiglabelsize (\\footnotesize).",
+                    line_number=idx,
+                    snippet=line.strip()
+                ))
 
-        # Rule S2: Serif font resets / family overrides
-        if re.search(r"\\(?:rmfamily|textrm|rmdefault)\b", line):
-            findings.append(Finding(
-                rule_id="S2-serif-leak",
-                severity="FAIL",
-                message="Serif font family override detected inside drawing. Figures must inherit grotesk (Heros).",
-                line_number=idx,
-                snippet=line.strip()
-            ))
+            # Rule S2: Hardcoded \fontsize
+            if re.search(r"\\fontsize\s*\{", line):
+                findings.append(Finding(
+                    rule_id="S2-fontsize-override",
+                    severity="FAIL",
+                    message="Inline \\fontsize override detected inside drawing. Use standard typographic roles.",
+                    line_number=idx,
+                    snippet=line.strip()
+                ))
 
-        # Rule S2: \normalfont in node text (resets to book body serif)
-        if "\\normalfont" in line and "\\node" in line:
-            findings.append(Finding(
-                rule_id="S2-normalfont-reset",
-                severity="FAIL",
-                message="\\normalfont inside node text resets font family to body serif. Remove it.",
-                line_number=idx,
-                snippet=line.strip()
-            ))
+            # Rule S2: Serif font resets / family overrides
+            if re.search(r"\\(?:rmfamily|textrm|rmdefault)\b", line):
+                findings.append(Finding(
+                    rule_id="S2-serif-leak",
+                    severity="FAIL",
+                    message="Serif font family override detected inside drawing. Figures must inherit grotesk (Heros).",
+                    line_number=idx,
+                    snippet=line.strip()
+                ))
 
-        # Rule S3: Concept hue extraction
-        for hue in APPROVED_CONCEPT_HUES:
-            if re.search(rf"\b{hue}\b", line):
-                hues_found.add(hue)
+            # Rule S2: \normalfont in node text (resets to book body serif)
+            if "\\normalfont" in line and "\\node" in line:
+                findings.append(Finding(
+                    rule_id="S2-normalfont-reset",
+                    severity="FAIL",
+                    message="\\normalfont inside node text resets font family to body serif. Remove it.",
+                    line_number=idx,
+                    snippet=line.strip()
+                ))
 
-        # Rule S3: Raw unthemed colors
-        for raw_c in RAW_COLORS:
-            # Check if used as draw=red, fill=blue, text=green, etc.
-            if re.search(rf"\b(?:draw|fill|color|text)\s*=\s*{raw_c}\b", line) or re.search(rf"\[[^\]]*\b{raw_c}\b[^\]]*\]", line):
-                # Ensure it's not part of an approved compound token or macro
-                if not any(token in line for token in ["pd", "hhpaper", "white", "black"]):
+            # Rule S3: Concept hue extraction
+            for hue in APPROVED_CONCEPT_HUES:
+                if re.search(rf"\b{hue}\b", line):
+                    block_hues.add(hue)
+                    hues_found.add(hue)
+
+            # Rule S3: Raw unthemed colors
+            for raw_c in RAW_COLORS:
+                if re.search(rf"\b(?:draw|fill|color|text)\s*=\s*{raw_c}\b", line) or re.search(rf"\[[^\]]*\b{raw_c}\b[^\]]*\]", line):
+                    if not any(token in line for token in ["pd", "hhpaper", "white", "black"]):
+                        findings.append(Finding(
+                            rule_id="S3-raw-color",
+                            severity="FAIL",
+                            message=f"Raw unthemed color '{raw_c}' detected. Use semantic tokens (pd focus, pd truth, pd breach, etc.).",
+                            line_number=idx,
+                            snippet=line.strip()
+                        ))
+
+            # Rule S4: Line width validation
+            lw_matches = re.finditer(r"line\s+width\s*=\s*([0-9.]+)\s*pt", line)
+            for m in lw_matches:
+                val = float(m.group(1))
+                if val not in ALLOWED_LINE_WEIGHTS:
                     findings.append(Finding(
-                        rule_id="S3-raw-color",
-                        severity="FAIL",
-                        message=f"Raw unthemed color '{raw_c}' detected. Use semantic tokens (pd focus, pd truth, pd breach, etc.).",
+                        rule_id="S4-weight-ladder",
+                        severity="WARN",
+                        message=f"Line width {val}pt is off the standard weight ladder (0.5pt, 0.9pt, 1.6pt).",
                         line_number=idx,
                         snippet=line.strip()
                     ))
 
-        # Rule S4: Line width validation
-        lw_matches = re.finditer(r"line\s+width\s*=\s*([0-9.]+)\s*pt", line)
-        for m in lw_matches:
-            val = float(m.group(1))
-            if val not in ALLOWED_LINE_WEIGHTS:
-                findings.append(Finding(
-                    rule_id="S4-weight-ladder",
-                    severity="WARN",
-                    message=f"Line width {val}pt is off the standard weight ladder (0.5pt, 0.9pt, 1.6pt).",
-                    line_number=idx,
-                    snippet=line.strip()
-                ))
+            # Rule S5: Low-alpha fills without draw boundary
+            if re.search(r"\\(?:fill|path\[[^\]]*fill)\s*\[[^\]]*!([0-9]{1,2})\b", line):
+                if "draw=" not in line and "pd" not in line:
+                    findings.append(Finding(
+                        rule_id="S5-bare-fill",
+                        severity="FAIL",
+                        message="Shaded fill detected without drawn boundary edge. Fills must be bounded.",
+                        line_number=idx,
+                        snippet=line.strip()
+                    ))
 
-        # Rule S5: Low-alpha fills without draw boundary
-        if re.search(r"\\(?:fill|path\[[^\]]*fill)\s*\[[^\]]*!([0-9]{1,2})\b", line):
-            if "draw=" not in line and "pd" not in line:
-                findings.append(Finding(
-                    rule_id="S5-bare-fill",
-                    severity="FAIL",
-                    message="Shaded fill detected without drawn boundary edge. Fills must be bounded.",
-                    line_number=idx,
-                    snippet=line.strip()
-                ))
-
-    # Rule S3: Overloaded palette count
-    if len(hues_found) > 4:
-        findings.append(Finding(
-            rule_id="S3-palette-overload",
-            severity="FAIL",
-            message=f"Figure uses {len(hues_found)} hues ({', '.join(sorted(hues_found))}). Maximum permitted is 4.",
-            snippet=f"Hues: {', '.join(sorted(hues_found))}"
-        ))
-
-    # Banned Diagram Types
-    for pattern, reason in BANNED_FORMS:
-        if pattern.search(clean_content):
+        # Rule S3: Overloaded palette count per block
+        if len(block_hues) > 4:
             findings.append(Finding(
-                rule_id="Taxonomy-banned-form",
+                rule_id="S3-palette-overload",
                 severity="FAIL",
-                message=reason,
-                snippet=pattern.pattern
+                message=f"Figure at lines {s_line}-{e_line} uses {len(block_hues)} hues ({', '.join(sorted(block_hues))}). Maximum permitted is 4.",
+                snippet=f"Hues: {', '.join(sorted(block_hues))}",
+                line_number=s_line
             ))
+
+        # Banned Diagram Types
+        for pattern, reason in BANNED_FORMS:
+            if pattern.search(block_content):
+                findings.append(Finding(
+                    rule_id="Taxonomy-banned-form",
+                    severity="FAIL",
+                    message=reason,
+                    snippet=pattern.pattern,
+                    line_number=s_line
+                ))
 
     has_failures = any(f.severity == "FAIL" or (strict and f.severity == "WARN") for f in findings)
     return FigureReport(
