@@ -213,6 +213,7 @@ For research rationale and citations, read [research notes](references/research-
 - [`examples/clean-two-lane-sequence.tex`](examples/clean-two-lane-sequence.tex)
 
 **`references/`**
+- [`references/basic-tikz-idioms.md`](references/basic-tikz-idioms.md) — Basic TikZ idioms from latex-authoring.
 - [`references/figure-quality-gates.md`](references/figure-quality-gates.md) — Figure quality gates — Review at full page size and at 100% raster size.
 - [`references/latex-package-catalog.md`](references/latex-package-catalog.md) — LaTeX/TikZ package catalog — Load only what the chosen grammar requires.
 - [`references/plot-design-and-perception.md`](references/plot-design-and-perception.md) — Plot design and perception — Use measured plots when the conclusion depends on a quantitative relationship.
@@ -226,6 +227,7 @@ For research rationale and citations, read [research notes](references/research-
 **`templates/`**
 - [`templates/figure-brief.md`](templates/figure-brief.md) — Figure brief — - **Figure ID / paper / section:** - **Reader question:** - **One-sentence claim:** - **Evidence / objects / units:** - **Reader action:** c
 - [`templates/publication-figure.tex`](templates/publication-figure.tex)
+- [`templates/tikz-standalone.tex`](templates/tikz-standalone.tex)
 
 **`tests/`**
 - [`tests/test_render_tikz_figure.py`](tests/test_render_tikz_figure.py) — script
