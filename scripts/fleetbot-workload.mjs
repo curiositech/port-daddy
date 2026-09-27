@@ -133,6 +133,7 @@ function expectedReceiptResults(operation) {
   if (operation === 'pull-request.comment' || operation === 'pull-request.review-reply') return ['created', 'reused']
   if (operation === 'pull-request.ready'
       || operation === 'pull-request.request-reviewers'
+      || operation === 'pull-request.resolve-review-thread'
       || operation === 'pull-request.enqueue') return ['updated', 'reused']
   return []
 }
@@ -208,6 +209,7 @@ export function actionInputDigest(command, env) {
     pullRequest: env.FLEETBOT_PULL_REQUEST_NUMBER ?? '',
     commentBody: env.FLEETBOT_COMMENT_BODY ?? '',
     reviewCommentId: env.FLEETBOT_REVIEW_COMMENT_ID ?? '',
+    reviewThreadId: env.FLEETBOT_REVIEW_THREAD_ID ?? '',
     reviewersJson: env.FLEETBOT_REVIEWERS_JSON ?? '[]',
     teamReviewersJson: env.FLEETBOT_TEAM_REVIEWERS_JSON ?? '[]',
     actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
@@ -504,6 +506,14 @@ export function buildReviewReplyRequest({ body, commentId, ...options }) {
   })
 }
 
+export function buildResolveReviewThreadRequest({ threadId, ...options }) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.resolve-review-thread',
+    payload: { threadId: requireIdentifier(threadId, 'FLEETBOT_REVIEW_THREAD_ID') },
+  })
+}
+
 export function buildReadyRequest(options) {
   return buildExistingRequest({ ...options, operation: 'pull-request.ready' })
 }
@@ -689,7 +699,7 @@ function appendOutput(name, value) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const command = argv[0]
-  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'ready', 'request-reviewers', 'enqueue', 'prepare', 'publish-manifest', 'recover-manifest']
+  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'resolve-review-thread', 'ready', 'request-reviewers', 'enqueue', 'prepare', 'publish-manifest', 'recover-manifest']
   if (!commands.includes(command)) throw new Error(`usage: fleetbot-workload.mjs <${commands.join('|')}>`)
   const relayUrl = env.FLEETBOT_RELAY_URL ?? 'https://relay.portdaddy.dev'
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
@@ -845,6 +855,11 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       authorship,
       body: env.FLEETBOT_COMMENT_BODY,
       commentId: Number(env.FLEETBOT_REVIEW_COMMENT_ID),
+    }),
+    'resolve-review-thread': () => buildResolveReviewThreadRequest({
+      ...common,
+      authorship,
+      threadId: env.FLEETBOT_REVIEW_THREAD_ID,
     }),
     ready: () => buildReadyRequest({ ...common, authorship }),
     'request-reviewers': () => buildRequestReviewersRequest({

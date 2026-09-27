@@ -66,6 +66,14 @@ function enqueueAction(): FleetbotActionRequest {
   return request;
 }
 
+function resolveReviewThreadAction(threadId = 'PRRT_exact_thread'): FleetbotActionRequest {
+  const request = action();
+  request.operation = 'pull-request.resolve-review-thread';
+  request.payload = { ...request.payload, threadId };
+  request.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(request))}`;
+  return request;
+}
+
 const fleetbotPull = {
   number: 10129,
   node_id: 'PR_node',
@@ -116,6 +124,31 @@ function reviewThreadsResponse(
             nodes: isResolved.map((resolved) => ({ isResolved: resolved })),
             pageInfo: { hasNextPage, endCursor },
           },
+        },
+      },
+    },
+  });
+}
+
+function reviewThreadNodeResponse(overrides: Partial<{
+  id: string;
+  isResolved: boolean;
+  viewerCanResolve: boolean;
+  number: number;
+  headRefOid: string;
+  repository: string;
+}> = {}): Response {
+  return Response.json({
+    data: {
+      node: {
+        __typename: 'PullRequestReviewThread',
+        id: overrides.id ?? 'PRRT_exact_thread',
+        isResolved: overrides.isResolved ?? false,
+        viewerCanResolve: overrides.viewerCanResolve ?? true,
+        pullRequest: {
+          number: overrides.number ?? 10129,
+          headRefOid: overrides.headRefOid ?? '2'.repeat(40),
+          repository: { nameWithOwner: overrides.repository ?? 'curiositech/port-daddy' },
         },
       },
     },
@@ -261,7 +294,8 @@ describe('Fleetbot publisher authority hardening', () => {
     for (const operation of [
       'pull-request.publish', 'pull-request.update', 'pull-request.ready',
       'pull-request.request-reviewers', 'pull-request.comment',
-      'pull-request.review-reply', 'pull-request.enqueue',
+      'pull-request.review-reply', 'pull-request.resolve-review-thread',
+      'pull-request.enqueue',
     ] as const) {
       expect(subject.repositoryAccessFor(operation)).toBe('write');
     }
@@ -348,12 +382,16 @@ describe('Fleetbot publisher authority hardening', () => {
     }
 
     for (const operation of [
-      'pull-request.ready', 'pull-request.request-reviewers', 'pull-request.enqueue',
+      'pull-request.ready', 'pull-request.request-reviewers',
+      'pull-request.resolve-review-thread', 'pull-request.enqueue',
     ] as const) {
       const mutation = action();
       mutation.operation = operation;
       if (operation === 'pull-request.request-reviewers') {
         mutation.payload = { ...mutation.payload, reviewers: ['reviewer'], teamReviewers: [] };
+      }
+      if (operation === 'pull-request.resolve-review-thread') {
+        mutation.payload = { ...mutation.payload, threadId: 'PRRT_exact_thread' };
       }
       mutation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(mutation))}`;
       const parsedMutation = subject.parseRequest((await signedEnvelope(mutation)).request);
@@ -745,6 +783,127 @@ describe('Fleetbot publisher authority hardening', () => {
       await expect(subject.assertNoUnresolvedReviewThreads('curiositech', 'port-daddy', 10129, 'token'))
         .rejects.toMatchObject({ code: 'GITHUB_LIST_TOO_LARGE', status: 409 });
       expect(calls).toBe(100);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('resolves only the exact review thread and requires terminal readback', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = resolveReviewThreadAction();
+    let resolved = false;
+    let mutations = 0;
+    let threadReads = 0;
+    let pullReads = 0;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) {
+        pullReads += 1;
+        return Response.json(fleetbotPull);
+      }
+      if (url.pathname.endsWith('/graphql')) {
+        const body = JSON.parse(String(init?.body)) as { query: string };
+        if (body.query.includes('resolveReviewThread')) {
+          mutations += 1;
+          resolved = true;
+          return Response.json({ data: { resolveReviewThread: { thread: { id: 'PRRT_exact_thread', isResolved: true } } } });
+        }
+        if (body.query.includes('PullRequestReviewThread')) {
+          threadReads += 1;
+          return reviewThreadNodeResponse({ isResolved: resolved });
+        }
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).resolves.toMatchObject({ result: 'updated', githubHeadSha: '2'.repeat(40) });
+      expect(mutations).toBe(1);
+      expect(threadReads).toBe(2);
+      expect(pullReads).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('reuses an already-resolved exact review thread without another mutation', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = resolveReviewThreadAction();
+    let mutations = 0;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) return Response.json(fleetbotPull);
+      if (url.pathname.endsWith('/graphql')) {
+        const body = JSON.parse(String(init?.body)) as { query: string };
+        if (body.query.includes('resolveReviewThread')) mutations += 1;
+        return reviewThreadNodeResponse({ isResolved: true });
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).resolves.toMatchObject({ result: 'reused' });
+      expect(mutations).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it.each([
+    ['repository', { repository: 'curiositech/other' }],
+    ['pull request', { number: 10130 }],
+    ['head', { headRefOid: '3'.repeat(40) }],
+    ['node id', { id: 'PRRT_different_thread' }],
+  ] as const)('rejects a review thread bound to a different %s', async (_scope, override) => {
+    const originalFetch = globalThis.fetch;
+    const request = resolveReviewThreadAction();
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) return Response.json(fleetbotPull);
+      if (url.pathname.endsWith('/graphql')) {
+        const body = JSON.parse(String(init?.body)) as { query: string };
+        if (body.query.includes('PullRequestReviewThread')) return reviewThreadNodeResponse(override);
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).rejects.toMatchObject({ code: 'REVIEW_THREAD_SCOPE_CHANGED', status: 409 });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects a mutation response when GitHub does not read the thread back resolved', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = resolveReviewThreadAction();
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) return Response.json(fleetbotPull);
+      if (url.pathname.endsWith('/graphql')) {
+        const body = JSON.parse(String(init?.body)) as { query: string };
+        if (body.query.includes('resolveReviewThread')) {
+          return Response.json({ data: { resolveReviewThread: { thread: { id: 'PRRT_exact_thread', isResolved: true } } } });
+        }
+        if (body.query.includes('PullRequestReviewThread')) return reviewThreadNodeResponse({ isResolved: false });
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).rejects.toMatchObject({ code: 'REVIEW_THREAD_RESOLUTION_AMBIGUOUS', status: 409, ambiguous: true });
     } finally {
       globalThis.fetch = originalFetch;
     }
