@@ -76,7 +76,7 @@ flowchart TD
 - **Palette:** `#582C83` Konkret Violet, `#121212` Charcoal, `#FBF7EF` Paper, `#DA291C` Signal Red accent.
 - **B&W Halftone Subject:** An industrial multi-strand heavy steel mooring cable being spliced together in a shipyard rigging loft: individual thick twisted steel wires splayed outward and interbraided under severe hydraulic tension in hard raking cross-light.
 - **Grid & Plane Layout:** A $3\times 4$ asymmetric grid. The halftone cable splice occupies the central vertical column of modules. Flanking it to left and right are staggered vertical planes of opaque `#582C83` violet overlapping like shingle courses; no single violet rectangle spans more than two vertical modules, yet the vertical sequence is unbroken from top to bottom. A single `#DA291C` red hairline rule cuts horizontally across the central splice overlap.
-- **Conceptual Tension:** Geometrically proves Parfit’s bundle theory: no individual steel wire traverses the entire splice, yet the structural tensile capacity of the cable is continuous, unbroken, and load-bearing.
+- **Conceptual Tension:** Geometrically proves Parfit’s bundle theory: no individual steel wire traverses the entire splice, yet the structural tensile capacity of the cable is continuous, unbroken, and intact.
 
 #### 3. The Engine Swap
 - **Opposite Anchor:** `website-v2/public/whitepaper/spawn-to-person.tex:1572` (§\ref{sec:body-behind-name}, The body behind the name: engine swaps and resurrection).

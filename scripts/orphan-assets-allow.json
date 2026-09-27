@@ -70,6 +70,22 @@
     {
       "path": "website-v2/public/whitepaper/figures/fig-anchor-handshake-ladder.tex",
       "reason": "Uncontested fragment landed ahead of its call site: the issue-delegate-verify sequence ladder for the Anchor chapter's Phase 3, whose readable fact is that the daemon's lifeline goes dotted after message 1 and no arrow returns to it. Its originating branch claude/figures-that-were-missing (PR #10190) wires it at anchor-protocol-whitepaper.tex line 305; nothing on this branch \\ref's fig:anchor-handshake-ladder. Held with the other five so the chapter placement of all six is decided in one editorial pass rather than piecemeal."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/icos-margin-specimens.tex",
+      "reason": "Staged figure source listed in whitepaper/figure-staging.json: reusable ICOS margin specimens for the Harbor Book awaiting chapter integration."
+    },
+    {
+      "path": "whitepaper/figures/fig-swk-durability-faultclass.tex",
+      "reason": "Staged figure source listed in whitepaper/figure-staging.json: retained durability figure while table placement is being settled across editions."
+    },
+    {
+      "path": "whitepaper/figures/fig-swk-marker-renewal.tex",
+      "reason": "Staged figure source listed in whitepaper/figure-staging.json: renewal-vs-decay alternate figure for pheromone lifecycle awaiting chapter integration."
+    },
+    {
+      "path": "whitepaper/figures/fig-swk-workunit-crimes.tex",
+      "reason": "Staged figure source listed in whitepaper/figure-staging.json: workunit crime taxonomy diagram awaiting chapter integration."
     }
   ]
 }

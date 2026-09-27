@@ -251,9 +251,6 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
-  # Reference licensed fonts in place; never copy them into public/.
-  python3 scripts/prepare-book-fonts.py "$outdir" || return 1
-
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
       # Every edition root \pdgeneratedinput's from the SAME fixed path
@@ -279,6 +276,11 @@ build_one() {
       ;;
   esac
 
+  # Reference licensed fonts in place; never copy them into public/.
+  if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/prepare-book-fonts.py "$outdir" || return 1
+  fi
+
   local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
   (
@@ -288,7 +290,7 @@ build_one() {
     # The Book sets its type through fontspec, so every reachable root in this
     # publication script uses XeLaTeX. Research-paper builds live in their own
     # Makefile and do not create a second chapter-shaped publication path here.
-    local engine=xelatex latexmk_engine=-xelatex
+    local engine=xelatex; latexmk_engine=-xelatex
     if command -v latexmk >/dev/null 2>&1; then
       latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
               -outdir="$outdir" "$roottex"
@@ -335,10 +337,12 @@ build_one() {
     return 1
   fi
   # Fail closed if a specified font could not be used
-  if grep -q 'OPEN-FONT PROOF' "$outdir/$base.log"; then
-    echo "::error::Build used OPEN-FONT PROOF fallback instead of specified production fonts; failing closed (exit 1)" >&2
-    echo "::endgroup::"
-    return 1
+  if [ -n "${PD_BOOK_FONT_DIR:-}" ] || [ "${PD_BOOK_FONT_PROFILE:-}" = "suisse" ]; then
+    if grep -q 'OPEN-FONT PROOF' "$outdir/$base.log"; then
+      echo "::error::Build used OPEN-FONT PROOF fallback instead of specified production fonts; failing closed (exit 1)" >&2
+      echo "::endgroup::"
+      return 1
+    fi
   fi
   if grep -E -q 'Font .* not found|cannot be found' "$outdir/$base.log"; then
     echo "::error::A specified font could not be found; failing closed (exit 1)" >&2

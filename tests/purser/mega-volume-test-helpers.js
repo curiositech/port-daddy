@@ -141,7 +141,7 @@ function executableOnPath(name) {
 export function runFallbackBuild(root, { filter = 'coordination-papers-mega-volume', engine = 'xelatex' } = {}) {
   const bin = resolve(root, '.cache/fake-bin');
   mkdirSync(bin, { recursive: true });
-  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'python3', 'wc']) {
+  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'python3', 'sort', 'wc']) {
     symlinkSync(executableOnPath(name), resolve(bin, name));
   }
 
@@ -158,9 +158,9 @@ for arg in "$@"; do
 done
 base="\${tex%.tex}"
 mkdir -p "$outdir"
-: > "$outdir/$base.log"
-printf 'fixture pdf\n' > "$outdir/$base.pdf"
-printf '%s\n' "$*" >> "$ENGINE_CALL_LOG"
+printf 'PD-MARGIN-CONVERGENCE: complete\\n' > "$outdir/$base.log"
+printf 'fixture pdf\\n' > "$outdir/$base.pdf"
+printf '%s\\n' "$*" >> "$ENGINE_CALL_LOG"
 `;
   // Both engines are faked identically regardless of which one this run
   // targets — build_one() picks the engine from the root's own filename, and

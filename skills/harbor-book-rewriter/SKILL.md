@@ -117,7 +117,7 @@ goal problem, not a prose problem.
 The first spread should contain, in order:
 
 1. proposition-title;
-2. at most one or two load-bearing epigraphs;
+2. at most one or two governing epigraphs;
 3. a concrete failure scene with a number in it;
 4. the chapter's question in one sentence;
 5. a short claim with its epistemic kind;

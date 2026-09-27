@@ -267,7 +267,7 @@ else
   # its `\begin{document}` line. Printed via awk, not sed, so the boundary
   # line itself is cleanly excluded rather than fiddled with afterward.
   extract_preamble() {
-    awk '/\\begin\{document\}/{exit} {print}' "$1"
+    awk '/\\begin\{document\}/{exit} {print}' "$1" | sed 's/\\pdgeneratedinput{[^}]*}{[^}]*}/% pdgeneratedinput omitted for fragment/'
   }
 
   if [ "$PREAMBLE_MODE" = "book" ]; then

@@ -50,7 +50,7 @@ describe('reproducible whitepaper source scoping', () => {
     // and pd-discharges.tex -- which arrived with the margin citations and the
     // discharge pointers. The chapter did not grow a figure; its apparatus grew
     // a dependency, and paper_sources is right to follow it transitively.
-    expect(sources).toHaveLength(19);
+    expect(sources).toHaveLength(27);
     for (const generated of [
       'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
       'website-v2/public/whitepaper/figures/pd-discharges.tex',
@@ -74,6 +74,7 @@ describe('reproducible whitepaper source scoping', () => {
     // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-')
+        || source.includes('/figures/spark-stp-')
         || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
         || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);

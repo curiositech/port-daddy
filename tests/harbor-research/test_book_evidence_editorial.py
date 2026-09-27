@@ -110,16 +110,31 @@ class BookEvidenceEditorial(unittest.TestCase):
         source = "\n".join(p.read_text() for p in SOURCES)
         for rejected in ("rope-splice", "canal-lock"):
             self.assertNotIn("{" + rejected + "}", source)
-        placed = re.findall(r"\\pdmarginanalogy\{[^}]+\}\{[^}]*\}\{([^}]+)\}", source)
-        self.assertEqual(set(placed), {"one-printing-press", "reduced-key",
-                                     "sealed-specimen", "map-and-lens",
-                                     "bond-balance",
-                                     "ch01-fairness-ticket-dispenser",
-                                     "ch05-continuity-rope-splice",
-                                     "ch05-episodic-card-file",
-                                     "ch06-reusable-printing-block",
-                                     "ch07-cleanup-repair-kit",
-                                     "ch08-local-admission-turnstile"})
+        placed = re.findall(r"\\pd(?:margin|wrap)analogy(?:\[[^\]]*\])*\{[^}]+\}\{[^}]*\}\{([^}]+)\}", source)
+        expected_placed = {
+            "one-printing-press", "reduced-key",
+            "sealed-specimen", "map-and-lens",
+            "bond-balance", "movable-type",
+            "ch01-fairness-ticket-dispenser", "ch01-flywheel-governor",
+            "ch01-railway-token-staff", "ch01-water-meter-dial",
+            "ch02-colander-mesh", "ch02-couriers-dispatch-pouch",
+            "ch02-finite-grant-parking-meter", "ch02-nested-measuring-spoons",
+            "ch03-authorized-speaking-tube", "ch03-lead-lined-darkslide",
+            "ch03-sandglass-flow-orifice", "ch03-two-shutter-shadowbox",
+            "ch04-selective-attention-annunciator", "ch04-sextant-index-mirror",
+            "ch04-telegraph-sounder-key", "ch04-tide-gauge-staff",
+            "ch05-continuity-rope-splice", "ch05-episodic-card-file",
+            "ch05-stagecoach-relay-post", "ch05-stepped-surveyors-pole",
+            "ch05-wax-seal-signet",
+            "ch06-dockyard-cargo-sling", "ch06-grain-tally-board",
+            "ch06-reusable-printing-block", "ch06-wharf-steelyard-scale",
+            "ch07-cleanup-repair-kit", "ch07-dual-control-escrow-box",
+            "ch07-shear-pin-fuse",
+            "ch08-closed-traverse-compass", "ch08-interlocking-railway-lever",
+            "ch08-local-admission-turnstile", "ch08-quarantine-inspection-lantern",
+            "ch08-transit-customs-seal",
+        }
+        self.assertEqual(set(placed), expected_placed)
         # Replace the displayed analogy, not the historical source assets.
         self.assertTrue((WEB / 'plates/marginalia/movable-type-photo.jpg').is_file())
         self.assertTrue((WEB / 'plates/marginalia/movable-type-photo.json').is_file())
