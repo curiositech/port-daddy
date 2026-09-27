@@ -1,16 +1,16 @@
 ---
 license: Apache-2.0
 name: rust-performance-and-idioms
-version: 0.1.0
 description: >-
   Improve measured Rust speed, allocations, contention, binary size, or compile
   time through profile, one change, and remeasurement. Use for Criterion,
   allocation cuts, SIMD, cache layout, async throughput, and codegen tradeoffs.
   NOT for first-time borrow-checker help, public API typestate, choosing a
   container without a measured goal, runtime failure diagnosis, or GPUI layout.
-author: port-daddy
-tags: [rust, performance, optimization, profiling, simd, allocation, async, idioms, criterion, cache]
 metadata:
+  version: 0.1.0
+  author: port-daddy
+  tags: [rust, performance, optimization, profiling, simd, allocation, async, idioms, criterion, cache]
   category: Performance & Systems
   argument-hint: '[task: profile|alloc|iterators|simd|layout|async|contention|binary-size|idioms|unsafe]'
   pairs-with:

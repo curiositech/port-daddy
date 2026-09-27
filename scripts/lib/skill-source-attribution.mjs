@@ -21,6 +21,15 @@ export function eligibleAttributionPath(path, sourceNames) {
   const authorityNames = new Set(['agents.md', 'claude.md', 'gemini.md', '.claude', '.codex', '.cursor', '.agents', '.gemini', '.github', 'hooks']);
   if (parts.some((part) => authorityNames.has(part.toLowerCase()))) return false;
   if (path.startsWith(REPORT_PREFIX)) return true;
+  const mergedSourceRoots = new Set([
+    'bdi-agent-architecture', 'bdi-agent-interpreters',
+    'bdi-organizational-modeling', 'bdi-normative-reasoning',
+    'hypertree-planning',
+  ]);
+  if (parts.length >= 5 && parts[0] === 'skills' &&
+      mergedSourceRoots.has(parts[1]) && parts[2] === 'sources' &&
+      sourceNames.has(parts[3]) && !parts[3].startsWith('port-daddy') &&
+      !parts[3].startsWith('jury-rig')) return true;
   return parts.length >= 3 && parts[0] === 'skills' && sourceNames.has(parts[1]) &&
     !parts[1].startsWith('port-daddy') && !parts[1].startsWith('jury-rig');
 }

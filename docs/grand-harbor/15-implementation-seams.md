@@ -73,9 +73,9 @@ lib/parley.ts
 lib/parley-store.ts
 routes/parley.ts
 apps/relay/src/parleys.ts
-skills/agentspeak-bdi/
-skills/bdi-agency-model/
-skills/normative-bdi-agents/
+skills/bdi-agent-interpreters/
+skills/bdi-agent-architecture/
+skills/bdi-normative-reasoning/
 skills/fipa-00023-agent-management/
 skills/fipa-00025-interaction-protocol-library/
 skills/fipa-00037-communicative-act-library/

@@ -56,7 +56,6 @@ metadata:
       - kind: debug-readiness-audit
         format: json
         description: A deterministic pass/fail audit of the debug-session-plan against this skill's Quality Gates, as produced by scripts/debug_plan_audit.mjs.
-category: Debugging & Diagnostics
 ---
 
 # Rust Debugging Mastery

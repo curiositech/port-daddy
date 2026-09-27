@@ -1,6 +1,5 @@
 ---
 name: rust-data-structures-advanced
-version: 0.1.0
 description: >-
   Select a Rust container or relationship model when ownership, deletion, cache
   locality, concurrency, or stable handles depend on structure choice. Use for
@@ -10,6 +9,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
+  version: 0.1.0
   category: Code Architecture & Performance
   tags: [rust, data-structures, arena, generational-index, slotmap, petgraph, lock-free, crossbeam, cache-locality, ecs, performance]
   pairs-with:

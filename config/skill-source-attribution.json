@@ -158,27 +158,27 @@
       "sha256": "fc0be8ba00c44c6e62097dff993ae93ef7475e9d31866c609babe0d3503df87d"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/_raw_response.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/_raw_response.md",
       "sha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/references/maximal-non-conflicting-subsets-for-action-selection.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/references/maximal-non-conflicting-subsets-for-action-selection.md",
       "sha256": "0994d9b48ff5659b090659f8ea05a053bd330406a4fa4177159c0ee6da0dc099"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/references/norm-instantiation-through-belief-grounding.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/references/norm-instantiation-through-belief-grounding.md",
       "sha256": "2114d3f33f026bcf02b8a59b169c25187f6ac4c6a4b3e39b455b07b9cf4813c2"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/references/normative-conflict-resolution-through-consequence-ranking.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/references/normative-conflict-resolution-through-consequence-ranking.md",
       "sha256": "d0051ab84afc9731344bf6fdc88a6b82c0350c79541bd8fa91699cd38dc9b4d7"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/references/separation-of-norm-recognition-and-norm-internalization.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/references/separation-of-norm-recognition-and-norm-internalization.md",
       "sha256": "e1996719901a858debcc44b6d2b09b9b1f8ec6d8dfcf901015a310579c456b54"
     },
     {
-      "path": "skills/a-normative-extension-for-the-bdi-agent/references/three-types-of-consistency-for-norm-adoption.md",
+      "path": "skills/bdi-normative-reasoning/sources/a-normative-extension-for-the-bdi-agent/references/three-types-of-consistency-for-norm-adoption.md",
       "sha256": "3eb3c4b5d6f05a9ff1d170d42aff2a2fa1058c3f842c9b905d460c0b824c4f80"
     },
     {
@@ -202,111 +202,111 @@
       "sha256": "e1d785da4bb88ffbe4bd4320c5afae76be7efcff71e212c32d461b0b278f306c"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md",
       "sha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md",
       "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agentspeak-and-multi-agent-coordination.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agentspeak-and-multi-agent-coordination.md",
       "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-architecture-for-agent-orchestration.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-architecture-for-agent-orchestration.md",
       "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-mental-architecture-for-agent-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/bdi-mental-architecture-for-agent-systems.md",
       "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/belief-management-and-world-modeling.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/belief-management-and-world-modeling.md",
       "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md",
       "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md",
       "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md",
       "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md",
       "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/proof-theory-and-verifiable-agent-behavior.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/proof-theory-and-verifiable-agent-behavior.md",
       "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-agent-policy.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-agent-policy.md",
       "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
     },
     {
-      "path": "skills/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-policy-locus.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/selection-functions-as-policy-locus.md",
       "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/SKILL.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/SKILL.md",
       "sha256": "6329d16f34ad2e40d220d1b551d33f568f83d1aefa3a0929d85619969d3fec91"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/_raw_response.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/_raw_response.md",
       "sha256": "626ed23d28a2a83d1080c78a9d4cf935ef319fb30b3a029bfe2ae27c597a2441"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md",
       "sha256": "2948d5b96a3127f7fb53e6ff5fbbabb6ae2bbab04d22a6701e933d078ce1b720"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md",
       "sha256": "075b8d27c6fb4a2d7e2fd7a9f7fc916f201f665ade29832a60c1f8f4d7898b04"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/bdi-architecture-for-agent-orchestration.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/bdi-architecture-for-agent-orchestration.md",
       "sha256": "84937d2eeacc6c7984263bc4213c43adc1b9506dc6acfb235747a3414a74c718"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/bdi-mental-architecture-for-agent-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/bdi-mental-architecture-for-agent-systems.md",
       "sha256": "3cc23f3caf3d013038dedd8204f3f43c37aeb0148656ae540509bdf7b3eb7144"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/belief-management-and-world-modeling.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/belief-management-and-world-modeling.md",
       "sha256": "94556d09b6b9d54246db86c599614cf421131474036861166fa9dd2c427053f9"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md",
       "sha256": "f906ff0d36f1e4100697d374ccfe28b4c5a2f580b70fcd026c1d9daade255463"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md",
       "sha256": "63401dceb23b619672531b93c145a201dd4ca7b0c249a30a8a72c4fca95b6fea"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md",
       "sha256": "852ac7c0ea0c0cfb8cb1a76886246995645cca12d02e062fccda5ee71f55621f"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md",
       "sha256": "b9a442f2cdf397878c29d01eb6020403e22db036a110209d40ad74707a46415c"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/proof-theory-and-verifiable-agent-behavior.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/proof-theory-and-verifiable-agent-behavior.md",
       "sha256": "48debbbd8ccf18204826c41b8643f2d39d649a33a3ea81c83ec7d0140de2cd72"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/selection-functions-as-agent-policy.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/selection-functions-as-agent-policy.md",
       "sha256": "425c4a6ea662e2de19a83fbff0aabfbb38cecb5baa3b8e41db67f18cd5d53153"
     },
     {
-      "path": "skills/agentspeak-l-bdi-architecture/references/selection-functions-as-policy-locus.md",
+      "path": "skills/bdi-agent-interpreters/sources/agentspeak-l-bdi-architecture/references/selection-functions-as-policy-locus.md",
       "sha256": "aecb50bdbe0862842404d3a34f674b6ad93fb42b5107b2c04ea16838938e5405"
     },
     {
@@ -410,55 +410,55 @@
       "sha256": "64896bf9b7da002363c41256dc648e651ce4931098965366008ee8884a634bca"
     },
     {
-      "path": "skills/bdi-agents-a-soft-model-for-organisation/_raw_response.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-agents-a-soft-model-for-organisation/_raw_response.md",
       "sha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
     },
     {
-      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/accommodations-over-consensus-coordination-without-agreement.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-agents-a-soft-model-for-organisation/references/accommodations-over-consensus-coordination-without-agreement.md",
       "sha256": "59c3881bc6dbb061737c867a0342c73a31199e6d4a377bed6ea0052ff427cc2b"
     },
     {
-      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/discourse-to-action-emergence-of-organizational-desires.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-agents-a-soft-model-for-organisation/references/discourse-to-action-emergence-of-organizational-desires.md",
       "sha256": "aa68b6f8ede9546f0d02be8aa695bd4d75e26d78e7fd6129265d4c9ed70aab66"
     },
     {
-      "path": "skills/bdi-agents-a-soft-model-for-organisation/references/intention-as-commitment-bounds-deliberation.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-agents-a-soft-model-for-organisation/references/intention-as-commitment-bounds-deliberation.md",
       "sha256": "d1c58bd61dbe6998a6047a0b9d4c2c1722a266b558ba1a873c2133514ff5790c"
     },
     {
-      "path": "skills/bdi-soft-model-for-organisations/_raw_response.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-soft-model-for-organisations/_raw_response.md",
       "sha256": "834904eacd7600eb7c773a1aae7a307bec3c46c5e0a8a1e4147f5523c0a0e0fb"
     },
     {
-      "path": "skills/bdi-soft-model-for-organisations/references/accommodations-over-consensus-coordination-without-agreement.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-soft-model-for-organisations/references/accommodations-over-consensus-coordination-without-agreement.md",
       "sha256": "59c3881bc6dbb061737c867a0342c73a31199e6d4a377bed6ea0052ff427cc2b"
     },
     {
-      "path": "skills/bdi-soft-model-for-organisations/references/discourse-to-action-emergence-of-organizational-desires.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-soft-model-for-organisations/references/discourse-to-action-emergence-of-organizational-desires.md",
       "sha256": "aa68b6f8ede9546f0d02be8aa695bd4d75e26d78e7fd6129265d4c9ed70aab66"
     },
     {
-      "path": "skills/bdi-soft-model-for-organisations/references/intention-as-commitment-bounds-deliberation.md",
+      "path": "skills/bdi-organizational-modeling/sources/bdi-soft-model-for-organisations/references/intention-as-commitment-bounds-deliberation.md",
       "sha256": "d1c58bd61dbe6998a6047a0b9d4c2c1722a266b558ba1a873c2133514ff5790c"
     },
     {
-      "path": "skills/chen-et-al-2025-hypertree-planning/_raw_response.md",
+      "path": "skills/hypertree-planning/sources/chen-et-al-2025-hypertree-planning/_raw_response.md",
       "sha256": "ffb2f450977f2785c5588c3bb84b5cfe787a1dc582cd9f35127503ef54cac621"
     },
     {
-      "path": "skills/chen-et-al-2025-hypertree-planning/references/cognitive-cost-of-reasoning-chain-length.md",
+      "path": "skills/hypertree-planning/sources/chen-et-al-2025-hypertree-planning/references/cognitive-cost-of-reasoning-chain-length.md",
       "sha256": "fb57cb68c695162f3878c4c01aa3af5dea221582acf0eaa3263a21da05d8a8a4"
     },
     {
-      "path": "skills/chen-et-al-2025-hypertree-planning/references/coordination-without-central-control.md",
+      "path": "skills/hypertree-planning/sources/chen-et-al-2025-hypertree-planning/references/coordination-without-central-control.md",
       "sha256": "40018660a8b03cb1fb29e8afa72aa6fb9f0c323ef28fd21d5ef9f9d0d0b454fe"
     },
     {
-      "path": "skills/chen-et-al-2025-hypertree-planning/references/decomposition-rules-as-generalized-knowledge.md",
+      "path": "skills/hypertree-planning/sources/chen-et-al-2025-hypertree-planning/references/decomposition-rules-as-generalized-knowledge.md",
       "sha256": "f57d45854322bff5183845a102883271e6f651a5b2ae47462175280cc372f06a"
     },
     {
-      "path": "skills/chen-et-al-2025-hypertree-planning/references/the-gap-between-planning-and-execution.md",
+      "path": "skills/hypertree-planning/sources/chen-et-al-2025-hypertree-planning/references/the-gap-between-planning-and-execution.md",
       "sha256": "ad373a29b1d84d617b550da71a319c98fe86bfdbb24a58706113b1f86b3170a7"
     },
     {
@@ -1314,27 +1314,27 @@
       "sha256": "f47a7d6a2d64ece5748d092bb8e4b053a77190c877c220b2a846a0b7c08e64f9"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/_raw_response.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/_raw_response.md",
       "sha256": "df32cda697a3f3a59524edd1ebcc9aa62262c383ac7982871c693d25c7339649"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/maximal-non-conflicting-subsets-for-action-selection.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/references/maximal-non-conflicting-subsets-for-action-selection.md",
       "sha256": "0994d9b48ff5659b090659f8ea05a053bd330406a4fa4177159c0ee6da0dc099"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/norm-instantiation-through-belief-grounding.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/references/norm-instantiation-through-belief-grounding.md",
       "sha256": "2114d3f33f026bcf02b8a59b169c25187f6ac4c6a4b3e39b455b07b9cf4813c2"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/normative-conflict-resolution-through-consequence-ranking.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/references/normative-conflict-resolution-through-consequence-ranking.md",
       "sha256": "d0051ab84afc9731344bf6fdc88a6b82c0350c79541bd8fa91699cd38dc9b4d7"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/separation-of-norm-recognition-and-norm-internalization.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/references/separation-of-norm-recognition-and-norm-internalization.md",
       "sha256": "e1996719901a858debcc44b6d2b09b9b1f8ec6d8dfcf901015a310579c456b54"
     },
     {
-      "path": "skills/normative-bdi-agent-architecture/references/three-types-of-consistency-for-norm-adoption.md",
+      "path": "skills/bdi-normative-reasoning/sources/normative-bdi-agent-architecture/references/three-types-of-consistency-for-norm-adoption.md",
       "sha256": "3eb3c4b5d6f05a9ff1d170d42aff2a2fa1058c3f842c9b905d460c0b824c4f80"
     },
     {

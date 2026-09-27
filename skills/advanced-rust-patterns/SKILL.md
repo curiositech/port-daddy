@@ -1,6 +1,5 @@
 ---
 name: advanced-rust-patterns
-version: 0.1.0
 description: >
   Expert-level idiomatic Rust API design — the patterns that make illegal states
   unrepresentable and abstractions zero-cost. Type-state programming (PhantomData
@@ -14,10 +13,11 @@ description: >
   NOT for borrow-checker firefighting / toolchain / test-runner workflow
   (use rust-development-workflow), NOT for pd-console GPUI rendering/layout/panes
   (use gpui-rust-console), NOT for app packaging/notarization (use rust-app-distribution).
-author: port-daddy
 license: Apache-2.0
-tags: [rust, api-design, typestate, traits, error-handling, interior-mutability, dispatch, idioms]
 metadata:
+  version: 0.1.0
+  author: port-daddy
+  tags: [rust, api-design, typestate, traits, error-handling, interior-mutability, dispatch, idioms]
   category: Code Quality & Testing
   argument-hint: '[topic: typestate|newtype|builder|raii|interior-mut|errors|dispatch|impl-trait]'
   pairs-with: [rust-development-workflow, gpui-rust-console, refactoring-surgeon]
@@ -59,15 +59,15 @@ be *unmistakable*.
 ```mermaid
 flowchart TD
   Q["What are you designing?"] --> SM{"A state machine<br/>or protocol?"}
-  SM -->|"states known at compile time,<br/>caller drives transitions"| TS["Type-state: PhantomData&lt;S&gt;<br/>+ transitions that consume self<br/>→ ref 01"]
+  SM -->|"states known at compile time,<br/>caller drives transitions"| TS["Type-state: PhantomData‹S›<br/>+ transitions that consume self<br/>→ ref 01"]
   SM -->|"states change at runtime<br/>from data/events"| EN["enum State + match<br/>(data-driven) → ref 02"]
   Q --> WRAP{"Wrapping a value<br/>to add meaning/<br/>invariant/trait?"}
   WRAP -->|"distinct type, hide repr"| NT["Newtype + sealed/extension traits<br/>→ ref 01"]
   WRAP -->|"many optional ctor params"| BU["Typestate builder (bon/typed-builder)<br/>→ ref 01"]
   Q --> MUT{"Need to mutate<br/>through a shared ref?"}
   MUT -->|"single thread"| ST{"Copy / whole-value?"}
-  ST -->|yes| CELL["Cell&lt;T&gt; (never panics) → ref 02"]
-  ST -->|no| RC["RefCell&lt;T&gt; (runtime borrow, can panic) → ref 02"]
+  ST -->|yes| CELL["Cell‹T› (never panics) → ref 02"]
+  ST -->|no| RC["RefCell‹T› (runtime borrow, can panic) → ref 02"]
   MUT -->|"multi thread"| MT{"Access shape?"}
   MT -->|"one counter/flag"| AT["Atomic → ref 02"]
   MT -->|"many read / rare write"| RW["RwLock → ref 02"]
@@ -77,8 +77,8 @@ flowchart TD
   ERR -->|"library — callers match variants"| TE["thiserror enum, #[from] → ref 03"]
   ERR -->|"app/binary — just bubble up"| AN["anyhow + .context() → ref 03"]
   Q --> DISP{"Calling a trait method<br/>on heterogeneous types?"}
-  DISP -->|"collection of mixed types,<br/>plugin registry"| DYN["Box&lt;dyn Trait&gt; — check object safety → ref 04"]
-  DISP -->|"hot path, one type per call site"| GEN["Generic &lt;T: Trait&gt; (monomorphized) → ref 04"]
+  DISP -->|"collection of mixed types,<br/>plugin registry"| DYN["Box‹dyn Trait› — check object safety → ref 04"]
+  DISP -->|"hot path, one type per call site"| GEN["Generic ‹T: Trait› (monomorphized) → ref 04"]
 ```
 
 ## Core Capabilities

@@ -6,7 +6,7 @@
 //!   * `ChatMsg`  — one attributed operator, assistant, or receipt turn.
 //!   * `ChatLog`  — the ordered transcript plus a transient error banner.
 //!   * `ChatState` — the three render states (empty / populated / error) the
-//!     pane must handle (rust-with-claude-code "three states").
+//!     pane must handle (rust-development-workflow "three states").
 //!   * `ChatUpdate` — the bus message the background transport thread pushes back
 //!     to the view (a real reply down the tube, or a transport error).
 //!
@@ -322,7 +322,7 @@ mod tests {
         blocks.iter().map(block_text).collect::<Vec<_>>().join("\n")
     }
 
-    // ── The three states (rust-with-claude-code "three states") ────────────────
+    // ── The three states (rust-development-workflow "three states") ────────────────
 
     #[test]
     fn empty_state_renders_a_placeholder_not_a_blank_pane() {
