@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: build-coop-ide-gpui
-description: 'Capstone/orchestration skill — build an M-Agent + N-Human cooperative IDE in Rust gpui (the Harbor): many agents and humans co-editing the same files as co-equal CRDT replicas, governed by claims/guard/salvage, across LAN/shared/remote harbors. The INDEX that dispatches into the sibling rust skills. Use when building the collaborative editor, the agent-fleet console, multiplayer editing with agents-as-peers, or any slice of the Harbor. Trigger on: cooperative IDE, collaborative editor, multiplayer editor, agents and humans co-editing, gpui IDE, Loro CRDT editor, harbor editor, claims/salvage, "build the cooperative IDE". NOT for: a single non-collaborative gpui screen (compose the siblings directly), web editors, or non-editor apps.'
+description: 'Plan or audit the cross-layer Harbor cooperative editor: Loro replicas for humans and agents, governed edit claims, salvage authority, and transport across shared, LAN, and remote harbors. Use when a change spans editor collaboration, identity, recovery, or transport contracts. For a single GPUI pane use gpui-rust-console; for motion use rust-gpui-motion; for a shader use gpui-shaders. NOT for non-collaborative screens, web editors, or generic Rust development.'
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   provenance:
@@ -37,6 +37,8 @@ metadata:
 ---
 
 # Build an M-Agent + N-Human Cooperative IDE in Rust gpui
+
+**Activation boundary:** use this when editor collaboration or recovery needs a decision across UI, CRDT, claims, and transport. A bounded pane, transition, or shader change can activate its owning sibling directly. This entry is the cross-layer architecture and authority contract, not a required wrapper for every visual edit.
 
 This is the **capstone**: the whole-system skill for building the Harbor — an editor where **M autonomous agents and N humans edit the same files at once, as co-equal replicas**, on a native Rust gpui shell, governed by a daemon that already exists. It is an **index/orchestration** skill: it holds the architecture and dispatches each slice into the sibling rust skills. The thesis (from the battle plan) is the critical wall: *make the CRDT governable — Loro merges bytes, claims govern intent, the harbor card decides who may write the region at all.*
 
