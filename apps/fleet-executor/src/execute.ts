@@ -70,8 +70,12 @@ import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { assertFleetIntentCurrent } from './run-intent.js';
 import {
   resolveVerdict,
+  parseVerdict,
   aggregateConclusion,
   parseShipFindings,
+  reviewablePatchesFromUnifiedDiff,
+  shipFindingLocationsAreReviewable,
+  type ReviewablePatch,
   type ShipResult,
   type Verdict,
   reviewEventFor,
@@ -1738,6 +1742,11 @@ export async function executeFleet(
     return { kind: 'stale-head' };
   }
 
+  // The raw diff is the exact evidence reviewed by ships. GitHub's parallel
+  // `/files` response is one page and may omit large patches, so it cannot
+  // authorize or reject line comments for the complete reviewed change.
+  const reviewablePatches = reviewablePatchesFromUnifiedDiff(prCtx.diff);
+
   // --- Resolve ships -------------------------------------------------------
   // Deterministic parse of the WHOLE pd-fleet.yml, exactly once. A 404 (no
   // fleetYaml) or an unparseable/empty doc falls back to defaultPRShips() once —
@@ -2477,7 +2486,7 @@ export async function executeFleet(
   // binds Lookout only. Therefore no blanket resume disable is necessary — an
   // actual input change invalidates exactly the affected checkpoint, and a
   // stable input lets one-ship continuations make monotonic progress.
-  const resumedShips = await loadShipCheckpoints(
+  const retainedShipCheckpoints = await loadShipCheckpoints(
     env,
     runId,
     checkpointBindings,
@@ -2493,6 +2502,19 @@ export async function executeFleet(
       );
     },
   );
+  const resumedShips = new Map<string, ShipResult>();
+  for (const [ship, result] of retainedShipCheckpoints) {
+    if (!shipFindingLocationsAreReviewable(result.findings ?? [], reviewablePatches)) {
+      await transcript.step(
+        'ship-checkpoint-invalidated',
+        ship,
+        `pd-${ship}: retained checkpoint findings are not publishable on the current RIGHT-side diff; refusing replay`,
+        { reason: 'findings-location-mismatch' },
+      );
+      continue;
+    }
+    resumedShips.set(ship, result);
+  }
 
   const results: ShipResult[] = [];
   const persistParticipation = async (result: ShipResult): Promise<void> => {
@@ -2512,6 +2534,13 @@ export async function executeFleet(
     );
   };
   let newlyExecutedShips = 0;
+  // Continuation is authorized only when every freshly executed predecessor
+  // has durable resume evidence. If an earlier checkpoint fails, a later ship
+  // must not hide that gap by checkpointing successfully: finish this finite,
+  // trusted roster in the current invocation so broken-ship adjudication and
+  // best-effort D1 semantics remain intact. The absolute run deadline above
+  // remains the hard wall-clock/spend ceiling.
+  let checkpointFailureObserved = false;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
@@ -2738,6 +2767,7 @@ export async function executeFleet(
         : await runShip(
             ship,
             prCtx,
+            reviewablePatches,
             token,
             env,
             contract,
@@ -2805,6 +2835,11 @@ export async function executeFleet(
       result,
       checkpointBinding,
     );
+    if (!checkpointSaved) checkpointFailureObserved = true;
+    // Count execution even when its checkpoint write failed. Continuation is
+    // independently fail-closed below: it requires this checkpoint to be
+    // durable *and* the sticky whole-invocation failure flag to remain clear.
+    // This counter alone can never authorize a continuation.
     newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The
@@ -2840,7 +2875,11 @@ export async function executeFleet(
     // explicit continuation and retries the message without treating it as an
     // infrastructure failure. If D1 is unavailable, keep running in this
     // invocation rather than scheduling a continuation that cannot advance.
-    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+    if (
+      checkpointSaved &&
+      !checkpointFailureObserved &&
+      newlyExecutedShips >= maxNewShipsPerInvocation
+    ) {
       const remainingShips = orderedShips
         .slice(shipIndex + 1)
         .filter(candidate =>
@@ -3151,6 +3190,7 @@ async function recordNoUsableOutput(
 async function runShip(
   ship: ShipConfig,
   prCtx: PRContext,
+  reviewablePatches: ReviewablePatch[],
   token: string,
   env: ExecutorEnv,
   /** Exact trusted contract snapshot that was bound before checkpoint lookup. */
@@ -3425,6 +3465,27 @@ async function runShip(
       return repair.healed;
     };
 
+    // A substantive reviewer objection must never be handed to a repair model
+    // merely because its verdict line is missing. Repair is generative and can
+    // replace the finding with an empty PASS. Preserve the original evidence
+    // byte-for-byte and apply the fail-closed verdict deterministically.
+    if (!ship.ideation) {
+      const originalFindings = parseShipFindings(output);
+      if (
+        originalFindings !== null &&
+        originalFindings.length > 0 &&
+        parseVerdict(output) === null
+      ) {
+        output = `${output}\n\nFLEET-VERDICT: BLOCK`;
+        await transcript.step(
+          'ship-contract-defaulted',
+          ship.name,
+          `pd-${ship.name}: substantive findings omitted the verdict; preserved findings and defaulted to BLOCK`,
+          { findings: originalFindings.length, verdict: 'BLOCK' },
+        );
+      }
+    }
+
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
     // asked for? If not, try to REPAIR it first (broken output is usually a
@@ -3598,63 +3659,37 @@ async function runShip(
       };
     }
 
-    // Parse the structured findings block. `null` => malformed JSON. Repair
-    // once (the model's findings are usually fine, the fence is not); only a
-    // still-malformed block is treated as errored — a broken ship.
+    // Parse the structured findings block and prove every path/line can be
+    // published as a RIGHT-side GitHub review comment. GitHub rejects a review
+    // atomically when even one comment names an omitted/deleted/out-of-hunk
+    // line, so allowing such a finding to vote before publication turns a
+    // green required check into evidence loss.
     let parsedFindings = parseShipFindings(output);
+    let locationsReviewable =
+      parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, reviewablePatches);
     if (parsedFindings === null) {
       const healed = await tryRepair(
         'the fenced json findings block was malformed',
-        text => parseShipFindings(text) !== null,
+        text => {
+          const candidate = parseShipFindings(text);
+          return candidate !== null && shipFindingLocationsAreReviewable(candidate, reviewablePatches);
+        },
       );
-      if (healed) parsedFindings = parseShipFindings(output);
+      if (healed) {
+        parsedFindings = parseShipFindings(output);
+        locationsReviewable =
+          parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, reviewablePatches);
+      }
     }
+    // A parsed finding with an unpublishable location is substantive reviewer
+    // output, not a formatting error. A repair model is not given the exact
+    // diff and must never be allowed to erase that objection by returning an
+    // empty findings array plus PASS. Fail this ship closed instead.
+    const findings = locationsReviewable ? parsedFindings : null;
 
-    // Drop findings that cite a file this PR never touched.
-    //
-    // A prompt instruction is guidance; this is enforcement. Review is
-    // map-reduce over diff chunks, and a reviewer holding several files' hunks
-    // at once can attribute a snippet from one to the path of another — on
-    // #4956 a fragment from `lib/local-citizen/ink-cloud.ts` was reported as a
-    // syntax error at a line in `lib/squid/reconcile-sources.ts`, a file that
-    // does not contain the quoted text anywhere. A finding pinned to a path
-    // outside the diff cannot be about this PR, and shipping it burns reviewer
-    // trust on every finding that IS real.
-    //
-    // Deliberately scoped to paths, not line numbers: a slightly-off line is a
-    // navigational annoyance, while a wrong FILE means the reasoning was about
-    // something else entirely.
-    // FAIL OPEN when the changed-file list is not known to be complete.
-    //
-    // `fetchPRContext` returns `files: []` when the /files call fails, and asks
-    // GitHub for `per_page=100` without paginating — so an empty list means
-    // "we don't know", and a list AT the page size may be truncated. Filtering
-    // against either would silently discard real findings, which is a far worse
-    // failure than letting a bogus one through: a dropped finding is invisible,
-    // while a wrong one is at least arguable in the thread. The prompt-level
-    // scope contract is the primary defence; this is the backstop, and a
-    // backstop that can eat correct output is not worth having.
-    const changedPaths = new Set(prCtx.files.map(f => f.filename));
-    const fileListTrustworthy =
-      !prCtx.filesTruncated &&
-      changedPaths.size > 0 &&
-      prCtx.files.length < PR_FILES_PAGE_SIZE;
-    const findings =
-      parsedFindings === null || !fileListTrustworthy
-        ? parsedFindings
-        : parsedFindings.filter(f => {
-            const cited = String((f as { path?: unknown }).path ?? '').trim();
-            if (!cited || changedPaths.has(cited)) return true;
-            console.warn(
-              `[fleet-executor] pd-${ship.name}: dropped finding citing '${cited}', ` +
-                `which is not among this PR's ${changedPaths.size} changed files`,
-            );
-            return false;
-          });
-
-    // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
-    // marker (the ship produced output we couldn't parse); a parsed block is a
-    // 'ship-verdict' carrying the resolved verdict line.
+    // Transcript: findings-admission outcome. A malformed or unpublishable set
+    // is a 'ship-finding' marker; an admitted set is a 'ship-verdict' carrying
+    // the resolved verdict line.
     const verdictForTranscript: Verdict | null =
       findings === null ? null : resolveVerdict(output, ship.blocking);
     await transcript.step(
@@ -3663,16 +3698,18 @@ async function runShip(
       findings === null
         ? `pd-${ship.name}: MALFORMED`
         : `pd-${ship.name}: ${verdictForTranscript}`,
-      findings === null ? { error: 'failed to parse findings' } : findings,
+      findings === null
+        ? { error: 'findings were malformed or not publishable on the RIGHT-side diff' }
+        : findings,
     );
 
     // Render the findings into clean, actionable markdown (edit-in-place =>
     // idempotent on retry). When a ship parsed a real findings set → post the
     // render. When it found nothing (empty array) → post nothing (silence: this
-    // is why red-team stops spamming a bare `[]`). When the block was malformed
-    // (null → errored above) we still surface the raw output so the model's prose
-    // isn't lost. NEVER post the raw fenced JSON — it truncates on mobile and is
-    // not actionable (2026-07-07 screenshots).
+    // is why red-team stops spamming a bare `[]`). When admission failed (null →
+    // errored above), we still surface the raw output so the model's prose isn't
+    // lost. NEVER post raw fenced JSON from admitted findings — it truncates on
+    // mobile and is not actionable (2026-07-07 screenshots).
     const reviewerBody =
       findings === null
         ? output

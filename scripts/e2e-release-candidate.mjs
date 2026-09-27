@@ -21,16 +21,22 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   assertOwnedSyntheticTree,
+  hasExactAttributedNote,
   assertExecutableArtifact,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
+  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   sha256File,
   snapshotTreeMetadata,
+  waitForChildExit,
 } from './lib/release-candidate-e2e.mjs';
 
 const SOURCE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -108,37 +114,6 @@ function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
-function processExited(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
-  }
-  return new Promise((resolveExit) => {
-    let timer;
-    let settled = false;
-    const done = (code, signal) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      child.off('exit', done);
-      resolveExit({ code, signal });
-    };
-    child.once('exit', done);
-    // The child can exit between the observation above and listener
-    // registration. Re-observe after subscribing so an already-delivered
-    // `exit` event cannot leave the suite's top-level await unsettled.
-    if (child.exitCode !== null || child.signalCode !== null) {
-      done(child.exitCode, child.signalCode);
-      return;
-    }
-    timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.off('exit', done);
-      resolveExit(null);
-    }, timeoutMs);
-  });
-}
-
 async function reservePort() {
   const server = createServer();
   await new Promise((resolveListen, reject) => {
@@ -192,9 +167,7 @@ class ReleaseCandidateSuite {
     }
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
-    mkdirSync(join(this.root, 'tmp'), { recursive: true });
-    mkdirSync(join(this.root, 'control'), { recursive: true, mode: 0o700 });
-    chmodSync(join(this.root, 'control'), 0o700);
+    prepareReleaseCandidateRunDirectories(this.root);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -295,23 +268,12 @@ class ReleaseCandidateSuite {
   }
 
   isolatedEnv(extra = {}) {
-    return {
-      ...secretFreeBaseEnv(),
-      CI: 'true',
-      CARGO_HOME: process.env.CARGO_HOME || join(homedir(), '.cargo'),
-      HOME: join(this.root, 'build-home'),
-      NODE_ENV: 'test',
-      NO_COLOR: '1',
-      PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
-      PD_HOME: join(this.root, 'control'),
-      PORT_DADDY_ISOLATED_TEST: '1',
-      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: join(this.root, 'control'),
-      RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
-      TERM: 'dumb',
-      TMPDIR: join(this.root, 'tmp'),
-      USERPROFILE: join(this.root, 'build-home'),
-      ...extra,
-    };
+    return releaseCandidateIsolatedEnv(this.root, extra, {
+      approvedPathRootsByKey: {
+        PD_E2E_BIN: [this.stagedDir],
+        PORT_DADDY_RESOURCE_DIR: [this.stagedDir],
+      },
+    });
   }
 
   async buildAndStage() {
@@ -364,6 +326,7 @@ class ReleaseCandidateSuite {
   }
 
   validateStage() {
+    assertOwnedSyntheticTree(this.stagedDir);
     const pd = assertExecutableArtifact(join(this.stagedDir, 'pd'));
     const companion = assertExecutableArtifact(join(this.stagedDir, 'port-daddy'));
     const manifestPath = join(this.stagedDir, 'port-daddy-manifest.json');
@@ -405,8 +368,7 @@ class ReleaseCandidateSuite {
     // daemon imports shared/paths and inspects PD_HOME; a default 0755 leaf
     // makes mandatory note encryption fail closed before readiness.
     for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) {
-      mkdirSync(path, { recursive: true, mode: 0o700 });
-      chmodSync(path, 0o700);
+      prepareOwnedPrivateDirectory(path);
     }
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
@@ -564,10 +526,10 @@ class ReleaseCandidateSuite {
     const child = daemon.child;
     const pid = child.pid ?? null;
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
-    let exit = await processExited(child, signal === 'SIGKILL' ? 3_000 : 10_000);
+    let exit = await waitForChildExit(child, signal === 'SIGKILL' ? 3_000 : 10_000);
     if (!exit && child.exitCode === null && child.signalCode === null) {
       child.kill('SIGKILL');
-      exit = await processExited(child, 3_000);
+      exit = await waitForChildExit(child, 3_000);
     }
     if (!exit) throw new Error(`${daemon.label} did not exit within the bounded cleanup window`);
     if (pid !== null) {
@@ -682,7 +644,7 @@ class ReleaseCandidateSuite {
       this.stagedDir,
     ], {
       cwd: caseRoot,
-      env: this.isolatedEnv({ TMPDIR: join(caseRoot, 'tmp') }),
+      env: this.isolatedEnv(),
       label: 'existing-squid-release-smoke',
       timeoutMs: 110_000,
     });
@@ -737,9 +699,8 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    const claimFile = `${name.toUpperCase()}-CLAIM.md`;
-    writeFileSync(join(repo, claimFile), `# ${name} claim fixture\n`);
-    await this.runCommand('git', ['add', 'README.md', claimFile], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    writeFileSync(join(repo, 'WORKTREE.md'), `# ${name} linked-worktree claim fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', 'WORKTREE.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
   }
@@ -780,8 +741,8 @@ class ReleaseCandidateSuite {
     const sessions = [];
     const specs = [
       { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'ALPHA-CLAIM.md' },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'BETA-CLAIM.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'WORKTREE.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {
@@ -800,16 +761,41 @@ class ReleaseCandidateSuite {
         const begin = readJsonOutput(await this.runCli(runtime, spec.cwd, beginArgs, { slot: spec.slot }), `begin ${spec.label}`);
         const sessionId = begin.sessionId || begin.id;
         if (!begin.success || typeof sessionId !== 'string') throw new Error(`begin ${spec.label} returned an incomplete receipt`);
+        sessions.push({ ...spec, sessionId });
+      }
+
+      // Start every repository-family session before adding claims. A later
+      // linked-worktree begin must not be rejected merely because an earlier
+      // sibling already exercised the claim surface; the distinct claim paths
+      // below are the behavior this journey is meant to preserve and verify.
+      for (const spec of sessions) {
         await this.runCli(runtime, spec.cwd, ['plan', 'set', `* [ ] verify ${spec.label}`], { slot: spec.slot });
         await this.runCli(runtime, spec.cwd, ['plan', 'check', '1'], { slot: spec.slot });
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, [
+          'session',
+          'files',
+          'add',
+          spec.claimPath,
+          '--session',
+          spec.sessionId,
+          '--json',
+        ], { slot: spec.slot }), `claim ${spec.label}`);
         if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
-        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep', '--template'], { slot: spec.slot });
-        if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
-        sessions.push({ ...spec, sessionId });
+        const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
+          'sitrep',
+          '--json',
+          '--limit-notes',
+          '200',
+        ], { slot: spec.slot }), `sitrep ${spec.label}`);
+        const exactNote = hasExactAttributedNote(
+          sitrep,
+          spec.sessionId,
+          `RC evidence ${spec.label}`,
+        );
+        if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
       }
 
       const beforeCrash = new Map();
@@ -854,7 +840,7 @@ class ReleaseCandidateSuite {
         const noteBodies = (detail.body.notes || []).map((note) => note.content);
         const filePaths = (detail.body.files || []).map((file) => file.filePath || file.file_path || file.path);
         if (!noteBodies.includes(`RC evidence ${spec.label}`)) throw new Error(`note did not survive restart for ${spec.label}`);
-        if (!filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
+        if (!filePaths.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not survive restart for ${spec.label}`);
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
@@ -1042,7 +1028,7 @@ class ReleaseCandidateSuite {
       this.activeChildren.add(child);
       child.stdout.on('data', (chunk) => this.appendLog('collision-daemon:stdout', chunk.toString()));
       child.stderr.on('data', (chunk) => this.appendLog('collision-daemon:stderr', chunk.toString()));
-      collisionExit = await processExited(child, 15_000);
+      collisionExit = await waitForChildExit(child, 15_000);
       if (!collisionExit) throw new Error('colliding daemon did not fail within 15 seconds');
       if (collisionExit.code === 0) throw new Error('colliding daemon reported success while the port was occupied');
     } finally {
@@ -1051,7 +1037,7 @@ class ReleaseCandidateSuite {
         try {
           const pid = child.pid ?? null;
           if (!collisionExit && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-          collisionExit ??= await processExited(child, 3_000);
+          collisionExit ??= await waitForChildExit(child, 3_000);
           if (!collisionExit) throw new Error(`colliding daemon ${pid ?? 'unknown'} did not exit during bounded cleanup`);
           if (pid !== null) {
             try {
@@ -1066,15 +1052,7 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      for (const socket of blockerSockets) socket.destroy();
-      await new Promise((resolveClose, rejectClose) => {
-        const timer = setTimeout(() => rejectClose(new Error('collision fixture listener did not close within 3 seconds')), 3_000);
-        blocker.close((error) => {
-          clearTimeout(timer);
-          if (error) rejectClose(error);
-          else resolveClose();
-        });
-      });
+      await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets);
       const unexpectedBlockerSocketErrors = blockerSocketErrors.filter(
         (error) => !isExpectedCollisionSocketError(error),
       );
@@ -1284,7 +1262,7 @@ class ReleaseCandidateSuite {
     for (const child of children) {
       const pid = child.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      const exit = await processExited(child, 3_000);
+      const exit = await waitForChildExit(child, 3_000);
       if (!exit) throw new Error(`cleanup could not confirm exit for child ${pid ?? 'unknown'}`);
       if (pid !== null) {
         try {
