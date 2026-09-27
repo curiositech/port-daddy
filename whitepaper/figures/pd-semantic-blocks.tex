@@ -112,8 +112,8 @@
     (frame.south west) -- (frame.north west) -- (frame.north east) -- (frame.south east);
   \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
     (frame.south west) -- (frame.south east);
-  \node[anchor=south east, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=-4.5pt, xshift=-1pt]
-    at (frame.south east) {continues on next page $\,\blacktriangleright$};
+  \node[anchor=north east, font=\sffamily\fontsize{7.5}{9}\selectfont\bfseries, text=\pdblock@color!85!black, fill=white, draw=\pdblock@color!50, line width=0.5pt, rounded corners=2pt, inner xsep=4pt, inner ysep=2pt, yshift=-3.5pt, xshift=-2pt]
+    at (frame.south east) {Continued on page~\the\numexpr\value{page}+1\relax\,$\blacktriangleright$};
   \pdblock@accents@top
   \pdblock@accents@side
 }
@@ -126,10 +126,10 @@
     (frame.north west) -- (frame.north east);
   \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
     (frame.south west) -- (frame.south east);
-  \node[anchor=north west, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=4.5pt, xshift=1pt]
-    at (frame.north west) {$\blacktriangleright\,$ continued from previous page};
-  \node[anchor=south east, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=-4.5pt, xshift=-1pt]
-    at (frame.south east) {continues on next page $\,\blacktriangleright$};
+  \node[anchor=south west, font=\sffamily\fontsize{7.5}{9}\selectfont\bfseries, text=\pdblock@color!85!black, fill=white, draw=\pdblock@color!50, line width=0.5pt, rounded corners=2pt, inner xsep=4pt, inner ysep=2pt, yshift=3.5pt, xshift=2pt]
+    at (frame.north west) {$\blacktriangleleft$\,Continued from page~\the\numexpr\value{page}-1\relax};
+  \node[anchor=north east, font=\sffamily\fontsize{7.5}{9}\selectfont\bfseries, text=\pdblock@color!85!black, fill=white, draw=\pdblock@color!50, line width=0.5pt, rounded corners=2pt, inner xsep=4pt, inner ysep=2pt, yshift=-3.5pt, xshift=-2pt]
+    at (frame.south east) {Continued on page~\the\numexpr\value{page}+1\relax\,$\blacktriangleright$};
   \pdblock@accents@side
 }
 \newcommand{\pdblock@frame@last}{%
@@ -137,8 +137,8 @@
     (frame.north west) -- (frame.south west) -- (frame.south east) -- (frame.north east);
   \draw[draw=\pdblock@color,line width=.7pt,decorate,decoration={zigzag,segment length=8pt,amplitude=1.8pt}]
     (frame.north west) -- (frame.north east);
-  \node[anchor=north west, font=\pdgrotesk\fontsize{7.5}{9}\selectfont\itshape, text=\pdblock@color, yshift=4.5pt, xshift=1pt]
-    at (frame.north west) {$\blacktriangleright\,$ continued from previous page};
+  \node[anchor=south west, font=\sffamily\fontsize{7.5}{9}\selectfont\bfseries, text=\pdblock@color!85!black, fill=white, draw=\pdblock@color!50, line width=0.5pt, rounded corners=2pt, inner xsep=4pt, inner ysep=2pt, yshift=3.5pt, xshift=2pt]
+    at (frame.north west) {$\blacktriangleleft$\,Continued from page~\the\numexpr\value{page}-1\relax};
   \pdblock@accents@bottom
   \pdblock@accents@side
 }
