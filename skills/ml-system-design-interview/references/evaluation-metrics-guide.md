@@ -250,7 +250,7 @@ flowchart TD
     Imbalance -->|No| AUCROC[AUC-ROC + F1]
     Class -->|No| Rank{Ranking?}
     Rank -->|Yes| Graded{Graded Relevance?}
-    Graded -->|Yes| NDCG[NDCG@K]
+    Graded -->|Yes| NDCG["NDCG@K"]
     Graded -->|No| SingleAnswer{Single Correct Answer?}
     SingleAnswer -->|Yes| MRR_M[MRR]
     SingleAnswer -->|No| MAP_M[MAP + Precision@K]

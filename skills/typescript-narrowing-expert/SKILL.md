@@ -47,7 +47,7 @@ The interesting part of TypeScript isn't generics — it's narrowing. Control-fl
 ```mermaid
 flowchart TD
   A[Type error after a check] --> B{Is the check on a discriminant property?}
-  B -->|No, structural check| F1[FIX: add a literal discriminant `kind: 'a' | 'b'`]
+  B -->|No, structural check| F1["FIX: add a literal discriminant `kind: 'a' | 'b'`"]
   B -->|Yes| C{Narrowing lost inside a callback?}
   C -->|Yes| F2[FIX: hoist the narrowed value into a const before the callback]
   C -->|No| D{Is `as` being used?}

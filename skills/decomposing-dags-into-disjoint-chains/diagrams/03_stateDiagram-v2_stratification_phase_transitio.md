@@ -1,45 +1,45 @@
 # Stratification Phase Transitions
 
 ```mermaid
-stateDiagram-v2
-    [*] --> ProblemDefinition
-    
-    ProblemDefinition: Problem Definition\n(Identify DAG structure)
+flowchart TD
+    Start((Start)) --> ProblemDefinition
+
+    ProblemDefinition["Problem Definition<br/>(Identify DAG structure)"]
     ProblemDefinition --> MeasureWidthDepth
-    
-    MeasureWidthDepth: Measure Width & Depth\n(Identify antichain size & levels)
-    MeasureWidthDepth --> WidthAnalysis{Width Analysis}
-    
+
+    MeasureWidthDepth["Measure Width & Depth<br/>(Identify antichain size & levels)"]
+    MeasureWidthDepth --> WidthAnalysis{"Width Analysis"}
+
     WidthAnalysis -->|Width ≤ 2-3| KeepMonolithic
     WidthAnalysis -->|Width > 2-3| PartitionLevels
-    
-    KeepMonolithic: Keep Monolithic\n(Low coordination overhead)
+
+    KeepMonolithic["Keep Monolithic<br/>(Low coordination overhead)"]
     KeepMonolithic --> OptimalDecomposition
-    
-    PartitionLevels: Partition Into Levels\n(Stratification: V₁, V₂, ..., Vₕ)
+
+    PartitionLevels["Partition Into Levels<br/>(Stratification: V₁, V₂, ..., Vₕ)"]
     PartitionLevels --> BipartiteMatching
-    
-    BipartiteMatching: Bipartite Matching Per Level\n(Max matching: assign to existing chains)
-    BipartiteMatching --> MatchingDecision{Unmatched Nodes?}
-    
-    MatchingDecision -->|All matched| NextLevel{More Levels?}
+
+    BipartiteMatching["Bipartite Matching Per Level<br/>(Max matching: assign to existing chains)"]
+    BipartiteMatching --> MatchingDecision{"Unmatched Nodes?"}
+
+    MatchingDecision -->|All matched| NextLevel{"More Levels?"}
     MatchingDecision -->|Unmatched exist| VirtualNodeCreation
-    
-    VirtualNodeCreation: Virtual Node Creation\n(Defer decisions, aggregate context)
-    VirtualNodeCreation --> ResolutionDecision{Sufficient Context?}
-    
+
+    VirtualNodeCreation["Virtual Node Creation<br/>(Defer decisions, aggregate context)"]
+    VirtualNodeCreation --> ResolutionDecision{"Sufficient Context?"}
+
     ResolutionDecision -->|Not yet| PropagateUp
     ResolutionDecision -->|Yes| ResolutionPhase
-    
-    PropagateUp: Propagate Virtual Nodes\n(Accumulate information upward)
+
+    PropagateUp["Propagate Virtual Nodes<br/>(Accumulate information upward)"]
     PropagateUp --> NextLevel
-    
+
     NextLevel -->|Yes| BipartiteMatching
     NextLevel -->|No| ResolutionPhase
-    
-    ResolutionPhase: Resolution Phase\n(Top-down resolution of virtual nodes)
+
+    ResolutionPhase["Resolution Phase<br/>(Top-down resolution of virtual nodes)"]
     ResolutionPhase --> OptimalDecomposition
-    
-    OptimalDecomposition: Optimal Decomposition\n(Minimal disjoint execution chains)
-    OptimalDecomposition --> [*]
+
+    OptimalDecomposition["Optimal Decomposition<br/>(Minimal disjoint execution chains)"]
+    OptimalDecomposition --> End((End))
 ```

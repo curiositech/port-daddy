@@ -2,6 +2,7 @@
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
     title Cascading Approximation: Speed vs. Accuracy Trade-offs
     x-axis Fast --> Slow
     y-axis Noisy --> Precise
@@ -11,7 +12,7 @@ quadrantChart
     quadrant-3 Low Speed, Low Accuracy
     quadrant-4 High Speed, Low Accuracy
     
-    Policy Network: 25, 85
-    Value Network: 45, 75
-    Fast Rollouts: 80, 35
+    Policy Network: [0.25, 0.85]
+    Value Network: [0.45, 0.75]
+    Fast Rollouts: [0.8, 0.35]
 ```

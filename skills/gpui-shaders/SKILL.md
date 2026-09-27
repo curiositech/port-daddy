@@ -54,7 +54,7 @@ Run your own WGSL fragment shaders on Metal (via wgpu) and get their pixels onto
 
 ```mermaid
 flowchart TD
-  A[Want a visual effect on a gpui surface] --> B{Does it need TRUE per-pixel work?\n(noise, SDF field, water, raymarch, full-res dither)}
+  A[Want a visual effect on a gpui surface] --> B{"Does it need TRUE per-pixel work?<br/>(noise, SDF field, water, raymarch, full-res dither)"}
   B -->|No, it's shapes/quads/text| C[gpui element tree or paint/canvas]
   B -->|No, but vector + crisp text| D[Vello vector pass]
   B -->|Yes| E{Must it sit INSIDE the pane tree,\nreflowing with splits?}

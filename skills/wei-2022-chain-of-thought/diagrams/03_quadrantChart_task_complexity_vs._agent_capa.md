@@ -2,32 +2,33 @@
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
     title Task Complexity vs. Agent Capability: Decomposition Strategy Matrix
     x-axis Low Complexity --> High Complexity
     y-axis Below Emergence Threshold --> Above Emergence Threshold
     
     %% Quadrant 1: Low complexity + below threshold
     %%DIRECT PROMPTING (No Benefit)
-    point 25, 25, Math: Single Step Addition, direct-no-benefit
-    point 30, 20, Simple Fact Lookup, direct-no-benefit
+    Math - Single Step Addition direct-no-benefit: [0.25, 0.25]
+    Simple Fact Lookup direct-no-benefit: [0.3, 0.2]
     
     %% Quadrant 2: Low complexity + above threshold
     %% DIRECT PROMPTING (Minimal Gains)
-    point 25, 75, Math: Single Step Multiplication, direct-minimal
-    point 35, 80, Basic Commonsense Q&A, direct-minimal
+    Math - Single Step Multiplication direct-minimal: [0.25, 0.75]
+    Basic Commonsense Q&A direct-minimal: [0.35, 0.8]
     
     %% Quadrant 3: High complexity + below threshold
     %% DIRECT PROMPTING (Decomposition Hurts)
-    point 75, 30, Math: Multi-Step Word Problem, decomp-hurts
-    point 80, 25, Symbolic Manipulation (Complex), decomp-hurts
-    point 70, 35, Multi-Constraint Reasoning, decomp-hurts
+    Math - Multi-Step Word Problem decomp-hurts: [0.75, 0.3]
+    Symbolic Manipulation Complex decomp-hurts: [0.8, 0.25]
+    Multi-Constraint Reasoning decomp-hurts: [0.7, 0.35]
     
     %% Quadrant 4: High complexity + above threshold
     %% CHAIN-OF-THOUGHT (Maximum Gains)
-    point 75, 75, Math: 2-5 Step Word Problem, cot-max
-    point 85, 85, Commonsense Multi-Step Reasoning, cot-max
-    point 80, 80, Symbolic Manipulation (7B+ Model), cot-max
-    point 75, 90, Code Generation with Reasoning, cot-max
+    Math - 2-5 Step Word Problem cot-max: [0.75, 0.75]
+    Commonsense Multi-Step Reasoning cot-max: [0.85, 0.85]
+    Symbolic Manipulation 7B+ Model cot-max: [0.8, 0.8]
+    Code Generation with Reasoning cot-max: [0.75, 0.9]
     
     %% Emergence threshold marker at ~100B parameters
     %% Represented as the transition line between low and high capability zones

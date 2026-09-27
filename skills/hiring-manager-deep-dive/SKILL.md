@@ -70,14 +70,10 @@ Hiring managers evaluate candidates across six dimensions. Every answer you give
 | **Strategic Thinking** | Understands their team's roadmap | Connects technical decisions to business outcomes and multi-year strategy | 10% |
 
 ```mermaid
-radar
+radar-beta
     title Staff+ Signal Radar — Target Profile
-    "Technical Depth" : 7
-    "Scope of Impact" : 9
-    "Ambiguity Navigation" : 8
-    "Influence w/o Authority" : 9
-    "Mentorship & Growth" : 7
-    "Strategic Thinking" : 8
+    axis technical_depth["Tech Depth"], scope["Scope"], ambiguity["Ambiguity"], influence["Influence"], mentorship["Mentorship"], strategy["Strategy"]
+    curve target["Target Profile"]{7, 9, 8, 9, 7, 8}
 ```
 
 > **Key insight**: At L5, technical depth carries you. At L6+, scope and influence carry you. Many candidates fail HM rounds by over-indexing on technical heroics and under-indexing on organizational impact.

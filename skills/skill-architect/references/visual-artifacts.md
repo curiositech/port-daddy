@@ -51,7 +51,7 @@ The tradeoff: Mermaid is slightly less natural to *write* than prose. But it's m
 
 **In SKILL.md (skill's own content)**: Use raw ` ```mermaid ` blocks. These are the skill's actual diagrams — the agent reads them directly, and humans see rendered versions.
 
-**In reference docs (showing how to write Mermaid)**: Use ` ````markdown ` outer fences to wrap ` ```mermaid ` examples. This is meta-documentation — examples of what to write, not diagrams to interpret.
+**In reference docs (showing how to write Mermaid)**: Use raw ` ```mermaid ` blocks when the example should render in Markdown previews. Introduce each example in prose so readers still know it is illustrative. Reserve an outer ` ````markdown ` fence for examples that must display literal Markdown fence syntax.
 
 **Never**: Wrap a skill's own decision tree in a `````markdown` fence. That turns it from "follow this logic" into "here's an example of a diagram" — the agent treats quoted content as illustrative, not operative.
 
@@ -66,7 +66,6 @@ Mermaid diagrams can optionally include a YAML frontmatter block (delimited by `
 
 ### Basic Structure
 
-````markdown
 ```mermaid
 ---
 title: My Diagram Title
@@ -78,7 +77,6 @@ config:
 flowchart LR
   A[Start] --> B[End]
 ```
-````
 
 ### Theme Options
 
@@ -168,7 +166,6 @@ Mermaid supports a rich taxonomy of diagram types. Choose based on what you're m
 
 **This is the most common diagram type for skills** — most skills have some "If X then A, if Y then B" logic that belongs in a flowchart.
 
-````markdown
 ```mermaid
 flowchart TD
   A[User asks to create skill] --> B{Existing skill?}
@@ -182,7 +179,6 @@ flowchart TD
   I -->|Yes| G
   I -->|No| J[Ship it]
 ```
-````
 
 **Direction options**: `TD` (top-down), `LR` (left-right), `BT` (bottom-top), `RL` (right-left)
 
@@ -215,7 +211,6 @@ flowchart TD
 
 **Use when**: A skill describes communication between agents, APIs, services, or any request/response protocol.
 
-````markdown
 ```mermaid
 sequenceDiagram
   participant O as Orchestrator
@@ -230,7 +225,6 @@ sequenceDiagram
   SK-->>S: Validation passed ✓
   S->>O: Return artifacts + skills used + risks
 ```
-````
 
 **Features**:
 - `->` solid line, `->>` solid arrow, `-->` dotted line, `-->>` dotted arrow
@@ -250,7 +244,6 @@ sequenceDiagram
 
 **Use when**: A skill manages something with distinct states and transitions (build pipelines, document lifecycle, feature flags, deployment stages).
 
-````markdown
 ```mermaid
 stateDiagram-v2
   [*] --> Draft
@@ -268,7 +261,6 @@ stateDiagram-v2
     ActivationTest --> [*]
   }
 ```
-````
 
 **Features**:
 - `[*]` for start/end states
@@ -283,7 +275,6 @@ stateDiagram-v2
 
 **Use when**: A skill works with structured data, database schemas, API shapes, or any domain where entities have relationships.
 
-````markdown
 ```mermaid
 erDiagram
   SKILL ||--o{ REFERENCE : contains
@@ -306,7 +297,6 @@ erDiagram
   }
   SKILL }o--|| CHANGELOG : tracks
 ```
-````
 
 **Relationship cardinality**:
 - `||--||` exactly one to exactly one
@@ -320,7 +310,6 @@ erDiagram
 
 **Use when**: A skill involves phased rollouts, migration plans, sprint planning, or any time-sequenced work.
 
-````markdown
 ```mermaid
 gantt
   title Skill Creation Timeline
@@ -341,7 +330,6 @@ gantt
     Fix issues            :c2, after c1, 2d
     Ship                  :milestone, after c2, 0d
 ```
-````
 
 **Features**:
 - `done`, `active`, `crit` tags for status/priority
@@ -355,7 +343,6 @@ gantt
 
 **Use when**: A skill covers a domain taxonomy, feature map, brainstorm output, or any hierarchical concept space.
 
-````markdown
 ```mermaid
 mindmap
   root((Skill Architecture))
@@ -376,7 +363,6 @@ mindmap
       MCP Servers
       Subagents
 ```
-````
 
 **Features**:
 - Root node shapes: `((circle))`, `(rounded)`, `[square]`, `{{hexagon}}`
@@ -389,7 +375,6 @@ mindmap
 
 **Use when**: A skill encodes temporal knowledge (framework evolution, API deprecations, "what changed when").
 
-````markdown
 ```mermaid
 timeline
   title React State Management Evolution
@@ -404,7 +389,6 @@ timeline
   2024 : Redux only for time-travel debugging
        : Most apps use Zustand or React Query
 ```
-````
 
 This is particularly valuable for **shibboleth encoding** — the temporal evolution that LLMs get wrong.
 
@@ -414,14 +398,12 @@ This is particularly valuable for **shibboleth encoding** — the temporal evolu
 
 **Use when**: Showing relative sizes, coverage breakdowns, or category distributions.
 
-````markdown
 ```mermaid
 pie title Skill Token Budget
   "Metadata (Level 1)" : 5
   "SKILL.md (Level 2)" : 25
   "References (Level 3)" : 70
 ```
-````
 
 ---
 
@@ -429,9 +411,9 @@ pie title Skill Token Budget
 
 **Use when**: A skill needs to position options along two axes (effort vs. impact, risk vs. reward, urgency vs. importance).
 
-````markdown
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
   title Skill Improvement Priority
   x-axis Low Effort --> High Effort
   y-axis Low Impact --> High Impact
@@ -445,7 +427,6 @@ quadrantChart
   Build MCP server: [0.9, 0.7]
   Rewrite from scratch: [0.8, 0.5]
 ```
-````
 
 ---
 
@@ -453,7 +434,6 @@ quadrantChart
 
 **Use when**: A skill involves version control workflows, release strategies, or branch management.
 
-````markdown
 ```mermaid
 gitGraph
   commit id: "v1.0.0"
@@ -468,7 +448,6 @@ gitGraph
   checkout main
   merge feature/subagent-design id: "v2.0.0"
 ```
-````
 
 ---
 
@@ -476,7 +455,6 @@ gitGraph
 
 **Use when**: A skill involves type systems, class hierarchies, interfaces, or any OO/structural modeling.
 
-````markdown
 ```mermaid
 classDiagram
   class Skill {
@@ -500,7 +478,6 @@ classDiagram
   Skill "1" --> "*" Script : bundles
   Skill <|-- MetaSkill : extends
 ```
-````
 
 ---
 
@@ -508,7 +485,6 @@ classDiagram
 
 **Use when**: A skill models a user flow, onboarding experience, or multi-step interaction.
 
-````markdown
 ```mermaid
 journey
   title First-Time Skill User
@@ -525,7 +501,6 @@ journey
     Customize for project: 4: User
     Contribute improvements: 5: User
 ```
-````
 
 Scores are satisfaction ratings (1-5). Actors are labeled after the colon.
 
@@ -535,7 +510,6 @@ Scores are satisfaction ratings (1-5). Actors are labeled after the colon.
 
 **Use when**: Showing how quantities flow between categories (token budgets, request routing, resource allocation).
 
-````markdown
 ```mermaid
 sankey-beta
   User Query,Metadata Scan,100
@@ -547,7 +521,6 @@ sankey-beta
   Reference Needed,Single Ref Loaded,15
   Reference Needed,Multiple Refs Loaded,5
 ```
-````
 
 ---
 
@@ -555,7 +528,6 @@ sankey-beta
 
 **Use when**: Plotting metrics, benchmarks, performance data, or any numeric comparison.
 
-````markdown
 ```mermaid
 xychart-beta
   title "Activation Rate by Description Quality"
@@ -564,7 +536,6 @@ xychart-beta
   bar [12, 45, 78, 94]
   line [12, 45, 78, 94]
 ```
-````
 
 ---
 
@@ -572,7 +543,6 @@ xychart-beta
 
 **Use when**: Modeling system components, infrastructure layouts, or architectural blocks.
 
-````markdown
 ```mermaid
 block-beta
   columns 3
@@ -588,7 +558,6 @@ block-beta
     RefactorPlan CodeReview SafeRefactor
   end
 ```
-````
 
 ---
 
@@ -596,7 +565,6 @@ block-beta
 
 **Use when**: Modeling cloud architecture, service topology, or deployment infrastructure.
 
-````markdown
 ```mermaid
 architecture-beta
   group api(cloud)[API Layer]
@@ -613,7 +581,6 @@ architecture-beta
   orchestrator:R --> L:subagent1
   orchestrator:R --> L:subagent2
 ```
-````
 
 ---
 
@@ -621,7 +588,6 @@ architecture-beta
 
 **Use when**: Modeling workflow stages, task statuses, or any column-based status tracking.
 
-````markdown
 ```mermaid
 kanban
   column1[Backlog]
@@ -633,7 +599,6 @@ kanban
     task4[Progressive disclosure]
     task5[Frontmatter docs]
 ```
-````
 
 ---
 
@@ -641,18 +606,17 @@ kanban
 
 **Use when**: A skill deals with requirements management, compliance verification, regulatory traceability, or any formal "shall" requirements with verify/satisfy/trace relationships.
 
-````markdown
 ```mermaid
 requirementDiagram
   requirement auth_req {
-    id: REQ-001
+    id: "REQ-001"
     text: "The system shall authenticate users via OAuth 2.0"
     risk: high
     verifymethod: test
   }
 
   requirement mfa_req {
-    id: REQ-002
+    id: "REQ-002"
     text: "The system shall support MFA for admin accounts"
     risk: medium
     verifymethod: inspection
@@ -660,19 +624,18 @@ requirementDiagram
 
   element auth_module {
     type: module
-    docref: src/auth/oauth.ts
+    docref: "src/auth/oauth.ts"
   }
 
   element mfa_module {
     type: module
-    docref: src/auth/mfa.ts
+    docref: "src/auth/mfa.ts"
   }
 
   auth_module - satisfies -> auth_req
   mfa_module - satisfies -> mfa_req
   mfa_req - derives -> auth_req
 ```
-````
 
 **Relationship types**: `contains`, `copies`, `derives`, `satisfies`, `verifies`, `refines`, `traces`
 
@@ -686,7 +649,6 @@ requirementDiagram
 
 **Use when**: A skill models system architecture at different zoom levels (context, container, component, deployment). Simon Brown's C4 model is the standard for communicating software architecture to different audiences.
 
-````markdown
 ```mermaid
 C4Context
   title System Context Diagram — Skill Platform
@@ -703,7 +665,6 @@ C4Context
   Rel(platform, github, "Syncs with")
   Rel(platform, registry, "Distributes to")
 ```
-````
 
 **C4 sub-types** (each zooms in one level):
 - `C4Context` — highest level: systems and people
@@ -712,7 +673,6 @@ C4Context
 - `C4Dynamic` — runtime interactions between containers/components
 - `C4Deployment` — physical/cloud infrastructure mapping
 
-````markdown
 ```mermaid
 C4Container
   title Container Diagram — Skill Platform
@@ -729,7 +689,6 @@ C4Container
   Rel(api, db, "Reads/writes")
   Rel(api, validator, "Validates with")
 ```
-````
 
 ---
 
@@ -737,7 +696,6 @@ C4Container
 
 **Use when**: A skill deals with network protocols, binary formats, data serialization, or packet-level communication structures.
 
-````markdown
 ```mermaid
 packet-beta
   0-15: "Source Port"
@@ -756,7 +714,6 @@ packet-beta
   128-143: "Checksum"
   144-159: "Urgent Pointer"
 ```
-````
 
 Fields are specified as bit ranges. Each line defines a field with `start-end: "Label"`.
 
@@ -766,15 +723,13 @@ Fields are specified as bit ranges. Each line defines a field with `start-end: "
 
 **Use when**: A skill compares options across multiple dimensions (skill grading axes, framework comparisons, capability assessments, team skill matrices).
 
-````markdown
 ```mermaid
-radar
+radar-beta
   title Skill Quality Assessment
   axis Description, Scope, Disclosure, Anti-Patterns, Tools, Activation, Visuals, Output, Temporal, Docs
   curve a["code-architecture"] { 90, 92, 85, 88, 80, 90, 95, 82, 70, 75 }
   curve b["caching-strategies"] { 88, 90, 83, 85, 78, 88, 90, 80, 72, 73 }
 ```
-````
 
 Each `curve` is a data series plotted against the shared axes. Values scale to fit the chart.
 
@@ -784,25 +739,22 @@ Each `curve` is a data series plotted against the shared axes. Values scale to f
 
 **Use when**: Showing relative sizes within a hierarchy (codebase size by module, token budgets, skill library composition, disk usage).
 
-````markdown
 ```mermaid
-treemap
-  title Skill Library by Category
-  SWE Skills
-    code-architecture: 434
-    microservices-patterns: 434
-    typescript-advanced-patterns: 401
-    monorepo-management: 369
-    performance-profiling: 362
-  Recovery Skills
-    sobriety-tools-guardian: 380
-    recovery-app-onboarding: 350
-    recovery-coach-patterns: 320
-  Design Skills
-    windows-3-1-web-designer: 310
-    neobrutalist-web-designer: 290
+treemap-beta
+  "SWE Skills"
+    "code-architecture": 434
+    "microservices-patterns": 434
+    "typescript-advanced-patterns": 401
+    "monorepo-management": 369
+    "performance-profiling": 362
+  "Recovery Skills"
+    "sobriety-tools-guardian": 380
+    "recovery-app-onboarding": 350
+    "recovery-coach-patterns": 320
+  "Design Skills"
+    "windows-3-1-web-designer": 310
+    "neobrutalist-web-designer": 290
 ```
-````
 
 Numbers represent relative size. The treemap fills space proportionally.
 
@@ -810,10 +762,21 @@ Numbers represent relative size. The treemap fills space proportionally.
 
 ### ZenUML — Alternative Sequence Syntax
 
-**Use when**: You prefer a code-like syntax for sequence diagrams. ZenUML is available as a Mermaid plugin and uses a more programming-style notation.
+**Use when**: You prefer a code-like syntax for sequence diagrams. ZenUML requires a plugin, so its syntax is shown as code here. The standard sequence diagram below renders in previews without that plugin.
 
-````markdown
 ```mermaid
+sequenceDiagram
+  participant O as Orchestrator
+  participant S as Subagent
+  participant SK as Skill
+  O->>S: Assign task with context
+  S->>SK: Load skill
+  SK-->>S: Return applicability
+  S->>S: Execute steps
+  S-->>O: Return artifacts
+```
+
+```text
 zenuml
   @Orchestrator as O
   @Subagent as S
@@ -827,9 +790,8 @@ zenuml
     return artifacts
   }
 ```
-````
 
-**Note**: ZenUML requires the ZenUML plugin. It may not render in all Mermaid environments. Prefer `sequenceDiagram` for maximum compatibility.
+**Note**: Use the ZenUML syntax only in a renderer with its plugin. Prefer `sequenceDiagram` for portable rendered documentation.
 
 ---
 
@@ -908,7 +870,7 @@ If you do need it (e.g., for a published site), the syntax is a `---` block befo
 
 ### 5. Use Raw Mermaid, Not Quoted Mermaid
 
-In SKILL.md and references, use raw ` ```mermaid ` blocks — these are content the agent should interpret and act on. Only use outer ` ````markdown ` fences in documentation *about* Mermaid (like this file), where the example is illustrative, not operative.
+In SKILL.md and references, use raw ` ```mermaid ` blocks when readers should see a diagram. Surround illustrative examples with prose that identifies them as examples. Use an outer ` ````markdown ` fence only when the literal fence syntax itself is the subject; it prevents the inner diagram from rendering.
 
 ### 6. Keep Diagrams Self-Contained
 
@@ -956,4 +918,4 @@ When creating or auditing a skill, ask these questions. If the answer is "yes" a
 | Does it involve type hierarchies or interfaces? | Class diagram |
 | Does it deal with network protocols or binary formats? | Packet diagram |
 
-Mermaid supports **23 diagram types** — there is almost always a better option than prose for structured content.
+Mermaid supports many diagram types, with newer types depending on the preview renderer. Choose the one that expresses the content clearly and verify it in the intended preview.

@@ -100,8 +100,8 @@ sequenceDiagram
   R->>R: Allocate session_id, mint nonce_s
   R->>R: For each accepted sub, look up tip_seq + tip_hash
   R-->>D: 200 { server_hello, session, accepted_subs[], rejected_subs[], sig }
-  D->>D: Verify nonce_c echoed; verify relay sig against pinned relay key
-  D->>R: GET /v1/subscribe/<session_id> (SSE; long-lived)
+  D->>D: Verify nonce_c echoed, then verify relay sig against pinned relay key
+  D->>R: GET /v1/subscribe/<session_id> (long-lived SSE)
   R-->>D: event: { envelope_1 }
   R-->>D: event: { envelope_2 }
   Note over D,R: Heartbeat every 25s

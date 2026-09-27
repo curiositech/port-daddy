@@ -69,7 +69,7 @@ flowchart TD
   C --> E[RunAtLoad true + KeepAlive tuned + ThrottleInterval >= 10s]
   D --> E
   E --> F[StandardOutPath/StandardErrorPath to a durable log dir, never /tmp]
-  F --> G[Pin PATH: absolute ProgramArguments[0] or EnvironmentVariables.PATH]
+  F --> G["Pin PATH: absolute ProgramArguments[0] or EnvironmentVariables.PATH"]
   G --> H[launchctl bootstrap gui/UID or system label.plist]
   H --> I{External supervision-integrity check}
   I -->|supervisor loaded, daemon reachable| J[ok]

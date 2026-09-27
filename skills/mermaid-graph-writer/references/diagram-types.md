@@ -227,6 +227,7 @@ pie [showData] [title Title Text]
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
     title Skill Priority Matrix
     x-axis Low Effort --> High Effort
     y-axis Low Impact --> High Impact
@@ -268,23 +269,23 @@ quadrantChart
 
 ```mermaid
 requirementDiagram
-    requirement Auth System {
-        id: REQ-001
-        text: Users must authenticate before accessing protected resources
+    requirement AuthSystem {
+        id: "REQ-001"
+        text: "Users must authenticate before accessing protected resources"
         risk: high
         verifymethod: test
     }
-    requirement Token Expiry {
-        id: REQ-002
-        text: Auth tokens must expire within 24 hours
+    requirement TokenExpiry {
+        id: "REQ-002"
+        text: "Auth tokens must expire within 24 hours"
         risk: medium
         verifymethod: inspection
     }
-    element Auth Service {
+    element AuthService {
         type: microservice
     }
-    Auth Service - satisfies -> Auth System
-    Auth Service - satisfies -> Token Expiry
+    AuthService - satisfies -> AuthSystem
+    AuthService - satisfies -> TokenExpiry
 ```
 
 ### Element Types
@@ -813,35 +814,38 @@ packet-beta
 
 ## 21. Radar Chart
 
-**Declaration**: `radar`
+**Declaration**: `radar-beta`
+
+The example shortens Description, Anti-Patterns, and series names to fit the chart: `A` means `skill-architect`, `B` means `code-architecture`, and `C` means `mermaid-graph-writer`. Each axis label retains its full meaning.
 
 ```mermaid
-radar
+radar-beta
     title Skill Quality Assessment
-    axis Description, Scope, Disclosure, Anti-Patterns, Tools, Activation, Visual, Output, Temporal, Docs
-    curve skill-architect [95, 97, 90, 92, 88, 96, 93, 85, 82, 88]
-    curve code-architecture [87, 90, 80, 82, 70, 85, 88, 75, 60, 72]
-    curve mermaid-graph-writer [90, 92, 85, 88, 70, 90, 95, 80, 65, 78]
+    axis description["Desc."], scope["Scope"], disclosure["Disclosure"], anti_patterns["Anti-Pat."], tools["Tools"], activation["Activation"], visual["Visual"], output["Output"], temporal["Temporal"], docs["Docs"]
+    curve series_a["A"]{95, 97, 90, 92, 88, 96, 93, 85, 82, 88}
+    curve series_b["B"]{87, 90, 80, 82, 70, 85, 88, 75, 60, 72}
+    curve series_c["C"]{90, 92, 85, 88, 70, 90, 95, 80, 65, 78}
 ```
 
 ### Syntax
 
 ```
-radar
+radar-beta
     title [Title]
-    axis Label1, Label2, Label3, ...
-    curve SeriesName [val1, val2, val3, ...]
-    curve AnotherSeries [val1, val2, val3, ...]
+    axis axis1["Label 1"], axis2["Label 2"], axis3["Label 3"]
+    curve series1["Series 1"]{val1, val2, val3}
+    curve series2["Series 2"]{val1, val2, val3}
 ```
 
 - Multiple curves overlay on the same radar
 - Values should be on the same scale (e.g., 0-100)
 - Axis count must match value count per curve
+- Increase radar `marginLeft` and `marginRight` when long axis labels clip at the chart edges
 
 ### Gotchas
-- Axis labels are comma-separated on ONE line
-- Curve values use square brackets
-- Series name cannot contain spaces (use hyphens)
+- Declare axes as comma-separated `id["Label"]` entries on one line
+- Declare curves as `id["Label"]{value, ...}` with one value per axis
+- Use unique identifier tokens; put display names in quoted labels
 - Minimum 3 axes for a meaningful radar
 
 ---
@@ -982,7 +986,7 @@ par { ... }                          # Parallel
 | 18 | Kanban | `kanban` | Task boards, workflow columns |
 | 19 | C4 | `C4Context` + 4 | System context, containers, components |
 | 20 | Packet | `packet-beta` | Network protocols, binary layouts |
-| 21 | Radar | `radar` | Multi-axis scoring, skill comparisons |
+| 21 | Radar | `radar-beta` | Multi-axis scoring, skill comparisons |
 | 22 | Treemap | `treemap` | Hierarchical proportions |
 | 23 | ZenUML | `zenuml` | Code-style sequence diagrams (plugin) |
 
@@ -993,5 +997,5 @@ par { ... }                          # Parallel
 | Tier | Types | Notes |
 |------|-------|-------|
 | **Stable** | flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, journey, gantt, pie, gitGraph, mindmap, timeline, requirementDiagram | Production-safe, syntax frozen |
-| **Beta** | quadrantChart, sankey-beta, xychart-beta, block-beta, architecture-beta, packet-beta, kanban, radar, treemap | Syntax may change. The `-beta` suffix is literal. |
+| **Beta** | quadrantChart, sankey-beta, xychart-beta, block-beta, architecture-beta, packet-beta, kanban, radar-beta, treemap | Syntax may change. The `-beta` suffix is literal. |
 | **Plugin** | zenuml, C4Context/Container/Component/Dynamic/Deployment | Require external plugins or specific renderer support |

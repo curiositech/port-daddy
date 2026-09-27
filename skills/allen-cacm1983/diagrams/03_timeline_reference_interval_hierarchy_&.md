@@ -29,10 +29,10 @@ timeline
         Thu May 16 : D4[Task D: Documentation<br/>Relation: AFTER Task C ends]
     
     section Hour Level (Wed Detail)
-        09:00-10:00 : H1[Test Suite Execution<br/>DURING Task C]
-        10:00-11:30 : H2[Bug Triage Meeting<br/>OVERLAPS with Test Suite]
-        11:30-13:00 : H3[Fix Implementation<br/>AFTER Bug Triage]
-        14:00-15:00 : H4[Regression Testing<br/>STARTS after Fix ends]
+        9 to 10 AM : H1 Test Suite Execution (DURING Task C)
+        10 to 11 30 AM : H2 Bug Triage Meeting (OVERLAPS with Test Suite)
+        11 30 AM to 1 PM : H3 Fix Implementation (AFTER Bug Triage)
+        2 PM to 3 PM : H4 Regression Testing (STARTS after Fix ends)
     
     section Propagation Boundaries
         Local (Day) : LB1[Within Wed May 15:<br/>Constraints propagate freely<br/>H1, H2, H3, H4 mutually constrained]
