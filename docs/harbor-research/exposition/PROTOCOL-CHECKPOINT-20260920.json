@@ -372,8 +372,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
-      "sha256": "596c37f23dbab751303ca1cc94043dd5d50a318326cb598e36969c6fdeedb8c3",
-      "bytes": 22821
+      "sha256": "db6f3a5e75dc391ba83b91663bcfa912aa17917eeba22a13d63726baf82fc956",
+      "bytes": 22751
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-discharges.tex",
