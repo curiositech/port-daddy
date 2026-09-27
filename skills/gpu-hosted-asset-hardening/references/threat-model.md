@@ -41,6 +41,7 @@ The trick: each asset attracts a different threat class. A research student rig 
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
   title Adversary class by capability and motivation
   x-axis Low capability --> High capability
   y-axis Opportunistic --> Targeted
@@ -53,7 +54,7 @@ quadrantChart
   Authenticated insider: [0.4, 0.85]
   Crimeware operator: [0.7, 0.3]
   State-aligned APT: [0.9, 0.95]
-  Supply-chain (Akira-class): [0.8, 0.5]
+  Supply-chain Akira-class: [0.8, 0.5]
 ```
 
 ### Mass scanner / opportunistic

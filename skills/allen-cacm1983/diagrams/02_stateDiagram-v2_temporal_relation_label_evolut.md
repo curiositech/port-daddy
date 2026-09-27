@@ -1,35 +1,35 @@
 # Temporal Relation Label Evolution Under Evidence
 
 ```mermaid
-stateDiagram-v2
-    [*] --> InitialDisjunction: New arc asserted\nwith uncertainty set
-    
-    InitialDisjunction: Initial Label\n{r1, r2, ..., r13}
-    
-    InitialDisjunction --> PropagateConstraints: Lookup transitivity\nconsequences
-    
-    PropagateConstraints: Compute implications\nfrom new fact
-    
-    PropagateConstraints --> IntersectLabel: Intersect computed\nset with current label
-    
-    IntersectLabel --> CheckEmpty{Label\nempty?}
-    
-    CheckEmpty -->|Yes| InconsistencyDetected: Inconsistency Found\n∅ label
-    CheckEmpty -->|No| CheckSingleton{Single\nrelation?}
-    
-    CheckSingleton -->|Yes| DeterminedRelation: Determined State\n{r}
-    CheckSingleton -->|No| CheckShrinkage{Label\nshrunk?}
-    
-    CheckShrinkage -->|Yes| PropagateRefinement: Propagate refinement\nto neighbors
+flowchart TD
+    Start((Start)) -->|New arc asserted<br/>with uncertainty set| InitialDisjunction
+
+    InitialDisjunction["Initial Label<br/>{r1, r2, ..., r13}"]
+
+    InitialDisjunction -->|Lookup transitivity<br/>consequences| PropagateConstraints
+
+    PropagateConstraints["Compute implications<br/>from new fact"]
+
+    PropagateConstraints -->|Intersect computed<br/>set with current label| IntersectLabel
+
+    IntersectLabel --> CheckEmpty{"Label<br/>empty?"}
+
+    CheckEmpty -->|Yes| InconsistencyDetected["Inconsistency Found<br/>∅ label"]
+    CheckEmpty -->|No| CheckSingleton{"Single<br/>relation?"}
+
+    CheckSingleton -->|Yes| DeterminedRelation["Determined State<br/>{r}"]
+    CheckSingleton -->|No| CheckShrinkage{"Label<br/>shrunk?"}
+
+    CheckShrinkage -->|Yes| PropagateRefinement["Propagate refinement<br/>to neighbors"]
     PropagateRefinement --> PropagateConstraints
-    
-    CheckShrinkage -->|No| Stable: Stable State\n(no change)
-    
-    Stable --> AwaitNewEvidence: Await new assertion\nor query
+
+    CheckShrinkage -->|No| Stable["Stable State<br/>(no change)"]
+
+    Stable -->|Await new assertion<br/>or query| AwaitNewEvidence
     AwaitNewEvidence --> PropagateConstraints
-    
+
     DeterminedRelation --> AwaitNewEvidence
-    
-    InconsistencyDetected --> [*]
-    AwaitNewEvidence --> [*]
+
+    InconsistencyDetected --> End((End))
+    AwaitNewEvidence --> End((End))
 ```

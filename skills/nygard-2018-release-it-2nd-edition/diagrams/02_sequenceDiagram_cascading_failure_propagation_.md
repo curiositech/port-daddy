@@ -24,7 +24,7 @@ sequenceDiagram
     ServiceA->>ServiceB: Call (with timeout & circuit breaker)
     ServiceB_Pool->>Database: Query (5000ms - SLOW!)
     Note over ServiceB_Pool: Threads blocked<br/>waiting for response
-    </rect>
+    end
 
     rect rgb(255, 220, 220)
     Note over Client,Database: SCENARIO A: NO PROTECTIONS - Cascading Failure
