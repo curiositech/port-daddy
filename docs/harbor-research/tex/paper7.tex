@@ -35,7 +35,9 @@ diagnostic value depends on precisely what evidence the analyst holds. For prefi
 graph $K$, $r=\operatorname{dist}(g_K,\operatorname{im}\delta_K)$ is the norm of the cycle-space projection. A single
 nonzero fault on edge $e$ has $r=|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$: it is detectable exactly when $e$ lies on a
 cycle of the visible coordinate graph $K_c$. This criterion does \emph{not} extend to arbitrary split views by one
-witness; a triangle with a leaf supplies an explicit counterexample. More decisively, if the analyst receives both
+witness; a triangle with a leaf supplies an explicit counterexample. For sender $q$, the number of visible-neighbor
+components after deleting $q$, minus one, is the exact dimension of invisible split views in each coordinate.
+More decisively, if the analyst receives both
 authenticated endpoint reports on each relayed link, it can compare a sender's reports directly. Every nonzero cycle
 residual then implies an inconsistency that this equal-information checker can already detect. The synthetic harness's
 ``cohomology-only'' counts compare against a weaker checked-edge baseline and do not establish a detection advantage.
