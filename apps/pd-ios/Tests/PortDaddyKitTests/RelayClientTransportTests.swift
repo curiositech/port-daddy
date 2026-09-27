@@ -58,7 +58,7 @@ final class RelayClientTransportTests: XCTestCase {
         config.protocolClasses = [StubURLProtocol.self]
         return RelayClient(
             baseURL: URL(string: "https://relay.portdaddy.dev")!,
-            tokenStore: InMemoryRelayTokenStore(credential: RelayCredential(token: "pdu_testtoken")),
+            tokenStore: InMemoryRelayTokenStore(credential: RelayCredential(token: "pdu_" + String(repeating: "a", count: 64))),
             session: URLSession(configuration: config)
         )
     }

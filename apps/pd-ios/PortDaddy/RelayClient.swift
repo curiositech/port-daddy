@@ -63,7 +63,15 @@ public struct RelayCredential: Equatable, Sendable {
         self.token = token
     }
 
-    public var looksWellFormed: Bool { token.hasPrefix("pdu_") && token.count > 8 }
+    public var looksWellFormed: Bool {
+        // Match readBearer in apps/relay/src/device-flow.ts, including its
+        // case-insensitive prefix. Never allow whitespace or header injection.
+        let bytes = Array(token.utf8)
+        return bytes.count == 68 && token.prefix(4).lowercased() == "pdu_"
+            && bytes.dropFirst(4).allSatisfy {
+                (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+            }
+    }
 }
 
 /// Where the bearer token lives.
@@ -165,17 +173,72 @@ public enum RelayRoute {
 /// Not declared Sendable: it holds a URLSession, and the store is a reference
 /// type. Hold one per view model on the main actor rather than sharing one
 /// across isolation domains.
+/// Refuse ALL redirects, including same-origin redirects: a changed endpoint
+/// must be configured explicitly, never learned from a credentialed response.
+/// A per-task delegate also applies when callers inject a URLSession.
+final class RelayRedirectRefusal: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
+protocol RelayTransport {
+    func data(for request: URLRequest, delegate: (any URLSessionTaskDelegate)?) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: RelayTransport {}
+
 public struct RelayClient {
     public let baseURL: URL
     public let tokenStore: RelayTokenStore
-    private let session: URLSession
+    private let session: any RelayTransport
     private let decoder: JSONDecoder
 
-    public init(baseURL: URL, tokenStore: RelayTokenStore, session: URLSession = .shared) {
+    public init(baseURL: URL, tokenStore: RelayTokenStore) {
+        self.init(baseURL: baseURL, tokenStore: tokenStore,
+                  session: URLSession(configuration: Self.privateConfiguration()))
+    }
+
+    /// Test-only transport injection. Production callers cannot supply a
+    /// session with persistent cookie, credential, or cache stores.
+    init(baseURL: URL, tokenStore: RelayTokenStore, session: any RelayTransport) {
         self.baseURL = baseURL
         self.tokenStore = tokenStore
         self.session = session
         self.decoder = JSONDecoder()
+    }
+
+    static func privateConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 30
+        return configuration
+    }
+
+    /// baseURL is an explicit trust decision made by configuration, not an
+    /// arbitrary URL obtained from a message or response. Self-hosted HTTPS
+    /// origins are allowed. Reject ambiguity before touching the token store.
+    private func trustedOrigin() throws -> URLComponents {
+        guard baseURL.baseURL == nil,
+              let components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "https",
+              let host = components.host, !host.isEmpty,
+              !host.contains(where: { $0.isWhitespace }),
+              components.user == nil, components.password == nil,
+              components.query == nil, components.fragment == nil,
+              components.path.isEmpty || components.path == "/",
+              components.port.map({ (1...65535).contains($0) }) ?? true else {
+            throw RelayError.transport("relay endpoint must be an absolute HTTPS origin without user information, path, query, or fragment")
+        }
+        return components
     }
 
     // MARK: - Response envelopes
@@ -194,9 +257,7 @@ public struct RelayClient {
     // Named makeRequest, not request: `let request = try request(...)` at a
     // call site would shadow the method with the variable being declared.
     func makeRequest(path: String, query: [URLQueryItem] = [], method: String = "GET") throws -> URLRequest {
-        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
-            throw RelayError.transport("malformed relay base URL")
-        }
+        var components = try trustedOrigin()
         // percentEncodedPath, NOT path: the `path` setter takes a DECODED value and
         // re-encodes it, which turns the `%2F` that `RelayRoute.encode` just wrote
         // back into a `/` and undoes the split-segment fix above. The routes are
@@ -211,9 +272,11 @@ public struct RelayClient {
             throw RelayError.transport("could not build a URL for \(path)")
         }
         var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        guard let credential = tokenStore.credential else {
+        guard let credential = tokenStore.credential, credential.looksWellFormed else {
             throw RelayError.unauthenticated("no device token — pair this phone first")
         }
         request.setValue("Bearer \(credential.token)", forHTTPHeaderField: "Authorization")
@@ -226,10 +289,20 @@ public struct RelayClient {
     }
 
     func send<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
+        let origin = try trustedOrigin()
+        guard let url = request.url,
+              let destination = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              destination.scheme?.lowercased() == "https",
+              destination.host?.lowercased() == origin.host?.lowercased(),
+              (destination.port ?? 443) == (origin.port ?? 443),
+              destination.user == nil, destination.password == nil,
+              destination.fragment == nil else {
+            throw RelayError.transport("request is outside the configured relay origin")
+        }
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await session.data(for: request, delegate: RelayRedirectRefusal())
         } catch {
             throw RelayError.transport(error.localizedDescription)
         }
