@@ -218,8 +218,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Cohomology of Equivocation',
     subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
     pdfPath: '/research/paper7.pdf',
-    pages: 14,
-    sizeKb: 466,
+    pages: 9,
+    sizeKb: 391,
     claim:
       'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
     pullQuote:
@@ -243,7 +243,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
     pages: 13,
-    sizeKb: 271,
+    sizeKb: 273,
     claim:
       'A typed two-complex separates violated face relations, closed nonexact handoff classes, and relative extension obstructions. Its edge-group distance states exactly when sparse report errors are detectable or recoverable.',
     pullQuote:
