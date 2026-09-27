@@ -429,6 +429,13 @@ mod platform_metadata {
         fn ioctl(fd: i32, request: u64, ...) -> i32;
     }
     const FS_IOC_GETFLAGS: u64 = 0x80086601;
+    // ext4 reports this storage-layout flag for ordinary files. A new inode
+    // may use different extents without changing the file's policy metadata.
+    const FS_EXTENT_FL: i32 = 0x0008_0000;
+
+    fn has_unpreservable_flags(flags: i32) -> bool {
+        flags & !FS_EXTENT_FL != 0
+    }
 
     fn plain_file(file: &File) -> Result<(), String> {
         let attrs = unsafe { flistxattr(file.as_raw_fd(), std::ptr::null_mut(), 0) };
@@ -437,13 +444,21 @@ mod platform_metadata {
         if attrs < 0 || flag_result != 0 {
             return Err("cannot inspect editor extended metadata; original preserved".into());
         }
-        if attrs != 0 || flags != 0 {
+        if attrs != 0 || has_unpreservable_flags(flags) {
             return Err(
                 "editor target has extended metadata this save cannot preserve; original preserved"
                     .into(),
             );
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn ordinary_extent_layout_is_not_policy_metadata() {
+        assert!(!has_unpreservable_flags(0));
+        assert!(!has_unpreservable_flags(FS_EXTENT_FL));
+        assert!(has_unpreservable_flags(FS_EXTENT_FL | 0x0000_0010)); // immutable
     }
 
     pub(super) fn preserve_metadata(path: &Path, temp: &File) -> Result<(), String> {
