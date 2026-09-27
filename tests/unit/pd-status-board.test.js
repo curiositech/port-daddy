@@ -11,7 +11,9 @@ const suite = resolve(root, 'scripts/pd-status-board.test.mjs');
 
 describe('Distress Register status board (ADR-0132 phase 2)', () => {
   test('the node:test suite passes with zero failures', () => {
-    const output = execFileSync(process.execPath, ['--test', suite], {
+    // Node 24+ can choose the spec reporter for captured stdout. Pin TAP so
+    // these summary assertions do not depend on the runner's default format.
+    const output = execFileSync(process.execPath, ['--test', '--test-reporter=tap', suite], {
       cwd: root,
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1' },
