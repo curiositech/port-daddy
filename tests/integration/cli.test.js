@@ -1312,11 +1312,25 @@ describe('CLI Integration Tests', () => {
       const beginData = JSON.parse(beginResult.stdout);
       const mintedContext = readTestCurrentContext(defaultContextSlot);
 
+      // `pd begin --json` no longer prints the credential (it is a private,
+      // one-time-mint admission secret — see begin-output-sanitization.test.js);
+      // `begin` still persists it to the context file for this slot, so read
+      // it back from disk rather than off the sanitized stdout.
+      const slot = `ppid-${process.pid}`;
+      const { contextDir } = getDaemonState();
+      const mintedContext = JSON.parse(
+        readFileSync(join(contextDir, 'contexts', `${slot}.json`), 'utf8'),
+      );
+      // The begin above already asserted success, so the daemon must have
+      // written this slot's context file — fail loudly, not with a TypeError
+      // on the next line, if that invariant is ever wrong.
+      expect(mintedContext).toBeTruthy();
+
       writeTestCurrentContext({
         agentId: beginData.agentId,
         sessionId: 'session-stale-context',
         purpose: 'Stale note fallback',
-        contextSlot: `ppid-${process.pid}`,
+        contextSlot: slot,
         // The context is deliberately STALE (bogus sessionId), but the soul
         // credential begin minted must survive — #8877 rejects attributed
         // note writes without it.
