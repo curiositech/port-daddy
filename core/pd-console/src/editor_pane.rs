@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, HistoryAction, PeerId, ReceiptBatch};
+use crate::buffer::{HarborBuffer, HistoryAction, HistoryDirection, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -72,37 +72,15 @@ const WEDGE_PROBE_INTERVAL_MS: i64 = 400;
 /// truncation marker.
 const MAX_LINES: usize = 2000;
 
-/// Default PD identity for the local (opener) replica when none is injected. Real
-/// callers pass the operator's `pd whoami` identity; tests and the headless render
-/// path fall back to this so the buffer always has a stable replica id.
+/// Unverified display label for a local opener. It is never replica identity or
+/// authority to read/publish a shared project.
 const DEFAULT_IDENTITY: &str = "port-daddy:console:operator";
 
-/// Resolve the operator's PD identity for the local Loro replica.
-///
-/// Tries `pd whoami --identity` once; on any failure (no session, `pd` absent,
-/// non-zero exit) falls back to [`DEFAULT_IDENTITY`]. Honest about the fallback:
-/// the buffer is correct either way (a stable PeerID is minted from whatever
-/// string we get), the identity just won't reflect the live session if `pd` is
-/// unavailable. Kept synchronous and cheap; the caller invokes it at pane
-/// construction, not per render tick.
+/// Local display label only. Opening a file must not execute a coordination CLI
+/// or imply that a label is a verified identity. Shared principal/device/grant
+/// admission belongs to the authenticated Harbor gateway, not this constructor.
 pub fn resolve_operator_identity() -> String {
-    if crate::local_control::ensure_allowed().is_err() {
-        return DEFAULT_IDENTITY.to_string();
-    }
-    let out = std::process::Command::new("pd")
-        .args(["whoami", "--identity"])
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() {
-                DEFAULT_IDENTITY.to_string()
-            } else {
-                s
-            }
-        }
-        _ => DEFAULT_IDENTITY.to_string(),
-    }
+    DEFAULT_IDENTITY.to_string()
 }
 
 /// Width of the gutter line-number column for a file with `n` lines.
@@ -116,8 +94,8 @@ fn gutter_width(n: usize) -> usize {
 }
 
 /// A short, stable author tag for a PeerId — the last 2 hex nibbles of the id.
-/// Deterministic and compact for the gutter; the full PeerId↔PD-identity mapping
-/// lives in `buffer.rs`. Returns a fixed-width 2-char tag.
+/// Deterministic and compact for the gutter. This tag is a display hint, not
+/// proof of a principal. Returns a fixed-width 2-char tag.
 fn author_tag(peer: PeerId) -> String {
     format!("{:02x}", (peer & 0xff) as u8)
 }
@@ -154,19 +132,18 @@ struct CodeCache {
 /// error); `error` holds any load failure; `truncated` records the large-file cap.
 pub struct EditorPane {
     path: String,
+    document: crate::editor_sync::DocumentRef,
     region: Option<(u32, u32)>,
     identity: String,
+    /// Presentation baseline for a read-only producer mirror, not a writing ID.
+    viewer_peer: Option<PeerId>,
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
-    /// The per-file **edit-sync** tube channel this editor's op stream rides on (P2
-    /// slice 1), derived once from `path` via [`crate::editor_sync::channel_for_path`].
-    /// Two replicas opening the same file land on the same channel and exchange Loro
-    /// op frames over it. Presence (slice 2) and snapshot refs (slice 3) ride this
-    /// SAME channel under distinct frame kinds.
+    /// DocumentRef-derived edit lane. Merely opening a local path does not
+    /// subscribe; verified shared-session admission is still an external gate.
     channel: String,
-    /// The per-file **coordination** tube channel (P2 slice 3), derived from `path`
-    /// via [`crate::editor_sync::coordination_channel_for_path`]. Deliberately a
+    /// The DocumentRef-derived **coordination** channel. Deliberately a
     /// SEPARATE channel from `channel` so claims / guard / conflict-predict signals
     /// never share a queue with the high-frequency doc-op lane — a keystroke burst
     /// cannot starve coordination (ref-03 §3 isolation). Derived once; stable for the
@@ -225,10 +202,8 @@ impl EditorPane {
         Self::new_with_identity(path, region, DEFAULT_IDENTITY)
     }
 
-    /// Construct a pane whose local Loro replica is keyed to `identity` (the
-    /// operator's PD identity, e.g. from `pd whoami`). This is the identity↔replica
-    /// binding the battle-plan requires for correct authorship across reconnects.
-    /// It is not authority for a successor to impersonate a dead actor.
+    /// Construct a local pane with an unverified display label. A new buffer
+    /// receives a fresh replica; equal labels cannot restart one shared counter.
     pub fn new_with_identity(
         path: impl Into<String>,
         region: Option<(u32, u32)>,
@@ -236,20 +211,18 @@ impl EditorPane {
     ) -> Self {
         let path = path.into();
         let identity = identity.into();
-        // Derive both per-file channels once at construction — each is a pure
-        // function of the path, so both are stable for the pane's whole life (and
-        // match every other replica that opens the same file). The edit-sync lane and
-        // the coordination lane are DISTINCT channels (slice-3 isolation).
-        let channel = crate::editor_sync::channel_for_path(&path);
-        let coord_channel = crate::editor_sync::coordination_channel_for_path(&path);
-        // Mint the local replica id from the identity directly (same FNV-1a as the
-        // buffer) so presence has a stable local PeerId even before a file loads —
-        // the presence lane does not depend on the buffer being open.
-        let local_peer = peer_id_for_identity(&identity);
+        // A local draft gets its own document identity; no auto-join by path.
+        let document = crate::editor_sync::DocumentRef::local_draft();
+        let channel = crate::editor_sync::channel_for_document(&document);
+        let coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        // Provisional empty awareness; replaced by the loaded buffer's fresh ID.
+        let local_peer = HarborBuffer::empty(&identity).local_peer();
         Self {
             path,
+            document,
             region,
             identity,
+            viewer_peer: None,
             buffer: None,
             truncated: false,
             error: None,
@@ -283,6 +256,7 @@ impl EditorPane {
         self.code.replace(None);
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
+                self.reset_replica_awareness(buf.local_peer());
                 self.buffer = Some(buf);
                 self.error = None;
             }
@@ -292,11 +266,46 @@ impl EditorPane {
         }
     }
 
+    /// Reopening creates a new operation-counter incarnation. Ephemeral claims
+    /// and presence from the discarded replica cannot become the new one's.
+    fn reset_replica_awareness(&mut self, peer: PeerId) {
+        self.presence = PresenceStore::new(peer);
+        self.remote.clear();
+        self.presence_out = PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS);
+        self.local_presence = PresenceState::caret(1, 0, 1, 1);
+        self.claims = ClaimStore::new(peer);
+        self.claim_ledger = ClaimLedger::new();
+        self.claim_out = ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS);
+        self.next_claim_id = 0;
+        self.wedge_probe = WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS);
+        self.wedge_inflight = None;
+        self.guard_band = None;
+    }
+
     /// Borrow the live buffer, if loaded. Lets callers (and the merge demo) inject
     /// a second replica's ops via `apply_remote_ops` so an agent's lines render
     /// with their own authorship.
     pub fn buffer(&self) -> Option<&HarborBuffer> {
         self.buffer.as_ref()
+    }
+
+    pub fn document(&self) -> &crate::editor_sync::DocumentRef {
+        &self.document
+    }
+
+    /// The background lane imports the foreground's exact history, never seeds
+    /// a second copy from disk. Its distinct replica cannot author as the opener.
+    pub fn mirror(path: String, region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef, snapshot: &[u8], viewer_peer: PeerId) -> Result<Self> {
+        let mut pane = Self::new(path, region);
+        pane.channel = crate::editor_sync::channel_for_document(&document);
+        pane.coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        pane.document = document;
+        if !pane.hydrate_from_snapshot(snapshot) {
+            return Err(anyhow::anyhow!("invalid editor mirror snapshot"));
+        }
+        pane.viewer_peer = Some(viewer_peer);
+        Ok(pane)
     }
 
     /// The most recent disk-open failure, if this pane could not establish a
@@ -360,6 +369,9 @@ impl EditorPane {
         range: std::ops::Range<usize>,
         replacement: &str,
     ) -> std::result::Result<String, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
         let Some(buffer) = self.buffer.as_ref() else {
             return Err("editor buffer is not loaded".into());
         };
@@ -418,6 +430,45 @@ impl EditorPane {
         Ok(Some(frame))
     }
 
+    /// Apply foreground history through the same stable-range claim governance
+    /// as the ordinary undo/redo commands, then restore selection anchors and
+    /// clear stale composition only after an accepted change.
+    pub fn apply_history(
+        &mut self,
+        direction: HistoryDirection,
+        input: &mut crate::editor_input::EditorInput,
+    ) -> std::result::Result<Option<String>, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        let action = match direction {
+            HistoryDirection::Undo => HistoryAction::Undo,
+            HistoryDirection::Redo => HistoryAction::Redo,
+        };
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = buffer.anchor_at_byte(selected.start)
+            .zip(buffer.anchor_at_byte(selected.end));
+        let Some(edit) = buffer.apply_history_governed(action, |before, guard| {
+            self.ensure_editable_range(before, guard.range.clone(), guard.replacement_newlines)
+        })? else {
+            return Ok(None);
+        };
+        let after = buffer.to_string();
+        if let Some((mut start, mut end)) = anchors {
+            if let (Some(start), Some(end)) = (
+                buffer.resolve_anchor_byte(&mut start),
+                buffer.resolve_anchor_byte(&mut end),
+            ) {
+                input.restore_selection(&after, start..end, reversed);
+            }
+        }
+        input.unmark();
+        input.reconcile(&after);
+        Ok(Some(crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta)))
+    }
+
     /// Fold the foreground authority's exact local delta into the producer's
     /// mirror. Unlike `ingest_frame`, this deliberately accepts our own PeerId:
     /// both panes receive the same authored op instead of independently minting
@@ -435,6 +486,34 @@ impl EditorPane {
         }
         let changed = buffer.change_stamp() != before;
         changed
+    }
+
+    /// Import an admitted document frame without moving a local selection onto
+    /// unrelated text. CRDT positions, not old byte or line offsets, survive edits.
+    pub fn ingest_preserving_selection(&mut self, frame: &str,
+        input: &mut crate::editor_input::EditorInput) -> bool {
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = self.buffer().and_then(|buffer| Some((
+            buffer.anchor_at_byte(selected.start)?,
+            buffer.anchor_at_byte(selected.end)?,
+        )));
+        if !self.ingest_frame(frame) {
+            return false;
+        }
+        if let Some(buffer) = self.buffer() {
+            let text = buffer.to_string();
+            if let Some((mut start, mut end)) = anchors {
+                if let (Some(start), Some(end)) = (
+                    buffer.resolve_anchor_byte(&mut start),
+                    buffer.resolve_anchor_byte(&mut end),
+                ) {
+                    input.restore_selection(&text, start..end, reversed);
+                }
+            }
+            input.reconcile(&text);
+        }
+        true
     }
 
     /// The per-file tube channel this editor's op stream rides on. Callers open the
@@ -497,6 +576,16 @@ impl EditorPane {
     /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
     /// a snapshot the buffer already contains is a no-op.
     pub fn hydrate_from_snapshot(&mut self, snapshot: &[u8]) -> bool {
+        if self.buffer.is_none() {
+            let buffer = HarborBuffer::empty(self.identity.clone());
+            if buffer.apply_remote_ops(snapshot).is_err() {
+                return false;
+            }
+            self.reset_replica_awareness(buffer.local_peer());
+            self.buffer = Some(buffer);
+            self.error = None;
+            return true;
+        }
         let buffer = self
             .buffer
             .get_or_insert_with(|| HarborBuffer::empty(self.identity.clone()));
@@ -865,7 +954,7 @@ impl EditorPane {
         let mut slot = self.code.borrow_mut();
         if slot.as_ref().map_or(true, |c| c.stamp != stamp) {
             let lang = crate::syntax::lang_for_path(&self.path);
-            let opener = buffer.local_peer();
+            let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
             let all = buffer.lines();
             let total = all.len();
             let show_authors = all
@@ -929,7 +1018,7 @@ impl Pane for EditorPane {
             return blocks;
         };
 
-        let opener = buffer.local_peer();
+        let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
         // The tokenized snapshot: an Arc clone on the unchanged path — the old
         // path re-cloned every line's String into a Block::Row per view().
         let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
@@ -1101,6 +1190,7 @@ impl Pane for EditorPane {
                 .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
             match opened {
                 Ok(buf) => {
+                    self.reset_replica_awareness(buf.local_peer());
                     self.buffer = Some(buf);
                     self.error = None;
                     self.truncated = false;
@@ -1115,25 +1205,62 @@ impl Pane for EditorPane {
         })
     }
 
-    /// Declare this editor's live intent: watch the file's op-stream channel so a
-    /// second replica's Loro edits arrive over the tube (P2 slice 1). Same
-    /// declare-intent contract the `AgentTranscript` lane uses — main.rs opens the
-    /// SSE (`DaemonClient::subscribe_channel`) and drains frames back through
-    /// [`ingest_frame`](Self::ingest_frame). Only once a real buffer is open: an
-    /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
-    /// subscribes to nothing (poll-only).
+    /// No implicit shared admission from a local file/identity label. The
+    /// authenticated shared-session adapter is required before subscribing.
     fn subscription(&self) -> Option<Subscription> {
-        self.buffer.as_ref().map(|_| Subscription::Editor {
-            channel: self.channel.clone(),
-            coord_channel: self.coord_channel.clone(),
-        })
+        // Local file opening is not a shared-session consent/admission flow.
+        // The former path-derived auto-subscription admitted unrelated peers.
+        // Stay local until the verified principal/device/grant adapter exists.
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
+
+    #[test]
+    fn mirror_imports_exact_history_without_reseeding_or_reusing_authorship() {
+        let path = write_temp("mirror.txt", "original\n");
+        let mut foreground = make_pane(&path, None);
+        let snapshot = foreground.snapshot_blob().unwrap();
+        let mut mirror = EditorPane::mirror(path, None, foreground.document().clone(), &snapshot,
+            foreground.buffer().unwrap().local_peer()).unwrap();
+        assert_ne!(foreground.buffer().unwrap().local_peer(), mirror.buffer().unwrap().local_peer());
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert_eq!(foreground.document(), mirror.document());
+        assert!(mirror.apply_local_text_edit(0..0, "forged").is_err());
+        assert_eq!(code_buffer(&foreground.view()).unwrap().2, code_buffer(&mirror.view()).unwrap().2);
+        let frame = foreground.apply_local_text_edit(0..0, "one new line\n").unwrap();
+        assert!(mirror.ingest_local_frame(&frame));
+        assert!(!mirror.ingest_local_frame(&frame), "duplicate local delivery is a no-op");
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert!(mirror.subscription().is_none(), "a mirror is not shared admission");
+    }
+
+    #[test]
+    fn malformed_mirror_snapshot_is_not_an_empty_success() {
+        assert!(EditorPane::mirror("/not/read/from/disk".into(), None,
+            crate::editor_sync::DocumentRef::local_draft(), b"garbage", 1).is_err());
+    }
+
+    #[test]
+    fn remote_edits_preserve_reversed_selection_on_the_same_unicode_text() {
+        let path = write_temp("stable-selection.txt", "a😀target\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&pane.text().unwrap(), "a😀".len().."a😀target".len(), true);
+        let peer = HarborBuffer::empty("Charli");
+        peer.apply_remote_ops(&pane.snapshot_blob().unwrap()).unwrap();
+        peer.insert_authored(0, "研究\n");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &peer.export_ops());
+        assert!(pane.ingest_preserving_selection(&frame, &mut input));
+        assert_eq!(&pane.text().unwrap()[input.selection()], "target");
+        assert!(input.selection_reversed());
+        assert_eq!(input.selection().start, "研究\na😀".len());
+        assert!(!pane.ingest_preserving_selection(&frame, &mut input));
+    }
     use std::io::Write;
     use std::path::PathBuf;
 
@@ -1339,7 +1466,9 @@ mod tests {
         let path = write_temp("local-input.rs", "let value = 1;\n");
         let identity = "port-daddy:console:human-input";
         let mut foreground = make_pane_as(&path, identity);
-        let mut producer_mirror = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(path.clone(), None,
+            foreground.document().clone(), &foreground.snapshot_blob().unwrap(),
+            foreground.buffer().unwrap().local_peer()).unwrap();
         let (before_lines, _, _) = code_buffer(&foreground.view()).expect("code buffer");
 
         let text = foreground.text().expect("loaded text");
@@ -1374,12 +1503,17 @@ mod tests {
         let path = write_temp("history-mirror.rs", "let value = 1;\n");
         let identity = "port-daddy:console:history-mirror";
         let mut foreground = make_pane_as(&path, identity);
-        let mut producer_mirror = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(
+            path.clone(), None, foreground.document().clone(),
+            &foreground.snapshot_blob().expect("foreground snapshot"),
+            foreground.buffer().expect("foreground buffer").local_peer(),
+        ).expect("producer mirror");
 
         let foreground_initial = foreground.take_edit_receipts();
         let producer_initial = producer_mirror.take_edit_receipts();
         assert!(foreground_initial.complete && foreground_initial.receipts.is_empty());
-        assert!(producer_initial.complete && producer_initial.receipts.is_empty());
+        assert!(producer_initial.complete);
+        assert_eq!(producer_initial.receipts.len(), 1, "snapshot hydration is receipted");
 
         let edit_frame = foreground
             .apply_local_text_edit(4..9, "answer")
@@ -1435,7 +1569,11 @@ mod tests {
         let path = write_temp("receipt-overflow-mirror.txt", "x");
         let identity = "port-daddy:console:receipt-overflow-mirror";
         let mut foreground = make_pane_as(&path, identity);
-        let mut producer_mirror = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(
+            path.clone(), None, foreground.document().clone(),
+            &foreground.snapshot_blob().expect("foreground snapshot"),
+            foreground.buffer().expect("foreground buffer").local_peer(),
+        ).expect("producer mirror");
 
         for _ in 0..=crate::buffer::EDIT_RECEIPT_CAPACITY {
             let end = foreground.text().expect("foreground text").len();
@@ -1897,6 +2035,96 @@ mod tests {
     }
 
     #[test]
+    fn history_refusal_preserves_ops_stack_selection_and_composition() {
+        let path = write_temp("history-claims.rs", "open\nclaimed\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        pane.apply_local_text_edit(0..0, "😀 ").unwrap();
+        let claim = other.acquire_region_claim(2, 2, "claimed", 1_000);
+        pane.ingest_claim(&claim);
+        // A claim on a different line does not block ordinary region-safe typing.
+        pane.apply_local_text_edit(0..0, "é ").unwrap();
+        let before = pane.text().unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.replace(&before, None, "研究", true, Some(0..2));
+        let prior_input = input.clone();
+        let overlapping = other.acquire_region_claim(1, 1, "history target", 1_500);
+        pane.ingest_claim(&overlapping);
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let refusal = pane.apply_history(HistoryDirection::Undo, &mut input).unwrap_err();
+        assert!(refusal.contains("request a handoff"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+        assert_eq!(input, prior_input);
+        assert!(!pane.buffer().unwrap().can_redo());
+        for token in BYPASS {
+            assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+
+        pane.ingest_claim(&other.release_region_claim(1));
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some("😀 open\nclaimed\n"));
+        assert_eq!(input.marked_range(), None);
+        // Re-check current claims for REDO too, not only the initial undo.
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "new claim", 2_000));
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        pane.ingest_claim(&other.release_region_claim(2));
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+    }
+
+    #[test]
+    fn history_delta_updates_mirror_and_render_cache_without_duplicate_effects() {
+        let path = write_temp("history-mirror.rs", "a😀z\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+        assert!(mirror.apply_history(HistoryDirection::Undo, &mut input).is_err());
+        mirror.ingest_local_frame(&pane.apply_local_text_edit(1..5, "研究").unwrap());
+        let (edited_lines, _, _) = code_buffer(&pane.view()).unwrap();
+        for (direction, expected) in [
+            (HistoryDirection::Undo, "a😀z\n"),
+            (HistoryDirection::Redo, "a研究z\n"),
+        ] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert!(!pane.ingest_frame(&frame), "local echo is not another edit");
+            assert_eq!(pane.text().as_deref(), Some(expected));
+            assert_eq!(pane.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+            let (lines, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(!Arc::ptr_eq(&lines, &edited_lines));
+            let (idle, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(Arc::ptr_eq(&lines, &idle));
+            assert!(!mirror.buffer().unwrap().can_undo());
+            assert!(mirror.apply_history(direction, &mut input).is_err());
+        }
+    }
+
+    #[test]
+    fn history_preserves_reversed_selection_on_unaffected_unicode_text() {
+        let path = write_temp("history-selection.rs", "😀 target\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        pane.acquire_region_claim(1, 1, "my own claim", 1_000);
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        let text = pane.text().unwrap();
+        let start = text.find("target").unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&text, start..start + 6, true);
+        for direction in [HistoryDirection::Undo, HistoryDirection::Redo] {
+            pane.apply_history(direction, &mut input).unwrap().unwrap();
+            let text = pane.text().unwrap();
+            assert_eq!(&text[input.selection()], "target");
+            assert!(input.selection_reversed());
+            assert_eq!(input.marked_range(), None);
+        }
+    }
+
+    #[test]
     fn deleting_a_newline_checks_the_claim_on_both_joined_lines() {
         let path = write_temp("guarded-newline.rs", "open\nclaimed\n");
         let mut human = make_pane_as(&path, "port-daddy:console:human");
@@ -2038,13 +2266,12 @@ mod tests {
         );
         assert_eq!(lines.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(lines[0].author_tag.as_deref(), Some(human_tag.as_str()));
         assert_eq!(lines[1].author_tag.as_deref(), Some(agent_tag.as_str()));
-        assert_ne!(
-            human_tag, agent_tag,
-            "distinct replicas carry distinct tags"
-        );
+        // Tags are display abbreviations, not unique identities. Policy and
+        // attribution compare the complete PeerID, including on two devices.
+        assert_ne!(opener, agent.local_peer());
         assert_eq!(lines[1].text.as_ref(), "agent added this");
     }
 
@@ -2052,8 +2279,8 @@ mod tests {
     /// opener is Resting, any other replica is Engaged, unknown is Default.
     #[test]
     fn author_tone_maps_opener_to_resting_and_agents_to_engaged() {
-        let opener = peer_id_for_identity("port-daddy:console:operator");
-        let agent = peer_id_for_identity("port-daddy:editor:agent-Y");
+        let opener = fixture_peer_id("port-daddy:console:operator");
+        let agent = fixture_peer_id("port-daddy:editor:agent-Y");
         assert!(matches!(author_tone(Some(opener), opener), Tone::Resting));
         assert!(matches!(author_tone(Some(agent), opener), Tone::Engaged));
         assert!(matches!(author_tone(None, opener), Tone::Default));
@@ -2062,29 +2289,15 @@ mod tests {
     /// A loaded editor declares its intent to watch the file's op-stream channel;
     /// an errored/empty pane subscribes to nothing (no buffer to fold ops into).
     #[test]
-    fn subscription_targets_the_files_channel_once_loaded() {
+    fn opening_a_local_file_never_auto_joins_a_shared_channel() {
         let path = write_temp("sub.txt", "hello\n");
         let pane = make_pane(&path, None);
-        match pane.subscription() {
-            Some(Subscription::Editor {
-                channel,
-                coord_channel,
-            }) => {
-                assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
-                assert_eq!(channel, pane.channel());
-                // Slice-3 isolation: the coordination lane is a SEPARATE channel.
-                assert_eq!(
-                    coord_channel,
-                    crate::editor_sync::coordination_channel_for_path(&path)
-                );
-                assert_eq!(coord_channel, pane.coordination_channel());
-                assert_ne!(
-                    channel, coord_channel,
-                    "edit-sync and coordination ride distinct channels"
-                );
-            }
-            other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
-        }
+        assert!(pane.subscription().is_none());
+        assert_eq!(pane.channel(), crate::editor_sync::channel_for_document(pane.document()));
+        assert_ne!(pane.channel(), pane.coordination_channel());
+        let other = make_pane(&path, None);
+        assert_ne!(pane.document(), other.document(), "same path is not shared consent");
+        assert_ne!(pane.channel(), other.channel());
         // An unreadable file → no buffer → nothing to fold into → no subscription.
         let errored = make_pane("/nonexistent/does/not/exist.rs", None);
         assert!(errored.subscription().is_none());
@@ -2121,7 +2334,7 @@ mod tests {
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
         assert_eq!(r[1].text.as_ref(), "agent added over the wire");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -2168,7 +2381,7 @@ mod tests {
     /// Encode a presence frame from a distinct remote replica, the exact string
     /// that would arrive on this pane's channel subscription.
     fn remote_presence_frame(identity: &str, state: PresenceState) -> String {
-        let peer = peer_id_for_identity(identity);
+        let peer = fixture_peer_id(identity);
         let store = PresenceStore::new(peer);
         encode_presence_frame(peer, &store.publish(state))
     }
@@ -2211,7 +2424,7 @@ mod tests {
         let pool = pane.remote_cursors();
         assert_eq!(pool.len(), 2, "both remote cursors pooled");
         assert_eq!(
-            pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line),
+            pool.get(&fixture_peer_id(a)).map(|s| s.cursor_line),
             Some(2)
         );
         assert_eq!(
@@ -2221,7 +2434,7 @@ mod tests {
         );
 
         // A non-presence frame (an op frame) and garbage are ignored by the lane.
-        let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
+        let op = crate::editor_sync::encode_frame(fixture_peer_id(a), &[1, 2, 3]);
         assert!(!pane.ingest_presence(&op), "an op frame is not presence");
         assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
     }
@@ -2232,7 +2445,7 @@ mod tests {
     fn local_presence_broadcast_is_debounced() {
         let path = write_temp("presence-out.txt", "hello\n");
         let mut pane = make_pane(&path, None);
-        let local = peer_id_for_identity("port-daddy:console:operator");
+        let local = pane.buffer().unwrap().local_peer();
 
         // Nothing moved yet → nothing to broadcast.
         assert!(pane.take_presence_broadcast(0).is_none());
@@ -2305,8 +2518,8 @@ mod tests {
         // Establish two remote cursors — two genuine repaint edges.
         let a = "port-daddy:editor:agent-A";
         let b = "port-daddy:editor:agent-B";
-        let store_a = PresenceStore::new(peer_id_for_identity(a));
-        let store_b = PresenceStore::new(peer_id_for_identity(b));
+        let store_a = PresenceStore::new(fixture_peer_id(a));
+        let store_b = PresenceStore::new(fixture_peer_id(b));
         let frame_a = encode_presence_frame(
             store_a.local(),
             &store_a.publish(PresenceState::caret(2, 0, 1, 5)),
@@ -2362,7 +2575,7 @@ mod tests {
         // once (a new PeerId is unambiguously a pool change, independent of clock
         // resolution), and replaying that same frame does not.
         let c = "port-daddy:editor:agent-C";
-        let store_c = PresenceStore::new(peer_id_for_identity(c));
+        let store_c = PresenceStore::new(fixture_peer_id(c));
         let frame_c = encode_presence_frame(
             store_c.local(),
             &store_c.publish(PresenceState::caret(5, 2, 1, 5)),
@@ -2427,7 +2640,7 @@ mod tests {
             "operator + agent lines survived to the cold replica via /blob"
         );
         assert_eq!(r[1].text.as_ref(), "agent added before the crash");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -2467,9 +2680,14 @@ mod tests {
     fn region_claim_rides_the_coord_lane_and_lands_in_a_remote_pane() {
         let path = write_temp("claim-wire.txt", "l1\nl2\nl3\nl4\nl5\n");
         let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
-        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+        // Explicit fixture binding, not production admission or a read-only mirror.
+        let mut pane_b = EditorPane::new_with_identity(path, None, "human-B");
+        pane_b.document = pane_a.document().clone();
+        pane_b.channel = crate::editor_sync::channel_for_document(pane_b.document());
+        pane_b.coord_channel = crate::editor_sync::coordination_channel_for_document(pane_b.document());
+        assert!(pane_b.hydrate_from_snapshot(&pane_a.snapshot_blob().unwrap()));
 
-        // Both panes agree on the coordination channel (pure function of the path).
+        // An explicit document reference, not matching paths, pairs these fixtures.
         assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
         assert!(
             pane_b.claim_ledger().is_empty(),
@@ -2490,7 +2708,7 @@ mod tests {
             pane_b.ingest_claim(&frame),
             "a remote claim frame changes B's ledger"
         );
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let owners = pane_b.claim_ledger().owners_of_line(3);
         assert_eq!(owners.len(), 1, "line 3 is claimed on B");
         assert_eq!(owners[0].peer, a_peer, "the claim is attributed to A");
@@ -2566,7 +2784,7 @@ mod tests {
 
         // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
         // to A, but B's footer line is — on the very same file.
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let led = pane_a.claim_ledger();
         assert!(
             !led.is_line_claimed_by_other(25, a_peer),

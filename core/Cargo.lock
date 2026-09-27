@@ -4950,9 +4950,11 @@ dependencies = [
  "rodio",
  "serde",
  "serde_json",
+ "sha2",
  "time",
  "tokio",
  "unicode-segmentation",
+ "uuid",
  "vt100",
 ]
 
