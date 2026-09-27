@@ -101,6 +101,11 @@ describe('source attribution cannot grant native authority', () => {
     expect(eligibleAttributionPath('skills/bdi-agent-interpreters/sources/agentspeak-bdi/hooks/start.sh', sources)).toBe(false);
   });
 
+  test('accepts only the generated website skill audit as a non-authority attribution', () => {
+    expect(eligibleAttributionPath('website-v2/public/skill-audit.json', names)).toBe(true);
+    expect(eligibleAttributionPath('website-v2/public/other.json', names)).toBe(false);
+  });
+
   test('accepts reviewed bytes but rejects changed, unlisted, and removed files', () => {
     expect(validateAttributionManifest(receipt(), new Map([[path, bytes]]), names)).toEqual([]);
     expect(validateAttributionManifest(receipt(), new Map([[path, Buffer.from('changed')]]), names)).toContain(`stale attribution: ${path}`);

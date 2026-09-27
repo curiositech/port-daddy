@@ -21,6 +21,9 @@ export function eligibleAttributionPath(path, sourceNames) {
   const authorityNames = new Set(['agents.md', 'claude.md', 'gemini.md', '.claude', '.codex', '.cursor', '.agents', '.gemini', '.github', 'hooks']);
   if (parts.some((part) => authorityNames.has(part.toLowerCase()))) return false;
   if (path.startsWith(REPORT_PREFIX)) return true;
+  // The deterministic website audit inventories imported skill names but has
+  // no installation or execution authority. Keep this exception exact.
+  if (path === 'website-v2/public/skill-audit.json') return true;
   const mergedSourceRoots = new Set([
     'bdi-agent-architecture', 'bdi-agent-interpreters',
     'bdi-organizational-modeling', 'bdi-normative-reasoning',
