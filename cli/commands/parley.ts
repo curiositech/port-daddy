@@ -199,9 +199,9 @@ function parseContention(value: string | undefined): WriteContention {
  */
 export async function handleParley(args: string[], options: CLIOptions): Promise<void> {
   const sub = args[0];
-  if (!sub || sub === 'help' || sub === '--help' || sub === '-h') {
+  if (options.help || !sub || sub === 'help' || sub === '--help' || sub === '-h') {
     console.log(`Usage:
-  pd parley call --surface <path|symbol> --reason <text> --with <sessionA,sessionB>
+  pd parley call --surface <path|symbol> --reason <text> --with <actorA,actorB>
   pd parley propose|critique|revise|agree|refuse|say <id> <content...> [--harbor <h>]
   pd parley respond <id> --performative propose|critique|revise|agree|refuse|inform --content <text> [--harbor <h>]
   pd parley resolve <id> --status COLLAPSED|ESCALATED|VOIDED [--decision <text>] [--dissenters <a,b>] [--harbor <h>]
@@ -211,7 +211,8 @@ export async function handleParley(args: string[], options: CLIOptions): Promise
 
 Identity: --as defaults to your active pd session (pd begin / PD_AGENT_ID).
 Delivery: every turn is fanned out to the other participants' inboxes (pd attention / pd inbox).
-Receipts: pd parley show records your read receipt; the seen list shows who is behind.
+Receipts: pd parley show records a read receipt when --as or an active identity is available.
+Settlement: raw resolve is CAP0-gated and currently fail-closed; terminal Sugar receipts are a separate capability.
 `);
     return;
   }

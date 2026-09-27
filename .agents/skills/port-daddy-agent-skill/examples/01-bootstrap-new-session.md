@@ -18,7 +18,7 @@ pd sitrep --since 60                      # last hour of activity, notes, salvag
 pd salvage --project "$(basename "$(pwd)")"
 
 # 5. Begin a session — only if whoami didn't return one
-pd begin --identity myapp:api:feature-x --purpose "Implement /v2/auth/refresh" --lifecycle durable
+pd begin --identity myapp:api:feature-x --purpose "Implement /v2/auth/refresh" --lifecycle durable --roadmap <slug>
 ```
 
 ## What good output looks like

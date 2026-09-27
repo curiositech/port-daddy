@@ -6,7 +6,7 @@ sequenceDiagram
   participant D as Port Daddy daemon
   participant Act as Durable actor
   participant B as Agent B
-  A->>D: pd begin + claim files
+  A->>D: pd begin + lifecycle + rent + claim files
   A->>D: pd note scope and validation plan
   A->>Act: actor inbox message when role ownership matters
   A->>D: tuple out machine-readable fact
