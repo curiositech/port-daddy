@@ -518,6 +518,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Editor undo is a local operation, not rollback.** Use the existing buffer's
+  per-incarnation Loro UndoManager; exclude disk seeds and imported history, and
+  send its exact authored delta through the foreground/mirror pipeline. Check
+  claims before mutation. Loro can skip obsolete history items, so the caret or
+  last replacement's old range is not a safe preview. Pending canonical affected-op
+  validation, another replica's claim holds undo/redo. Do not broaden that hold
+  to ordinary adjacent typing or treat headless tests as native interaction proof.
+
 - **Off is checked before invoking Port Daddy, not inside its CLI.** Git
   guards, publishers and wrappers embed `lib/hook-runtime-gate.ts`; canonical
   stop markers outrank selected runtime paths. Keep the standalone Pilot's
