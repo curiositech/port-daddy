@@ -58,7 +58,9 @@ def main():
             if candidate.is_dir():
                 folder = str(candidate)
                 break
-    profile = os.environ.get("PD_BOOK_FONT_PROFILE", "suisse")
+    profile = os.environ.get("PD_BOOK_FONT_PROFILE", "")
+    if not profile:
+        profile = "suisse" if folder else "open-proof"
     try:
         source, receipt = configuration(profile, folder)
         target = args.build_dir.resolve()

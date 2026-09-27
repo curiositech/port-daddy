@@ -95,7 +95,7 @@ class QuantitativeFigureChecks(unittest.TestCase):
         self.assertEqual(all_draws, Q(7, 32))
         self.assertEqual(efficient_share, Q(7, 16))
         self.assertEqual(lost_gains / (m/6), Q(5, 32))
-        self.assertTrue(0 < 70-60 < a)
+        self.assertGreater(a, 10)
         for bad in (source.replace("90,67.5", "90,70"),
                     source.replace("$7/32$ of all draws", "$7/16$ of all draws")):
             with self.assertRaises(AssertionError):

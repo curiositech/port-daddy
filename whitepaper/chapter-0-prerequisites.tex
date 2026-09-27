@@ -217,93 +217,35 @@ This book develops that claim in eight propositions, one per chapter:
   \item \textbf{Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}).}\enspace
   Every child capability is a strict subset of its parent's authority and lifetime. Authentication says who signed;
   attenuation says what the signature may authorize. Both are needed at every
-  hop.%
-  \pdmarginexhibit{anchor-attenuation}{Attenuation Cone}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pdindigo!30,fill=pdindigo!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \draw[draw=pdindigo!50,fill=pdindigo!12,rounded corners=1pt] (0.2,0.15) -- (0.8,0.72) -- (2.4,0.72) -- (3.0,0.15) -- cycle;
-      \node[font=\fontsize{4.5}{5.5}\selectfont\bfseries\color{pdindigo}] at (1.6,0.58) {Root Cap $\mathcal{C}_0$};
-      \node[font=\fontsize{4.2}{5.2}\selectfont\color{pdcobalt}] at (1.6,0.36) {Child $\mathcal{C}_1 \subset \mathcal{C}_0$};
-      \node[font=\fontsize{3.8}{4.8}\selectfont\color{pdinkmuted}] at (1.6,0.20) {Leaf $\mathcal{C}_2 \subset \mathcal{C}_1$};
-    \end{tikzpicture}%
-  }{Monotonic narrowing: delegated authority only diminishes at each hop.}
+  hop.
 
   \item \textbf{Confinement is a property of the room, not of the tenant (\pdchapref{sealed}{The Sealed Harbor}).}\enspace
   Two owners who trust neither each other nor the venue can still take one
   answer out of a sealed room when its only exit is a metered slot: silence
   except through the slot, a gate on the only enforceable boundary, a budget
   that conserves, and canaries for what the gate cannot prove. What the room
-  cannot promise is stated as a limit, at the same prominence as the claims.%
-  \pdmarginexhibit{sealed-meter}{Egress Quota}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pderror!30,fill=pderror!3,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (3.0,0.15) node[right,font=\fontsize{3.5}{4.5}\selectfont] {$t$};
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (0.3,0.75) node[above,font=\fontsize{3.5}{4.5}\selectfont] {$B$};
-      \draw[draw=pderror,line width=0.6pt,dashed] (0.3,0.65) -- (2.9,0.65) node[pos=0.85,above,font=\fontsize{3.8}{4.8}\selectfont\color{pderror}] {Cap $B_{\max}$};
-      \draw[draw=pdcobalt,line width=0.8pt] (0.3,0.20) -- (1.2,0.40) -- (2.0,0.62) -- (2.3,0.65) -- (2.9,0.65);
-      \node[circle,fill=pderror,inner sep=1pt] at (2.3,0.65) {};
-      \node[font=\fontsize{3.8}{4.8}\selectfont\color{pderror}\bfseries] at (2.4,0.50) {Halt};
-    \end{tikzpicture}%
-  }{Spend ceiling: cumulative egress reaches cap $B_{\max}$ and halts execution.}
+  cannot promise is stated as a limit, at the same prominence as the claims.
 
   \item \textbf{Supervision has an information cost (\pdchapref{ls}{Attention and Supervision}).}\enspace
   A digest cannot guarantee
   that a human will notice any one of many relevant events unless it spends
   enough bits, attention, or artifact openings to distinguish them. A summary
-  is therefore an index into evidence, not a substitute for it.%
-  \pdmarginexhibit{attention-entropy}{Rate-Distortion}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pdcobalt!30,fill=pdcobalt!3,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (3.0,0.15) node[right,font=\fontsize{3.5}{4.5}\selectfont] {$D$};
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (0.3,0.75) node[above,font=\fontsize{3.5}{4.5}\selectfont] {$R$};
-      \draw[draw=pdcobalt,line width=0.9pt] (0.45,0.70) to[out=-70,in=175] (2.8,0.22);
-      \node[font=\fontsize{4.2}{5.2}\selectfont\color{pdcobalt}] at (1.8,0.55) {$R(D) \ge I(X;\hat{X})$};
-    \end{tikzpicture}%
-  }{Information bound: lossy telemetry compression cannot bypass entropy rate.}
+  is therefore an index into evidence, not a substitute for it.
 
   \item \textbf{Accountability must outlive the process (\pdchapref{stp}{From Spawn to Person}).}\enspace
   A task acquires a durable principal, capability history, evidence record, obligations, and
   outcome. Restarting an agent or choosing a new name must not erase that case
-  file or refill the resources it already consumed.%
-  \pdmarginexhibit{spawn-continuity}{Identity Lifeline}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pdhealth!30,fill=pdhealth!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \draw[pdink!70,line width=0.6pt] (0.2,0.55) -- (1.1,0.55) node[pos=0.5,above,font=\fontsize{3.8}{4.8}\selectfont] {Proc 1};
-      \node[font=\fontsize{4.5}{5.5}\selectfont\color{pderror}] at (1.25,0.55) {$\times$};
-      \draw[pdink!70,line width=0.6pt] (1.6,0.55) -- (2.5,0.55) node[pos=0.5,above,font=\fontsize{3.8}{4.8}\selectfont] {Proc 2};
-      \node[font=\fontsize{4.5}{5.5}\selectfont\color{pderror}] at (2.65,0.55) {$\times$};
-      \draw[draw=pdhealth,line width=1.0pt,-{Stealth[length=3pt]}] (0.2,0.22) -- (3.0,0.22) node[pos=0.5,below,font=\fontsize{4.2}{5.2}\selectfont\color{pdhealth}\bfseries] {Durable Ledger $\mathcal{L}$};
-    \end{tikzpicture}%
-  }{Survivorship: transient process dies; case file and obligations persist.}
+  file or refill the resources it already consumed.
 
   \item \textbf{Exchange requires separated instruments (\pdchapref{he}{The Harbor Economy}).}\enspace
   Payment rewards the requested work. Collateral prices a bounded failure. Evidence supports a
   claim. Settlement closes it exactly once. Combining those functions in one
-  score or token makes each of them less trustworthy.%
-  \pdmarginexhibit{tx-instruments}{Four Instruments}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pdgold!40,fill=pdgold!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \node[draw=pdgold!80,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (0.8,0.60) {Payment};
-      \node[draw=pderror!60,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (2.4,0.60) {Escrow};
-      \node[draw=pdcobalt!60,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (0.8,0.25) {Evidence};
-      \node[draw=pdhealth!70,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (2.4,0.25) {Settlement};
-    \end{tikzpicture}%
-  }{Separation: decoupling collateral from payout prevents moral hazard.}
+  score or token makes each of them less trustworthy.
 
   \item \textbf{Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons}).}\enspace
   Some harms cannot be prevented and some outcomes cannot be judged mechanically. Witnesses,
   randomized audits, bounded bonds, appeals, and conservation rules turn that
-  residual uncertainty into a process that can be inspected and contested.%
-  \pdmarginexhibit{econ-reserves}{Bond Escrow}{%
-    \begin{tikzpicture}[x=1cm,y=1cm]
-      \draw[draw=pdviolet!30,fill=pdviolet!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (3.0,0.15) node[right,font=\fontsize{3.5}{4.5}\selectfont] {$t$};
-      \draw[draw=pdink!30,line width=0.4pt,-{Stealth[length=2pt]}] (0.3,0.15) -- (0.3,0.75) node[above,font=\fontsize{3.5}{4.5}\selectfont] {\$};
-      \draw[draw=pdviolet,line width=0.8pt] (0.3,0.55) -- (1.5,0.55) -- (1.5,0.25) -- (3.0,0.25);
-      \node[font=\fontsize{4}{5}\selectfont\color{pderror}] at (1.5,0.68) {Slashing};
-      \node[font=\fontsize{4}{5}\selectfont\color{pdviolet}] at (2.4,0.40) {Reserve};
-    \end{tikzpicture}%
-  }{Collateral: breach of contract triggers deterministic slashing of bond.}
+  residual uncertainty into a process that can be inspected and contested.
 
   \item \textbf{Federation relays evidence, not sovereignty (\pdchapref{fh}{The Federated Harbor}).}\enspace
   Mutually distrustful machines may exchange signed capabilities, revocations, witness
@@ -362,7 +304,7 @@ Classical decision theory models an agent as an expected utility maximizer balan
 
 A resource-bounded agent cannot continuously compute optimal policies from first principles at every millisecond. Practical rationality requires a third mental attitude: \textbf{Intention} ($\mathcal{I}$). Intentions are not merely desires with high utility; they represent \emph{conduct-controlling pro-attitudes to which the agent has actively committed}.
 
-\pdmarginanalogy{prereq-flywheel-governor}{}{ch01-flywheel-governor}{Like a centrifugal flywheel governor mechanically throttling steam to stabilize rotational speed against load shocks, Bratman's practical rationality stabilizes an agent's intentions against transient sensor noise.}%
+\pdmarginanalogy{prereq-flywheel-governor}{}{ch01-flywheel-governor}{Like a centrifugal flywheel governor throttling steam to stabilize rotational speed, practical rationality stabilizes an agent's intentions against transient sensor noise.}%
 Bratman established four defining functional roles of intentions:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ obligates the agent to formulate sub-plans and allocate computational cycles until $\phi$ is satisfied.
@@ -458,15 +400,15 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
-\definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & primary text
-\definecolor{activeCobalt}{HTML}{0B4F9C}    % Selected paradigm & active intention commit
-\definecolor{activeTint}{HTML}{E8F0FE}      % Active deliberation frame fill
-\definecolor{seafoamSuccess}{HTML}{D1E7DD}  % Nominal progression (Exit 0)
-\definecolor{seafoamBorder}{HTML}{0F5132}   % Success accent
-\definecolor{coralRecovery}{HTML}{F8D7DA}   % Failure trap & recovery (-!g, Exit != 0)
-\definecolor{coralBorder}{HTML}{842029}     % Recovery accent
-\definecolor{ingressTint}{HTML}{EEF4C7}     % Requirement / External input specification
+\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
+\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & primary text (ebony)
+\definecolor{activeCobalt}{HTML}{003FB8}    % Selected paradigm & active intention commit (cobalt)
+\definecolor{seafoamBorder}{HTML}{00564C}   % Success accent (teal)
+\definecolor{coralBorder}{HTML}{8B0000}     % Recovery accent (mayday)
+\colorlet{activeTint}{activeCobalt!12!white}
+\colorlet{seafoamSuccess}{seafoamBorder!15!white}
+\colorlet{coralRecovery}{coralBorder!15!white}
+\colorlet{ingressTint}{pdlime!25!white}
 
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
@@ -755,14 +697,14 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
-\definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & invariants
-\definecolor{ingressTint}{HTML}{EEF4C7}     % Ingress: External boundary & input dispatch
-\definecolor{activeCobalt}{HTML}{0B4F9C}    % Active: Mutating execution & hot-path message
-\definecolor{activeTint}{HTML}{E8F0FE}      % Active Container Fill
-\definecolor{remedySeafoam}{HTML}{D1E7DD}   % Recovery: Fault isolation & supervisory remedy
-\definecolor{remedyBorder}{HTML}{0F5132}    % Supervisory Accent
-\definecolor{codeBg}{HTML}{EBECEF}          % Durable evidence record
+\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
+\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & invariants (ebony)
+\definecolor{activeCobalt}{HTML}{003FB8}    % Active: Mutating execution & hot-path message (cobalt)
+\definecolor{remedyBorder}{HTML}{00564C}    % Supervisory Accent (teal)
+\colorlet{ingressTint}{pdlime!25!white}     % Ingress: External boundary & input dispatch
+\colorlet{activeTint}{activeCobalt!12!white} % Active Container Fill
+\colorlet{remedySeafoam}{remedyBorder!15!white} % Recovery: Fault isolation & supervisory remedy
+\colorlet{codeBg}{codebg}                   % Durable evidence record
 
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
@@ -956,18 +898,18 @@ The fundamental divergence between Hewitt's Actor model and Hoare's Communicatin
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
-\definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & invariants
-\definecolor{ingressTint}{HTML}{EEF4C7}     % Ingress: External boundary & input dispatch
-\definecolor{activeCobalt}{HTML}{0B4F9C}    % Active: Mutating execution & hot-path message
-\definecolor{activeTint}{HTML}{E8F0FE}      % Active Container Fill
-\definecolor{remedySeafoam}{HTML}{D1E7DD}   % Recovery: Fault isolation & supervisory remedy
-\definecolor{remedyBorder}{HTML}{0F5132}    % Supervisory Accent
-\definecolor{seafoamSuccess}{HTML}{D1E7DD}  % Nominal success
-\definecolor{seafoamBorder}{HTML}{0F5132}   % Nominal border
-\definecolor{codeBg}{HTML}{EBECEF}          % Durable evidence record
-\definecolor{hazardTint}{HTML}{F8D7DA}      % Deadlock hazard tint
-\definecolor{hazardBorder}{HTML}{842029}    % Deadlock hazard border
+\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
+\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & invariants (ebony)
+\definecolor{activeCobalt}{HTML}{003FB8}    % Active: Mutating execution & hot-path message (cobalt)
+\definecolor{remedyBorder}{HTML}{00564C}    % Supervisory Accent (teal)
+\definecolor{hazardBorder}{HTML}{8B0000}    % Deadlock hazard border (mayday)
+\colorlet{ingressTint}{pdlime!25!white}
+\colorlet{activeTint}{activeCobalt!12!white}
+\colorlet{remedySeafoam}{remedyBorder!15!white}
+\colorlet{seafoamSuccess}{remedyBorder!15!white}
+\colorlet{seafoamBorder}{remedyBorder}
+\colorlet{codeBg}{codebg}
+\colorlet{hazardTint}{hazardBorder!15!white}
 
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
@@ -1675,8 +1617,8 @@ Figure~\ref{fig:big-brother-logic} formalizes directed observation cones, episte
 \begin{figure}[p]
 \centering
 \makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
-\providecolor{charcoal}{HTML}{1A1A1A}
-\providecolor{swissCanvas}{HTML}{F8F9FA}
+\providecolor{charcoal}{HTML}{121212}
+\providecolor{swissCanvas}{HTML}{F8F8F8}
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   agentNode/.style={draw=charcoal,line width=1.1pt,fill=white,rounded corners=2pt,align=center,inner sep=5pt},
   focusNode/.style={draw=pdcobalt,line width=1.3pt,fill=pdcobalt!8,rounded corners=2pt,align=center,inner sep=5pt},
@@ -2011,7 +1953,7 @@ Modern agent harnesses resolve this dilemma via \textbf{Three-Tier Progressive D
   \item \textbf{Tier 3 (Deep Reference and Subprocess Execution):} Beneath the instruction manual lies the deepest architectural layer: specialized executable scripts (\path{scripts/}), schemas, and large reference manuals (\path{references/}), spanning $10^4$--$10^5$ tokens. Crucially, the agent \emph{does not load Tier~3 assets into its language context}. Instead, Tier~2 instructs the agent to execute Tier~3 scripts in an isolated host subshell or query specific byte offsets on demand. Because invoking a specialized script or deep reference is needed only for esoteric domain edge-cases, its execution probability is orders of magnitude lower ($P \approx 10^{-3}$ to $10^{-4}$).
 \end{enumerate}
 
-\providecolor{pdcyan}{HTML}{00859B}
+\providecolor{pdcyan}{HTML}{006B5F}
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
@@ -2115,16 +2057,16 @@ Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section o
 
 \begin{figure}[p]
 \centering
-\definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
-\definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & primary text
-\definecolor{activeCobalt}{HTML}{0B4F9C}    % Active deliberation & execution dispatch
-\definecolor{activeTint}{HTML}{E8F0FE}      % Active context fill
-\definecolor{ingressTint}{HTML}{EEF4C7}     % Lifecycle initialization & prompt intake
-\definecolor{seafoamSuccess}{HTML}{D1E7DD}  % Deterministic hygiene & Exit 0 pass
-\definecolor{seafoamBorder}{HTML}{0F5132}   % Hygiene accent
-\definecolor{coralVeto}{HTML}{F8D7DA}       % Pre/Post security veto & Exit 2 block
-\definecolor{coralBorder}{HTML}{842029}     % Veto accent
-\definecolor{sandboxBg}{HTML}{F1F3F5}       % Sandboxed boundary / context lifeline
+\definecolor{swissCanvas}{HTML}{F8F8F8}     % Neutral canvas ground (codebg)
+\definecolor{charcoal}{HTML}{121212}        % Structural boundaries & primary text (ebony)
+\definecolor{activeCobalt}{HTML}{003FB8}    % Active deliberation & execution dispatch (cobalt)
+\definecolor{seafoamBorder}{HTML}{00564C}   % Hygiene accent (teal)
+\definecolor{coralBorder}{HTML}{8B0000}     % Veto accent (mayday)
+\colorlet{activeTint}{activeCobalt!12!white}
+\colorlet{ingressTint}{pdlime!25!white}
+\colorlet{seafoamSuccess}{seafoamBorder!15!white}
+\colorlet{coralVeto}{coralBorder!15!white}
+\colorlet{sandboxBg}{codebg}
 
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
   >=Stealth,
@@ -2833,6 +2775,12 @@ The remainder of this textbook is organized into eight cumulative chapters acros
   \item \textbf{Chapter 7: The Bonded Commons (Game-Theoretic Governance).} We formalize claim signaling as an incentive-compatible repeated game, proving when cooperation is sustained under bonded escrow.
   \item \textbf{Chapter 8: The Federated Harbor (Cross-Machine Consensus).} We extend governance across distrustful host boundaries via witness logs and sheaf-theoretic consistency without central sovereignty.
 \end{itemize}
+
+
+
+
+
+
 
 
 
