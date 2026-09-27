@@ -1,14 +1,15 @@
-# references Index
+# Reference index
 
-Imported source material. Load the file whose stated topic matches the current question.
+Reconciled source analysis and application proposals; each file states its evidence boundary.
 
-| File | Topic |
+| Reference | Topic |
 |---|---|
-| [bridging-knowledge-and-action-gap.md](bridging-knowledge-and-action-gap.md) | The Gap Between Knowing and Doing: How ReAct Bridges Internal Knowledge and External Action |
-| [decomposition-through-explicit-subgoaling.md](decomposition-through-explicit-subgoaling.md) | Problem Decomposition Through Explicit Subgoaling: How Thoughts Create Structure |
-| [failure-modes-and-error-propagation.md](failure-modes-and-error-propagation.md) | Failure Modes and Error Propagation: What ReAct Reveals About Complex System Failures |
-| [hierarchical-abstraction-in-agent-reasoning.md](hierarchical-abstraction-in-agent-reasoning.md) | Hierarchical Abstraction in Agent Reasoning: How Thought Levels Enable and Constrain Action |
-| [human-interpretability-and-controllability.md](human-interpretability-and-controllability.md) | Human Interpretability and Controllability: How Explicit Reasoning Enables Human-Agent Collaboration |
-| [learning-reasoning-acting-patterns.md](learning-reasoning-acting-patterns.md) | Learning to Reason and Act: What Training Data Should Capture |
-| [reasoning-action-synergy-in-agent-systems.md](reasoning-action-synergy-in-agent-systems.md) | Reasoning-Action Synergy: Why Thinking and Doing Must Interleave |
-| [uncertainty-and-confidence-in-agent-decisions.md](uncertainty-and-confidence-in-agent-decisions.md) | Uncertainty and Confidence in Agent Decision-Making: When to Act vs. When to Reason |
+| [bridging-knowledge-and-action-gap](bridging-knowledge-and-action-gap.md) | The Gap Between Knowing and Doing: ReAct Examples of Reasoning and Action |
+| [decomposition-through-explicit-subgoaling](decomposition-through-explicit-subgoaling.md) | Problem Decomposition Through Explicit Subgoaling: How Thoughts Create Structure |
+| [failure-modes-and-error-propagation](failure-modes-and-error-propagation.md) | Failure modes and evidence-preserving recovery |
+| [hierarchical-abstraction-in-agent-reasoning](hierarchical-abstraction-in-agent-reasoning.md) | Hierarchical teaching models for ReAct-style trajectories |
+| [human-interpretability-and-controllability](human-interpretability-and-controllability.md) | Human Interpretability and Controllability: What Explicit Reasoning Can Expose |
+| [learning-reasoning-acting-patterns](learning-reasoning-acting-patterns.md) | Learning reasoning-action procedures with source and evaluation boundaries |
+| [reasoning-action-synergy-in-agent-systems](reasoning-action-synergy-in-agent-systems.md) | Reasoning/action feedback: methods and evidence boundaries |
+| [source-evaluation-and-controller-contract](source-evaluation-and-controller-contract.md) | Source evaluation and controller contract |
+| [uncertainty-and-confidence-in-agent-decisions](uncertainty-and-confidence-in-agent-decisions.md) | Uncertainty and Confidence in Agent Decision-Making: When to Act vs. When to Reason |

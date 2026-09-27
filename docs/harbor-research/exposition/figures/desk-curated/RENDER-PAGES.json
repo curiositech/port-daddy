@@ -66,7 +66,12 @@
   "fig-fh-settlement": 430,
   "fig-pareto-dominance": 375,
   "fig-sybil-deposit-floor": 376,
-  "fig-cartel-folk-theorem": 378
+  "fig-cartel-folk-theorem": 378,
+  "legible-swarm-plan-revision": 611,
+  "legible-swarm-judge-dependence": 621,
+  "legible-swarm-obligation-coverage": 631,
+  "swk-unknown-effect": 601
  },
- "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other."
+ "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other.",
+ "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged."
 }

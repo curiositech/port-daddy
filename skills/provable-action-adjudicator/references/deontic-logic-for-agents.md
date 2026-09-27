@@ -1,61 +1,62 @@
-# Deontic Logic for Agent Action Policies: O, F, P and Contrary-to-Duty Obligations
+# Obligations, prohibitions, permissions, and repair duties
 
-Standard access control engines (XACML, Rego, Cedar) operate in a binary permit/deny world. Real policy languages are trimodal: **O(do x)** — the agent is obligated to perform x; **F(do x)** — x is forbidden (equivalently O(¬do x)); **P(do x)** — x is permitted, meaning ¬F(do x). The three are interdefined: F(do x) ≡ ¬P(do x), P(do x) ≡ ¬O(¬do x). An obligation O(do x) without a corresponding permission P(do x) is incoherent — it demands an action while forbidding it — and is a contradiction the policy DAG compilation step must catch.
+Use this reference to design an explicit policy semantics. It is not evidence that Port Daddy runs a deontic engine, Soufflé compiler, or complete reference monitor.
 
-## Standard Deontic Logic (SDL) and Its Failure Modes
+## State the logic before deriving permissions
 
-SDL treats O, F, P as modal operators over a Kripke frame where accessibility relates "ideal" worlds. The problematic theorem is **deontic explosion**: from O(p) and O(p → q), SDL derives O(q), even when q is independently forbidden. This is harmless in legal philosophy but catastrophic in an enforcement engine — you cannot let obligation-chaining silently permit forbidden actions. The adjudicator avoids this by treating deontic operators as annotated predicates in Datalog, not modal operators in a classical frame. No logical closure; only explicit rules derive new obligations.
+Write `O(p)` for an obligation, `F(p)` for a prohibition, and `P(p)` for permission. In a normal deontic formalization one may define `F(p) = O(not p)` and weak permission `P(p) = not O(not p)`. An explicit operational grant is different from the absence of a prohibition: missing facts, an expired grant, and a proved denial need distinct treatment at a real effect boundary.
 
-## Input/Output Logic (Makinson and van der Torre, 2000)
+Do not assume every policy system shares these interdefinitions. Pin the chosen semantics and specify how conflicts, missing information, time and authority map to `ALLOW`, `DENY`, or `INDETERMINATE`. The derivation from `O(p)` and `O(p implies q)` to `O(q)` is ordinary modal distribution, not by itself a derivation of arbitrary conclusions. Calling it “deontic explosion” obscures the actual conflict and consistency assumptions. An explicit rule engine still needs a defined inference semantics; naming its predicates `oblige` or `deny` does not solve consistency.
 
-Makinson–van der Torre reformulate deontic logic as an **input/output system**: a set of pairs (a, x) read "given condition a, output norm x." The output logic is not classical entailment — you cannot feed an output back as input without explicit throughput rules, preventing the runaway-obligation problem. Four variants matter:
+## What the cited input/output logic establishes
 
-- **Simple-minded output (out₁):** {x : (a,x) ∈ G, A ⊢ a} — ground truth normative consequents given facts A.
-- **Basic output (out₂):** Closes under AND-elimination and weakening in the output only.
-- **Reusable output (out₃):** Allows putting outputs back into the input set when computing further outputs — this is where cycles become dangerous; restrict to stratified acyclic norm sets.
-- **Basic reusable output (out₄):** out₂ + out₃.
+[Makinson and van der Torre, Input/Output Logics (2000)](https://icr.uni.lu/leonvandertorre/papers/jpl00.pdf), sections 3–5, distinguishes simple-minded output, basic output, and reusable versions of each. With classical consequence `Cn`, simple-minded output is `out1(G,A) = Cn(G(Cn(A)))`. Its rules include strengthening inputs, conjoining outputs and weakening outputs. Basic output adds disjunctive-input reasoning; reusable variants add cumulative transitivity. Non-reusable does not mean “no logical closure,” and the paper does not establish a universally safe enforcement-engine default. The previous bare set-of-fired-heads formula omitted closure and mischaracterized basic output. Accessed 2026-09-24: author-hosted paper metadata and those sections; no local implementation correspondence was proved.
 
-In the adjudicator's policy DAG, each norm is an (a, x) pair where a is a Datalog conjunction over the substrate (agent ID, target resource, provenance chain) and x is a deontic conclusion (`permit(Action)`, `oblige(Action, postcondition)`, `deny(Action)`). Out₁ is the safe default for an enforcement engine — no output recycling, no risk of norm cascade.
+For an implementation, publish the exact supported fragment, rule closure, negation/missing-fact behavior, cycle handling and conflict query. Prove or test that translation for its stated scope instead of claiming that arbitrary Datalog realizes one of the paper's operators.
 
-**Concrete mapping:** The policy rule "if the agent reads PII, then it must log the access" is the pair (reads_pii(Agent, Resource), O(log_access(Agent, Resource, Timestamp))). At runtime, Datalog fires this to produce an `obligation` record. The reference monitor checks the obligation record before allowing the action to proceed and attaches the postcondition to the action execution envelope.
+## Existing policy languages are not one binary abstraction
 
-## Contrary-to-Duty (CTD) Obligations
+- [XACML 3.0 sections 7.17–7.18](https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html) define Permit, Deny, Indeterminate and NotApplicable decisions, with obligations and advice. Returning an obligation does not prove its external fulfillment.
+- [Rego](https://www.openpolicyagent.org/docs/policy-language) reasons over structured documents and supports author-defined rules and decisions; describing the language as intrinsically a binary permit/deny model is too narrow.
+- [Cedar](https://docs.cedarpolicy.com/policies/syntax-policy.html#effect) defines permit and forbid policies, with implicit denial absent an applicable permit and overriding applicable forbids. That operational rule is not the same as deriving a grant from weak permission in a modal logic.
 
-A CTD obligation fires when a primary obligation has already been violated: "agents must not access credentials directly (primary); if they do, they must immediately rotate the credential (CTD)." SDL cannot represent CTDs without paradox (Chisholm's paradox, 1963). The standard resolution is **two-level normative systems**: primary norms at level L1, reparative/compensatory norms at level L2 that only activate when L1 is violated.
+These are source-level distinctions, checked against official documentation on 2026-09-24, not benchmark comparisons or evidence of integrations here.
 
-In the adjudicator this maps to enforcement modes:
+## Concrete proposed obligation record
 
-- **Preventive mode** (L1): The action is blocked before execution if it violates O or F.
-- **Corrective mode** (L2): If a hard-prevent fails or a soft constraint is violated, a CTD obligation triggers a compensating action (credential rotation, rollback, alert). The corrective obligation is itself a deferrable action, must be queued and tracked to completion, and failure to execute the correction is itself a new violation that escalates.
+For a protected data read, a **local design** might require an audit intent before dispatch and a completion receipt afterward. Keep these separate:
 
-CTD tracking requires the provenance DAG to record violations as first-class events. A Datalog rule then joins on violation records: `oblige_corrective(Agent, Action) :- violation(Agent, PrimaryAction, T), not corrected(Agent, PrimaryAction).`
+```json
+{
+  "obligationId": "illustrative-read-audit-1",
+  "sourcePolicyDigest": "<pinned digest>",
+  "trigger": "<exact authorized read intent>",
+  "phase": "post-effect",
+  "owner": "<authorized audit writer>",
+  "deadlinePolicy": "<declared policy>",
+  "satisfactionEvidence": "<durable receipt locator or unknown>",
+  "repairAuthority": "<separate grant, if needed>"
+}
+```
 
-## Conflict Resolution: When O and F Collide
+This is a conceptual record, not a validated wire schema. Specify which obligations are preconditions and which become due afterward. A postcondition cannot be established before its event merely by attaching it to an envelope. Preserve partial completion and ambiguous effects.
 
-Policy conflicts — O(do x) and F(do x) in the same rule set — are compile-time errors, not runtime decisions. The policy DAG contradiction check (Soufflé's magic-sets evaluation) must flag this before deployment. For temporal conflicts (O(do x) in one time window, F(do x) in another), the resolution rule is temporal precedence with explicit override: the more specific time window wins, and ties escalate to human review.
+## Contrary-to-duty repair
 
-When legitimate normative conflict exists (two organizational policies with different authorities), use a **priority ordering** over norm sources: regulatory > organizational > operational. The adjudicator's rule selection applies the highest-priority applicable rule; lower-priority conflicting rules are preempted and logged.
+A repair duty is triggered after a primary duty is violated. For example, unauthorized credential exposure may trigger containment and a separately authorized rotation. Record the violation, current credential generation, accountable owner, deadline policy, repair permit and independent completion evidence. Rotation is a new consequential effect; the duty does not mint authority to execute it. Preserve the original violation even after repair succeeds.
 
-## Mapping to Port Daddy Permission Model
+A two-stage primary/repair workflow is one useful implementation proposal, not a theorem that all contrary-to-duty reasoning requires exactly two levels or is impossible in every other formalism. An unresolved or failed repair remains an obligation state with its own escalation policy.
 
-Port Daddy permissions are capability grants: a service claims a port identity and receives scoped access to coordination primitives (sessions, notes, claims, locks). The deontic mapping:
+## Detecting and resolving policy conflicts
 
-- **P(do x):** Port Daddy issues a capability (claim, lock, note) to an agent identity — explicit grant.
-- **F(do x):** No capability issued AND the action type is in the deny list for that identity scope.
-- **O(do x):** Post-conditions attached to session lifecycle: `begin_session` creates O(end_session_full) — the agent is obligated to close its session. Failure triggers the CTD: Port Daddy marks the session as abandoned and runs `pd salvage`.
+Reject statically detectable contradictions in the supported fragment. Context-dependent authority, facts and time can expose additional conflicts during evaluation; retain `INDETERMINATE` or the declared conflict result rather than assuming compilation resolved everything.
 
-The adjudicator's substrate query for Port Daddy actions includes `session_active(Agent)`, `capability_held(Agent, CapType)`, and `prior_violation(Agent, Window)`. A DENY verdict for `pd claim_port` when `session_active = false` maps to F(claim_port) unless the agent has an active session context — a precondition obligation, not a capability check.
+[Soufflé magic-set transformation](https://souffle-lang.github.io/magicset) optimizes evaluation by avoiding irrelevant intermediate tuples. It is not an automatic contradiction detector. An application must define its own conflict relations, their semantics and tests.
 
-## Key Points
+Do not impose a universal source-priority hierarchy or “most specific time window wins” rule. Record the policy owner's authorized precedence, scope, override conditions and tie behavior. An illustrative conflict query is “the same grounded action, principal, scope and interval is both required and forbidden”; the implementation must define those joins and its treatment of incomplete inputs.
 
-- O, F, P are interdefined: implement exactly one as primitive; derive the others. Implementing all three independently creates inconsistency risk.
-- Use Makinson–van der Torre out₁ (no output recycling) as the policy output logic in enforcement engines — it prevents obligation cascade without explicit throughput rules.
-- Contrary-to-duty obligations require a two-level normative system and provenance DAG violation records; they cannot be represented as simple Datalog rules without tracking violation state.
-- Policy contradictions (O(x) and F(x) for the same action type) are compile-time failures, not runtime decisions. The policy DAG compilation step must catch them with Soufflé contradiction checking before deployment.
-- Port Daddy's capability model maps cleanly to P (capability granted) and F (capability absent + deny-list), but O (lifecycle obligations like must-end-session) requires the adjudicator's obligation tracking layer that Port Daddy's native enforcement does not provide.
+## Mapping to an agent coordination system
 
-## See Also
+A proposed mapping can bind an explicit permission to a scoped grant and a lifecycle duty to an obligation record. A cooperative file claim, port allocation, session status or note is not automatically such a grant. Verify the actual enforcement point and authority semantics in source and separately in runtime evidence before describing a product behavior. Under the local runtime halt, keep that implementation claim unestablished and do not start a runtime to fill the gap.
 
-- `SKILL.md §Deontic operators` — brief operator survey; this document is the deep reference for that section.
-- `references/datalog-policy-dag.md` — how norms compile to Soufflé rules and the contradiction-detection query.
-- Makinson & van der Torre (2000), "Input/Output Logics," Journal of Philosophical Logic 29(4):383–408 — the canonical formalization; out₁–out₄ taxonomy originates here.
+Review with the [claim and threat-model reference](claim-ladder-and-threat-model.md) and [external source ledger](source-ledger.md). No missing `datalog-policy-dag.md` or nonexistent entrypoint section is required by this repaired reference.

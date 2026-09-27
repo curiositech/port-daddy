@@ -1,157 +1,125 @@
-# The Feasibility-Effect Gap: Why Agent Communication Cannot Guarantee Outcomes
+# Separating feasibility preconditions, rational effects, and observed outcomes
 
-## Core Principle
+Use the FIPA Communicative Act Library (CAL) model to make a *semantic* claim about an act, then record protocol and world evidence separately. XC00037H is an experimental historical specification, read in full from the archived **H** PDF on 2026-09-24; the later canonical J endpoint was not accessible. This reference does not claim conformance by a current transport or agent runtime.
 
-The FIPA ACL specification makes a foundational architectural choice that every agent system designer must internalize: **every communicative act has feasibility preconditions (FP) that determine when it can be rationally performed, and rational effects (RE) that represent what the sender intends to achieve—but achieving the RE is never guaranteed.**
+## Operator glossary
 
-This is not a bug or limitation. It is the formal recognition that in a multi-agent system, **agents are autonomous**. No agent can force another agent's mental states or actions. This separation is the difference between building a distributed system of independent reasoners versus building a monolithic system with message-passing as an implementation detail.
+The notation below is the CAL's formal-language notation, not a wire receipt.
 
-## The Formal Structure
+| Term | Use in the reviewed H source | Do not read it as |
+| --- | --- | --- |
+| `B_i φ` | Agent `i` believes proposition `φ`. | An independently verified fact about the world. |
+| `I_i φ` | Agent `i` intends `φ`. | A command that another agent must carry out. |
+| `U_i φ` | Agent `i` is uncertain about `φ`. | A measured probability or confidence score. |
+| `Bif_i φ` | `B_i φ ∨ B_i ¬φ`: `i` believes one truth value. | “`φ` is true.” |
+| `Uif_i φ` | `U_i φ ∨ U_i ¬φ`: uncertainty about one truth value. | A delivery status. |
+| `Done(a)` | The source's action-completion predicate in its semantic model. | A database readback, physical effect, or audit event. |
+| `FP(a)[i\j]` | The part of action `a`'s feasibility preconditions that concerns `i` when `j` is the requested actor. | A capability check performed by a particular implementation. |
+| `Agent(j,a)` | `j` is the actor of action expression `a`. | Authentication or authorization of a network principal. |
+| `PG_j Done(a)` | Persistent goal that action a be done; §5.2.1 distinguishes persistent goals from intentions. | Evidence that `j` will or did complete `a`. |
 
-For any communicative act, the specification defines:
+The source divides FPs into **ability** preconditions (for example, sincere belief before an assertive) and **context-relevance** preconditions (for example, not needlessly repeating information). That distinction is useful during interpretation: it says why an act is a candidate in the model; it does not decide whether a receiver accepts it.
 
-```
-<i, act(j, content)>
-  FP: φ₁  (feasibility preconditions)
-  RE: φ₂  (rational effect)
-```
+## Read an act in four ledgers
 
-**Feasibility Preconditions**: These are conditions on the sender's mental state that must hold for the act to be rational to perform. For an inform act:
+For every act, write one row in each ledger before treating it as a meaningful result.
 
-```
-<i, inform(j, φ)>
-  FP: Bᵢφ ∧ ¬Bᵢ(Bᵢfⱼφ ∨ Uᵢfⱼφ)
-  RE: Bⱼφ
-```
-
-Translation: "Agent i can inform j that φ if i believes φ AND i doesn't believe that j already knows whether φ is true or likely true."
-
-**Rational Effect**: This is what the sender intends to achieve. For inform, the RE is Bⱼφ—that j comes to believe φ. But this is i's *intention*, not a guaranteed outcome.
-
-## Why the Gap Exists
-
-The specification states explicitly (Property 4, section 5.3.4): "When an agent observes a CA, it should believe that the agent performing the act has the intention to achieve the rational effect of the act." Note: *should believe the sender has the intention*, not *should adopt the belief*.
-
-Three fundamental reasons prevent guaranteed effects:
-
-1. **Autonomy**: Agent j may distrust i, have conflicting information, or use different reasoning methods. j is *entitled* to believe that i believes φ, but whether j *adopts* φ depends on j's trust model, prior beliefs, and rationality criteria.
-
-2. **Feasibility vs. Success**: Even if i satisfies all FPs, j may be unable to perform the requested action. The specification models this with the refuse act: j can inform i that the requested action is not feasible from j's perspective.
-
-3. **Asynchrony and Timing**: By the time j receives and processes the message, the world may have changed. The RE represents i's intention *at the time of sending*, not a guarantee about future states.
-
-## Implications for Agent System Design
-
-### 1. Never Assume Compliance
-
-When your orchestration system sends a request to an agent:
-
-```
-<orchestrator, request(worker, perform-task)>
-  FP: FP(perform-task)[orchestrator\worker] ∧ 
-      Bₒᵣcₕₑₛₜᵣₐₜₒᵣ Agent(worker, perform-task) ∧ 
-      ¬Bₒᵣcₕₑₛₜᵣₐₜₒᵣ Iworker Done(perform-task)
-  RE: Done(perform-task)
+```mermaid
+flowchart LR
+    A[Formal act and content] --> B[FP: why the sender may plan it]
+    B --> C[RE: intended semantic result]
+    A --> D[Observed message: transport record]
+    D --> E[Receiver protocol response]
+    E --> F[Independent artifact or world-state check]
+    C -. does not establish .-> D
+    C -. does not establish .-> F
 ```
 
-**Do not proceed as if the task will be done.** The RE is orchestrator's intention. The worker may:
-- Send refuse (cannot do it)
-- Send agree but then failure (tried but failed)
-- Send agree and succeed (the happy path)
-- Not respond at all (timeout case)
+1. **CAL semantics.** Preserve the act, its content, FP, and RE exactly enough to inspect the intended interpretation.
+2. **Message observation.** Record the actual message identifier, sender/receiver names as asserted by the transport, and receive time. This is evidence that a message was observed, subject to the transport's own rules.
+3. **Protocol disposition.** Record an `agree`, `refuse`, `failure`, `inform`, or no response as a message-level event. A local timeout means only that this observer did not receive the expected response within its policy window.
+4. **Effect evidence.** For a consequential claim, read an appropriate target state or obtain an independently specified receipt. Bind it to the requested object, version, authority, and observation time.
 
-Your system must explicitly handle all these outcomes. The specification forces you to design for the realistic case: agents don't comply, they negotiate.
+This procedure makes the uncertainty inspectable without turning the CAL into a modern delivery, identity, or storage standard.
 
-### 2. Design for Explicit Rejection
+## Source-correct core forms
 
-The specification includes refuse and failure as first-class acts precisely because non-compliance is normal:
+The H annex gives the operationalised `inform` model as:
 
-```
-<worker, refuse(orchestrator, <worker, perform-task>, reason)>
-  FP: Bworker ¬Feasible(<worker, perform-task>) ∧ 
-      Bworker(Bₒᵣcₕₑₛₜᵣₐₜₒᵣ Feasible(<worker, perform-task>) ∨ 
-              Uₒᵣcₕₑₛₜᵣₐₜₒᵣ Feasible(<worker, perform-task>))
-  RE: Bₒᵣcₕₑₛₜᵣₐₜₒᵣ ¬Feasible(<worker, perform-task>)
-```
+\[
+\langle i, \operatorname{INFORM}(j,\varphi)\rangle
+\quad FP: B_i\varphi \land \neg B_i(Bif_j\varphi \lor Uif_j\varphi)
+\quad RE: B_j\varphi.
+\]
 
-The worker explicitly informs the orchestrator that the task is not feasible. This is not an error—it's a rational response. Your orchestration layer must treat refuse as valuable information: "I asked agent X to do Y, X has informed me it cannot, what's my next step?"
+Read it in two passes. The ability condition is that `i` believes `φ`. The relevance condition says `i` does not believe `j` already has a belief or uncertainty attitude about `φ`. Its `RE` is a receiver belief attitude in the model. It is not a claim that `φ` is true, that `j` received a packet, or that a service changed state.
 
-### 3. Model Intentions, Not Commands
+The H informative annex (§5.4.2) prints this directive `request` model; the main §3.19 form differs as noted below:
 
-The specification's formalism treats all communication as *informing about intentions*:
+\[
+\langle i, \operatorname{REQUEST}(j,a)\rangle
+\quad FP: FP(a)[i\backslash j] \land B_i\operatorname{Agent}(j,a)
+       \land B_i\neg PG_j\operatorname{Done}(a)
+\quad RE: \operatorname{Done}(a).
+\]
 
-```
-<i, request(j, a)> ≡ 
-  "i informs j that i intends that j performs action a"
-```
+Here `a` is an action expression. The H document prints two different request forms: the main act definition in §3.19 uses `¬B_i I_j Done(a)`, while this informative annex (§5.4.2) uses `B_i ¬PG_j Done(a)`. Both are present in the reviewed source. Do not silently substitute one for the other or claim they are equivalent: their operators and placement of negation differ. Section 5.2.1 defines `PG` as persistent goal and intention as a persistent goal imposing action; that prose alone is not a proof that the two full FP expressions are equivalent. Neither RE is an observed external completion. The source says that a directive's content can itself be an action expression; it does not assign a transport acknowledgement, deadline, authentication rule, or effect receipt.
 
-Not: "i commands j to do a"
-Not: "i expects j to do a"
+## Procedure: interpret an `inform` and test the evidence boundary
 
-This is subtle but critical. In a command-control architecture, failed compliance is a system failure. In an intention-based architecture, failed compliance is *data*—it tells you about the world (j cannot or will not do a) and triggers replanning.
+Suppose dispatcher `d` tells monitor `m` that a job record has status `ready`.
 
-### 4. Use Agree/Refuse to Model Commitment
+1. Set `φ = ready(job_17)` and write the CAL row as `⟨d, INFORM(m, φ)⟩`.
+2. Ask the **semantic** questions: does `d` model `B_d φ`? Does `d` model the relevance condition? If either answer is unavailable, mark the FP assessment `unknown`; do not manufacture a belief state from a log line.
+3. Record the message observation separately, for example `acl-184 received by m at T1`. This establishes only the stated observation.
+4. If `m` replies, record its actual act and content. A returned `inform` can report `B_m φ` under the model; it is still not a target-system readback.
+5. If the claim is “job 17 is ready in the scheduler,” query the scheduler's designated state interface and retain the returned version/receipt as the effect-evidence row.
 
-The specification provides agree as a way for j to inform i that j *does* intend to perform the action:
+**Hand check — positive semantic case.** Assume `B_d ready(job_17)` and `¬B_d(Bif_m ready(job_17) ∨ Uif_m ready(job_17))`. The two conjuncts satisfy this *operationalised* `inform` FP, so `inform` is the source-selected assertive model. If the scheduler readback at `T2` says `ready`, the final claim may say: “the dispatcher sent the act, and the scheduler was observed ready at `T2`.” It may not collapse those two observations into proof that `m` adopted the belief.
 
-```
-<j, agree(i, <j, action>, φ)> ≡
-  <j, inform(i, Iⱼ Done(<j, action>, φ))>
-```
+**Hand check — negative relevance case.** Keep `B_d ready(job_17)` but assume `B_d B_m ready(job_17)`. The source's relevance conjunct fails. Sending a message may still be possible in an application, but this reference must not label that send as satisfying the CAL `inform` FP. If a transport retries it, that is a local transport policy, not a repaired FIPA formula.
 
-This creates a social commitment: j has publicly stated an intention. But even this is not a guarantee—j may later fail and send failure:
+## Procedure: interpret a request without treating it as a command
 
-```
-<j, failure(i, action, reason)>
-```
+For `⟨d, REQUEST(r, deliver(parcel_4))⟩`:
 
-Your orchestration system should track these commitment states: requested → (agreed | refused) → (done | failed). This state machine is not implementation detail—it's fundamental to multi-agent coordination.
+1. Preserve the requested action expression, including its actor: `a = ⟨r, deliver(parcel_4)⟩`.
+2. Evaluate only the request formula's sender-side conditions as formal assumptions: `FP(a)[d\r]`, `B_d Agent(r,a)`, and `B_d ¬PG_r Done(a)`.
+3. Store a distinct application authorization decision if the transport needs one. `Agent(r,a)` is not that decision.
+4. Await actual subsequent acts. `agree` communicates an intention about an action under a stated condition; `refuse` communicates a refusal with a reason; neither is a parcel-delivery receipt.
+5. For delivery, examine the designated custody or destination record. If it cannot be observed, report the effect as `unverified`.
 
-## The Alternative: Synchronized Distributed Systems
+| Observed trace | What can be said | What remains unlicensed |
+| --- | --- | --- |
+| `request` sent | The sender emitted a request message. | `r` accepted, received, or performed it. |
+| `agree` received | `r` communicated the agreement's semantic content. | The action is complete. |
+| `failure` received | `r` reported the failure content. | The external action never partially occurred. |
+| no reply by local deadline | The observer's deadline passed without the expected reply. | `r` refused, crashed, or never received the request. |
+| target-state receipt | The named evidence source observed its claimed state. | Any broader state not covered by that source. |
 
-If you need guaranteed execution, you don't have a multi-agent system—you have a distributed system with synchronized components. The FIPA model explicitly rejects this:
+## How to state a result
 
-- In synchronized systems: send(command) blocks until acknowledged
-- In agent systems: send(request) returns immediately; outcome is learned through subsequent messages
+Use a layered sentence: “At `T1`, monitor `m` observed an ACL `inform` from `d` with content `ready(job_17)`; at `T2`, the scheduler's state readback reported version `v9` as ready.” This preserves the model's mental-attitude claim, the message observation, and the independently observed target state.
 
-The FIPA approach scales better (no blocking), handles failure gracefully (explicit refuse/failure messages), and models realistic scenarios (agents have private goals and may rationally decline requests).
+Do not state “FIPA guarantees delivery,” “an `inform` proves `φ`,” “an `agree` completes the action,” or “a timeout proves refusal.” XC00037H itself treats rational effects as planning semantics and says some operational uses fall outside that formal semantics.
 
-## Practical Design Pattern: Request-Agree-Inform
+## Original-heading disposition ledger
 
-A robust multi-agent protocol:
+| Original substantive heading | Retained, corrected, or removed | Destination and reason |
+| --- | --- | --- |
+| Core Principle | Corrected and retained | “Read an act in four ledgers”; replaced universal outcome prose with source-scoped semantic/evidence separation. |
+| The Formal Structure | Corrected and retained | “Source-correct core forms”; preserves the operationalised `inform` and distinguishes the main/annex `request` formulas. |
+| Why the Gap Exists | Retained | “Read an act in four ledgers”; autonomy/observation distinction is reframed without unsupported timing claims. |
+| Implications for Agent System Design / Never Assume Compliance | Retained | “Procedure: interpret a request”; replaces invented request formula and command language with a hand-checkable trace. |
+| Design for Explicit Rejection | Retained | request outcome table; keeps `refuse` as a message disposition, not proof about a world effect. |
+| Model Intentions, Not Commands | Corrected and retained | request procedure and result wording; source form is a directive with `RE: Done(a)`, so it is not paraphrased as a mere sender inform. |
+| Use Agree/Refuse to Model Commitment | Corrected and retained | request procedure and outcome table; agreement/refusal are distinguished from effect evidence. |
+| The Alternative: Synchronized Distributed Systems | Removed | The source reviewed does not establish the asserted comparison, blocking behavior, or scaling claim. |
+| Practical Design Pattern: Request-Agree-Inform | Retained | request procedure and trace table; the pattern is now labelled an interpretation workflow, not a required protocol. |
+| When Does This Matter Most and four subheadings | Removed | The domain-specific trust, scale, and robot claims were not sourced by XC00037H. |
+| The Deep Lesson | Removed | Replaced by source-bounded reporting guidance; the original universal conclusion was not a formal or empirical result of the reviewed PDF. |
 
-1. **Orchestrator requests**: "Do you intend to perform X?"
-2. **Agent responds with agree or refuse**: "Yes, I will when φ holds" or "No, because ψ"
-3. **Agent later informs of completion or failure**: "X is done" or "X failed because ω"
+## Source and access boundary
 
-Each step is a separate communicative act with its own FP and RE. The orchestrator never assumes compliance—it waits for explicit confirmation at each stage.
-
-## When Does This Matter Most?
-
-### High Autonomy Domains
-When agents represent independent organizations, humans, or systems with private objectives. A supply chain where each company's agent has its own goals—requests are negotiations, not commands.
-
-### Failure-Prone Environments
-When actions can fail for environmental reasons. A robot swarm where each robot may lose power, encounter obstacles, or have sensor failures—the orchestrator must track explicit success/failure reports.
-
-### Trust-Limited Systems
-When agents may be unreliable or adversarial. A market where agents may lie, defect, or have incentive to misreport—the gap between RE and actual outcome captures this trust problem formally.
-
-### Scale and Latency
-When systems are large and asynchronous. A cloud orchestration system managing thousands of services—blocking on guarantees doesn't scale; designing for eventual consistency with explicit status messages does.
-
-## The Deep Lesson
-
-The feasibility-effect gap is not a weakness of the FIPA model—it's the formalization of a fundamental truth about distributed intelligence: **you cannot control what you do not inhabit**. 
-
-An agent system that assumes guaranteed rational effects is either:
-1. Not actually a multi-agent system (it's a disguised monolith), or
-2. Silently ignoring autonomy and will fail when agents don't comply
-
-The FIPA specification forces honest design: if you want j to do something, you must:
-- Check your FPs before requesting (am I entitled to ask?)
-- Accept that j may refuse (plan for refusal)
-- Wait for j's response (don't assume compliance)
-- Handle failure explicitly (j may try and fail)
-
-This is how intelligence coordinates without central control. This is how DAGs of agents should actually work.
+- FIPA, *Communicative Act Library Specification*, **XC00037H**, experimental, dated 2001-08-10, archived full 44-page PDF, accessed 2026-09-24: [PDF](https://jmvidal.cse.sc.edu/library/XC00037H.pdf). Relevant material: annex §§5.3–5.4, especially the abbreviations, FP/RE explanation, `inform`, and `request`.
+- The canonical J endpoint was unavailable in this research pass. No current implementation, transport, identity system, or effect-verification behavior is attributed to FIPA.

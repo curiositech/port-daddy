@@ -1,257 +1,115 @@
 # Mechanism Design in Constrained Reality: When Designers Cannot Control Strategy Spaces
 
-## The Foundational Reframe
+## Source and boundary
 
-Traditional mechanism design assumes omnipotence: the designer can implement any allocation rule and payment function, completely reshape agent strategy spaces. This is the VCG world—where dominant-strategy truthfulness and efficiency are achievable through carefully constructed payments.
+Chapter 10 §10.7 of Shoham and Leyton-Brown's [Revision 1.1 manuscript](https://www.masfoundations.org/mas.pdf) studies constrained mechanism design. Its contracts, bribes and mediators are useful because they change a precisely stated game. A log records events written to it; it does not by itself make an external task outcome observable, truthful, or enforceable.
 
-Reality imposes constraints: "Often one starts with given strategy spaces for each of the agents, with limited or no ability to change those... such constraints can be thought of as the norm rather than the exception." The examples crystallize this:
+## Contracts: commitment needs observability and credible enforcement
 
-- "A city official who wishes to improve the traffic flow in the city cannot redesign cars or build new roads"
-- "A UN mediator who wishes to incent two countries fighting over a scarce resource to cease hostilities cannot change their military capabilities"  
-- "A computer network operator who wishes to route traffic a certain way cannot change the network topology or the underlying routing algorithm"
+A contract can remove or alter strategies when parties can observe the relevant deviation/outcome, commit to the contract, and expect the designated enforcement to occur. For an operational analogue, specify:
+- the report/action covered;
+- who observes which outcome;
+- how a disputed observation is resolved;
+- the payment/penalty and collection authority;
+- the failure, appeal and timeout behavior.
 
-The profound insight: constraints aren't obstacles to mechanism design—they're the normal condition. The question becomes: **how do you achieve coordination when you can only add mechanisms on top of existing strategy spaces, not replace them?**
+A signed receipt can attest a signed statement. It does not prove that a physical action happened or that a task result was correct unless a verifier with suitable authority produces that observation.
 
-The section explicitly references Chapter 2's social laws: "Imposing social laws—that is, restricting the options available to social agents—can be beneficial to all agents. Social laws played an important coordinating role (as in 'drive on the right side of the road') and, furthermore, in some cases prevented the narrow self interests of the agents from hurting them (e.g., allowing cooperation in the Prisoners' Dilemma game)."
+## Bribes: an outcome-contingent payoff transformation
 
-The relaxation: "Here we relax this assumption, and we do so in three ways." Three mechanisms for constrained design: (1) contracts, (2) bribes/positive incentives, (3) mediators.
+The constrained-design example modifies a player's payoff through a transfer conditioned on a specified outcome. If the original payoff for outcome \(o\) is \(u_i(o)\), an agreed transfer changes the relevant payoff according to the contract's fee/side-payment rule. The technique is informative only when the payer can commit, the recipient can verify the condition, and transfers are feasible. Calling the transfer “zero cost” omits funding, enforcement and participation.
 
-## Contracts: Making Agreements Binding Through Verifiability
+Worked design question: list the original strategy profile/payoffs, the transfer trigger, changed payoffs, and deviations before/after. Then separately decide whether the trigger is observable. The latter is a systems fact, not supplied by the payoff algebra.
 
-The contract mechanism assumes "players still have the freedom to choose whether or not to honor the agreement; the challenge is to design a mechanism such that, in equilibrium, they will do so."
+### Worked payoff change from §10.7.2
 
-The eBay marketplace problem illustrates: post-auction, seller must decide whether to send goods, buyer must decide whether to pay. Without contracts, neither cooperates in equilibrium—fraud is empirically observed. With contract: both parties sign pre-auction agreement specifying "Deliver goods or pay fine F; pay or pay fine F."
+The source's two-agent service-choice example has the following payoff pairs. Rows are agent 1's action; columns are agent 2's. The second table adds a credible transfer of 10 to agent 1 at (f,f), and to agent 2 at (s,s).
 
-The critical feature: the contract changes who deviates is observable. Deviation triggers penalty. This transforms the game—payoffs now include potential fines. If fines are large enough, breach becomes unprofitable in equilibrium.
+| Original game | agent 2: f | agent 2: s |
+|---|---|---|
+| agent 1: f | (3,3) | (6,4) |
+| agent 1: s | (4,6) | (2,2) |
 
-The efficiency result: "However, one can often achieve the same effects with much less effort on the part of the center... The only phase in which the center's protocol requires it to get involved under some conditions is the enforcement stage. However, here too one can minimize the effort required in actuality. This is done by devising contracts that, in equilibrium, at this stage too the center sits idle."
+| With promised transfers | agent 2: f | agent 2: s |
+|---|---|---|
+| agent 1: f | (13,3) | (6,4) |
+| agent 1: s | (4,6) | (2,12) |
 
-The profound claim: "If the game play is verifiable (if the center can discover after the fact whether players obeyed the contract), then anything achievable by a fully engaged center is also achievable by a center that in equilibrium always sits idle."
+Check both opponent actions: for agent 1, f gives 13 rather than 4, or 6 rather than 2. For agent 2, s gives 4 rather than 3, or 12 rather than 6. Thus f and s are strictly dominant in the transformed game. At (f,s), neither transfer is triggered, so the equilibrium payment is zero. Off-equilibrium liabilities remain real and require a funded, credible commitment. This is a fully specified payoff example, not a guarantee that promising arbitrary rewards makes a real system cooperate.
 
-Verifiability is the key: if deviation is observable, the threat of enforcement suffices. The institution doesn't need to actively monitor—the possibility of detection changes equilibrium behavior. This is governance-by-threat-not-action.
+## Mediators: commitment changes strategy form
 
-For intelligent systems: make agent actions publicly verifiable (via blockchain, audit logs, attestation services). Then contracts become self-enforcing: agents know deviation will be observed, no expensive real-time enforcement needed, equilibrium achieves desired coordination.
+A mediator can solicit information or actions and return recommendations/outcomes. The source example relies on a reliable, credible center and on agents that commit, by accepting mediation, to forgo independent action in the specified setting. A random coordinator without commitment is not automatically a mediator in this sense.
 
-The contract mechanism works because it changes information structure: previously hidden deviations become observable, changing the game fundamentally. This is analogous to imperfect-information games becoming perfect-information—the equilibrium set shrinks dramatically.
+For a practical mediator, record identity/authority, protocol messages, recommendation visibility, opt-in/opt-out timing, data boundaries, enforcement, and recovery on mediator failure. These details also determine whether a correlated-equilibrium interpretation is available.
 
-## Bribes: Zero-Cost Incentive Realignment
+### Worked mediator extension from §10.7.3
 
-The second mechanism offers payments to induce desired behavior: "In this case we say that the desired behavior has a 0-implementation. More generally, an outcome has a k-implementation if it can be implemented in dominant strategies using such payments with a cost in equilibrium of at most k."
+Start with a two-action Prisoner's Dilemma: (C,C) pays (4,4), (C,D) pays (0,6), (D,C) pays (6,0), and (D,D) pays (1,1). Add action M: a party choosing M irrevocably delegates this modeled move; the reliable mediator plays C if both choose M and D for its sole client otherwise. The resulting three-action game is:
 
-Theorem 10.7.1: "An outcome is 0-implementable iff it is a Nash equilibrium."
+| row / column | M | C | D |
+|---|---|---|---|
+| M | (4,4) | (6,0) | (1,1) |
+| C | (0,6) | (4,4) | (0,6) |
+| D | (1,1) | (6,0) | (1,1) |
 
-The congestion service provider example demonstrates the power:
+Against M, a unilateral switch to C or D reduces the deviator's payoff to 0 or 1. A joint deviation cannot strictly improve both payoffs beyond 4. Therefore (M,M) is a strong equilibrium in this two-player extension. A recommendation that agents may freely ignore would define a different game; the binding delegation is essential.
 
-Initial game M:
-```
-           f      s
-        f  3,3   6,4
-        s  4,6   2,2
-```
+## Feasibility and incentives are separate axes
 
-Problem: both agents prefer exclusive use, coordination fails. Designer's bribe structure:
-- Pay agent 1 ten dollars if both use f
-- Pay agent 2 ten dollars if both use s
+A distributed CSP can determine which allocations satisfy hard constraints. Mechanism design asks whether strategic agents prefer truthful reports/actions under a utility/payment model. A system may need both: first enumerate feasible allocations, then analyze incentive compatibility among them. Neither model replaces authentication, authorization, or execution verification.
 
-Transformed game M':
-```
-           f      s
-        f  13,3   6,4
-        s  4,6    2,12
-```
+## Scheduling with verified execution times
 
-Result: strategy f is now dominant for agent 1, strategy s is dominant for agent 2. Equilibrium (f,s) is enforced. Expected payment = $0 since (f,s) is always played.
+For the compensation-and-penalty setting in §10.6.1, let $t_{ij}$ be agent $i$'s minimum time for task $j$, $\hat t_{ij}$ its report, and $\tilde t_{ij}\ge t_{ij}$ the observed execution time. Each task has one assignee, encoded by $x_{ij}\in\{0,1\}$. Choose an allocation minimizing reported makespan. Define $L_i=\sum_jx_{ij}\tilde t_{ij}$ and $\hat L_k=\sum_jx_{kj}\hat t_{kj}$. With zero report-independent offset, the charge paid by agent $i$ is
 
-The mechanism revelation: "Hence, the mechanism will have to pay nothing. It has just implemented, in dominant strategies, a desired behavior (which had previously been obtained in one of the game's Nash equilibria) at zero cost, relying only on its creditability."
+$$p_i=-L_i+\max\{L_i,\max_{k\ne i}\hat L_k\}.$$
 
-This is the essence: incentive design is often about belief management, not wealth transfer. The credible promise of payment changes equilibrium without actual payment in equilibrium. The center's creditability—its commitment to pay if triggered—is the coordination device.
+Its time cost plus charge gives utility $-L_i-p_i=-\max\{L_i,\max_{k\ne i}\hat L_k\}$. This cancellation explains the incentive calculation: slowing down cannot improve that utility, and reporting the true processing times permits the allocation rule to minimize the relevant objective, holding the other reports fixed. These are weak preferences; truth need not be the unique best response. The argument needs trustworthy timing, feasible minimum times, the specified utility, and the exact allocation rule. A transcript alone does not verify execution duration. Arbitrarily substituting a heuristic allocation algorithm does not preserve the theorem.
 
-For multi-agent systems: when agents have misaligned incentives, offer credible rewards for coordination. The reward structure transforms payoffs so selfish optimization yields socially beneficial outcomes. Critical requirement: the mechanism must be credible (can and will pay if triggered).
+A separate offset $h_i(\hat t_{-i})$ adds to the charge and subtracts from utility under this sign convention. Individual rationality must be checked against the outside option; the zero-offset rule above does not promise it. The Revision 1.1 discussion's positive-offset participation prescription is inconsistent with its printed charge/utility signs, so do not import it without resolving that convention. For a small implementation check, enumerate allocations and unilateral reports, then compare utilities using *actual* own times and others' reports. Exact makespan optimization is computationally hard in general; finite enumeration is only a teaching fixture.
 
-The limitation: bribes only work if the desired outcome is already a Nash equilibrium of some transformed game. If no payment structure makes desired outcome equilibrium, bribes fail. This is why mechanism design must check implementability conditions—not all outcomes are achievable through payments alone.
+## Bandwidth bids: price taking and strategic response differ
 
-## Mediators: Delegation as Commitment Technology
+For a single divisible link of capacity $C>0$, suppose bids $w_i\ge0$ have positive total. Set $\mu=(\sum_iw_i)/C$, allocate $d_i=w_i/\mu$, and charge $w_i$. Agent $i$ then values $v_i(d_i)-w_i$. Declare an explicit zero-total rule; the positive-total formula has a zero denominator otherwise. It exhausts capacity algebraically, but does not by itself establish efficiency.
 
-The third mechanism adds a new player: "Adding mediators make them [strong equilibria] less rare. For example, adding a mediator to any balanced symmetric game yields a strong equilibrium with optimal surplus."
+The source's price-taking calculation treats $\mu$ as fixed while a user optimizes. In the strategic bidding game, the user's own bid changes $\mu$. A useful diagnostic is therefore to compute the derivative under both assumptions before importing an equilibrium claim. For example, two linear valuations $v_1(d)=v_2(d)=d$ with $C=1$ have symmetric bids $1/4$: each receives $1/2$ and has utility $1/4$. Holding the other bid at $1/4$, changing one's bid to $1/2$ yields utility $1/6$, not $1/4$. This is a deliberately small calculation, not an empirical congestion result.
 
-The Prisoner's Dilemma with mediator demonstrates:
+Theorem 10.6.4's three-quarter welfare comparison belongs to this particular single-link model, with at least two users, the section's continuous, concave, strictly increasing valuations and differentiability conditions, and $v_i(0)\ge0$. It compares valuation welfare at Nash and competitive allocations. It is not a latency, reliability, convergence-speed, or arbitrary-network guarantee. Check the complete hypotheses before reusing the bound.
 
-Original game:
-```
-      C    D
-   C  4,4  0,6
-   D  6,0  1,1
-```
+## Multicast cost sharing: two distinct procedures
 
-Nash equilibrium: (D,D), payoffs 1,1. Not a strong equilibrium—both would prefer to coordinate on (C,C) if they could commit.
+Specify the routing tree, edge costs, participant valuations, and who faithfully executes the protocol. The source's distributed methods assume compliant infrastructure. A cryptographic message signature does not supply that assumption.
 
-Mediator's offer: "If you both accept, I play C on your behalf. If only one accepts, I play D on behalf of that agent."
+**Iterative equal shares on a fixed tree.** Begin with all requesting users. For each used edge, split its cost equally among the retained users whose source path uses it. Each user's total charge is the sum along its path. Remove a user whose reported value is below that charge, recompute shares, and repeat until no removal is needed. An empty set incurs no shared cost. Shares can increase after a removal, so a single pass is insufficient. The fixed-tree construction gives the relevant cross-monotone cost shares; arbitrary routing changes require a separate proof. A shared edge costing 6 and two leaf edges costing 1 each give two users an initial charge of 4 each. If their values are 8 and 3, the second leaves, and the first's recomputed charge becomes 7. This is the budget-balancing cost-share method, not the efficient VCG method.
 
-The mediator creates a new strategic option: delegate decision-making. If both agents accept mediation, the mediator plays C for both, achieving (4,4). Neither agent individually wants to deviate (would get 1 or 0). No coalition can deviate and both improve (either agent leaving gets 1 at best).
+**Efficient allocation with tree VCG payments.** For node $i$, let $c_i$ be its incoming edge cost and $\hat v_i$ its reported value; give the root a zero incoming cost. On an upward traversal calculate
 
-(Mediator, Mediator) = (4,4) is now a strong equilibrium: no subset of agents can deviate and all be better off. The mediator's commitment technology allows agents to escape their temptation to defect.
+$$m_i=\hat v_i-c_i+\sum_{j\in\operatorname{children}(i)}\max(m_j,0).$$
 
-Why this works: the mediator's declaration "If both use me, I'll play C" creates a new strategic object—a public commitment. Agents condition their choices on this commitment. The mediator becomes an equilibrium selection device, a focal point for coordination.
+Set $s_{\mathrm{root}}=m_{\mathrm{root}}$. Traverse downward, assigning each child $j$ the value $s_j=\min(s_i,m_j)$. Connect nodes with $s_i\ge0$; for a connected node charge $p_i=\max(\hat v_i-s_i,0)$, and charge disconnected nodes zero. Negative ancestor values propagate downward, preventing a disconnected subtree from treating its own local surplus as permission to connect. These messages convey different quantities: $m_i$ is a subtree's conditional marginal value; $s_i$ accounts for ancestors' constraints.
 
-The mediator doesn't just add information—it transforms the game structure. Without mediator: agents play 2×2 normal form game. With mediator: agents play 3-option game (Mediator vs. play-yourself-C vs. play-yourself-D). The equilibrium set of the extended game includes outcomes unreachable in the original.
+For a zero-value root with two direct leaves, costs 2 and 3, and values 5 and 1, the upward values are 3 and −2 and the root value is 3. The downward values are 3 and −2: connect the first leaf and charge 2; exclude the second. Compare small fixtures with exhaustive welfare maximization and the VCG externality formula. The source's two-values-per-link result counts mathematical real values under its tree model. It gives neither a bounded bit complexity nor a resilient network transport protocol, and does not promise recovery of total cost.
 
-For distributed systems: when direct control is impossible, establish trusted intermediaries (consensus mechanisms, arbitrators, registry services). Agents delegate coordination decisions to mediator. Critical requirements: (1) mediator is trusted (won't defect), (2) mediator's strategy is publicly observable (commitment is credible), (3) agents can verify mediator followed its commitment.
+## Stable matching: a narrow truthful mechanism result
 
-The limitation on mediator power: for k-strong mediated equilibrium in symmetric games with n agents, "only achievable if k! divides n." For n=120 (Israeli parliament), 120=5!, so any anonymous game has a 5-strong equilibrium. This is purely combinatorial: group size matters fundamentally. Structural constraints determine what mediators can achieve.
+Student-proposing deferred acceptance has a dominant-strategy result for students under the relevant strict preferences, feasibility and advisor-side assumptions, including the model in which advisors are compelled to report honestly. It does not establish that task queues reveal capabilities truthfully or that arbitrary registry matching is stable. To reuse it, define two sides, preferences, quotas, proposal order, ties/unacceptability handling, and which side has the strategyproofness claim.
 
-## The Efficiency Paradox of Centralized Enforcement
+### Deferred acceptance procedure and stable-outcome check
 
-The contracts section reveals a non-obvious result: "It can be shown that if the game play is verifiable (if the center can discover after the fact whether players obeyed the contract), then anything achievable by a fully engaged center is also achievable by a center that in equilibrium always sits idle."
+For a finite one-to-one matching with strict preferences and an unmatched option, keep a queue of free proposers and a record of whom each has already approached. A proposer applies to its highest-ranked acceptable receiver not yet approached. Each receiver tentatively retains its preferred acceptable proposal among its current match and new proposals, rejecting the others. Rejected proposers continue; stop when no unmatched proposer has an untried acceptable receiver. Tentative acceptance is not a final assignment before termination. Each ordered proposal pair is tried at most once, so the finite procedure terminates.
 
-This seems paradoxical: how can a idle center be as powerful as an active one? The resolution: the center's power comes from credible commitment to enforcement, not actual enforcement. If deviation is observable and the center credibly commits to punish, agents choose not to deviate in equilibrium.
+Independently check stability: no unmatched acceptable pair may prefer one another to their assigned partners, and no participant may prefer remaining unmatched. With students s1: a1 before a2, s2: a2 before a1, and advisors a1: s2 before s1, a2: s1 before s2, both pairings are stable. Student proposals choose (s1,a1),(s2,a2); advisor proposals choose the other pairing. This shows that the proposing side changes outcome selection even with identical inputs. Ties, capacities, couples, changing preferences and strategic reporting need separately specified variants; the one-to-one fixture does not cover them.
 
-This is institutional design through threatened enforcement rather than realized enforcement. The judicial system works this way: most disputes don't go to trial because parties settle knowing what trial outcome would be. The court sits idle most of the time but shapes behavior through credible threat.
-
-For intelligent systems: build audit mechanisms that make deviations observable (logging, attestation, cryptographic proofs). Establish credible enforcement (automated penalties, reputation systems). Most of the time, the enforcement machinery sits idle—its existence suffices. This is cheaper than continuous monitoring and active enforcement.
-
-The failure mode: if the center's commitment becomes non-credible (can't or won't enforce), the equilibrium collapses. Reputation is the center's most valuable asset—violating commitments once destroys credibility, future contracts fail.
-
-## Task Scheduling: Verification as Truthfulness Foundation
-
-The compensation-penalty mechanism (Section 10.6.1) shows how verification enables truthfulness without full control:
-
-Allocation function:
-$$x(\hat{t}) = \arg\min_x \max_{i \in N} \sum_{j \in T} x(i,j)\hat{t}_{i,j}$$
-
-Payment function:
-$$℘_i(\hat{t}) = h_i(\hat{t}_{-i}) - \sum_{j \in T} x(i,j)\tilde{t}_{i,j} + \max\left(\sum_{j \in T} x(i,j)\tilde{t}_{i,j}, \max_{i' \neq i} \sum_{j \in T} x(i',j)\hat{t}_{i',j}\right)$$
-
-The critical requirement: "Important that the mechanism can verify the amount of time an agent took." Without verification, agents could under-report actual time, reducing penalty without consequences.
-
-The payment structure decomposes:
-1. First term h_i(·) is irrelevant (doesn't depend on i's report)
-2. Second term (−∑ actual costs) compensates agent, making them indifferent to assignment
-3. Third term (penalty = makespan) creates right incentives:
-   - Reporting ˆtᵢ,ⱼ > tᵢ,ⱼ only increases penalty (worse allocation for others)
-   - Reporting ˆtᵢ,ⱼ < tᵢ,ⱼ doesn't reduce penalty (depends on actual time)
-   - Therefore truthfulness is dominant
-
-The mechanism achieves optimal makespan (minimize completion time of last task) while maintaining truthfulness. But requires individual rationality to be relaxed (payment can be negative) unless h_i set appropriately.
-
-For agent systems: when orchestrating tasks with unobservable costs, require verification of actual completion times (logging, timestamping). Design payments that depend on verified facts, not agent reports. This breaks the link between misreporting and benefit—lying becomes unprofitable.
-
-The fundamental lesson: **verification transforms information structure, enabling mechanisms that would fail under asymmetric information.** The cost of verification determines the boundary of implementable mechanisms.
-
-## Bandwidth Allocation: Price of Anarchy as Design Metric
-
-The proportional allocation mechanism (Section 10.6.2) demonstrates tolerance for strategic behavior when perfect truthfulness is unachievable:
-
-- Agents submit single scalar wᵢ ∈ ℝ⁺ (interpreted as willingness to pay)
-- Mechanism sets uniform price: μ = (∑ᵢ wᵢ) / C
-- Agent i receives allocation: dᵢ = wᵢ / μ
-
-Two equilibrium concepts yield different outcomes:
-
-1. **Price-taking competitive equilibrium** (Theorem 10.6.3): agents treat μ as fixed. Result: efficient allocation (maximizes social welfare).
-
-2. **Strategic Nash equilibrium** (Theorem 10.6.4): agents account for ability to affect μ through own declarations. Result: Price of Anarchy = 4/3. "In the worst case, the Nash equilibrium achieves 25% less efficiency than the competitive equilibrium."
-
-The framing: "While it is always disappointing not to achieve full efficiency, this result should be understood as good news." Even with strategic behavior, loss is bounded at 25%. The mechanism is robust to misreporting.
-
-The design principle: when mechanisms cannot achieve dominant-strategy truthfulness (too complex, too expensive to verify, computationally intractable), analyze worst-case welfare loss. If Price of Anarchy < 1.5×, accept the mechanism. Bounded inefficiency is better than perfect inefficiency.
-
-For distributed systems: when full truthfulness unachievable, design mechanisms with acceptable PoA bounds. Proportional allocation requires minimal information (one scalar per agent), achieves near-optimal outcomes even when agents strategize. Trade theoretical perfection for practical robustness.
-
-The mechanism's elegance: it doesn't require agents to reveal full valuation functions (only single scalar), doesn't require verification (allocation depends only on declarations), converges quickly (agents can compute best response easily). Simplicity enables deployment where VCG-style mechanisms would fail.
-
-## Multicast Cost Sharing: The Efficiency-Budget-Balance Tradeoff
-
-The fundamental impossibility (Theorem 10.4.11): cannot simultaneously achieve:
-- Dominant-strategy incentive compatibility
-- Budget balance (costs exactly covered)
-- Efficiency
-
-Must relax one of three. Two options:
-
-**Option A: Shapley Value (Truthful + Budget-Balanced, sacrifices efficiency)**
-
-Algorithm (Figure 10.6):
-1. Start with all agents in S
-2. Compute routing tree T(S)
-3. Each agent i pays equal share of costs for links in T({i})
-4. Drop agents where v̂ᵢ < pᵢ
-5. Repeat until convergence
-
-Why truthful: payments are "cross-monotonic"—"an agent's payment can only increase when another agent is dropped, and hence that an agent's incentives are not affected by the order in which agents are dropped by the algorithm."
-
-Cross-monotonicity enables greedy algorithm (polynomial time) without worrying about reinstatement. Agents can't benefit by triggering others to drop—this would only increase their own payment.
-
-But it sacrifices efficiency: some agents who value service ≥ marginal cost are rejected because they can't afford the average-cost payment. This is the classic inefficiency of average-cost pricing.
-
-Communication complexity: "Any (deterministic or randomized) distributed algorithm that computes the same allocation and payments as the Shapley value algorithm must send Ω(|N*|) bits over linearly many links in the worst case" (Theorem 10.6.5). Centralized computation required.
-
-**Option B: VCG (Truthful + Efficient, sacrifices budget balance)**
-
-VCG straightforward in centralized case, but remarkably: "A distributed algorithm can compute the same allocation and payments as VCG by sending exactly two values across each link" (Theorem 10.6.6).
-
-Algorithm structure (Figure 10.7):
-
-**Upward pass (bottom-up)**: Each node i computes mᵢ = marginal value of connecting subtree rooted at i.
-- mᵢ ← v̂ᵢ − c(lᵢ) + ∑(child j) max(mⱼ, 0)
-- This is "most agents in subtree would pay to join"
-
-**Downward pass (top-down)**: Each node i computes sⱼ for each child j.
-- sⱼ = actual surplus generated by connecting child j
-- If sⱼ ≥ 0: agent j receives service, pays max(v̂ⱼ − sⱼ, 0)
-
-The payment structure ensures truthfulness via VCG mechanism: each agent pays externality they impose on others. Result: efficient allocation, but typically runs surplus (collects more than costs). Requires external budget to absorb surplus.
-
-The non-obvious insight: VCG, despite computing "efficient" allocation requiring global information, can be implemented distributively with minimal communication (2 messages per link). Shapley value, a simpler-seeming mechanism, cannot.
-
-The choice: Shapley for settings requiring budget balance and willing to sacrifice efficiency. VCG for settings requiring efficiency and able to handle surplus/deficit. No third option exists simultaneously achieving all three.
-
-For agent systems: recognize when trade-offs are unavoidable. Design mechanisms that optimize the property most critical to domain. If efficiency paramount (minimize completion time), use VCG-style payments. If budget balance paramount (no subsidy), use Shapley-style average-cost pricing.
-
-## Stable Matching: Asymmetric Trust as Solution
-
-Two-sided matching without money transfers (Section 10.6.4): students and advisors, preferences are strict orderings, no monetary transfers allowed. Stable matching exists (Gale-Shapley 1962, Theorem 10.6.11) via deferred acceptance algorithm.
-
-But mechanism design impossibility (Theorem 10.6.16): "No mechanism implements stable matching in dominant strategies."
-
-Proof by example (2 students, 2 advisors):
-- s₁: a₁ ≻ a₂; s₂: a₂ ≻ a₁  
-- a₁: s₂ ≻ s₁; a₂: s₁ ≻ s₂
-
-Two stable matchings exist: µ (s₁-a₁, s₂-a₂) and µ′ (s₁-a₂, s₂-a₁). If mechanism picks µ, advisor a₂ can lie ("s₁ unacceptable") → only µ′ is stable → a₂ prefers this. If mechanism picks µ′, student s₂ can misreport and benefit. Therefore no dominant-strategy mechanism exists.
-
-The solution under partial honesty (Theorem 10.6.18): "Under the direct mechanism associated with the student-application version of the deferred acceptance algorithm, it is a dominant strategy for each student to declare his true preferences."
-
-Condition: advisors must be compelled to behave honestly (institutional authority). With one side honest, other side has dominant strategy to be honest.
-
-The asymmetric trust insight: some coordination problems require one party to commit to truthfulness for mechanism to work for the other. Not all agent hierarchies can be fully strategic. Some roles (coordinators, registry services) may need to be trusted/honest.
-
-For distributed systems: when two-way negotiation fails (no mechanism truthful for both sides), designate one role as trusted:
-- Marketplace coordinator
-- Task queue (system-managed, no incentive to lie)
-- Central broker
-
-Then deferred-acceptance-style matching ensures: skills have dominant strategy to report true capabilities, tasks allocated stably.
-
-The lattice property (Theorem 10.6.14): "If µ and µ′ are stable matchings, ∀s ∈S, µ(s) ⪰_s µ′(s) if and only if ∀a ∈A, µ′(a) ⪰_a µ(a)." Any matching improving for all students worsens for all advisors. Fundamental asymmetry: student-optimal is advisor-worst.
-
-Corollary 10.6.15: "The student-optimal stable matching matches each advisor with her least preferred achievable student, and the advisor-optimal stable matching matches each student with her least preferred achievable advisor."
-
-This creates coordination challenge: which equilibrium to select? Student-application yields student-optimal, advisor-application yields advisor-optimal. The mechanism designer's choice of procedure implicitly selects equilibrium, favoring one side.
-
-## Transfer Principles for Constrained Intelligence
-
-**Make mechanisms self-enforcing through observability**: If agent actions are verifiable (blockchain, logs, attestation), contracts become self-enforcing. No expensive enforcement needed—threat suffices.
-
-**Use credible commitments, not actual payments**: Bribes can be zero-cost in equilibrium if designed correctly. Credible promise of reward changes behavior without actual transfer. Center's creditability is the coordination device.
-
-**Delegate coordination to trusted intermediaries**: When direct control impossible, establish mediators (consensus mechanisms, arbitrators). Agents delegate decisions, mediator's commitment becomes focal point.
-
-**Accept bounded inefficiency for robustness**: When perfect truthfulness unachievable, design for acceptable Price of Anarchy. Proportional allocation achieves 75% efficiency even with strategic agents—good enough for many domains.
-
-**Recognize unavoidable trade-offs**: Efficiency + budget balance + truthfulness simultaneously impossible in many settings. Choose which property to relax based on domain constraints.
-
-**Asymmetric trust enables coordination**: When symmetric incentive compatibility fails, designate some roles as trusted. One-sided dominant-strategy implementation is achievable even when two-sided isn't.
-
-**Hierarchical information aggregation minimizes communication**: VCG multicast achieves distributed computation with 2 messages per link. Bottom-up aggregation, top-down allocation. Linear communication despite global coordination.
-
-The profound synthesis: **constrained mechanism design is the normal case, not the exceptional one.** Intelligent systems cannot assume omnipotent designers—they must coordinate despite inability to control strategy spaces. The three mechanisms (contracts, bribes, mediators) aren't workarounds—they're the fundamental tools for coordination in real systems where authority is limited and agents are autonomous.
+## Practical constrained-design worksheet
+
+| Layer | Required statement |
+|---|---|
+| model | agents, types, actions, utilities and outcome rule |
+| constraint | what behavior is removed or committed |
+| evidence | who observes the triggering fact and how |
+| enforcement | payment/penalty authority and failure handling |
+| computation | allocation/payment algorithm and encoded input |
+| evaluation | deviation test plus outcome/participation measures |
+
+Use the table to preserve the contracts/bribes/mediators workflow without claiming that a technical log or a coordination graph itself supplies the missing strategic conditions.

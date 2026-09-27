@@ -1,28 +1,26 @@
 ---
 name: pre-federation-halt-gate
-version: 0.1.0
 description: >
-  Polya principal-parts validation gate that runs before any bond-writing or DAG decomposition
-  begins. Inspects the Sensemaker's validity_assessment output and enforces a hard halt when
-  overall confidence falls below 0.6, emitting a structured clarification request rather than
-  allowing an ill-defined problem to propagate downstream. The gate is named "pre-federation"
-  because it fires before agents federate around a shared decomposition — once subtasks exist
-  and skills are assigned, reverting is expensive; catching ambiguity here is cheap.
-author: soma-windags-graft
-tags: [windags, halt-gate, sensemaker, validation, polya, federation, problem-definition]
-pairs-with: [windags-sensemaker, windags-decomposer, windags-premortem]
+  Review task definition, constraints, authority, and feasibility before decomposition.
+  Use typed hard blockers and decision-relevant clarification, with source-specific
+  calibration for any scalar score. NOT for post-decomposition DAG checks, skill
+  assignment, or latency-sensitive streaming.
+metadata:
+  version: 0.1.0
+  author: soma-windags-graft
+  tags: [windags, halt-gate, sensemaker, validation, polya, federation, problem-definition]
+  pairs-with: [windags-sensemaker, windags-decomposer, windags-premortem]
 ---
 
 # Pre-Federation Halt Gate
 
 ## When to Use
 
-- A `SensemakerOutput` (or `ProblemUnderstanding`) has been produced and its `confidence` or
-  `validity_assessment.overall` must be checked before the Decomposer runs.
+- A pipeline emits a `SensemakerOutput`/`ProblemUnderstanding` and needs a pre-decomposition decision contract. Inspect any scalar score as source-specific telemetry; do not assume it is calibrated.
 - Any pipeline that writes subtask bonds, DAG edges, or skill assignments from a problem
   statement that has not yet been validated for clarity, feasibility, and coherence.
 - Resuming a checkpointed pipeline after a human clarification round — re-run the gate to
-  confirm the updated problem now clears the threshold before unlocking downstream waves.
+  confirm that the updated, versioned problem satisfies the declared hard invariants before unlocking downstream waves.
 
 NOT for:
 - Post-decomposition quality checks (use `windags-premortem` for structural DAG risks).
@@ -31,146 +29,44 @@ NOT for:
 
 ## Core Concepts
 
-**Halt threshold (0.6)**: The numerical floor below which a problem is considered too
-ill-defined for automated decomposition. Derived from the weighted validity formula
-`overall = (clarity * 0.4) + (feasibility * 0.3) + (coherence * 0.3)`. An overall score
-below 0.6 means at least one dimension is severely degraded and the pipeline would produce
-a structurally unsound DAG.
+**Scoring is implementation-specific.** Some upstream implementations expose a scalar confidence and use a fixed cutoff; this is their local policy, not a Polya-derived value or a validated general gate. A weighted average can mask a critical unknown (authority, rollback, trust, or resource bound), so check defined hard blockers separately. Do not treat an uncalibrated model score as probability.
 
-**SensemakerOutput / confidence field**: The Sensemaker agent in `meta-dag-predict.ts`
-(Wave 0) emits a JSON object with a `confidence: number` field and an optional
-`halt_reason?: string`. The gate reads both: `confidence < 0.6` triggers halt regardless
-of whether `halt_reason` is set; a non-null `halt_reason` triggers halt regardless of the
-numeric score. Either condition is sufficient.
+**Source-specific interface:** the inherited reference says one `meta-dag-predict.ts` version returns `confidence` and `halt_reason`, with code-level branching on a cutoff and explicit reason. Pin and inspect that exact source revision before depending on its fields or behavior. A score is not calibrated probability unless separately evaluated.
 
-**Hard halt vs soft warning**: A hard halt returns a `PredictedDAG` stub with `waves: []`,
-`estimated_total_minutes: 0`, `estimated_total_cost_usd: 0`, and
-`premortem.recommendation: 'ESCALATE_TO_HUMAN'`. No downstream agents run. This is
-distinct from a soft warning (e.g., ACCEPT_WITH_MONITORING), which lets the pipeline
-proceed with heightened risk awareness.
+**Halt vs warning:** define typed outcomes in the consuming pipeline. A blocking result must prevent downstream decomposition at the actual transition; a warning is advisory only. Any `PredictedDAG` shape, event name, or output field is version-specific and must be checked against the pinned caller.
 
-**Polya principal parts**: Before scoring validity, the Sensemaker must extract four
-parts: `unknown` (what we are solving), `data` (what we have), `conditions` (testable
-constraints), and `output_type` (the answer's form). The gate implicitly validates that
-these parts were producible — an inability to state the `unknown` in one sentence is itself
-a signal that clarity is below 0.5 and a halt is warranted.
+**Problem-analysis prompts:** use `unknown`, available `data`, constraints/conditions, and desired output form as elicitation questions. This is a practical adaptation, not a numeric Polya test. If an important item is absent or ambiguous, classify it as unknown and decide whether to ask, investigate reversibly, or halt based on downstream consequence.
 
-**Clarification request structure**: On halt, the gate must emit targeted questions
-keyed to the weakest scoring dimension (clarity, feasibility, or coherence), not generic
-"please clarify" prompts. The questions must be answerable by the user without domain
-expertise in the pipeline's internals.
+**Clarification request structure:** ask targeted, answerable questions tied to a decision-relevant unknown or constraint. Do not rely on a scalar ranking to choose the question when a hard blocker is known.
 
-## Implementation Pattern
+## Recommended decision pattern
 
-The following pseudocode mirrors the actual logic in
-`packages/core/src/context/meta-dag-predict.ts` lines 347-360, with the
-`windags-sensemaker` SKILL.md's validity formula applied as the pre-check:
+The following language-neutral pseudocode illustrates the decision boundary. It does not define a production schema or upstream API:
 
-```
-function preFederationHaltGate(sensemaker: SensemakerOutput): HaltDecision {
-  // Primary numeric check (matches meta-dag-predict.ts line 348)
-  const numericHalt = sensemaker.confidence < 0.6;
+```text
+assessment = assess(versioned_problem, declared_policy)
+if assessment.has_critical_false_or_unknown:
+    return HALT(typed_blockers, decision_changing_questions, assessment.version)
+if assessment.requires_investigation:
+    require_explicit_authority_and_limits()
+    return INVESTIGATE(reversible_plan, assessment.version)
+return CLEAR_FOR_NEXT_STAGE(assessment.version)
 
-  // Secondary explicit reason check (matches meta-dag-predict.ts line 348)
-  const reasonHalt = Boolean(sensemaker.halt_reason);
-
-  if (numericHalt || reasonHalt) {
-    // Diagnose weakest dimension if ProblemUnderstanding is available
-    const lowestDimension = argmin({
-      clarity:     validity_scores?.clarity     ?? 0,
-      feasibility: validity_scores?.feasibility ?? 0,
-      coherence:   validity_scores?.coherence   ?? 0,
-    });
-
-    // Generate targeted questions for the weakest dimension
-    const questions = generateClarificationQuestions(lowestDimension, sensemaker);
-
-    // Emit halt event (mirrors meta-dag-predict.ts emitter.emitProgress type:'halt')
-    emitter?.emitProgress({
-      type:       'halt',
-      reason:     sensemaker.halt_reason ?? 'Confidence below threshold',
-      confidence: sensemaker.confidence,
-    });
-
-    // Return stub PredictedDAG — no downstream waves are populated
-    return {
-      title:                    sensemaker.inferred_problem || 'Unable to determine next move',
-      problem_classification:   sensemaker.classification,
-      confidence:               sensemaker.confidence,
-      halt_reason:              sensemaker.halt_reason ?? 'Confidence below threshold (0.6)',
-      waves:                    [],
-      estimated_total_minutes:  0,
-      estimated_total_cost_usd: 0,
-      premortem: {
-        recommendation: 'ESCALATE_TO_HUMAN',
-        risks: [],
-      },
-      clarification_questions: questions,   // added by this gate
-    };
-  }
-
-  // Gate cleared — pass sensemaker output to Decomposer (Wave 1)
-  return { should_halt: false };
-}
-
-function generateClarificationQuestions(
-  dimension: 'clarity' | 'feasibility' | 'coherence',
-  sensemaker: SensemakerOutput,
-): string[] {
-  switch (dimension) {
-    case 'clarity':
-      return [
-        'What specifically should the output contain or achieve?',
-        `When you say "${sensemaker.inferred_problem}", what does success look like?`,
-        'Can you describe the end state in one sentence?',
-      ];
-    case 'feasibility':
-      return [
-        'Are the tools or APIs required for this available in the current environment?',
-        'What is the time or budget constraint?',
-        'Has this been attempted before — if so, what happened?',
-      ];
-    case 'coherence':
-      return [
-        'Two or more of the requirements appear to conflict — which takes priority?',
-        'Can any constraint be relaxed to make the others satisfiable?',
-        'Are all listed conditions hard requirements, or are some aspirational?',
-      ];
-  }
-}
+on_clarification(updated_problem):
+    new_version = record(updated_problem, provenance)
+    invalidate_derived_cache_for(old_version)
+    return pre_federation_gate(new_version)
 ```
 
-**Dimensional halt overrides** (from `windags-sensemaker` SKILL.md):
-- `clarity < 0.5` → halt immediately, even if overall >= 0.6
-- `feasibility < 0.4` → halt and flag as potentially infeasible
-- `coherence < 0.4` → halt, contradictions must be resolved first
+Questions should name a missing field or incompatible constraint, explain why it changes the downstream decision, and allow an answer without internal pipeline terminology. The caller must enforce `HALT`; a returned label alone is not a gate.
 
-**Resume behavior**: When `MetaDAGPredictConfig.resume` is true and a checkpoint exists
-for the `sensemaker` node (`MetaDAGCheckpointer.loadNode('sensemaker')`), the gate still
-runs against the cached output. A human-clarified re-run must produce a new Sensemaker
-call (bypass cache) so the gate evaluates fresh confidence.
+**Typed blockers:** define critical blockers from the downstream transition and threat model, such as missing authority, rollback, resource cap, or mutually incompatible hard constraints. The old `.5`/`.4` dimension cutoffs are local heuristics and are not retained as general rules. If a clarification resolves an unknown, create a new assessment version and rerun the gate before decomposition.
 
-## Key References
+**Resume behavior:** determine whether checkpointed input/output bytes are still current. A human clarification must change the assessment version or invalidate the relevant cache; then rerun the gate on the clarified problem before downstream work. Verify this against the exact pipeline version.
 
-1. **`packages/core/src/context/meta-dag-predict.ts`** (workgroup-ai repo) — authoritative
-   implementation. The halt gate is lines 347-360 (`if (sensemaker.confidence < 0.6 || sensemaker.halt_reason)`).
-   `SensemakerOutput`, `MetaDAGPredictConfig`, `withRetry`, and `MetaDAGCheckpointer` are
-   defined in the same file and `./fault-tolerance`.
+## Key References and Source Boundary
 
-2. **`skills/windags-sensemaker/SKILL.md`** (workgroup-ai repo) — defines the
-   `ProblemUnderstanding` output schema, the three validity dimensions and their weights
-   (`clarity * 0.4 + feasibility * 0.3 + coherence * 0.3`), the halt decision rules, and
-   the Polya principal-parts extraction protocol that the gate depends on.
-
-3. **Polya, G. (1945). *How to Solve It*.** Princeton University Press. — Source of the
-   four principal parts (unknown, data, conditions, solution). The gate's halt logic is
-   essentially a check that the Sensemaker was able to fill in all four parts with
-   sufficient precision; if it could not, the problem is not ready for decomposition.
-
-4. **`SENSEMAKER_JSON_SCHEMA`** (meta-dag-predict.ts lines 116-127) — the JSON Schema
-   enforced on Sensemaker output. Fields: `classification` (enum), `confidence` (number),
-   `halt_reason` (optional string), `inferred_problem` (string), `key_signals` (string[]).
-   The gate reads `confidence` and `halt_reason` from this schema-validated object.
+The inherited references describe one external Workgroup AI implementation and local skill text. They are preserved in `references/halt-gate-implementation.md` and `references/polya-principal-parts.md` for version-specific inspection. The cited source paths, line numbers, schema, cache behavior, and `.6` cutoff are not independently verified as current in this offline draft. Polya’s book supports a problem-analysis vocabulary; it does not validate a weighted score or gate accuracy. See the [source correction ledger](references/source-correction-ledger.md).
 
 ## Imported bundle navigation
 
@@ -180,5 +76,17 @@ These preserved source files add depth when their stated topic is needed.
 - [diagrams/01_flowchart_decision-points.md](diagrams/01_flowchart_decision-points.md) — Diagram 1: flowchart.
 - [examples/01_worked_example.md](examples/01_worked_example.md) — Worked Example: Ambiguous Data Pipeline Request.
 - [references/bonds-require-well-defined-problems.md](references/bonds-require-well-defined-problems.md) — Bonds Cannot Be Written on Ill-Defined Problems.
-- [references/halt-gate-implementation.md](references/halt-gate-implementation.md) — Halt Gate Implementation: validityassessment.overall < 0.6 → HALT.
+- [references/halt-gate-implementation.md](references/halt-gate-implementation.md) — source-specific external implementation behavior; not a universal threshold.
+- [references/gate-policy-and-calibration.md](references/gate-policy-and-calibration.md) — typed hard blockers, decision costs, and fresh reassessment.
+- [references/source-correction-ledger.md](references/source-correction-ledger.md) — disposition of unsupported threshold/weight claims.
 - [references/polya-principal-parts.md](references/polya-principal-parts.md) — Polya's Principal Parts and Ill-Posed Problem Detection.
+
+
+## Hard-blocker policy and calibration boundary
+
+Check the downstream transition, not a single aggregate number. Enumerate authority, trust, data access, rollback, resources, reversibility, and acceptance conditions. For each, record `satisfied`, `false`, or `unknown` with evidence and owner. A critical false/unknown blocks federation. A bounded reversible investigation may proceed only if its authority and limits are established. Ask the smallest question that changes the decision. A clarified request receives a new assessment version and fresh gate run.
+
+Scalar confidence, dimension weights, `.6` overall cutoffs, and `.5`/`.4` subscore cutoffs in the inherited materials are implementation-specific heuristics without a verified primary justification for universal use. If a system retains a scalar, version it, state decision costs, calibrate against independently adjudicated outcomes, and keep its data separate from held-out efficacy claims. Polya's problem-analysis vocabulary supplies prompts; it does not establish those numbers.
+
+- [Typed gate and reassessment flow](diagrams/02_typed-hard-blockers.md)
+- [Missing definition to affected guarantee](diagrams/03_missing-definition-impact.md)

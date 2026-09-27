@@ -1,110 +1,34 @@
-# Codemode (Experimental)
+# Code Mode
 
-Fetch https://developers.cloudflare.com/agents/api-reference/codemode/ for complete documentation.
+Code Mode lets a model compose declared tools in generated JavaScript executed in an isolated Worker. Root opened the current [AI SDK integration](https://developers.cloudflare.com/agents/tools/codemode/ai-sdk/) and [durable runtime](https://developers.cloudflare.com/agents/tools/codemode/durable-runtime/) pages on 2026-09-24 after the old URL failed. Pin the installed package versions and validate your integration before deployment.
 
-Codemode lets LLMs write and execute code that orchestrates your tools, instead of calling them one at a time. The LLM gets a single "write code" tool; generated JavaScript runs in an isolated Worker sandbox.
+## When composition helps
 
-## When to Use
+Use ordinary tool calls for one action. Use Code Mode when a task needs conditional logic, iteration, or composition across local and MCP tools. It does not make generated code trusted, make tool output instructions, or authorize an effect.
 
-| Scenario | Use Codemode? |
-|----------|---------------|
-| Single tool call | No — standard tool calling is simpler |
-| Chained tool calls with logic | Yes |
-| Conditional logic across tools | Yes |
-| MCP multi-server workflows | Yes |
-| Simple Q&A chat | No |
+## Tool and executor shape
 
-## Setup
-
-### Wrangler Config
-
-```jsonc
-{
-  "worker_loaders": [{ "binding": "LOADER" }],
-  "compatibility_flags": ["nodejs_compat"]
-}
-```
-
-### Install
-
-```bash
-npm install @cloudflare/codemode ai zod
-```
-
-## Usage
-
-```typescript
+```ts
 import { createCodeTool } from "@cloudflare/codemode/ai";
 import { DynamicWorkerExecutor } from "@cloudflare/codemode";
-import { streamText, tool, convertToModelMessages } from "ai";
-import { z } from "zod";
 
-const tools = {
-  getWeather: tool({
-    description: "Get weather for a location",
-    inputSchema: z.object({ location: z.string() }),
-    execute: async ({ location }) => `Weather: ${location} 72°F`
-  }),
-  sendEmail: tool({
-    description: "Send an email",
-    inputSchema: z.object({ to: z.string(), subject: z.string(), body: z.string() }),
-    execute: async ({ to, subject, body }) => `Email sent to ${to}`
-  })
-};
-
-export class MyAgent extends Agent<Env, State> {
-  async onChatMessage() {
-    const executor = new DynamicWorkerExecutor({
-      loader: this.env.LOADER
-    });
-
-    const codemode = createCodeTool({ tools, executor });
-
-    const result = streamText({
-      model,
-      system: "You are a helpful assistant.",
-      messages: await convertToModelMessages(this.messages),
-      tools: { codemode }
-    });
-
-    return result.toUIMessageStreamResponse();
-  }
-}
+const executor = new DynamicWorkerExecutor({ loader: this.env.LOADER });
+const codeMode = createCodeTool({ tools: { getWeather, lookupInventory }, executor });
+// Give `codeMode` to the model as its sole composition capability.
 ```
 
-## With MCP Tools
+The original `worker_loaders` binding is still the relevant deployment surface. Generated code should receive only declared tool capabilities. Keep outbound network disabled unless a separately authorized Fetcher boundary is supplied; do not let generated composition smuggle a broad credential or cross-tenant reference into a tool call.
 
-```typescript
-const codemode = createCodeTool({
-  tools: {
-    ...myTools,
-    ...this.mcp.getAITools()
-  },
-  executor
-});
-```
+## MCP and effects
 
-## How It Works
+MCP tools can join the declared tool set only after their principal, tenant scope, schema, and effect policy are checked. The two paths differ: stateless `createCodeTool` excludes tools whose `needsApproval` is true or a function; it does not pause for approval. A durable `ToolSetConnector` maps that marker to the runtime approval protocol. Function-valued approval becomes always-required in that connector. [Approval behavior](https://developers.cloudflare.com/agents/tools/codemode/ai-sdk/). Record requested tool calls and completed receipts separately; a sandbox crash or model response does not settle an external-effect outcome.
 
-1. `createCodeTool` generates TypeScript type definitions from your tools
-2. The LLM writes an async arrow function calling `codemode.toolName(args)`
-3. Code runs in an isolated Worker sandbox via `DynamicWorkerExecutor`
-4. Tool calls route back to the host via Workers RPC
-5. External `fetch()` is blocked by default — sandbox can only call your tools
+## Durable execution and approval
 
-## Network Isolation
+For a restart-aware composition, construct a `toolSetConnector(this.ctx, { name, tools })` and pass it into `createCodemodeRuntime({ ctx, executor, connectors })`; expose `runtime.tool()` to the model. Inspect paused executions and resolve the exact pending operation through the runtime approval interface. Replay reuses recorded completed call results. Rejection ends the paused run without reversing prior effects; compensation requires a configured connector `revert` implementation and its own outcome evidence. [Durable runtime](https://developers.cloudflare.com/agents/tools/codemode/durable-runtime/).
 
-```typescript
-const executor = new DynamicWorkerExecutor({
-  loader: env.LOADER,
-  globalOutbound: null           // default — fully isolated
-  // globalOutbound: env.MY_SERVICE  // route through a Fetcher
-});
-```
+Bind the application decision to principal, execution ID, pending call/sequence, exact arguments, current scope, and expiry. Verify callback identity and recheck current authority before resuming. A saved completed call cannot establish a provider outcome if the connector recorded it incorrectly; test the acceptance-to-recording crash gap.
 
-## Limitations
+## Test cases
 
-- Experimental — API may change
-- `needsApproval` tools execute immediately in sandbox (no approval pause yet)
-- JavaScript execution only
-- Requires `worker_loaders` binding
+Test prompt injection in tool output, unknown tool references, malformed generated code, resource exhaustion, egress denial, cross-tenant input, approval expiry, and partial failure across a multi-tool program. This page provides no runnable sandbox or external action.

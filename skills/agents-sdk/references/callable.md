@@ -1,92 +1,58 @@
-# Callable Methods
+# Callable methods
 
-Fetch https://developers.cloudflare.com/agents/api-reference/callable-methods/ for complete documentation.
+Primary source read 2026-09-24: [Cloudflare Callable methods](https://developers.cloudflare.com/agents/runtime/lifecycle/callable-methods/), including basic RPC, client forms, serialization, streaming, typed stubs, and errors. The callable decorator exposes an Agent method over WebSocket RPC to browsers, mobile clients, or external services. A Worker or peer Agent in the same Worker uses Durable Object RPC directly.
 
-## Overview
+## Basic command and client forms
 
-`@callable()` exposes agent methods to clients via WebSocket RPC.
+    import { Agent, callable } from "agents";
+    type State = { count: number; items: string[] };
 
-```typescript
-import { Agent, callable } from "agents";
+    export class CounterAgent extends Agent<Env, State> {
+      initialState: State = { count: 0, items: [] };
 
-export class MyAgent extends Agent<Env, State> {
-  @callable()
-  async greet(name: string): Promise<string> {
-    return `Hello, ${name}!`;
-  }
+      @callable()
+      increment(): number {
+        if (!Number.isSafeInteger(this.state.count) || this.state.count >= Number.MAX_SAFE_INTEGER)
+          throw new Error("counter outside domain");
+        this.setState({ ...this.state, count: this.state.count + 1 });
+        return this.state.count;
+      }
 
-  @callable()
-  async processData(data: unknown): Promise<Result> {
-    // Long-running work
-    return result;
-  }
-}
-```
-
-## Client Usage
-
-```typescript
-// Basic call
-const greeting = await agent.call("greet", ["World"]);
-
-// With timeout
-const result = await agent.call("processData", [data], {
-  timeout: 5000  // 5 second timeout
-});
-```
-
-## Streaming Responses
-
-```typescript
-import { Agent, callable, StreamingResponse } from "agents";
-
-export class MyAgent extends Agent<Env, State> {
-  @callable({ streaming: true })
-  async streamResults(stream: StreamingResponse, query: string) {
-    for await (const item of fetchResults(query)) {
-      stream.send(JSON.stringify(item));
+      @callable()
+      async addItem(item: string): Promise<string[]> {
+        if (typeof item !== "string" || item.length === 0)
+          throw new Error("invalid item"); // add application length/quota checks
+        this.setState({ ...this.state, items: [...this.state.items, item] });
+        return this.state.items;
+      }
     }
-    stream.close();
-  }
 
-  @callable({ streaming: true })
-  async streamWithError(stream: StreamingResponse) {
-    try {
-      // ... work
-    } catch (error) {
-      stream.error(error.message);  // Signal error to client
-      return;
+    const count = await agent.stub.increment();  // recommended typed form
+    const items = await agent.stub.addItem("new item");
+    const sameCount = await agent.call("increment"); // also documented
+
+Use explicit JSON value shapes for WebSocket RPC. Functions and object identity do not survive JSON transport; a Date can stringify to a timestamp string but is not transported as a Date instance, and Map/Set contents need explicit conversion. The documentation lists those rich types as unsupported; encode/decode deliberately rather than relying on a round trip. A void callable still resolves a client Promise when the method completes. Exceptions propagate to the caller, so return expected domain outcomes deliberately and avoid exposing raw internal failures.
+
+## Streaming calls
+
+    import { Agent, callable, type StreamingResponse } from "agents";
+
+    export class SearchAgent extends Agent {
+      @callable({ streaming: true })
+      async streamResults(stream: StreamingResponse, query: string) {
+        for await (const item of searchAuthorizedCorpus(query)) stream.send(item);
+        stream.end({ complete: true });
+      }
     }
-    stream.close();
-  }
-}
-```
 
-Client with streaming:
+    await agent.call("streamResults", ["release notes"], {
+      stream: { onChunk: render, onDone: showComplete, onError: showError },
+    });
 
-```typescript
-await agent.call("streamResults", ["search term"], {
-  stream: {
-    onChunk: (data) => console.log("Chunk:", data),
-    onDone: () => console.log("Complete"),
-    onError: (error) => console.error("Error:", error)
-  }
-});
-```
+The source documents send(chunk), end(finalChunk?), and error(message). Close or error every stream; RPC completion proves transport completion, not an external task effect.
 
-## Introspection
+## Authority, idempotency, and lifetime
 
-```typescript
-// Get list of callable methods on an agent
-const methods = await agent.call("getCallableMethods", []);
-// Returns: ["greet", "processData", "streamResults", ...]
-```
+Treat a callable as a public command boundary: authenticate the connection, authorize the selected instance and payload, validate input at runtime, and bind an idempotency key before non-idempotent work. A disconnected client, timeout, or RPC error does not prove the method did not start or that a provider effect did not occur. Persist an application effect receipt and expose a separate status/readback path for work that outlives the RPC.
 
-## When to Use
-
-| Scenario | Use |
-|----------|-----|
-| Browser/mobile calling agent | `@callable()` |
-| External service calling agent | `@callable()` |
-| Worker calling agent (same codebase) | DO RPC directly |
-| Agent calling another agent | `getAgentByName()` + DO RPC |
+The snippets are illustrative and untypechecked in this bundle. No package, Worker, WebSocket, or external service ran.

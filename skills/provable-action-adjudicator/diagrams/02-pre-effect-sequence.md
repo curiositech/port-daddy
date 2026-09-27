@@ -17,7 +17,7 @@ sequenceDiagram
     X-->>W: External observation
     W-->>C: Effect or ambiguity receipt
   else DENY or INDETERMINATE
-    C-->>R: Refusal; no actuator path
+    C-->>R: Refusal, no actuator path
   end
 ```
 

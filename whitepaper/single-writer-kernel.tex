@@ -1814,6 +1814,10 @@ deduplication discipline enforced at the boundary (an idempotency key plus a uni
 receipt row), not a promise the network itself keeps, since true exactly-once delivery
 across an unreliable channel is impossible~\pdcite{helland2007distributed}.
 
+Figure~\ref{fig:swk-unknown-effect} makes the retry boundary concrete: a
+timed-out call has an unknown effect until operation-specific status is read back.
+\input{figures/swk-unknown-effect}
+
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
 enumeration of the reachable states from the initial state, evaluates the six predicates in

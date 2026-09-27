@@ -43,7 +43,10 @@ metadata:
 ---
 # Executable BDI Revision Semantics
 
-Use this skill when the main problem is closing the gap between a pretty BDI theory and a reasoning engine that can actually run, revise commitments, and survive contradiction.
+Use this skill when translating the cited BDI model into conformance work. Móra et
+al. propose ELP/WFSX, Event Calculus, abductive feasibility, and preference-governed
+revision; the paper assumes initially consistent beliefs and leaves observation
+update out of scope. It is not a complete agent implementation or empirical validation.
 
 ## When to Use
 
@@ -72,7 +75,9 @@ Agents need to represent "I believe not-P" and "I intend not-P" as positive nega
 
 ### Contradiction Should Trigger Deliberation
 
-Conflicting desires are normal. Paraconsistent semantics treat contradiction as a signal to revise beliefs or intentions, not as a fatal error.
+Keep explicit positive and negative evidence distinct with source, time, scope, and
+authority. Contradictory evidence must not itself grant contradictory authorization;
+observation update is a separately specified local extension.
 
 ### Commitment Lives in the Revision Rules
 
@@ -168,3 +173,4 @@ A robot intends to inspect a site before battery reserve drops below a threshold
 - `references/desires-as-search-space-not-commands.md`: load when the desire/intention distinction is collapsing.
 - `references/abduction-as-intention-feasibility-check.md`: load when the main issue is whether current intentions are still achievable.
 - `references/preference-over-consistency-restoring-revisions.md`: load when you need concrete preference structure for deliberation.
+- `references/paper-scope-and-conformance.md`: load when separating paper-defined operators from local observation, update, and effect extensions.

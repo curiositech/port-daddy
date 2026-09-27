@@ -320,10 +320,10 @@ class AtlasCoverageTests(unittest.TestCase):
             ),
         )
         # Pin the reviewed corpus so simultaneous source/atlas deletion cannot
-        # silently pass. The current canonical roots contain 72 environments;
+        # silently pass. The current canonical roots contain 76 environments;
         # every single-row deletion must still fail the mutation checks below.
-        self.assertEqual(report["source_count"], 72)
-        self.assertEqual(report["atlas_count"], 72)
+        self.assertEqual(report["source_count"], 76)
+        self.assertEqual(report["atlas_count"], 76)
         # Five, and the previous revision of this comment is why the assertion
         # was kept at zero rather than deleted: it said it would "notice when a
         # contract legitimately reappears -- a standalone paper carrying its own

@@ -1,61 +1,21 @@
-# Resolution Trace Damping: Mechanics of Anti-Inflammatory Suppression
+# Damping mechanics: formula and implementation scope
 
-The damping formula `effective_pheromone = raw · (1 − damping_factor · resolution_level)` is applied at read time, not write time. The raw pheromone value at each node is never modified by resolution; what changes is what agents *perceive* when they call `sense()`. This is the critical design choice: damping is a perceptual filter, not a destructive mutation of the pheromone field. An agent depositing a RESOLUTION trace does not erase prior work signals — it merely makes the node look less attractive to agents deciding where to go next.
+## Generic formula described by the inherited skill
 
-## Concrete Arithmetic
+The inherited generic formula is `effective = raw * max(0, 1 - d * res)`. It preserves the raw signal and clamps the residual multiplier at zero. This is a formula under discussion, not a universal swarm behavior or empirical result. Parameter domain, source version, and the consumer of effective values must be verified.
 
-In `medium.py:213–216`, the computation is:
+## Port Daddy source snapshot inspected for this draft
 
-```python
-raw = self.pheromone.get(current, 0.0)
-res = self.resolution.get(current, 0.0)
-damping = max(0.0, 1.0 - self.resolution_damping * res)
-neighborhood[current] = raw * damping
-```
+In linked worktree commit `00ab2c9ab2197ff97e85edc173370b7446fdb2ef`, `lib/pheromone.ts` defines `dampedStrength` using `r = min(1, max(0, damping * resolution))` and `raw * (1-r)` (lines 28–32). `sniffEffective` defaults `damping=1` (line 312), while `createPheromoneManager` defaults `decayRate=0.95` and `intervalMs=60000` (line 85). Each evaporation tick multiplies pheromones by `decayRate` and resolutions by `decayRate²`; both are deleted below `0.01` (lines 152–170). These are source facts for that commit, not proof of deployed runtime behavior.
 
-With default `resolution_damping = 0.5` (constructor, line 113), a node with `resolution = 1.0` yields a damping multiplier of `0.5` — half the raw signal visible. At `resolution = 2.0`, multiplier hits `0.0` (clamped by `max(0.0, ...)`), making the node effectively invisible regardless of how much raw pheromone remains. There is no negative effective pheromone; the clamp prevents inversion.
+The inspected file has no `gradient()` consumer proving that gradients use effective pheromone. Therefore this source check resolves neither the generic SOMA gradient claim nor the actual downstream behavior of agents. Inspect the chosen client/action path separately. No SOMA `medium.py` source or benchmark was verified; all inherited SOMA line-level and performance claims are withdrawn pending exact source identity and review.
 
-## RESOLUTION Decay Rate: 2× Faster Than Pheromone
+## Arithmetic sanity check
 
-In `tick()` at line 335:
+For the Port Daddy function at the inspected commit, `raw=1`, `damping=0.5`, `resolution=1` gives `r=0.5` and effective value `0.5`. At `damping=1`, `resolution=1`, it gives zero. The multiplier saturates at one for `damping * resolution >= 1`. This is direct arithmetic over the source expression, not a task-allocation or coverage result.
 
-```python
-resolution_decay = math.exp(-self.decay_rate * 2.0 * dt)
-```
+## Domain and observation limits
 
-Resolution traces decay at twice the rate of regular pheromone (`decay_rate * 2.0` vs `decay_rate * 1.0`). With default `decay_rate = 0.01` and `dt = 1.0`, standard pheromone retains `exp(-0.01) ≈ 0.9900` per tick; resolution retains `exp(-0.02) ≈ 0.9802` per tick. The half-life of resolution is roughly 35 ticks vs 69 ticks for pheromone. This asymmetry is intentional: anti-inflammatory suppression should be transient so that a re-opened problem (regression, re-filed bug) can re-attract agents after the resolution signal fades.
+The stated `[0, raw]` bound assumes finite nonnegative inputs. At the pinned source, a nonfinite/nonpositive resolution returns raw; damping and raw are not fully checked. For example, positive resolution with `damping=NaN` yields `NaN`, while the map helper omits it because it fails the cutoff comparison. This is an input-validation gap, not a meaningful zero priority. The strength writer also lacks an explicit finite-number check; schema/route guards must be inspected independently. Keep malformed-input findings separate from policy outcomes.
 
-## Threshold for Negligibility Prune
-
-After decay in `tick()`, both pheromone and resolution fields are pruned against `epsilon = 1e-8` (lines 380–386):
-
-```python
-if abs(self.pheromone[node_id]) < epsilon:
-    self.pheromone[node_id] = 0.0
-for node_id in list(self.resolution.keys()):
-    if abs(self.resolution[node_id]) < epsilon:
-        self.resolution[node_id] = 0.0
-```
-
-This is a zero-assignment, not a key deletion — the dict entry remains, avoiding KeyError on subsequent `sense()` calls. Values are not pruned from the dict, only zeroed. The `1e-8` threshold is deliberately below any meaningful gradient: a pheromone value of `1e-8` after a 100-node graph Laplacian diffusion step contributes at most `~1e-10` gradient signal, which is below floating-point noise for any `np.float64` comparison an agent would perform. When resolution zeroes out this way, `damping = max(0.0, 1.0 - 0.5 * 0.0) = 1.0`, so the node becomes fully visible again.
-
-## Separation of Resolution from the Pheromone Field
-
-Resolution intensity is stored in `self.resolution` (a separate dict from `self.pheromone`). When `deposit()` is called with `TraceType.RESOLUTION`, line 190 routes the intensity to `self.resolution[node_id]` instead of `self.pheromone[node_id]`. This means:
-
-- Gradient computation (`gradient()`, lines 270–273) reads raw `self.pheromone` directly — gradient between nodes is based on undamped pheromone. Only neighborhood sensing via `sense()` applies damping.
-- An agent following a gradient can still be pulled toward a resolved node if the gradient is strong enough, but once it arrives and calls `sense()` again, the local effective signal is damped, reducing motivation to deposit further work traces there.
-
-## Key Points
-
-- Damping is perceptual, not destructive: `self.pheromone` is never modified by RESOLUTION; only `sense()` output is attenuated.
-- Default `resolution_damping = 0.5`; full suppression requires `resolution >= 2.0` (clamp at zero).
-- RESOLUTION decays at `2× decay_rate`, giving a half-life ~35 ticks vs ~69 ticks for pheromone at defaults — making suppression transient by design.
-- Negligibility prune threshold is `1e-8`; values are zeroed in-place, not deleted, to avoid KeyError in subsequent sense calls.
-- `gradient()` uses raw pheromone; only `sense()` applies the damping multiplier, so gradient-following is not fully suppressed at resolved nodes.
-
-## See Also
-
-- `soma/medium.py` `tick()` method — full physics including pheromone decay, diffusion stability clamping, urgency amplification, and the prune step
-- `TraceType.ANTIBODY` — complementary mechanism: antibodies suppress re-execution of known patterns via `check_antibody()`, while RESOLUTION suppresses re-visitation by concentration damping
-- `Medium.freeze_baseline()` / `deviation_from_baseline()` — tolerance baseline system; agents should react to deviations above baseline, not raw pheromone, to avoid false positives in high-activity steady states
+The constructed Python example in the entrypoint validates its numeric domain and ignores stale completion evidence. It illustrates a proposed policy; it does not repair or reproduce the repository helper.

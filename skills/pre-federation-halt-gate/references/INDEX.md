@@ -7,3 +7,5 @@ Imported source material. Load the file whose stated topic matches the current q
 | [bonds-require-well-defined-problems.md](bonds-require-well-defined-problems.md) | Bonds Cannot Be Written on Ill-Defined Problems |
 | [halt-gate-implementation.md](halt-gate-implementation.md) | Halt Gate Implementation: validityassessment.overall < 0.6 → HALT |
 | [polya-principal-parts.md](polya-principal-parts.md) | Polya's Principal Parts and Ill-Posed Problem Detection |
+| [gate-policy-and-calibration.md](gate-policy-and-calibration.md) | Typed blocker policy, score calibration, and decision costs |
+| [source-correction-ledger.md](source-correction-ledger.md) | Inherited source and numeric-claim corrections |

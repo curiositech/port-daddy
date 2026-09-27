@@ -1,44 +1,42 @@
 # Observability
 
-Fetch https://developers.cloudflare.com/agents/api-reference/observability/ for complete documentation.
+Primary source read 2026-09-24: [Cloudflare Diagnostics channels](https://developers.cloudflare.com/agents/runtime/operations/observability/diagnostics-channels/), including typed/local subscriptions, raw Node diagnostics channels, Tail Workers, custom Observability, and event reference. Diagnostics expose structured runtime observations; they are not proof of a downstream effect.
 
-Agents emit structured events via Node.js `diagnostics_channel`. Subscribe in development or forward via Tail Workers in production.
+## Subscribe locally
 
-## Subscribe to Events
+    import { subscribe } from "agents/observability";
 
-```typescript
-import { subscribe } from "agents/observability";
+    subscribe("agents:rpc", event => {
+      // rpc and rpc:error; redact before exporting.
+      recordDiagnostic({ channel: "agents:rpc", type: event.type });
+    });
+    subscribe("agents:state", event => {
+      recordDiagnostic({ channel: "agents:state", type: event.type });
+    });
 
-subscribe("agents:rpc", (event) => {
-  console.log(`RPC call: ${event.payload.method}`);
-});
+The current page names agents:state (state:update), agents:rpc (rpc and rpc:error), agents:message (message/tool/Think submission lifecycle), schedule, lifecycle, workflow, MCP, email, fiber, recovery/context, and transcript channels. Raw subscription is also documented through node:diagnostics_channel.
 
-subscribe("agents:state", (event) => {
-  console.log(`State change on ${event.agent}`);
-});
-```
+## Tail Workers and custom handling
 
-## Available Channels
+    export default {
+      async tail(events: TraceItem[]) {
+        for (const event of events) {
+          for (const msg of event.diagnosticsChannelEvents) {
+            forwardRedacted(msg); // timestamp, channel, and typed message
+          }
+        }
+      },
+    };
 
-| Channel | Events |
-|---------|--------|
-| `agents:state` | State changes |
-| `agents:rpc` | `@callable` invocations |
-| `agents:message` | WebSocket messages |
-| `agents:schedule` | Schedule triggers |
-| `agents:lifecycle` | Agent start, connect, disconnect |
-| `agents:workflow` | Workflow progress, completion, errors |
-| `agents:mcp` | MCP server connections, tool calls |
-| `agents:email` | Email received |
+Cloudflare documents automatic production forwarding to an attached Tail Worker, so no Agent subscription code is required for that path. A custom Observability implementation can filter/emit per Agent:
 
-## Per-Agent Override
+    const observability: Observability = {
+      emit(event) {
+        if (event.type === "rpc:error") reportFailure(event.payload.method);
+      },
+    };
+    class MyAgent extends Agent { override observability = observability; }
 
-```typescript
-export class MyAgent extends Agent<Env, State> {
-  observability = undefined; // disable for this agent
-}
-```
+Use a correlation ID across accepted input, Agent state transition, fiber/queue/workflow record, and application effect receipt. Redact at the producer; diagnostic payloads must not become raw-data sinks. An rpc event, state update, Tail Worker receipt, or successful forward says the observation occurred, not that an external provider completed the intended task.
 
-## Production: Tail Workers
-
-In production, events appear as `diagnosticsChannelEvents` on the Tail Worker `event` object. Attach a Tail Worker to your agent's Worker to forward events to your observability platform.
+Snippets are illustrative and untypechecked; no Worker, Tail Worker, channel subscriber, or exporter ran.

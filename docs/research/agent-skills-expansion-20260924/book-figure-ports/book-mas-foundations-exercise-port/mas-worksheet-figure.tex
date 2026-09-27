@@ -1,0 +1,46 @@
+% Question: What does an equilibrium check establish?
+% Claim: One checked equilibrium does not establish a universal welfare property.
+% Evidence: constructed two-worker game; exact integer payoff/deviation enumeration.
+% Distinguish: verify / find / universal property; model change / execution authority.
+% Grammar: payoff matrix and ruled worksheet; reject arrows implying guaranteed action.
+% Five-second test: (B,B) refutes welfare >= 5 despite a valid (A,A) certificate.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner sep=0pt,fill=none}]
+\def\right{11.4}\def\split{2.55}\def\row{1.05}
+\path[use as bounding box] (0,-9.75) rectangle (\right,.35);
+\node[pd panel title,anchor=west] at (0,.1) {One game, three different questions};
+\node[pd direct label,anchor=west] at (0,-.5) {Baseline: all four action pairs are feasible. Payoffs are constructed.};
+\node[pd panel title] at (2.0,-1.2) {Worker 2: A};
+\node[pd panel title] at (4.15,-1.2) {B};
+\node[pd panel title,anchor=east] at (1.0,-1.85) {1: A};
+\node[pd panel title,anchor=east] at (1.0,-2.65) {B};
+\draw[pd rule] (1.2,-1.5)--(5.1,-1.5);
+\draw[pd hairline] (1.2,-2.25)--(5.1,-2.25);
+\draw[pd rule] (1.2,-3.02)--(5.1,-3.02);
+\node[pd direct label] at (2.0,-1.85) {$(3,3)$};
+\node[pd direct label] at (4.15,-1.85) {$(0,0)$};
+\node[pd direct label] at (2.0,-2.65) {$(0,0)$};
+\node[pd direct label] at (4.15,-2.65) {$(2,2)$};
+\node[pd panel title,anchor=west] at (6.0,-1.55) {Same action, positive payoff};
+\node[pd direct label,anchor=west] at (6.0,-2.05) {Either worker switching alone};
+\node[pd direct label,anchor=west] at (6.0,-2.5) {receives zero.};
+\node[pd direct label,anchor=west] at (6.0,-2.95) {Pair order: (worker 1, worker 2).};
+\draw[pd rule] (0,-3.45)--(\right,-3.45);
+\node[pd panel title,anchor=west] at (0,-3.87) {Question};
+\node[pd panel title,anchor=west] at (\split,-3.87) {Exact result in this model};
+\draw[pd hairline] (0,-4.2)--(\right,-4.2);
+\node[pd panel title,anchor=west] at (0,-4.68) {Verify $(A,A)$};
+\node[pd direct label,anchor=west] at (\split,-4.68) {Both deviations: $3\to0$. Supplied profile is Nash.};
+\draw[pd hairline] (0,-5.1)--(\right,-5.1);
+\node[pd panel title,anchor=west] at (0,-5.58) {Find one};
+\node[pd direct label,anchor=west] at (\split,-5.58) {$(B,B)$ also works: both deviations give $2\to0$.};
+\draw[pd hairline] (0,-6.0)--(\right,-6.0);
+\node[pd panel title,anchor=west] at (0,-6.48) {Every Nash?};
+\node[pd direct label,anchor=west] at (\split,-6.48) {Sum $\ge5$? No: $(B,B)$ has sum $4$. Counterexample.};
+\draw[pd rule] (0,-6.95)--(\right,-6.95);
+\node[pd panel title,anchor=west] at (0,-7.4) {Change the model: at most one worker may choose A};
+\node[pd direct label,anchor=west] at (0,-7.92) {$(A,A)$ is now infeasible. Its old certificate cannot be reused.};
+\node[pd direct label,anchor=west] at (0,-8.4) {Specify the admission rule and allowed deviations before solving again.};
+\draw[pd hairline,dashed] (0,-8.85)--(\right,-8.85);
+\node[pd panel title,anchor=west] at (0,-9.28) {Execution is separate};
+\node[pd direct label,anchor=west] at (3.8,-9.28) {Observe capacity; authorize; check the effect.};
+\end{tikzpicture}

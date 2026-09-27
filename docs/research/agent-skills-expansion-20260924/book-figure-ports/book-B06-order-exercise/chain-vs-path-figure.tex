@@ -1,0 +1,42 @@
+% Question: Why does the same DAG need two chains but three disjoint paths?
+% Claim: reachability may pass through a vertex assigned to another chain.
+% Evidence: constructed five-node DAG; exact exhaustive fixture and hand certificate.
+% Distinguish: original arcs, derived reachability, membership, minimum counts.
+% Grammar: one source graph and paired partition witnesses; not a worker schedule.
+% Five-second test: c and d share a chain, but cannot share a direct path without x.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner sep=0pt,fill=none}]
+\def\right{11.4}\def\gap{6.05}\def\step{1.35}
+\path[use as bounding box] (0,-9.3) rectangle (\right,.4);
+\node[pd panel title,anchor=west] at (0,.15) {Same DAG, different partition objectives};
+\node[pd direct label,anchor=west] at (0,-.45) {Original arcs: $a\to x$, $c\to x$, $x\to b$, $x\to d$};
+\foreach \n/\x/\y in {a/3/-1.35,c/3/-2.75,x/5.7/-2.05,b/8.4/-1.35,d/8.4/-2.75}
+ {\node[pd actor,circle,minimum size=.55cm,inner sep=0pt] (\n) at (\x,\y) {$\n$};}
+\draw[pd arrow] (a)--(x);\draw[pd arrow] (c)--(x);
+\draw[pd arrow] (x)--(b);\draw[pd arrow] (x)--(d);
+\draw[pd rule] (0,-3.35)--(\right,-3.35);
+\node[pd panel title,anchor=west] at (0,-3.85) {Reachability chains: minimum 2};
+\node[pd panel title,anchor=west] at (\gap,-3.85) {Direct-edge paths: minimum 3};
+\node[pd direct label,anchor=west] at (0,-4.4) {Successors need only be reachable.};
+\node[pd direct label,anchor=west] at (\gap,-4.4) {Successors need an original arc.};
+\foreach \off in {0,6.05}{
+ \node[pd direct label] at ({\off+.7},-5.15) {$a$};
+ \node[pd direct label] at ({\off+2.2},-5.15) {$x$};
+ \node[pd direct label] at ({\off+3.7},-5.15) {$b$};
+ \draw[pd focus arrow] ({\off+1},-5.15)--({\off+1.9},-5.15);
+ \draw[pd focus arrow] ({\off+2.5},-5.15)--({\off+3.4},-5.15);
+}
+\node[pd direct label] at (.7,-6.0) {$c$};
+\node[pd direct label] at (3.7,-6.0) {$d$};
+\draw[pd focus arrow,dashed] (1,-6.0)--(3.4,-6.0);
+\node[pd direct label,anchor=west] at (0,-6.62) {Dashed: $c$ reaches $d$ through $x$.};
+\node[pd direct label,anchor=west] at (0,-7.12) {$x$ belongs only to the first chain.};
+\node[pd direct label] at (6.75,-6.0) {$c$};
+\node[pd direct label,anchor=west] at (7.65,-6.0) {singleton path};
+\node[pd direct label] at (6.75,-6.85) {$d$};
+\node[pd direct label,anchor=west] at (7.65,-6.85) {singleton path};
+\draw[pd hairline] (0,-7.6)--(5.35,-7.6) (\gap,-7.6)--(\right,-7.6);
+\node[pd panel title,anchor=west] at (0,-8.05) {Lower bound: antichain $\{a,c\}$};
+\node[pd direct label,anchor=west] at (0,-8.6) {Two chains attain that bound.};
+\node[pd panel title,anchor=west] at (\gap,-8.05) {Only one path can contain $x$.};
+\node[pd direct label,anchor=west] at (\gap,-8.6) {At least two vertices stay singleton.};
+\end{tikzpicture}

@@ -1,100 +1,86 @@
-# Reasoning-Action Synergy: Why Thinking and Doing Must Interleave
+# Reasoning/action feedback: methods and evidence boundaries
 
-## The Core Problem: Reasoning and Acting Have Been Artificially Separated
+## The architectural question
 
-The ReAct paper addresses a fundamental architectural question for intelligent agent systems: should an agent *think* or should it *act*? The prevailing wisdom has treated these as separate capabilities. Chain-of-thought prompting demonstrates that language models can reason through problems step-by-step, producing "thinking procedures" that solve arithmetic, commonsense, and symbolic reasoning tasks. Meanwhile, action-generation systems show language models can plan and act in interactive environments, converting observations to text and generating domain-specific actions.
+ReAct augments a task's environment actions with generated language that updates the prompt context. In the paper's model, a thought changes that context but does not itself act on the environment or produce an environment observation. A subsequent action may produce an observation used in the next decision. This is a useful architecture to compare with a fixed plan or a planner/executor interface; neither is universally required or ruled out.
 
-But this separation is artificial and limiting. As the authors observe, "A unique feature of human intelligence is the ability to seamlessly combine task-oriented actions with verbal reasoning (or inner speech)." When humans cook a dish, we don't first complete all reasoning then execute all actions. We interleave: we reason to track progress ("now that everything is cut, I should heat up the pot"), to handle exceptions ("I don't have salt, so let me use soy sauce instead"), and to recognize information gaps ("how do I prepare dough? Let me search online"). We also act to support reasoning—opening a cookbook, checking the fridge—to answer questions we couldn't answer from memory alone.
+Source: [Yao et al., arXiv v3](https://arxiv.org/html/2210.03629v3), §§2–4 and appendices. Results below refer to the authors' configurations. The human cooking analogy motivates the paper; it does not identify a model's private cognition.
 
-## The Synergistic Relationship: Reason to Act, Act to Reason
+## Reason to act: propose the next information-seeking step
 
-ReAct demonstrates two complementary value flows:
+In the Colorado-orogeny teaching trajectory, a first observation supplies High Plains as a bridge entity. The next proposed search follows that entity, then extracts the requested elevation range. The practical sequence is:
 
-**Reason to Act**: Reasoning traces help the model "induce, track, and update action plans as well as handle exceptions." In the HotpotQA example, when the model searches for "Colorado orogeny" and learns about the "eastern sector," it reasons: "The eastern sector of Colorado orogeny extends into the High Plains. So I need to search High Plains and find its elevation range." The reasoning trace creates an explicit subgoal that guides the next action. Without this reasoning step, the action generation becomes reactive and loses strategic direction.
+1. declare the missing relation or property;
+2. propose an allowed query to resolve it;
+3. retain the returned source and observation;
+4. check the proposed bridge relation;
+5. use a further query or stop with the supported claim and limitations.
 
-In ALFWorld, this manifests as goal decomposition: "To solve the task, I need to find and take a lettuce, then clean it with sinkbasin, then put it in diningtable." This high-level plan, expressed as a thought, prevents the agent from taking random exploratory actions. When the agent thinks "First I need to find a lettuce. A lettuce is more likely to appear in fridge (1), diningtable (1), sinkbasin (1)...", it's using commonsense reasoning to prioritize search, dramatically reducing the action space.
+The generated text makes the proposed subgoal inspectable. It neither establishes the bridge relation nor proves why the action was selected. An action-only system can also implement multi-hop search and retain useful state; the paper's trace is one example, not an impossibility result about that architecture.
 
-**Act to Reason**: Actions allow the model to "interface with and gather additional information from external sources such as knowledge bases or environments." This grounds reasoning in factual observations rather than potentially hallucinated internal knowledge. In the fact-verification task, after searching "Nikolaj Coster-Waldau," the model observes concrete text: "He then played a detective in the short-lived Fox television series New Amsterdam (2008), and appeared in the 2009 Fox television film Virtuality." This observation *enables* the reasoning: "Because he 'appeared in the 2009 Fox television film Virtuality', he should have worked with the Fox Broadcasting Company."
+In ALFWorld, a plan may propose finding, taking, cleaning and placing an object. A generated list of likely locations supplies a candidate ordering, not a verified location model. The application must still check location, held-object and other preconditions before an effect and update its state from the observation. Any claimed reduction in search cost needs a measured baseline and a fixed search budget.
 
-The critical insight is that neither direction alone is sufficient. Pure reasoning (CoT) achieves 29.4% on HotpotQA but suffers from 14% false positive rate due to hallucination. Pure acting achieves only 25.7% because it cannot synthesize information across multiple search results or track complex subgoals. ReAct achieves 27.4% on HotpotQA with only 6% false positive rate—and when combined with CoT self-consistency to leverage both internal and external knowledge, reaches 35.1%.
+## Act to reason: obtain observations and validate their use
 
-## Architectural Implications for Agent Systems
+The knowledge-task environment offers three specific actions: search a named Wikipedia entity (first five sentences or five suggested entities), look up a string in the current page (next matching sentence), and finish with an answer. This deliberately limited interface is not a general modern retrieval API.
 
-For agent orchestration systems, this suggests a fundamental design principle: **don't separate reasoning and acting into distinct phases or specialized agents**. The common pattern of having a "planner agent" generate a complete plan, then an "executor agent" carry it out, misses the synergy. Plans must adapt based on what actions reveal. Execution must be guided by reasoning that updates in response to observations.
+The Coster-Waldau example retrieves text about a Fox film and proposes an inference about a Fox relationship. Keep the search receipt and the proposed inference separate: an appearance credit may not support a stronger employment claim. Empty results, stale pages, ambiguous entities and unsupported joins remain possible even when every tool call succeeds.
 
-This has implications for DAG-based orchestration:
+An application can record a claim-to-receipt link, source identity/date/scope, the exact inference being checked, and support/refute/unknown. These fields are engineering additions; ReAct does not implement source authority or factual verification by itself.
 
-1. **Edges should carry both observations and reasoning traces**: When one agent's action produces an observation, the next agent needs not just the raw observation but the reasoning context—what were we trying to learn? Why did we take that action? What subgoal does this serve?
+## What the numerical comparisons establish
 
-2. **Reasoning should be a first-class operation, not a preprocessing step**: Systems often do "plan then execute." ReAct shows the value of "think, act, observe, think, act, observe"—reasoning is interleaved throughout, not front-loaded.
+Table 1 reports PaLM-540B HotpotQA exact-match scores of 29.4 for CoT, 25.7 for Act, 27.4 for ReAct, and 35.1 for ReAct followed by CoT self-consistency. These are dataset/prompt/interface results, not causal proof that Act cannot synthesize or that one policy dominates every task.
 
-3. **Failure recovery requires reasoning visibility**: When ReAct gets into repetitive action loops, it's a reasoning failure ("the model fails to reason about what the proper next action to take and jump out of the loop"). An orchestration system that logs only actions cannot diagnose this. You need the reasoning traces to see *why* the agent is stuck.
+Table 2 uses a separately selected human-analysis sample: 50 correct and 50 incorrect trajectories per method, 200 total. Among the selected correct-answer examples, the reported false-positive categories are 14% for CoT and 6% for ReAct. They are not population false-positive rates. Among selected incorrect-answer examples, the reported reasoning/search/hallucination/ambiguity percentages differ; see [failure analysis](failure-modes-and-error-propagation.md) for the sampling and rounding boundary. A displayed zero hallucination category is not a prevention guarantee.
 
-4. **Human-in-the-loop correction targets reasoning, not actions**: The paper shows that by editing two thoughts in a trajectory, a human can completely redirect agent behavior (Figure 5). This is vastly more efficient than trying to specify individual action corrections. Orchestration systems should expose reasoning traces as the primary intervention point.
+## Architectural implications for an application
 
-## The Flexibility-Groundedness Tradeoff
+Retain feedback when the task needs it. A planner/executor split can carry preconditions, observations and recovery information; a bounded ReAct-style controller can revise a next step after each observation. Compare these designs on the target task rather than requiring one universal topology.
 
-The paper identifies a critical tradeoff: "While interleaving reasoning, action and observation steps improves ReAct's groundedness and trustworthiness, such a structural constraint also reduces its flexibility in formulating reasoning steps, leading to more reasoning error rate than CoT."
+For a DAG or conversation implementation:
 
-What does this mean? Pure CoT can reason freely, making logical deductions without constraint. It can say "let's think step by step" and chain together arbitrary inferences. ReAct must alternate thinking and acting, which means reasoning must be grounded in observations. This prevents flights of fancy but also constrains reasoning to what's immediately relevant to interpreting observations or choosing actions.
+- Edges carry the request, result, supporting observation and task context. A concise public decision summary may explain the intended subgoal; do not require private chain-of-thought disclosure.
+- A controller accepts or rejects proposed actions using authority, schema, state and remaining budget. Language text is not the enforcement mechanism.
+- State snapshots, attempted actions, failed preconditions and outcome receipts support diagnosis even without a generated rationale.
+- An authorized reviewer may amend task context or constraints. Preserve who changed what, its scope/expiry, the subsequent allowed action and observed outcome; do not rewrite historical observations.
 
-The sweet spot is adaptive: "when the majority answer among n CoT-SC samples occurs less than n/2 times (i.e. internal knowledge might not support the task confidently), back off to ReAct." Use pure reasoning when the model has strong internal knowledge, but switch to grounded reasoning-acting when uncertainty is high or facts need verification.
+## Structure, flexibility and switching
 
-For agent systems, this suggests **confidence-aware routing**: when an agent's internal knowledge is sufficient (high agreement among reasoning traces, or high confidence scores), let it reason freely. When uncertainty is high or facts are disputed, force interaction with external knowledge sources and ground reasoning in observations.
+The authors discuss flexibility as a possible explanation of their sampled errors. Their comparison does not isolate a general causal law about structural constraints. Prompt alternation can coexist with erroneous reasoning, and direct generation can have absent or false premises.
 
-## Sparse vs Dense Reasoning: Strategic Thought Placement
+The paper's two hybrid procedures are concrete methods to preserve:
 
-A key finding: ReAct's sparse, strategic reasoning (average 57% success on ALFWorld) substantially outperforms Inner Monologue's dense environmental feedback (48% success). Why?
+- ReAct to CoT-SC: after failure to answer within 7 HotpotQA or 5 FEVER steps, use the CoT-SC fallback in that experiment.
+- CoT-SC to ReAct: switch if the most frequent answer occurs fewer than half of the sampled answers.
 
-Dense feedback is reactive: "I need to put this knife (1) in/on countertop 1." It narrates the immediate goal but doesn't provide strategic reasoning about *why* this is the right goal or *how* it fits into the overall plan. The agent gets stuck repeating this thought even after completing the action because it lacks the reasoning to recognize task completion.
+These are experiment-specific policies. Agreement measures agreement, not evidence or calibrated correctness. A production fallback needs its own source requirements, authority, cost, and unknown/abstention path. It must not assert unsupported facts merely because retrieval ran out of steps.
 
-Sparse strategic reasoning serves multiple purposes:
-- **Goal decomposition**: "To solve the task, I need to find and take a lettuce, then clean it with sinkbasin, then put it in diningtable."
-- **Progress tracking**: "Now I take a lettuce (1). Next, I need to go to sinkbasin (1) and clean it."
-- **Commonsense application**: "A lettuce is more likely to appear in fridge (1), diningtable (1), sinkbasin (1)..."
-- **Exception handling**: "Could not find [Beautiful]. Similar: [...]. From suggestions, I should search 'Beautiful (Christina Aguilera song)'."
+## Sparse and dense thought placement
 
-For orchestration systems, this means: **don't generate reasoning at every step**. Generate reasoning when it serves a strategic purpose—decomposing goals, making decisions under uncertainty, tracking progress through multi-step plans, or handling exceptions. Dense reasoning creates noise and cognitive load without improving decisions.
+In the ALFWorld study, Table 3 reports averages of 57% for ReAct and 48% for the IM-style variant. The best-of-six comparison differs from these averages. The IM-style condition reannotates task trajectories with a restricted dense-feedback pattern; it is not a test of every dense trace or the whole Inner Monologue framework.
 
-The system should ask: *What decision point is this reasoning serving?* If the next action is obvious from context, skip explicit reasoning. If the situation requires strategic choice, invoke reasoning.
+The shown ReAct text performs several roles: proposed goal decomposition, declared progress, hypothesized object locations, and search reformulation. These labels can guide a review rubric. They do not establish internal state or that sparse text alone caused the score difference.
 
-## Boundary Conditions and Failure Modes
+For a new controller, decide where a public summary is useful: a new subgoal, an uncertain choice, an observed failure, or an exception. Compare sparse summaries, denser summaries and action/state-only records with equal task and resource budgets. Measure task outcome and reviewer diagnosis separately; do not assume more or less text is inherently better.
 
-ReAct's failure modes are instructive:
+## Failure recovery as a bounded procedure
 
-1. **Reasoning errors (47% of ReAct failures)**: Wrong reasoning traces, including repetitive action loops where the model fails to recognize it's stuck. This is more common in ReAct (47%) than CoT (16%) because the structural constraint of interleaving limits reasoning flexibility.
+The paper includes repetitive action loops and uninformative searches. A controller can normalize the attempted action, compare the state with the preceding failed attempt, record an unmet precondition, and select an authorized alternative or stop at its configured limit. Repetition is a signal for a policy, not proof that the model has lost an internal state.
 
-2. **Search result errors (23% of ReAct failures)**: The search returns empty or non-informative results, derailing subsequent reasoning. This highlights the dependency on environment quality—if actions don't produce useful observations, reasoning cannot be grounded effectively.
+Typed absence, candidates and retrieval limits can make failure explanations more inspectable. Whether an interface change improves outcomes needs evaluation. Grounding exposes an observation to checking; it does not guarantee that the observation is relevant or correct, or that the final inference follows.
 
-3. **Hallucination (0% of ReAct failures vs 56% of CoT failures)**: ReAct's grounding in observations virtually eliminates hallucination, while CoT's 56% failure rate from hallucination is its primary weakness.
+## Learning the interaction procedure
 
-For agent systems, this suggests:
+The paper reports fine-tuning PaLM-8B/62B on 3,000 generated, correct-answer HotpotQA trajectories under its Wikipedia action space. Its comparisons favor the ReAct fine-tuning configuration over the named alternatives. They do not show general cross-domain transfer or that every smaller trained model beats a larger prompted model.
 
-- **Monitor for reasoning loops**: If an agent repeats similar reasoning or actions multiple times, intervention is needed. The system has lost the strategic thread.
-- **Ensure observation quality**: Actions that produce uninformative observations break the synergy. Design environments and APIs to return actionable information.
-- **Use grounded reasoning for facts, free reasoning for logic**: When factual accuracy matters, force interaction with external knowledge. When logical deduction matters and facts are established, allow free reasoning.
+For a local study, distinguish procedure candidates (query selection, bridge extraction, source checking, stopping) from memorized facts. Preserve tool versions and trajectory filtering, independently check outcomes, hold out tasks and changed interfaces, and compare cost/error metrics against matched baselines. A correct final answer does not alone verify every intermediate claim. The [learning reference](learning-reasoning-acting-patterns.md) expands this workflow.
 
-## Scaling Implications: When Does ReAct Excel?
+## Transfer checklist
 
-The paper shows ReAct's advantages scale differently across learning paradigms:
-
-- **Few-shot prompting**: ReAct requires learning both reasoning and acting from limited examples, making it harder than learning either alone. Act-only or CoT-only can be better with very few examples.
-- **Fine-tuning**: With just 3,000 examples, ReAct becomes the best method, with 8B parameter ReAct outperforming 62B prompting methods and 62B ReAct outperforming 540B prompting methods.
-
-Why? "Standard or CoT essentially teaches models to memorize (potentially hallucinated) knowledge facts, and [Act/ReAct] teaches models how to (reason and) act to access information from Wikipedia, a more generalizable skill."
-
-For agent systems: **reasoning-acting patterns are more learnable and generalizable than memorizing facts**. If you're going to invest in training data, annotate reasoning-acting trajectories, not just correct answers. The skill of "how to seek information strategically and reason about what you find" transfers better than domain knowledge.
-
-## Transferable Principles for WinDAGs
-
-1. **Interleave reasoning and acting in agent workflows**: Don't separate planning from execution. Design conversation flows where reasoning and action alternate.
-
-2. **Make reasoning traces explicit and loggable**: They're essential for debugging, human oversight, and learning from failures.
-
-3. **Route based on confidence and task requirements**: Use grounded reasoning-acting for fact-intensive tasks, pure reasoning for logical deduction, and adaptive switching when uncertainty is high.
-
-4. **Design environments to return informative observations**: The quality of action feedback directly determines reasoning quality.
-
-5. **Use sparse, strategic reasoning**: Generate thoughts when they serve a purpose (decomposition, decision-making, exception handling), not at every step.
-
-6. **Enable human correction at the reasoning level**: Let users edit thoughts, not just actions, for more efficient intervention.
+1. State the task, permitted actions, observations and stopping conditions.
+2. Preserve request/result/state evidence; add concise public summaries where useful.
+3. Identify each policy as paper-specific or an application extension.
+4. Check factual support and effect completion separately from language generation.
+5. Evaluate routing, summary placement and recovery on held-out tasks with matched budgets.
+6. Report failures and uncertain outcomes without turning a trace, receipt or benchmark score into a general guarantee.

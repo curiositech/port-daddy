@@ -9,3 +9,4 @@ Load only the file that matches the question in front of you.
 - `preference-over-consistency-restoring-revisions.md`: preference over consistency-restoring revisions — encoding deliberation policy in search structures.
 - `revision-mechanisms-as-non-monotonic-deliberation.md`: revision mechanisms as non-monotonic deliberation — how rational inconsistency drives choice.
 - `triggers-and-attention-in-committed-agents.md`: triggers and attention in committed agents — when deliberation should happen.
+- `paper-scope-and-conformance.md`: paper-defined operators versus local observation, update, and effect extensions.

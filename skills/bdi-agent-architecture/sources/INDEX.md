@@ -1,6 +1,6 @@
 # Preserved source bundles
 
-These are the original skill files, relocated without content edits. The canonical root `SKILL.md` is the activation entrypoint. Read a source only when its topic is needed; verify paper-specific claims against primary publications.
+These source bundles retain their original names and assets with source-bound corrections from the reconciliation branch. The canonical root `SKILL.md` is the activation entrypoint. Consult only the needed source, and verify paper-specific claims against its primary publication.
 
 ## `bdi-agency-model`
 
@@ -13,6 +13,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`bdi-agency-model/diagrams/03_quadrantChart_environment_dynamics_vs._compu.md`](bdi-agency-model/diagrams/03_quadrantChart_environment_dynamics_vs._compu.md)
 - [`bdi-agency-model/diagrams/INDEX.md`](bdi-agency-model/diagrams/INDEX.md)
 - [`bdi-agency-model/references/INDEX.md`](bdi-agency-model/references/INDEX.md)
+- [`bdi-agency-model/references/evidence-scope.md`](bdi-agency-model/references/evidence-scope.md)
 - [`bdi-agency-model/references/learning-the-missing-piece.md`](bdi-agency-model/references/learning-the-missing-piece.md)
 - [`bdi-agency-model/references/multi-agent-commitment-and-coordination.md`](bdi-agency-model/references/multi-agent-commitment-and-coordination.md)
 - [`bdi-agency-model/references/rational-commitment-and-reconsideration.md`](bdi-agency-model/references/rational-commitment-and-reconsideration.md)
@@ -29,6 +30,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`belief-desire-intention-model-of-agency/diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md`](belief-desire-intention-model-of-agency/diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md)
 - [`belief-desire-intention-model-of-agency/diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md`](belief-desire-intention-model-of-agency/diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md)
 - [`belief-desire-intention-model-of-agency/diagrams/03_quadrantChart_environment_dynamics_vs._compu.md`](belief-desire-intention-model-of-agency/diagrams/03_quadrantChart_environment_dynamics_vs._compu.md)
+- [`belief-desire-intention-model-of-agency/references/commitment-boundary-and-trace.md`](belief-desire-intention-model-of-agency/references/commitment-boundary-and-trace.md)
 - [`belief-desire-intention-model-of-agency/references/learning-the-missing-piece.md`](belief-desire-intention-model-of-agency/references/learning-the-missing-piece.md)
 - [`belief-desire-intention-model-of-agency/references/multi-agent-commitment-and-coordination.md`](belief-desire-intention-model-of-agency/references/multi-agent-commitment-and-coordination.md)
 - [`belief-desire-intention-model-of-agency/references/rational-commitment-and-reconsideration.md`](belief-desire-intention-model-of-agency/references/rational-commitment-and-reconsideration.md)
@@ -68,6 +70,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/decision-trees-to-symbolic-reasoning.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/decision-trees-to-symbolic-reasoning.md)
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/failure-modes-complex-agent-systems.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/failure-modes-complex-agent-systems.md)
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/option-generation-problem-filtering.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/option-generation-problem-filtering.md)
+- [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/paper-scope-and-calibration.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/paper-scope-and-calibration.md)
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/plans-as-knowledge-compilation.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/plans-as-knowledge-compilation.md)
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/resource-bounded-rationality-three-attitudes.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/resource-bounded-rationality-three-attitudes.md)
 - [`rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/theory-practice-gap-practical-approximation.md`](rao-georgeff-1995-bdi-agents-from-theory-to-practice/references/theory-practice-gap-practical-approximation.md)

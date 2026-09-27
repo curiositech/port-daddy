@@ -1,60 +1,16 @@
-# BDI Agent Decision Cycle: Belief-Desire-Intention State Machine
+# BDI interpreter cycle and commitment review
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Perceive
-    
-    Perceive: Perceive Event from Environment
-    Perceive --> UpdateBeliefs
-    
-    UpdateBeliefs: Update Beliefs\n(World Model)
-    UpdateBeliefs --> DetectSignificantChange
-    
-    DetectSignificantChange: Detect Potentially\nSignificant Change?
-    DetectSignificantChange -->|No significant change| ExecutePlan
-    DetectSignificantChange -->|Significant change detected| Deliberate
-    
-    Deliberate: Deliberate\n(Goal Selection & Prioritization)
-    Deliberate --> AdoptIntention
-    
-    AdoptIntention: Adopt New Intention\n(Commitment Decision)
-    AdoptIntention --> SelectCommitmentStrategy
-    
-    SelectCommitmentStrategy: Choose Commitment\nStrategy
-    SelectCommitmentStrategy -->|Blind Commitment| BlindMode
-    SelectCommitmentStrategy -->|Single-Minded Commitment| SingleMindedMode
-    SelectCommitmentStrategy -->|Open-Minded Commitment| OpenMindedMode
-    
-    BlindMode: Persist Until\nGoal Achieved
-    SingleMindedMode: Persist Until\nGoal Achieved or Impossible
-    OpenMindedMode: Persist Until\nNo Longer Desired
-    
-    BlindMode --> MeansEndReasoning
-    SingleMindedMode --> MeansEndReasoning
-    OpenMindedMode --> MeansEndReasoning
-    
-    MeansEndReasoning: Means-End Reasoning\n(Plan Selection from Library)
-    MeansEndReasoning --> SelectPlan
-    
-    SelectPlan: Select Applicable Plan\n(Preconditions Satisfied)
-    SelectPlan --> ExecutePlan
-    
-    ExecutePlan: Execute Next Action\nfrom Plan
-    ExecutePlan --> CheckReconsideration
-    
-    CheckReconsideration: Reconsideration Trigger\nFired?
-    CheckReconsideration -->|Goal achieved| IntentionSuccess
-    CheckReconsideration -->|Plan impossible| IntentionFailed
-    CheckReconsideration -->|Intention invalid\n(open-minded)| IntentionInvalid
-    CheckReconsideration -->|No trigger:\nContinue execution| Perceive
-    
-    IntentionSuccess: Abandon Intention\n(Success)
-    IntentionFailed: Abandon Intention\n(Failure)
-    IntentionInvalid: Reconsider Goals\n(Priority Change)
-    
-    IntentionSuccess --> Perceive
-    IntentionFailed --> Perceive
-    IntentionInvalid --> Perceive
-    
-    Perceive --> [*]
+    [*] --> dequeue
+    dequeue --> generate_options
+    generate_options --> deliberate: possibly empty options
+    deliberate --> update_intentions: possibly empty selection
+    update_intentions --> execute_atomic: new or existing enabled action
+    update_intentions --> collect_events: no enabled action
+    execute_atomic --> collect_events
+    collect_events --> drop_attitudes
+    drop_attitudes --> dequeue
 ```
+
+The ideal loop is printed in [Rao–Georgeff 1995, p. 317](https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf). No new option need not mean no enabled action: an existing intention can supply it. Queue scheduling, effect authorization, and resolution policy are local. Internal events are posted as they occur; external events accumulated during the cycle are collected before dropping successful/impossible attitudes.

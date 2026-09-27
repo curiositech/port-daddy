@@ -1,6 +1,6 @@
 {
   "skill": "runtime-verification-for-agents",
-  "updatedAt": "2026-04-18T22:42:42",
+  "updatedAt": "2026-09-24T12:21:08.735156+00:00",
   "provenance": {
     "kind": "first-party",
     "owners": [
@@ -12,7 +12,7 @@
       "some-claude-skills"
     ]
   },
-  "lineCount": 439,
+  "lineCount": 339,
   "structuralComplete": true,
   "structure": {
     "decisionPoints": true,
@@ -20,19 +20,20 @@
     "workedExamples": true,
     "qualityGates": true,
     "notFor": true,
-    "inlineMermaid": 1
+    "inlineMermaid": 0
   },
   "affordances": {
     "scripts": false,
     "templates": false,
-    "examples": false,
-    "references": false,
+    "examples": true,
+    "references": true,
     "assets": false,
     "diagrams": true,
-    "referenceFiles": 0,
-    "referenceIndex": false,
-    "diagramCompanions": 2,
+    "referenceFiles": 4,
+    "referenceIndex": true,
+    "diagramCompanions": 7,
     "visualPreviewCapability": false
   },
-  "validatorPassed": true
+  "validatorPassed": true,
+  "assessmentScope": "Structural metadata only; executed fixture and visual-review scope are in the campaign receipt."
 }

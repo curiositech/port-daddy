@@ -1,24 +1,28 @@
 {
   "skill": "runtime-task-overlap-detector",
-  "updatedAt": "2026-06-26T00:00:00",
+  "updatedAt": "2026-09-24T00:00:00",
   "provenance": {
     "kind": "rcp-graft-mint",
     "sourceRepo": "soma + workgroup-ai",
     "createdAt": "2026-06-26T00:00:00",
-    "owners": ["soma-windags-graft"]
+    "owners": [
+      "soma-windags-graft"
+    ]
   },
   "authorship": {
-    "maintainers": ["soma-windags-graft"]
+    "maintainers": [
+      "soma-windags-graft"
+    ]
   },
-  "lineCount": 166,
-  "structuralComplete": true,
+  "lineCount": 94,
+  "structuralComplete": false,
   "structure": {
     "decisionPoints": true,
     "failureModes": true,
-    "workedExamples": false,
+    "workedExamples": true,
     "qualityGates": true,
     "notFor": true,
-    "inlineMermaid": 1
+    "inlineMermaid": 0
   },
   "affordances": {
     "scripts": false,
@@ -27,10 +31,11 @@
     "references": true,
     "assets": false,
     "diagrams": true,
-    "referenceFiles": 4,
-    "referenceIndex": false,
-    "diagramCompanions": 1,
+    "referenceFiles": 6,
+    "referenceIndex": true,
+    "diagramCompanions": 3,
     "visualPreviewCapability": false
   },
-  "validatorPassed": true
+  "validatorPassed": false,
+  "status": "Historical structural metadata; current source/render evidence lives outside the bundle. No semantic validity or detection-efficacy certification."
 }

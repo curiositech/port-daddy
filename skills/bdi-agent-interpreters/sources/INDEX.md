@@ -1,6 +1,6 @@
 # Preserved source bundles
 
-These are the original skill files, relocated without content edits. The canonical root `SKILL.md` is the activation entrypoint. Read a source only when its topic is needed; verify paper-specific claims against primary publications.
+These source bundles retain their original names and assets with source-bound corrections from the reconciliation branch. The canonical root `SKILL.md` is the activation entrypoint. Consult only the needed source, and verify paper-specific claims against its primary publication.
 
 ## `agentspeak-bdi`
 
@@ -36,6 +36,9 @@ These are the original skill files, relocated without content edits. The canonic
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/SKILL.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/SKILL.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_book_identity.json`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_book_identity.json)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/_raw_response.md)
+- [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/01_transition-cycle.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/01_transition-cycle.md)
+- [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/02_environment-adapter.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/02_environment-adapter.md)
+- [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/INDEX.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/diagrams/INDEX.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/provenance.json`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/provenance.json)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/INDEX.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/INDEX.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/agent-vs-logic-programs-key-distinctions.md)
@@ -48,6 +51,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/closing-theory-practice-gap-in-agent-systems.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/context-sensitive-plans-as-agent-knowledge.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/event-driven-reactivity-in-bdi-systems.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/event-driven-reactivity-in-bdi-systems.md)
+- [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/evidence-scope.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/evidence-scope.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/failure-modes-in-bdi-systems.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-management-and-goal-decomposition.md)
 - [`agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-stacks-and-hierarchical-decomposition.md`](agentspeak-l-bdi-agents-speak-out-in-a-logical-computable/references/intention-stacks-and-hierarchical-decomposition.md)
@@ -64,6 +68,9 @@ These are the original skill files, relocated without content edits. The canonic
 - [`agentspeak-l-bdi-architecture/SKILL.md`](agentspeak-l-bdi-architecture/SKILL.md)
 - [`agentspeak-l-bdi-architecture/_book_identity.json`](agentspeak-l-bdi-architecture/_book_identity.json)
 - [`agentspeak-l-bdi-architecture/_raw_response.md`](agentspeak-l-bdi-architecture/_raw_response.md)
+- [`agentspeak-l-bdi-architecture/diagrams/01_interpreter-boundary.md`](agentspeak-l-bdi-architecture/diagrams/01_interpreter-boundary.md)
+- [`agentspeak-l-bdi-architecture/diagrams/02_protocol-receipt-boundary.md`](agentspeak-l-bdi-architecture/diagrams/02_protocol-receipt-boundary.md)
+- [`agentspeak-l-bdi-architecture/diagrams/INDEX.md`](agentspeak-l-bdi-architecture/diagrams/INDEX.md)
 - [`agentspeak-l-bdi-architecture/provenance.json`](agentspeak-l-bdi-architecture/provenance.json)
 - [`agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md`](agentspeak-l-bdi-architecture/references/agent-vs-logic-programs-key-distinctions.md)
 - [`agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md`](agentspeak-l-bdi-architecture/references/agentspeak-and-multi-agent-coordination.md)
@@ -75,6 +82,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md`](agentspeak-l-bdi-architecture/references/closing-theory-practice-gap-in-agent-systems.md)
 - [`agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md`](agentspeak-l-bdi-architecture/references/context-sensitive-plans-as-agent-knowledge.md)
 - [`agentspeak-l-bdi-architecture/references/event-driven-reactivity-in-bdi-systems.md`](agentspeak-l-bdi-architecture/references/event-driven-reactivity-in-bdi-systems.md)
+- [`agentspeak-l-bdi-architecture/references/evidence-scope.md`](agentspeak-l-bdi-architecture/references/evidence-scope.md)
 - [`agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md`](agentspeak-l-bdi-architecture/references/failure-modes-in-bdi-systems.md)
 - [`agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md`](agentspeak-l-bdi-architecture/references/intention-management-and-goal-decomposition.md)
 - [`agentspeak-l-bdi-architecture/references/intention-stacks-and-hierarchical-decomposition.md`](agentspeak-l-bdi-architecture/references/intention-stacks-and-hierarchical-decomposition.md)
@@ -100,6 +108,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`bdi-agent-design-mora/references/computational-commitment-through-revision-constraints.md`](bdi-agent-design-mora/references/computational-commitment-through-revision-constraints.md)
 - [`bdi-agent-design-mora/references/desires-as-search-space-not-commands.md`](bdi-agent-design-mora/references/desires-as-search-space-not-commands.md)
 - [`bdi-agent-design-mora/references/event-calculus-as-operational-time-and-action-model.md`](bdi-agent-design-mora/references/event-calculus-as-operational-time-and-action-model.md)
+- [`bdi-agent-design-mora/references/evidence-scope.md`](bdi-agent-design-mora/references/evidence-scope.md)
 - [`bdi-agent-design-mora/references/preference-over-consistency-restoring-revisions.md`](bdi-agent-design-mora/references/preference-over-consistency-restoring-revisions.md)
 - [`bdi-agent-design-mora/references/revision-mechanisms-as-non-monotonic-deliberation.md`](bdi-agent-design-mora/references/revision-mechanisms-as-non-monotonic-deliberation.md)
 - [`bdi-agent-design-mora/references/triggers-and-attention-in-committed-agents.md`](bdi-agent-design-mora/references/triggers-and-attention-in-committed-agents.md)
@@ -119,6 +128,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`bdi-models-and-systems-reducing-the-gap/references/computational-commitment-through-revision-constraints.md`](bdi-models-and-systems-reducing-the-gap/references/computational-commitment-through-revision-constraints.md)
 - [`bdi-models-and-systems-reducing-the-gap/references/desires-as-search-space-not-commands.md`](bdi-models-and-systems-reducing-the-gap/references/desires-as-search-space-not-commands.md)
 - [`bdi-models-and-systems-reducing-the-gap/references/event-calculus-as-operational-time-and-action-model.md`](bdi-models-and-systems-reducing-the-gap/references/event-calculus-as-operational-time-and-action-model.md)
+- [`bdi-models-and-systems-reducing-the-gap/references/paper-scope-and-conformance.md`](bdi-models-and-systems-reducing-the-gap/references/paper-scope-and-conformance.md)
 - [`bdi-models-and-systems-reducing-the-gap/references/preference-over-consistency-restoring-revisions.md`](bdi-models-and-systems-reducing-the-gap/references/preference-over-consistency-restoring-revisions.md)
 - [`bdi-models-and-systems-reducing-the-gap/references/revision-mechanisms-as-non-monotonic-deliberation.md`](bdi-models-and-systems-reducing-the-gap/references/revision-mechanisms-as-non-monotonic-deliberation.md)
 - [`bdi-models-and-systems-reducing-the-gap/references/triggers-and-attention-in-committed-agents.md`](bdi-models-and-systems-reducing-the-gap/references/triggers-and-attention-in-committed-agents.md)
@@ -136,6 +146,7 @@ These are the original skill files, relocated without content edits. The canonic
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/computational-commitment-through-revision-constraints.md`](bdi-models-and-systems-reducing-the-gap-paper/references/computational-commitment-through-revision-constraints.md)
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/desires-as-search-space-not-commands.md`](bdi-models-and-systems-reducing-the-gap-paper/references/desires-as-search-space-not-commands.md)
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/event-calculus-as-operational-time-and-action-model.md`](bdi-models-and-systems-reducing-the-gap-paper/references/event-calculus-as-operational-time-and-action-model.md)
+- [`bdi-models-and-systems-reducing-the-gap-paper/references/paper-scope-and-conformance.md`](bdi-models-and-systems-reducing-the-gap-paper/references/paper-scope-and-conformance.md)
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/preference-over-consistency-restoring-revisions.md`](bdi-models-and-systems-reducing-the-gap-paper/references/preference-over-consistency-restoring-revisions.md)
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/revision-mechanisms-as-non-monotonic-deliberation.md`](bdi-models-and-systems-reducing-the-gap-paper/references/revision-mechanisms-as-non-monotonic-deliberation.md)
 - [`bdi-models-and-systems-reducing-the-gap-paper/references/triggers-and-attention-in-committed-agents.md`](bdi-models-and-systems-reducing-the-gap-paper/references/triggers-and-attention-in-committed-agents.md)

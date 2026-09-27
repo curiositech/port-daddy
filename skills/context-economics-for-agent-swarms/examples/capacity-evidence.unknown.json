@@ -11,11 +11,11 @@
     "authMode": "subscription",
     "productScope": "coding-agent"
   },
-  "executionClass": "real-provider",
+  "executionClass": "fake-or-replay",
   "evaluatedAt": "2026-09-11T18:01:00Z",
   "observation": {
-    "sourceKind": "missing-or-unsupported",
-    "sourceRef": "fixture://subscription-window/missing",
+    "sourceKind": "fake-fixture",
+    "sourceRef": "fixture://subscription-window/constructed-unknown",
     "parserProfileId": "fake-capacity-observer@1.0.0",
     "parserSchemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "rawEvidenceDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
@@ -27,7 +27,9 @@
       "capacityBucketId": "bucket:provider-demo:seat-demo:unknown",
       "windowId": "unknown-window",
       "unit": "opaque-provider-units",
-      "routeAliases": ["provider-demo/model-b"],
+      "routeAliases": [
+        "provider-demo/model-b"
+      ],
       "quality": "unknown",
       "observedLimit": null,
       "observedRemaining": null,
@@ -66,5 +68,7 @@
   "preemptionState": "UNKNOWN",
   "admissible": false,
   "launchAuthority": false,
-  "discrepancies": ["provider exposes no supported native remaining-usage observation"]
+  "discrepancies": [
+    "constructed unknown-capacity fixture; no provider observation is included"
+  ]
 }

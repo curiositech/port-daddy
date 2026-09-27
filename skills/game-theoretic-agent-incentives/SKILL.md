@@ -16,8 +16,10 @@ metadata:
 # Game-Theoretic Agent Incentives
 
 Analyze a concrete strategic interaction before naming an equilibrium. A
-claim or note can coordinate agents only if the information it conveys changes
-action or incentives in the model being studied. The protocol's recorded
+claim or note can coordinate agents when the information it conveys changes
+action or incentives in the model being studied. Costless advisory messages can
+still convey information when sender and receiver preferences support it;
+conflicting interests can also make them uninformative. The protocol's recorded
 history is evidence of what happened, not by itself a punishment mechanism.
 
 ## Build the game
@@ -49,6 +51,13 @@ history is evidence of what happened, not by itself a punishment mechanism.
 | Is the protocol robust to collusion? | Check joint deviations, shared identities, side payments, and exclusion authority. |
 | How much efficiency is lost? | Define the social objective and actual equilibrium set before computing an efficiency ratio. |
 
+## Analysis limits
+
+- A repeated-game result requires the stated feasible payoffs, monitoring, patience, and equilibrium concept. An audit log alone does not meet those premises.
+- A correlating device needs a feasible recommendation distribution and obedience inequalities for every player and signal. It does not automatically improve welfare or verify compliance.
+- Price-of-anarchy bounds require a defined welfare or cost scale, equilibrium class, and a proved mapping to the specific model. Do not carry a routing-game constant over to file claims.
+- Model identity exit, monitoring noise, false accusation, principal/agent asymmetry, and coalitions separately. No Nash-existence theorem establishes learning convergence or implementation authority.
+
 ## Output
 
 Return the game definition, payoff assumptions, derived incentive condition,
@@ -57,9 +66,11 @@ unmeasured payoffs as assumptions. If actors are centrally commanded and
 cannot benefit from deviation, use ordinary coordination or optimization.
 
 The former broad claim-game synthesis is preserved in
-`references/legacy-claim-games.md` for source-bound review. It includes
-unverified blanket statements; derive new claims from a specified model and
-primary literature before using them in design or publication.
+`references/legacy-claim-games.md` for source-bound review. The corrected
+worked examples and theorem limits from PR #10312 are preserved in
+`references/corrected-claim-game-analysis.md` and
+`references/incentive-foundations.md`. Derive new claims from a specified
+model and primary literature before using them in design or publication.
 
 ## Evaluation assets
 

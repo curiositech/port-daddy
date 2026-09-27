@@ -1,0 +1,247 @@
+{
+  "title": "B05 MetaGPT and AutoGen method deepening source ledger",
+  "status": "frozen",
+  "worktree_read_boundary": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924",
+    "branch": "codex/agent-skills-expansion-20260924",
+    "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/agent-skills-expansion-20260924",
+    "verification": "Before research and after artifact creation: git rev-parse root matched W, branch matched codex/agent-skills-expansion-20260924, git-dir matched linked-worktree metadata, status was clean (ahead/behind metadata only). No Git mutation was performed."
+  },
+  "readset": [
+    {
+      "path": "skills/hong-et-al-2024-metagpt/SKILL.md",
+      "sha256": "486d3d6872b261e55b072bb7fa579c88f5a8620535e75c14f8a09f9139d47396"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/structured-communication-prevents-hallucination-cascades.md",
+      "sha256": "04ee234f03723169ff55e6c71473b33bdc84d37d20dffa24d47a2606254252e6"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/sops-as-decomposition-frameworks.md",
+      "sha256": "1287b7f8c232335ab36c9dca0e034b37a26bdf827fabc6e28fcefaa806dff98f"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/publish-subscribe-as-coordination-primitive.md",
+      "sha256": "8817e0b17ba8f01035edb8e9fcba7a82190e2b256bb722043dd63b40d4664557"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/executable-feedback-as-reality-grounding.md",
+      "sha256": "eaf07238b332c29d940db397a069d2a094e6955acce7106ac27670212f79a2a2"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/when-meta-programming-beats-programming.md",
+      "sha256": "c937837baae5488e96092ae4e93d6b9a084e6c7455c66be4c6770e3a65f57ad5"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/references/role-specialization-as-bounded-expertise.md",
+      "sha256": "5560491b37d4f6957936c9820cb4f3a94991cbbc38a1f49248f857ce9e28e68c"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/diagrams/01_sequenceDiagram_agent_coordination_with_struct.md",
+      "sha256": "04a8a3988a32358b6808501498385db7d04ed46dcdefbab64fd12b1081dd77bf"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/diagrams/02_flowchart_multi-agent_system_decision_tr.md",
+      "sha256": "3b92e333eaed31da11efa40c8571d68630ada7673aae8229e0dcc80cd99861a3"
+    },
+    {
+      "path": "skills/hong-et-al-2024-metagpt/diagrams/03_mindmap_metagpt_coordination_mental_mo.md",
+      "sha256": "90d19ac79d245ff25ec89d464bedae4c9d1386414d33fda4064b8df69ab68004"
+    },
+    {
+      "path": "skills/wu-2023-autogen/SKILL.md",
+      "sha256": "77d93e25d7ce85673fe436cfde6a7694a0566d6fcf88649ca0a0e2f269c1ffcd"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/conversation-as-coordination-mechanism.md",
+      "sha256": "6b1d93d199fb23771881ed2103fcb29e6ee600c82a0adf5e36093566d03cb061"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/dynamic-vs-static-conversation-topology.md",
+      "sha256": "3d87705453cf844c937a5cebdfe89651b7591c61c70ecf49d355b8029dd1fd15"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/failure-recovery-through-conversation-iteration.md",
+      "sha256": "d9dc8a027c9c4e68f61729f900dd75a67d17d4634a2711f0eb84a7c9f3944544"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/grounding-through-agent-specialization.md",
+      "sha256": "408c51deb636c0e67929fa2706351e19a9817cb88dd347b7a0adb5c6b0af5cbb"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/computation-vs-control-separation.md",
+      "sha256": "e69c925d7944d6f1d043fd306e397cf2e37cfaff65ebdc273e1acdc098dbb793"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/control-through-natural-language-programming.md",
+      "sha256": "3d35c3ca177586e6cfc121c535aab48821c683ad6166e04c3a8ff2e3bdb2b914"
+    },
+    {
+      "path": "skills/wu-2023-autogen/references/human-agency-as-configurable-backend.md",
+      "sha256": "e6c006fbecfa11ec3921b0b004ef596617d695966647d1680b1db8ec14ec0c9c"
+    },
+    {
+      "path": "skills/wu-2023-autogen/diagrams/01_sequenceDiagram_multi-agent_conversation_flow_.md",
+      "sha256": "8091ebbbafb2d2ac9fe31672f4cf6871911e91a0dd532feb2c2f2eda37d954fc"
+    },
+    {
+      "path": "skills/wu-2023-autogen/diagrams/02_stateDiagram-v2_agent_computation_vs_control_f.md",
+      "sha256": "7234db4c6d0e13a2d2e1ce5561ca3044a005dad206451b0819b552fb64fd506f"
+    },
+    {
+      "path": "skills/wu-2023-autogen/diagrams/03_mindmap_agent_specialization_architect.md",
+      "sha256": "98a3aa3f941681337983a44cec64124d196a1a86f53847cb7398738803d9dd77"
+    },
+    {
+      "path": "../agent-skills-expansion-20260924-handoff/research/protocols-markets-B05-deepening.md",
+      "sha256": "bbaf633bfc2af7f030da25848f768b8d2a1b4d5bfbb79d48cce0202577cef0e0"
+    },
+    {
+      "path": "../agent-skills-expansion-20260924-handoff/campaign-progress.json",
+      "sha256": "65845b6abfcce9a14fb31e6d514f738ed5cf14fd38fd09166e0d8c8e2d3a865f"
+    }
+  ],
+  "sources": [
+    {
+      "kind": "primary paper",
+      "title": "MetaGPT: Meta Programming for A Multi-Agent Collaborative Framework",
+      "authors": "Hong et al.",
+      "identifier": "arXiv:2308.00352v7; version dated 2024-11-01",
+      "url": "https://arxiv.org/html/2308.00352",
+      "access": "Paper body accessed; abstract, method/architecture, software-development SOP, message pool/subscriptions/dependencies, executable feedback, experiment tables and limitations inspected.",
+      "supports": [
+        "SOP role/artifact sequence",
+        "shared message pool and subscriptions",
+        "dependency-gated role actions",
+        "bounded code-test feedback in described setup",
+        "specific benchmark/ablation scope"
+      ],
+      "limits": [
+        "Does not establish universal task completion/correctness",
+        "Does not establish durable broker guarantees or generic scalability",
+        "Paper-specific retry and benchmark results must retain context"
+      ]
+    },
+    {
+      "kind": "primary paper metadata",
+      "title": "MetaGPT arXiv record",
+      "url": "https://arxiv.org/abs/2308.00352",
+      "access": "Abstract/version metadata inspected.",
+      "supports": [
+        "version identity and date"
+      ]
+    },
+    {
+      "kind": "official implementation, pinned release",
+      "title": "FoundationAgents/MetaGPT v0.8.1 Role implementation",
+      "url": "https://raw.githubusercontent.com/FoundationAgents/MetaGPT/v0.8.1/metagpt/roles/role.py",
+      "access": "Raw source opened and relevant Role, message buffer, watch/observe/react/run methods inspected.",
+      "supports": [
+        "role message buffer and watched action causes",
+        "role reaction modes and configurable react loop",
+        "paper abstraction differs from concrete implementation"
+      ]
+    },
+    {
+      "kind": "official implementation, pinned release",
+      "title": "FoundationAgents/MetaGPT v0.8.1 Environment implementation",
+      "url": "https://raw.githubusercontent.com/FoundationAgents/MetaGPT/v0.8.1/metagpt/environment/base_env.py",
+      "access": "Raw source opened and message routing/environment run methods inspected.",
+      "supports": [
+        "recipient-address routing",
+        "concurrent role execution",
+        "unmatched recipient logs warning while publish path returns success"
+      ]
+    },
+    {
+      "kind": "official implementation release boundary",
+      "title": "FoundationAgents/MetaGPT v0.8.1",
+      "url": "https://github.com/FoundationAgents/MetaGPT/tree/v0.8.1",
+      "access": "Tag page inspected; only the cited raw source files were audited, not the full repository.",
+      "supports": [
+        "version identity only"
+      ]
+    },
+    {
+      "kind": "primary paper",
+      "title": "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation",
+      "authors": "Wu et al.",
+      "identifier": "arXiv:2308.08155; published at COLM 2024",
+      "url": "https://arxiv.org/html/2308.08155",
+      "access": "Full paper body opened; agent/message model, computation/control distinction, example topologies, group chat, human input, tool execution, experiments and discussion/limitations inspected.",
+      "supports": [
+        "conversable agent and capability model",
+        "computation/control separation",
+        "direct and manager-controlled topologies",
+        "paper-specific applications and results",
+        "workflow design/audit limitations"
+      ],
+      "limits": [
+        "Examples and metrics are task-specific",
+        "Conversation does not universally remove control structures or capture external side effects"
+      ]
+    },
+    {
+      "kind": "official versioned documentation",
+      "title": "AutoGen 0.2 Conversation Patterns",
+      "url": "https://microsoft.github.io/autogen/0.2/docs/tutorial/conversation-patterns/",
+      "access": "Official versioned documentation page inspected.",
+      "supports": [
+        "group chat manager and speaker selection patterns",
+        "sequential/carryover patterns",
+        "speaker topology configuration"
+      ]
+    },
+    {
+      "kind": "official versioned documentation",
+      "title": "AutoGen 0.2 ConversableAgent API",
+      "url": "https://microsoft.github.io/autogen/0.2/docs/reference/agentchat/conversable_agent/",
+      "access": "Official versioned API page inspected.",
+      "supports": [
+        "human_input_mode values",
+        "auto-reply bounds and termination configuration",
+        "code execution configuration"
+      ]
+    },
+    {
+      "kind": "official versioned documentation",
+      "title": "AutoGen 0.2 Human-in-the-loop",
+      "url": "https://microsoft.github.io/autogen/0.2/docs/tutorial/human-in-the-loop/",
+      "access": "Official versioned tutorial inspected.",
+      "supports": [
+        "NEVER/ALWAYS/TERMINATE prompt behavior"
+      ]
+    },
+    {
+      "kind": "official versioned documentation",
+      "title": "AutoGen 0.2 GroupChat API",
+      "url": "https://microsoft.github.io/autogen/0.2/docs/reference/agentchat/groupchat/",
+      "access": "Official versioned API page inspected.",
+      "supports": [
+        "manager-mediated speaker selection",
+        "max rounds and transition constraints"
+      ]
+    },
+    {
+      "kind": "official implementation release boundary",
+      "title": "Microsoft AutoGen v0.2.35",
+      "url": "https://github.com/microsoft/autogen/tree/v0.2.35",
+      "access": "Official tag page inspected; complete implementation tree not audited.",
+      "supports": [
+        "release boundary only"
+      ]
+    },
+    {
+      "kind": "unavailable source",
+      "title": "MetaGPT raw schema source requested during inspection",
+      "url": "https://raw.githubusercontent.com/FoundationAgents/MetaGPT/v0.8.1/metagpt/schema.py",
+      "access": "Web reader returned cache miss; not inspected.",
+      "effect": "No claim in this report depends on that file; no inference about schema enforcement is made from it."
+    }
+  ],
+  "diagram_audit": {
+    "metagpt": "Three original diagram files inspected. All are Mermaid, not ASCII. Sequence adds stronger validation/coordination semantics than sourced paper; decision flow encodes unsupported agent-count thresholds; mindmap contains unsupported universal performance/reliability claims.",
+    "autogen": "Three original diagram files inspected. All are Mermaid, not ASCII. Mindmap overstates absence of controller; sequence merges separate application roles into canonical flow; state diagram conflates architecture-level distinction with one fixed runtime protocol."
+  },
+  "write_boundary": "Only this ledger and its same-stem .md report under H/research were written. W remained read-only. No Port Daddy runtime/MCP/daemon/hooks/services/apps used. No primary checkout or /tmp paths used."
+}

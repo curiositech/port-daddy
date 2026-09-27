@@ -1,0 +1,8 @@
+flowchart TB
+  C[Concurrent changes] --> O{Textual overlap?}
+  O -->|No| N{Frozen integration oracle fails?}
+  O -->|Yes| Y{Frozen integration oracle fails?}
+  N -->|No| NN[Separate edits pass declared checks]
+  N -->|Yes| NY[Disjoint files violate seconds-to-milliseconds contract]
+  Y -->|No| YN[Regenerated shared index passes declared checks]
+  Y -->|Yes| YY[Overlapping edits violate acceptance fixture]

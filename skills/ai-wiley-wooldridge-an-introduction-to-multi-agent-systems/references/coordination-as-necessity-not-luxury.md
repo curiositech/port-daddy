@@ -1,340 +1,116 @@
-# Coordination as Functional Necessity, Not Design Choice
+# Coordination: identify the problem and specify the protocol
 
-## The Inversion: Coordination Isn't About "Working Together Nicely"
+This reference separates preventing conflicting actions, sharing complementary work or results, synchronizing dependencies, and reaching agreement where interests differ. Wooldridge’s author-hosted lecture 8 grounds task/result sharing and Contract Net. Examples below are constructed.
 
-Most introductions to multi-agent systems treat coordination as an optimization: "Agents could work independently, but they coordinate to be more efficient." Wooldridge shows this is backwards. In realistic environments, **coordination is a functional prerequisite for success**—not a performance enhancement.
+## Decide what coordination must accomplish
 
-The key insight appears in the Distributed Vehicle Monitoring Testbed (DVMT) example:
+Name the requirement before choosing a protocol:
 
-> "Each agent sees only a portion of the space. Vehicles move through the space; no single agent sees the complete trajectory. Agents must *cooperate* to track vehicles across coverage gaps."
+- Avoid interference: actions must not conflict or duplicate a scarce resource.
+- Enable task sharing: divide, assign, perform, and combine work.
+- Enable result sharing: exchange intermediate facts or partial solutions.
+- Synchronize dependencies: wait for a prerequisite or jointly produced condition.
+- Resolve strategic conflict: parties have different preferences and need an agreement.
 
-**Critical point**: This is not "cooperation makes tracking faster." It's **"cooperation is the only way tracking is possible."** Without coordination, each agent sees disconnected vehicle segments. The global trajectory is unobservable to any individual agent.
+These are distinct problems. Separate benevolent participants designed for a shared objective from self-interested participants. A cooperative protocol alone does not make strategic reports truthful.
 
-This principle—**distributed partial observability necessitates coordination**—is the foundation for understanding why multiagent architectures exist at all.
+## Task sharing and result sharing
 
-## Why Centralization Fails (The Circular Dependency)
+Chapter 8 lecture slides describe cooperative problem solving in three stages:
 
-Wooldridge notes:
+1. Problem decomposition: divide into subproblems; decide who knows the structure and who performs the split. Decomposition can be hierarchical.
+2. Subproblem solution: assigned agents work; they may exchange information or synchronize.
+3. Answer synthesis: combine results, potentially at multiple abstraction levels.
 
-> "You can't send all data to a central processor because the central processor needs all data to work—circular dependency."
+Task sharing distributes task components. Result sharing distributes information and partial results. Assignment without integration can leave an incomplete answer; result exchange without task boundaries can duplicate effort or produce incompatible outputs.
 
-This is subtle. The naive solution to DVMT is: "Send all local observations to a central tracker." But:
+### Constructed example: incident report
 
-1. The central tracker can't **start** until it has **all** the data
-2. Agents can't **know when to send** data without knowing what the central tracker needs
-3. The central tracker can't **request specific data** without having analyzed what's missing
-4. By the time data arrives at the center, vehicles have moved (dynamic environment)
+A manager splits a report into timeline extraction, service-impact analysis, and mitigation review. It announces each subtask with input schema, evidence cutoff, quality requirements, deadline, and output format. Contractors return partial results tagged with evidence and uncertainty. Synthesis checks coverage, resolves conflicts, and reports gaps. This illustrates decomposition and synthesis; it is not an empirical result or a source case study.
 
-**Result**: Centralization creates a coordination bottleneck worse than the original problem. You've traded a distributed coordination challenge for a centralized one—and added network latency.
+## Contract Net task allocation
 
-The solution (DVMT's approach): **Agents coordinate locally via explicit handshake protocols**. Each agent maintains a partial solution; when coverage boundaries are reached, agents negotiate handoffs:
+Contract Net is task sharing, not a proof of truthful bidding or optimal allocation. The author’s slides give five stages:
 
-```
-Agent A: "I see a vehicle heading east at 50 km/h, approaching your boundary"
-Agent B: "Acknowledged. I'll start scanning eastward."
-Agent A: "Vehicle now exiting my coverage at coordinates (x,y)."
-Agent B: "Confirmed. I have acquired the target."
-```
+1. Recognition: agent identifies work it wants or needs help with.
+2. Announcement: broadcast task specification, constraints such as deadline/quality, and bid-submission conditions.
+3. Bidding: recipients decide if capable and willing to propose.
+4. Awarding: manager selects a proposal and communicates accept/reject.
+5. Expediting: contractor performs; the relationship may lead to subcontracting.
 
-This is **incremental, asynchronous coordination** without requiring global state assembly. Each agent only needs to know about adjacent agents' coverage zones—not the entire network.
+A usable message contract should name task ID/version, description, eligibility, inputs, quality/deadline, bid deadline, proposal fields, award, result/failure, and cancellation/recovery rules. These are practical extensions, not a quotation of a particular standard. The diagram is one illustrative trace with one proposal and one refusal, not a complete protocol specification.
 
-## The Three Types of Coordination (and Why They're Different Problems)
-
-Wooldridge distinguishes (implicitly across chapters) three coordination scenarios:
-
-### 1. Avoiding Destructive Interference (Safety)
-
-**Problem**: Multiple agents taking actions that conflict or waste resources.
-
-**Example**: Shoham & Tennenholtz's robot navigation (collision avoidance).
-
-Two solutions presented:
-- **Hamiltonian cycle (rigid)**: Every robot follows a predetermined path through all grid cells. Guarantees collision-freedom but is absurdly inefficient (O(n²) moves even if destination is adjacent).
-- **Road network (structured flexibility)**: Define lanes/directions on certain edges; robots navigate using shortest paths while respecting lane rules. Collision-free and efficient.
-
-**Key lesson**: The naive solution (completely deterministic, globally specified) is **safer but wasteful**. The sophisticated solution (local rules enabling flexible routing) is **efficient but requires proof of safety**.
-
-Wooldridge emphasizes:
-
-> "Although it is effective, this social law is obviously not very efficient: surely there are more 'direct' social laws which do not involve an agent moving around all the points of the grid?"
-
-**Transfer principle**: When designing coordination for 180+ skills, don't default to sequential execution (the Hamiltonian cycle equivalent). Instead, identify **which interactions are actually conflicting** and add constraints only for those.
-
-### 2. Exploiting Positive Relationships (Performance)
-
-**Problem**: Multiple agents have complementary capabilities; combining them improves outcomes.
-
-**Example**: FELINE system (pp. 197-199) uses **result sharing**:
-
-- Goal-driven reasoning: If agent A needs hypothesis X but can't derive it, A queries the environment model: "Which agent has skill to derive X?" Then sends explicit request.
-- Data-driven reasoning: After agent B generates new fact Y, it checks: "Which agents are interested in Y?" Then sends unsolicited inform messages.
-
-**Why this is coordination**: Without explicit information exchange, agents duplicate work (both derive Y independently) or fail to achieve goals (A never learns X).
-
-**Contrast with interference avoidance**: Here, coordination **creates value** rather than preventing harm. Agents wouldn't crash without coordination—they'd just be inefficient or incomplete.
-
-**Transfer principle**: In a multi-skill orchestration system, some skills **depend on** outputs from others (goal-driven), and some skills **produce useful byproducts** for unrelated tasks (data-driven). Explicit routing of these information flows is coordination, not just data plumbing.
-
-### 3. Consensus Under Self-Interest (Game-Theoretic)
-
-**Problem**: Agents have conflicting goals; must negotiate mutually acceptable outcomes.
-
-**Example**: Contract Net protocol (task allocation).
-
-When a manager announces a task:
-- Multiple contractors could handle it
-- Each has different costs, capabilities, and current workloads
-- Manager wants: low cost, high reliability, fast completion
-- Contractors want: maximize profit, avoid overcommitment
-
-**Contract Net's solution**: 
-- Contractors **bid** (submit capability + cost)
-- Manager **awards** based on multi-criteria decision (not just lowest cost)
-- Awarded contractor **commits**, others release resources
-
-**Why this is coordination**: Without negotiation, the manager either:
-- Assigns arbitrarily → contractor may refuse or perform poorly
-- Tries to compute optimal assignment → requires perfect knowledge of all contractors' internal states (impossible in open systems)
-
-**Transfer principle**: When skills have resource costs (compute time, memory, API call quotas), and multiple skills can handle a task, treat allocation as an **auction/bidding problem**, not a deterministic assignment.
-
-## The Myth of "Bolt-On" Coordination
-
-A common misconception (Wooldridge explicitly refutes this):
-
-> "Another common misconception is that agent-based systems require no real structure. While this may be true in certain cases, most agent systems require considerably more system-level engineering than this."
-
-The fallacy: "We'll build individual agents first, then add coordination protocols later."
-
-**Why this fails**:
-
-1. **Interface mismatch**: Agents designed independently have incompatible communication protocols (different message formats, timing assumptions, failure semantics).
-
-2. **Granularity mismatch**: Agent A might output fine-grained state updates (every 10ms), while Agent B expects coarse-grained summaries (once per task). Bridging this requires explicit adapter logic—not bolted on, but designed in.
-
-3. **Assumption mismatch**: Agent A assumes synchronous request-response, Agent B assumes asynchronous message-passing. These are incompatible at the architectural level.
-
-**Wooldridge's solution (from Gaia methodology)**:
-
-> "Gaia encourages a developer to think of building agent-based systems as a process of organizational design."
-
-Design **roles** and **protocols** first, then implement agents to fill those roles. This is **coordination-first design**, analogous to API-first design in microservices.
-
-## Coordination Mechanisms: Explicit vs. Implicit
-
-Wooldridge contrasts two families of coordination:
-
-### Explicit Coordination (Message-Passing)
-
-- Agents send explicit messages (requests, informs, proposals)
-- Examples: FIPA ACL, KQML, Contract Net
-- **Advantage**: Precise control over information flow; clear audit trails
-- **Disadvantage**: Communication overhead; requires agents to know recipients
-
-**Key design choice (from KQML)**:
-
-```
-(ask-one
-  :content (PRICE IBM ?price)
-  :receiver stock-server
-  :language LPROLOG
-  :ontology NYSE-TICKS
-)
+```mermaid
+sequenceDiagram
+    participant M as Manager
+    participant A as Agent A
+    participant B as Agent B
+    M->>A: announce task and constraints
+    M->>B: announce task and constraints
+    A-->>M: proposal
+    B-->>M: refusal
+    M->>A: award
+    A-->>M: result or failure
 ```
 
-Notice the separation:
-- **Performative** (`ask-one`): What kind of speech act?
-- **Content**: What's being communicated? (Encoded in domain-specific language)
-- **Receiver**: Who should get this?
-- **Ontology**: What do the symbols mean?
+### Constructed allocation example
 
-This separation allows **heterogeneous agents** (different internal implementations) to communicate—as long as they agree on ontology and performatives.
+A task requires a licensed parser and completion within 20 minutes. A lacks the tool and is ineligible. B estimates 12 minutes and cost 4 units; C estimates 8 minutes and cost 7. The manager’s local rule is “meet deadline, then minimize cost,” so it selects B. Numbers/objective are invented. If cost, confidence, and latency trade off, state the rule before evaluating proposals.
 
-### Implicit Coordination (Stigmergy / Environment-Mediated)
+Lecture 8 gives contractor marginal cost:
+mu_i(tau(ts) | tau_it) = c_i(tau(ts) union tau_it) - c_i(tau_it),
+where c_i is contractor i’s cost model, tau_it its scheduled tasks, and tau(ts) the announced set. This is incremental modeled cost; it need not be money, truthful bid, or total system cost.
 
-- Agents modify shared environment; others react to changes
-- Examples: Pheromone trails (Steels' Mars robots), Linda tuple spaces
-- **Advantage**: No need to know recipients; scales to many agents; asynchronous
-- **Disadvantage**: No guarantees on message delivery; hard to debug causality
+### Failure and recovery cases
 
-**Steels' pheromone trails** (restated for emphasis):
+- No eligible proposal: revise task, find another pool, or report unmet work.
+- Late proposal: apply announced deadline and record exclusion.
+- Awarded agent fails/times out: record failure against task version and invoke explicit reassignment/abort.
+- Partial result: accept only if contract permits; mark missing work.
+- Task changes after award: version task and negotiate whether award remains valid.
+- Conflicting results: preserve provenance, apply declared reconciliation, or escalate.
 
-Robots drop "crumbs" when returning with samples. Other robots detect crumbs and follow trails. Key properties:
+The five stages do not specify retries, durable contracts, security, or complete failure recovery.
 
-1. **Decoupled producers/consumers**: Robot A drops crumbs without knowing who will follow them
-2. **Environmental persistence**: Information survives robot failures
-3. **Automatic decay**: Followers pick up crumbs; trails fade if not reinforced by success
-4. **Self-correcting**: False trails (dead ends) automatically disappear
+## Result-sharing patterns and inconsistency
 
-**Linda tuple spaces** (another form):
+The author slides contrast shared blackboards and subscribe/notify. A blackboard gives multiple problem solvers a shared structure for partial results; its shared coordination point and access discipline are explicit trade-offs. In subscribe/notify, a consumer registers interest and receives a notification when relevant information arises; producers need a way to know who is interested. These are alternative information-sharing patterns, not guarantees of consistency or scalability.
 
-Agents deposit **tuples** (tagged data structures) into a shared space. Other agents read/remove tuples via pattern matching:
+When agents disagree, first classify the inconsistency: different beliefs can reflect different observations/noise; different goals can reflect genuinely different objectives. Chapter 8 slides outline three responses: prevent a selected inconsistency by design, resolve it through discussion, or tolerate it with graceful degradation. Which is appropriate depends on the consequence of disagreement. A manager's view in task assignment does not make every other view false.
 
-```
-out("task", "validate-order", order_id)  // deposit task
-in("task", "validate-order", ?id)        // blocking read & remove
-rd("config", "timeout", ?seconds)        // non-blocking read (leave in space)
-```
+Positive coordination can also be requested explicitly or recognized without a request. The slides give examples of action equality (another agent already plans the same work), consequence (one planned action achieves a goal another agent has), and favor (one action makes another agent's goal easier). These relations can reveal duplicate or helpful work; they are not permission to alter another agent's plan without an agreed protocol.
 
-**Why this is coordination**: Agents don't send messages to specific recipients; they **publish** data and **subscribe** via patterns. This is **declarative coordination**—you specify what you need, not who provides it.
+Social laws constrain actions in specified states. In a finite model, represent a law as restrictions on allowed actions and check that important focal states remain mutually reachable. This exposes a safety/efficiency trade-off: a restrictive law can prevent collision while excluding useful routes. State space and assumptions must be explicit; no general safety claim follows from the label “social law.”
 
-## Failure Modes When Coordination is Absent or Misdesigned
+## Failure patterns to test
 
-### Failure Mode 1: Redundant Work (Clobbering)
+These are constructed failure fixtures, not empirical claims:
 
-**Scenario**: Two agents independently decide to handle the same task, wasting resources.
+| Pattern | Minimal setup | What to verify |
+|---|---|---|
+| Duplicate work / clobbering | Two agents read version 4 and both write a replacement | Version conflict is detected; neither result is silently treated as based on the other |
+| Circular wait | A waits for B’s output while B waits for A’s output | Dependency cycle is found or surfaced as a blocked state, not an infinite “working” status |
+| Inconsistent beliefs | A has a fresh observation while B has a stale one | Their evidence/version remains distinct until reconciliation; disagreement is not erased by majority vote |
+| Resource conflict | Two agents need the same exclusive resource | Reservation, ordering, or safe failure follows a declared rule |
 
-**Example (from EOS simulation, p. 212)**:
+Coordination does not remove these failures automatically. Make each test’s expected behavior and evidence source explicit.
 
-> "With respect to 'clobbering' (accidental goal interference), it was determined that this occurred when agents had overlapping goals and insufficient knowledge of each other's intentions."
+## Plan interaction and joint commitment
 
-Without coordination, agents don't know others are pursuing the same goal. Both execute; one's work is wasted.
+A plan-based coordination approach can analyze effects between agents' planned actions, identify problematic interactions, and resolve a conflict with an ordering or mutual-exclusion constraint. This is a model-level process: list preconditions/effects, analyze interactions, decide whether each interaction is problematic, then add a constraint and re-check reachability. Keep centralized planning, distributed planning for a shared plan, and agents planning locally with awareness of other plans distinct; decentralization changes what information and coordination work are required.
 
-**Prevention mechanism**: **Commitment broadcasting**. Before executing a task, agent broadcasts intention. Others check for conflicts. If conflict detected, negotiate (e.g., via Contract Net bidding).
+Joint persistent-goal accounts add a group commitment and shared motivation. In the lecture summary, the group maintains the goal while it is possible and motivated; an agent that detects achievement, impossibility, or loss of motivation communicates so others can update. Do not conflate mutual belief with common knowledge, nor treat this formal account as an implementation acknowledgement protocol. See [epistemic logic](grounded-epistemic-logic-for-distributed-agents.md) for the communication boundary.
 
-### Failure Mode 2: Deadlock (Circular Dependency)
+## Result integration and partial plans
 
-**Scenario**: Agent A waits for resource held by Agent B; Agent B waits for resource held by Agent A.
+For each result preserve origin, task version, timestamp/freshness, assumptions, and uncertainty. Test by removing one result and checking whether synthesis still claims full coverage; inject a conflict and ensure it is not blindly averaged. If plan dependencies exist, record them (for example, B requires A’s validated schema). A plan or shared intention is not evidence that a dependency was satisfied; verify output/version at the dependent action.
 
-**Classic example (not explicitly in Wooldridge, but implied)**:
-- Agent A holds database lock on table T₁, requests lock on T₂
-- Agent B holds lock on T₂, requests lock on T₁
-- Neither can proceed
+## Limits and sources
 
-**Prevention mechanisms**:
-- **Lock ordering**: Always acquire locks in fixed order (T₁ before T₂)
-- **Timeout + retry**: If lock not acquired within time T, release all locks and retry with exponential backoff
-- **Deadlock detection**: Maintain dependency graph; detect cycles; break by aborting one agent
+Removed as unsupported: coordination always necessary; centralization universally fails; explicit coordination inherently guarantees safety; implicit coordination automatically reduces load; task allocation should always be auction-based; messages establish common knowledge.
 
-Wooldridge doesn't detail deadlock (it's a solved problem in distributed systems), but notes:
+- Wooldridge, [chapter 8 author lecture slides](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/distrib/pdf-slides/lect08.pdf), full 50-page deck read. Covers decomposition, solution and synthesis; task/result sharing; Contract Net stages, marginal cost, implementation issues.
+- Wooldridge, [2e contents](https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/Contents.html), topic map.
+- Smith, “The Contract Net Protocol” (1980), [paper PDF](https://cse-robotics.engr.tamu.edu/dshell/cs631/papers/smith80contract.pdf), full 10-page copy opened. Historical scope: cooperative task sharing among loosely coupled asynchronous nodes with message communication and no shared memory. No incentive-compatibility or modern transport guarantees inferred.
+- Full Wooldridge book/Wiley body was not accessed.
 
-> "The dynamics of multiagent systems are complex, and can be chaotic."
-
-Chaotic dynamics often manifest as **emergent deadlocks** when coordination is misdesigned.
-
-### Failure Mode 3: Inconsistency (Conflicting Beliefs)
-
-**Scenario**: Multiple agents maintain models of shared state; models diverge.
-
-**Example (from FA/C approach, p. 200)**:
-
-> "Agents operate on partial, tentative, and possibly incorrect information."
-
-When two agents have contradictory beliefs (Agent A believes valve_221 is open; Agent B believes it's closed), what should happen?
-
-**Resolution strategies**:
-
-1. **Authority hierarchy**: Designate one agent as authoritative; others defer
-2. **Voting/consensus**: Agents vote; majority wins
-3. **Bayesian belief fusion**: Weight beliefs by confidence; compute posterior
-4. **Escalation to human**: If conflict is critical, halt and request human judgment
-
-**Wooldridge's key point**:
-
-> "Agents can neither force other agents to perform some action, nor write data onto the internal state of other agents."
-
-So inconsistency resolution **cannot** be coercive—it must be negotiated.
-
-## The Common Knowledge Impossibility Result
-
-Wooldridge includes the **coordinated attack problem** (canonical in distributed systems):
-
-Two generals need to attack simultaneously. They can only communicate via messengers (unreliable delivery). Protocol:
-
-1. General A sends "attack at dawn"
-2. General B receives, sends ack
-3. General A receives ack, sends ack-of-ack
-4. ...
-
-**Theorem**: If message delivery is unreliable (even epsilon probability of loss), **common knowledge can never arise**, regardless of how many acknowledgments are sent.
-
-**Proof sketch**:
-- After each message, sender doesn't know if it was delivered
-- So sender can't be certain recipient knows
-- So sender can't be certain recipient knows that sender knows
-- Ad infinitum
-
-**Implication**:
-
-> "No amount of communication is sufficient to bring about the infinite nesting that common knowledge requires."
-
-**For coordination protocols**: Don't design systems that require all agents to know that all agents know that all agents know... Instead, use:
-
-- **Eventual consistency**: Agents converge to consistent state after finite time, but may temporarily diverge
-- **Distributed knowledge** (weaker): An omniscient observer could deduce the fact, even if no individual agent knows it
-- **Probabilistic guarantees**: With probability 1-ε, agents reach consensus
-
-## Hierarchical Coordination: PGP and Solution Construction Graphs
-
-**Partial Global Planning (Durfee, DVMT)** introduces **meta-level coordination**:
-
-Agents don't just coordinate on tasks—they coordinate on **plans** (intentions about future coordination).
-
-**Three-stage cycle**:
-
-1. **Local planning**: Each agent generates plan for its sub-problem
-2. **Information exchange**: Agents share summaries (not full details) of plans
-3. **Plan modification**: Upon detecting interactions (conflicts or synergies), agents alter plans
-
-**Critical data structure**: **Solution Construction Graph (SCG)**
-
-Each agent maintains an SCG showing:
-- Goals it's pursuing
-- Actions planned to achieve those goals
-- Expected resource usage
-- Predicted outcomes
-
-When agents exchange SCGs, they can:
-- Detect **conflicts** (both need same resource at overlapping times)
-- Exploit **synergies** (one agent's output is another's needed input)
-- Avoid **redundancy** (both planning to compute the same intermediate result)
-
-**Why this scales better than explicit action coordination**:
-
-Coordinating at the **plan level** (meta-level) reduces communication:
-- Without SCGs: Agents coordinate on every action (high frequency, high volume)
-- With SCGs: Agents coordinate on plan changes (lower frequency, still comprehensive)
-
-**Transfer to 180-skill orchestration**:
-
-Instead of skills coordinating on every execution step, skills could exchange **execution plans**:
-
-```
-Skill A: "I plan to call API X at time T, expecting response in 200ms, will output data D"
-Skill B: "I need data D as input; I'll block until T+200ms, then start"
-Skill C: "I also need API X; can we batch our requests?"
-```
-
-This is **declarative coordination via shared meta-information**, not imperative "do this now" messaging.
-
-## Practical Takeaway: Coordination Design Checklist
-
-When designing coordination for a multi-agent system (including skill orchestration):
-
-1. **Identify necessity**: Is coordination required for correctness (safety), performance (efficiency), or negotiation (conflict resolution)?
-
-2. **Choose mechanism**:
-   - Explicit (message-passing): When agents need strong guarantees, audit trails, or precise timing
-   - Implicit (environment-mediated): When agents are heterogeneous, loosely coupled, or numerous
-
-3. **Define protocols** (if explicit):
-   - What speech acts? (request, inform, propose, query)
-   - What ontology? (shared vocabulary for message content)
-   - What sequencing? (request → response? broadcast → ack?)
-
-4. **Design for partial observability**:
-   - Assume agents can't see each other's internal states
-   - Require explicit status updates, not inference from silence
-
-5. **Handle failures explicitly**:
-   - Timeout policies (how long to wait for response?)
-   - Retry strategies (exponential backoff? Give up after N tries?)
-   - Escalation paths (when to involve human / higher authority?)
-
-6. **Avoid requiring common knowledge**:
-   - Don't design protocols needing "everyone knows that everyone knows..."
-   - Use weaker epistemic operators (distributed knowledge, eventual consistency)
-
-7. **Test at scale**:
-   - Coordination that works with 3 agents may fail with 30 (communication overhead)
-   - Verify that meta-level coordination (plans, not just actions) reduces load

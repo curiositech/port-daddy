@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "proposed_batch_count": 14,
+  "selected_unique_canonical_targets": 170,
+  "batches": [
+    {
+      "batch_id": "B01",
+      "name": "Coordination foundations",
+      "size": 12,
+      "skill_ids": [
+        "agentic-patterns",
+        "agentspeak-bdi",
+        "agha-actor-model",
+        "coordination-topology-architect",
+        "fipa-00023-agent-management",
+        "fipa-00025-interaction-protocol-library",
+        "game-theoretic-agent-incentives",
+        "mechanism-design-for-agent-labor",
+        "multi-agent-coordination",
+        "ostrom-commons-governance",
+        "resource-bounded-planning",
+        "smith-1980-contract-net-protocol"
+      ],
+      "research_lanes": [
+        "Agent architecture",
+        "Allocation and incentives",
+        "Communication and protocols",
+        "Identity repair and source recovery",
+        "Orchestration and execution"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "source_report_path": "research/coordination-foundations.md",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending."
+    },
+    {
+      "batch_id": "B02",
+      "name": "Agent architecture",
+      "size": 13,
+      "skill_ids": [
+        "agent-control-command-contract",
+        "agent-identity-continuity-reputation",
+        "agentic-app-architecture",
+        "agentic-infrastructure-2026",
+        "agents-sdk",
+        "agentspeak-l-bdi-agents-speak-out-in-a-logical-computable",
+        "agentspeak-l-bdi-architecture",
+        "alphago-deep-rl",
+        "always-on-agent-applications",
+        "always-on-agent-architecture",
+        "always-on-agent-safety",
+        "bdi-agency-model",
+        "bdi-agent-design-mora"
+      ],
+      "research_lanes": [
+        "Agent architecture"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/architecture-B02.md"
+    },
+    {
+      "batch_id": "B03",
+      "name": "Agent architecture",
+      "size": 13,
+      "skill_ids": [
+        "bdi-agents-a-soft-model-for-organisation",
+        "bdi-models-and-systems-reducing-the-gap",
+        "bdi-models-and-systems-reducing-the-gap-paper",
+        "bdi-soft-model-for-organisations",
+        "bdi-soft-systems",
+        "belief-desire-intention-model-of-agency",
+        "normative-bdi-agent-architecture",
+        "normative-bdi-agents",
+        "park-2023-generative-agents",
+        "port-daddy-internal-dev",
+        "rao-georgeff-1991-modeling-rational-agents-bdi",
+        "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+        "recursive-synthesis"
+      ],
+      "research_lanes": [
+        "Agent architecture"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/architecture-B03.md"
+    },
+    {
+      "batch_id": "B04",
+      "name": "Agent architecture / MAS foundations",
+      "size": 12,
+      "skill_ids": [
+        "semantic-conflict-prediction",
+        "sheaf-cohomology-multiagent-debug",
+        "shoham-leyton-brown-2009-mas-foundations",
+        "solely-responsible-agent",
+        "state-of-cognitive-systems-engineering",
+        "wang-2023-voyager",
+        "yao-2022-react",
+        "yao-2023-tree-of-thoughts",
+        "ai-wiley-wooldridge-an-introduction-to-multi-agent-systems",
+        "algebraic-topology-for-agents",
+        "charrier-et-al-big-brother-logic",
+        "decker-lesser-1995-gpgp-taems"
+      ],
+      "research_lanes": [
+        "Agent architecture",
+        "MAS foundations"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/foundations-B04.md"
+    },
+    {
+      "batch_id": "B05",
+      "name": "Allocation and incentives / Communication and protocols / MAS foundations",
+      "size": 12,
+      "skill_ids": [
+        "harbor-results",
+        "bellifemine-2007-jade-fipa",
+        "bordini-hubner-2007-jason",
+        "agent-conversation-protocols",
+        "agent-discovery-directories-guilds",
+        "agent-interchange-formats",
+        "fipa-00037-communicative-act-library",
+        "fipa-00086-ontology-service",
+        "hong-et-al-2024-metagpt",
+        "wu-2023-autogen",
+        "agent-labor-pricing-function",
+        "context-economics-for-agent-swarms"
+      ],
+      "research_lanes": [
+        "Allocation and incentives",
+        "Communication and protocols",
+        "MAS foundations",
+        "MAS frameworks"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/protocols-markets-B05.md"
+    },
+    {
+      "batch_id": "B06",
+      "name": "Allocation and incentives / Decomposition and planning",
+      "size": 12,
+      "skill_ids": [
+        "three-sided-agent-labor-market",
+        "dag-chain-decomposition",
+        "dag-dynamic-replanner",
+        "dag-fast-decomposition",
+        "dag-planner",
+        "dag-task-scheduler",
+        "hypertree-planning",
+        "operad-task-decomposition",
+        "pilot-hypertree-execution",
+        "runtime-task-overlap-detector",
+        "stanton-2006-hierarchical-task-analysis",
+        "task-analysis-of-pier-side-ship-handling"
+      ],
+      "research_lanes": [
+        "Allocation and incentives",
+        "Decomposition and planning"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/planning-B06.md"
+    },
+    {
+      "batch_id": "B07",
+      "name": "Decomposition and planning / Orchestration and execution",
+      "size": 12,
+      "skill_ids": [
+        "task-decomposer",
+        "wave-by-wave-parley",
+        "windags-decomposer",
+        "work-intake-node-shaping",
+        "dag-capability-ranker",
+        "dag-confidence-scorer",
+        "dag-context-bridger",
+        "dag-convergence-monitor",
+        "dag-cycle-analysis",
+        "dag-dependency-resolver",
+        "dag-execution-tracer",
+        "dag-failure-analyzer"
+      ],
+      "research_lanes": [
+        "Decomposition and planning",
+        "Orchestration and execution"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/orchestration-B07.md"
+    },
+    {
+      "batch_id": "B08",
+      "name": "Orchestration and execution",
+      "size": 12,
+      "skill_ids": [
+        "dag-feedback-synthesizer",
+        "dag-graph-builder",
+        "dag-hallucination-detector",
+        "dag-isolation-manager",
+        "dag-iteration-detector",
+        "dag-mutation-strategist",
+        "dag-ops",
+        "dag-orchestrator",
+        "dag-output-validator",
+        "dag-parallel-executor",
+        "dag-pattern-learner",
+        "dag-performance-profiler"
+      ],
+      "research_lanes": [
+        "Orchestration and execution"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/orchestration-B08.md"
+    },
+    {
+      "batch_id": "B09",
+      "name": "Orchestration and execution",
+      "size": 12,
+      "skill_ids": [
+        "dag-permission-validator",
+        "dag-quality",
+        "dag-replay-debugger",
+        "dag-result-aggregator",
+        "dag-runtime",
+        "dag-scope-enforcer",
+        "dag-semantic-matcher",
+        "dag-skill-registry",
+        "dag-skills-matcher",
+        "dag-visual-editor-design",
+        "manager-driven-team-orchestrator",
+        "resolution-trace-damping"
+      ],
+      "research_lanes": [
+        "Orchestration and execution"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/orchestration-B09.md"
+    },
+    {
+      "batch_id": "B10",
+      "name": "Agent orchestration / Continuity and context / Orchestration and execution",
+      "size": 12,
+      "skill_ids": [
+        "stigmergic-diffusion-medium",
+        "swarm-invocation-designer",
+        "van-der-aalst-2003-workflow-patterns",
+        "wang-et-al-2025-tdag",
+        "windags-architect",
+        "skillful-subagent-creator",
+        "agent-context-partitioner",
+        "agent-resurrection-and-body-continuity",
+        "always-on-agent-inputs",
+        "episodic-memory-algorithms",
+        "sqlite-durable-agent-state",
+        "trust-typed-context-compiler"
+      ],
+      "research_lanes": [
+        "Agent orchestration",
+        "Continuity and context",
+        "Orchestration and execution"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/continuity-B10.md"
+    },
+    {
+      "batch_id": "B11",
+      "name": "Evaluation / Evaluation and assurance / Execution and capacity",
+      "size": 12,
+      "skill_ids": [
+        "conserved-capacity-admission-and-settlement",
+        "drydock-program-architecture",
+        "agent-compliance-conformance",
+        "agentic-zero-trust-security",
+        "mcp-trust-broker",
+        "pre-federation-halt-gate",
+        "tlaplus-practitioner",
+        "empirical-systems-evaluation",
+        "trial-basin-deterministic-systems-evaluation",
+        "agent-rl-sandbox-trainer",
+        "liu-2023-agentbench",
+        "llm-evaluation-harness"
+      ],
+      "research_lanes": [
+        "Evaluation",
+        "Evaluation and assurance",
+        "Execution and capacity",
+        "Trust and runtime control"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/assurance-B11.md"
+    },
+    {
+      "batch_id": "B12",
+      "name": "Agent harness and skills / Evaluation and assurance / Evidence and review",
+      "size": 12,
+      "skill_ids": [
+        "provable-action-adjudicator",
+        "runtime-verification-for-agents",
+        "sandboxed-adversarial-test-harness",
+        "windags-evaluator",
+        "zhou-et-al-2026-formaljudge",
+        "agent-pr-authoring",
+        "agent-visual-evidence-manifest",
+        "agent-work-receipt-designer",
+        "project-epistemology-reconciliation",
+        "session-pr-audit",
+        "status-attestation-split-plane",
+        "agent-creator"
+      ],
+      "research_lanes": [
+        "Agent harness and skills",
+        "Evaluation and assurance",
+        "Evidence and review"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/evidence-B12.md"
+    },
+    {
+      "batch_id": "B13",
+      "name": "Agent harness and skills",
+      "size": 12,
+      "skill_ids": [
+        "agentic-skill-discovery",
+        "agentic-software-installation",
+        "giant-squid-hooks",
+        "jury-rig-bootstrap-lifecycle",
+        "next-move",
+        "port-daddy-agent-skill",
+        "skillful-node-prompt",
+        "windags-avatar",
+        "windags-curator",
+        "windags-graft",
+        "windags-librarian",
+        "windags-looking-back"
+      ],
+      "research_lanes": [
+        "Agent harness and skills"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/skills-lifecycle-B13.md"
+    },
+    {
+      "batch_id": "B14",
+      "name": "Agent harness and skills / Agent product and workflow / Identity repair and source recovery",
+      "size": 12,
+      "skill_ids": [
+        "windags-mutator",
+        "windags-premortem",
+        "windags-resilience",
+        "windags-sensemaker",
+        "windags-skill-cdm-elicitation",
+        "windags-skill-selector",
+        "windags-synthesizer",
+        "agent-issue-tracker-workflow",
+        "agentic-calendar-coordination",
+        "agentic-coding-product-research",
+        "agentic-coding-ux-designer",
+        "xie-et-al-2025-survey-llm-task-planning"
+      ],
+      "research_lanes": [
+        "Agent harness and skills",
+        "Agent product and workflow",
+        "Identity repair and source recovery"
+      ],
+      "status": "research-draft-prepared-terra-integration-pending",
+      "note": "Topic research draft present; source access/verification limits explicit. Actual canonical SKILL/reference edits, all ASCII dispositions, per-skill Mermaid validation and publication remain pending.",
+      "source_report_path": "research/skills-identity-B14.md"
+    }
+  ]
+}

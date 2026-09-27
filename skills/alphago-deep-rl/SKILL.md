@@ -194,6 +194,14 @@ Use a cheap heuristic to generate promising compound families, a stronger learne
 
 ## Reference Routing
 
+## Evidence boundary
+
+AlphaGo evidence is system- and evaluation-specific. A transfer to another domain
+is a hypothesis requiring a declared action space, simulator or outcome oracle,
+baseline, ablation, and held-out evaluation. The diagrams are explanatory, not
+measured speed or accuracy results. See
+[`references/evidence-scope.md`](references/evidence-scope.md).
+
 - `references/cascading-approximation-architecture.md`: load when the main issue is how to decompose the overall evaluator stack.
 - `references/self-play-curriculum-generation.md`: load when imitation has plateaued and objective-driven improvement is needed.
 - `references/multiple-imperfect-evaluators.md`: load when deciding whether and how to mix evaluators.

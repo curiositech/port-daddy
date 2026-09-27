@@ -1,26 +1,12 @@
 # Agentic App Architecture
 
-Decide the shape of an agentic LLM application — interaction transparency,
-state/history/memory, context & caching economics, capability integration,
-and execution substrate & side effects — before implementation begins.
+This bundle produces a five-axis design declaration and static consistency audit. It does not inspect an implementation, provider account, deployed policy, cache, or external effect.
 
-Use this skill when architecting a new coding-agent console or a non-coding
-agent (research, document, image, or data-artifact producer), or when
-auditing an existing agentic app for hidden reasoning, transcript-only state,
-an unbounded context strategy, unsafe secret custody, or ungated side
-effects.
+1. Read `SKILL.md` and the three axis references.
+2. Adapt `templates/output-template.md` or `examples/sample-input.json`.
+3. Run `node scripts/agentic_app_audit.mjs --input spec.json`.
+4. Treat a passing result as a coherent declaration, then plan separate implementation and evidence checks.
 
-## Quick Start
+Requires Node.js; the auditor has no external package dependency. The JSON Schema describes baseline structure; the auditor also checks genuine calendar dates, HTTPS hosts, conditional MCP fields and applicable design controls. A zero CLI exit means a passing declaration; invalid/rejected declarations and malformed JSON exit nonzero.
 
-1. Read `SKILL.md`.
-2. Load `references/interaction-surface-and-transparency.md` for the
-   transparency axis, `references/state-memory-and-context.md` for state and
-   caching economics, and `references/capabilities-and-execution-substrate.md`
-   for tools/skills/MCP/secrets and the coding vs. non-coding substrate.
-3. Fill `templates/output-template.md` for the app at hand, or write a spec
-   matching `schemas/agentic-app-spec.schema.json` directly.
-4. Run `node scripts/agentic_app_audit.mjs --input spec.json`.
-
-An architecture that scores `pass: true` should mean a reviewer can trust the
-app's reasoning, resume/fork its state, bound its cost, trust its secret
-handling, and gate its side effects — without reading the implementation.
+Canonical preimage: commit `00ab2c9ab2197ff97e85edc173370b7446fdb2ef`, directory `skills/agentic-app-architecture/`. Any original file is recoverable with `git show <commit>:skills/agentic-app-architecture/<relative-path>` in the Port Daddy repository. Campaign review retains a byte-exact source snapshot and per-file hashes outside the operative bundle.

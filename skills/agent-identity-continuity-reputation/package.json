@@ -1,0 +1,8 @@
+{
+  "name": "agent-identity-continuity-reputation-tools",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=20"},
+  "dependencies": {"ajv": "^8.0.0"},
+  "scripts": {"test": "node --test tests/reputation_soundness_audit.test.mjs"}
+}

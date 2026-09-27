@@ -8,14 +8,15 @@ control and triadic contract legibility.
 
 THEOREMS EVALUATED:
 -------------------
-THEOREM CR-4 (Optimal Cohomological Repair):
-  Given an observed cochain g_K with completion residual r = ||Pi_K g_K||_2 > 0
-  and edge intervention costs w(e) > 0, the residual decomposes coordinate-wise
-  into harmonic circulations rho^c = Proj_{Z(G_c)} g^c.
-  The minimal-cost set of edge interventions S* driving r -> 0 corresponds to a
-  minimum-weight cut across the circulation support. A greedy energy-to-cost
-  selection (picking e* = argmax E(e)/w(e)) collapses the obstruction to r = 0
-  in at most beta_1(G_K) iterations.
+CR-4 (bounded energy/cost selection helper):
+  For a validated ordinary finite graph-incidence input, the helper scores each
+  eligible row by current residual energy divided by its supplied positive finite
+  cost. In `sever` mode it removes that row from the modeled completion problem;
+  in `reconcile` mode it writes that observed coordinate to zero. It reports its
+  mode, selected rows, residual trajectory, remaining residual, and an explicit
+  completion or early-stop status. It is a selection heuristic, not a minimum-cut
+  algorithm, global optimizer, general beta_1 round theorem, authority decision,
+  or assertion that edited observations describe the external world.
 
 THEOREM CR-5 (Simplicial Hodge Decomposition & Swarm Legibility Ratio):
   On a 2-complex X = (V, E, F) representing multi-agent triadic contracts
@@ -30,8 +31,9 @@ THEOREM CR-5 (Simplicial Hodge Decomposition & Swarm Legibility Ratio):
     - delta_1^* psi in im(delta_1^*) is the triadic local frustration (micro-contract failure).
   The Swarm Legibility Ratio:
       L(g) = ||h||_2^2 / (||h||_2^2 + ||delta_1^* psi||_2^2) in [0, 1]
-  distinguishes whether swarm failure is architectural/macro-topological (L -> 1)
-  or a localized 3-party contract violation (L -> 0).
+  distinguishes harmonic from coexact residual energy in this declared complex.
+  The constructed A/B examples label their own injections; the ratio alone does
+  not identify a field incident as a partition or contract violation.
 
 Deps: numpy, scipy, networkx.
 Program seed: 20260917.
@@ -42,9 +44,8 @@ import numpy as np
 
 try:
     import networkx as nx
-except ImportError:
-    print("networkx required: pip install networkx")
-    sys.exit(2)
+except ImportError:  # The CR-4/CR-5 fixture functions below do not use it.
+    nx = None
 
 SEED = 20260917
 D = 5              # Stalk dimension (e.g. capacity, epoch, claim bounds, rejection hash)
@@ -184,8 +185,9 @@ def hodge_decomposition_1cochain(delta_0, delta_1, g):
 def swarm_legibility_ratio(h, curl_comp):
     """
     L(g) = ||h||_2^2 / (||h||_2^2 + ||curl_comp||_2^2)
-    L -> 1 : Macro-topological cavity (network partition)
-    L -> 0 : Micro-contract failure (triadic local frustration)
+    L -> 1 : residual energy lies in the modeled harmonic component
+    L -> 0 : residual energy lies in the modeled coexact component
+    These components alone do not identify an external failure cause.
     """
     norm_h_sq = float(np.sum(h ** 2))
     norm_curl_sq = float(np.sum(curl_comp ** 2))
@@ -195,88 +197,173 @@ def swarm_legibility_ratio(h, curl_comp):
     return norm_h_sq / denom, norm_h_sq, norm_curl_sq
 
 # --------------------------------------------------------------------------
-# CR-4 Optimal Cohomological Repair Optimizer
+# CR-4 Finite Graph-Incidence Selection Heuristic
 # --------------------------------------------------------------------------
-def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode="sever"):
-    """
-    Given completion residual r = ||Pi_K g_K||_2 > 0 and edge repair costs w(e),
-    iteratively selects the edge e* with maximum energy-to-cost ratio E(e)/w(e).
+def solve_cohomological_repair_greedy(delta_0, edges, g_known, costs=None, mode="sever", tolerance=TOL, score_tolerance=1e-12):
+    """Run the CR-4 row-selection heuristic on a validated finite fixture.
 
-    Modes:
-      'sever': The governor fences / drops edge e* (making it a free block).
-               Breaks the cycle, dropping beta_1 by 1.
-      'reconcile': The governor forces endpoints of e* to reconcile (sets g_{e*} = 0).
-
-    Returns list of repaired edges and residual trajectory.
+    `sever` removes a selected observation row from the *modelled* least-squares
+    completion. `reconcile` synthetically writes the selected observation to zero.
+    Neither operation verifies an observation, grants authority, or reports an
+    external effect. The returned dictionary exposes early stops and residuals so a
+    caller cannot mistake a loop exit for completion.
     """
-    nE = delta_0.shape[0]
+    matrix = np.asarray(delta_0, dtype=float)
+    values = np.asarray(g_known, dtype=float).copy()
+    if matrix.ndim != 2 or matrix.shape[0] != len(edges):
+        raise ValueError("delta_0 must be a two-dimensional row-per-edge incidence matrix")
+    if values.ndim != 1 or values.shape[0] != len(edges) or not np.isfinite(values).all():
+        raise ValueError("g_known must be a finite value for every edge")
+    if mode not in {"sever", "reconcile"}:
+        raise ValueError("mode must be 'sever' or 'reconcile'")
+    if (not np.isfinite(matrix).all() or not np.isscalar(tolerance)
+            or not np.isscalar(score_tolerance) or not np.isfinite(tolerance)
+            or not np.isfinite(score_tolerance) or tolerance < 0 or score_tolerance < 0):
+        raise ValueError("matrix and tolerances must be finite; tolerances must be nonnegative")
+    # The lemma is for a simple graph incidence, not an arbitrary rectangular map.
+    normalized_edges = []
+    seen = set()
+    for row, edge in enumerate(edges):
+        if not isinstance(edge, (tuple, list)) or len(edge) != 2:
+            raise ValueError("each edge must contain two vertex indices")
+        u, v = edge
+        if any(isinstance(x, (bool, np.bool_)) or not isinstance(x, (int, np.integer))
+               for x in (u, v)) or u == v or min(u, v) < 0 or max(u, v) >= matrix.shape[1]:
+            raise ValueError("edge endpoints must be distinct in-range integer indices")
+        key = tuple(sorted((int(u), int(v))))
+        if key in seen:
+            raise ValueError("duplicate or oppositely oriented copies of one edge are unsupported")
+        seen.add(key)
+        expected = np.zeros(matrix.shape[1])
+        expected[u], expected[v] = 1.0, -1.0
+        if not np.array_equal(matrix[row], expected):
+            raise ValueError("matrix row must match its edge as x_u minus x_v")
+        normalized_edges.append((int(u), int(v)))
+    edges = normalized_edges
     if costs is None:
-        costs = {e: 1.0 for e in edges}
+        costs = {edge: 1.0 for edge in edges}
+    try:
+        weight = np.asarray([float(costs[edge]) for edge in edges], dtype=float)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("costs must provide one numeric cost for every edge") from exc
+    if not np.isfinite(weight).all() or np.any(weight <= 0):
+        raise ValueError("every cost must be finite and strictly positive")
 
-    repaired_edges = []
-    active_mask = np.ones(nE, dtype=bool)
-    current_g = g_known.copy()
+    active = np.ones(len(edges), dtype=bool)
+    selected = []
     trajectory = []
 
-    # Initial residual
-    xhat, _, _, _ = np.linalg.lstsq(delta_0, current_g, rcond=None)
-    resid = current_g - delta_0 @ xhat
-    r = float(np.linalg.norm(resid))
-    trajectory.append(r)
+    def residual_for(indices):
+        if len(indices) == 0:
+            return np.array([], dtype=float)
+        try:
+            with np.errstate(over="raise", invalid="raise"):
+                x_hat, _, _, _ = np.linalg.lstsq(matrix[indices, :], values[indices], rcond=None)
+                result = values[indices] - matrix[indices, :] @ x_hat
+        except (FloatingPointError, np.linalg.LinAlgError) as exc:
+            raise ValueError("least-squares calculation exceeded its numerical domain") from exc
+        if not np.isfinite(result).all():
+            raise ValueError("least-squares residual is not finite")
+        return result
 
-    max_rounds = len(edges)
-    for _ in range(max_rounds):
-        if r < TOL:
+    def residual_norm(residual):
+        with np.errstate(over="ignore", invalid="ignore"):
+            result = float(np.linalg.norm(residual))
+        if not np.isfinite(result):
+            raise ValueError("residual norm is not finite; rescale the fixture")
+        return result
+
+    indices = np.arange(len(edges))
+    residual = residual_for(indices)
+    remaining = residual_norm(residual)
+    trajectory.append(remaining)
+    status = "already-consistent" if remaining <= tolerance else None
+
+    for _ in range(len(edges)):
+        if status is not None:
             break
-
-        # Compute per-edge residual energy on currently active edges
-        energies = np.zeros(nE)
-        if mode == "sever":
-            # Active edges only
-            active_indices = np.where(active_mask)[0]
-            A_active = delta_0[active_indices, :]
-            b_active = current_g[active_indices]
-            xh, _, _, _ = np.linalg.lstsq(A_active, b_active, rcond=None)
-            res_active = b_active - A_active @ xh
-            for idx, res_val in zip(active_indices, res_active):
-                energies[idx] = res_val ** 2
-        else:
-            energies = resid ** 2
-
-        # Ratio E(e)/w(e) among eligible edges
-        ratios = np.zeros(nE)
-        for i in range(nE):
-            if active_mask[i]:
-                ratios[i] = energies[i] / costs[edges[i]]
-
-        if np.max(ratios) < 1e-12:
+        active_indices = np.flatnonzero(active)
+        if len(active_indices) == 0:
+            status = "completed" if remaining <= tolerance else "round-limit"
             break
-
-        best_idx = int(np.argmax(ratios))
-        best_edge = edges[best_idx]
-        repaired_edges.append(best_edge)
-        active_mask[best_idx] = False
-
         if mode == "sever":
-            # Sever edge: drop row from completion
-            active_indices = np.where(active_mask)[0]
-            if len(active_indices) == 0:
-                r = 0.0
-            else:
-                A_act = delta_0[active_indices, :]
-                b_act = current_g[active_indices]
-                xh, _, _, _ = np.linalg.lstsq(A_act, b_act, rcond=None)
-                r = float(np.linalg.norm(b_act - A_act @ xh))
+            active_residual = residual_for(active_indices)
+            energies = np.zeros(len(edges), dtype=float)
+            with np.errstate(over="ignore", invalid="ignore"):
+                energies[active_indices] = active_residual ** 2
         else:
-            # Reconcile edge: set disagreement to 0
-            current_g[best_idx] = 0.0
-            xhat, _, _, _ = np.linalg.lstsq(delta_0, current_g, rcond=None)
-            resid = current_g - delta_0 @ xhat
-            r = float(np.linalg.norm(resid))
+            full_residual = residual_for(indices)
+            with np.errstate(over="ignore", invalid="ignore"):
+                energies = full_residual ** 2
+        ratios = np.zeros(len(edges), dtype=float)
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            ratios[active] = energies[active] / weight[active]
+        if not np.isfinite(ratios).all() or not np.isfinite(energies).all():
+            raise ValueError("energy/cost score is not finite; rescale the fixture")
+        if float(np.max(ratios)) <= score_tolerance:
+            status = "early-stop-zero-score"
+            break
+        chosen_index = int(np.argmax(ratios))
+        selected.append(edges[chosen_index])
+        active[chosen_index] = False
+        if mode == "reconcile":
+            values[chosen_index] = 0.0
+        if mode == "sever":
+            residual = residual_for(np.flatnonzero(active))
+        else:
+            residual = residual_for(indices)
+        remaining = residual_norm(residual)
+        trajectory.append(remaining)
+        if remaining <= tolerance:
+            status = "completed"
 
-        trajectory.append(r)
+    if status is None:
+        status = "completed" if remaining <= tolerance else "round-limit"
+    return {
+        "mode": mode,
+        "interventions": selected,
+        "residualTrajectory": trajectory,
+        "remainingResidual": remaining,
+        "status": status,
+        "eligibleEdges": [edge for edge, is_active in zip(edges, active) if is_active],
+        "retainedEdges": [edge for edge, is_active in zip(edges, active)
+                          if mode == "reconcile" or is_active],
+        "modeledObservations": [float(value) for value, is_active in zip(values, active)
+                                if mode == "reconcile" or is_active],
+    }
 
-    return repaired_edges, trajectory
+
+def exact_integer_consistent(n_verts, edges, observations, removed):
+    """Independent integer-potential predicate for the documented CR-4 fixture."""
+    if len(edges) != len(observations) or any(
+        isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer))
+        for value in observations
+    ):
+        raise ValueError("integer oracle requires one exact integer observation per edge")
+    adjacency = [[] for _ in range(n_verts)]
+    for index, ((u, v), value) in enumerate(zip(edges, observations)):
+        if index in removed:
+            continue
+        adjacency[u].append((v, -int(value)))
+        adjacency[v].append((u, int(value)))
+    potential = {}
+    for root in range(n_verts):
+        if root in potential:
+            continue
+        potential[root] = 0
+        todo = [root]
+        while todo:
+            vertex = todo.pop()
+            for neighbor, delta in adjacency[vertex]:
+                expected = potential[vertex] + delta
+                if neighbor in potential:
+                    if potential[neighbor] != expected:
+                        return None
+                else:
+                    potential[neighbor] = expected
+                    todo.append(neighbor)
+    return [potential[index] for index in range(n_verts)]
+
 
 # --------------------------------------------------------------------------
 # Test Suites
@@ -375,37 +462,60 @@ def test_swarm_legibility_ratio_scenarios():
     check(L_B > 0.99 and norm_h_B > 1.0,
           "Scenario B correctly flagged as MACRO-TOPOLOGICAL CAVITY (L ~ 1)")
 
-def test_optimal_cohomological_repair_cr4():
+def test_cr4_single_cycle_fixture():
     print("\n" + "=" * 74)
-    print("[3] THEOREM CR-4 — Optimal Cohomological Repair (Active Remediation)")
+    print("[3] CR-4 — positive single-cycle sever fixture (not an optimizer proof)")
     print("=" * 74)
-
-    # 12-node two-path graph (two clusters joined by two bridges)
-    # beta_1 = 1 (single large cycle)
     n = 12
     k = n // 2
-    E = [(i, i + 1) for i in range(k - 1)]
-    E += [(k + i, k + i + 1) for i in range(k - 1)]
-    E += [(0, k), (k - 1, n - 1)]
-    edges = sorted(tuple(sorted(e)) for e in E)
-    d0, _ = build_simplicial_coboundaries(n, edges, [])
+    edges = [(i, i + 1) for i in range(k - 1)]
+    edges += [(k + i, k + i + 1) for i in range(k - 1)]
+    edges += [(0, k), (k - 1, n - 1)]
+    edges = sorted(tuple(sorted(edge)) for edge in edges)
+    delta_0, _ = build_simplicial_coboundaries(n, edges, [])
+    observations = np.zeros(len(edges))
+    observations[edges.index(orient_edge((0, 6)))] = 4.0
+    costs = {edge: 5.0 for edge in edges}
+    costs[orient_edge((0, 6))] = 1.0
+    result = solve_cohomological_repair_greedy(delta_0, edges, observations, costs, mode="sever")
+    print(f"  selected rows: {result['interventions']}")
+    print(f"  residual trajectory: {[round(value, 4) for value in result['residualTrajectory']]}")
+    check(result['status'] == "completed" and result['remainingResidual'] < TOL,
+          "single-cycle sever fixture reaches a zero retained-data residual")
+    check(result['interventions'] == [orient_edge((0, 6))],
+          "fixture selects its supplied low-cost row; no global inference follows")
 
-    # Lie injected on bridge (0, 6)
-    g = np.zeros(len(edges))
-    bridge_idx = edges.index(orient_edge((0, 6)))
-    g[bridge_idx] = 4.0
 
-    # Assign non-uniform costs: bridge (0,6) has cost 1.0, internal cluster edges cost 5.0
-    costs = {e: 5.0 for e in edges}
-    costs[orient_edge((0, 6))] = 1.0 # cheaper to arbitrate the bridge
+def test_cr4_counterexamples():
+    print("\n" + "=" * 74)
+    print("[4] CR-4 — bounded falsifiers of global optimality and reconcile round bound")
+    print("=" * 74)
+    edges = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3)]
+    observations = np.array([-1, -3, -3, -2, 0], dtype=float)
+    costs = {edge: cost for edge, cost in zip(edges, [6, 6, 5, 9, 1])}
+    delta_0, _ = build_simplicial_coboundaries(4, edges, [])
+    greedy = solve_cohomological_repair_greedy(delta_0, edges, observations, costs, mode="sever")
+    candidates = []
+    for mask in range(1 << len(edges)):
+        removed = {index for index in range(len(edges)) if mask & (1 << index)}
+        potential = exact_integer_consistent(4, edges, observations.astype(int), removed)
+        if potential is not None:
+            candidates.append((sum(costs[edges[index]] for index in removed), removed, potential))
+    optimum = min(candidates, key=lambda item: item[0])
+    greedy_cost = sum(costs[edge] for edge in greedy['interventions'])
+    print(f"  sever heuristic cost={greedy_cost}, exact deletion cost={optimum[0]}, potential={optimum[2]}")
+    check(greedy_cost == 6 and optimum[0] == 5 and optimum[2] == [0, 1, 3, 3],
+          "five-edge fixture refutes a global minimum-cost claim")
 
-    repaired, traj = solve_cohomological_repair_greedy(d0, edges, g, costs)
-    print(f"  Repair sequence chosen by optimizer: {[edges.index(e) for e in repaired]} -> {repaired}")
-    print(f"  Residual trajectory: {[round(r, 4) for r in traj]}")
+    triangle = [(0, 1), (0, 2), (1, 2)]
+    triangle_delta, _ = build_simplicial_coboundaries(3, triangle, [])
+    reconcile = solve_cohomological_repair_greedy(
+        triangle_delta, triangle, np.array([2, 2, 1], dtype=float),
+        {triangle[0]: 1, triangle[1]: 2, triangle[2]: 3}, mode="reconcile")
+    print(f"  reconcile rounds={len(reconcile['interventions'])}, beta_1=1, trajectory={reconcile['residualTrajectory']}")
+    check(len(reconcile['interventions']) == 3 and reconcile['status'] == "completed",
+          "triangle fixture refutes a blanket reconcile-mode beta_1 round bound")
 
-    check(traj[-1] < TOL, f"residual collapsed to zero: final r = {traj[-1]:.2e} < 1e-9")
-    check(len(repaired) == 1 and repaired[0] == orient_edge((0, 6)),
-          f"CR-4 greedy controller selected the EXACT minimal-cost bottleneck edge: {repaired[0]}")
 
 def run_mutation_suite():
     print("\n" + "=" * 74)
@@ -422,36 +532,47 @@ def run_mutation_suite():
     L1, _, _ = swarm_legibility_ratio(h1, curl1)
     check(L1 < 0.2, f"Mut-1 CAUGHT: triadic perturbation gave L = {L1:.3f} < 0.2")
 
-    # Mut-2: Off-support repair must NOT collapse residual
-    g_mut2 = np.zeros(len(edges))
-    g_mut2[edges.index(orient_edge((0, 1)))] = 4.0
-    xhat, _, _, _ = np.linalg.lstsq(d0, g_mut2, rcond=None)
-    init_r = float(np.linalg.norm(g_mut2 - d0 @ xhat))
-
-    # Repair an OFF-SUPPORT edge (an edge with zero residual)
+    # Mut-2: two triangles share one vertex. A lie in the first triangle
+    # has zero residual on the second; changing its data cannot erase the first.
+    # The old cylindrical fixture had no off-support edge and raised StopIteration.
+    mutant_edges = [(0, 1), (0, 2), (1, 2), (2, 3), (2, 4), (3, 4)]
+    mutant_matrix, _ = build_simplicial_coboundaries(5, mutant_edges, [])
+    g_mut2 = np.zeros(len(mutant_edges))
+    g_mut2[0] = 4.0
+    xhat, _, _, _ = np.linalg.lstsq(mutant_matrix, g_mut2, rcond=None)
+    initial_residual = g_mut2 - mutant_matrix @ xhat
+    off_support = mutant_edges.index((2, 3))
     g_dummy_repaired = g_mut2.copy()
-    g_dummy_repaired[5] = 99.0 # arbitrary perturbation on unrelated edge
-    xhat2, _, _, _ = np.linalg.lstsq(d0, g_dummy_repaired, rcond=None)
-    new_r = float(np.linalg.norm(g_dummy_repaired - d0 @ xhat2))
-    check(abs(new_r - init_r) > 1e-3,
-          f"Mut-2 CAUGHT: repairing/perturbing non-cut edges does not zero residual (r={new_r:.3f} != 0)")
+    g_dummy_repaired[off_support] = 99.0
+    xhat2, _, _, _ = np.linalg.lstsq(mutant_matrix, g_dummy_repaired, rcond=None)
+    new_r = float(np.linalg.norm(g_dummy_repaired - mutant_matrix @ xhat2))
+    check(abs(initial_residual[off_support]) < TOL
+          and np.linalg.norm(initial_residual) > TOL and new_r > TOL,
+          f"Mut-2 CAUGHT: initially off-support edge {mutant_edges[off_support]} was perturbed and residual remains {new_r:.3f} > 0")
 
-def main():
-    print("SHEAF REPAIR AND 2-COMPLEX TEST HARNESS (CR-4 & CR-5)")
+def main(argv=None):
+    import argparse
+    parser = argparse.ArgumentParser(description="Bounded Harbor R6 fixture checks")
+    parser.add_argument("--cr4-fixtures", action="store_true", help="run only the small CR-4 fixtures")
+    args = parser.parse_args(argv)
+    FAILURES.clear()
+    print("SHEAF REPAIR AND 2-COMPLEX FIXTURE CHECKS")
     print(f"Seed: {SEED} | Stalk dim: {D}")
-    test_simplicial_hodge_decomposition()
-    test_swarm_legibility_ratio_scenarios()
-    test_optimal_cohomological_repair_cr4()
-    run_mutation_suite()
-
+    if not args.cr4_fixtures:
+        test_simplicial_hodge_decomposition()
+        test_swarm_legibility_ratio_scenarios()
+    test_cr4_single_cycle_fixture()
+    test_cr4_counterexamples()
+    if not args.cr4_fixtures:
+        run_mutation_suite()
     print("\n" + "=" * 74)
     if FAILURES:
-        print(f"RESULT: {len(FAILURES)} FAILED CHECK(S):")
-        for f in FAILURES:
-            print("  -", f)
-        sys.exit(1)
-    print("RESULT: ALL THEOREMS & MUTATION CHECKS PASSED (CR-4 & CR-5 CERTIFIED)")
-    sys.exit(0)
+        print(f"RESULT: {len(FAILURES)} FAILED FIXTURE CHECK(S):")
+        for failure in FAILURES:
+            print("  -", failure)
+        return 1
+    print("RESULT: fixture checks passed; no global CR-4 optimizer, authority, or field-effect claim follows.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

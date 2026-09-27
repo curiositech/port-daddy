@@ -64,7 +64,7 @@ flowchart TD
 3. **Filter before scoring.** Tenant, harbor, repository, disclosure, retention, and capability rules define the feasible set.
 4. **Close dependencies.** Every causal parent, open obligation, unresolved effect, and non-droppable item is assigned, transferred through an authorized edge, or blocks the plan.
 5. **Respect capacity.** Oversized singleton items and aggregate target overflow are hard failures.
-6. **Optimize softly.** Minimize added cross-target causal cost, then projected capacity fraction, then target ID. Semantic cohesion is a final tie-break only inside one exact vector space.
+6. **Choose a deterministic candidate.** The optional feasibility helper orders items topologically, then prefers a compatible target already holding causal parents, lower projected capacity use, and target ID. It is a greedy proposal aid, not an optimal partitioner; semantic cohesion remains disabled unless all compared items share one exact `spaceId`.
 7. **Prove coverage.** Every input item receives one inventory disposition: `ASSIGNED`, `TRANSFERRED`, `OMITTED_ALLOWED`, or `BLOCKED`.
 
 ## Context IR invariants
@@ -96,6 +96,22 @@ Coverage proves completeness only relative to the supplied root and obligation s
 ## Prepare is not admit
 
 The proposal may feed `PrepareContinuation`. It does not fence a predecessor, reconcile an effect, reserve capacity, mint a capability, select a process, consume a nonce, or create lineage. A lifecycle authority may later run `AdmitSuccessor` only after independent fence, effect, capacity, guidance, and context receipts.
+
+## Deterministic feasibility helper
+
+[`algorithms/partition_feasibility.py`](algorithms/partition_feasibility.py)
+answers a narrower question than the proposal validator: whether supplied items fit
+supplied, already-admitted targets under stated capacities, audiences, capabilities,
+and causal parents. It returns `UNKNOWN` for incomplete inventory evidence and
+`INFEASIBLE` for a known constraint gap. Its greedy choice is reproducible, but it
+does not prove global optimality, authorize a disclosure transfer, discover missing
+context, or create a successor. Load
+[`references/partition-procedure.md`](references/partition-procedure.md) for the
+algorithm and its worked limitation.
+
+The diagrams show the two non-negotiable boundaries:
+[feasibility before choice](diagrams/01_feasibility-gate.md) and
+[evidence for cross-target transfer](diagrams/02_cross-target-transfer.md).
 
 ## Anti-patterns
 
@@ -130,6 +146,8 @@ The proposal may feed `PrepareContinuation`. It does not fence a predecessor, re
 - [`scripts/validate-context-partition.mjs`](scripts/validate-context-partition.mjs) — semantic validator and digest recomputation.
 - [`scripts/test-bundle.mjs`](scripts/test-bundle.mjs) — positive plus adversarial mutations.
 - [`references/context-ir-and-continuation.md`](references/context-ir-and-continuation.md) — field semantics and lifecycle boundary.
+- [`references/partition-procedure.md`](references/partition-procedure.md) — supplied-inventory greedy procedure and limits.
+- [`algorithms/partition_feasibility.py`](algorithms/partition_feasibility.py) — deterministic proposal-only helper.
 - [`tests/activation.md`](tests/activation.md) — activation corpus.
 
 ```bash

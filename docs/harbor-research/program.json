@@ -697,9 +697,9 @@
   "estate": {
     "manifest": "whitepaper/corpus.json",
     "formalArtifacts": 36,
-    "researchProgramArtifacts": 5,
+    "researchProgramArtifacts": 6,
     "ci": {
-      "wired": 36,
+      "wired": 37,
       "retired": 5
     },
     "byMethod": {
