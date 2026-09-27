@@ -49,41 +49,19 @@
   \item \textbf{The Kernel Gap:} Mathematical proof of why generative autoregressive policies cannot act as their own operating kernel (\S\ref{pre:sec:kernel-gap}).
 \end{enumerate}
 
-\section{Introduction: The Unit of Account and the Dual Lineage}
+\section{Introduction: The Unit of Account, Agency, and the Kernel Gap}
+
+\subsection{The Unit of Account is the Work}
 
 \pdmarginfigure{hobbes}{Thomas Hobbes framed the sovereign Commonwealth as an artificial man; autonomous software requires the same institutional structure to prevent destructive races.}%
-Agentic software is usually measured by the agent: capability, runtime, tool
-access, and parallel copies. That is the wrong unit of account. A process may
-disappear, rename itself, summarize its mistakes, or hand work off. The durable
-object must be the work: its authorization, permitted effects, evidence, open
-obligations, and liability for the outcome.
-
-\ifdefined\pdswisslandmarkplate
-\begin{figure}[p]
-  \centering
-  \pdswisslandmarkplate{01}{\linewidth}
-\end{figure}
-\fi
-\pdmarginpagebreak
-
-\subsection{The Dual Lineage of Autonomous Agency}\label{sec:prereq-lineage}
-
-Autonomous software agents did not begin with large language models. The problem of coordinating multiple independent computational processes, each pursuing distinct local goals under incomplete information and bounded resources, has occupied distributed systems and artificial intelligence research for over four decades.
-
-When a modern coding agent inspects a git repository, evaluates compiler diagnostics, plans a refactoring sequence, and invokes a bash shell, it operates at the intersection of two previously separate research lineages:
-\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Symbolic Multi-Agent Systems (1975--2010):} Mathematical formalisms for practical rationality, intention persistence, asynchronous message passing, contract negotiation, epistemic logic, and social norms.
-  \item \textbf{Statistical Connectionism (2017--2026):} Deep autoregressive sequence prediction trained over planet-scale code and natural language corpora, capable of zero-shot semantic reasoning, code synthesis, and tool parameterization.
-\end{enumerate}
-
-The tension between these lineages defines the subject of this textbook. Modern frontier models supply unprecedented semantic reasoning, but possess neither persistent state, monotonic capability boundaries, nor physical execution guarantees. When an ungrounded model encounters an unexpected tool error, its probabilistic nature induces intention drift, hallucinatory claims of success, and concurrency hazards. To scale from an isolated interactive coding assistant to a collaborative, multi-agent autonomous engineering fleet, we must place statistical inference inside an authoritative, mathematically verified structural envelope where the unit of account is the work rather than the ephemeral process.
+Agentic software is usually measured by the agent: capability, runtime, tool access, and parallel copies. That is the wrong unit of account. A process may disappear, crash, rename itself, summarize away its mistakes, or silently hand work off to an untracked child process. The durable object of governance must be \textbf{the work}: its cryptographic authorization, permitted side effects, immutable evidence trail, open obligations, and ultimate liability for the physical outcome.
 
 \subsection{Defining the Agent and the Kernel: Mathematical Form and Architectural Necessity}
 
-To reason rigorously about coordination failures, we must first establish formal mathematical definitions for the two primary computational objects in this textbook: the \textbf{Agent} and the \textbf{Operating Kernel}.
+To reason rigorously about coordination failures, we must first establish formal mathematical definitions for the primary computational entities in this volume: the \textbf{Agent}, the \textbf{Operator}, and the \textbf{Operating Kernel}.
 
 \subsubsection{What is an Agent?}
-In contemporary discourse, the term ``agent'' is frequently conflated with a stateless language model invocation, a prompt template, or a continuous chatbot loop. In this volume, we reserve the term strictly for an embodied cybernetic process exhibiting closed-loop, temporal goal pursuit against an external state space.
+In contemporary discourse, the term ``agent'' is frequently conflated with a stateless language model invocation, a prompt template, or an interactive chatbot loop. In this volume, we reserve the term strictly for an embodied cybernetic process exhibiting closed-loop, temporal goal pursuit against an external state space.
 
 \begin{definition}[Autonomous Agent]\label{def:autonomous-agent}
 An \textbf{Agent} $\mathcal{A}$ is a 6-tuple:
@@ -97,35 +75,67 @@ where:
   \item $\mathcal{A}_{ct}$ is the discrete tool-action alphabet ($\mathtt{exec\_command}$, $\mathtt{read\_file}$, $\mathtt{write\_file}$, $\mathtt{acquire\_lock}$, $\mathtt{emit\_signal}$).
   \item $\mathcal{T}: \mathcal{S} \times \mathcal{A}_{ct} \to \Delta(\mathcal{S})$ represents the non-deterministic transition dynamics of the external environment.
   \item $\mathcal{M}$ is the internal cognitive and memory state of the agent, comprising its working context buffer, autoregressive key-value (KV) activations, episodic scratchpad, and externalized goal stack.
-  \item $\pi: \mathcal{M} \times \mathcal{O} \to \Delta(\mathcal{A}_{ct} \times \mathcal{M})$ is the deliberation policy, which maps the current internal memory and incoming observation to a probability distribution over executable actions and successor memory states.
+  \item $\pi: \mathcal{M} \times \mathcal{O} \to \Delta(\mathcal{A}_{ct} \times \mathcal{M})$ is the deliberation policy, which maps current internal memory and incoming observations to a probability distribution over executable actions and successor memory states.
 \end{itemize}
 \end{definition}
 
 This definition establishes three fundamental separation boundaries:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Agency vs.\ Next-Token Prediction:} A bare transformer computes only $P_\theta(x_{t+1} \mid x_{\le t})$. It becomes an agent $\mathcal{A}$ only when coupled to an observation sensor $\omega$, an action execution interface $\mathcal{A}_{ct}$, and a state transition history $\mathcal{T}$.
-  \item \textbf{Internal Memory vs.\ External Truth:} The cognitive state $\mathcal{M}$ is subjective, fallible, and volatile. It contains what the model \emph{believes} or \emph{recalls}, which may drift arbitrarily from the true physical state $s \in \mathcal{S}$. When unanchored autonomous agents reinforce each other's hallucinations without ground-truth verification, this semantic drift collapses into a shared hallucinatory loop---a catastrophic emergent failure mode that we formally define and term here as \textbf{Agentic Psychosis} (formalized in \S\ref{sec:stigmergic-swarm}).
+  \item \textbf{Internal Memory vs.\ External Truth:} The cognitive state $\mathcal{M}$ is subjective, fallible, and volatile. It contains what the model \emph{believes} or \emph{recalls}, which may drift arbitrarily from the true physical state $s \in \mathcal{S}$.
   \item \textbf{Action Execution vs.\ Intention:} Generating a string representation of a tool call in $\mathcal{M}$ has zero causal force in $\mathcal{S}$ until it passes through an external execution boundary.
 \end{enumerate}
 
-\subsubsection{What is an Agent Operating Kernel?}
-Host operating systems (such as Linux, macOS/XNU, or Windows) are designed to mediate physical hardware: CPU instruction cycles, virtual memory page tables, hardware interrupts, and block storage devices. They possess zero semantic awareness of AI agents:
-\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item The host kernel cannot detect when two LLMs are making conflicting semantic edits to overlapping AST nodes across different git worktrees.
-  \item The host kernel cannot determine whether a generated bash script is pursuing a legitimate refactoring or hallucinating nonexistent compiler flags in an infinite retry loop.
-  \item The host kernel cannot enforce capability attenuation across natural language delegation chains, nor can it meter token spend against a financial budget.
-\end{itemize}
+\subsubsection{The Operator vs.\ Agent Paradigm: Dual Control Planes}
 
+Crucially, an autonomous system does not operate in a vacuum. It exists to serve a human or organizational principal: the \textbf{Operator}. The operator bears ultimate economic, legal, and operational liability for the actions executed by the agent fleet. The operator sets financial budgets, defines high-level milestones, and decides whether high-consequence state transitions (such as production deployments or public release) should proceed.
+
+The fundamental architectural principle of this volume is the separation of concerns between two distinct control planes:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{The Operator Control Plane:} The operator never drops to a terminal to run low-level CLI commands, grep raw log files, arbitrate contested file locks, or tail subprocess stdout streams. That is machine work. The operator's control plane is surfaced through dedicated management interfaces (such as FleetBar and the local dashboard at \texttt{localhost:9876}). It provides dynamic text scaling ($\ge 14\text{pt}$ body text), high-level spend dials, attestation health summaries, and secure credential delegation backed by system keychains.
+  \item \textbf{The Agent Control Plane:} The agent interacts strictly with the unbypassable operating kernel. It acquires port leases, claims AST symbol ranges, logs append-only execution notes, passes structured messages across communication tubes, and executes subprocesses inside confined operating-system sandboxes.
+\end{enumerate}
+
+\subsubsection{What is an Agent Operating Kernel?}
+
+Host operating systems (such as Linux, macOS/XNU, or Windows) are designed to mediate physical hardware: CPU instruction cycles, virtual memory page tables, hardware interrupts, and block storage devices. They possess zero semantic awareness of AI agents: they cannot detect conflicting AST edits across separate worktrees, cannot halt hallucinatory retry loops, and cannot attenuate cryptographic capabilities across delegation hops.
+
+\pdmarginanalogy{prereq-water-meter}{}{ch01-water-meter-dial}{Deterministic Resource Accounting: The physical dial meters total volume consumed, ensuring hard caps independent of internal process belief.}%
 \begin{definition}[Agent Operating Kernel]\label{def:agent-kernel}
 An \textbf{Agent Operating Kernel} is the minimal, non-bypassable Trusted Computing Base (TCB) operating at the application and multi-agent coordination plane. It provides five non-negotiable architectural guarantees:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Single-Writer Effect Serialization:} Mediates all state-mutating side effects across shared resources (git commits, lock tables, port assignments, and workspace directories) via a single-writer write-ahead log (WAL), enforcing happened-before causal order.\pddefinedin{chap:swk}
-  \item \textbf{Cryptographic Capability Attenuation:} Issues unforgeable, key-bound credentials (such as Harbor Cards and macaroons) whose authority and temporal validity can only narrow at each delegation hop.\pddefinedin{chap:ap}
-  \item \textbf{Deterministic Resource Accounting:} Enforces strict, non-negotiable caps on token spend, dollar budgets, execution wall-clock time, and subprocess concurrency, failing closed when thresholds are reached.\pddefinedin{chap:sh}
-  \item \textbf{Tamper-Evident Lineage Logging:} Records every admitted action, sensor observation digest, and authorization receipt in an append-only, content-addressed Merkle event log.\pddefinedin{chap:stp}
-  \item \textbf{Supervisory Liveness and Salvage:} Monitors agent heartbeat telemetry, detects cognitive loops or silent hangs, and reclaims abandoned file claims and port leases via deterministic zombie salvage.\pddefinedin{chap:he}
+  \item \textbf{Single-Writer Effect Serialization:} Mediates all state-mutating side effects across shared resources (git commits, lock tables, port assignments, and workspace directories) via a single-writer write-ahead log (WAL), enforcing happened-before causal order (developed in Chapter~1).
+  \item \textbf{Cryptographic Capability Attenuation:} Issues unforgeable, key-bound credentials (such as Harbor Cards and macaroons) whose authority and temporal validity can only narrow at each delegation hop (developed in Chapter~2).
+  \item \textbf{Deterministic Resource Accounting:} Enforces strict, non-negotiable caps on token spend, dollar budgets, execution wall-clock time, and subprocess concurrency, failing closed when thresholds are reached (developed in Chapter~3).
+  \item \textbf{Tamper-Evident Lineage Logging:} Records every admitted action, sensor observation digest, and authorization receipt in an append-only, content-addressed Merkle event log (developed in Chapter~5).
+  \item \textbf{Supervisory Liveness and Salvage:} Monitors agent heartbeat telemetry, detects cognitive loops or silent hangs, and reclaims abandoned file claims and port leases via deterministic zombie salvage (developed in Chapter~6).
 \end{enumerate}
 \end{definition}
+
+\subsubsection{The Unanchored Failure Mode: Agentic Psychosis}
+
+When multiple autonomous agents interact without the structural anchoring of an operating kernel, the disparity between internal cognitive state $\mathcal{M}$ and external physical ground truth $\mathcal{S}$ triggers an insidious failure cascade. Because large language models are conditioned to generate plausible continuations, an agent that encounters an unexpected tool error frequently rationalizes the failure, inventing nonexistent file paths or claiming successful execution.
+
+When a second agent receives this ungrounded natural language report, it incorporates the hallucinated premise into its own cognitive context $\mathcal{M}_2$. It proceeds to build further speculative reasoning atop the fiction, emitting output that the first agent interprets as independent external validation. This mutual positive feedback loop of ungrounded belief confirmation causes the collective fleet to detach completely from external physical reality---a catastrophic emergent pathology that we define and analyze throughout this work as \textbf{Agentic Psychosis}. To prevent this collapse, every inter-agent exchange must be mediated by deterministic state attestations, single-writer commit receipts, and hard physical boundaries.
+
+\ifdefined\pdswisslandmarkplate
+\begin{figure}[p]
+  \centering
+  \pdswisslandmarkplate{01}{\linewidth}
+\end{figure}
+\fi
+
+\subsection{The Dual Lineage of Autonomous Agency}\label{sec:prereq-lineage}
+
+Autonomous software agents did not begin with large language models. The problem of coordinating multiple independent computational processes, each pursuing distinct local goals under incomplete information and bounded resources, has occupied distributed systems and artificial intelligence research for over four decades.
+
+When a modern coding agent inspects a git repository, evaluates compiler diagnostics, plans a refactoring sequence, and invokes a bash shell, it operates at the intersection of two previously separate research lineages:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Symbolic Multi-Agent Systems (1975--2010):} Mathematical formalisms for practical rationality, intention persistence, asynchronous message passing, contract negotiation, epistemic logic, and social norms.
+  \item \textbf{Statistical Connectionism (2017--2026):} Deep autoregressive sequence prediction trained over planet-scale code and natural language corpora, capable of zero-shot semantic reasoning, code synthesis, and tool parameterization.
+\end{enumerate}
+
+The tension between these lineages defines the subject of this textbook. Modern frontier models supply unprecedented semantic reasoning, but possess neither persistent state, monotonic capability boundaries, nor physical execution guarantees. When an ungrounded model encounters an unexpected tool error, its probabilistic nature induces intention drift, hallucinatory claims of success, and concurrency hazards. To scale from an isolated interactive coding assistant to a collaborative, multi-agent autonomous engineering fleet, we must place statistical inference inside an authoritative, mathematically verified structural envelope where the unit of account is the work rather than the ephemeral process.
 
 \subsection{Is a Daemon Ever a Kernel? Microkernels, Application Planes, and the TCB}
 
@@ -150,8 +160,11 @@ Therefore, functionally, mathematically, and architecturally, a persistent super
 
 This book develops that claim in eight propositions, one per chapter:
 
-\begin{enumerate}[leftmargin=2.1em,itemsep=3pt,topsep=4pt]
-  \item \textbf{Prevention begins at the effect boundary (\pdchapref{swk}{The Single-Writer Kernel}).}%
+\begin{enumerate}[leftmargin=2.1em,itemsep=4pt,topsep=4pt]
+  \item \textbf{Prevention begins at the effect boundary (\pdchapref{swk}{The Single-Writer Kernel}).}\enspace
+  Rules can be enforced before an act only when the system controls the channel through which the act
+  occurs. Local effects therefore pass through one serial authority; semantic
+  failures that no gate can decide remain matters of detection and remedy.%
   \pdmarginexhibit{swk-funnel}{Serial Funnel}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdcobalt!30,fill=pdcobalt!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -161,12 +174,12 @@ This book develops that claim in eight propositions, one per chapter:
       \node[draw=pdcobalt,fill=pdcobalt!20,rounded corners=1pt,inner sep=1.5pt,font=\fontsize{4.5}{5.5}\selectfont\bfseries\color{pdcobalt}] at (1.45,0.42) {WAL};
       \draw[-{Stealth[length=3pt]},pdcobalt,line width=0.8pt] (1.9,0.42) -- (3.0,0.42) node[midway,above,font=\fontsize{4.2}{5.2}\selectfont\color{pdcobalt}] {serialized};
     \end{tikzpicture}%
-  }{Arbitration: parallel writer attempts funnel into one causal sequence.}%
-  Rules can be enforced before an act only when the system controls the channel through which the act
-  occurs. Local effects therefore pass through one serial authority; semantic
-  failures that no gate can decide remain matters of detection and remedy.
+  }{Arbitration: parallel writer attempts funnel into one causal sequence.}
 
-  \item \textbf{Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}).}%
+  \item \textbf{Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}).}\enspace
+  Every child capability is a strict subset of its parent's authority and lifetime. Authentication says who signed;
+  attenuation says what the signature may authorize. Both are needed at every
+  hop.%
   \pdmarginexhibit{anchor-attenuation}{Attenuation Cone}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdindigo!30,fill=pdindigo!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -175,12 +188,14 @@ This book develops that claim in eight propositions, one per chapter:
       \node[font=\fontsize{4.2}{5.2}\selectfont\color{pdcobalt}] at (1.6,0.36) {Child $\mathcal{C}_1 \subset \mathcal{C}_0$};
       \node[font=\fontsize{3.8}{4.8}\selectfont\color{pdinkmuted}] at (1.6,0.20) {Leaf $\mathcal{C}_2 \subset \mathcal{C}_1$};
     \end{tikzpicture}%
-  }{Monotonic narrowing: delegated authority only diminishes at each hop.}%
-  Every child capability is a strict subset of its parent's authority and lifetime. Authentication says who signed;
-  attenuation says what the signature may authorize. Both are needed at every
-  hop.
+  }{Monotonic narrowing: delegated authority only diminishes at each hop.}
 
-  \item \textbf{Confinement is a property of the room, not of the tenant (\pdchapref{sealed}{The Sealed Harbor}).}%
+  \item \textbf{Confinement is a property of the room, not of the tenant (\pdchapref{sealed}{The Sealed Harbor}).}\enspace
+  Two owners who trust neither each other nor the venue can still take one
+  answer out of a sealed room when its only exit is a metered slot: silence
+  except through the slot, a gate on the only enforceable boundary, a budget
+  that conserves, and canaries for what the gate cannot prove. What the room
+  cannot promise is stated as a limit, at the same prominence as the claims.%
   \pdmarginexhibit{sealed-meter}{Egress Quota}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pderror!30,fill=pderror!3,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -191,14 +206,13 @@ This book develops that claim in eight propositions, one per chapter:
       \node[circle,fill=pderror,inner sep=1pt] at (2.3,0.65) {};
       \node[font=\fontsize{3.8}{4.8}\selectfont\color{pderror}\bfseries] at (2.4,0.50) {Halt};
     \end{tikzpicture}%
-  }{Spend ceiling: cumulative egress reaches cap $B_{\max}$ and halts execution.}%
-  Two owners who trust neither each other nor the venue can still take one
-  answer out of a sealed room when its only exit is a metered slot: silence
-  except through the slot, a gate on the only enforceable boundary, a budget
-  that conserves, and canaries for what the gate cannot prove. What the room
-  cannot promise is stated as a limit, at the same prominence as the claims.
+  }{Spend ceiling: cumulative egress reaches cap $B_{\max}$ and halts execution.}
 
-  \item \textbf{Supervision has an information cost (\pdchapref{ls}{Attention and Supervision}).}%
+  \item \textbf{Supervision has an information cost (\pdchapref{ls}{Attention and Supervision}).}\enspace
+  A digest cannot guarantee
+  that a human will notice any one of many relevant events unless it spends
+  enough bits, attention, or artifact openings to distinguish them. A summary
+  is therefore an index into evidence, not a substitute for it.%
   \pdmarginexhibit{attention-entropy}{Rate-Distortion}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdcobalt!30,fill=pdcobalt!3,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -207,13 +221,12 @@ This book develops that claim in eight propositions, one per chapter:
       \draw[draw=pdcobalt,line width=0.9pt] (0.45,0.70) to[out=-70,in=175] (2.8,0.22);
       \node[font=\fontsize{4.2}{5.2}\selectfont\color{pdcobalt}] at (1.8,0.55) {$R(D) \ge I(X;\hat{X})$};
     \end{tikzpicture}%
-  }{Information bound: lossy telemetry compression cannot bypass entropy rate.}%
-  A digest cannot guarantee
-  that a human will notice any one of many relevant events unless it spends
-  enough bits, attention, or artifact openings to distinguish them. A summary
-  is therefore an index into evidence, not a substitute for it.
+  }{Information bound: lossy telemetry compression cannot bypass entropy rate.}
 
-  \item \textbf{Accountability must outlive the process (\pdchapref{stp}{From Spawn to Person}).}%
+  \item \textbf{Accountability must outlive the process (\pdchapref{stp}{From Spawn to Person}).}\enspace
+  A task acquires a durable principal, capability history, evidence record, obligations, and
+  outcome. Restarting an agent or choosing a new name must not erase that case
+  file or refill the resources it already consumed.%
   \pdmarginexhibit{spawn-continuity}{Identity Lifeline}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdhealth!30,fill=pdhealth!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -223,12 +236,12 @@ This book develops that claim in eight propositions, one per chapter:
       \node[font=\fontsize{4.5}{5.5}\selectfont\color{pderror}] at (2.65,0.55) {$\times$};
       \draw[draw=pdhealth,line width=1.0pt,-{Stealth[length=3pt]}] (0.2,0.22) -- (3.0,0.22) node[pos=0.5,below,font=\fontsize{4.2}{5.2}\selectfont\color{pdhealth}\bfseries] {Durable Ledger $\mathcal{L}$};
     \end{tikzpicture}%
-  }{Survivorship: transient process dies; case file and obligations persist.}%
-  A task acquires a durable principal, capability history, evidence record, obligations, and
-  outcome. Restarting an agent or choosing a new name must not erase that case
-  file or refill the resources it already consumed.
+  }{Survivorship: transient process dies; case file and obligations persist.}
 
-  \item \textbf{Exchange requires separated instruments (\pdchapref{he}{The Harbor Economy}).}%
+  \item \textbf{Exchange requires separated instruments (\pdchapref{he}{The Harbor Economy}).}\enspace
+  Payment rewards the requested work. Collateral prices a bounded failure. Evidence supports a
+  claim. Settlement closes it exactly once. Combining those functions in one
+  score or token makes each of them less trustworthy.%
   \pdmarginexhibit{tx-instruments}{Four Instruments}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdgold!40,fill=pdgold!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -237,12 +250,12 @@ This book develops that claim in eight propositions, one per chapter:
       \node[draw=pdcobalt!60,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (0.8,0.25) {Evidence};
       \node[draw=pdhealth!70,fill=white,rounded corners=0.5pt,inner sep=1pt,font=\fontsize{3.8}{4.8}\selectfont] at (2.4,0.25) {Settlement};
     \end{tikzpicture}%
-  }{Separation: decoupling collateral from payout prevents moral hazard.}%
-  Payment rewards the requested work. Collateral prices a bounded failure. Evidence supports a
-  claim. Settlement closes it exactly once. Combining those functions in one
-  score or token makes each of them less trustworthy.
+  }{Separation: decoupling collateral from payout prevents moral hazard.}
 
-  \item \textbf{Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons}).}%
+  \item \textbf{Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons}).}\enspace
+  Some harms cannot be prevented and some outcomes cannot be judged mechanically. Witnesses,
+  randomized audits, bounded bonds, appeals, and conservation rules turn that
+  residual uncertainty into a process that can be inspected and contested.%
   \pdmarginexhibit{econ-reserves}{Bond Escrow}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdviolet!30,fill=pdviolet!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -252,12 +265,13 @@ This book develops that claim in eight propositions, one per chapter:
       \node[font=\fontsize{4}{5}\selectfont\color{pderror}] at (1.5,0.68) {Slashing};
       \node[font=\fontsize{4}{5}\selectfont\color{pdviolet}] at (2.4,0.40) {Reserve};
     \end{tikzpicture}%
-  }{Collateral: breach of contract triggers deterministic slashing of bond.}%
-  Some harms cannot be prevented and some outcomes cannot be judged mechanically. Witnesses,
-  randomized audits, bounded bonds, appeals, and conservation rules turn that
-  residual uncertainty into a process that can be inspected and contested.
+  }{Collateral: breach of contract triggers deterministic slashing of bond.}
 
-  \item \textbf{Federation relays evidence, not sovereignty (\pdchapref{fh}{The Federated Harbor}).}%
+  \item \textbf{Federation relays evidence, not sovereignty (\pdchapref{fh}{The Federated Harbor}).}\enspace
+  Mutually distrustful machines may exchange signed capabilities, revocations, witness
+  roots, and settlement claims without sharing a database or accepting a global
+  ruler. Transport can carry evidence; it cannot decide what either machine is
+  permitted to do with it.%
   \pdmarginexhibit{fed-bridge}{Evidence Relay}{%
     \begin{tikzpicture}[x=1cm,y=1cm]
       \draw[draw=pdcobalt!30,fill=pdcobalt!4,rounded corners=1pt] (0,0) rectangle (3.2,0.85);
@@ -266,11 +280,7 @@ This book develops that claim in eight propositions, one per chapter:
       \draw[{Stealth[length=2.5pt]}-{Stealth[length=2.5pt]},pdcobalt,line width=0.7pt] (h1) -- (h2) node[midway,above,font=\fontsize{3.8}{4.8}\selectfont\color{pdcobalt}] {Receipts};
       \node[font=\fontsize{3.5}{4.5}\selectfont\color{pdinkmuted}] at (1.6,0.18) {Zero shared DB};
     \end{tikzpicture}%
-  }{Federation: independent hosts exchange witness receipts, not sovereignty.}%
-  Mutually distrustful machines may exchange signed capabilities, revocations, witness
-  roots, and settlement claims without sharing a database or accepting a global
-  ruler. Transport can carry evidence; it cannot decide what either machine is
-  permitted to do with it.
+  }{Federation: independent hosts exchange witness receipts, not sovereignty.}
 \end{enumerate}
 
 Read these as a dependency chain: each chapter uses earlier mechanisms and
@@ -314,6 +324,7 @@ Classical decision theory models an agent as an expected utility maximizer balan
 
 A resource-bounded agent cannot continuously compute optimal policies from first principles at every millisecond. Practical rationality requires a third mental attitude: \textbf{Intention} ($\mathcal{I}$). Intentions are not merely desires with high utility; they represent \emph{conduct-controlling pro-attitudes to which the agent has actively committed}.
 
+\pdmarginanalogy{prereq-flywheel-governor}{}{ch01-flywheel-governor}{Like a centrifugal flywheel governor mechanically throttling steam to stabilize rotational speed against load shocks, Bratman's practical rationality stabilizes an agent's intentions against transient sensor noise.}%
 Bratman established four defining functional roles of intentions:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ obligates the agent to formulate sub-plans and allocate computational cycles until $\phi$ is satisfied.
@@ -408,6 +419,7 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 
 \begin{figure}[p]
 \centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
 \definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
 \definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & primary text
 \definecolor{activeCobalt}{HTML}{0B4F9C}    % Selected paradigm & active intention commit
@@ -418,7 +430,7 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 \definecolor{coralBorder}{HTML}{842029}     % Recovery accent
 \definecolor{ingressTint}{HTML}{EEF4C7}     % Requirement / External input specification
 
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
   baseBox/.style={
     draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
@@ -446,38 +458,38 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
 
   % ================= HEADER & SEMANTIC KEY =================
-  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.4) {BDI AGENT OPERATIONAL CONCURRENCY ARCHITECTURE};
+  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.4) {BDI AGENT OPERATIONAL ARCHITECTURE};
+  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal!70] at (15.3, 18.4) {Rao \& Georgeff (1995)};
   \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 17.95) {AgentSpeak(L) Operational Cycle \textperiodcentered\ Rao--Georgeff State Transition System};
-  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal] at (15.3, 17.95) {RAO \& GEORGEFF (1995)};
   \draw[line width=1.2pt, charcoal] (0.2, 17.7) -- (15.3, 17.7);
 
   % Semantic Key
   \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.35) {SEMANTIC KEY:};
   
-  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.6, 17.35) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.05, 17.35) {Problem Spec};
+  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (3.3, 17.35) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.75, 17.35) {Problem Spec};
 
-  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.7, 17.35) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.15, 17.35) {Active Deliberation};
+  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (6.3, 17.35) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.75, 17.35) {Active Deliberation};
 
-  \node[anchor=west, draw=seafoamBorder, fill=seafoamSuccess, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.35) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.85, 17.35) {Nominal (Exit 0)};
+  \node[anchor=west, draw=seafoamBorder, fill=seafoamSuccess, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.9, 17.35) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (10.35, 17.35) {Nominal (Exit 0)};
 
-  \node[anchor=west, draw=coralBorder, fill=coralRecovery, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.7, 17.35) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.15, 17.35) {Failure Trap ($-!g$)};
+  \node[anchor=west, draw=coralBorder, fill=coralRecovery, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.9, 17.35) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.35, 17.35) {Failure Trap ($-!g$)};
 
   % ================= SECTION 1: PARADIGM SELECTION =================
   \draw[sectionFrame] (0.2, 11.75) rectangle (15.3, 17.15);
-  \node[secHeader] at (0.45, 16.7) {1. ARCHITECTURAL PARADIGM SELECTION (GOAL DYNAMICS VS INTERRUPT ABSORPTION)};
+  \node[secHeader] at (0.45, 16.85) {1. ARCHITECTURAL PARADIGM SELECTION (GOAL DYNAMICS VS INTERRUPT ABSORPTION)};
 
   % Autonomous Requirement Specification
-  \node[baseBox, fill=ingressTint, text width=9.2cm, align=center, anchor=north] (req) at (7.75, 16.65) {
+  \node[baseBox, fill=ingressTint, text width=9.2cm, align=center, anchor=north] (req) at (7.75, 16.45) {
     \textbf{\footnotesize Autonomous Behavior Requirement} \\[1pt]
     \footnotesize Ex: \texttt{"Refactor auth middleware to JWT \& pass CI test suite"}
   };
 
   % Decision Splitter
-  \node[baseBox, draw=charcoal, line width=0.9pt, text width=6.6cm, align=center, anchor=north] (decision) at (7.75, 15.35) {
+  \node[baseBox, draw=charcoal, line width=0.9pt, text width=6.6cm, align=center, anchor=north] (decision) at (7.75, 15.25) {
     \textbf{\footnotesize Persistent goals plus interrupts?} \\[1pt]
     \footnotesize Dynamic replanning \& recovery needed?
   };
@@ -606,8 +618,12 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   };
 
 \end{tikzpicture}
+
+\vspace{6pt}
+\begin{minipage}{15.5cm}
 \caption{BDI execution flow and operational choice architecture, grounded in real-world software engineering workflows. Adapted from AgentSpeak(L) semantics~\pdcite{bordini2007agentspeak}, contrasting reactive rule triggers, static STRIPS-style planners, and dynamic BDI agents. The three core selection functions ($S_E$ for events, $S_O$ for applicable plans, and $S_I$ for intention stacks) arbitrate runtime goal scheduling, with explicit plan failure handling via the $-!g$ recovery event.}
 \label{fig:bdi-execution-flow}
+\end{minipage}
 \end{figure}
 \pdmarginpagebreak
 
@@ -700,6 +716,7 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 \pdmarginanalogy{prereq-token-staff}{}{ch01-railway-token-staff}{Like the physical railway token staff that guarantees exclusive single-track authority, an actor holds sovereign right over its private mailbox and sequential state transitions.}%
 \begin{figure}[p]
 \centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
 \definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
 \definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & invariants
 \definecolor{ingressTint}{HTML}{EEF4C7}     % Ingress: External boundary & input dispatch
@@ -709,7 +726,7 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 \definecolor{remedyBorder}{HTML}{0F5132}    % Supervisory Accent
 \definecolor{codeBg}{HTML}{EBECEF}          % Durable evidence record
 
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
   baseBox/.style={
     draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
@@ -737,25 +754,25 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
   \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
 
   % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
-  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {HEWITT--AGHA VIRTUAL ACTOR CONCURRENCY ARCHITECTURE};
+  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {HEWITT--AGHA ACTOR ARCHITECTURE};
+  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal!70] at (15.3, 18.45) {Hewitt (1973) \textperiodcentered\ Agha (1986)};
   \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 18.05) {Asynchronous Mailbox Queue \textperiodcentered\ Seatbelt Sandbox Confinement};
-  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal] at (15.3, 18.05) {HEWITT (1973) \textperiodcentered\ AGHA (1986)};
   \draw[line width=1.2pt, charcoal] (0.2, 17.8) -- (15.3, 17.8);
 
   % Semantic Legend
   \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.48) {SEMANTIC KEY:};
   
-  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.9, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.35, 17.48) {External Ingress};
+  \node[anchor=west, draw=charcoal, fill=ingressTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (3.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.75, 17.48) {External Ingress};
 
-  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.8, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.25, 17.48) {Active Execution};
+  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (6.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.75, 17.48) {Active Execution};
 
-  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (8.9, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.35, 17.48) {Supervisory Remedy};
+  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.85, 17.48) {Supervisory Remedy};
 
-  \node[anchor=west, draw=charcoal, fill=white, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.5, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (12.95, 17.48) {Structural Shell};
+  \node[anchor=west, draw=charcoal, fill=white, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.8, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.25, 17.48) {Structural Shell};
 
   % ================= SECTION 1: INGRESS & DISPATCH =================
   \draw[sectionFrame] (0.2, 14.6) rectangle (15.3, 17.25);
@@ -779,15 +796,15 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
     \footnotesize Dead-man monitoring channel
   };
 
-  % Enqueue Connector Arrow down from peer to mailbox
-  \draw[->, line width=1.0pt, charcoal] (peer.south) -- (2.6, 13.9)
-    node[midway, fill=white, inner sep=1.5pt, font=\scriptsize\bfseries] {enqueue};
+  % Enqueue Connector Arrow routed cleanly into TAIL
+  \draw[->, line width=1.0pt, charcoal] (peer.south) -- (2.6, 14.5) -- (1.0, 14.5) -- (1.0, 13.7)
+    node[pos=0.45, above=1pt, fill=white, inner sep=1.5pt, font=\scriptsize\bfseries] {enqueue};
 
   % ================= SECTION 2: MAILBOX QUEUE =================
-  \draw[sectionFrame] (0.2, 12.8) rectangle (15.3, 14.35);
-  \node[secHeader] at (0.45, 14.05) {2. BOUNDED FIFO MAILBOX QUEUE $Q_\alpha$ \quad ($|Q_\alpha| \le N_{\max}$, Backpressure Active)};
+  \draw[sectionFrame] (0.2, 12.75) rectangle (15.3, 14.35);
+  \node[secHeader] at (3.5, 14.05) {2. BOUNDED FIFO MAILBOX QUEUE $Q_\alpha$ \quad ($|Q_\alpha| \le N_{\max}$, Backpressure Active)};
 
-  \node[font=\bfseries\footnotesize, text=charcoal] at (1.0, 13.45) {TAIL};
+  \node[font=\bfseries\footnotesize, text=charcoal] (tail) at (1.0, 13.45) {TAIL};
   \node[baseBox, text width=2.8cm, fill=charcoal!5, draw=charcoal!30, align=center] (m3) at (3.2, 13.45) {$m_3$: \texttt{ping}};
   \node[baseBox, text width=3.3cm, fill=charcoal!5, draw=charcoal!30, align=center] (m2) at (6.8, 13.45) {$m_2$: \texttt{dispatch\_task}};
   \node[baseBox, text width=3.0cm, fill=activeCobalt, draw=activeCobalt, text=white, align=center] (m1) at (10.6, 13.45) {\textbf{$m_1$: claim\_port}};
@@ -877,13 +894,30 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
   };
 
 \end{tikzpicture}
+
+\vspace{6pt}
+\begin{minipage}{15.5cm}
 \caption{Hewitt--Agha virtual actor architecture: capability-attenuated mailbox ingress, sequential transitions via $\mathtt{send}$, $\mathtt{spawn}$, and $\mathtt{become}$, and fault recovery under dead-man supervision.}
 \label{fig:actor-concurrency}
+\end{minipage}
 \end{figure}
+
+\subsection{From Asynchronous Isolation to Synchronous Rendezvous}
+
+The fundamental divergence between Hewitt's Actor model and Hoare's Communicating Sequential Processes reflects an architectural trade-off between \emph{isolation} and \emph{synchronization}:
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
+  \item \textbf{Asynchronous Mailboxes vs.\ Unbuffered Barriers:}\enspace In the Actor model, communication is non-blocking and decoupled in time. An agent posts a message to a peer's mailbox and immediately resumes local execution. This temporal decoupling is indispensable for long-running neural inference loops: if an orchestrator were forced to block synchronously while a worker generated hundreds of tokens across a remote API, the entire supervisory loop would freeze. However, unbounded asynchronous mailboxes introduce severe hazards: message ordering is non-deterministic, queue backpressure is difficult to meter, and an agent can be flooded with stale context deltas.
+  
+  \item \textbf{Synchronous Rendezvous for Scarce Resources:}\enspace Conversely, Hoare's CSP enforces synchronous rendezvous: a send operation on an unbuffered channel cannot complete until a corresponding receive operation simultaneously executes. While synchronous rendezvous is prohibitive for stochastic agent inference, it is the mathematically optimal primitive for arbitrating scarce, physical, and non-fungible host resources: acquiring exclusive TCP port leases, linearizing commits in the SQLite write-ahead log (WAL), and locking git branch heads.
+  
+  \item \textbf{The Synthesis in an Agent Operating Kernel:}\enspace Modern agent operating kernels synthesize both lineages. As illustrated in Figure~\ref{fig:actor-concurrency}, workers execute as sovereign actors within seatbelted processes, receiving tasks through capability-attenuated mailboxes and recording state transitions via $\mathtt{become}$. Yet, whenever an actor attempts to alter shared reality, its request is arbitrated through Hoare-style synchronous barriers (Figure~\ref{fig:csp-concurrency}), guaranteeing mutual exclusion, preventing circular wait deadlocks through explicit lease timeouts, and ensuring deterministic linearizability.
+\end{enumerate}
 
 \pdmarginanalogy{prereq-railway-lever}{}{ch08-interlocking-railway-lever}{Like an interlocking railway lever frame mechanically locking switches until signals align, unbuffered CSP channels require simultaneous rendezvous to advance.}%
 \begin{figure}[p]
 \centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
 \definecolor{swissCanvas}{HTML}{F8F9FA}     % Neutral canvas ground
 \definecolor{charcoal}{HTML}{1A1A1A}        % Structural boundaries & invariants
 \definecolor{ingressTint}{HTML}{EEF4C7}     % Ingress: External boundary & input dispatch
@@ -897,7 +931,7 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 \definecolor{hazardTint}{HTML}{F8D7DA}      % Deadlock hazard tint
 \definecolor{hazardBorder}{HTML}{842029}    % Deadlock hazard border
 
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   >=Stealth,
   baseBox/.style={
     draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
@@ -922,25 +956,25 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
   \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
 
   % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
-  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {COMMUNICATING SEQUENTIAL PROCESSES (CSP) ARCHITECTURE};
+  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {COMMUNICATING SEQUENTIAL PROCESSES (CSP)};
+  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal!70] at (15.3, 18.45) {Hoare (1978)};
   \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 18.05) {Synchronous Rendezvous \textperiodcentered\ Guarded Choice \textperiodcentered\ Deadlock Breaking \textperiodcentered\ Actor Duality};
-  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal] at (15.3, 18.05) {C. A. R. HOARE (1978)};
   \draw[line width=1.2pt, charcoal] (0.2, 17.8) -- (15.3, 17.8);
 
   % Semantic Legend
   \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.48) {SEMANTIC KEY:};
   
-  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.6, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.05, 17.48) {Rendezvous};
+  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (3.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.75, 17.48) {Rendezvous};
 
-  \node[anchor=west, draw=charcoal, fill=codeBg, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.7, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.15, 17.48) {Choice ($\mathbin{\square}$)};
+  \node[anchor=west, draw=charcoal, fill=codeBg, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (6.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.75, 17.48) {Choice ($\mathbin{\square}$)};
 
-  \node[anchor=west, draw=hazardBorder, fill=hazardTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (8.7, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.15, 17.48) {Deadlock Hazard};
+  \node[anchor=west, draw=hazardBorder, fill=hazardTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.85, 17.48) {Deadlock Hazard};
 
-  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.4, 17.48) {};
-  \node[anchor=west, font=\footnotesize, text=charcoal] at (12.85, 17.48) {Lease Break};
+  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.8, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.25, 17.48) {Lease Break};
 
   % ================= SECTION 1: SYNCHRONOUS RENDEZVOUS BARRIER =================
   \draw[sectionFrame, draw=activeCobalt, line width=1.2pt, fill=activeTint!35] (0.2, 13.55) rectangle (15.3, 17.25);
@@ -1117,8 +1151,8 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 
   % Left Card: Actor Model (explicit rectangle)
   \draw[draw=activeCobalt, fill=white, line width=0.9pt] (0.5, 1.35) rectangle (7.6, 3.6);
-  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (0.7, 3.35) {Hewitt--Agha Actor Model};
-  \node[anchor=east, font=\scriptsize\bfseries, text=charcoal!60] at (7.4, 3.35) {Async Mailbox};
+  \node[anchor=west, font=\bfseries\scriptsize, text=activeCobalt] at (0.7, 3.35) {Hewitt--Agha Actors};
+  \node[anchor=east, font=\tiny\bfseries, text=charcoal!60] at (7.4, 3.35) {Async Mailbox};
   
   % Diagram inside Actor Card (positioned at y = 2.65)
   \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\scriptsize\bfseries] (actA) at (1.3, 2.65) {Actor $A$};
@@ -1138,21 +1172,21 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
 
   % Right Card: CSP Model (explicit rectangle)
   \draw[draw=activeCobalt, fill=white, line width=0.9pt] (7.9, 1.35) rectangle (15.0, 3.6);
-  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (8.1, 3.35) {Hoare CSP Model};
-  \node[anchor=east, font=\scriptsize\bfseries, text=charcoal!60] at (14.8, 3.35) {Sync Rendezvous};
+  \node[anchor=west, font=\bfseries\scriptsize, text=activeCobalt] at (8.1, 3.35) {Hoare CSP};
+  \node[anchor=east, font=\tiny\bfseries, text=charcoal!60] at (14.8, 3.35) {Sync Rendezvous};
 
   % Diagram inside CSP Card (positioned at y = 2.65)
   \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\scriptsize\bfseries] (proc1) at (9.1, 2.65) {Proc $P_1$};
   \draw[line width=2.2pt, draw=activeCobalt] (11.45, 2.35) -- (11.45, 2.95);
-  \node[font=\scriptsize\bfseries, text=activeCobalt] at (11.45, 2.15) {$\Delta t = 0$};
+  \node[font=\scriptsize\bfseries, text=activeCobalt] at (11.45, 3.12) {$\Delta t = 0$};
   \node[draw=charcoal, fill=activeTint, inner sep=2pt, font=\scriptsize\bfseries] (proc2) at (13.8, 2.65) {Proc $P_2$};
   \draw[->, line width=1pt] (proc1.east) -- (11.35, 2.65);
   \draw[<-, line width=1pt] (11.55, 2.65) -- (proc2.west);
 
   % Bullets inside CSP Card
-  \node[anchor=north west, font=\scriptsize, text width=6.8cm, align=left] at (8.05, 2.25) {
+  \node[anchor=north west, font=\scriptsize, text width=6.8cm, align=left] at (8.05, 2.15) {
     $\bullet$ \textbf{Coupled:} Sender \& receiver meet in lockstep.\\[2pt]
-    $\bullet$ \textbf{Risk:} Circular wait causes freeze without lease break.
+    $\bullet$ \textbf{Risk:} Circular wait deadlocks without lease timeouts.
   };
 
   % Bottom Synthesis Strip
@@ -1161,8 +1195,12 @@ Figure~\ref{fig:actor-concurrency} details the Hewitt--Agha virtual actor concur
   };
 
 \end{tikzpicture}
+
+\vspace{6pt}
+\begin{minipage}{15.5cm}
 \caption{Hoare's Communicating Sequential Processes (CSP): unbuffered synchronous rendezvous ($\Delta t = 0$), guarded external choice ($\mathbin{\square}$), and circular deadlock resolution via bounded lease timeouts.}
 \label{fig:csp-concurrency}
+\end{minipage}
 \end{figure}
 \pdmarginpagebreak
 
@@ -1195,9 +1233,10 @@ In a developer's autonomous coding environment, speech acts are not abstract phi
 
 Figure~\ref{fig:fipa-speech-acts} formalizes this state transition machine, populating every transition and node with concrete engineering payloads.
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
   pd card/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
   pd focus card/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
   pd health card/.style={draw=pdhealth!90,line width=1.0pt,fill=pdhealth!10,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
@@ -1214,11 +1253,11 @@ Figure~\ref{fig:fipa-speech-acts} formalizes this state transition machine, popu
   % =========================================================================
   \draw[draw=pdink!20,fill=pdinkmuted!4,rounded corners=2pt,line width=0.6pt] (0.1, 0.2) rectangle (3.2, 15.8);
   \draw[draw=none,fill=pdink!12] (0.1, 15.1) rectangle (3.2, 15.8);
-  \node[anchor=west,font=\fontsize{8.0}{10.0}\selectfont\bfseries\color{pdink}] at (0.25, 15.45) {CLIENT DISPATCH};
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdink}] at (0.25, 15.45) {CLIENT DISPATCH};
 
   \node[pd card, text width=2.6cm] (init) at (1.65, 7.6) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries Client Agent}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont State: \texttt{READY}\\[1pt]
+    {\fontsize{9.5}{11.5}\selectfont\bfseries Client Agent}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont State: \texttt{READY}\\[1pt]
     Task: \texttt{"add\_mfa"}\\[1pt]
     Role: Orchestrator\\[1pt]
     Cap: Root $\mathcal{C}_0$}%
@@ -1229,224 +1268,359 @@ Figure~\ref{fig:fipa-speech-acts} formalizes this state transition machine, popu
   % =========================================================================
   \draw[draw=pdcobalt!25,fill=pdcobalt!3,rounded corners=2pt,line width=0.6pt] (3.5, 8.8) rectangle (15.4, 15.8);
   \draw[draw=none,fill=pdcobalt!14] (3.5, 15.1) rectangle (15.4, 15.8);
-  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdcobalt}] at (3.7, 15.45) {TRACK 1: DIRECTIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{request} $\implies$ \texttt{agree} / \texttt{refuse} $\implies$ \texttt{inform-done} / \texttt{failure}}};
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt}] at (3.7, 15.45) {TRACK 1: DIRECTIVE SPEECH ACT};
+  \node[anchor=east,font=\fontsize{7.5}{9.5}\selectfont\color{pdinkmuted}] at (15.2, 15.45) {\texttt{request} $\to$ \texttt{done} / \texttt{failure}};
 
   % Track 1 Nominal (y = 13.3)
   \node[pd card, text width=3.1cm] (req_sent) at (5.2, 13.3) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries Request Pending}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Awaiting DB lock lease\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries Request Pending}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Awaiting DB lock lease\\[1pt]
     Timeout: $30\,\text{s}$ window\\[1pt]
     Action: \texttt{exec(migration)}}%
   };
 
   \node[pd focus card, text width=3.4cm] (exec) at (10.0, 13.3) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Action Agreed}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Lock: \texttt{0x9a} (exclusive)\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pdcobalt} Action Agreed}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Lock: \texttt{0x9a} (exclusive)\\[1pt]
     DDL channel verified\\[1pt]
     Worker running migration}%
   };
 
   \node[pd health card, text width=2.3cm] (done) at (14.0, 13.3) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdhealth} Inform-Done}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont LSN: \texttt{0x48a12}\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pdhealth} Inform-Done}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont LSN: \texttt{0x48a12}\\[1pt]
     Committed WAL\\[1pt]
     Exit 0 Pass}%
   };
 
   % Track 1 Exceptions (y = 10.2)
   \node[pd error card, text width=3.1cm] (refuse) at (5.2, 10.2) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Refused ($\neg\mathtt{agree}$)}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Reason: \texttt{busy(ETL)}\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pderror} Refused ($\neg\mathtt{agree}$)}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Reason: \texttt{busy(ETL)}\\[1pt]
     Retry window: $+60\,\text{s}$}%
   };
 
   \node[pd error card, text width=3.4cm] (fail) at (10.0, 10.2) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Failure Execution}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Error: \texttt{"dup column"}\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pderror} Failure Execution}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Error: \texttt{"dup column"}\\[1pt]
     Rollback \& emit $-!g$\\[1pt]
     Lock released closed}%
   };
 
   % Track 1 Transitions
-  \draw[pd edge] (init.north) |- (req_sent.west)
-    node[pos=0.75, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{request(migrate)}};
+  \draw[pd edge] (init.north) |- (3.5, 13.3) -- (req_sent.west);
+  \node[above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdcobalt}\bfseries, fill=white, draw=pdcobalt!30, rounded corners=1pt, inner sep=2pt] at (4.35, 13.55) {\texttt{request(migrate)}};
 
   \draw[pd focus edge] (req_sent) -- (exec)
-    node[midway, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{agree} $\langle 60\,\text{s}\rangle$};
+    node[midway, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=2pt] {\texttt{agree} $\langle 60\,\text{s}\rangle$};
 
   \draw[pd success edge] (exec) -- (done)
-    node[midway, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdhealth}\bfseries, fill=white, inner sep=1.5pt] {\texttt{done}};
+    node[midway, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdhealth}\bfseries, fill=white, inner sep=2pt] {\texttt{done}};
 
   \draw[pd fail edge] (req_sent.south) -- (refuse.north)
-    node[midway, right=3pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries] {\texttt{refuse}};
+    node[midway, right=3pt, font=\fontsize{8.0}{9.5}\selectfont\color{pderror}\bfseries] {\texttt{refuse}};
 
   \draw[pd fail edge] (exec.south) -- (fail.north)
-    node[midway, right=3pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries] {\texttt{failure}};
+    node[midway, right=3pt, font=\fontsize{8.0}{9.5}\selectfont\color{pderror}\bfseries] {\texttt{failure}};
 
   % =========================================================================
   % TRACK 2: ASSERTIVE SPEECH ACT (y = 5.4 to 8.5)
   % =========================================================================
   \draw[draw=pdindigo!25,fill=pdindigo!3,rounded corners=2pt,line width=0.6pt] (3.5, 5.4) rectangle (15.4, 8.5);
   \draw[draw=none,fill=pdindigo!14] (3.5, 7.8) rectangle (15.4, 8.5);
-  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdindigo}] at (3.7, 8.15) {TRACK 2: ASSERTIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{inform} $\implies$ Direct Belief Base Synchronous Mutation}};
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo}] at (3.7, 8.15) {TRACK 2: ASSERTIVE SPEECH ACT};
+  \node[anchor=east,font=\fontsize{7.5}{9.5}\selectfont\color{pdinkmuted}] at (15.2, 8.15) {\texttt{inform} $\implies$ Belief Mutation};
 
   \node[pd card, text width=9.2cm] (inf_done) at (10.3, 6.5) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries Belief Base Synchronously Mutated} ($bs \leftarrow bs \cup \{\phi\}$)\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Proposition: $bs \models \mathtt{Schema}(\text{"users"}, \mathtt{mfa\_secret})$ verified against catalog.\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries Belief Base Synchronously Mutated} ($bs \leftarrow bs \cup \{\phi\}$)\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Proposition: $bs \models \mathtt{Schema}(\text{"users"}, \mathtt{mfa\_secret})$ verified against catalog.\\[1pt]
     Language Server Protocol (LSP) TypeScript definitions regenerated (\path{db.d.ts}).\\[1pt]
     AST symbol index refreshed across all linked worktree sessions.}%
   };
 
-  \draw[pd edge] (init.east) -- (inf_done.west)
-    node[pos=0.35, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdindigo}\bfseries, fill=white, inner sep=1.5pt] {\texttt{inform(types\_gen)}};
+  \draw[pd edge] (init.east) -- (inf_done.west);
+  \node[font=\fontsize{8.0}{9.5}\selectfont\color{pdindigo}\bfseries, fill=white, draw=pdindigo!40, rounded corners=1pt, inner sep=2pt] at (4.35, 7.2) {\texttt{inform(types\_gen)}};
 
   % =========================================================================
   % TRACK 3: COMMISSIVE SPEECH ACT (y = 0.2 to 5.1)
   % =========================================================================
   \draw[draw=pdink!20,fill=pdinkmuted!3,rounded corners=2pt,line width=0.6pt] (3.5, 0.2) rectangle (15.4, 5.1);
   \draw[draw=none,fill=pdink!10] (3.5, 4.4) rectangle (15.4, 5.1);
-  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdink}] at (3.7, 4.75) {TRACK 3: COMMISSIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{propose} $\implies$ Bilateral Utility Evaluation $\implies$ \texttt{accept} / \texttt{reject}}};
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdink}] at (3.7, 4.75) {TRACK 3: COMMISSIVE SPEECH ACT};
+  \node[anchor=east,font=\fontsize{7.5}{9.5}\selectfont\color{pdinkmuted}] at (15.2, 4.75) {\texttt{propose} $\implies$ \texttt{accept} / \texttt{reject}};
 
   \node[pd card, text width=3.1cm] (prop_sent) at (5.2, 2.3) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries Proposal Pending}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Evaluate utility function:\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries Proposal Pending}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Evaluate utility function:\\[1pt]
     $\mathcal{U}(\text{bid}) \ge \theta_{\text{min}}$ threshold\\[1pt]
     Resource bid: $\$0.02$ cap}%
   };
 
   \node[pd focus card, text width=6.5cm] (accept) at (11.8, 3.4) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Proposal Accepted \& SLA Bound}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont SLA: $5\%$ canary routing applied via Envoy proxy\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pdcobalt} Proposal Accepted \& SLA Bound}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont SLA: $5\%$ canary routing applied via Envoy proxy\\[1pt]
     Escrow: \texttt{PO:0x99} committed to kernel settlement ledger}%
   };
 
   \node[pd error card, text width=6.5cm] (reject) at (11.8, 1.2) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Proposal Rejected}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Budget cap exceeded: Bid $\$0.02 > \text{cap } \$0.01$ (hard spend cap)\\[1pt]
+    {\fontsize{9.0}{11.0}\selectfont\bfseries\color{pderror} Proposal Rejected}\\[2pt]
+    {\fontsize{8.5}{10.0}\selectfont Budget cap exceeded: Bid $\$0.02 > \text{cap } \$0.01$ (hard spend cap)\\[1pt]
     Task remains in open pool for alternative contractor bids}%
   };
 
-  \draw[pd edge] (init.south) |- (prop_sent.west)
-    node[pos=0.75, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdink}\bfseries, fill=white, inner sep=1.5pt] {\texttt{propose(canary)}};
+  \draw[pd edge] (init.south) |- (3.5, 2.3) -- (prop_sent.west);
+  \node[above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdink}\bfseries, fill=white, draw=pdink!30, rounded corners=1pt, inner sep=2pt] at (4.35, 2.55) {\texttt{propose(canary)}};
 
   \draw[pd focus edge] (prop_sent.east) |- (accept.west)
-    node[pos=0.45, above=1pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{accept}};
+    node[pos=0.45, above=1pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{accept}};
 
   \draw[pd fail edge] (prop_sent.east) |- (reject.west)
-    node[pos=0.45, below=1pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries, fill=white, inner sep=1.5pt] {\texttt{reject}};
+    node[pos=0.45, below=1pt, font=\fontsize{8.0}{9.5}\selectfont\color{pderror}\bfseries, fill=white, inner sep=1.5pt] {\texttt{reject}};
 
 \end{tikzpicture}
+
+\vspace{6pt}
+\begin{minipage}{15.5cm}
 \caption{FIPA-00037 Communicative Speech Act state transition machine, populated with practical software engineering payloads. Top: Directive \texttt{request} lifecycle executing an atomic database migration under lock arbitration. Middle: Assertive \texttt{inform} directly mutating an agent's belief base. Bottom: Commissive \texttt{propose} negotiating an SLA for canary deployment routing.}
 \label{fig:fipa-speech-acts}
+\end{minipage}
 \end{figure}
+
+\providecommand{\cleartoleftpage}{%
+  \clearpage
+  \ifodd\value{page}\thispagestyle{empty}\null\newpage\fi}
+\cleartoleftpage
+\setcounter{bottomnumber}{1}
 
 \subsection{Task Allocation: Smith's Contract Net Protocol (1980)}
 
-Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp} formalized bilateral market-inspired negotiation between a Manager and distributed Contractor agents. In autonomous software fleets, CNP is the canonical mechanism for allocating urgent developer tasks—such as triage of a security CVE or compilation of an isolated package—across competing agent workers:
+Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp} formalized bilateral market-inspired negotiation between a Manager and distributed Contractor agents. In autonomous software fleets, CNP is the canonical mechanism for allocating urgent developer tasks---such as triage of a security CVE or compilation of an isolated package---across competing agent workers:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Call for Proposals (CFP Broadcast):} The Manager broadcasts an announcement $\langle \text{task\_id}, \text{eligibility}, \text{spec}, t_{\text{expire}} \rangle$ specifying required toolsets, maximum spend budget, and deadline.
-  \item \textbf{Bidding and Capability Self-Assessment:} Eligible contractor agents inspect their current local capacity, sandboxed tools, and model context before submitting formal bids $\langle \text{bid\_id}, \text{cost}, \text{eta}, \text{reputation} \rangle$, or returning explicit refusals if overloaded.
-  \item \textbf{Bid Evaluation and Award:} The Manager evaluates bids according to a multi-attribute utility function $\mathcal{U}_M(b) = w_r \cdot \text{rep} - w_c \cdot \text{cost} - w_t \cdot \text{eta}$, awarding an exclusive worktree lease to the winning contractor and rejecting alternative bids.
-  \item \textbf{Execution, Interim Streaming, and Settlement:} The contractor checks out an isolated worktree branch, streams structured progress deltas, commits the diff, runs verification tests, and submits cryptographic execution receipts to unlock escrow payment.
+  \item \textbf{Call for Proposals (CFP Broadcast):}\enspace The Manager broadcasts an announcement $\langle\mathtt{task\_id}, \allowbreak \mathtt{eligibility}, \allowbreak \mathtt{spec}, \allowbreak t_{\text{expire}}\rangle$ specifying required toolsets, maximum spend budget, and deadline.
+  \item \textbf{Bidding and Capability Self-Assessment:}\enspace Eligible contractor agents inspect their current local capacity, sandboxed tools, and model context before submitting formal bids $\langle\mathtt{bid\_id}, \allowbreak \mathtt{cost}, \allowbreak \mathtt{eta}, \allowbreak \mathtt{reputation}\rangle$, or returning explicit refusals if overloaded.
 \end{enumerate}
 
-Figure~\ref{fig:contract-net-protocol} traces this complete lifecycle using a real-world developer incident: resolving an urgent OpenSSL CVE dependency upgrade across competing Claude and specialized Rust agent workers.
+Figure~\ref{fig:cnp-part1} traces the announcement and bidding phase of this lifecycle. The Manager broadcasts an urgent OpenSSL CVE upgrade across the fleet; Contractor~1 assesses idle tools and submits a formal bid, while Contractor~2 explicitly refuses due to AST lock contention, allowing the auction to clear without timeout.
 
-\begin{figure}[htbp]
+\begin{figure}[!b]
 \centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  pd line/.style={draw=pdink!30,line width=0.8pt,dashed},
-  pd box/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=center,inner xsep=6pt,inner ysep=5pt,minimum height=1.35cm},
-  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=center,inner xsep=6pt,inner ysep=5pt,minimum height=1.35cm},
-  pd msg/.style={draw=pdink!80,line width=0.8pt,-{Stealth[length=5pt,width=3.5pt]}},
-  pd focus msg/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
-  pd success msg/.style={draw=pdhealth,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
-  pd gold msg/.style={draw=pdgold,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
+  pd line/.style={draw=pdink!25,line width=0.7pt,dashed},
+  pd box/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=center},
+  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=center},
+  pd msg/.style={draw=pdink!70,line width=0.8pt,-{Stealth[length=4.5pt,width=3pt]}},
+  pd focus msg/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd fail msg/.style={draw=pderror,line width=0.9pt,dashed,-{Stealth[length=4.5pt,width=3pt]}},
   pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.6pt}
 ]
-  \useasboundingbox (0, 0.2) rectangle (15.5, 14.8);
+  \useasboundingbox (0, 0) rectangle (15.5, 9.4);
 
-  % Top Agent Header Cards (y = 13.6)
-  \node[pd focus box, text width=3.0cm] (mgr) at (1.8, 13.6) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Manager Agent}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Lead Orchestrator\\[1pt]Root Lease Authority}%
+  % Header Banner
+  \draw[draw=pdcobalt!60,fill=pdcobalt!4,rounded corners=2pt,line width=0.7pt] (0.1, 8.5) rectangle (15.4, 9.25);
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt}] at (0.35, 8.87) {CONTRACT NET PROTOCOL (CNP) \enspace\textbar\enspace \textmd{Part 1: CFP \& Bidding}};
+  \node[anchor=east,font=\fontsize{8.0}{9.5}\selectfont\color{pdinkmuted}] at (15.15, 8.87) {Smith (1980)};
+
+  % Lifeline Headers (y = 7.55)
+  \node[pd focus box, text width=3.2cm, minimum height=1.1cm] (mgr) at (2.2, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Manager Agent}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Orchestrator $\cdot$ Root Lease}%
   };
 
-  \node[pd box, text width=3.8cm] (c1) at (9.4, 13.6) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo} Contractor 1 (Worker A)}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Claude 3.7 $\cdot$ Vitest / Node\\[1pt]Capacity: Available}%
+  \node[pd box, text width=3.6cm, minimum height=1.1cm, draw=pdindigo, fill=pdindigo!5] (c1) at (7.75, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo} Contractor 1 (Worker A)}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Claude 3.7 $\cdot$ Vitest / Available}%
   };
 
-  \node[pd box, text width=3.0cm] (c2) at (14.0, 13.6) {%
-    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdink} Contractor 2 (Worker B)}\\[2pt]
-    {\fontsize{8.0}{9.5}\selectfont Rust Specialist\\[1pt]Capacity: Saturated}%
+  \node[pd box, text width=3.6cm, minimum height=1.1cm] (c2) at (13.3, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdink} Contractor 2 (Worker B)}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Rust Compiler $\cdot$ Queue Saturated}%
   };
 
-  % Continuous Lifelines
-  \draw[pd line] (1.8, 12.6) -- (1.8, 0.6);
-  \draw[pd line] (9.4, 12.6) -- (9.4, 0.6);
-  \draw[pd line] (14.0, 12.6) -- (14.0, 0.6);
+  % Lifelines
+  \draw[pd line] (2.2, 6.95) -- (2.2, 0.9);
+  \draw[pd line] (7.75, 6.95) -- (7.75, 0.9);
+  \draw[pd line] (13.3, 6.95) -- (13.3, 0.9);
+
+  % Time Axis Ticks
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 6.0) {$t_0$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 4.6) {$t_1$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 3.7) {$t_2$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 2.7) {$t_3$};
 
   % Activation Bars
-  \draw[pd actbar] (1.65, 12.0) rectangle (1.95, 1.2);
-  \draw[draw=pdindigo!70,fill=pdindigo!12,rounded corners=1pt,line width=0.6pt] (9.25, 7.8) rectangle (9.55, 2.8);
+  \draw[pd actbar] (2.05, 6.3) rectangle (2.35, 1.0);
+  \draw[draw=pdindigo!70,fill=pdindigo!12,rounded corners=1pt,line width=0.6pt] (7.6, 6.0) rectangle (7.9, 3.5);
+  \draw[draw=pderror!70,fill=pderror!12,rounded corners=1pt,line width=0.6pt] (13.15, 6.0) rectangle (13.45, 2.7);
 
-  % 1. CFP Broadcast to Contractor 1 (y = 11.8)
-  \draw[pd msg] (1.95, 11.8) -- (9.25, 11.8)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdcobalt}1. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont\color{pdinkmuted}$\langle \text{budget}: \$12.00, \text{target}: \text{"crypto"}, \text{timeout}: 10\text{m} \rangle$}};
+  % 1a. CFP Broadcast to Contractor 1 (y = 6.0)
+  \draw[pd focus msg] (2.35, 6.0) -- (7.6, 6.0)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdcobalt}1a. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
+    {\fontsize{7.0}{8.2}\selectfont\color{pdinkmuted}$\langle \text{spec}: \text{"CVE-2024-XXXX"}, \text{budget}: \$12.00, \text{TTL}: 300\text{s}, \text{tools}: [\text{crypto}, \text{vitest}] \rangle$}};
 
-  % 1b. CFP Broadcast to Contractor 2 (y = 10.5)
-  \draw[pd msg] (1.95, 10.5) -- (13.85, 10.5)
-    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
-    {1b. \textbf{CFP Broadcast} (monorepo alert $\cdot$ all registered fleet workers)};
+  % 1b. CFP Broadcast to Contractor 2 (y = 5.2)
+  \draw[pd msg] (2.35, 5.2) -- (13.15, 5.2)
+    node[pos=0.72, above=2pt, font=\fontsize{7.2}{8.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
+    {\textbf{1b. CFP Fleet Broadcast} $\langle \text{identical specification payload} \rangle$};
 
-  % 2. Contractor 1 Submits Competitive Bid (y = 9.3)
-  \draw[pd msg] (9.25, 9.3) -- (1.95, 9.3)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdindigo}2. Formal Bid Submission}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont$\langle \text{cost}: \$4.20, \text{ETA}: 180\,\text{s}, \text{reputation}: 0.98 \rangle$}};
+  % Contractor Assessment Notes (y = 4.5)
+  \node[fill=pdindigo!8, draw=pdindigo!40, rounded corners=2pt, inner sep=3pt, font=\fontsize{6.8}{8}\selectfont\color{pdindigo}, align=center] at (10.5, 4.5) {Self-Assessment: queue idle $\cdot$ tools matched\\ $\implies$ construct formal bid};
+  \node[fill=pderror!8, draw=pderror!40, rounded corners=2pt, inner sep=2.5pt, font=\fontsize{6.8}{8}\selectfont\color{pderror}] at (13.3, 3.6) {4 active locks $\implies$ saturated};
 
-  % 2b. Contractor 2 Refusal (y = 8.1)
-  \draw[pd msg] (13.85, 8.1) -- (1.95, 8.1)
-    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pderror}\bfseries, fill=white, inner sep=2pt]
-    {2b. \textbf{Explicit Refusal}: $\langle \text{overloaded: 4 active locks, build queue full} \rangle$};
+  % 2a. Contractor 1 Submits Competitive Bid (y = 3.7)
+  \draw[pd focus msg, draw=pdindigo] (7.6, 3.7) -- (2.35, 3.7)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdindigo}2a. Formal Bid Submission}\\[1pt]
+    {\fontsize{7.0}{8.2}\selectfont$\langle \text{bid\_id}: \mathtt{0x4a}, \text{cost}: \$4.20, \text{ETA}: 180\,\text{s}, \text{reputation}: 0.98 \rangle$}};
 
-  % 3. Manager Awards Contract to Contractor 1 (y = 6.9)
-  \draw[pd focus msg] (1.95, 6.9) -- (9.25, 6.9)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdcobalt}3. Contract Award \& Worktree Lease}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont$\langle \mathtt{lease}: \mathtt{0x09b}, \mathtt{branch}: \text{"fix/tls"}, \mathtt{escrow}: \$4.20 \text{ locked} \rangle$}};
+  % 2b. Contractor 2 Refusal (y = 2.7)
+  \draw[pd fail msg] (13.15, 2.7) -- (2.35, 2.7)
+    node[pos=0.6, above=2pt, font=\fontsize{7.2}{8.5}\selectfont\color{pderror}\bfseries, fill=white, inner sep=2pt]
+    {2b. \textbf{Explicit Refusal} (FIPA \texttt{refuse}): $\langle \text{reason}: \text{"queue saturated: 4 locks held"}, \text{avail\_in}: 420\text{s} \rangle$};
 
-  % 3b. Manager Rejection to Contractor 2 (y = 5.7)
-  \draw[pd msg] (1.95, 5.7) -- (13.85, 5.7)
-    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
-    {3b. \textbf{Reject Proposal}: $\langle \text{peer capacity conflict resolved} \rangle$};
+  % Utility Scoring Card at Bottom Left (y = 1.05)
+  \node[draw=pdcobalt!50,fill=pdcobalt!4,rounded corners=2pt,inner sep=4pt,text width=9.2cm,align=left] at (4.9, 1.05) {
+    \textbf{\fontsize{7.5}{8.8}\selectfont\color{pdcobalt}Manager Multi-Attribute Utility:}\enspace
+    {\fontsize{7.0}{8.2}\selectfont $\mathcal{U}_M(b) = 0.5\,\text{rep} - 0.3\,\frac{\text{cost}}{\$12} - 0.2\,\frac{\text{eta}}{300\text{s}}$}\\[2pt]
+    {\fontsize{6.8}{8.0}\selectfont $\bullet$ \textbf{Contractor 1:} $\mathcal{U}(C_1) = 0.5(0.98) - 0.3(0.35) - 0.2(0.60) = \mathbf{0.265} \implies \textbf{\color{pdhealth}Award Winner}$}\\[1pt]
+    {\fontsize{6.8}{8.0}\selectfont $\bullet$ \textbf{Contractor 2:} Explicit refusal received $\implies \textbf{Auction Clears Without Delay}$}
+  };
 
-  % 4. Interim Progress Stream (y = 4.5)
-  \draw[pd msg] (9.25, 4.5) -- (1.95, 4.5)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdindigo}4. Structured Progress Delta}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont$\langle \text{phase}: \text{"AST transform \& lockfile"}, \text{progress}: 60\% \rangle$}};
-
-  % 5. Delivery with Verification Receipts (y = 3.1)
-  \draw[pd success msg] (9.25, 3.1) -- (1.95, 3.1)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdhealth}5. Verified Delivery with Evidence Receipts}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont$\langle \mathtt{commit}: \mathtt{7a31f}, 142/142 \text{ pass}, \mathtt{receipt}: \mathtt{0x9f} \rangle$}};
-
-  % 6. Escrow Settlement and Lock Release (y = 1.7)
-  \draw[pd gold msg] (1.95, 1.7) -- (9.25, 1.7)
-    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
-    {\textbf{\color{pdgold}6. Escrow Release \& Final Settlement}\\[1pt]
-    {\fontsize{7.5}{9.0}\selectfont$\langle \text{payout}: \$4.20 \text{ unlocked}, \mathtt{status}: \mathtt{MERGED}, \text{lease freed} \rangle$}};
+  % Bottom Continuation Prompt (y = 1.05, right side)
+  \node[anchor=east, font=\sffamily\fontsize{7.8}{9.5}\selectfont\bfseries, text=pdcobalt, fill=white, draw=pdcobalt!60, line width=0.8pt, rounded corners=2pt, inner xsep=6pt, inner ysep=6pt, text width=4.8cm, align=center] at (15.4, 1.05) {
+    Continued on facing page\\(Part 2: Award \& Escrow) $\,\blacktriangleright$
+  };
 
 \end{tikzpicture}
-\caption{Smith's (1980) Contract Net Protocol (CNP) negotiation cycle instantiated for autonomous software engineering. An Orchestrator broadcasts a Call for Proposals (CFP) to patch a critical dependency CVE across competing agent workers. Competing workers assess tools and queue capacity to submit bids. The winner receives an exclusive worktree lease, streams progress deltas, and claims escrow upon verified test execution.}
-\label{fig:contract-net-protocol}
+
+\vspace{4pt}
+\begin{minipage}{15.5cm}
+\caption{Smith's (1980) Contract Net Protocol (Part 1 of 2: Task Announcement \& Bidding; continued on facing page~\pageref{fig:cnp-part2}). An Orchestrator broadcasts a Call for Proposals (CFP) to patch a critical dependency CVE across competing agent workers. Competing workers assess tools and queue capacity to submit bids.}
+\label{fig:cnp-part1}
+\end{minipage}
 \end{figure}
+
+\newpage
+
+\begin{enumerate}[resume,leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Bid Evaluation and Award:}\enspace The Manager evaluates bids according to a multi-attribute utility function $\mathcal{U}_M(b) = w_r \cdot \text{rep} - w_c \cdot \text{cost} - w_t \cdot \text{eta}$, awarding an exclusive worktree lease to the winning contractor and rejecting alternative bids.
+  \item \textbf{Execution, Interim Streaming, and Settlement:}\enspace The contractor checks out an isolated worktree branch, streams structured progress deltas, commits the diff, runs verification tests, and submits cryptographic execution receipts to unlock escrow payment.
+\end{enumerate}
+
+Figure~\ref{fig:cnp-part2} traces the execution and settlement phase on this facing page. Contractor~1 receives an exclusive worktree lease ($\mathtt{0x09b}$), executes under strict Coast Guard sandbox confinement (Seatbelt profile, zero-spend cap), and streams progress over \texttt{pd tube}. Escrow funds unlock strictly under a dual-control invariant requiring cryptographic test verification receipts.
+
+\pdmarginanalogy{prereq-escrow-box}{}{ch07-dual-control-escrow-box}{Like a dual-control escrow box requiring two separate keys to open, Contract Net Protocol settlement requires both a completed worktree diff and cryptographic test verification receipts before funds are released.}%
+\begin{figure}[!b]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  pd line/.style={draw=pdink!25,line width=0.7pt,dashed},
+  pd box/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=center},
+  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=center},
+  pd msg/.style={draw=pdink!70,line width=0.8pt,-{Stealth[length=4.5pt,width=3pt]}},
+  pd focus msg/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd success msg/.style={draw=pdhealth,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd gold msg/.style={draw=pdgold!90!black,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.6pt}
+]
+  \useasboundingbox (0, 0) rectangle (15.5, 9.4);
+
+  % Header Banner
+  \draw[draw=pdhealth!60,fill=pdhealth!4,rounded corners=2pt,line width=0.7pt] (0.1, 8.5) rectangle (15.4, 9.25);
+  \node[anchor=west,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdhealth!80!black}] at (0.35, 8.87) {CONTRACT NET PROTOCOL \enspace\textbar\enspace \textmd{Part 2: Execution \& Escrow}};
+  \node[anchor=east,font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{pdhealth!80!black}] at (15.15, 8.87) {$\blacktriangleleft$\,Continued from page~\pageref{fig:cnp-part1}};
+
+  % Lifeline Headers (y = 7.55)
+  \node[pd focus box, text width=3.2cm, minimum height=1.1cm] (mgr) at (2.2, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Manager Agent}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Orchestrator $\cdot$ Root Lease}%
+  };
+
+  \node[pd box, text width=3.6cm, minimum height=1.1cm, draw=pdhealth, fill=pdhealth!6] (c1) at (7.75, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdhealth} Contractor 1 (Winner)}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Exclusive Lease \texttt{0x09b} $\cdot$ Active}%
+  };
+
+  \node[pd box, text width=3.6cm, minimum height=1.1cm] (c2) at (13.3, 7.55) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdinkmuted} Contractor 2 (Released)}\\[2pt]%
+    {\fontsize{7.2}{8.5}\selectfont Standby Pool $\cdot$ Idle for Next CFP}%
+  };
+
+  % Lifelines
+  \draw[pd line] (2.2, 6.95) -- (2.2, 1.2);
+  \draw[pd line] (7.75, 6.95) -- (7.75, 1.2);
+  \draw[pd line] (13.3, 6.95) -- (13.3, 4.7);
+
+  % Time Axis Ticks
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 6.0) {$t_4$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 4.4) {$t_5$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 3.2) {$t_6$};
+  \node[font=\fontsize{6.8}{8}\selectfont\color{pdinkmuted},anchor=east] at (0.35, 2.0) {$t_7$};
+
+  % Activation Bars
+  \draw[pd actbar] (2.05, 6.3) rectangle (2.35, 1.4);
+  \draw[draw=pdhealth!70,fill=pdhealth!12,rounded corners=1pt,line width=0.6pt] (7.6, 6.0) rectangle (7.9, 1.7);
+
+  % 3a. Manager Awards Contract (y = 6.0)
+  \draw[pd focus msg] (2.35, 6.0) -- (7.6, 6.0)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdcobalt}3a. Contract Award:} $\langle \mathtt{lease}: \mathtt{0x09b}, \mathtt{branch}: \text{"fix/tls"}, \mathtt{escrow}: \$4.20 \text{ locked} \rangle$};
+
+  % 3b. Manager Rejection to Contractor 2 (y = 5.2)
+  \draw[pd msg] (2.35, 5.2) -- (13.15, 5.2)
+    node[pos=0.72, above=2pt, font=\fontsize{7.2}{8.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
+    {\textbf{3b. Reject Proposal}: $\langle \text{awarded to C1; released to standby pool} \rangle$};
+
+  % Contractor 2 Termination / Standby Badge (y = 4.7)
+  \node[fill=pdink!5, draw=pdink!30, rounded corners=2pt, inner sep=2.5pt, font=\fontsize{7.0}{8.5}\selectfont\color{pdinkmuted}] at (13.3, 4.7) {Released $\to$ Fleet Standby};
+
+  % Sandboxed Execution State Card (between C1 and C2, x = 11.8, y = 3.0)
+  \node[fill=pdhealth!5, draw=pdhealth!50, rounded corners=2pt, inner sep=5pt, text width=6.0cm, align=left] at (11.8, 3.0) {
+    \textbf{\fontsize{7.5}{9.0}\selectfont\color{pdhealth}Coast Guard Sandboxed Execution (Contractor 1):}\\[2pt]
+    {\fontsize{6.8}{8.0}\selectfont $\bullet$ \textbf{Worktree:} \texttt{git worktree add fix/openssl-cve}\\
+    $\bullet$ \textbf{Seatbelt:} profile confined, network cap $\$0.00$\\
+    $\bullet$ \textbf{AST Patch:} update lockfile, run \texttt{cargo test}\\
+    $\bullet$ \textbf{Test Result:} 142/142 passed (100\% pass rate)\\
+    $\bullet$ \textbf{Receipt Signed:} \texttt{0x9f7a31f0e4b2\dots}}
+  };
+
+  % 4. Interim Progress Stream (y = 4.3)
+  \draw[pd msg, draw=pdindigo] (7.6, 4.3) -- (2.35, 4.3)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdindigo}4. Interim Progress Stream} (\texttt{pd tube}):\\[1pt]
+    {\fontsize{7.0}{8.2}\selectfont$\langle \text{phase}: \text{"AST transform \& lockfile"}, \text{progress}: 60\%, \text{tests}: 95/142 \rangle$}};
+
+  % 5. Verified Delivery with Verification Receipts (y = 3.1)
+  \draw[pd success msg] (7.6, 3.1) -- (2.35, 3.1)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdhealth}5. Verified Delivery Package:}\\[1pt]
+    {\fontsize{7.0}{8.2}\selectfont$\langle \mathtt{commit}: \mathtt{7a31f0e}, 142/142 \text{ pass}, \mathtt{receipt\_sig}: \mathtt{0x9f7a\dots} \rangle$}};
+
+  % 6. Escrow Settlement and Lock Release (y = 1.9)
+  \draw[pd gold msg] (2.35, 1.9) -- (7.6, 1.9)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{7.5}{9}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdgold!90!black}6. Escrow Release \& Lease Revocation:}\\[1pt]
+    {\fontsize{7.0}{8.2}\selectfont$\langle \text{payout}: \$4.20 \text{ unlocked}, \mathtt{status}: \mathtt{MERGED}, \mathtt{lease}: \text{freed to pool} \rangle$}};
+
+  % Dual Control Invariant Footer Box (y = 0.65)
+  \node[draw=pdhealth!50,fill=pdhealth!4,rounded corners=2pt,inner sep=3.5pt,text width=14.8cm,align=left] at (7.75, 0.65) {
+    \textbf{\fontsize{7.5}{9.0}\selectfont\color{pdhealth!85!black}Dual-Control Invariant:}\enspace
+    {\fontsize{7.0}{8.4}\selectfont Escrow funds unlock strictly upon conjunction of two independent cryptographic proofs: $\text{SpecApproval}(\text{Manager}) \wedge \text{VerifiedReceipt}(\text{Contractor}, 142/142 \text{ pass})$. Without verified test execution receipts, the settlement gate halts payment and initiates rollback.}
+  };
+
+\end{tikzpicture}
+
+\vspace{4pt}
+\begin{minipage}{15.5cm}
+\addtocounter{figure}{-1}
+\caption{Smith's (1980) Contract Net Protocol (Part 2 of 2: Lease Award, Telemetry, and Escrow Settlement; continued from page~\pageref{fig:cnp-part1}). The winner receives an exclusive worktree lease, streams progress deltas, and claims escrow upon verified test execution.}
+\label{fig:cnp-part2}
+\end{minipage}
+\end{figure}
+
+\clearpage
 
 \subsection{Dynamic Epistemic Logic and Big Brother Logic}
 
@@ -1456,6 +1630,136 @@ Public Announcement Logic (PAL) models communication as epistemic model restrict
 
 Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Logic (BBL)}, formalizing epistemic reasoning over embodied agents equipped with directed observation cones (vision sets $V(a)$). If agent $a_1$ observes agent $a_2$ ($a_2 \in V(a_1)$), $a_1$ knows what $a_2$ observes, yielding $K_{a_1} K_{a_2}(\phi)$. By inverting verification into a planning problem, BBL proves that multi-agent systems can achieve target epistemic goals $\Phi$ by autonomously reconfiguring observation cones and network routes.
 
+Figure~\ref{fig:big-brother-logic} formalizes directed observation cones, epistemic shadows, and higher-order verification in spatial multi-agent coordination.
+
+\pdmarginanalogy{prereq-sextant-mirror}{}{ch04-sextant-index-mirror}{Like a sextant's index mirror bringing an unobserved celestial body into direct line of sight with the horizon, dynamic epistemic observation cones allow an observer agent to verify ground truth through intermediate workers.}%
+\providecommand{\centernot}[1]{\mathrel{\ooalign{$#1$\cr\hfil$/$\hfil}}}
+\begin{figure}[p]
+\centering
+\makeatletter\let\pd@captiontype\relax\pd@routecaptionfalse\makeatother
+\providecolor{charcoal}{HTML}{1A1A1A}
+\providecolor{swissCanvas}{HTML}{F8F9FA}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,scale=0.88,transform shape,
+  agentNode/.style={draw=charcoal,line width=1.1pt,fill=white,rounded corners=2pt,align=center,inner sep=5pt},
+  focusNode/.style={draw=pdcobalt,line width=1.3pt,fill=pdcobalt!8,rounded corners=2pt,align=center,inner sep=5pt},
+  propNode/.style={draw=pdhealth!80!black,line width=1.2pt,fill=pdhealth!20,rounded corners=2pt,align=center,inner sep=5pt},
+  epistemicCard/.style={draw=charcoal!40,fill=white,rounded corners=2pt,align=left,inner sep=6pt,line width=0.7pt,minimum height=3.6cm}
+]
+  \useasboundingbox (0, 0) rectangle (15.5, 13.8);
+
+  % ================= HEADER BANNER =================
+  \draw[draw=charcoal,fill=white,line width=0.8pt] (0.2, 12.3) rectangle (15.3, 13.6);
+  \node[anchor=west,font=\fontsize{9.5}{11.5}\selectfont\bfseries\color{charcoal}] at (0.45, 13.1) {DYNAMIC EPISTEMIC OBSERVATION CONES (BBL)};
+  \node[anchor=west,font=\fontsize{8.0}{10.0}\selectfont\color{pdinkmuted}] at (0.45, 12.65) {Charrier et al.\ (2014) \textperiodcentered\ Spatial Modal Epistemics \textperiodcentered\ Multi-Agent Visibility \& Knowledge Verification};
+  \node[anchor=east,font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt}] at (15.05, 13.1) {$\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$};
+
+  % ================= 2D OBSERVATION FIELD =================
+  \draw[draw=charcoal!30,fill=swissCanvas,line width=0.8pt] (0.2, 4.4) rectangle (15.3, 12.0);
+
+  % Grid lines for spatial coordinate field
+  \foreach \gx in {1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2, 12.2, 13.2, 14.2} {
+    \draw[draw=charcoal!10,line width=0.3pt] (\gx, 4.4) -- (\gx, 12.0);
+  }
+  \foreach \gy in {5.4, 6.4, 7.4, 8.4, 9.4, 10.4, 11.4} {
+    \draw[draw=charcoal!10,line width=0.3pt] (0.2, \gy) -- (15.3, \gy);
+  }
+
+  % ================= OBSERVATION CONES =================
+  % Agent 1 Cone V(a_1) pointing towards a_2: apex at (2.0, 7.8)
+  \fill[pdcobalt!14] (2.0, 7.8) -- (9.8, 11.6) -- (10.0, 5.0) -- cycle;
+  \draw[draw=pdcobalt,line width=1.1pt,dashed] (2.0, 7.8) -- (9.8, 11.6);
+  \draw[draw=pdcobalt,line width=1.1pt,dashed] (2.0, 7.8) -- (10.0, 5.0);
+  \draw[draw=pdcobalt,line width=1.0pt] (9.8, 11.6) arc (26:-20:8.7);
+
+  \node[font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt},fill=white,draw=pdcobalt!50,rounded corners=2pt,inner sep=2.5pt]
+    at (4.6, 10.1) {Observation Cone $V(a_1)$};
+
+  % Agent 2 Cone V(a_2) pointing towards Proposition phi: apex at (7.0, 8.6)
+  \fill[pdindigo!16] (7.0, 8.6) -- (14.6, 11.5) -- (14.6, 7.0) -- cycle;
+  \draw[draw=pdindigo,line width=1.1pt,dashed] (7.0, 8.6) -- (14.6, 11.5);
+  \draw[draw=pdindigo,line width=1.1pt,dashed] (7.0, 8.6) -- (14.6, 7.0);
+  \draw[draw=pdindigo,line width=1.0pt] (14.6, 11.5) arc (22:-12:7.8);
+
+  \node[font=\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo},fill=white,draw=pdindigo!50,rounded corners=2pt,inner sep=2.5pt]
+    at (9.8, 10.4) {Observation Cone $V(a_2)$};
+
+  % Dynamic Cone Steering Arc for a_1
+  \draw[draw=pdgold!90!black,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
+    (5.4, 6.2) arc (-20:-50:3.6);
+  \node[font=\fontsize{8.0}{9.5}\selectfont\bfseries\color{pdgold!90!black},fill=white,inner sep=1.5pt]
+    at (6.8, 5.4) {Dynamic Steering: $\Delta \theta$ Reconfiguration};
+
+  % ================= AGENTS & TARGET OBJECTS =================
+  % Agent 1 (Observer / Verifier)
+  \node[focusNode, text width=2.9cm] (a1) at (2.0, 7.8) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Agent $a_1$ (Supervisor)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Position $p_1 = (x_1, y_1)$\\[1pt]
+    Orientation $\theta_1 = 8^\circ$}%
+  };
+
+  % Agent 2 (Target Worker inside V(a_1))
+  \node[agentNode, text width=3.1cm, draw=pdindigo, fill=pdindigo!5] (a2) at (7.0, 8.6) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo} Agent $a_2$ (Worker A)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont $a_2 \in V(a_1)$ \textbf{\color{pdcobalt}[Observed]}\\[1pt]
+    Observes $\phi \in V(a_2)$}%
+  };
+
+  % Target Proposition / Shared Artifact phi
+  \node[propNode, text width=3.2cm] (phi) at (13.5, 9.4) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries Ground Truth $\phi$}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Git Commit \texttt{0x4a12}\\[1pt]
+    Migration Lock Released}%
+  };
+
+  % Agent 3 (Unobserved Agent / Epistemic Shadow)
+  \node[agentNode, text width=3.1cm, draw=charcoal!60, fill=charcoal!4] (a3) at (13.0, 5.4) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{charcoal} Agent $a_3$ (Worker B)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont $a_3 \notin V(a_1)$ \textbf{\color{pderror}[In Shadow]}\\[1pt]
+    $\neg K_{a_1} K_{a_3}(\psi)$}%
+  };
+
+  % Visibility Proof Arrows
+  \draw[draw=pdcobalt,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
+    (a1.east) -- (a2.west)
+    node[midway,above=2pt,font=\fontsize{8.0}{9.5}\selectfont\bfseries\color{pdcobalt},fill=white,inner sep=1.5pt]
+    {$a_2 \in V(a_1)$};
+
+  \draw[draw=pdindigo,line width=1.3pt,-{Stealth[length=6pt,width=4pt]}]
+    (a2.east) -- (phi.west)
+    node[midway,above=2pt,font=\fontsize{8.0}{9.5}\selectfont\bfseries\color{pdindigo},fill=white,inner sep=1.5pt]
+    {$\phi \in V(a_2)$};
+
+  % ================= BOTTOM FORMAL SEMANTICS CARDS =================
+  \node[epistemicCard, text width=4.5cm] at (2.6, 2.1) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries 1. Spatial Visibility Axiom}\\[3pt]
+    {\fontsize{8.0}{9.5}\selectfont An agent $a_i$ observes agent $a_j$ iff $p_j$ falls within its directed vision cone:\\[2pt]
+    $a_j \in V(a_i) \iff \angle(p_j - p_i, \vec{d}_i) \le \frac{\alpha_i}{2}$\\[2pt]
+    Observation is \emph{directed and asymmetric}: $a_j \in V(a_i) \centernot\implies a_i \in V(a_j)$.}%
+  };
+
+  \node[epistemicCard, text width=4.5cm, draw=pdcobalt!80] at (7.75, 2.1) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} 2. Higher-Order Epistemic Deduction}\\[3pt]
+    {\fontsize{8.0}{9.5}\selectfont If $a_1$ sees $a_2$, and $a_2$ observes state proposition $\phi$, knowledge cascades:\\[2pt]
+    $a_2 \in V(a_1) \land \phi \in V(a_2) \implies \mathbf{K_{a_1} K_{a_2} \phi}$\\[2pt]
+    Supervisor $a_1$ verifies that Worker $a_2$ is executing against valid ground truth.}%
+  };
+
+  \node[epistemicCard, text width=4.5cm, draw=pdhealth!80!black] at (12.9, 2.1) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdhealth!80!black} 3. Epistemic Planning Goal $\Phi$}\\[3pt]
+    {\fontsize{8.0}{9.5}\selectfont When coordination requires mutual knowledge, the kernel plans steering actions $\mathtt{turn}(\theta)$:\\[2pt]
+    $\Phi = C_{\{a_1, a_2\}} \phi \quad \text{(Common Knowledge)}$\\[2pt]
+    Achieved by aligning witness channels, tube streams, and WAL receipt broadcasts.}%
+  };
+
+\end{tikzpicture}
+
+\vspace{6pt}
+\begin{minipage}{15.5cm}
+\caption{Dynamic Epistemic Observation Cones in Big Brother Logic (BBL)~\pdcite{charrier2014bigbrother}. Directed vision cones formalize asymmetric visibility, epistemic shadows, and higher-order knowledge verification ($K_{a_1} K_{a_2} \phi$) in autonomous multi-agent systems.}
+\label{fig:big-brother-logic}
+\end{minipage}
+\end{figure}
+
 \pdmarginpagebreak
 
 \subsection{Game-Theoretic Foundations and Mechanism Design}
@@ -1463,7 +1767,7 @@ Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Lo
 When agents have independent objective functions, coordination cannot assume altruism. Shoham and Leyton-Brown~\pdcite{shoham2009multiagent} systematized the algorithmic and game-theoretic foundations of multi-agent systems.
 
 \subsubsection{Social Choice Impossibilities: From Municipal Voting to Merge Queues}
-Arrow's Impossibility Theorem (1951) and the Gibbard--Satterthwaite Theorem (1973/1975) establish that in ordinal voting environments with three or more alternatives, every strategy-proof (dominant-strategy incentive compatible) social choice rule is necessarily a dictatorship. Consequently, in multi-agent engineering swarms without monetary transfers, strategic manipulation of priority rankings is mathematically unavoidable.
+Arrow's Impossibility Theorem~\pdcite{arrow1951social} and the Gibbard--Satterthwaite Theorem~\pdcite{gibbard1973manipulation,satterthwaite1975strategy} establish that in ordinal voting environments with three or more alternatives, every strategy-proof (dominant-strategy incentive compatible) social choice rule is necessarily a dictatorship. Consequently, in multi-agent engineering swarms without monetary transfers, strategic manipulation of priority rankings is mathematically unavoidable.
 
 To ground this impossibility in software engineering practice, consider three autonomous coding agents executing concurrently across an enterprise monorepo:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
@@ -1520,20 +1824,20 @@ As Figure~\ref{fig:arrows-theorem} and Table~\ref{tab:arrows-comparison} demonst
 The Operating Kernel resolves this impossibility not by tuning the voting algorithm, but by \textbf{rejecting social choice voting entirely}. The kernel evaluates candidate state transitions through deterministic attestation gates ($\mathcal{V}(s, a) = \mathtt{PASS}$), AST symbol/region lease checks, and single-writer write-ahead ledger (WAL) linear commitment. When priorities conflict, order is established by monotonic dependency DAG topology and priority-fee staking (Chapter 6), never subjective agent consensus.
 
 \subsubsection{The VCG Mechanism and Dominant-Strategy Incentive Compatibility}
-In quasi-linear environments where agents have private valuations $v_i(o, \theta_i)$ and make monetary transfers $p_i$, the \textbf{Vickrey--Clarke--Groves (VCG)} mechanism aligns private incentives with global social welfare $W(o) = \sum_{i} v_i(o, \theta_i)$.
+In quasi-linear environments where agents have private valuations $v_i(o, \theta_i)$ and make monetary transfers $p_i$, the \textbf{Vickrey--Clarke--Groves (VCG)} mechanism~\pdcite{vickrey1961counterspeculation,clarke1971multipart,groves1973incentives} aligns private incentives with global social welfare $W(o) = \sum_{i} v_i(o, \theta_i)$.
 
 Under VCG, the mechanism determines the socially optimal outcome:
 \begin{equation}
 o^* \;=\; \arg\max_{o \in O} \sum_{j} v_j(o, \hat{\theta}_j)
 \end{equation}
-and charges each agent $i$ its Clarke pivot payment:
+and charges each agent $i$ its Clarke pivot payment~\pdcite{clarke1971multipart}:
 \begin{equation}
 p_i(\hat{\theta}) \;=\; \max_{o \in O} \sum_{j \neq i} v_j(o, \hat{\theta}_j) \;-\; \sum_{j \neq i} v_j(o^*, \hat{\theta}_j)
 \end{equation}
 The Clarke payment equals the exact negative externality agent $i$'s presence imposes on all other participants. Under VCG, truth-telling ($\hat{\theta}_i = \theta_i$) is a strictly dominant strategy (DSIC).
 
 \subsubsection{The Myerson--Satterthwaite Boundary}
-The Myerson--Satterthwaite Theorem (1983) proves that no bilateral trade mechanism can simultaneously achieve: (1)~Dominant-strategy incentive compatibility; (2)~Ex-post Pareto efficiency; (3)~Individual rationality; and (4)~Budget balance without an external subsidy. In local agent economies (Chapter 6), resource clearing must explicitly trade off budget balance against exact allocative efficiency.
+The Myerson--Satterthwaite Theorem~\pdcite{myerson1983efficient} proves that no bilateral trade mechanism can simultaneously achieve: (1)~Dominant-strategy incentive compatibility; (2)~Ex-post Pareto efficiency; (3)~Individual rationality; and (4)~Budget balance without an external subsidy. In local agent economies (Chapter 6), resource clearing must explicitly trade off budget balance against exact allocative efficiency.
 
 \pdmarginpagebreak
 
@@ -1662,6 +1966,7 @@ The Model Context Protocol (MCP) standardizes agent-to-tool communication using 
 A critical architectural challenge in agent design is \emph{context bloat}. Injecting complete documentation, code examples, and reference manuals for hundreds of specialized tools into the agent's system prompt exhausts context limits and induces severe attention dilution~\cite{liu2024lost}. If an agent repository maintains 500 specialized domain skills, each averaging 10,000 tokens of documentation, monolithic injection would require $5{,}000{,}000$ tokens per inference turn---exceeding the physical memory capacity of frontier models and incurring catastrophic monetary and latency costs.
 
 Modern agent harnesses resolve this dilemma via \textbf{Three-Tier Progressive Disclosure} (Figure~\ref{fig:progressive-skills-iceberg}):
+\pdmarginanalogy{prereq-measuring-spoons}{}{ch02-nested-measuring-spoons}{Like a set of nested measuring spoons where each measure fits inside the next, tiered skill disclosure exposes lightweight surface descriptors first, expanding to full instructions and deep execution scripts only when demanded by task scope.}%
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
   \item \textbf{Tier 1 (Surface Frontmatter Index):} The system prompt contains only lightweight index entries: the skill's unique identifier and a concise 1-to-2 sentence description ($10^1$--$10^2$ tokens per skill). Across a library of 500 skills, this consumes a static footprint of $\approx 15{,}000$ tokens ($\approx 7.5\%$ of a 200k context window). Because Tier~1 is static across all turns, modern inference providers cache this prompt prefix in HBM, reducing input costs by up to $90\%$. The probability of inclusion in the prompt is $P = 1.0$.
   \item \textbf{Tier 2 (On-Demand Instruction Activation):} When the agent's semantic classifier or planning policy determines that a task requires a specific capability, it invokes a read tool to load the corresponding \path{SKILL.md} into its working context ($10^3$--$10^4$ tokens). Tier~2 contains operational instructions, parameter constraints, decision tables, and error recovery protocols. Its activation probability is conditionally sparse ($P \approx 10^{-1}$), loaded only for the duration of the subtask and purged or compacted when the goal is achieved.

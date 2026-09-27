@@ -56,6 +56,13 @@ for twin_path in twin_paths:
     if r"\input{figures/pd-figure-language-swiss}" not in twin_text:
         twin_text = twin_text.replace(preamble_target, preamble_replacement, 1)
 
+    if r"\providecommand{\pdgrotesk}" not in twin_text:
+        twin_text = twin_text.replace(
+            r"\providecommand{\pdmarginfigure}[2]{}",
+            r"\providecommand{\pdgrotesk}{\sffamily}" + "\n" + r"\providecommand{\centernot}[1]{\mathrel{\ooalign{$#1$\cr\hfil$/$\hfil}}}" + "\n" + r"\providecommand{\pdmarginfigure}[2]{}",
+            1
+        )
+
     if r"\providecommand{\pdmarginanalogy}" not in twin_text:
         twin_text = twin_text.replace(
             r"\providecommand{\pdmarginfigure}[2]{}",
