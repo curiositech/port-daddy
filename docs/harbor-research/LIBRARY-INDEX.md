@@ -26,8 +26,20 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 - [CR -- Consistency radius of the completion residual (CR-1/2/3)](#cr)
 - [B6 -- The probation cliff (front-loaded newcomer restriction)](#b6)
 - [prop:claim-signaling-ic -- Claim-signaling incentive compatibility (mechanized discount-factor thresholds)](#propclaim-signaling-ic)
-- [lem:chain -- Fundamental simplicial identity](#lemchain)
-- [def:cellular-sheaf -- Cellular sheaf on a simplicial complex](#defcellular-sheaf)
+- [lem:chain -- Sheaf cochain identity](#lemchain)
+- [def:cellular-sheaf -- Typed evidence cochain complex](#defcellular-sheaf)
+- [def:compatible-report -- Compatible edge differences](#defcompatible-report)
+- [thm:typed-hodge -- Typed local and global obstruction channels](#thmtyped-hodge)
+- [thm:face-invariance -- Face attachment and information boundary](#thmface-invariance)
+- [thm:sheaf-edge-distance -- Typed sheaf report-error distance](#thmsheaf-edge-distance)
+- [thm:relative-extension -- Relative extension criterion](#thmrelative-extension)
+- [thm:cycle-test -- Exact cycle test](#thmcycle-test)
+- [thm:compatibility-limits -- Information limits of compatibility](#thmcompatibility-limits)
+- [thm:duplicate-dominance -- Duplicate-claim dominance](#thmduplicate-dominance)
+- [thm:failure-identifiability -- Conditional failure-mode identifiability](#thmfailure-identifiability)
+- [thm:edge-monotonicity -- Redundant-observation monotonicity](#thmedge-monotonicity)
+- [thm:three-edge-identifiability -- Three-edge-connectivity criterion](#thmthree-edge-identifiability)
+- [thm:sparse-cut-identifiability -- Sparse report-error identifiability](#thmsparse-cut-identifiability)
 
 ## R1 -- Read-poverty and the information floor
 <a id="r1"></a>
@@ -456,31 +468,221 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 |---|---|---|
 | delta_star | 0.3425080314 | verified |
 
-## lem:chain -- Fundamental simplicial identity
+## lem:chain -- Sheaf cochain identity
 <a id="lemchain"></a>
 
 **Kind:** lemma  **Status:** standalone-only
 
-> The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.
+> Composition-compatible vertex-to-edge and edge-to-face restrictions make the first coboundary annihilate the zeroth.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
-| Standalone paper | `docs/harbor-research/tex/paper8.tex` | lem:chain | Standard simplicial-cochain identity recalled and proved in paper8, lem:chain. |
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | lem:chain | Section 2 (sec:typed-sheaf): typed boundary-of-a-boundary identity. |
 | Chapters | *(not yet folded)* | | |
 
 **Site:** `/research/paper8.pdf`
 
-## def:cellular-sheaf -- Cellular sheaf on a simplicial complex
+## def:cellular-sheaf -- Typed evidence cochain complex
 <a id="defcellular-sheaf"></a>
 
 **Kind:** definition  **Status:** standalone-only
 
-> A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.
+> A finite two-complex carries typed vertex, edge, and face stalks with explicit incidence maps whose coboundaries obey d1 d0 = 0.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
-| Standalone paper | `docs/harbor-research/tex/paper8.tex` | def:cellular-sheaf | Standard cellular-sheaf definition in sec:rosetta, attributed to Curry; not a novel result of the Harbor program. |
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | def:cellular-sheaf | Section 2 (sec:typed-sheaf): typed stalks, incidence maps, and observation contract. |
 | Chapters | *(not yet folded)* | | |
+
+**Site:** `/research/paper8.pdf`
+
+## def:compatible-report -- Compatible edge differences
+<a id="defcompatible-report"></a>
+
+**Kind:** definition  **Status:** standalone-only
+
+> A complete same-feature observation is compatible when a single integer value at each node explains every edge difference.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | def:compatible-report | Section 2 (sec:model) |
+| Chapters | *(not yet folded)* | | |
+
+**Site:** `/research/paper8.pdf`
+
+## thm:typed-hodge -- Typed local and global obstruction channels
+<a id="thmtyped-hodge"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> The sheaf edge cochain splits orthogonally into exact, face-coexact, and harmonic parts; the latter two give the completion residual and distinguish a face violation from a closed nonexact H1 class.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:typed-hodge | Section 2 (sec:typed-sheaf): cellular-sheaf Hodge audit channels. |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_2complex_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:face-invariance -- Face attachment and information boundary
+<a id="thmface-invariance"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Changing compatible face maps can move an edge obstruction between coexact and harmonic channels but cannot change edge-completion detection without new observations.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:face-invariance | Section 2 (sec:typed-fixture): exact two-face comparison. |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_2complex_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:sheaf-edge-distance -- Typed sheaf report-error distance
+<a id="thmsheaf-edge-distance"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> The minimum edge-group support of a nonzero compatible sheaf report sets exact thresholds dF>k for detecting every k-edge fault and dF>2k for unique recovery, with restricted-projection stability.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:sheaf-edge-distance | Section 2 (sec:sheaf-distance): edge-group distance and robustness. |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_2complex_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:relative-extension -- Relative extension criterion
+<a id="thmrelative-extension"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> A visible compatible section extends over the declared hidden complex exactly when its relative connecting cohomology class vanishes.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:relative-extension | Section 2 (sec:relative): connecting class and typed visibility fixture. |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_2complex_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:cycle-test -- Exact cycle test
+<a id="thmcycle-test"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Graph-cycle sums, integer spanning-forest propagation, and zero completion residual are equivalent tests of edge-difference compatibility.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:cycle-test | Section 2 (sec:model) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:compatibility-limits -- Information limits of compatibility
+<a id="thmcompatibility-limits"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Forests, gradient-shaped errors, and jointly false reports can have zero completion residual.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:compatibility-limits | Section 3 (sec:limits) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:duplicate-dominance -- Duplicate-claim dominance
+<a id="thmduplicate-dominance"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> When all endpoint claims are visible, every positive cycle residual implies a repeated-node claim mismatch.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:duplicate-dominance | Section 4 (sec:baseline) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:failure-identifiability -- Conditional failure-mode identifiability
+<a id="thmfailure-identifiability"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> A finite predeclared fault library is identifiable from projected reports exactly when its residual signatures have a positive pairwise separation margin; bounded projected noise below half that margin preserves nearest-signature classification.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:failure-identifiability | Section 5 (sec:identifiability) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:edge-monotonicity -- Redundant-observation monotonicity
+<a id="thmedge-monotonicity"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Adding an independently observed edge cannot reduce pairwise residual-signature distance for a fixed fault library and unweighted Euclidean objective.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:edge-monotonicity | Section 5 (sec:identifiability) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:three-edge-identifiability -- Three-edge-connectivity criterion
+<a id="thmthree-edge-identifiability"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Signed unit single-edge report faults have distinct cycle projections exactly when the observation graph is three-edge-connected.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:three-edge-identifiability | Section 5 (sec:identifiability) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
+
+**Site:** `/research/paper8.pdf`
+
+## thm:sparse-cut-identifiability -- Sparse report-error identifiability
+<a id="thmsparse-cut-identifiability"></a>
+
+**Kind:** theorem  **Status:** standalone-only
+
+> Every arbitrary-amplitude k-sparse edge-report error has a distinct cycle projection exactly when the observation graph minimum cut exceeds 2k; a restricted singular value bounds noise sensitivity.
+
+| Location | File | Labels | Sections |
+|---|---|---|---|
+| Standalone paper | `docs/harbor-research/tex/paper8.tex` | thm:sparse-cut-identifiability | Section 5 (sec:identifiability) |
+| Chapters | *(not yet folded)* | | |
+
+**Scripts:** `scripts/sheaf_observability_study.py`
 
 **Site:** `/research/paper8.pdf`
 

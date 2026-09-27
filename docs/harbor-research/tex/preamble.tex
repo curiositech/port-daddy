@@ -16,7 +16,7 @@
   \pgfplotsset{compat=1.18}%
 }{}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
-% --- SWISS MODERN SYSTEMS GRAPHICS PALETTE ---
+% --- SYSTEM ARCHITECTURE COLOR PALETTE ---
 \definecolor{ptRed}{HTML}{B52227}
 \definecolor{ptBlue}{HTML}{274975}
 \definecolor{ptDark}{HTML}{1A1A1A}
@@ -42,10 +42,10 @@
 \setlist{itemsep=1pt,topsep=2pt}
 
 % Shared native-figure styles for the harbor-research corpus (relation-maps,
-% regime diagrams, and data plots). Vector TikZ/pgfplots only -- see
-% docs/harbor-research/figures/CONVENTION.md for the house rule this follows.
+% regime diagrams, and data plots). Vector TikZ/pgfplots only.
 \tikzset{
-  swissgrid/.style={step=0.25cm, draw=ptGrid, line width=0.35pt},
+  canvasgrid/.style={step=0.25cm, draw=ptGrid, line width=0.35pt},
+  swissgrid/.style={canvasgrid},
   majorgrid/.style={step=1.00cm, draw=ptGrid!75!black, line width=0.55pt},
   snode/.style={rectangle, draw=ptDark, line width=1pt, fill=white, inner sep=4pt, minimum height=0.65cm, font=\sffamily\bfseries\scriptsize, align=center},
   darknode/.style={snode, fill=ptDark, text=white, font=\sffamily\bfseries\scriptsize\color{white}},
