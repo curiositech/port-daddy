@@ -1,0 +1,27 @@
+digraph Recovery {
+  graph [rankdir=TB, bgcolor="#ffffff", pad="0.22", nodesep="0.32", ranksep="0.40", splines=polyline, outputorder=edgesfirst, fontname="Arial", fontsize=16, labelloc=t, label="Timeout leaves the external effect unknown", labeljust=l];
+  node [shape=box, style="rounded,filled", color="#52677b", fillcolor="#f4f7fa", fontname="Arial", fontsize=14, margin="0.19,0.13", penwidth=1.3];
+  edge [color="#536779", fontname="Arial", fontsize=11, fontcolor="#33485c", penwidth=1.35, arrowsize=0.8];
+  start [shape=circle, label="", width=0.18, height=0.18, fixedsize=true, style=filled, fillcolor="#52677b"];
+  intent [label="Authorized intent\nCurrent scoped grant +\nstable effect ID", fillcolor="#e9f1f7"];
+  flight [label="Request in flight\nExternal action may commit", fillcolor="#edf5f1", color="#547966"];
+  unknown [label="UNKNOWN\nTimeout or lost response\nNo retry yet", fillcolor="#fff4df", color="#a57835", penwidth=2.0];
+  reconcile [label="Reconcile first\nRead authoritative receipt\nand external state", fillcolor="#f0edf6", color="#746283"];
+  applied [label="Effect confirmed applied\nRecord receipt; complete", fillcolor="#eaf4ee", color="#4e795e"];
+  absent [label="Effect proven absent\nCheck current authorization", fillcolor="#edf5f1", color="#547966"];
+  retry [label="Retry with the same\nidempotency key", fillcolor="#e9f1f7"];
+  hold [label="Hold / adjudicate\nEvidence conflicts or cannot\nresolve external state", fillcolor="#faeeee", color="#925b61"];
+  successor [label="Successor may continue only\nafter re-grounding and a fresh,\nnarrow authorization", fillcolor="#f4eff5", color="#765f79"];
+  start -> intent;
+  intent -> flight [label="dispatch"];
+  flight -> applied [label="success receipt"];
+  flight -> unknown [label="timeout / reply lost"];
+  unknown -> reconcile [label="query receipt / state"];
+  reconcile -> applied [label="applied"];
+  reconcile -> absent [label="proven absent"];
+  reconcile -> hold [label="conflict / unavailable"];
+  absent -> retry [label="grant still valid"];
+  retry -> flight [label="same effect ID"];
+  absent -> successor [label="grant expired, revoked,\nor actor unavailable"];
+  successor -> retry [label="fresh scoped grant"];
+}

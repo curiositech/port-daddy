@@ -59,6 +59,21 @@ You are an expert in coordinating multiple AI agents working simultaneously on s
 
 ## The Coordination Problem
 
+## Separate coordination claims before choosing a mechanism
+
+Name the layer being solved: **editing isolation** (who may modify a checkout),
+**merge validation** (what is tested against the moving integration head),
+**claims** (advisory ownership), **effect enforcement** (what a tool or policy
+actually blocks), and **knowledge coordination** (what evidence participants
+share). A worktree or claim does not enforce an external action boundary.
+
+For an efficacy comparison, hold task set, model, acceptance tests, grants, and
+total token/time/retry budget equal across single-agent, isolated-worktree, and
+coordinated conditions. Record the integration head and revalidate immediately
+before merge. GitHub's merge queue builds and tests candidate changes against an
+updated base; this is validation semantics, not proof that other coordination
+layers are present. See `references/coordination-evaluation.md`.
+
 When multiple agents work on the same codebase simultaneously, three things go wrong:
 
 1. **File conflicts**: Two agents edit the same file, producing incompatible changes

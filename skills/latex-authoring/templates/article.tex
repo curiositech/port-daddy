@@ -1,0 +1,58 @@
+% Modern article template — compiles standalone with: latexmk -pdf -outdir=build article.tex
+\documentclass[11pt]{article}
+
+% --- encoding & typography ---------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+
+% --- math ---------------------------------------------------------------------
+\usepackage{mathtools}         % includes amsmath
+\usepackage{amssymb, amsthm}
+\usepackage{bm}
+\newcommand{\R}{\mathbb{R}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+% --- tables, units, figures ---------------------------------------------------
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+% --- bibliography ---------------------------------------------------------------
+\usepackage[backend=biber, style=numeric-comp]{biblatex}
+\addbibresource{refs.bib}
+
+% --- links & cross-references (keep last) --------------------------------------
+\usepackage{xcolor}   % needed for the mixed link colors below
+\usepackage[colorlinks=true, linkcolor=blue!60!black, citecolor=blue!60!black]{hyperref}
+\usepackage[capitalise]{cleveref}
+
+\title{Title}
+\author{Author}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Abstract text.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Body text with a citation~\autocite{knuth1984literate} and an equation:
+\begin{equation}\label{eq:main}
+  \argmin_{x \in \R^n} \; \norm{Ax - b}_2^2 + \lambda \norm{x}_1 .
+\end{equation}
+\Cref{eq:main} is referenced with cleveref.
+
+\printbibliography[heading=bibintoc]
+\end{document}

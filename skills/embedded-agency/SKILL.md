@@ -148,9 +148,9 @@ IF system achieving goals unexpectedly
 
 ## Reference Files
 
-- `diagrams/01_flowchart_goodhart's_law_progression:_op.md` — Mermaid flowchart mapping optimization pressure (low/moderate/high/extreme) to Goodhart failure modes. **Read when** designing proxy metrics or diagnosing why a system's alignment breaks under scaling.
+- `diagrams/01_flowchart_goodhart's_law_progression-_op.md` — Mermaid flowchart mapping optimization pressure (low/moderate/high/extreme) to Goodhart failure modes. **Read when** designing proxy metrics or diagnosing why a system's alignment breaks under scaling.
 
-- `diagrams/02_mindmap_dualistic_vs._embedded_agency:.md` — Mind map contrasting dualistic (clean agent/environment boundary) vs. embedded (agent inside environment) agency assumptions. **Read when** deciding which decision-theoretic framework applies to your system.
+- `diagrams/02_mindmap_dualistic_vs._embedded_agency-.md` — Mind map contrasting dualistic (clean agent/environment boundary) vs. embedded (agent inside environment) agency assumptions. **Read when** deciding which decision-theoretic framework applies to your system.
 
 - `diagrams/03_stateDiagram-v2_embedded_agent_alignment_failu.md` — State diagram showing alignment failure cascade: specification gap → subsystem optimization → mesa-optimizer → goal divergence. **Read when** tracing how a system transitions from aligned to misaligned behavior.
 

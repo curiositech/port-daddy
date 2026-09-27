@@ -1,0 +1,76 @@
+{
+  "store": {
+    "name": "Cinder & Pine",
+    "url": "https://cinderandpine.example.com",
+    "currency": "usd",
+    "brand": "Cinder & Pine",
+    "contact_email": "hello@cinderandpine.example.com",
+    "ships_from_country": "US"
+  },
+  "products": [
+    {
+      "sku": "CNDL-LAV",
+      "name": "Lavender Field Candle",
+      "slug": "lavender-field-candle",
+      "description": "Hand-poured soy candle with French lavender and a touch of cedar. Burns about 45 hours. We pour these in small batches on Tuesdays, so the scent is strong enough that the box smells like the candle.",
+      "price_cents": 2400,
+      "kind": "physical",
+      "category": "Candles",
+      "images": ["images/products/lavender-field-1.jpg", "images/products/lavender-field-2.jpg"],
+      "weight_grams": 340,
+      "gtin": "",
+      "inventory": { "track": true, "quantity": 18, "low_stock_threshold": 4 },
+      "variants": [
+        { "sku": "CNDL-LAV-8OZ", "options": { "size": "8 oz" }, "price_cents": 2400, "inventory": { "track": true, "quantity": 12 } },
+        { "sku": "CNDL-LAV-14OZ", "options": { "size": "14 oz" }, "price_cents": 3800, "inventory": { "track": true, "quantity": 6 } }
+      ],
+      "channels": {
+        "web": true,
+        "stripe": { "enabled": true },
+        "google_feed": true,
+        "etsy": { "enabled": true }
+      },
+      "seo": {
+        "title": "Lavender Field Soy Candle — Hand-Poured, 45hr Burn",
+        "description": "Small-batch soy candle with French lavender and cedar. Poured by hand in Oregon."
+      },
+      "active": true
+    },
+    {
+      "sku": "PRNT-COAST-A3",
+      "name": "Oregon Coast Print (A3)",
+      "slug": "oregon-coast-print-a3",
+      "description": "Giclée print of an original gouache painting of Cannon Beach at low tide. A3 on 240gsm archival matte. Ships flat between foam boards because tubes dent corners and we got tired of reprinting.",
+      "price_cents": 4500,
+      "compare_at_cents": 5500,
+      "kind": "physical",
+      "category": "Prints",
+      "images": ["images/products/coast-print-1.jpg"],
+      "weight_grams": 120,
+      "inventory": { "track": true, "quantity": 30 },
+      "channels": {
+        "web": true,
+        "stripe": { "enabled": true },
+        "google_feed": true
+      },
+      "active": true
+    },
+    {
+      "sku": "DL-GUIDE-CANDLE",
+      "name": "Candle-Making Starter Guide (PDF)",
+      "slug": "candle-making-starter-guide",
+      "description": "The 38-page guide we wish existed when we started: wax choices, wick sizing math, fragrance load limits, and the six batches you should expect to ruin.",
+      "price_cents": 1200,
+      "kind": "digital",
+      "category": "Guides",
+      "images": ["images/products/guide-cover.jpg"],
+      "inventory": { "track": false },
+      "channels": {
+        "web": true,
+        "stripe": { "enabled": true },
+        "google_feed": false
+      },
+      "active": true
+    }
+  ]
+}

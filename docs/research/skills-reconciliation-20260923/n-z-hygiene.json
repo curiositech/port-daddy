@@ -1,0 +1,4669 @@
+[
+  {
+    "name": "nano-banana-image-gen",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nano-banana-image-gen",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "nasa-2017-systems-engineering-handbook",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nasa-2017-systems-engineering-handbook",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "national-expungement-expert",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/national-expungement-expert",
+    "orphans": [
+      "references/state-eligibility-matrix.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "native-app-designer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/native-app-designer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "naturalistic-decision-making",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/naturalistic-decision-making",
+    "orphans": [
+      "diagrams/01_flowchart_recognition-primed_decision_(r.md",
+      "diagrams/02_stateDiagram-v2_pattern_schema_states_and_tran.md",
+      "diagrams/03_quadrantChart_decision_approach_selection_ma.md",
+      "references/decision-quality-vs-decision-speed-fire-grows-exponentially.md",
+      "references/experience-accumulation-expert-knowledge-architecture.md",
+      "references/mental-simulation-evaluation-without-comparison.md",
+      "references/pattern-matching-as-primary-decision-mechanism.md",
+      "references/situation-assessment-as-primary-cognitive-work.md",
+      "references/team-coordination-without-central-control.md",
+      "references/training-for-decision-requirements-not-procedures.md",
+      "references/why-formal-decision-tools-fail-in-practice.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_recognition-primed_decision_(r.md",
+          "02_stateDiagram-v2_pattern_schema_states_and_tran.md",
+          "03_quadrantChart_decision_approach_selection_ma.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "naturalistic-insight",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/naturalistic-insight",
+    "orphans": [
+      "diagrams/01_flowchart_naturalistic_insight_decision_.md",
+      "diagrams/02_stateDiagram-v2_insight_pathway_activation_&_a.md",
+      "diagrams/03_quadrantChart_insight_mechanism_selection_ma.md",
+      "references/contradiction-driven-insight-pathways.md",
+      "references/expertise-enables-insight-not-fixation.md",
+      "references/gradual-insight-and-pattern-accumulation.md",
+      "references/organizational-barriers-to-insight.md",
+      "references/task-decomposition-for-insight-vs-execution.md",
+      "references/three-pathways-anchor-model.md",
+      "references/when-error-prevention-blocks-insight.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_naturalistic_insight_decision_.md",
+          "02_stateDiagram-v2_insight_pathway_activation_&_a.md",
+          "03_quadrantChart_insight_mechanism_selection_ma.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "nau-au-kuter-2003-shop2",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nau-au-kuter-2003-shop2",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_htn_planning_decision_framewor.md",
+          "02_mindmap_htn_planning_core_mental_model.md",
+          "03_stateDiagram-v2_agent_task_decomposition_state.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "ndm-decision-models",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ndm-decision-models",
+    "orphans": [
+      "references/decision-support-for-recognition-not-analysis.md",
+      "references/decision-support-systems-for-recognition-not-analysis.md",
+      "references/expertise-as-pattern-recognition-not-analysis.md",
+      "references/expertise-as-pattern-recognition-not-rules.md",
+      "references/failure-modes-in-agent-decision-systems.md",
+      "references/failure-modes-of-analytical-frameworks-in-operational-systems.md",
+      "references/mental-simulation-as-evaluation-method.md",
+      "references/naturalistic-versus-laboratory-thinking.md",
+      "references/recognition-primed-decision-architecture.md",
+      "references/rpd-recognition-primed-decisions-for-agents.md",
+      "references/satisficing-over-optimizing-in-complex-domains.md",
+      "references/situation-assessment-as-primary-cognitive-work.md",
+      "references/situation-assessment-primacy.md",
+      "references/the-cognitive-continuum-and-strategy-selection.md",
+      "references/the-gap-between-laboratory-and-field-decision-making.md",
+      "references/when-analytical-decision-tools-fail.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "ndm-law-enforcement",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ndm-law-enforcement",
+    "orphans": [
+      "references/decisions-about-behavior-the-hardest-domain.md",
+      "references/expert-novice-gap-in-situation-assessment.md",
+      "references/expert-vs-novice-decision-signatures.md",
+      "references/failure-modes-in-high-stakes-dynamic-systems.md",
+      "references/failure-modes-plan-fixation-and-update-failure.md",
+      "references/recognition-primed-decision-making-for-agents.md",
+      "references/recognition-primed-decision-making.md",
+      "references/satisficing-and-the-quick-test.md",
+      "references/situation-assessment-as-the-critical-skill.md",
+      "references/situation-awareness-decomposition-and-coordination.md",
+      "references/tacit-knowledge-elicitation-and-the-cdm.md",
+      "references/tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "references/ten-characteristics-of-naturalistic-decision-environments.md",
+      "references/the-three-pronged-framework-observation-interview-training.md",
+      "references/training-for-expertise-deliberate-practice-and-the-experience-bank.md",
+      "references/uncertainty-acceptance-and-information-seeking.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "neobrutalist-web-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/neobrutalist-web-designer",
+    "orphans": [
+      "references/component-library.md",
+      "references/design-gallery-sources.md",
+      "references/real-world-examples.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "neumorphic-web-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/neumorphic-web-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "next-move",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/next-move",
+    "orphans": [
+      "examples/03-halt-gate-tripped.md"
+    ],
+    "drift": [
+      {
+        "index": "examples/INDEX.md",
+        "missing_from_index": [
+          "03-halt-gate-tripped.md"
+        ]
+      },
+      {
+        "index": "examples/INDEX.md",
+        "ghost_entries": [
+          "03-iterative-drafting-workflow.md",
+          "04-halt-gate-tripped.md",
+          "05-topology-mismatch-conversation.md"
+        ]
+      },
+      {
+        "index": "templates/INDEX.md",
+        "ghost_entries": [
+          "triple.template.json"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "prompts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "next-move-customer-persona",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/next-move-customer-persona",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "next-move-marketing",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/next-move-marketing",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "nextjs-app-router-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nextjs-app-router-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "nisan-et-al-2007-algorithmic-game-theory",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nisan-et-al-2007-algorithmic-game-theory",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "node-memory-leak-hunting",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/node-memory-leak-hunting",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "normative-bdi-agent-architecture",
+    "exitCode": 2,
+    "parseError": true,
+    "stdout": "",
+    "stderr": "ERROR: no SKILL.md at /Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/normative-bdi-agent-architecture\n"
+  },
+  {
+    "name": "normative-bdi-agents",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/normative-bdi-agents",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "nygard-2018-release-it-2nd-edition",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/nygard-2018-release-it-2nd-edition",
+    "orphans": [
+      "diagrams/01_flowchart_failure_propagation_decision_t.md",
+      "diagrams/02_sequenceDiagram_cascading_failure_propagation_.md",
+      "diagrams/03_stateDiagram-v2_circuit_breaker_state_machine_.md",
+      "references/observability-feedback-loops.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_failure_propagation_decision_t.md",
+          "02_sequenceDiagram_cascading_failure_propagation_.md",
+          "03_stateDiagram-v2_circuit_breaker_state_machine_.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "oauth-oidc-implementer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/oauth-oidc-implementer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "oauth2-and-oidc-from-scratch",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/oauth2-and-oidc-from-scratch",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "observability-absences-audit",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/observability-absences-audit",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "observability-apm-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/observability-apm-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "olog-construction",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/olog-construction",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "ongaro-ousterhout-2014-raft",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ongaro-ousterhout-2014-raft",
+    "orphans": [
+      "diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md",
+      "diagrams/03_mindmap_decomposition_hierarchy:_raft'.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "02_sequenceDiagram_log_replication_protocol:_happ.md",
+          "03_mindmap_decomposition_hierarchy:_raft'.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "openai-docs",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/openai-docs",
+    "orphans": [
+      "agents/openai.yaml",
+      "references/upgrade-guide.md",
+      "scripts/fetch-codex-manual.mjs"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "assets",
+      "references",
+      "scripts"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "openapi-spec-writer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/openapi-spec-writer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "opentelemetry-instrumentation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/opentelemetry-instrumentation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "operad-task-decomposition",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/operad-task-decomposition",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "operator-surface-authority-designer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/operator-surface-authority-designer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "orchestrator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/orchestrator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "ostrom-commons-governance",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ostrom-commons-governance",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "outbox-pattern-implementation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/outbox-pattern-implementation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "output-contract-enforcer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/output-contract-enforcer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "panic-room-finder",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/panic-room-finder",
+    "orphans": [
+      "references/measurement-templates.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "park-2023-generative-agents",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/park-2023-generative-agents",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_agent_coherence_decision_tree.md",
+          "02_stateDiagram-v2_agent_behavior_loop:_memory-re.md",
+          "03_timeline_multi-timescale_planning_decom.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "partner-text-coach",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/partner-text-coach",
+    "orphans": [
+      "references/attachment-styles.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "pd-relay-zero-trust",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pd-relay-zero-trust",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "performance-profiler",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/performance-profiler",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "performance-profiling",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/performance-profiling",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "personal-finance-coach",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/personal-finance-coach",
+    "orphans": [
+      "references/investment-theory.md",
+      "references/tax-optimization.md",
+      "references/withdrawal-math.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "pet-memorial-creator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pet-memorial-creator",
+    "orphans": [
+      "references/memorial-project-ideas.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "photo-composition-critic",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/photo-composition-critic",
+    "orphans": [
+      "references/analysis-scripts.md",
+      "references/color-theory.md",
+      "references/composition-theory.md",
+      "references/ml-models.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "photo-content-recognition-curation-expert",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/photo-content-recognition-curation-expert",
+    "orphans": [
+      "references/content-detection.md",
+      "references/face-clustering.md",
+      "references/perceptual-hashing.md",
+      "references/photo-indexing.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "physics-rendering-expert",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/physics-rendering-expert",
+    "orphans": [
+      "references/core-algorithms.md",
+      "references/implementations.md",
+      "references/tangle-physics.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "pixel-art-infographic-creator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pixel-art-infographic-creator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "pixel-art-scaler",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pixel-art-scaler",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "playwright-e2e-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/playwright-e2e-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "playwright-e2e-tester",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/playwright-e2e-tester",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "playwright-screenshot-inspector",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/playwright-screenshot-inspector",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "plugin-creator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/plugin-creator",
+    "orphans": [
+      "agents/openai.yaml",
+      "scripts/identifier_validation.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "assets",
+      "scripts"
+    ],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "pnpm-workspace-monorepo",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pnpm-workspace-monorepo",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "political-philosophy-of-computation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/political-philosophy-of-computation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "polya-problem-solving",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/polya-problem-solving",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-agent-skill",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-agent-skill",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-expository-writer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-expository-writer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "agents",
+      "examples",
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-internal-dev",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-internal-dev",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-marketing-copy",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-marketing-copy",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-user-surrogate-pm-review",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-user-surrogate-pm-review",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "port-daddy-users",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/port-daddy-users",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "postgres-connection-pooling",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/postgres-connection-pooling",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "postgres-explain-analyzer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/postgres-explain-analyzer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "postgres-row-level-security",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/postgres-row-level-security",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "postgresql-optimization",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/postgresql-optimization",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "pre-federation-halt-gate",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pre-federation-halt-gate",
+    "orphans": [
+      "agents/default-agent.md",
+      "diagrams/01_flowchart_decision-points.md",
+      "examples/01_worked_example.md",
+      "references/bonds-require-well-defined-problems.md",
+      "references/halt-gate-implementation.md",
+      "references/polya-principal-parts.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "premium-deck-builder",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/premium-deck-builder",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "product-announcement-craft",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/product-announcement-craft",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "product-appeal-analyzer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/product-appeal-analyzer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "product-reality-reviewer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/product-reality-reviewer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "product-roadmap-focus",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/product-roadmap-focus",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "productive-discourse-facilitator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/productive-discourse-facilitator",
+    "orphans": [
+      "references/playbooks/couples-early-recovery.md",
+      "references/playbooks/sac.md",
+      "references/theory/dialog-vs-debate.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "progressive-enhancement-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/progressive-enhancement-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "project-management-guru-adhd",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/project-management-guru-adhd",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "prompt-engineer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/prompt-engineer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "prompt-template-manager",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/prompt-template-manager",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "provable-action-adjudicator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/provable-action-adjudicator",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01-claim-ladder.md",
+          "02-pre-effect-sequence.md"
+        ]
+      },
+      {
+        "index": "references/INDEX.md",
+        "missing_from_index": [
+          "benchmark-protocol.md",
+          "claim-ladder-and-threat-model.md",
+          "repository-status.md",
+          "source-ledger.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "proverif-tamarin-protocol-modeling",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/proverif-tamarin-protocol-modeling",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "pwa-expert",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/pwa-expert",
+    "orphans": [
+      "references/background-sync.md",
+      "references/install-prompt.md",
+      "references/nextjs-integration.md",
+      "references/offline-handling.md",
+      "references/service-worker-patterns.md",
+      "references/update-flow.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "python-advanced-patterns",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/python-advanced-patterns",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "python-asyncio-pitfalls",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/python-asyncio-pitfalls",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "qa-automation-specialist",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/qa-automation-specialist",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rag-document-ingestion-pipeline",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rag-document-ingestion-pipeline",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rag-retrieval-pattern-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rag-retrieval-pattern-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "railway-render-deployment",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/railway-render-deployment",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rao-georgeff-1991-modeling-rational-agents-bdi",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rao-georgeff-1991-modeling-rational-agents-bdi",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_stateDiagram-v2_bdi_mental_state_transitions_&.md",
+          "02_flowchart_goal_decomposition_&_side-effe.md",
+          "03_mindmap_bdi_conceptual_hierarchy_&_mod.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_stateDiagram-v2_bdi_agent_decision_cycle:_beli.md",
+          "02_flowchart_plan_selection_pipeline:_from_.md",
+          "03_sequenceDiagram_resource-bounded_rationality:_.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "rapport-based-elicitation",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rapport-based-elicitation",
+    "orphans": [
+      "references/autonomy-preservation-in-elicitation.md",
+      "references/coercion-contaminates-information.md",
+      "references/evidence-based-practice-adoption-barriers.md",
+      "references/gap-between-knowing-and-doing.md",
+      "references/information-extraction-as-indirect-problem.md",
+      "references/mediated-causal-chains-in-agent-design.md",
+      "references/resistance-as-diagnostic-signal.md",
+      "references/three-layers-of-rapport-architecture.md",
+      "references/trust-reciprocity-and-the-cooperative-threshold.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "rapport-intelligence-yield",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rapport-intelligence-yield",
+    "orphans": [
+      "references/attention-as-the-primary-yield-driver.md",
+      "references/coordination-as-structural-intelligence.md",
+      "references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "references/frequency-monitoring-as-quality-control.md",
+      "references/motivation-as-functional-intelligence.md",
+      "references/objective-measurement-vs-subjective-rating.md",
+      "references/rapport-decomposition-and-differential-impact.md",
+      "references/self-report-vs-behavior-gap.md",
+      "references/working-alliance-vs-social-warmth.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "rate-limiting-strategy",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rate-limiting-strategy",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "react-hook-composer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/react-hook-composer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "react-native-architect",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/react-native-architect",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "react-performance-optimizer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/react-performance-optimizer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "react-server-components-boundary",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/react-server-components-boundary",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "react-server-components-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/react-server-components-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "reactflow-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/reactflow-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "reactive-dashboard-performance",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/reactive-dashboard-performance",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "real-time-collaboration-engine",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/real-time-collaboration-engine",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "recovery-app-legal-terms",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-app-legal-terms",
+    "orphans": [
+      "docs/MEDICAL_DISCLAIMER.md",
+      "docs/PRIVACY_POLICY_TEMPLATE.md",
+      "docs/TERMS_OF_SERVICE_TEMPLATE.md",
+      "scripts/compliance_checklist.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "docs"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "recovery-app-onboarding",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-app-onboarding",
+    "orphans": [
+      "assets/example_asset.txt",
+      "references/api_reference.md",
+      "scripts/example.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "recovery-coach-patterns",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-coach-patterns",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "recovery-community-moderator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-community-moderator",
+    "orphans": [
+      "docs/COMMUNITY_STANDARDS.md",
+      "scripts/training_examples.json"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "scripts"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "recovery-courage-companion",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-courage-companion",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "recovery-education-writer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-education-writer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "recovery-social-features",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recovery-social-features",
+    "orphans": [
+      "references/accountability.md",
+      "references/friendships.md",
+      "references/groups.md",
+      "references/messaging.md",
+      "references/moderation.md",
+      "references/sponsor-sponsee.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "recursive-synthesis",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/recursive-synthesis",
+    "orphans": [
+      "references/phase-templates.md",
+      "references/process-design.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "redis-patterns-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/redis-patterns-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "redteam-review",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/redteam-review",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "refactor-architect",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/refactor-architect",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "refactoring-surgeon",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/refactoring-surgeon",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "remote-legal-hiring",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/remote-legal-hiring",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "research-analyst",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/research-analyst",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "research-craft",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/research-craft",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "resilience-wiring-for-load-once-deps",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/resilience-wiring-for-load-once-deps",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "resolution-trace-damping",
+    "exitCode": 2,
+    "parseError": true,
+    "stdout": "",
+    "stderr": "ERROR: no SKILL.md at /Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/resolution-trace-damping\n"
+  },
+  {
+    "name": "resource-bounded-planning",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/resource-bounded-planning",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "responsible-logging",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/responsible-logging",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "responsive-layout-master",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/responsive-layout-master",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rest-api-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rest-api-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "retrofuturism-web-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/retrofuturism-web-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "reverse-proxy-for-agents",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/reverse-proxy-for-agents",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "revisiting-interview-data-analysing-turn",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/revisiting-interview-data-analysing-turn",
+    "orphans": [
+      "references/asymmetry-status-and-the-pre-determined-interaction.md",
+      "references/communicative-breakdown-as-primary-data.md",
+      "references/cultural-context-as-active-analytical-tool.md",
+      "references/layers-of-insight-as-analytical-methodology.md",
+      "references/multi-purpose-data-and-the-ethics-of-inference.md",
+      "references/surface-coding-vs-illocutionary-intent.md",
+      "references/the-methodology-of-revisiting-data.md",
+      "references/the-semi-structured-approach-to-complex-inquiry.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "revisiting-interview-data-turn-taking",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/revisiting-interview-data-turn-taking",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rpd-klein-calderwood",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rpd-klein-calderwood",
+    "orphans": [
+      "references/analytical-prescriptions-vs-recognitional-expertise.md",
+      "references/critical-decision-method-for-knowledge-elicitation.md",
+      "references/distributed-decision-making-without-central-control.md",
+      "references/expertise-gap-cues-vs-inferences.md",
+      "references/failure-modes-in-operational-decision-systems.md",
+      "references/progressive-deepening-mental-simulation-as-evaluation.md",
+      "references/rpd-recognition-primed-decision-model.md",
+      "references/serial-evaluation-and-satisficing-under-time-pressure.md",
+      "references/situation-assessment-as-primary-intelligence.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "rpd-knowledge-elicitation",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rpd-knowledge-elicitation",
+    "orphans": [
+      "references/cdm-methodology-as-agent-design-protocol.md",
+      "references/decision-support-vs-decision-replacement-a-critical-distinction.md",
+      "references/expert-knowledge-structure-layers-and-abstraction.md",
+      "references/failure-modes-in-expert-judgment-and-agent-design.md",
+      "references/recognition-primed-decision-making-core-model.md",
+      "references/situation-assessment-as-primary-cognitive-task.md",
+      "references/tacit-knowledge-elicitation-for-agent-knowledge-bases.md",
+      "references/the-boundary-of-routine-where-expertise-becomes-visible.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "runtime-task-overlap-detector",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/runtime-task-overlap-detector",
+    "orphans": [
+      "diagrams/01_flowchart_decision-points.md",
+      "references/agentbench-overlap-patterns.md",
+      "references/embedding-similarity-approaches.md",
+      "references/entailment-based-detection.md",
+      "references/plan-sketch-hashing.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "runtime-verification-for-agents",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/runtime-verification-for-agents",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-app-distribution",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-app-distribution",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-code-testing",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-code-testing",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-data-structures-advanced",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-data-structures-advanced",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-debugging-mastery",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-debugging-mastery",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-gpui-motion",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-gpui-motion",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-kernel-ffi",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-kernel-ffi",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-performance-and-idioms",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-performance-and-idioms",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-tauri-development",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-tauri-development",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "rust-with-claude-code",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/rust-with-claude-code",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sagas-garcia-molina-salem-1987",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sagas-garcia-molina-salem-1987",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sandbox-sdk",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sandbox-sdk",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sandboxed-adversarial-test-harness",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sandboxed-adversarial-test-harness",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "schema-evolution-manager",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/schema-evolution-manager",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "script-refactorer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/script-refactorer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "secret-management-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/secret-management-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "security-auditor",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/security-auditor",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "self-adaptive-systems",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/self-adaptive-systems",
+    "orphans": [
+      "diagrams/01_flowchart_mape-k_feedback_loop_architect.md",
+      "diagrams/02_stateDiagram-v2_hierarchical_feedback_loop_lay.md",
+      "diagrams/03_quadrantChart_system_adaptation_complexity_v.md",
+      "references/control-theory-for-software.md",
+      "references/formal-adaptation-goals.md",
+      "references/hierarchical-feedback-loops.md",
+      "references/managed-vs-managing-separation.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_mape-k_feedback_loop_architect.md",
+          "02_stateDiagram-v2_hierarchical_feedback_loop_lay.md",
+          "03_quadrantChart_system_adaptation_complexity_v.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "self-monitoring-resource-alarms",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/self-monitoring-resource-alarms",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "semantic-conflict-prediction",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/semantic-conflict-prediction",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "senior-coding-interview",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/senior-coding-interview",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sensemaking-focus-model",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sensemaking-focus-model",
+    "orphans": [
+      "diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+      "diagrams/02_flowchart_decision_framework:_anomaly_de.md",
+      "diagrams/03_mindmap_focus_sensemaking_model:_knowl.md",
+      "references/data-frame-reciprocity-in-agent-systems.md",
+      "references/expert-questioning-strategies.md",
+      "references/fragmentary-mental-models-for-agents.md",
+      "references/frame-elaboration-vs-frame-comparison.md",
+      "references/sensemaking-decision-making-separation.md",
+      "references/sensemaking-triggers-and-anomaly-detection.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_stateDiagram-v2_sensemaking_state_machine:_fra.md",
+          "02_flowchart_decision_framework:_anomaly_de.md",
+          "03_mindmap_focus_sensemaking_model:_knowl.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "seo-content-blogging",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/seo-content-blogging",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "seo-visibility-expert",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/seo-visibility-expert",
+    "orphans": [
+      "references/launch-checklists.md",
+      "references/llms-txt-examples.md",
+      "references/schema-templates.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "server-sent-events-vs-websockets",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/server-sent-events-vs-websockets",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "service-mesh-microservices-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/service-mesh-microservices-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "session-pr-audit",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/session-pr-audit",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "shadowbox-expertise-transfer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/shadowbox-expertise-transfer",
+    "orphans": [
+      "references/calibration-driven-learning-for-agent-systems.md",
+      "references/constraint-as-cognitive-forcing-function.md",
+      "references/expert-consensus-without-ground-truth.md",
+      "references/facilitation-free-scalable-expertise-transfer.md",
+      "references/multi-dimensional-cognitive-assessment.md",
+      "references/progressive-revelation-and-commitment.md",
+      "references/scenario-based-expertise-transfer.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "sheaf-cohomology-multiagent-debug",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sheaf-cohomology-multiagent-debug",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "shoham-leyton-brown-2009-mas-foundations",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/shoham-leyton-brown-2009-mas-foundations",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_multiagent_system_design_decis.md",
+          "02_stateDiagram-v2_information_structure_&_equili.md",
+          "03_quadrantChart_mechanism_design_tradeoff_spac.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "simon-and-newell-human-problem-solving-theory-1971",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/simon-and-newell-human-problem-solving-theory-1971",
+    "orphans": [
+      "diagrams/01_flowchart_problem-solving_diagnosis_&_st.md",
+      "diagrams/02_mindmap_problem_space_construction:_si.md",
+      "diagrams/03_quadrantChart_search_strategy_selection:_wor.md",
+      "references/learning-and-problem-space-construction.md",
+      "references/means-ends-analysis-as-special-case.md",
+      "references/selective-search-as-intelligence.md",
+      "references/serial-processing-constraints-shape-behavior.md",
+      "references/structure-exploitation-over-search-power.md",
+      "references/task-environment-vs-problem-space.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_problem-solving_diagnosis_&_st.md",
+          "02_mindmap_problem_space_construction:_si.md",
+          "03_quadrantChart_search_strategy_selection:_wor.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "site-concierge-bot",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/site-concierge-bot",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "site-reliability-engineer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/site-reliability-engineer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skill-architect",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-architect",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "scripts",
+      "templates"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skill-coach",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-coach",
+    "orphans": [
+      "examples/good/clip-aware-embeddings/SKILL_.md",
+      "examples/good/clip-aware-embeddings/scripts/validate_clip_usage.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "examples"
+    ],
+    "missing_indexes_warning": [
+      "references",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "skill-creator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-creator",
+    "orphans": [
+      "agents/analyzer.md",
+      "agents/comparator.md",
+      "agents/grader.md",
+      "eval-viewer/generate_review.py",
+      "references/description-optimization.md",
+      "references/eval-patterns.md",
+      "references/schemas.md",
+      "references/troubleshooting.md",
+      "scripts/__init__.py",
+      "scripts/aggregate_benchmark.py",
+      "scripts/generate_report.py",
+      "scripts/improve_description.py",
+      "scripts/package_skill.py",
+      "scripts/quick_validate.py",
+      "scripts/run_eval.py",
+      "scripts/run_loop.py",
+      "scripts/utils.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "agents",
+      "eval-viewer",
+      "references",
+      "scripts"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "skill-documentarian",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-documentarian",
+    "orphans": [
+      "guides/ARTIFACT_PRESERVATION.md",
+      "guides/ARTIFACT_QUICKREF.md",
+      "references/artifact-structure.md",
+      "references/badge-metadata-management.md",
+      "references/documentation-templates.md",
+      "scripts/validate-skills-sync.sh"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "guides",
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "skill-grader",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-grader",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skill-hygiene",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-hygiene",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skill-installer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-installer",
+    "orphans": [
+      "agents/openai.yaml",
+      "scripts/github_utils.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "assets",
+      "scripts"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "skill-logger",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skill-logger",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skillful-node-prompt",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skillful-node-prompt",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "skillful-subagent-creator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/skillful-subagent-creator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "smith-1980-contract-net-protocol",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/smith-1980-contract-net-protocol",
+    "orphans": [],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_knowledge_state_decision_tree.md",
+          "01_flowchart_knowledge_state_decision_tree:.md",
+          "02_sequenceDiagram_knowledge_propagation:_public_.md",
+          "02_sequenceDiagram_knowledge_propagation_public.md",
+          "03_stateDiagram-v2_agent_knowledge_state_evolutio.md",
+          "03_stateDiagram-v2_agent_knowledge_state_evolution.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "sober-addict-protector",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sober-addict-protector",
+    "orphans": [
+      "references/couples-therapy-resources.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "sobriety-app-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sobriety-app-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sobriety-tools-guardian",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sobriety-tools-guardian",
+    "orphans": [
+      "references/CRISIS_DETECTION.md",
+      "references/PERFORMANCE_PATTERNS.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "socratic-questioning",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/socratic-questioning",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "solely-responsible-agent",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/solely-responsible-agent",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "solo-operator-business-site",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/solo-operator-business-site",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "someclaudeskills-strategy",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/someclaudeskills-strategy",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sound-design-and-audio",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sound-design-and-audio",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "sound-engineer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sound-engineer",
+    "orphans": [
+      "references/implementations.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "speech-pathology-ai",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/speech-pathology-ai",
+    "orphans": [
+      "references/acoustic-analysis.md",
+      "references/ai-models.md",
+      "references/mellifluo-platform.md",
+      "references/therapy-interventions.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "sqlite-durable-agent-state",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/sqlite-durable-agent-state",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "stanton-2006-hierarchical-task-analysis",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/stanton-2006-hierarchical-task-analysis",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "state-machine-designer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/state-machine-designer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "state-of-cognitive-systems-engineering",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/state-of-cognitive-systems-engineering",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "status-attestation-split-plane",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/status-attestation-split-plane",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "steel-man-argument",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/steel-man-argument",
+    "orphans": [
+      "references/patterns/relational-usage.md",
+      "references/theory/steelman-vs-strawman.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "stigmergic-diffusion-medium",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/stigmergic-diffusion-medium",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "streaming-pipeline-architect",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/streaming-pipeline-architect",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "structured-logging-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/structured-logging-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "supabase-admin",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/supabase-admin",
+    "orphans": [
+      "references/rls-patterns.md",
+      "references/social-schema.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "supply-chain-defense-for-ml-extensions",
+    "exitCode": 2,
+    "parseError": true,
+    "stdout": "",
+    "stderr": "ERROR: no SKILL.md at /Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/supply-chain-defense-for-ml-extensions\n"
+  },
+  {
+    "name": "swarm-invocation-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/swarm-invocation-designer",
+    "orphans": [
+      "examples/expected-output.md",
+      "references/fast-agent-bus.md",
+      "references/invocation-patterns.md",
+      "schemas/latency-budget.schema.json",
+      "scripts/latency_budget.mjs",
+      "templates/output-template.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "examples",
+      "references",
+      "schemas",
+      "scripts"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "swift-executor",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/swift-executor",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "swiftui-data-flow-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/swiftui-data-flow-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "swiss-modern-website-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/swiss-modern-website-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts",
+      "templates"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "systems-thinking",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/systems-thinking",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tacit-expertise-elicitation",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tacit-expertise-elicitation",
+    "orphans": [
+      "references/communities-of-practice-as-knowledge-infrastructure.md",
+      "references/community-of-practice-design-for-agent-coordination.md",
+      "references/decision-making-under-uncertainty-the-expert-pattern.md",
+      "references/deliberate-practice-and-agent-capability-development.md",
+      "references/elicitive-methodology-local-over-universal-knowledge.md",
+      "references/expertise-as-domain-specific-not-general.md",
+      "references/expertise-is-not-experience-the-deliberate-practice-gap.md",
+      "references/four-passes-framework-for-deep-cognitive-inquiry.md",
+      "references/knowledge-transfer-failure-modes.md",
+      "references/metacognition-and-reflection-before-during-after.md",
+      "references/naturalistic-decision-making-and-pattern-recognition.md",
+      "references/structural-barriers-to-knowledge-transfer.md",
+      "references/tacit-expertise-elicitation-protocol.md",
+      "references/tacit-knowledge-elicitation-protocols.md",
+      "references/the-credential-expertise-gap-and-routing.md",
+      "references/the-war-story-problem-authentic-vs-curated-knowledge.md",
+      "references/theory-in-use-vs-theory-espoused.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "tailwind-v4-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tailwind-v4-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "taleb-blyth-2011-black-swan-of-cairo",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/taleb-blyth-2011-black-swan-of-cairo",
+    "orphans": [
+      "diagrams/01_flowchart_system_fragility_assessment_de.md",
+      "diagrams/02_stateDiagram-v2_volatility_suppression_paradox.md",
+      "diagrams/03_quadrantChart_domain_characterization:_linea.md",
+      "references/designing-intelligence-proof-agent-systems.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_system_fragility_assessment_de.md",
+          "02_stateDiagram-v2_volatility_suppression_paradox.md",
+          "03_quadrantChart_domain_characterization:_linea.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "tanstack-query-server-state",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tanstack-query-server-state",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "task-analysis-of-pier-side-ship-handling",
+    "exitCode": 2,
+    "parseError": true,
+    "stdout": "",
+    "stderr": "ERROR: no SKILL.md at /Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/task-analysis-of-pier-side-ship-handling\n"
+  },
+  {
+    "name": "task-decomposer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/task-decomposer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "team-builder",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/team-builder",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tech-entrepreneur-coach-adhd",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tech-entrepreneur-coach-adhd",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tech-launch-channels",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tech-launch-channels",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tech-presentation-interview",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tech-presentation-interview",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "technical-evangelism-for-formal-systems",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/technical-evangelism-for-formal-systems",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "technical-writer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/technical-writer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "terraform-iac-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/terraform-iac-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "terraform-module-builder",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/terraform-module-builder",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "terraform-module-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/terraform-module-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "test-automation-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/test-automation-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "the-belief-desire-intention-model-of-age",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/the-belief-desire-intention-model-of-age",
+    "orphans": [
+      "diagrams/01_flowchart_bdi_agent_decision_cycle_and_r.md",
+      "diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+      "diagrams/03_quadrantChart_environment_dynamics_vs._compu.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_bdi_agent_decision_cycle_and_r.md",
+          "02_stateDiagram-v2_intention_lifecycle:_commitmen.md",
+          "03_quadrantChart_environment_dynamics_vs._compu.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "the-cambridge-handbook-of-expertise-and",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/the-cambridge-handbook-of-expertise-and",
+    "orphans": [
+      "diagrams/01_flowchart_knowledge_elicitation_method_s.md",
+      "diagrams/02_mindmap_three-level_knowledge_architec.md",
+      "diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_knowledge_elicitation_method_s.md",
+          "02_mindmap_three-level_knowledge_architec.md",
+          "03_quadrantChart_elicitation_method_fit_matrix:.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "the-impact-of-rapport-on-intelligence-yi",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/the-impact-of-rapport-on-intelligence-yi",
+    "orphans": [
+      "references/attention-as-the-primary-yield-driver.md",
+      "references/coordination-as-structural-intelligence.md",
+      "references/frequency-impact-asymmetry-in-skilled-performance.md",
+      "references/frequency-monitoring-as-quality-control.md",
+      "references/informal-vs-formal-interaction-elicitation-context-matters.md",
+      "references/motivation-as-functional-intelligence.md",
+      "references/objective-measurement-vs-subjective-rating.md",
+      "references/rapport-decomposition-and-differential-impact.md",
+      "references/self-report-vs-behavior-gap.md",
+      "references/working-alliance-vs-social-warmth.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "the-role-of-cognitive-systems-engineerin",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/the-role-of-cognitive-systems-engineerin",
+    "orphans": [
+      "references/automation-surprises-and-failure-mode-prevention.md",
+      "references/cognitive-work-analysis-as-constraint-mapping.md",
+      "references/design-as-dialog-not-sequence.md",
+      "references/expert-models-as-engineering-blueprints.md",
+      "references/invisible-cognitive-layer-in-system-design.md",
+      "references/joint-cognitive-systems-and-distributed-cognition.md",
+      "references/problem-framing-as-the-critical-design-act.md",
+      "references/value-of-cse-to-stakeholders-making-the-invisible-visible.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "the-state-of-cognitive-systems-engineeri",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/the-state-of-cognitive-systems-engineeri",
+    "orphans": [
+      "references/automation-surprises-opacity-risk.md",
+      "references/cognition-distribution-coordination-without-central-control.md",
+      "references/expert-knowledge-elicitation-for-agent-training.md",
+      "references/expertise-as-alternative-path-generation.md",
+      "references/human-centered-design-for-agent-orchestration.md",
+      "references/linear-decomposition-failure-modes.md",
+      "references/skill-rules-knowledge-hierarchy-agent-architecture.md",
+      "references/sociotechnical-systems-design-lessons.md",
+      "references/true-work-vs-prescribed-work-gap.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "thinking-inside-the-box-shadowbox-method",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/thinking-inside-the-box-shadowbox-method",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "thinking-inside-the-box-the-shadowbox-me",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/thinking-inside-the-box-the-shadowbox-me",
+    "orphans": [
+      "references/facilitation-free-scalable-expertise-transfer.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "three-sided-agent-labor-market",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/three-sided-agent-labor-market",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tlaplus-practitioner",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tlaplus-practitioner",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "toulmin-argument-analysis",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/toulmin-argument-analysis",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "towards-a-taxonomy-of-cognitive-task-ana",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/towards-a-taxonomy-of-cognitive-task-ana",
+    "orphans": [
+      "references/automated-knowledge-the-hardest-target.md",
+      "references/declarative-vs-procedural-knowledge-for-agent-design.md",
+      "references/expert-knowledge-is-invisible-by-design.md",
+      "references/instructional-design-principles-for-agent-capability-building.md",
+      "references/knowledge-compilation-in-expert-systems-and-agent-design.md",
+      "references/knowledge-elicitation-as-a-three-phase-pipeline.md",
+      "references/knowledge-elicitation-as-toolkit-pairing.md",
+      "references/multi-method-coordination-for-knowledge-coverage.md",
+      "references/representation-bias-and-knowledge-extraction-validity.md",
+      "references/taxonomy-progress-and-classification-failure.md",
+      "references/the-automated-knowledge-problem-for-ai-agents.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "towards-a-taxonomy-of-cognitive-task-analysis",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/towards-a-taxonomy-of-cognitive-task-analysis",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "transformers-js-onnx-pipelines",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/transformers-js-onnx-pipelines",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "tunnels-for-agents",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/tunnels-for-agents",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "turnstile-spin",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/turnstile-spin",
+    "orphans": [
+      "references/astro.md",
+      "references/hugo.md",
+      "references/nextjs-app.md",
+      "references/nextjs-pages.md",
+      "references/sveltekit.md",
+      "references/vanilla-html.md",
+      "tests/validation.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "typescript-advanced-patterns",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/typescript-advanced-patterns",
+    "orphans": [
+      "references/branded-types.md",
+      "references/type-safe-patterns.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "typescript-narrowing-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/typescript-narrowing-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "typography-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/typography-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "ui-ux-pro-max",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ui-ux-pro-max",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "ultimate-seo-geo-skill",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ultimate-seo-geo-skill",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "ux-friction-analyzer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/ux-friction-analyzer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references",
+      "schemas",
+      "scripts"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "values-behavioral-interview",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/values-behavioral-interview",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "van-der-aalst-2003-workflow-patterns",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/van-der-aalst-2003-workflow-patterns",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vaporwave-glassomorphic-ui-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vaporwave-glassomorphic-ui-designer",
+    "orphans": [
+      "references/animations-interactions.md",
+      "references/glassmorphism-patterns.md",
+      "references/metal-shaders.md",
+      "references/vaporwave-aesthetic.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "vector-database-migration-tool",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vector-database-migration-tool",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vello-parley-rendering",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vello-parley-rendering",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vercel-deployment",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vercel-deployment",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "very-long-text-summarization",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/very-long-text-summarization",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vibe-coding-background-agent",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vibe-coding-background-agent",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vibe-matcher",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vibe-matcher",
+    "orphans": [
+      "scripts/validate_visual_dna.sh"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "vibe-project-master-plan",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vibe-project-master-plan",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "video-frame-extraction-analysis",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/video-frame-extraction-analysis",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "video-processing-editing",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/video-processing-editing",
+    "orphans": [
+      "scripts/audio_mixer.py",
+      "scripts/motion_graphics.py",
+      "scripts/quality_assessment.py",
+      "scripts/thumbnail_generator.py",
+      "scripts/timelapse_creator.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "scripts"
+    ],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "virtualization-specialist",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/virtualization-specialist",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vite-build-optimizer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vite-build-optimizer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vitest-testing-patterns",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vitest-testing-patterns",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "voice-audio-engineer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/voice-audio-engineer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "vr-avatar-engineer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/vr-avatar-engineer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "wang-2023-voyager",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wang-2023-voyager",
+    "orphans": [
+      "diagrams/01_flowchart_curriculum-skill-verification_.md",
+      "diagrams/02_sequenceDiagram_iterative_code_refinement_cycl.md",
+      "diagrams/03_mindmap_decision_framework_tree_(when_.md",
+      "references/automatic-curriculum-as-frontier-discovery.md",
+      "references/code-as-action-space-advantages.md",
+      "references/curriculum-skill-verification-trinity.md",
+      "references/failure-modes-in-llm-agents.md",
+      "references/generalization-through-composition.md",
+      "references/iterative-prompting-as-error-driven-refinement.md",
+      "references/self-verification-without-ground-truth.md",
+      "references/skill-library-as-compositional-memory.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_curriculum-skill-verification_.md",
+          "02_sequenceDiagram_iterative_code_refinement_cycl.md",
+          "03_mindmap_decision_framework_tree_(when_.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "wang-et-al-2025-tdag",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wang-et-al-2025-tdag",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "wave-by-wave-parley",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wave-by-wave-parley",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-cloud-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-cloud-designer",
+    "orphans": [
+      "references/animation-patterns.md",
+      "references/color-and-lighting.md",
+      "references/svg-filter-deep-dive.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "web-design-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-design-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-layout-spacing",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-layout-spacing",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-perf",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-perf",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-sales-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-sales-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-storefront-creator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-storefront-creator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references",
+      "scripts",
+      "templates"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "web-wave-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-wave-designer",
+    "orphans": [
+      "references/animation-patterns.md",
+      "references/displacement-and-color.md",
+      "references/turbulence-deep-dive.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "web-weather-creator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/web-weather-creator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "webapp-paywall-implementation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/webapp-paywall-implementation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "webapp-testing",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/webapp-testing",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "webauthn-passkey-implementation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/webauthn-passkey-implementation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "webhook-receiver-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/webhook-receiver-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "websocket-realtime-expert",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/websocket-realtime-expert",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "websocket-streaming",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/websocket-streaming",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "wedding-immortalist",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wedding-immortalist",
+    "orphans": [
+      "references/face-clustering-aesthetics.md",
+      "references/gaussian-splatting-pipeline.md",
+      "references/theme-extraction.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "wei-2022-chain-of-thought",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wei-2022-chain-of-thought",
+    "orphans": [
+      "diagrams/01_flowchart_task_decomposition_decision_tr.md",
+      "diagrams/02_sequenceDiagram_multi-agent_reasoning_coordina.md",
+      "diagrams/03_quadrantChart_task_complexity_vs._agent_capa.md",
+      "references/emergent-capabilities-and-decomposition-thresholds.md",
+      "references/model-scale-agent-capability-and-coordination.md",
+      "references/natural-language-reasoning-in-agent-coordination.md",
+      "references/prompt-engineering-robustness-and-brittleness.md",
+      "references/reasoning-failure-modes-and-recovery.md",
+      "references/variable-compute-and-structured-reasoning.md",
+      "references/when-decomposition-helps-and-when-it-hurts.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_task_decomposition_decision_tr.md",
+          "02_sequenceDiagram_multi-agent_reasoning_coordina.md",
+          "03_quadrantChart_task_complexity_vs._agent_capa.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "wellness-app-engagement",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wellness-app-engagement",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "whitehat-defense",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/whitehat-defense",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "win31-audio-design",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/win31-audio-design",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "win31-pixel-art-designer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/win31-pixel-art-designer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-architect",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-architect",
+    "orphans": [
+      "references/business-model.md",
+      "references/execution-engines.md",
+      "references/llm-routing.md",
+      "references/observability-and-testing.md",
+      "references/progressive-revelation.md",
+      "references/sdk-implementation.md",
+      "references/skill-gap-analysis.md",
+      "references/skill-lifecycle.md",
+      "references/skills-vs-research.md",
+      "references/user-experience.md",
+      "references/visualization-research.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "windags-avatar",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-avatar",
+    "orphans": [
+      "references/AMENDMENT-001-skill-selection-cascade.md",
+      "references/amendment-framework.md",
+      "references/amendments-from-v2.md",
+      "references/behavioral-contracts.md",
+      "references/build-roadmap.md",
+      "references/business-model.md",
+      "references/design-ux-roadmap.md",
+      "references/marketing-positioning.md",
+      "references/oss-strategy.md",
+      "references/review-concerns.md",
+      "references/skill-ecosystem.md",
+      "references/tradition-influence.md",
+      "references/visualization-spec.md",
+      "references/windags-constitution-v3.md",
+      "references/windags-practitioner-v3.md",
+      "scripts/lookup.py"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "windags-curator",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-curator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [
+      {
+        "file": "SKILL.md",
+        "line": 165,
+        "kind": "unquoted_parens_in_node_text",
+        "snippet": "DRAFT --> INIT[Initialize Thompson: alpha=sum(scores), beta=sum(1-scores)]"
+      }
+    ],
+    "ok": false
+  },
+  {
+    "name": "windags-customer-persona",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-customer-persona",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-decomposer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-decomposer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-evaluator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-evaluator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-graft",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-graft",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-librarian",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-librarian",
+    "orphans": [
+      "references/surface-registry.md",
+      "references/terminology-evolution.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "windags-looking-back",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-looking-back",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-mutator",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-mutator",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-premortem",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-premortem",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-resilience",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-resilience",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-sensemaker",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-sensemaker",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-skill-cdm-elicitation",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-skill-cdm-elicitation",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windags-skill-selector",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-skill-selector",
+    "orphans": [
+      "schemas/skill-selector-output.schema.json",
+      "templates/skill-selector-output.template.json"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "windags-synthesizer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windags-synthesizer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windagszip",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windagszip",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windows-3-1-web-designer",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windows-3-1-web-designer",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "windows-95-web-designer",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/windows-95-web-designer",
+    "orphans": [
+      "references/ai-assistant-patterns.md",
+      "references/component-library.md",
+      "references/mobile-pocket-pc.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "wisdom-accountability-coach",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wisdom-accountability-coach",
+    "orphans": [
+      "references/conversation-scripts.md",
+      "references/philosophy-traditions.md"
+    ],
+    "drift": [],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "wooldridge-multiagent-intro",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wooldridge-multiagent-intro",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "work-intake-node-shaping",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/work-intake-node-shaping",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "examples",
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "workers-best-practices",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/workers-best-practices",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "wrangler",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wrangler",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "wu-2023-autogen",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/wu-2023-autogen",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "xie-et-al-2025-survey-llm-task-planning",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/xie-et-al-2025-survey-llm-task-planning",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "yao-2022-react",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/yao-2022-react",
+    "orphans": [
+      "diagrams/01_flowchart_react_decision_loop:_when_to_r.md",
+      "diagrams/02_sequenceDiagram_agent_reasoning-action-correct.md",
+      "diagrams/03_quadrantChart_confidence-based_knowledge_sou.md",
+      "references/bridging-knowledge-and-action-gap.md",
+      "references/decomposition-through-explicit-subgoaling.md",
+      "references/failure-modes-and-error-propagation.md",
+      "references/hierarchical-abstraction-in-agent-reasoning.md",
+      "references/human-interpretability-and-controllability.md",
+      "references/learning-reasoning-acting-patterns.md",
+      "references/reasoning-action-synergy-in-agent-systems.md",
+      "references/uncertainty-and-confidence-in-agent-decisions.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_react_decision_loop:_when_to_r.md",
+          "02_sequenceDiagram_agent_reasoning-action-correct.md",
+          "03_quadrantChart_confidence-based_knowledge_sou.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [
+      "references"
+    ],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "yao-2023-tree-of-thoughts",
+    "exitCode": 1,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/yao-2023-tree-of-thoughts",
+    "orphans": [
+      "diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md",
+      "diagrams/02_stateDiagram-v2_thought_state_evolution_&_sear.md",
+      "diagrams/03_quadrantChart_problem_characteristics_→_arch.md"
+    ],
+    "drift": [
+      {
+        "index": "diagrams/INDEX.md",
+        "missing_from_index": [
+          "01_flowchart_tree_of_thoughts:_decision_fra.md",
+          "02_stateDiagram-v2_thought_state_evolution_&_sear.md",
+          "03_quadrantChart_problem_characteristics_→_arch.md"
+        ]
+      }
+    ],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": false
+  },
+  {
+    "name": "zero-downtime-database-migration",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/zero-downtime-database-migration",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  },
+  {
+    "name": "zhou-et-al-2026-formaljudge",
+    "exitCode": 0,
+    "skill_root": "/Users/erichowens/coding/tmp/skills-substrate-research-20260923/skills/zhou-et-al-2026-formaljudge",
+    "orphans": [],
+    "drift": [],
+    "missing_indexes_failure": [],
+    "missing_indexes_warning": [
+      "references"
+    ],
+    "broken_links": [],
+    "mermaid_hazards": [],
+    "ok": true
+  }
+]

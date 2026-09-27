@@ -60,24 +60,23 @@
 \IfFileExists{pgfplots.sty}{%
 \pgfplotsset{
   harbor curve/.style={
-    width=0.46\textwidth,height=5.6cm,
-    axis lines=left,
-    label style={font=\scriptsize},
-    tick label style={font=\scriptsize},
-    title style={font=\small,align=center,yshift=2pt},
-    legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
+    /pgfplots/width=0.46\textwidth,/pgfplots/height=5.6cm,
+    /pgfplots/axis lines=left,
+    /pgfplots/label style={font=\scriptsize},
+    /pgfplots/tick label style={font=\scriptsize},
+    /pgfplots/title style={font=\small,align=center,yshift=2pt},
+    /pgfplots/legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
     thick,
   },
   harbor bar/.style={
-    width=0.46\textwidth,height=5.6cm,
-    ybar,bar width=6pt,
-    ymode=log,log origin=infty,
-    axis lines=left,
-    label style={font=\scriptsize},
-    tick label style={font=\tiny},
-    xticklabel style={rotate=40,anchor=east,font=\tiny,inner sep=1pt},
-    title style={font=\small,align=center,yshift=2pt},
-    legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
+    /pgfplots/width=0.46\textwidth,/pgfplots/height=5.6cm,
+    /pgfplots/ybar,/pgfplots/bar width=6pt,
+    /pgfplots/axis lines=left,
+    /pgfplots/label style={font=\scriptsize},
+    /pgfplots/tick label style={font=\tiny},
+    /pgfplots/xticklabel style={rotate=40,anchor=east,font=\tiny,inner sep=1pt},
+    /pgfplots/title style={font=\small,align=center,yshift=2pt},
+    /pgfplots/legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
   },
 }
 }{}

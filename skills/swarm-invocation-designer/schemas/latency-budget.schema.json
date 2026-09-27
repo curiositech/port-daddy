@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Swarm Invocation Latency Budget",
+  "type": "object",
+  "required": ["name", "targetP95Ms", "channels"],
+  "properties": {
+    "name": { "type": "string" },
+    "targetP95Ms": { "type": "number", "minimum": 0 },
+    "modelTurnMs": { "type": "number", "minimum": 0 },
+    "icpMeaning": {
+      "type": "string",
+      "enum": ["ipc", "internet-computer", "ambiguous"]
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "transport", "p95Ms"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["hot", "durable"] },
+          "transport": { "type": "string" },
+          "p95Ms": { "type": "number", "minimum": 0 },
+          "durable": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "actualBytes"],
+        "properties": {
+          "name": { "type": "string" },
+          "actualBytes": { "type": "number", "minimum": 0 },
+          "maxBytes": { "type": "number", "minimum": 1 },
+          "schema": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

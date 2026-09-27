@@ -137,9 +137,9 @@ True internalization of these ideas produces a **fundamental perspective change*
 
 - `diagrams/01_flowchart_the_internalized_blame_cycle_&.md` — Mermaid flowchart showing how poor design → user struggle → self-blame → no vendor pressure → stagnation. **Read when** mapping the feedback loop blocking UX improvement.
 
-- `diagrams/02_stateDiagram-v2_cognitive_shift:_from_self-bla.md` — State diagram tracing cognitive journey from internalized blame through system accountability to excellence expectations. **Read when** designing consciousness-raising interventions.
+- `diagrams/02_stateDiagram-v2_cognitive_shift-_from_self-bla.md` — State diagram tracing cognitive journey from internalized blame through system accountability to excellence expectations. **Read when** designing consciousness-raising interventions.
 
-- `diagrams/03_quadrantChart_market_dynamics:_feature_quant.md` — Quadrant chart positioning products by feature count vs. usability, showing the "marginal improvement trap." **Read when** analyzing why incremental changes prevent disruptive redesigns.
+- `diagrams/03_quadrantChart_market_dynamics-_feature_quant.md` — Quadrant chart positioning products by feature count vs. usability, showing the "marginal improvement trap." **Read when** analyzing why incremental changes prevent disruptive redesigns.
 
 - `references/blame-attribution-and-system-accountability.md` — Analysis of why users apologize for design failures and attribute system breakdowns to personal inadequacy. **Read when** understanding the root cause of user self-blame patterns.
 

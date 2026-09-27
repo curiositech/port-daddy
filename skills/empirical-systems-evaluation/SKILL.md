@@ -66,7 +66,26 @@ For latency, throughput, recovery time, message counts, resource usage:
 3. **Run enough trials.** See Section 8 for sample size calculation.
 4. **Report median + IQR** for skewed distributions (latency almost always is).
    Report mean + SD only if distribution is approximately normal.
-5. **Always report bootstrapped 95% CI** (Section 9).
+5. **Report uncertainty at the experimental unit.** Use a bootstrap only when
+   its resampling assumptions and effective sample size are credible; otherwise
+   use an appropriate analytical interval, a paired/permutation method, or
+   report the result as descriptive and underpowered (Section 9).
+
+### 2a. Valid comparison protocol
+
+Write the estimand before instrumenting: for example, “difference in useful
+completion under the same task, model snapshot, grants, token/time budget, and
+acceptance tests.” Use an independent oracle for the claimed outcome; a system's
+own log, self-score, or planner is telemetry, not proof. Pair conditions on the
+same scenario and seed where that is legitimate, and use common random variates
+(the same crash timing, queue delay, or fixture) to reduce noise. Report that
+pairing and the unit of randomization. Do not reuse the treatment's ranking,
+monitor, or acceptance model as the oracle.
+
+For multi-agent claims, include an equal-budget single-agent baseline and state
+whether retries, human review, and coordination overhead count against each
+condition. A multi-agent result only supports the workload class tested; it does
+not establish a general agent-count rule. See `references/evaluation-validity.md`.
 
 ---
 
@@ -209,12 +228,25 @@ than guessing.
 
 ## 9. Bootstrapped Confidence Intervals
 
-Use when: distribution is unknown, sample is small, or you want
-distribution-free CIs (which is almost always).
+Use when observations are exchangeable at the experimental unit and there are
+enough independent units for resampling to approximate the sampling process.
+Unknown distributions alone do not justify a bootstrap.
+
+### Unit and small-sample check
+
+Define the experimental unit before choosing an interval: it might be a task,
+repository, user, run, or matched task pair, but not correlated retries,
+messages, or token samples from one run. Resample whole units (or paired
+differences), never their dependent subevents. With only two seeds, a few
+repositories, or strong dependence, percentile or BCa intervals can look
+precise without providing reliable coverage. Use a model/interval appropriate
+to the design when its assumptions are defensible; otherwise show every unit,
+state the limitation, and avoid confirmatory claims.
 
 ### Procedure
 1. From your n observations, draw n samples **with replacement**. Compute statistic.
-2. Repeat B = 10,000 times (minimum 2,000; 10,000 is standard).
+2. Choose enough resamples to make Monte Carlo error immaterial for the
+   stated decision, then record that choice and a sensitivity check.
 3. Sort the B bootstrap statistics.
 4. 95% CI = [2.5th percentile, 97.5th percentile] (percentile method).
 5. For bias-corrected accelerated (BCa) intervals: use when bootstrap
@@ -404,7 +436,8 @@ For each scenario x protocol combination:
 4. Latency by difficulty stratum: descriptive only (small n per stratum).
 
 **For all comparisons**:
-- Report bootstrapped 95% CIs (BCa, B = 10,000)
+- Report an interval appropriate to the independent experimental unit; use BCa
+  bootstrap intervals only after the Section 9 unit and small-sample check.
 - Report Cohen's d (or rank-biserial r for non-parametric)
 - Report effect size CIs
 
@@ -461,6 +494,8 @@ Every write-up must contain these sections in order:
 4. **Discussion** -- interpretation tied to effect sizes, practical significance, null results reported honestly
 5. **Threats to Validity** -- internal, external, construct, statistical conclusion
 6. **Reproduction** -- code link, data availability, exact software versions
+7. **Instrument and protocol amendments** -- oracle ownership, pairing/randomization,
+   excluded runs, retry policy, and dated changes made after registration
 
 ---
 
@@ -468,7 +503,7 @@ Every write-up must contain these sections in order:
 
 | Concept | When to Use | Key Number |
 |---------|-------------|------------|
-| Bootstrap CI | Always | B >= 10,000 |
+| Bootstrap CI | Exchangeable, adequately independent units | B is a sensitivity choice, not a proof of coverage |
 | Cohen's d | Continuous, 2 groups | small=0.2, med=0.5, large=0.8 |
 | Rank-biserial r | Non-parametric, 2 groups | small=0.1, med=0.3, large=0.5 |
 | Cohen's kappa | Human rater agreement | >= 0.60 to proceed |
@@ -486,3 +521,7 @@ Every write-up must contain these sections in order:
 ## 17. Bundled Assets
 
 This skill includes worked evaluation cases in `evals/evals.json`. Load when you're designing experiments for multi-agent systems: the file contains prompt-and-rubric test cases that exercise the decision trees above. Each case includes expected behaviors (what a good experiment design must include), so you can validate your work before running trials.
+
+Use [diagrams/INDEX.md](diagrams/INDEX.md) for compact visual checks of evidence
+classes and matched-budget evaluation. They support instrument validity and
+comparison design; they do not substitute for an independent outcome oracle.

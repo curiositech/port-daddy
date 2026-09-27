@@ -1001,6 +1001,54 @@
       ],
       "site": [],
       "status": "folded"
+    },
+    {
+      "id": "lem:chain",
+      "kind": "lemma",
+      "title": "Fundamental simplicial identity",
+      "one_breath": "The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "lem:chain"
+        ],
+        "sections": [
+          "Standard simplicial-cochain identity recalled and proved in paper8, lem:chain."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "def:cellular-sheaf",
+      "kind": "definition",
+      "title": "Cellular sheaf on a simplicial complex",
+      "one_breath": "A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "def:cellular-sheaf"
+        ],
+        "sections": [
+          "Standard cellular-sheaf definition in sec:rosetta, attributed to Curry; not a novel result of the Harbor program."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
     }
   ],
   "unindexed_allow": [

@@ -160,3 +160,14 @@ node skills/swarm-invocation-designer/scripts/test-bundle.mjs
 | `scripts/validate-swarm-invocation.mjs` | Validating one contract. |
 | `scripts/test-bundle.mjs` | Running adversarial mutations. |
 | `agents/openai.yaml` | Delegating static contract design. |
+
+## Imported bundle navigation
+
+These preserved source files add depth when their stated topic is needed.
+
+- [examples/expected-output.md](examples/expected-output.md) — Example Output: Swarm Invocation Designer.
+- [references/fast-agent-bus.md](references/fast-agent-bus.md) — Fast Agent Bus.
+- [references/invocation-patterns.md](references/invocation-patterns.md) — Swarm Invocation Patterns.
+- [schemas/latency-budget.schema.json](schemas/latency-budget.schema.json) — latency-budget.schema.json.
+- [scripts/latency_budget.mjs](scripts/latency_budget.mjs) — latency_budget.mjs.
+- [templates/output-template.md](templates/output-template.md) — Swarm Invocation Spec.

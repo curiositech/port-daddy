@@ -1,0 +1,18 @@
+digraph Evaluation {
+  graph [rankdir=TB, bgcolor="#ffffff", pad="0.22", nodesep="0.28", ranksep="0.40", splines=polyline, outputorder=edgesfirst, fontname="Arial", fontsize=16, labelloc=t, label="Matched-budget skill and substrate evaluation", labeljust=l];
+  node [shape=box, style="rounded,filled", color="#52677b", fillcolor="#f4f7fa", fontname="Arial", fontsize=14, margin="0.20,0.13", penwidth=1.3];
+  edge [color="#536779", fontname="Arial", fontsize=11, fontcolor="#33485c", penwidth=1.4, arrowsize=0.8];
+  A [label="Preregister\nquestion, estimand, exclusions,\nanalysis and budget", fillcolor="#e9f1f7"];
+  B [label="Freeze representative tasks;\nstratify by model, harness,\nrepository and dependencies"];
+  C [label="Randomize within blocks;\nretain assignment record"];
+  X [label="Equal-budget arms\n\nSkill: absent / candidate\nSubstrate: baseline / candidate\nFactorial cells; same task fixtures", fillcolor="#edf5f1", color="#547966"];
+  R [label="Run under the same total\nresource ceiling per arm;\ncount retries and rework"];
+  O [label="Blind, independent oracle\n\nChecks held-out correctness,\npreservation and harmful effects", fillcolor="#fbf4e6", color="#947740"];
+  E [label="Estimate paired quality and cost\nby assigned arm; show uncertainty,\nharmful slices and cost-quality frontier", fillcolor="#f0edf6", color="#746283"];
+  G [shape=diamond, style=filled, label="Preregistered\nrelease decision?", fillcolor="#fff7e8", color="#947740", margin="0.10,0.06"];
+  P [label="Scoped promotion for\ntested tasks and versions", fillcolor="#eaf4ee", color="#4e795e"];
+  N [label="Do not promote;\nrepair or gather evidence", fillcolor="#faeeee", color="#925b61"];
+  A -> B -> C -> X -> R -> O -> E -> G;
+  G -> P [label="meets quality and cost rule", color="#4e795e", fontcolor="#3e694e"];
+  G -> N [label="misses rule or weak evidence", color="#925b61", fontcolor="#7c4148"];
+}

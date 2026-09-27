@@ -203,7 +203,7 @@ RequestInitiator purchaseExecution = new RequestInitiator(this, purchaseMessage)
 
 - `diagrams/01_sequenceDiagram_fipa_protocol_interaction_patt.md` — Mermaid sequence diagram showing Contract Net, Request, and Subscribe protocol message flows. **Read when** choosing or implementing a FIPA protocol.
 - `diagrams/02_stateDiagram-v2_agent_behavior_state_machine_c.md` — State machine diagram for behavior composition (OneShotBehavior, CyclicBehavior, Sequential/Parallel/FSM). **Read when** designing agent behavior lifecycle.
-- `diagrams/03_flowchart_decision_tree:_which_jade_coor.md` — Decision tree flowchart for selecting coordination mechanism (Contract Net vs Request vs Subscribe). **Read when** unsure which protocol fits your task.
+- `diagrams/03_flowchart_decision_tree-_which_jade_coor.md` — Decision tree flowchart for selecting coordination mechanism (Contract Net vs Request vs Subscribe). **Read when** unsure which protocol fits your task.
 - `references/coordination-without-bottlenecks.md` — Decentralized task allocation patterns avoiding central coordinator bottleneck; scales to 180+ agents. **Read when** designing multi-agent workflows at scale.
 - `references/failure-resilient-distributed-coordination.md` — Production failure modes (message loss, agent crashes, network partitions) and resilience patterns from OASIS/industrial systems. **Read when** hardening system against Byzantine behavior or cascade failures.
 - `references/hierarchical-task-decomposition-patterns.md` — Composable behavior state machines for complex workflows (discovery → negotiation → evaluation → commitment). **Read when** breaking down multi-step tasks into agent behaviors.

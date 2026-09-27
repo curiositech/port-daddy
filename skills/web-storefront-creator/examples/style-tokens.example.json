@@ -1,0 +1,27 @@
+{
+  "_note": "Heuristic extraction \u2014 REVIEW before use. Fix any wrong picks by hand.",
+  "source": ".",
+  "fonts": {
+    "heading": "Archivo",
+    "body": "Fraunces",
+    "all_seen": [
+      "Fraunces (x1)",
+      "Archivo (x1)"
+    ]
+  },
+  "colors": {
+    "background": "#f7f3ec",
+    "text": "#22211f",
+    "accent": "#b3552e",
+    "top_colors_seen": [
+      "#b3552e (x3)",
+      "#f7f3ec (x2)",
+      "#22211f (x1)"
+    ]
+  },
+  "radius": "8px",
+  "css_variables_found": {
+    "--brand-primary": "#b3552e",
+    "--radius": "8px"
+  }
+}

@@ -167,9 +167,9 @@ Use a cheap heuristic to generate promising compound families, a stronger learne
 
 ## Reference Files
 
-- `diagrams/01_flowchart_alphago_decision_framework:_wh.md` — Decision tree: when search space is intractable, evaluation uncertain, and single models insufficient. **Read when** deciding whether AlphaGo patterns apply to your problem.
+- `diagrams/01_flowchart_alphago_decision_framework-_wh.md` — Decision tree: when search space is intractable, evaluation uncertain, and single models insufficient. **Read when** deciding whether AlphaGo patterns apply to your problem.
 - `diagrams/02_sequenceDiagram_alphago_asynchronous_heterogen.md` — CPU search thread + GPU evaluation queue interaction; shows how fast and slow loops decouple. **Read when** designing async coordination between search and neural evaluation.
-- `diagrams/03_quadrantChart_cascading_approximation:_speed.md` — Speed vs. accuracy trade-offs for policy network, value network, and fast rollouts. **Read when** choosing which evaluators to cascade in your pipeline.
+- `diagrams/03_quadrantChart_cascading_approximation-_speed.md` — Speed vs. accuracy trade-offs for policy network, value network, and fast rollouts. **Read when** choosing which evaluators to cascade in your pipeline.
 - `references/asynchronous-heterogeneous-architecture.md` — Computational asymmetry: tree search (µs), rollouts (µs), policy net (ms), value net (ms). Explains why decoupling fast and slow paths is essential. **Read when** architecting parallel search + evaluation systems.
 - `references/cascading-approximation-architecture.md` — Why exhaustive search fails (250^150 positions); how cascading approximators avoid exploring most of the space. **Read when** designing multi-stage filtering or evaluation pipelines.
 - `references/coordinating-without-central-understanding.md` — Decentralized coordination: 40 threads, 1,202 CPUs, 176 GPUs building shared tree asynchronously without global locks. **Read when** implementing distributed search without bottleneck synchronization.

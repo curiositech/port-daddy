@@ -137,8 +137,10 @@ node skills/agent-conversation-protocols/scripts/test-bundle.mjs
 
 ## Load only when needed
 
+- [`references/INDEX.md`](references/INDEX.md) — short routing for the protocol references.
 - [`references/envelope-and-ordering.md`](references/envelope-and-ordering.md) — exact envelope fields, duplicate handling, and canonical replay.
 - [`references/gathers-and-terminals.md`](references/gathers-and-terminals.md) — fixed gathers, reducers, terminal fences, and acknowledgements.
+- [`references/pattern-selection-boundary.md`](references/pattern-selection-boundary.md) — select a conversation pattern before instantiating this closed protocol; a pattern does not grant authority or settle an effect.
 - [`examples/valid-trace.json`](examples/valid-trace.json) — canonical closed trace used by the validator.
 - [`scripts/validate-conversation-trace.mjs`](scripts/validate-conversation-trace.mjs) — closed-shape and semantic validator.
 - [`scripts/test-bundle.mjs`](scripts/test-bundle.mjs) — valid fixture plus adversarial mutation suite.
