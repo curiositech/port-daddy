@@ -424,8 +424,8 @@
     {
       "id": "R6",
       "kind": "theorem",
-      "title": "Sheaf verdict: cohomology of equivocation",
-      "oneBreath": "In gossip of signed logs, the least-squares completion residual detects a single equivocator's split-view lie beyond pairwise comparison iff the unchecked edge lies on a cycle of the visible coordinate subgraph, and its endpoints' reports are relayed to the analyst.",
+      "title": "Information boundary and visible-cycle sensitivity of edge residuals",
+      "oneBreath": "An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). For one visible edge perturbation, the residual is positive exactly on a visible coordinate cycle; general one-sender split views can remain invisible.",
       "status": "folded",
       "chapters": [
         8
@@ -655,7 +655,7 @@
       "id": "CR",
       "kind": "result-family",
       "title": "Consistency radius of the completion residual (CR-1/2/3)",
-      "oneBreath": "The completion residual r is a certified lower bound on any injected lie (equality at the completion, closed form r = |s| * sqrt(1 - R_eff) for a single-edge lie), localizes to visible cycles through the equivocator, and computes as at most L scalar graph-Laplacian solves.",
+      "oneBreath": "The completion residual r is the minimum unrestricted edge-data change restoring consistency; fixed-sender changes can require more or be infeasible. A single visible edge has sensitivity r = |s| * sqrt(1 - R_eff), and coordinate decomposition uses at most T = |union of visible edge coordinate sets| Laplacian systems.",
       "status": "standalone-only",
       "chapters": [
         8

@@ -11,7 +11,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 - [R3 -- The derived regret head](#r3)
 - [R4 -- Digest-zoom Pareto frontier and the zoom-advantage theorem](#r4)
 - [R5 -- Hypervisor enforceability = supervisory control](#r5)
-- [R6 -- Sheaf verdict: cohomology of equivocation](#r6)
+- [R6 -- Information boundary and visible-cycle sensitivity of edge residuals](#r6)
 - [R7 -- Inspection tower: reputation is amortized verification](#r7)
 - [R8 -- The work-unit machine](#r8)
 - [R9 -- Sealed-room noninterference](#r9)
@@ -152,19 +152,19 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Site:** `/research/paper2.pdf`
 
-## R6 -- Sheaf verdict: cohomology of equivocation
+## R6 -- Information boundary and visible-cycle sensitivity of edge residuals
 <a id="r6"></a>
 
 **Kind:** theorem  **Status:** folded
 
-> In gossip of signed logs, the least-squares completion residual detects a single equivocator's split-view lie beyond pairwise comparison iff the unchecked edge lies on a cycle of the visible coordinate subgraph, and its endpoints' reports are relayed to the analyst.
+> An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). For one visible edge perturbation, the residual is positive exactly on a visible coordinate cycle; general one-sender split views can remain invisible.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
-| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (mechanism)"; harness verdict COMMIT in S5 (sec:harness) |
-| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | sec:fh-sheaf: Theorem 1 as the labeled claim thm:sheaf-equivocation (Theorem), the pre-registered harness paragraph (verdict COMMIT, 200/200, 0/200, 113/200 with the 79+8 dark trials), the cochain worked by hand on the four-ring, and the consistency-radius example |
+| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (one-edge criterion)" and general one-sender criterion; S5 (sec:harness) reports synthetic checked-edge-baseline trials |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | sec:fh-sheaf: one-edge claim thm:sheaf-equivocation, triangle-with-leaf counterexample, equal-information baseline with 0 residual-only and 209 direct-only synthetic cases, and four-ring and consistency-radius examples |
 
-**Figures:** `docs/harbor-research/figures/fig-r6-relation.tex`, `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
+**Figures:** `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
 
 **Scripts:** `skills/harbor-results/scripts/sheaf_mechanism_proof.py`, `skills/harbor-results/scripts/sheaf_harness_v2.py`
 
@@ -411,12 +411,12 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Kind:** result-family  **Status:** standalone-only
 
-> The completion residual r is a certified lower bound on any injected lie (equality at the completion, closed form r = |s| * sqrt(1 - R_eff) for a single-edge lie), localizes to visible cycles through the equivocator, and computes as at most L scalar graph-Laplacian solves.
+> The completion residual r is the minimum unrestricted edge-data change restoring consistency; fixed-sender changes can require more or be infeasible. A single visible edge has sensitivity r = |s| * sqrt(1 - R_eff), and coordinate decomposition uses at most T = |union of visible edge coordinate sets| Laplacian systems.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
-| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S6 (sec:radius), boxed "Theorem CR-1 (soundness and achievability)", "Theorem CR-2 (localization)", "Theorem CR-3 (complexity)" |
-| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:radius-soundness, thm:radius-localization, thm:radius-cost | sec:fh-sheaf (inside sec:fh-revocation), paragraph "The residual as a certificate": CR-1 as thm:radius-soundness (Theorem, proof sketch via the distance to the coboundary image and the effective-resistance identity), CR-2 as thm:radius-localization, CR-3 as thm:radius-cost, the Checked paragraph with the 0/600 and 600/600 sweeps, what it buys, and the four-clause boundary box |
+| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S6 (sec:radius), boxed CR-1 unrestricted edge minimum, CR-2 one-edge sensitivity, CR-3 union-coordinate decomposition |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:radius-soundness, thm:radius-localization, thm:radius-cost | sec:fh-sheaf (inside sec:fh-revocation): unrestricted edge minimum and fixed-sender caveat in thm:radius-soundness, one-edge sensitivity in thm:radius-localization, union-coordinate cost in thm:radius-cost, synthetic sweeps and evidence boundary |
 
 **Figures:** `docs/harbor-research/figures/fig-paper7-radius.tex`
 
