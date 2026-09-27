@@ -426,4 +426,4 @@ A correlated equilibrium is valid ONLY when:
 
 ## Bundled Assets
 
-**Skill Evaluations:** See [`evals/evals.json`](evals/evals.json) for benchmark prompts and expected outputs used to validate this skill across typical game-theoretic agent coordination problems.
+**Skill Evaluations:** See [`evals/evals.json`](../evals/evals.json) for benchmark prompts and expected outputs used to validate this skill across typical game-theoretic agent coordination problems.
