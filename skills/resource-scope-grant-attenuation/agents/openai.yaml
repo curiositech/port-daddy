@@ -1,0 +1,6 @@
+interface:
+  display_name: "ResourceScope Grant Attenuation"
+  short_description: "Attack delegated scope grants without widening authority"
+  default_prompt: "Use $resource-scope-grant-attenuation to test this delegation chain against Port Daddy's real ResourceScope API."
+policy:
+  allow_implicit_invocation: true
