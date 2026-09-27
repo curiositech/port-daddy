@@ -12,7 +12,7 @@ description: >
   Use when designing a Rust library's public API, encoding invariants in the type
   system, choosing a dispatch or error strategy, or reviewing Rust for idiom.
   NOT for borrow-checker firefighting / toolchain / test-runner workflow
-  (use rust-with-claude-code), NOT for pd-console GPUI rendering/layout/panes
+  (use rust-development-workflow), NOT for pd-console GPUI rendering/layout/panes
   (use gpui-rust-console), NOT for app packaging/notarization (use rust-app-distribution).
 author: port-daddy
 license: Apache-2.0
@@ -20,10 +20,12 @@ tags: [rust, api-design, typestate, traits, error-handling, interior-mutability,
 metadata:
   category: Code Quality & Testing
   argument-hint: '[topic: typestate|newtype|builder|raii|interior-mut|errors|dispatch|impl-trait]'
-  pairs-with: [rust-with-claude-code, gpui-rust-console, refactoring-surgeon]
+  pairs-with: [rust-development-workflow, gpui-rust-console, refactoring-surgeon]
 ---
 
 # Advanced Rust Patterns
+
+**Activation boundary:** use this for public API invariants, trait contracts, dispatch, error types, and state modeling. If the central question is which container owns related data, route to `rust-data-structures-advanced`. If an existing path is slow, route to `rust-performance-and-idioms`. Routine compiler feedback belongs to `rust-development-workflow`.
 
 The patterns here share one thesis: **push correctness into the type system so the
 compiler rejects misuse, then make the abstraction cost nothing at runtime.** A
@@ -32,7 +34,7 @@ type-state builder makes a missing required field a *compile error*, not a runti
 newtype `NodeId(String)` makes "passing a DAG id where a skill id is expected" stop
 compiling. None of it shows up in the generated assembly. This skill is for **API
 design and idiom**, not for fighting the borrow checker (that is
-`rust-with-claude-code`) — it assumes you already write compiling Rust and want it to
+`rust-development-workflow`) — it assumes you already write compiling Rust and want it to
 be *unmistakable*.
 
 ## When to Use
@@ -47,7 +49,7 @@ be *unmistakable*.
 - Reviewing Rust for idiom ("is this `Deref` a smart pointer or fake inheritance?")
 
 ❌ **NOT for**:
-- Borrow-checker errors, async lifetime puzzles, `cargo`/`clippy`/test workflow → `rust-with-claude-code`
+- Borrow-checker errors, async lifetime puzzles, `cargo`/`clippy`/test workflow → `rust-development-workflow`
 - GPUI rendering, Taffy layout, pane/Block contract in `core/pd-console` → `gpui-rust-console`
 - Shipping/signing/notarizing a macOS Rust app → `rust-app-distribution`
 - Generic "how do I learn Rust" — this is expert idiom, not a tutorial

@@ -2,28 +2,19 @@
 license: Apache-2.0
 name: rust-performance-and-idioms
 version: 0.1.0
-description: >
-  Make Rust fast and keep it idiomatic — the "measure first, then make it fast"
-  skill. Profile before optimizing (samply, cargo-flamegraph, perf, Instruments,
-  criterion); cut allocations (clone/to_string/collect, &str vs String, Cow,
-  SmallVec, with_capacity, arenas); zero-cost iterators; SIMD (portable-simd,
-  autovectorization, target-feature); cache-friendly layout (SoA, field order,
-  repr, false sharing); Box<dyn> vs generics and inlining; async perf
-  (spawn_blocking, executor starvation); Arc<Mutex> contention vs channels and
-  sharding; binary size & compile time (LTO, codegen-units, opt-level, strip,
-  cargo-bloat); and idioms (newtype, impl Trait, let-else, matches!, ?-errors).
-  Use when a Rust program is too slow, allocates too much, the binary is too big,
-  compiles too slowly, or a review wants idiomatic + fast code with evidence. NOT
-  for first-time borrow-checker/ownership teaching (use rust-with-claude-code),
-  GPUI/pd-console specifics (use gpui-rust-console), Tauri packaging
-  (rust-app-distribution), or non-Rust profiling.
+description: >-
+  Improve measured Rust speed, allocations, contention, binary size, or compile
+  time through profile, one change, and remeasurement. Use for Criterion,
+  allocation cuts, SIMD, cache layout, async throughput, and codegen tradeoffs.
+  NOT for first-time borrow-checker help, public API typestate, choosing a
+  container without a measured goal, runtime failure diagnosis, or GPUI layout.
 author: port-daddy
 tags: [rust, performance, optimization, profiling, simd, allocation, async, idioms, criterion, cache]
 metadata:
   category: Performance & Systems
   argument-hint: '[task: profile|alloc|iterators|simd|layout|async|contention|binary-size|idioms|unsafe]'
   pairs-with:
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Generic Rust (borrow checker, async basics, FFI) lives there; this skill assumes you already write compiling Rust
     - skill: gpui-rust-console
       reason: The Arc<Mutex>-vs-channels rule here is the #1 GPUI render-loop perf bug the console skill warns about
@@ -32,6 +23,8 @@ metadata:
 ---
 
 # rust-performance-and-idioms
+
+**Activation boundary:** use this only when speed, allocation, contention, binary size, or compile time is the task and a baseline can be measured. This skill owns the optimize-and-remeasure loop. Public API idiom belongs to `advanced-rust-patterns`, container selection to `rust-data-structures-advanced`, and failure diagnosis to `rust-debugging-mastery`. The idiom cheatsheet below is a companion reference, not a trigger by itself.
 
 The skill for making Rust *fast* without making it ugly. The thesis, and the
 only non-negotiable rule:
@@ -61,7 +54,7 @@ change only if Criterion's confidence interval agrees.
 - Justifying and documenting `unsafe`, checked with Miri
 
 ❌ **NOT for**:
-- Teaching ownership / borrowing / lifetimes from scratch → `rust-with-claude-code`
+- Teaching ownership / borrowing / lifetimes from scratch → `rust-development-workflow`
 - GPUI / pd-console rendering, layout, theme specifics → `gpui-rust-console`
 - macOS app packaging / notarization → `rust-app-distribution`
 - Non-Rust profiling, or "rewrite this Python in Rust" scoping

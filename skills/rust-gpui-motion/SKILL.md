@@ -1,6 +1,6 @@
 ---
 name: rust-gpui-motion
-description: 'Design motion, transitions, and bespoke graphics for native Rust gpui apps — the framework behind Zed and the pd-console operator console. Use for with_animation, easing curves, BoxShadow/glow, breathing dots, pane expand/zoom/slide transitions, and custom paint/Vello/wgpu surfaces. Trigger on: gpui animation, with_animation, gpui transition, gpui easing, BoxShadow, gpui shadow, pd-console motion, gpui paint/canvas, Vello, wgpu, "lift/slide/zoom/spring in gpui", reduced-motion in a native Rust UI, "animation re-renders forever", repeat() never stops. NOT for: web/React motion (a different, CSS-transform-based domain), CLI/TUI output (→ beautiful-cli-design), general non-motion GUI layout/color/typography (→ beautiful-gui-design).'
+description: 'Design element-tree animation and transitions in native Rust GPUI apps: with_animation, easing, shadows, state transitions, reduced motion, and frame ownership. Use for a GPUI pane that moves, fades, pulses, or retargets during interaction. NOT for per-pixel WGSL effects (gpui-shaders), static pane/layout/data contracts (gpui-rust-console), cooperative-editor architecture (build-coop-ide-gpui), or web motion.'
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash(cargo *)
 metadata:
@@ -50,6 +50,8 @@ metadata:
 ---
 
 # Rust gpui Motion
+
+**Activation boundary:** own state transitions and animation on an existing GPUI surface. Route static pane shape, layout, focus, and data flow to `gpui-rust-console`; route fragment shaders and render-to-texture integration to `gpui-shaders`; route cooperative editing contracts to `build-coop-ide-gpui`. The custom-render discussion below is an escalation guide, not a second shader recipe.
 
 Motion in gpui is not CSS with a different syntax. gpui **0.2.x has no fluent transform on `div`** — no `.scale()`, no `.translate()`, no `.rotate()`, no `transform` property to interpolate, no spring on layout, no `AnimatePresence`, no compositor thread to offload to. Every "lift / slide / zoom / spring" you internalized from Framer Motion and View Transitions must be **re-derived** from the four primitives gpui actually ships: `opacity`, `BoxShadow`, hover/color interpolation, and animated **layout fractions** driven by the `delta` closure inside `with_animation`. A `.repeat()` animation is a standing invitation to re-render the whole window forever, and every re-render walks the entire element tree top-to-bottom — so the frame budget here is an architecture concern, not a styling concern. This skill is the field manual for doing that right in `pd-console` (native gpui on Metal). It is the gpui counterpart to the web-focused `animation-system-architect`.
 

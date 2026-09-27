@@ -1,24 +1,13 @@
 ---
 license: Apache-2.0
 name: rust-debugging-mastery
-description: |
-  Expert-level Rust debugging beyond `println!` and `dbg!`. Covers rust-lldb/rust-gdb
-  (pretty-printers, breakpoints on monomorphized generics, why async backtraces lie),
-  `tracing`/`tracing-subscriber` (spans, EnvFilter/RUST_LOG, the span-guard-across-.await
-  trap), tokio-console for async stalls/deadlocks, Miri for UB and data races,
-  cargo-flamegraph/samply/Instruments for hot paths, panics & backtraces (RUST_BACKTRACE,
-  panic hooks, catch_unwind, abort vs unwind), debugging stuck/cancelled futures and the
-  two-executor footgun, FFI/native-addon/dyld failures (@rpath/DYLD_*/install_name_tool,
-  a .node/cdylib that segfaults its host), build/link debugging (cargo build -v, cargo tree
-  -d, RUST_MIN_STACK vs recursion_limit), and heisenbugs (release-vs-debug, optimization UB).
-  Activate on: "debug rust", "rust panic", "segfault", "stack overflow", "RUST_BACKTRACE",
-  "rust-lldb", "rust-gdb", "tokio-console", "tracing subscriber", "RUST_LOG", "miri",
-  "data race", "flamegraph", "samply", "@rpath", "Library not loaded", "dlopen", "image not found",
-  "install_name_tool", "DYLD", "dylib", ".node crashes", "async deadlock", "stuck future",
-  "undefined behavior", "heisenbug", "linker error", "duplicate dependency".
-  NOT for: writing new Rust features from scratch (use a code-gen skill), generic borrow-checker
-  teaching, GPUI/pd-console rendering bugs (use gpui-rust-console), macOS app notarization/packaging
-  (use rust-app-distribution), or non-Rust native debugging.
+description: >-
+  Diagnose Rust panics, crashes, async stalls, undefined behavior, native loader
+  failures, link errors, heisenbugs, and unexplained slowness by matching a
+  diagnostic tool to the symptom. Use for tracing, tokio-console, LLDB, Miri,
+  sanitizers, backtraces, and profiling to locate a fault. NOT for routine
+  compiler iteration, new FFI boundary design, measured optimization, or GPUI
+  pane/layout construction.
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
   category: Debugging & Diagnostics
@@ -42,7 +31,7 @@ metadata:
       reason: GPUI/pd-console rendering, layout, and the two-executor (reqwest/smol) pipeline live there; this skill covers the generic debugging underneath
     - skill: git-best-practices
       reason: Bisecting a heisenbug across commits needs disciplined git workflow
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Shares the toolchain/testing workflow this skill's diagnosis techniques plug into when pairing with an agent
     - skill: rust-app-distribution
       reason: A dyld/codesign failure diagnosed here often traces back to a notarization or install_name_tool step in the distribution pipeline
@@ -71,6 +60,8 @@ category: Debugging & Diagnostics
 ---
 
 # Rust Debugging Mastery
+
+**Activation boundary:** start from a failing runtime, link, or build symptom and select diagnostic evidence. A proposed C ABI implementation belongs to `rust-kernel-ffi`; a measured speed change belongs to `rust-performance-and-idioms`; ordinary borrow-checker iteration belongs to `rust-development-workflow`. Profilers and Miri here are diagnostic tools; keep optimizations in the performance skill.
 
 The skill for the Rust bugs that `println!` cannot reach: a future that never wakes, a
 `.node` addon that takes the whole daemon down with it, UB that only appears under `--release`,
