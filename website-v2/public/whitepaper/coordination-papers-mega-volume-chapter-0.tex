@@ -44,7 +44,7 @@
   \item \textbf{Modern Coding Agent Architectures:} Closed-loop POMDP deliberation (ReAct, Tree of Thoughts, Reflexion) and runtime state tracking (\S\ref{sec:prereq-coding-agents}).
   \item \textbf{Cognitive Control \& Test-Time Compute:} Tool-call SFT, PRMs, search scaling, and structured sampling budgets (\S\ref{sec:prereq-cognitive-control}).
   \item \textbf{Transformer Mechanics \& Context Economics:} KV-cache memory scaling, quadratic degradation, and context economics (\S\ref{sec:prereq-transformers}).
-  \item \textbf{Tool Execution Hypervisor \& Protocols:} Model Context Protocol (MCP) substrate, progressive skill disclosure, and Ramadge--Wonham supervisory control hooks (\S\ref{sec:prereq-hypervisors}).
+  \item \textbf{Tool Execution Hypervisor \& Protocols:} Model Context Protocol (MCP) substrate, progressive skill disclosure, and Ramadge--Wonham supervisory control hooks~\pdcite{ramadge1987supervisory} (\S\ref{sec:prereq-hypervisors}).
   \item \textbf{Swarm Topologies \& Zombie Salvage:} Communication patterns, durable identity versus ephemeral leases, and crash salvage (\S\ref{sec:prereq-swarms}).
   \item \textbf{The Kernel Gap:} Mathematical proof of why generative autoregressive policies cannot act as their own operating kernel (\S\ref{pre:sec:kernel-gap}).
 \end{enumerate}
@@ -2003,7 +2003,7 @@ Modern agent harnesses resolve this dilemma via \textbf{Three-Tier Progressive D
 
 \subsection{Lifecycle Hooks and Supervisory Control}
 
-Harness lifecycle hooks intercept agent control flow at critical execution boundaries. Formally, lifecycle hooks operate as a \textbf{Ramadge--Wonham Supervisory Controller} ($S / G$).
+Harness lifecycle hooks intercept agent control flow at critical execution boundaries. Formally, lifecycle hooks operate as a \textbf{Ramadge--Wonham Supervisory Controller} ($S / G$)~\pdcite{ramadge1987supervisory}.
 
 Let the unconstrained agent execution be modeled as a discrete-event generator $G = \langle X, \Sigma, \delta, x_0, X_m \rangle$, where events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into controllable events $\Sigma_c$ (tool invocations, file writes, network requests) and uncontrollable events $\Sigma_u$ (model token generation, host hardware interrupts, external process termination). A supervisory hook $S: L(G) \to \mathcal{P}(\Sigma)$ dynamically disables tool invocations that violate safety invariants:
 \begin{equation}

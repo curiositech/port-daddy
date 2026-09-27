@@ -71,15 +71,16 @@ FINDINGS_GLOB = "docs/harbor-research/deep-dives/flag-*/findings.md"
 
 WORKTREE_MARKER = os.path.join(".claude", "worktrees")
 
-INPUT_RE = re.compile(r"\\(?:input|include)\{([^}]+)\}")
+INPUT_RE = re.compile(r"\\(?:input|include|pdgeneratedinput)\{([^}]+)\}")
 BIBITEM_RE = re.compile(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}")
 # \pdcite{key} (figures/pd-pedagogy.tex) emits \cite{key} plus, in the Book
 # only, a margin short-form note; the chapters use it at every point of use
 # (scripts/harbor-research/promote_cites.py rewrote \cite{ to \pdcite{ there),
 # so a citation use is either spelling, not just the bare \cite the class
 # name might suggest.
-CITE_RE = re.compile(r"\\(?:pd)?cite(?:\[[^\]]*\])?\{([^}]+)\}")
+CITE_RE = re.compile(r"(?<![A-Za-z0-9_])\\(?:pd)?cite(?:\[[^\]]*\])?\{([^}]+)\}")
 YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+VALID_CITE_KEY_RE = re.compile(r"^[A-Za-z0-9_:\-+.*]+$")
 
 # Words too generic to count as a "distinctive shared word" for check 4 — mostly
 # venue/bibliographic scaffolding that appears in nearly every citation.
@@ -103,11 +104,25 @@ def is_excluded(path: str) -> bool:
     return WORKTREE_MARKER in os.path.relpath(path, REPO_ROOT)
 
 
+def is_standalone_corpus_doc(path: str) -> bool:
+    base = os.path.basename(path)
+    # The mega-volume assembly files are compiled volumes tested by the
+    # generate-mega-whitepaper test suite, not standalone chapter bibliographies.
+    if base.startswith("coordination-papers-mega-volume"):
+        return False
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            c = fh.read(4096)
+            return "\\documentclass" in c
+    except OSError:
+        return False
+
+
 def discover_corpus_files() -> list[str]:
     files: list[str] = []
     for pattern in CORPUS_PATTERNS:
         for path in sorted(glob.glob(os.path.join(REPO_ROOT, pattern))):
-            if os.path.isfile(path) and not is_excluded(path):
+            if os.path.isfile(path) and not is_excluded(path) and is_standalone_corpus_doc(path):
                 files.append(path)
     return files
 
@@ -134,12 +149,20 @@ MACRO_PARAM_RE = re.compile(r"^#\d+$")
 
 
 def split_keys(raw: str) -> list[str]:
-    # A bare macro-parameter token ("#1", "#2", ...) is never a real
-    # bibliography key -- it shows up here only inside a macro DEFINITION
-    # body (e.g. figures/pd-pedagogy.tex's \pdcite{#1} -> \cite{#1}, a
+    # A bare macro-parameter token ("#1", "#2", ...) or LaTeX arg spec ("O{", "m")
+    # is never a real bibliography key -- it shows up here only inside a macro
+    # DEFINITION body (e.g. figures/pd-pedagogy.tex's \pdcite{#1} -> \cite{#1}, a
     # shared file every chapter and the Book \input), where it would
     # otherwise look like a dangling \cite in every document that inputs it.
-    return [k.strip() for k in raw.split(",") if k.strip() and not MACRO_PARAM_RE.match(k.strip())]
+    keys = []
+    for k in raw.split(","):
+        k = k.strip()
+        if not k or MACRO_PARAM_RE.match(k):
+            continue
+        if not VALID_CITE_KEY_RE.match(k):
+            continue
+        keys.append(k)
+    return keys
 
 
 @dataclass
