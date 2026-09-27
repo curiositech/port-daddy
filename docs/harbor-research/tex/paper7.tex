@@ -166,6 +166,13 @@ r=|s|\sqrt{1-R_{\mathrm{eff}}^{K_c}(e)}.
 Consequently $r>0$ exactly when $e$ lies on a cycle of $K_c$. A bridge has effective resistance $1$ and zero residual. A severed edge contributes no observed row. This is a theorem about a \emph{one-edge} perturbation, not every split view by a single sender.
 
 \textbf{General one-sender criterion.} Let $A_qo$ place sender $q$'s per-neighbor coordinate offsets on visible incident edges, with orientation signs. Then $r=\|\Pi_K A_qo\|$, so detection is exactly $\Pi_K A_qo\ne0$. For each coordinate, $\ker(\Pi_KA_q)$ comprises offset patterns constant on edges from $q$ into each connected component of $K_c-q$. Constants for distinct components may differ. Indeed, $\Pi_KA_qo=0$ exactly when $A_qo=B_cx$ for a potential $x$. Every nonincident edge has zero offset, forcing $x$ to be constant on each component of $K_c-q$; those constants also construct the converse potential.
+
+\textbf{Blind-spot dimension.} Let $d_q^c$ be the number of visible $c$-edges at $q$, and let $h_q^c$ be the number of connected components of $K_c-q$ touched by those edges. If $d_q^c>0$, then
+\[
+\dim\ker(\Pi_KA_q)^c=h_q^c,\qquad
+b_q^c:=\dim\bigl(\ker(\Pi_KA_q)^c/\langle\mathbf1\rangle\bigr)=h_q^c-1.
+\]
+Set $b_q^c=0$ when $d_q^c=0$. The quotient removes a uniform sender-state change, leaving precisely the independent \emph{invisible split-view} directions. Thus every nonuniform one-sender offset in coordinate $c$ is detected exactly when $b_q^c=0$. The total blind-spot dimension for independent coordinates is $B_q=\sum_c b_q^c$. Under an edge-only receipt design that may add $c$-bearing edges among the touched components of $K_c-q$, at least $b_q^c$ such edges are needed to remove this blindness, and $b_q^c$ suffice if arbitrary cross-component links are admissible. Each added edge can merge at most two components; a spanning tree on the components attains the bound. This counts observability, not authenticated-claim consistency or Byzantine fault tolerance.
 \end{thebox}
 
 \textbf{Counterexample to a universal split-view criterion.} Let $q,a,b$ form a triangle and attach leaf $l$ to $q$, all edges visible in one coordinate. Starting from zero states, $q$ sends offset $1$ to $a,b$ and $0$ to $l$. The alternative potential $x_q=1$, $x_a=x_b=0$, $x_l=1$ produces exactly these edge differences: the two triangle edges at $q$ differ by $1$, while $a-b$ and $q-l$ differ by $0$. Hence $r=0$ despite a split view and a visible cycle through $q$. The components of $K_c-q$ are $\{a,b\}$ and $\{l\}$, so this is precisely a nonuniform kernel offset. A duplicate-claim checker with both authenticated claims from $q$ detects it directly if they bind the same coordinate and snapshot.
@@ -213,7 +220,7 @@ no-equivocator control gave $0/200$. Across all nine arms and 1,800 trials, the 
 synthetic feature and snapshot model; they are not a deployed signed-log evaluation.
 \end{thebox}
 
-The counts depend on the sampled topology, offsets, metric, and threshold. The equal-information comparison has been
+The counts depend on the sampled topology, offsets, metric, and threshold. The harness checks the blind-spot dimension against independent sender-map nullity calculations in all 224 four-vertex graph/sender cases with at least one incident edge. The equal-information comparison has been
 run on these synthetic records; exact cycle sums and noisy scoring have not been compared. An operational benchmark
 must predefine authenticated receipt and snapshot binding, the equality-preserving feature map, noise, false-alarm
 threshold, runtime cost, and localization target, then run all three evaluators on matched evidence.

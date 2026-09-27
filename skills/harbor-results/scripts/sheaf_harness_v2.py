@@ -340,6 +340,42 @@ def reproduce_split_view_kernel_counterexample():
     print("  Triangle plus leaf split view: visible cycle, r=0, "
           "direct duplicate-claim check=True  [PASS]")
 
+def check_blind_spot_dimension():
+    """Compare the graph-component score with an independent SVD nullity."""
+    checked = 0
+    for mask in range(1 << 6):
+        candidate_edges = [(u, v) for u in range(4) for v in range(u + 1, 4)]
+        edges = [e for i, e in enumerate(candidate_edges) if mask & (1 << i)]
+        if not edges:
+            continue
+        P = prefix_restrictions(edges, {e: 1 for e in edges}, 1)
+        B, _ = coboundary(4, edges, P, 1)
+        for q in range(4):
+            incident = [i for i, e in enumerate(edges) if q in e]
+            if not incident:
+                continue
+            rest = nx.Graph()
+            rest.add_nodes_from(v for v in range(4) if v != q)
+            rest.add_edges_from(e for e in edges if q not in e)
+            component_of = {
+                v: i for i, component in enumerate(nx.connected_components(rest))
+                for v in component
+            }
+            touched = {
+                component_of[edges[i][1] if edges[i][0] == q else edges[i][0]]
+                for i in incident
+            }
+            predicted = len(touched) - 1
+            A_q = np.zeros((len(edges), len(incident)))
+            for j, i in enumerate(incident):
+                A_q[i, j] = B[i, q]
+            projected = A_q - B @ np.linalg.lstsq(B, A_q, rcond=1e-10)[0]
+            nullity = len(incident) - np.linalg.matrix_rank(projected, tol=1e-9)
+            assert nullity - 1 == predicted, (mask, q, nullity, predicted)
+            checked += 1
+    print(f"  Blind-spot dimension: component score = sender-map "
+          f"nullity minus one on {checked} four-vertex graph/sender cases  [PASS]")
+
 # --------------------------------------------------------------------------
 # scenarios
 # --------------------------------------------------------------------------
@@ -546,6 +582,7 @@ def main():
           f"  stalk dim D={D}  trials/arm={TRIALS}")
     reproduce_mechanism()
     reproduce_split_view_kernel_counterexample()
+    check_blind_spot_dimension()
 
     print("\n" + "=" * 74)
     print("[1] STRUCTURAL SELF-CHECK (anti-D1) + beta1 netting")

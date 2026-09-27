@@ -157,12 +157,12 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Kind:** theorem  **Status:** folded
 
-> An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). For one visible edge perturbation, the residual is positive exactly on a visible coordinate cycle; general one-sender split views can remain invisible.
+> An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). One-edge perturbations obey visible-cycle sensitivity; the number of components touched after deleting a sender, minus one, is the exact dimension of its invisible split views per coordinate.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
-| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (one-edge criterion)" and general one-sender criterion; S5 (sec:harness) reports synthetic checked-edge-baseline trials |
-| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | sec:fh-sheaf: one-edge claim thm:sheaf-equivocation, triangle-with-leaf counterexample, equal-information baseline with 0 residual-only and 209 direct-only synthetic cases, and four-ring and consistency-radius examples |
+| Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (one-edge criterion)", general one-sender criterion, and blind-spot dimension; S5 (sec:harness) reports synthetic checked-edge-baseline trials |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | sec:fh-sheaf: one-edge claim thm:sheaf-equivocation, triangle-with-leaf counterexample, receipt-coverage score, equal-information baseline with 0 residual-only and 209 direct-only synthetic cases, and four-ring and consistency-radius examples |
 
 **Figures:** `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
 
