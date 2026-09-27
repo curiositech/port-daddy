@@ -2132,6 +2132,10 @@
     {
       "path": "skills/yao-2022-react/references/uncertainty-and-confidence-in-agent-decisions.md",
       "sha256": "4fe6cc57fafa2303ef5de25dc019a857d7e6f88d6a243b5e72a71980e820faab"
+    },
+    {
+      "path": "website-v2/public/skill-audit.json",
+      "sha256": "ab2e20d862be83d0a882d6eb77d4e521dc4955f55ce157cfaa946b528ac37564"
     }
   ]
 }
