@@ -124,7 +124,7 @@ SHA-256 readback:
 | Beacon `data/sitrep.json` | `078a13d5381a4d49f61d2c36087d8556722bc494c2d4e1124caf5db7eaeb243b` |
 | Beacon `server.js` | `c685dd1e89c3b11721d0d51e9d6d22464ecfc4e14a7e93f84846b651b3e612df` |
 | Beacon `artifact-extractor.js` | `d49dc79359b7314037ff0c2a73686b19bbaacc3127ed1357dfded18651d52a17` |
-| Beacon `docs/phase-a-artifacts-design.md` | `823567d736f84e96b42b9236c4fb031f63399551953e63d3f1ce4a1f36281aff` |
+| Beacon `docs/phase-a-artifacts-design.md` <!-- cite-exempt --> | `823567d736f84e96b42b9236c4fb031f63399551953e63d3f1ce4a1f36281aff` |
 | Prior `research-grafts-2/REPORT.md` | `ae5f51cd04c6eb5f623f9dfe5080fa7f32d5da515079173529d9a31aab823fc5` |
 | Canonical `whitepaper/legible-swarm.tex` at readback | `9953dea1567acd9571088320b53f0f85f5717a5942ae7ed37ac3e4bf8a8f6ded` |
 

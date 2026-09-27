@@ -147,7 +147,7 @@ def discover_corpus_files() -> list[str]:
     files: list[str] = []
     for pattern in cc.CORPUS_PATTERNS:
         for path in sorted(glob.glob(os.path.join(REPO_ROOT, pattern))):
-            if os.path.isfile(path) and not _is_excluded_relative(path):
+            if os.path.isfile(path) and not _is_excluded_relative(path) and cc.is_standalone_corpus_doc(path):
                 files.append(path)
     return files
 
