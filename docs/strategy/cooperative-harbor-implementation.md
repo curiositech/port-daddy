@@ -57,26 +57,27 @@ Designed, source-built, tested, deployed and observed are separate states.
 - [ ] CH7: Native/web/iOS/companion delivery, Porthole continuity, accessibility,
   human task testing, reviewed PRs and exact-version release evidence.
 
-### Delivery checkpoint: 2026-09-11
+### Delivery checkpoint: 2026-09-27
 
 This is the overall task list, not a claim that seven separately designed
 features already form a working product. Keep the existing CH identities.
 
 | Stage | Current evidence | Next work / completion gate |
 | --- | --- | --- |
-| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in draft [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
-| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded per-replica undo/redo in draft [#10133](https://github.com/curiositech/port-daddy/pull/10133) | Complete the editing checklist below, then real native task proof |
+| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) and custody/ownership amendments in [#10132](https://github.com/curiositech/port-daddy/pull/10132) merged | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
+| CH2: local IDE | Routing/replica/selection foundations and guarded per-replica undo/redo merged in #10132; see its exact merge and CI below | Complete the editing checklist below, then real native task proof |
 | CH3: governed collaboration | Authority/replay contracts identified; no shared admission or recovery claim | Verified principal/device admission, typed Rust receipts, complete replay, stable claims, filesystem witnesses and atomic transfer |
 | CH4: project state | Record ownership and disclosure contracts specified | Invitations/participation, explicit contribution publishing, dependency plans, accepted commitments, decisions/dissent, keys and revocation |
 | CH5: Remote Harbor | Custody and persistence protocol specified | Durable encrypted journal/checked heads, cold reconstruction, fencing/transfer, transport parity and failure UI |
 | CH6: intersections | Offline research artifacts exist; no measured predictive benefit | Scoped hybrid retrieval, bounded consequence paths, conflict/opportunity resolution, invalidation and held-out baseline comparison |
-| CH7: delivery | Source evidence and draft PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
+| CH7: delivery | Source evidence and an open PR, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
 
 CH2's remaining implementation queue, in order:
 
-- [ ] Correct current PR CI and preserve a complete headless target-graph check,
-  including examples that rehost editor modules; do not infer crate health from
-  a selected test filter.
+- [x] Correct #10132 CI and preserve a complete headless target-graph check,
+  including examples that rehost editor modules. The PR reports the full
+  headless target graph and exact-head hosted console checks; this is not a
+  native interaction proof.
 - [ ] Local save lifecycle: explicit dirty state, validated filesystem target,
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
@@ -94,6 +95,85 @@ CH2's remaining implementation queue, in order:
 - [ ] Verify independent worktrees and deliberately shared documents against
   CH3 authority, then record actual light/dark, zoom, accessibility and human
   task-flow evidence. No app launch is authorized by this checklist.
+
+### Current publication and first unblocked cut — 2026-09-27
+
+[#10132](https://github.com/curiositech/port-daddy/pull/10132) merged at
+`44915bcbb54ccb8d6c9e5acebc2d99345a8a7938`. Its exact-head and protected
+merge-group checks passed; the queue candidate's tree matched the published
+merge tree. An independent read-only source review found no actionable issue.
+This proves neither native behavior nor release readiness. The merged branch
+includes the #10133 history work.
+CH1 source amendments exist, but canonical runtime registry readback remains
+unavailable under the halt. CH1–CH7 therefore stay open.
+
+The next bounded implementation cut is **CH2 local save lifecycle**, after the
+published editor foundation and before private draft persistence. The current
+`EditorPane` opens a file into `HarborBuffer` and edits the live Loro document;
+it has no evidenced save transaction or dirty/acknowledged revision state. This
+cut should own only device-local saving, not shared acceptance:
+
+1. Capture the exact `DocumentRef`, Loro revision/change stamp, opened target
+   witness and bytes for each save request. Display dirty state from the last
+   acknowledged local revision; an edit racing the write must remain dirty.
+2. Validate the target under the selected worktree and recheck its file identity
+   and content against the open baseline before replacement. Refuse external
+   changes, symlink/target substitution and truncated-buffer writes with an
+   explicit conflict/error state. Do not advertise this as an OS-wide atomic
+   compare-and-swap guarantee.
+3. Perform file I/O off the render thread. Write through a same-directory
+   temporary file, flush/sync as supported, replace only after validation, and
+   report failures without marking the buffer clean. Preserve the original
+   file on refusal or failed preparation.
+4. Test edit→save, a second edit during save, external modification, target
+   replacement, write failure, Unicode bytes, and reopened content. Keep
+   shared admission, recovery and publication gates closed. Native save/status
+   behavior still needs screenshots, recording and human task proof when the
+   operator separately permits app observation.
+
+The proposed code ownership for that cut is `core/pd-console/src/editor_pane.rs`
+(save state and request/result binding), `core/pd-console/src/app.rs` (background
+I/O and UI completion), and a focused new `core/pd-console/src/editor_save.rs`
+(device-local target witness and atomic replacement), plus their directly
+corresponding headless tests. Inspect `main.rs` and `pane.rs` call sites before
+assigning any additional edits. No code file is assigned in this planning pass.
+
+### Branch-local save implementation checkpoint — 2026-09-27
+
+Draft [#10316](https://github.com/curiositech/port-daddy/pull/10316), based on
+the merged #10132 foundation, carries the first CH2 save cut. `EditorPane` freezes bytes, `DocumentRef` and Loro change stamp;
+a background file worker checks the opened file witness, writes through a
+same-directory temporary file, and returns a target witness. The foreground
+accepts that completion only for the pending document/revision. A later edit
+remains unsaved. The toolbar and keyboard expose no-local-edits, unsaved, checking, saving
+and error states. Save verification and writes run off the render thread;
+initial `load()` and its target-witness capture still run synchronously. This is
+published draft source and headless proof, not a native-observed feature.
+
+Offline validation: 14 focused save tests pass, including edit-during-save,
+clean-buffer external content and target replacement, controlled pre-replace
+write failure with temporary-file cleanup, target/parent replacement,
+symlink/hard-link refusal and Unicode round-trip. The 151 selected editor tests
+pass after the review repairs; the complete headless target graph builds with
+`cargo test --offline -q -p pd-console --no-run`, and the
+GPUI binary type-checks with `gpui/runtime_shaders`. No app or service was
+started. Two P1 review findings on relative targets and metadata preservation
+were repaired, and a second read-only review's restrictive-umask test finding
+was fixed. Exact-head hosted CI and actual native task proof remain before the CH2
+local-save item can be checked.
+
+A clean-buffer Save performs a read-only background witness check; it does not
+replace the file. “NO LOCAL EDITS” describes buffer history, not a continuously
+monitored disk. An external change discovered on Save becomes an explicit error.
+The target check is a best-effort witness before rename, not an atomic
+compare-and-swap against another OS writer. Saving currently requires an
+existing regular file in the selected Git worktree; relative targets resolve
+from the current directory before canonical validation. It does not create
+files or accept a symlink or hard-linked target. On macOS, replacement copies
+and verifies mode, ownership, flags, ACL and extended attributes; on Linux it
+rejects metadata it cannot safely preserve. The lack of native observation and
+the best-effort filesystem witness are remaining risks, not shared-acceptance
+guarantees.
 
 After CH2, follow CH3 → CH4 → CH5 → CH6 → CH7 without treating source-present
 scaffolds as completed prerequisites. Shared decisions, transfers and external

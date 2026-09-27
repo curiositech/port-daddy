@@ -2355,6 +2355,7 @@ struct EditorSurfaceState {
     show_blame: bool,
     blame: EditorBlameState,
     blame_rx: Option<mpsc::Receiver<std::result::Result<Vec<crate::git_blame::BlameLine>, String>>>,
+    save_rx: Option<mpsc::Receiver<crate::editor_pane::SaveCompletion>>,
 }
 
 #[derive(Clone)]
@@ -2373,6 +2374,7 @@ struct EditorRenderOptions {
     blame: Option<std::sync::Arc<[crate::git_blame::BlameLine]>>,
     blame_status: String,
     syntax_label: String,
+    save_status: String,
     viewport_width: Option<f32>,
 }
 
@@ -2452,6 +2454,7 @@ fn editor_surface_state(
         show_blame: false,
         blame: EditorBlameState::Off,
         blame_rx: None,
+        save_rx: None,
     }
 }
 
@@ -2739,6 +2742,45 @@ impl ConsoleView {
         if let Some(reason) = blame_errors.pop() {
             self.control_flash = Some(format!("Git blame unavailable: {reason}"));
         }
+    }
+
+    /// The 500ms foreground consumer calls this even when no unrelated pane
+    /// update arrives; a completed disk write must leave the SAVING state.
+    pub fn poll_editor_saves(&mut self) -> bool {
+        let mut changed = false;
+        let mut save_error = None;
+        for state in self.editors.values_mut() {
+            let received = state.save_rx.as_ref().map(mpsc::Receiver::try_recv);
+            match received {
+                Some(Ok(completion)) => {
+                    let verified_only = completion.is_verification();
+                    match state.pane.complete_save(completion) {
+                        Ok(()) if verified_only => {
+                            self.control_flash = Some("Local file matched at check".into());
+                        }
+                        Ok(()) if state.pane.save_status() == "UNSAVED LOCAL" => {
+                            self.control_flash = Some("Earlier revision saved; newer edits remain".into());
+                        }
+                        Ok(()) => self.control_flash = Some("Saved local file".into()),
+                        Err(reason) => save_error = Some(reason),
+                    }
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Disconnected)) => {
+                    let reason = "editor save worker stopped before returning a result".to_string();
+                    state.pane.fail_save_worker(reason.clone());
+                    save_error = Some(reason);
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Empty)) | None => {}
+            }
+        }
+        if let Some(reason) = save_error {
+            self.control_flash = Some(format!("Editor save refused: {reason}"));
+        }
+        changed
     }
 
     /// The opening layout: a fleet overview beside a stacked agent-lane /
@@ -3378,6 +3420,23 @@ impl ConsoleView {
         true
     }
 
+    fn save_focused_editor(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else { return false; };
+        let Some(state) = self.editors.get_mut(&key) else { return false; };
+        match state.pane.prepare_save() {
+            Ok(request) => {
+                let checking = request.is_verification();
+                let (tx, rx) = mpsc::channel();
+                state.save_rx = Some(rx);
+                std::thread::spawn(move || { let _ = tx.send(request.run()); });
+                self.control_flash = Some(if checking { "Checking local file…" } else { "Saving local file…" }.into());
+            }
+            Err(reason) => self.control_flash = Some(reason),
+        }
+        cx.notify();
+        true
+    }
+
     fn apply_focused_editor_history(
         &mut self,
         direction: crate::buffer::HistoryDirection,
@@ -3485,6 +3544,14 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        let save_primary = if cfg!(target_os = "macos") {
+            modifiers.platform && !modifiers.control
+        } else {
+            modifiers.control && !modifiers.platform
+        };
+        if key == "s" && save_primary && !modifiers.alt && !modifiers.shift {
+            return self.save_focused_editor(cx);
+        }
         if let Some(direction) = crate::editor_input::history_shortcut(
             key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
             cfg!(target_os = "macos"),
@@ -4897,6 +4964,7 @@ impl ConsoleView {
                         blame,
                         blame_status,
                         syntax_label: crate::syntax::lang_for_path(path).label().to_string(),
+                        save_status: state.pane.save_status(),
                         viewport_width: state
                             .input_bounds
                             .map(|bounds| f32::from(bounds.size.width)),
@@ -8029,6 +8097,7 @@ fn render_editor_toolbar(
 ) -> AnyElement {
     let t = current_theme();
     let wrap_key = editor_key.clone();
+    let save_key = editor_key.clone();
     let blame_key = editor_key;
     let wrap_on = options.wrap_lines;
     let blame_on = options.show_blame;
@@ -8060,6 +8129,24 @@ fn render_editor_toolbar(
             "COLUMN REPLICA"
         }))
         .child(div().flex_1())
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-save-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(t.line))
+                .text_color(rgb(t.ink2))
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.focused_editor_key().as_deref() == Some(save_key.as_str()) {
+                        this.save_focused_editor(cx);
+                    }
+                }))
+                .child(options.save_status.clone()),
+        )
         .child(
             div()
                 .id(SharedString::from(format!("editor-wrap-toggle-{id}")))
