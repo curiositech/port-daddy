@@ -28,7 +28,11 @@
 //! while the TUI shows the tag text. No `rgb(0x…)` hex anywhere — color is meaning,
 //! resolved from `Tone`.
 
+#[path = "editor_save.rs"]
+mod editor_save;
+
 use crate::agent::DaemonClient;
+use self::editor_save::SaveTarget;
 use crate::buffer::{HarborBuffer, HistoryAction, HistoryDirection, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
@@ -140,6 +144,11 @@ pub struct EditorPane {
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
+    save_target: Option<SaveTarget>,
+    saved_stamp: Option<Vec<u8>>,
+    pending_save: Option<Vec<u8>>,
+    pending_verification: bool,
+    save_error: Option<String>,
     /// DocumentRef-derived edit lane. Merely opening a local path does not
     /// subscribe; verified shared-session admission is still an external gate.
     channel: String,
@@ -194,6 +203,44 @@ pub struct EditorPane {
     code: std::cell::RefCell<Option<CodeCache>>,
 }
 
+/// A frozen device-local write. Executed off the render thread.
+pub struct SaveRequest {
+    document: crate::editor_sync::DocumentRef,
+    target: SaveTarget,
+    stamp: Vec<u8>,
+    bytes: Vec<u8>,
+    verify_only: bool,
+}
+
+pub struct SaveCompletion {
+    document: crate::editor_sync::DocumentRef,
+    stamp: Vec<u8>,
+    result: std::result::Result<SaveTarget, String>,
+    verify_only: bool,
+}
+
+impl SaveRequest {
+    pub fn is_verification(&self) -> bool { self.verify_only }
+
+    pub fn run(self) -> SaveCompletion {
+        let result = if self.verify_only {
+            self.target.verify()
+        } else {
+            self.target.save(&self.bytes)
+        };
+        SaveCompletion {
+            document: self.document,
+            stamp: self.stamp,
+            result,
+            verify_only: self.verify_only,
+        }
+    }
+}
+
+impl SaveCompletion {
+    pub fn is_verification(&self) -> bool { self.verify_only }
+}
+
 impl EditorPane {
     /// Construct a pane bound to `path` with an optional `region`, opened under the
     /// default operator identity. No disk I/O here — call `load()` (sync) or
@@ -226,6 +273,11 @@ impl EditorPane {
             buffer: None,
             truncated: false,
             error: None,
+            save_target: None,
+            saved_stamp: None,
+            pending_save: None,
+            pending_verification: false,
+            save_error: None,
             channel,
             coord_channel,
             presence: PresenceStore::new(local_peer),
@@ -248,8 +300,17 @@ impl EditorPane {
     /// Used by the GPUI render path (`&self`-sync construction) and by `refresh()`.
     /// Idempotent: clears prior state before loading.
     pub fn load(&mut self) {
+        if self.pending_save.is_some() {
+            self.save_error = Some("wait for the current save before reopening".into());
+            return;
+        }
         self.buffer = None;
         self.truncated = false;
+        self.save_target = None;
+        self.saved_stamp = None;
+        self.pending_save = None;
+        self.pending_verification = false;
+        self.save_error = None;
         // Drop the render cache: a re-load may read DIFFERENT disk content that
         // happens to produce an equal-length op stream (an equal CRDT stamp), so
         // the stamp alone cannot be trusted across a reopen.
@@ -257,6 +318,13 @@ impl EditorPane {
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
                 self.reset_replica_awareness(buf.local_peer());
+                match SaveTarget::open(&self.path, &buf.to_string()) {
+                    Ok(target) => {
+                        self.saved_stamp = Some(buf.change_stamp());
+                        self.save_target = Some(target);
+                    }
+                    Err(reason) => self.save_error = Some(reason),
+                }
                 self.buffer = Some(buf);
                 self.error = None;
             }
@@ -291,6 +359,68 @@ impl EditorPane {
 
     pub fn document(&self) -> &crate::editor_sync::DocumentRef {
         &self.document
+    }
+
+    /// A local save request freezes bytes and the exact CRDT revision. The worker
+    /// owns only this snapshot; it never reads or mutates the live Loro buffer.
+    pub fn prepare_save(&mut self) -> std::result::Result<SaveRequest, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot save a local file".into());
+        }
+        if self.pending_save.is_some() {
+            return Err("an editor save is already in progress".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        let target = self.save_target.clone().ok_or_else(|| self.save_error.clone()
+            .unwrap_or_else(|| "editor save target is unavailable".into()))?;
+        let stamp = buffer.change_stamp();
+        let verify_only = self.saved_stamp.as_ref() == Some(&stamp);
+        let bytes = if verify_only { Vec::new() } else { buffer.to_string().into_bytes() };
+        self.pending_save = Some(stamp.clone());
+        self.pending_verification = verify_only;
+        self.save_error = None;
+        Ok(SaveRequest { document: self.document.clone(), target, stamp, bytes, verify_only })
+    }
+
+    /// Only the same document and pending request may advance the disk baseline.
+    /// A later edit keeps the pane dirty even when the older write succeeded.
+    pub fn complete_save(&mut self, completion: SaveCompletion) -> Result<(), String> {
+        if self.document != completion.document || self.pending_save.as_ref() != Some(&completion.stamp) {
+            return Err("stale editor save completion".into());
+        }
+        self.pending_save = None;
+        self.pending_verification = false;
+        match completion.result {
+            Ok(target) => {
+                self.save_target = Some(target);
+                self.saved_stamp = Some(completion.stamp);
+                self.save_error = None;
+                Ok(())
+            }
+            Err(reason) => {
+                self.save_error = Some(reason.clone());
+                Err(reason)
+            }
+        }
+    }
+
+    pub fn fail_save_worker(&mut self, reason: String) {
+        self.pending_save = None;
+        self.pending_verification = false;
+        self.save_error = Some(reason);
+    }
+
+    pub fn save_status(&self) -> String {
+        if self.save_error.is_some() { return "SAVE ERROR".into(); }
+        if self.pending_save.is_some() {
+            return if self.pending_verification { "CHECKING FILE" } else { "SAVING LOCAL" }.into();
+        }
+        let Some(buffer) = self.buffer.as_ref() else { return "UNAVAILABLE".into(); };
+        if self.saved_stamp.as_ref() == Some(&buffer.change_stamp()) {
+            "NO LOCAL EDITS".into()
+        } else {
+            "UNSAVED LOCAL".into()
+        }
     }
 
     /// The background lane imports the foreground's exact history, never seeds
@@ -1180,6 +1310,9 @@ impl Pane for EditorPane {
         // open does a blocking std::fs read; do it off the reactor so a slow/huge
         // file can't stall it, then fold the buffer (or error) back into `self`.
         Box::pin(async move {
+            if self.pending_save.is_some() {
+                return Err(anyhow::anyhow!("wait for the current save before refreshing"));
+            }
             let path = self.path.clone();
             let identity = self.identity.clone();
             // Same reopen hazard as `load()`: never trust the old cache across
@@ -1191,6 +1324,18 @@ impl Pane for EditorPane {
             match opened {
                 Ok(buf) => {
                     self.reset_replica_awareness(buf.local_peer());
+                    self.save_target = None;
+                    self.saved_stamp = None;
+                    self.pending_save = None;
+                    self.pending_verification = false;
+                    self.save_error = None;
+                    match SaveTarget::open(&self.path, &buf.to_string()) {
+                        Ok(target) => {
+                            self.saved_stamp = Some(buf.change_stamp());
+                            self.save_target = Some(target);
+                        }
+                        Err(reason) => self.save_error = Some(reason),
+                    }
                     self.buffer = Some(buf);
                     self.error = None;
                     self.truncated = false;
@@ -1198,6 +1343,10 @@ impl Pane for EditorPane {
                 Err(e) => {
                     self.error = Some(format!("{e}"));
                     self.buffer = None;
+                    self.save_target = None;
+                    self.saved_stamp = None;
+                    self.pending_save = None;
+                    self.pending_verification = false;
                     self.truncated = false;
                 }
             }
@@ -1237,6 +1386,98 @@ mod tests {
         assert!(!mirror.ingest_local_frame(&frame), "duplicate local delivery is a no-op");
         assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
         assert!(mirror.subscription().is_none(), "a mirror is not shared admission");
+    }
+
+    #[test]
+    fn editor_save_racing_edit_remains_dirty_after_older_write() {
+        let path = write_temp("save-race.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        pane.apply_local_text_edit(0..0, "first ").unwrap();
+        assert_eq!(pane.save_status(), "UNSAVED LOCAL");
+        let request = pane.prepare_save().unwrap();
+        assert_eq!(pane.save_status(), "SAVING LOCAL");
+        pane.apply_local_text_edit(0..0, "second ").unwrap();
+        let completion = request.run();
+        pane.complete_save(completion).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first start\n");
+        assert_eq!(pane.save_status(), "UNSAVED LOCAL");
+        let second_save = pane.prepare_save().unwrap();
+        pane.complete_save(second_save.run()).unwrap();
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "second first start\n");
+    }
+
+    #[test]
+    fn editor_save_clean_checks_external_edit_without_replacing_target() {
+        let path = write_temp("save-clean-conflict.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        let first = pane.prepare_save().unwrap();
+        assert!(first.is_verification());
+        assert_eq!(pane.save_status(), "CHECKING FILE");
+        let before = std::fs::metadata(&path).unwrap();
+        pane.complete_save(first.run()).unwrap();
+        let after = std::fs::metadata(&path).unwrap();
+        assert!(super::editor_save::same_file(&before, &after), "verification never replaces the file");
+        std::fs::write(&path, "external\n").unwrap();
+        let check = pane.prepare_save().unwrap();
+        assert!(check.is_verification());
+        assert!(pane.complete_save(check.run()).unwrap_err().contains("changed"));
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+    }
+
+    #[test]
+    fn editor_save_clean_refuses_same_bytes_replaced_target() {
+        let path = write_temp("save-clean-replaced.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        let replacement = std::path::PathBuf::from(&path).with_extension("replacement");
+        std::fs::write(&replacement, "start\n").unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+        let request = pane.prepare_save().unwrap();
+        assert!(request.is_verification());
+        assert!(pane.complete_save(request.run()).unwrap_err().contains("changed"));
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "start\n");
+    }
+
+    #[test]
+    fn editor_save_failed_prepared_write_cleans_temp_and_keeps_editor_dirty() {
+        let path = write_temp("save-write-failure.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "mine ").unwrap();
+        let request = pane.prepare_save().unwrap();
+        assert!(!request.is_verification());
+        let mut temp = None;
+        let result = request.target.save_with_hook(&request.bytes, |prepared| {
+            temp = Some(prepared.to_path_buf());
+            Err("controlled preparation failure".into())
+        });
+        let completion = SaveCompletion {
+            document: request.document,
+            stamp: request.stamp,
+            result,
+            verify_only: false,
+        };
+        assert!(pane.complete_save(completion).unwrap_err().contains("controlled"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "start\n");
+        assert!(!temp.unwrap().exists(), "failed temporary write is removed");
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+    }
+
+    #[test]
+    fn editor_save_external_change_refuses_and_stays_dirty() {
+        let path = write_temp("save-external.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "mine ").unwrap();
+        let request = pane.prepare_save().unwrap();
+        std::fs::write(&path, "external\n").unwrap();
+        let reason = pane.complete_save(request.run()).unwrap_err();
+        assert!(reason.contains("changed"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+        assert!(pane.save_status().starts_with("SAVE ERROR"));
+        assert!(pane.prepare_save().unwrap().run().result.is_err());
     }
 
     #[test]

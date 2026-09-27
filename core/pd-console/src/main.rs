@@ -1605,7 +1605,9 @@ fn main() {
                     bg.timer(Duration::from_millis(500)).await;
                     let _ = async_cx.update(|app| {
                         let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
-                            if view.refresh_local_control() {
+                            let control_changed = view.refresh_local_control();
+                            let save_changed = view.poll_editor_saves();
+                            if control_changed || save_changed {
                                 present_changed_frame(window, cx, &mut size_nudged);
                             }
                         });
