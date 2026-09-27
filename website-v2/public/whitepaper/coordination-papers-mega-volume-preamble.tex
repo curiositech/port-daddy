@@ -1152,4 +1152,27 @@
   \else
     \usebox{\pd@picbox}%
   \fi}
+\NewDocumentCommand\pdwidecaption{O{} m O{}}{%
+  \par\vspace{6pt}%
+  \begingroup
+  \let\pd@captiontype\relax
+  \pd@routecaptionfalse
+  \noindent\checkoddpage
+  \ifoddpage
+    \makebox[\textwidth][l]{%
+      \begin{minipage}{\pdfullwidth}%
+        \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
+        \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+      \end{minipage}%
+    }%
+  \else
+    \makebox[\textwidth][r]{%
+      \begin{minipage}{\pdfullwidth}%
+        \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
+        \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+      \end{minipage}%
+    }%
+  \fi
+  \endgroup
+}
 \makeatother

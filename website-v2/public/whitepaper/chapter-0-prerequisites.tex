@@ -422,7 +422,7 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
     draw=pdink!60, line width=0.8pt
   }
 ]
-  \useasboundingbox (0, -1.25) rectangle (15.5, 18.80);
+  \useasboundingbox (0, -0.10) rectangle (15.5, 18.80);
 
   % ================= HEADER & SEMANTIC KEY =================
   \node[anchor=west, font=\pdfiglabelbold\large, text=pdink] at (0.2, 18.45) {BDI AGENT OPERATIONAL ARCHITECTURE};
@@ -446,7 +446,7 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   \node[anchor=west, font=\pdfiglabel, text=pdink] at (12.45, 17.20) {Failure Trap ($-!g$)};
 
   % ================= SECTION 1: PARADIGM SELECTION =================
-  \draw[sectionFrame] (0.2, 11.20) rectangle (15.3, 16.85);
+  \draw[sectionFrame] (0.2, 12.35) rectangle (15.3, 16.85);
   \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.45, 16.50) {1. ARCHITECTURAL PARADIGM SELECTION (GOAL DYNAMICS VS INTERRUPT ABSORPTION)};
 
   % Unified Spec & Decision Banner
@@ -456,19 +456,19 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   };
 
   % Three Columns of Architectures (Aligned with Section 2 columns at x = 2.50, 7.75, 13.00)
-  \node[gridBox, anchor=north] (reactive) at (2.50, 13.50) {
+  \node[gridBox, anchor=north] (reactive) at (2.50, 13.95) {
     \textbf{Reactive Rules} \\[2pt]
     Event-driven triggers; \\[2pt]
     no persistent goals
   };
 
-  \node[gridBox, anchor=north] (classical) at (7.75, 13.50) {
+  \node[gridBox, anchor=north] (classical) at (7.75, 13.95) {
     \textbf{Classical Planner} \\[2pt]
     Static STRIPS / HTN; \\[2pt]
     brittle to failures
   };
 
-  \node[activeBox, anchor=north] (bdi) at (13.00, 13.50) {
+  \node[activeBox, anchor=north] (bdi) at (13.00, 13.95) {
     \textbf{BDI Architecture} \\[2pt]
     Beliefs, Plans, \\[2pt]
     Intentions; recovery
@@ -483,23 +483,23 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
     node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold, text=pdcobalt] {Goals + Interrupts};
 
   % ================= SECTION 2: DELIBERATION CYCLE =================
-  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!4] (0.2, -1.15) rectangle (15.3, 10.90);
-  \node[anchor=west, font=\pdfiglabelbold, text=pdcobalt] at (0.45, 10.55) {2. AGENTSPEAK(L) OPERATIONAL DELIBERATION CYCLE (STATE TRANSITIONS)};
+  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!4] (0.2, 0.00) rectangle (15.3, 12.05);
+  \node[anchor=west, font=\pdfiglabelbold, text=pdcobalt] at (0.45, 11.70) {2. AGENTSPEAK(L) OPERATIONAL DELIBERATION CYCLE (STATE TRANSITIONS)};
 
   % Row 1: Deliberation Steps (Uniform 3-line content & equal height for perfect horizontal alignment)
-  \node[gridBox, draw=pdcobalt, anchor=north] (step1) at (2.50, 10.15) {
+  \node[gridBox, draw=pdcobalt, anchor=north] (step1) at (2.50, 11.30) {
     \textbf{1. Select Event ($S_E$)} \\[2pt]
     Pop event from $\mathcal{E}$: \\[2pt]
     $\langle +!g, i_{\text{auth}} \rangle \leftarrow S_E(\mathcal{E})$
   };
 
-  \node[gridBox, draw=pdcobalt, anchor=north] (step2) at (7.75, 10.15) {
+  \node[gridBox, draw=pdcobalt, anchor=north] (step2) at (7.75, 11.30) {
     \textbf{2. Select Plan ($S_O$)} \\[2pt]
     Match: $\text{App} \subseteq \mathcal{P}$ \\[2pt]
     Select: $p_{\text{jwt}} \leftarrow S_O(\text{App})$
   };
 
-  \node[activeBox, anchor=north] (step3) at (13.00, 10.15) {
+  \node[activeBox, anchor=north] (step3) at (13.00, 11.30) {
     \textbf{3. Intention ($S_I$)} \\[2pt]
     Schedule: $i_{\text{auth}} \leftarrow S_I(\mathcal{I})$ \\[2pt]
     Commit slice to stack
@@ -511,20 +511,20 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   \draw[pd focus arrow] ($(step2.north east)+(0,-0.65)$) -- ($(step3.north west)+(0,-0.65)$)
     node[midway, above=2pt, font=\pdfiglabelbold, text=pdcobalt] {Applicable};
 
-  % Row 2: Ingestion, Status, and Commitment (y = 7.30)
-  \node[gridBox, anchor=north] (queue) at (2.50, 7.30) {
+  % Row 2: Ingestion, Status, and Commitment (y = 8.45)
+  \node[gridBox, anchor=north] (queue) at (2.50, 8.45) {
     \textbf{Queue Ingestion} \\[2pt]
     Add subgoals: $+!g$ \\[2pt]
     Add beliefs: $+b$
   };
 
-  \node[baseBox, draw=pdink, line width=0.9pt, text width=3.25cm, align=center, anchor=north, minimum height=1.35cm] (status) at (7.75, 7.30) {
+  \node[baseBox, draw=pdink, line width=0.9pt, text width=3.25cm, align=center, anchor=north, minimum height=1.35cm] (status) at (7.75, 8.45) {
     \textbf{Status Check} \\[2pt]
     Environmental exit code \\[2pt]
     Verify sandbox result
   };
 
-  \node[gridBox, anchor=north] (commit) at (13.00, 7.30) {
+  \node[gridBox, anchor=north] (commit) at (13.00, 8.45) {
     \textbf{Commitment Review} \\[2pt]
     Check drop conditions \\[2pt]
     Prevent goal thrashing
@@ -536,14 +536,14 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
   \draw[pd arrow] (queue.north) -- (step1.south)
     node[midway, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt, font=\pdfiglabelbold] {New Cycle};
 
-  % Row 3: Outcomes & Recovery (Moved down ~2 font heights to y = 3.70, symmetric at x = 4.65 & 10.85)
-  \node[recoveryBox, anchor=north] (recovery) at (4.65, 3.70) {
+  % Row 3: Outcomes & Recovery (Moved down ~2 font heights to y = 4.85, symmetric at x = 4.65 & 10.85)
+  \node[recoveryBox, anchor=north] (recovery) at (4.65, 4.85) {
     \textbf{Post $-!g$ Recovery} \\[2pt]
     Pop failed intention stack frame; \\[2pt]
     Post failure event $-!g$ to queue $\mathcal{E}$
   };
 
-  \node[successBox, anchor=north] (advance) at (10.85, 3.70) {
+  \node[successBox, anchor=north] (advance) at (10.85, 4.85) {
     \textbf{Advance Intention} \\[2pt]
     Push validated plan body to $i_{\text{auth}}$; \\[2pt]
     Execute next action in slice
@@ -574,8 +574,8 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
     -- (15.00, 0 |- commit.east)
     -- (commit.east);
 
-  % Deliberation Invariant Footer Box (Moved down to y = 1.25)
-  \node[baseBox, text width=14.2cm, align=center, inner xsep=8pt, inner ysep=9pt, anchor=north] at (7.75, 1.25) {
+  % Deliberation Invariant Footer Box (Enclosed inside Section 2)
+  \node[baseBox, text width=14.2cm, align=center, inner xsep=8pt, inner ysep=9pt, anchor=north] at (7.75, 2.40) {
     \textbf{Operational Cycle Invariant $\mathcal{I}_{\text{BDI}}$:} $\forall t, \;\mathcal{E}_{t+1} = \big(\mathcal{E}_t \setminus \{e\}\big) \cup \mathsf{ExtEvents} \cup \mathsf{IntSubgoals}$.\\[3pt]
     Intention commitments persist across clock ticks until explicitly achieved or dropped by commitment review.
   };
@@ -1381,68 +1381,68 @@ Figure~\ref{fig:cnp-part1} traces the announcement and bidding phase of this lif
   \node[anchor=east,font=\sffamily\footnotesize\color{pdinkmuted}] at (15.15, 8.87) {Smith (1980) $\cdot$ FIPA-00025};
 
   % Lifeline Headers
-  \node[pd focus box, text width=3.4cm, minimum height=1.1cm] (mgr) at (2.2, 7.55) {%
+  \node[pd focus box, text width=3.4cm, minimum height=0.95cm] (mgr) at (2.2, 7.65) {%
     \textbf{\color{pdcobalt}Manager Agent}\\[2pt]%
-    \footnotesize Orchestrator $\cdot$ Root Lease%
+    \scriptsize Orchestrator $\cdot$ Root Lease%
   };
 
-  \node[pd box, text width=3.6cm, minimum height=1.1cm, draw=pdcobalt!50, fill=pdcobalt!5] (c1) at (8.0, 7.55) {%
-    \textbf{\color{pdcobalt}Contractor 1 (Worker A)}\\[2pt]%
-    \footnotesize Vitest Worker $\cdot$ Available%
+  \node[pd box, text width=3.6cm, minimum height=0.95cm, draw=pdcobalt!50, fill=pdcobalt!5] (c1) at (8.0, 7.65) {%
+    \textbf{\color{pdcobalt}Contractor 1} \textmd{\scriptsize(Worker A)}\\[2pt]%
+    \scriptsize Vitest Worker $\cdot$ Available%
   };
 
-  \node[pd box, text width=3.6cm, minimum height=1.1cm] (c2) at (13.5, 7.55) {%
-    \textbf{\color{pdink}Contractor 2 (Worker B)}\\[2pt]%
-    \footnotesize Build Engine $\cdot$ Saturated%
+  \node[pd box, text width=3.6cm, minimum height=0.95cm] (c2) at (13.5, 7.65) {%
+    \textbf{\color{pdink}Contractor 2} \textmd{\scriptsize(Worker B)}\\[2pt]%
+    \scriptsize Build Engine $\cdot$ Saturated%
   };
 
   % Lifelines
-  \draw[pd line] (2.2, 6.95) -- (2.2, 0.9);
-  \draw[pd line] (8.0, 6.95) -- (8.0, 0.9);
-  \draw[pd line] (13.5, 6.95) -- (13.5, 0.9);
+  \draw[pd line] (2.2, 7.15) -- (2.2, 1.7);
+  \draw[pd line] (8.0, 7.15) -- (8.0, 1.7);
+  \draw[pd line] (13.5, 7.15) -- (13.5, 1.7);
 
   % Activation Bars
-  \draw[pd actbar] (2.05, 6.3) rectangle (2.35, 1.1);
-  \draw[draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt] (7.85, 6.0) rectangle (8.15, 3.5);
-  \draw[draw=pderror!70,fill=pderror!12,rounded corners=1pt,line width=0.5pt] (13.35, 6.0) rectangle (13.65, 2.7);
+  \draw[pd actbar] (2.05, 6.0) rectangle (2.35, 1.7);
+  \draw[draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt] (7.85, 5.75) rectangle (8.15, 3.35);
+  \draw[draw=pderror!70,fill=pderror!12,rounded corners=1pt,line width=0.5pt] (13.35, 4.85) rectangle (13.65, 2.45);
 
   % 1a. CFP Broadcast to Contractor 1
-  \draw[pd focus msg] (2.35, 6.0) -- (7.85, 6.0)
-    node[pos=0.5, above=2pt, align=center, fill=white, inner sep=2pt]
+  \draw[pd focus msg] (2.35, 5.75) -- (7.85, 5.75)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
     {\textbf{\color{pdcobalt}1a. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
-    \footnotesize Task: CVE-2024-XXXX $\cdot$ Budget: \$12.00 $\cdot$ TTL: 300s};
+    \scriptsize Task: CVE-2024-XXXX $\cdot$ Budget: \$12.00 $\cdot$ TTL: 300s};
 
   % 1b. CFP Broadcast to Contractor 2
-  \draw[pd msg] (2.35, 5.0) -- (13.35, 5.0)
-    node[pos=0.7, above=2pt, align=center, fill=white, inner sep=2pt]
+  \draw[pd msg] (2.35, 4.85) -- (13.35, 4.85)
+    node[pos=0.7, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
     {\textbf{1b. CFP Fleet Broadcast}\\[1pt]
-    \footnotesize Identical specification payload};
+    \scriptsize Identical specification payload};
 
   % Contractor Assessment Notes
-  \node[fill=pdcobalt!8, draw=pdcobalt!40, rounded corners=2pt, inner sep=3pt, font=\sffamily\footnotesize\color{pdcobalt}, align=center] at (10.7, 4.3) {Self-Assessment: queue idle $\cdot$ tools matched};
-  \node[fill=pderror!8, draw=pderror!40, rounded corners=2pt, inner sep=3pt, font=\sffamily\footnotesize\color{pderror}] at (13.5, 3.6) {4 active locks $\implies$ saturated};
+  \node[fill=pdcobalt!8, draw=pdcobalt!40, rounded corners=2pt, inner sep=2.5pt, font=\sffamily\scriptsize\color{pdcobalt}, align=center] at (10.7, 4.15) {Self-Assessment: queue idle $\cdot$ tools matched};
+  \node[fill=pderror!8, draw=pderror!40, rounded corners=2pt, inner sep=2.5pt, font=\sffamily\scriptsize\color{pderror}] at (13.5, 3.45) {4 active locks $\implies$ saturated};
 
   % 2a. Contractor 1 Submits Competitive Bid
-  \draw[pd focus msg] (7.85, 3.7) -- (2.35, 3.7)
-    node[pos=0.5, above=2pt, align=center, fill=white, inner sep=2pt]
+  \draw[pd focus msg] (7.85, 3.55) -- (2.35, 3.55)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
     {\textbf{\color{pdcobalt}2a. PROPOSE (Formal Bid Submission)}\\[1pt]
-    \footnotesize Bid 0x4a $\cdot$ Cost: \$4.20 $\cdot$ ETA: 180s $\cdot$ Reputation: 0.98};
+    \scriptsize Bid \texttt{0x4a} $\cdot$ Cost: \$4.20 $\cdot$ ETA: 180s $\cdot$ Reputation: 0.98};
 
   % 2b. Contractor 2 Refusal
-  \draw[pd fail msg] (13.35, 2.7) -- (2.35, 2.7)
-    node[pos=0.6, above=2pt, align=center, fill=white, inner sep=2pt]
+  \draw[pd fail msg] (13.35, 2.55) -- (2.35, 2.55)
+    node[pos=0.6, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
     {\textbf{\color{pderror}2b. REFUSE (Explicit Capacity Refusal)}\\[1pt]
-    \footnotesize Queue saturated (4 locks held) $\cdot$ Available in 420s};
+    \scriptsize Queue saturated (4 locks held) $\cdot$ Available in 420s};
 
   % Utility Scoring Card
-  \node[draw=pdcobalt!50,fill=pdcobalt!4,rounded corners=2pt,inner sep=5pt,text width=9.2cm,align=left] at (4.9, 1.05) {
+  \node[draw=pdcobalt!50,fill=pdcobalt!4,rounded corners=2pt,inner sep=4pt,text width=9.2cm,align=left] at (4.9, 0.95) {
     \textbf{\color{pdcobalt}Manager Multi-Attribute Evaluation (FIPA-00025):}\\[2pt]
-    \footnotesize $\bullet$ \textbf{Contractor 1:} Lowest cost (\$4.20) and verified tools $\implies$ \textbf{\color{pdcobalt}Award Winner}\\[1pt]
+    \scriptsize $\bullet$ \textbf{Contractor 1:} Lowest cost (\$4.20) and verified tools $\implies$ \textbf{\color{pdcobalt}Award Winner}\\[1pt]
     $\bullet$ \textbf{Contractor 2:} Explicit refusal received $\implies$ \textbf{Auction Clears Without Timeout}
   };
 
   % Continuation Prompt
-  \node[anchor=east, font=\sffamily\footnotesize\bfseries, text=pdcobalt, fill=white, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=6pt, text width=4.8cm, align=center] at (15.4, 1.05) {
+  \node[anchor=east, font=\sffamily\scriptsize\bfseries, text=pdcobalt, fill=white, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=5pt, text width=4.8cm, align=center] at (15.4, 0.95) {
     Continued on facing page\\(Part 2: Award \& Escrow) $\,\blacktriangleright$
   };
 
@@ -1478,77 +1478,86 @@ Figure~\ref{fig:cnp-part2} traces the execution and settlement phase on this fac
   pd fail msg/.style={draw=pderror,line width=0.9pt,dashed,-{Stealth[length=4.5pt,width=3pt]}},
   pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt}
 ]
-  \useasboundingbox (0, 0) rectangle (15.5, 9.4);
+  \useasboundingbox (0, 0) rectangle (15.5, 11.8);
 
   % Header Banner
-  \draw[draw=pdcobalt!60,fill=pdcobalt!4,rounded corners=2pt,line width=0.5pt] (0.1, 8.5) rectangle (15.4, 9.25);
-  \node[anchor=west,font=\sffamily\bfseries\color{pdcobalt}] at (0.35, 8.87) {CONTRACT NET PROTOCOL (CNP) \enspace\textbar\enspace \textmd{Part 1: CFP \& Bidding}};
-  \node[anchor=east,font=\sffamily\footnotesize\color{pdinkmuted}] at (15.15, 8.87) {Smith (1980) $\cdot$ FIPA-00025};
+  \draw[draw=pdcobalt!60,fill=pdcobalt!4,rounded corners=2pt,line width=0.5pt] (0.1, 10.95) rectangle (15.4, 11.65);
+  \node[anchor=west,font=\sffamily\bfseries\color{pdcobalt}] at (0.35, 11.30) {CONTRACT NET PROTOCOL \enspace\textbar\enspace \textmd{Part 2: Award \& Settlement}};
+  \node[anchor=east,font=\sffamily\scriptsize\color{pdinkmuted}] at (15.15, 11.30) {FIPA-00025 $\cdot$ Coast Guard};
 
   % Lifeline Headers
-  \node[pd focus box, text width=3.4cm, minimum height=1.1cm] (mgr) at (2.2, 7.55) {%
+  \node[pd focus box, text width=3.4cm, minimum height=0.85cm] (mgr) at (2.2, 10.05) {%
     \textbf{\color{pdcobalt}Manager Agent}\\[2pt]%
-    \footnotesize Orchestrator $\cdot$ Root Lease%
+    \scriptsize Orchestrator $\cdot$ Root Lease%
   };
 
-  \node[pd box, text width=3.6cm, minimum height=1.1cm, draw=pdcobalt!50, fill=pdcobalt!5] (c1) at (8.0, 7.55) {%
-    \textbf{\color{pdcobalt}Contractor 1 (Worker A)}\\[2pt]%
-    \footnotesize Vitest Worker $\cdot$ Available%
+  \node[pd focus box, text width=3.6cm, minimum height=0.85cm, draw=pdteal!70, fill=pdteal!6] (c1) at (8.0, 10.05) {%
+    \textbf{\color{pdteal!90!black}Contractor 1} \textmd{\scriptsize(Worker A)}\\[2pt]%
+    \scriptsize Award Winner $\cdot$ \texttt{fix/cve-2024}%
   };
 
-  \node[pd box, text width=3.6cm, minimum height=1.1cm] (c2) at (13.5, 7.55) {%
-    \textbf{\color{pdink}Contractor 2 (Worker B)}\\[2pt]%
-    \footnotesize Build Engine $\cdot$ Saturated%
+  \node[pd focus box, text width=3.6cm, minimum height=0.85cm, draw=pdhealth!70, fill=pdhealth!6] (escrow) at (13.5, 10.05) {%
+    \textbf{\color{pdhealth!90!black}Escrow Vault \& Ledger}\\[2pt]%
+    \scriptsize Settlement Authority $\cdot$ TCB%
   };
 
   % Lifelines
-  \draw[pd line] (2.2, 6.95) -- (2.2, 0.9);
-  \draw[pd line] (8.0, 6.95) -- (8.0, 0.9);
-  \draw[pd line] (13.5, 6.95) -- (13.5, 0.9);
+  \draw[pd line] (2.2, 9.50) -- (2.2, 1.8);
+  \draw[pd line] (8.0, 9.50) -- (8.0, 1.8);
+  \draw[pd line] (13.5, 9.50) -- (13.5, 1.8);
 
   % Activation Bars
-  \draw[pd actbar] (2.05, 6.3) rectangle (2.35, 1.1);
-  \draw[draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.5pt] (7.85, 6.0) rectangle (8.15, 3.5);
-  \draw[draw=pderror!70,fill=pderror!12,rounded corners=1pt,line width=0.5pt] (13.35, 6.0) rectangle (13.65, 2.7);
+  \draw[pd actbar] (2.05, 8.65) rectangle (2.35, 4.90);
+  \draw[draw=pdteal!70,fill=pdteal!12,rounded corners=1pt,line width=0.5pt] (7.85, 8.55) rectangle (8.15, 2.60);
+  \draw[draw=pdhealth!70,fill=pdhealth!12,rounded corners=1pt,line width=0.5pt] (13.35, 4.30) rectangle (13.65, 2.70);
 
-  % 1a. CFP Broadcast to Contractor 1
-  \draw[pd focus msg] (2.35, 6.0) -- (7.85, 6.0)
-    node[pos=0.5, above=2pt, align=center, fill=white, inner sep=2pt]
-    {\textbf{\color{pdcobalt}1a. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
-    \footnotesize Task: CVE-2024-XXXX $\cdot$ Budget: \$12.00 $\cdot$ TTL: 300s};
+  % 3a. ACCEPT_PROPOSAL (Exclusive Worktree Lease)
+  \draw[pd focus msg] (2.35, 8.45) -- (7.85, 8.45)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
+    {\textbf{\color{pdcobalt}3a. ACCEPT\_PROPOSAL (Exclusive Worktree Lease)}\\[1pt]
+    \scriptsize Lease: \texttt{0x09b} $\cdot$ Branch: \texttt{fix/cve-2024} $\cdot$ Seatbelt profile};
 
-  % 1b. CFP Broadcast to Contractor 2
-  \draw[pd msg] (2.35, 5.0) -- (13.35, 5.0)
-    node[pos=0.7, above=2pt, align=center, fill=white, inner sep=2pt]
-    {\textbf{1b. CFP Fleet Broadcast}\\[1pt]
-    \footnotesize Identical specification payload};
+  % 3b. REJECT_PROPOSAL (Fleet Broadcast)
+  \draw[draw=pdink!50,line width=0.8pt,dashed,-{Stealth[length=4.5pt,width=3pt]}] (2.35, 7.40) -- (5.6, 7.40)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
+    {\textbf{\color{pdinkmuted}3b. REJECT\_PROPOSAL (Broadcast)}\\[1pt]
+    \scriptsize Alternative bids rejected $\cdot$ Capacity reservations cleared};
 
-  % Contractor Assessment Notes
-  \node[fill=pdcobalt!8, draw=pdcobalt!40, rounded corners=2pt, inner sep=3pt, font=\sffamily\footnotesize\color{pdcobalt}, align=center] at (10.7, 4.3) {Self-Assessment: queue idle $\cdot$ tools matched};
-  \node[fill=pderror!8, draw=pderror!40, rounded corners=2pt, inner sep=3pt, font=\sffamily\footnotesize\color{pderror}] at (13.5, 3.6) {4 active locks $\implies$ saturated};
+  % Sandbox Confinement Note (to the right of Contractor 1 lifeline)
+  \node[anchor=west, fill=pdteal!8, draw=pdteal!50, rounded corners=2pt, inner sep=3pt, font=\sffamily\scriptsize\color{pdteal!90!black}] at (8.35, 6.30)
+    {Seatbelt Sandbox Active $\cdot$ Commit \texttt{e71a4f} $\cdot$ Spend: \$0.00};
 
-  % 2a. Contractor 1 Submits Competitive Bid
-  \draw[pd focus msg] (7.85, 3.7) -- (2.35, 3.7)
-    node[pos=0.5, above=2pt, align=center, fill=white, inner sep=2pt]
-    {\textbf{\color{pdcobalt}2a. PROPOSE (Formal Bid Submission)}\\[1pt]
-    \footnotesize Bid 0x4a $\cdot$ Cost: \$4.20 $\cdot$ ETA: 180s $\cdot$ Reputation: 0.98};
+  % 4a. Progress Telemetry over pd tube
+  \draw[draw=pdteal!90!black, line width=1.1pt, -{Stealth[length=4.5pt,width=3pt]}] (7.85, 5.20) -- (2.35, 5.20)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
+    {\textbf{\color{pdteal!90!black}4a. Progress Telemetry (\texttt{pd tube})}\\[1pt]
+    \scriptsize Streaming test deltas $\cdot$ 42 unit tests pass $\cdot$ Clean tree};
 
-  % 2b. Contractor 2 Refusal
-  \draw[pd fail msg] (13.35, 2.7) -- (2.35, 2.7)
-    node[pos=0.6, above=2pt, align=center, fill=white, inner sep=2pt]
-    {\textbf{\color{pderror}2b. REFUSE (Explicit Capacity Refusal)}\\[1pt]
-    \footnotesize Queue saturated (4 locks held) $\cdot$ Available in 420s};
+  % 4b. Claim Settlement to Escrow Vault
+  \draw[draw=pdteal!90!black, line width=1.1pt, -{Stealth[length=4.5pt,width=3pt]}] (8.15, 4.10) -- (13.35, 4.10)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
+    {\textbf{\color{pdteal!90!black}4b. Claim Settlement (Dual Witness)}\\[1pt]
+    \scriptsize Patch diff committed $\cdot$ Cryptographic test receipt attached};
 
-  % Utility Scoring Card
-  \node[draw=pdcobalt!50,fill=pdcobalt!4,rounded corners=2pt,inner sep=5pt,text width=9.2cm,align=left] at (4.9, 1.05) {
-    \textbf{\color{pdcobalt}Manager Multi-Attribute Evaluation (FIPA-00025):}\\[2pt]
-    \footnotesize $\bullet$ \textbf{Contractor 1:} Lowest cost (\$4.20) and verified tools $\implies$ \textbf{\color{pdcobalt}Award Winner}\\[1pt]
-    $\bullet$ \textbf{Contractor 2:} Explicit refusal received $\implies$ \textbf{Auction Clears Without Timeout}
+  % 5. Dual-Control Escrow Release
+  \draw[draw=pdhealth!90!black, line width=1.4pt, -{Stealth[length=5pt,width=3.5pt]}] (13.35, 2.90) -- (8.15, 2.90)
+    node[pos=0.5, above=1.5pt, align=center, fill=white, inner sep=1.5pt]
+    {\textbf{\color{pdhealth!90!black}5. Dual-Control Escrow Settlement}\\[1pt]
+    \scriptsize \$4.20 USDC paid $\cdot$ Worktree lease \texttt{0x09b} retired $\cdot$ WAL logged};
+
+  % Dual-Control Settlement Invariant Card
+  \node[draw=pdhealth!60,fill=pdhealth!4,rounded corners=2pt,inner sep=5pt,text width=9.2cm,align=left] at (4.9, 1.05) {
+    \textbf{\color{pdhealth!90!black}Dual-Control Settlement Invariant (ADR-0050 / Coast Guard):}\\[2pt]
+    \scriptsize $\bullet$ \textbf{Seatbelt Sandbox:} Confinement verified zero unmetered network egress and clean exit.\\[1pt]
+    $\bullet$ \textbf{Escrow Vault:} Funds release requires both verified commit diff and test pass receipt.
   };
 
-  % Continuation Prompt
-  \node[anchor=east, font=\sffamily\footnotesize\bfseries, text=pdcobalt, fill=white, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=6pt, text width=4.8cm, align=center] at (15.4, 1.05) {
-    Continued on facing page\\(Part 2: Award \& Escrow) $\,\blacktriangleright$
+  % Protocol Completion Card
+  \node[anchor=east, font=\sffamily\scriptsize, fill=pdcobalt!4, draw=pdcobalt!60, line width=0.5pt, rounded corners=2pt, inner sep=5pt, text width=4.8cm, align=left] at (15.4, 1.05) {
+    \textbf{\color{pdcobalt}Protocol Completion:}\\[2pt]
+    $\checkmark$ CVE patch merged\\
+    $\checkmark$ All bids cleared\\
+    $\checkmark$ Immutable WAL receipt
   };
 
 \end{tikzpicture}
@@ -1695,7 +1704,7 @@ Figure~\ref{fig:big-brother-logic} formalizes directed observation cones, episte
 
 \vspace{6pt}
 \begin{minipage}{15.5cm}
-\caption{Dynamic Epistemic Observation Cones in Big Brother Logic (BBL)~\pdcite{charrier2014bigbrother}. Directed vision cones formalize asymmetric visibility, epistemic shadows, and higher-order knowledge verification ($K_{a_1} K_{a_2} \phi$) in autonomous multi-agent systems.}
+\caption{Dynamic Epistemic Observation Cones in Big Brother Logic (BBL)~(Charrier et al., 2014). Directed vision cones formalize asymmetric visibility, epistemic shadows, and higher-order knowledge verification ($K_{a_1} K_{a_2} \phi$) in autonomous multi-agent systems.}
 \label{fig:big-brother-logic}
 \end{minipage}
 \end{figure}
@@ -2624,6 +2633,8 @@ The remainder of this textbook is organized into eight cumulative chapters acros
   \item \textbf{Chapter 7: The Bonded Commons (Game-Theoretic Governance).} We formalize claim signaling as an incentive-compatible repeated game, proving when cooperation is sustained under bonded escrow.
   \item \textbf{Chapter 8: The Federated Harbor (Cross-Machine Consensus).} We extend governance across distrustful host boundaries via witness logs and sheaf-theoretic consistency without central sovereignty.
 \end{itemize}
+
+
 
 
 

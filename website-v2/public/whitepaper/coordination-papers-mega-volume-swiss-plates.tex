@@ -29,15 +29,14 @@
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}%
   }{%
-    \ifstrequal{#1}{prereq}{%
-      \IfFileExists{plates/swiss/landmark-01.jpg}{%
-        \includegraphics[width=#2]{plates/swiss/landmark-01.jpg}%
-      }{%
-        \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/landmark-01.jpg}{Generate the Swiss landmark 01 render and place it at plates/swiss/landmark-01.jpg before building.}%
-      }%
-    }{%
-      \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}%
-    }%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}%
+  }%
+}
+\newcommand{\pdswissfigplate}[2]{% #1 figure name, #2 width
+  \IfFileExists{plates/swiss/#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/#1.jpg}%
+  }{%
+    \PackageError{pd-swiss-plates}{Missing figure plate render plates/swiss/#1.jpg}{Generate the Swiss figure plate render and place it at plates/swiss/#1.jpg before building.}%
   }%
 }
 \providecolor{pdswissred}{HTML}{DA291C}

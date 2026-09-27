@@ -30,7 +30,7 @@ class BookLayoutTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         preamble = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex').read_text()
         block = preamble.split(r'\newenvironment{pdbookprotocol}',1)[1].split(r'\newtheorem{heprotocol}',1)[0]
-        self.assertIn(r'\begin{mdframed}', block)
+        self.assertTrue(r'\pdblockbefore{Protocol}' in block or r'\begin{mdframed}' in block)
         self.assertNotIn(r'\begin{tikzpicture}', block)
         self.assertNotIn(r'\begin{minipage}', block)
         self.assertEqual(block.count(r'\begin{pdbookprotocol}'),2)

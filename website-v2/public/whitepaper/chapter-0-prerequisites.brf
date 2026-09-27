@@ -1,20 +1,28 @@
-\backcite {bratman1987intention}{{6}{2.1}{subsection.2.1}}
+\backcite {ramadge1987supervisory}{{1}{6}{Item.6}}
+\backcite {bratman1987intention}{{7}{2.1}{subsection.2.1}}
 \backcite {rao1991modeling,rao1995bdi}{{7}{2.2}{subsection.2.2}}
-\backcite {rao1991modeling}{{7}{2.3}{subsection.2.3}}
+\backcite {rao1991modeling}{{8}{2.3}{subsection.2.3}}
 \backcite {bordini2007agentspeak}{{8}{2.4}{subsection.2.4}}
-\backcite {bordini2007agentspeak}{{9}{1}{figure.caption.2}}
-\backcite {hewitt1973actor,agha1986actors}{{10}{2.5}{subsection.2.5}}
-\backcite {hoare1978csp}{{10}{2.5}{subsection.2.5}}
-\backcite {hewitt1973actor,agha1986actors}{{10}{\caption@xref {??}{ on input line 678}}{table.caption.3}}
-\backcite {hoare1978csp}{{10}{\caption@xref {??}{ on input line 678}}{table.caption.3}}
-\backcite {austin1962how}{{15}{2.6}{subsection.2.6}}
-\backcite {searle1969speech}{{15}{2.6}{subsection.2.6}}
-\backcite {fipa2002acl}{{15}{2.6}{subsection.2.6}}
-\backcite {smith1980cnp}{{15}{2.7}{subsection.2.7}}
-\backcite {charrier2014bigbrother}{{17}{2.8}{subsection.2.8}}
-\backcite {shoham2009multiagent}{{18}{2.9}{subsection.2.9}}
-\backcite {yao2022react}{{20}{1}{Item.51}}
-\backcite {yao2023tree}{{20}{2}{Item.52}}
-\backcite {shinn2023reflexion}{{20}{3}{Item.53}}
-\backcite {liu2024lost}{{22}{3.4.1}{equation.23}}
-\backcite {liu2024lost}{{23}{4.2}{subsection.4.2}}
+\backcite {bordini2007agentspeak}{{10}{1}{figure.caption.2}}
+\backcite {hewitt1973actor,agha1986actors}{{11}{2.5}{subsection.2.5}}
+\backcite {hoare1978csp}{{11}{2.5}{subsection.2.5}}
+\backcite {hewitt1973actor,agha1986actors}{{11}{\caption@xref {??}{ on input line 621}}{table.caption.3}}
+\backcite {hoare1978csp}{{11}{\caption@xref {??}{ on input line 621}}{table.caption.3}}
+\backcite {austin1962how}{{17}{2.7}{subsection.2.7}}
+\backcite {searle1969speech}{{17}{2.7}{subsection.2.7}}
+\backcite {fipa2002acl}{{17}{2.7}{subsection.2.7}}
+\backcite {smith1980cnp}{{20}{2.8}{subsection.2.8}}
+\backcite {charrier2014bigbrother}{{22}{2.9}{subsection.2.9}}
+\backcite {charrier2014bigbrother}{{23}{6}{figure.caption.10}}
+\backcite {shoham2009multiagent}{{24}{2.10}{subsection.2.10}}
+\backcite {arrow1951social}{{24}{2.10.1}{subsubsection.2.10.1}}
+\backcite {gibbard1973manipulation,satterthwaite1975strategy}{{24}{2.10.1}{subsubsection.2.10.1}}
+\backcite {vickrey1961counterspeculation,clarke1971multipart,groves1973incentives}{{25}{2.10.2}{subsubsection.2.10.2}}
+\backcite {clarke1971multipart}{{25}{2.10.2}{equation.16}}
+\backcite {myerson1983efficient}{{25}{2.10.3}{subsubsection.2.10.3}}
+\backcite {yao2022react}{{26}{1}{Item.56}}
+\backcite {yao2023tree}{{26}{2}{Item.57}}
+\backcite {shinn2023reflexion}{{26}{3}{Item.58}}
+\backcite {liu2024lost}{{28}{3.4.1}{equation.23}}
+\backcite {liu2024lost}{{29}{4.2}{subsection.4.2}}
+\backcite {ramadge1987supervisory}{{29}{4.3}{subsection.4.3}}

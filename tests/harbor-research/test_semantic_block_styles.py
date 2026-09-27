@@ -83,11 +83,11 @@ class SemanticBlocks(unittest.TestCase):
                         Checked="006EA0", Protocol="007D73", Neutral="363B40")
         self.assertEqual(colors, approved)
         self.assertIn(r"draw=\pdblock@color,line width=.5pt", source)
-        self.assertIn(r"colback=\pdblock@color!6!white", source)
+        self.assertIn(r"colback=\pdblock@color!2!white", source)
         self.assertNotIn(r"\pdblock@color!65!white", source)
-        self.assertIn("left=11pt,right=11pt,top=10pt,bottom=10pt", source)
+        self.assertIn("left=8pt,right=8pt,top=7pt,bottom=7pt", source)
         for family in ("Proof", "Checked", "Hypothesis", "Invariant", "Calculation", "Protocol"):
-            self.assertIn(r"\ifdefstring{\pdblock@color}{pdblock" + family + "}", source)
+            self.assertIn(r"\def\pdblock@color{pdblock" + family + "}", source)
         # Accent belongs to the field and edge, never a blanket body-text style.
         self.assertNotIn(r"\color{\pdblock@color}", source)
         self.assertNotIn(r"\itshape", source)

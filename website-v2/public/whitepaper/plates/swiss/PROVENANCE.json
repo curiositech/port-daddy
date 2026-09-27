@@ -8,6 +8,7 @@
     "paper": "#FBF7EF",
     "ink": "#121212",
     "red": "#DA291C",
+    "0": "#384856",
     "I": "#001489",
     "II": "#006B5F",
     "III": "#582C83",
@@ -128,6 +129,29 @@
       "pipeline_version": "4.0.0",
       "source_render": "part-IV-3.png",
       "candidates": 6
+    },
+    "chapter-prereq": {
+      "file": "chapter-prereq.jpg",
+      "mechanism": "architectural bedrock and concrete foundation footing photographed square-on as a high-contrast coarse halftone photograph filling the left third, with stepped monolithic blocks of mineral slate rising across a continuous horizontal datum line from an origin marked by a solitary red square",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "2K",
+      "raw_size": [
+        1376,
+        768
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 283925,
+      "chosen": "a",
+      "chosen_rationale": "authentic coarse halftone bedrock footing, stepped #384856 mineral slate monoliths, horizontal datum rule, and solitary #DA291C red origin square with zero lettering",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white coarse halftone photography montaged against those planes and cropped square to the grid, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. Full bleed edge-to-edge 16:9 composition, touching all four edges directly with no border, no frame, no margin, no mockup, no drop shadow. Dominant colour: flat #384856 mineral slate, with signal red #DA291C used once and small as the single origin accent square, and charcoal #121212 for the heavy datum line. Subject: architectural bedrock and concrete foundation footing as a high-contrast black and white halftone photograph filling the left third, with stepped monolith blocks of flat #384856 mineral slate rising on the grid across a continuous thick horizontal black datum line into open warm paper space. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-27T02:21:00+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-prereq-a.png",
+      "candidates": 2
     },
     "chapter-swk": {
       "file": "chapter-swk.jpg",
@@ -433,8 +457,50 @@
       "file": "landmark-12.jpg",
       "concept": "The Zombie Reclaim & Salvage Graveyard",
       "opposite": "single-writer-kernel.tex:801",
-      "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Heavy horizontal 3x3 modular grid of fine visible hairline rules on warm off-white paper #FBF7EF. In the lower two-thirds is a high-contrast black-and-white industrial maritime halftone photograph: a shipbreaker tidal beach at dusk with the massive rusted ribcage hull of an abandoned freighter cut open by industrial torches, heavy steel ribs and plates exposed on the sand, cropped hard to the grid modules. The upper third is a flat opaque horizontal plane of Reflex Blue #001489. Cutting down into the center of the rusted ship hull from above is a sharp, clean rectangular excision of pure empty paper #FBF7EF, representing reclaimed dead allocation space. Suspended directly over the cut edge hangs a single sharp signal red #DA291C surveyor plumb bob. Absolutely no words, no letters, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
+      "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef Müller-Brockmann and Herbert Matter. Heavy horizontal 3x3 modular grid of fine visible hairline rules on warm off-white paper #FBF7EF. In the lower two-thirds is a high-contrast black-and-white industrial maritime halftone photograph: a shipbreaker tidal beach at dusk with the massive rusted ribcage hull of an abandoned freighter cut open by industrial torches, heavy steel ribs and plates exposed on the sand, cropped hard to the grid modules. The upper third is a flat opaque horizontal plane of Reflex Blue #001489. Cutting down into the center of the rusted ship hull from above is a sharp, clean rectangular excision of pure empty paper #FBF7EF, representing reclaimed dead allocation space. Suspended directly over the cut edge hangs a single sharp signal red #DA291C surveyor plumb bob. Absolutely no words, no letters, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-cnp-bidding": {
+      "file": "fig-ch0-cnp-bidding.jpg",
+      "concept": "Contract Net Protocol Part 1: CFP, Bid Evaluation & Capacity Refusal",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. On the left third, a high-contrast black-and-white scientific macro halftone photograph of an industrial harbor telegraph annunciator dial with brass indicator hands, cropped strictly square to the grid. Running across the center is a heavy horizontal datum bar of charcoal #121212. Above the datum bar sits an elongated rectangular plane of flat opaque Mineral Slate #384856 representing a formal bid submission, and below it an adjacent smaller slate plane severed by a clean 20% gap representing an explicit capacity refusal. Centered at the bid junction sits a single solitary signal red #DA291C square. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-cnp-settlement": {
+      "file": "fig-ch0-cnp-settlement.jpg",
+      "concept": "Contract Net Protocol Part 2: Worktree Lease, Sandbox Confinement & Dual-Control Escrow",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. In the left column, a high-contrast black-and-white industrial halftone photograph of heavy machined steel bank vault dual-key lock cylinders in raking directional light, cropped hard and square to the grid. In the central field, an isolated rectangular plane of solid charcoal #121212 representing a confined sandbox enclave. On the right half, two interlocking vertical slabs of flat opaque Mineral Slate (#384856 and #768694) meet at a razor-sharp vertical seam representing dual-control verification keys. A single sharp signal red #DA291C circular dot sits at the release threshold between the two slabs. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-big-brother-logic": {
+      "file": "fig-ch0-big-brother-logic.jpg",
+      "concept": "Dynamic Epistemic Observation Cones in Big Brother Logic",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. In the central grid module, a high-contrast black-and-white optical laboratory halftone photograph: an optical beam-splitter prism refracting a sharp light blade across a black table into deep shadow, cropped square to the grid. Radiating from the center are two 45-degree triangular wedges of flat opaque Mineral Slate #384856 representing directed observation cones. Flanking them is a broad rectangular field of solid charcoal #121212 representing an epistemic shadow. Inside the shadow floats a single tiny signal red #DA291C dot representing an unobserved secret proposition. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-skills-logarithmic": {
+      "file": "fig-ch0-skills-logarithmic.jpg",
+      "concept": "Progressive Disclosure of Skills across Logarithmic Decades",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. In the upper-left quadrant, a high-contrast black-and-white macro halftone photograph of an antique brass logarithmic slide rule with fine engraved scales and a glass cursor hairline, cropped square to the grid. The remaining canvas features a visible logarithmic lattice of fine hairline rules with column widths stepping down geometrically in powers of two (1, 1/2, 1/4, 1/8). Across these decades descend four stepped horizontal rectangular monoliths of flat Mineral Slate #384856, stepping down exponentially in height. At the foot of the steepest drop sits a solitary signal red #DA291C square marking zero-token execution. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-lifecycle-hooks": {
+      "file": "fig-ch0-lifecycle-hooks.jpg",
+      "concept": "Agent Lifecycle Hook Architecture: Nested Supervisory Loops",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. In the central square module, a high-contrast black-and-white industrial scientific halftone photograph of heavy concentric mechanical planetary escapement gears and trip pawls, cropped hard and square to the grid. Surrounding the photograph are two nested rectangular frame enclosures of fine hairline rules: a wide outer perimeter in pale slate #AAB5BF, and an inner chamber in solid charcoal #121212. At the ingress port of the inner chamber sits a single sharp signal red #DA291C rectangular interlock tooth representing the pre-tool veto gate. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "fig-ch0-closed-loop": {
+      "file": "fig-ch0-closed-loop.jpg",
+      "concept": "Three-Tier Closed Agentic Architecture Loop",
+      "prompt": "Reference image 1 is the STYLE TEMPLATE for craft only — match its hard flat-ink mechanical edges, its crisp geometric precision, its complete absence of gradients, texture, outlines, shading, photographic elements or printed marks, and its overall Swiss International Typographic Style rendering technique. A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a visible hard modular grid of fine hairline rules on warm off-white paper #FBF7EF, with flat planes of opaque color, and high-contrast black-and-white industrial scientific halftone photography montaged against those planes and cropped strictly square to the grid. In the upper-right quadrant, a high-contrast black-and-white architectural halftone photograph of a multi-tier canal navigation lock chamber with heavy steel guillotine gates, cropped square to the grid. Spanning the entire width are three cleanly separated horizontal rectangular strata: top stratum in pale slate #AAB5BF (deliberation), middle stratum in mid slate #768694 (sandboxed execution), and bottom stratum in deep mineral slate #384856 (kernel governance). Connecting the tiers is a crisp vertical hairline datum rule, punctuated at the kernel commit horizon by a single solitary signal red #DA291C square. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "final_aspect": "16:9",
       "model": "gemini-3-pro-image-preview"
     }
   },

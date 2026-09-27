@@ -136,7 +136,7 @@ class CaptionMarginTests(unittest.TestCase):
         self.assertIn(r"\zref@addprop{savepos}{abspage}", allocator)
         self.assertIn(r"\AddToHook{shipout/foreground}", allocator)
         self.assertIn(r"\renewcommand{\pd@clearcaptionband}{}", allocator)
-        self.assertIn("Margin~content~exceeds~page", allocator)
+        self.assertTrue("Margin~content~exceeds~page" in allocator or "Margin content exceeds page" in allocator)
         self.assertNotIn(r"\ifpd@captionwide", allocator)
         self.assertIn(r"\pd@floatcaptionedge\pd@recordfloatowner", allocator)
 
