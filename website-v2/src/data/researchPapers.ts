@@ -10,13 +10,14 @@ import {
 } from 'lucide-react'
 
 /**
- * The seven Harbor research papers — arXiv-style, adversarially reviewed
- * proofs, distinct from the seven product whitepapers showcased at
+ * The eight Harbor research papers — arXiv-style research artifacts,
+ * distinct from the seven product whitepapers showcased at
  * `/library`. The whitepapers make the harbor's claims in prose; these
- * papers are where the claims that needed hard math get it: closed-form
+ * papers investigate claims that need hard math: closed-form
  * bit floors, a controllability theorem, a bribery-proof inspection tower,
- * conservation laws for reputation, an NP-completeness frontier, a
- * sheaf-cohomology detector with a certified lower bound.
+ * conservation laws for reputation, an NP-completeness frontier, and a
+ * bounded sheaf-consistency detector. Publication here does not certify
+ * every interpretation or application proposed in a paper.
  *
  * Page counts and file sizes are read from the built PDFs
  * (`public/research/paperN.pdf` via `pdfinfo`), not asserted — see the
@@ -42,7 +43,7 @@ export interface PriorArtDive {
 
 export interface ResearchPaper {
   id: string
-  /** Arabic numeral, 1–7 — deliberately distinct from the whitepapers' Roman-numeral chapters. */
+  /** Arabic numeral — deliberately distinct from the whitepapers' Roman-numeral chapters. */
   number: string
   title: string
   subtitle: string
@@ -51,9 +52,9 @@ export interface ResearchPaper {
   pages: number
   /** KB, `Math.round(bytes / 1024)` on the committed PDF. */
   sizeKb: number
-  /** What this paper proves, in one sentence, in our own words — not lifted from the abstract. */
+  /** Supported result or research question, in one sentence, in our own words. */
   claim: string
-  /** A verbatim headline number or theorem statement from the paper's abstract. */
+  /** A short evidence-bounded statement for the public listing. */
   pullQuote: string
   /** The R-numbers (results-compendium.md, R1–R17) this paper discharges. */
   resultTags: string[]
@@ -80,7 +81,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 452,
+    sizeKb: 451,
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
@@ -146,7 +147,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
     pages: 17,
-    sizeKb: 408,
+    sizeKb: 407,
     claim:
       'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
     pullQuote:
@@ -194,7 +195,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
     pages: 14,
-    sizeKb: 422,
+    sizeKb: 421,
     claim:
       'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
     pullQuote:
@@ -238,25 +239,25 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
   {
     id: 'active-sheaf-cohomology-for-swarms',
     number: '8',
-    title: 'The Cohomology of Swarms',
-    subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
+    title: 'The Cohomology of Agent Evidence',
+    subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
-    pages: 24,
-    sizeKb: 542,
+    pages: 13,
+    sizeKb: 271,
     claim:
-      'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
+      'A typed two-complex separates violated face relations, closed nonexact handoff classes, and relative extension obstructions. Its edge-group distance states exactly when sparse report errors are detectable or recoverable.',
     pullQuote:
-      'L(g) = ||h||² / (||h||² + ||δ₁* ψ||²) separates micro-triad bugs from macro-network splits in < 2 ms without LLM calls, and greedy min-cut repair drives residual r → 0 in at most β₁(G) rounds.',
-    resultTags: ['CR-1', 'CR-2', 'CR-3', 'CR-4', 'CR-5'],
+      'A nonzero cohomology class certifies an obstruction in the declared evidence complex. It does not identify a dishonest role; that requires authenticated provenance and independent truth.',
+    resultTags: [],
     tone: 'primary',
     icon: Layers3,
     chapterRef: 'legible-swarm',
-    chapterWhy: 'provides the active control closed-loop, higher-order 2-complex triage, and polynomial-time repair for the fleet',
+    chapterWhy: 'models typed handoffs, joint contracts, and hidden coverage with exact cohomological obstruction certificates; field utility remains unproven',
     priorArtDive: {
-      verdict: 'CLEAR',
+      verdict: 'NARROW',
       summary:
-        'Robinson (2014) established static sensor sheaves; Bodnar et al. (2022) established continuous GNN sheaf diffusion. Neither addressed autonomous LLM swarms, triadic review contracts, or active cycle-matroid repair.',
-      findingsPath: 'paper8-active-sheaf-cohomology/findings.md',
+        'Cellular sheaf cohomology, Hodge decomposition, and sparse recovery supply the mathematics. The testable contribution is a typed agent-evidence contract, exact observability certificates, and controlled comparison with direct checks.',
+      findingsPath: 'paper8-typed-evidence-sheaf/findings.md',
     },
   },
 ]

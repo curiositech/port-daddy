@@ -1005,15 +1005,15 @@
     {
       "id": "lem:chain",
       "kind": "lemma",
-      "title": "Fundamental simplicial identity",
-      "one_breath": "The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.",
+      "title": "Sheaf cochain identity",
+      "one_breath": "Composition-compatible vertex-to-edge and edge-to-face restrictions make the first coboundary annihilate the zeroth.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper8.tex",
         "labels": [
           "lem:chain"
         ],
         "sections": [
-          "Standard simplicial-cochain identity recalled and proved in paper8, lem:chain."
+          "Section 2 (sec:typed-sheaf): typed boundary-of-a-boundary identity."
         ]
       },
       "chapters": [],
@@ -1029,20 +1029,330 @@
     {
       "id": "def:cellular-sheaf",
       "kind": "definition",
-      "title": "Cellular sheaf on a simplicial complex",
-      "one_breath": "A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.",
+      "title": "Typed evidence cochain complex",
+      "one_breath": "A finite two-complex carries typed vertex, edge, and face stalks with explicit incidence maps whose coboundaries obey d1 d0 = 0.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper8.tex",
         "labels": [
           "def:cellular-sheaf"
         ],
         "sections": [
-          "Standard cellular-sheaf definition in sec:rosetta, attributed to Curry; not a novel result of the Harbor program."
+          "Section 2 (sec:typed-sheaf): typed stalks, incidence maps, and observation contract."
         ]
       },
       "chapters": [],
       "figures": [],
       "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "def:compatible-report",
+      "kind": "definition",
+      "title": "Compatible edge differences",
+      "one_breath": "A complete same-feature observation is compatible when a single integer value at each node explains every edge difference.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "def:compatible-report"
+        ],
+        "sections": [
+          "Section 2 (sec:model)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:typed-hodge",
+      "kind": "theorem",
+      "title": "Typed local and global obstruction channels",
+      "one_breath": "The sheaf edge cochain splits orthogonally into exact, face-coexact, and harmonic parts; the latter two give the completion residual and distinguish a face violation from a closed nonexact H1 class.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:typed-hodge"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-sheaf): cellular-sheaf Hodge audit channels."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:face-invariance",
+      "kind": "theorem",
+      "title": "Face attachment and information boundary",
+      "one_breath": "Changing compatible face maps can move an edge obstruction between coexact and harmonic channels but cannot change edge-completion detection without new observations.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:face-invariance"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-fixture): exact two-face comparison."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:sheaf-edge-distance",
+      "kind": "theorem",
+      "title": "Typed sheaf report-error distance",
+      "one_breath": "The minimum edge-group support of a nonzero compatible sheaf report sets exact thresholds dF>k for detecting every k-edge fault and dF>2k for unique recovery, with restricted-projection stability.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:sheaf-edge-distance"
+        ],
+        "sections": [
+          "Section 2 (sec:sheaf-distance): edge-group distance and robustness."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:relative-extension",
+      "kind": "theorem",
+      "title": "Relative extension criterion",
+      "one_breath": "A visible compatible section extends over the declared hidden complex exactly when its relative connecting cohomology class vanishes.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:relative-extension"
+        ],
+        "sections": [
+          "Section 2 (sec:relative): connecting class and typed visibility fixture."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:cycle-test",
+      "kind": "theorem",
+      "title": "Exact cycle test",
+      "one_breath": "Graph-cycle sums, integer spanning-forest propagation, and zero completion residual are equivalent tests of edge-difference compatibility.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:cycle-test"
+        ],
+        "sections": [
+          "Section 2 (sec:model)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:compatibility-limits",
+      "kind": "theorem",
+      "title": "Information limits of compatibility",
+      "one_breath": "Forests, gradient-shaped errors, and jointly false reports can have zero completion residual.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:compatibility-limits"
+        ],
+        "sections": [
+          "Section 3 (sec:limits)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:duplicate-dominance",
+      "kind": "theorem",
+      "title": "Duplicate-claim dominance",
+      "one_breath": "When all endpoint claims are visible, every positive cycle residual implies a repeated-node claim mismatch.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:duplicate-dominance"
+        ],
+        "sections": [
+          "Section 4 (sec:baseline)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:failure-identifiability",
+      "kind": "theorem",
+      "title": "Conditional failure-mode identifiability",
+      "one_breath": "A finite predeclared fault library is identifiable from projected reports exactly when its residual signatures have a positive pairwise separation margin; bounded projected noise below half that margin preserves nearest-signature classification.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:failure-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:edge-monotonicity",
+      "kind": "theorem",
+      "title": "Redundant-observation monotonicity",
+      "one_breath": "Adding an independently observed edge cannot reduce pairwise residual-signature distance for a fixed fault library and unweighted Euclidean objective.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:edge-monotonicity"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:three-edge-identifiability",
+      "kind": "theorem",
+      "title": "Three-edge-connectivity criterion",
+      "one_breath": "Signed unit single-edge report faults have distinct cycle projections exactly when the observation graph is three-edge-connected.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:three-edge-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:sparse-cut-identifiability",
+      "kind": "theorem",
+      "title": "Sparse report-error identifiability",
+      "one_breath": "Every arbitrary-amplitude k-sparse edge-report error has a distinct cycle projection exactly when the observation graph minimum cut exceeds 2k; a restricted singular value bounds noise sensitivity.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:sparse-cut-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
       "numbers": [],
       "mechanization": [],
       "site": [

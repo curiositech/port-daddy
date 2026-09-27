@@ -89,6 +89,13 @@
       "verdict": "NARROW",
       "oneLine": "No prior work proves the theorems, but Theorem 2a is Akerlof's lemons result wearing the wrong name (it had been called the unraveling theorem) and was renamed, and a crossing value that the paper's own figure contradicted was corrected.",
       "findings": "docs/harbor-research/deep-dives/paper5-continuity-without-metaphysics/findings.md"
+    },
+    {
+      "dir": "paper8-typed-evidence-sheaf",
+      "paper": 8,
+      "verdict": "NARROW",
+      "oneLine": "The typed cellular-sheaf theorems and exact fixture are sound within the declared model; mathematical foundations are established, and field utility depends on authenticated evidence and an equal-information direct-check comparison.",
+      "findings": "docs/harbor-research/deep-dives/paper8-typed-evidence-sheaf/findings.md"
     }
   ],
   "wrongTurns": [
@@ -281,6 +288,42 @@
       ],
       "statement": "Every mechanism the book has -- receipts, bonds, escrow, reputation as a ledger position, the deterrence and discount thresholds -- binds an agent to something it agreed to do. A dead daemon or a red test has no counterparty and no price, and nothing in the institution assigns a defect nobody chartered; Ostrom's monitoring and graduated sanctions presuppose a promise to monitor against. Four parts: what mechanism makes an unowned defect somebody's and prices it (a bounty on the commons' own invariants, a rotation, an obligation attached to proximity, a market in noticing); how variable agent lifetimes change the answer, since a worker alive only for one pull request values nothing after it and the reviewers who check it face the same question one level up; who remembers old plans and old ideas, and whether memory induction into standing orders is measurable; and whether this is solved by a market in which agents that do the thing better win the work, or requires evaluators who give feedback immediately and in aggregate, or both, with the boundary between them unwritten.",
       "source": "docs/roadmap/whitepaper-research-program.md#7-open-problem-9-origination-of-unowned-work"
+    },
+    {
+      "id": "partial-observation-regimentation",
+      "title": "Policy control when gate triggers are only partly observed",
+      "chapters": [
+        1
+      ],
+      "statement": "Paper 2 proves a fully observed controllability boundary but leaves the real observation-tier map open. For a finite policy and event model, enumerate which histories each assurance tier can distinguish; test whether indistinguishable histories demand the same gate decision. Compare the resulting implementable policies with the fully observed checker before making any runtime guarantee.",
+      "source": "docs/harbor-research/tex/paper2.tex"
+    },
+    {
+      "id": "sampler-leakage-correlation",
+      "title": "Inspection towers with partial sampler leakage and dependent cliques",
+      "chapters": [
+        5
+      ],
+      "statement": "Paper 3 gives sealed and fully revealed draw endpoints, while its clique multiplier assumes independent pools. Derive the bribery threshold when a draw leaks with probability q or clique outcomes are correlated, and compare a finite exact game with the sealed and revealed formulas. Treat leakage and correlation rates as model parameters until measured from a real audit system.",
+      "source": "docs/harbor-research/tex/paper3.tex"
+    },
+    {
+      "id": "canary-dependence",
+      "title": "Canary detection under correlated misses and adaptive discovery",
+      "chapters": [
+        3
+      ],
+      "statement": "Paper 4 quotes detection power 1-beta^k under independent canary misses and names secrecy as critical. Hold each canary's marginal miss rate fixed while varying shared failure and adaptive canary discovery; compare exact or simulated power with the independent curve and state when a target power fails. Field power still needs measured suppressor behavior.",
+      "source": "docs/harbor-research/tex/paper4.tex"
+    },
+    {
+      "id": "paper8-edge-only-utility",
+      "title": "Typed sheaf evidence auditing against equal-information baselines",
+      "chapters": [
+        8
+      ],
+      "statement": "Test provenance-bound typed vertex, edge, and face receipts from real workflows at a fixed schema and watermark. Predeclare face violations, closed handoff obstructions, relative extension failures, sparse packet faults, and coherent false reports with independent ledger truth. Compare full sheaf certificates with the strongest exact direct-contract solver given the same receipts, reporting detection, ambiguity, false alarms, explanation quality, acquisition cost, and privacy cost. When raw endpoint claims are visible, direct duplicate checks already dominate graph-cycle detection. Reassess Paper 7's beyond-pairwise claim under the same-information baseline. Prefer direct checks if cohomological certificates bring no measured benefit.",
+      "source": "docs/harbor-research/tex/paper8.tex"
     }
   ],
   "results": [
@@ -666,8 +709,8 @@
     {
       "id": "lem:chain",
       "kind": "lemma",
-      "title": "Fundamental simplicial identity",
-      "oneBreath": "The composition of the zeroth and first coboundary operators vanishes identically, so the discrete curl of a gradient cochain is zero.",
+      "title": "Sheaf cochain identity",
+      "oneBreath": "Composition-compatible vertex-to-edge and edge-to-face restrictions make the first coboundary annihilate the zeroth.",
       "status": "standalone-only",
       "chapters": [],
       "paper": 8,
@@ -681,12 +724,214 @@
     {
       "id": "def:cellular-sheaf",
       "kind": "definition",
-      "title": "Cellular sheaf on a simplicial complex",
-      "oneBreath": "A cellular sheaf assigns vector-space stalks to cells and linear restriction maps to incident pairs, with identity and composition compatibility.",
+      "title": "Typed evidence cochain complex",
+      "oneBreath": "A finite two-complex carries typed vertex, edge, and face stalks with explicit incidence maps whose coboundaries obey d1 d0 = 0.",
       "status": "standalone-only",
       "chapters": [],
       "paper": 8,
       "scripts": [],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "def:compatible-report",
+      "kind": "definition",
+      "title": "Compatible edge differences",
+      "oneBreath": "A complete same-feature observation is compatible when a single integer value at each node explains every edge difference.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:typed-hodge",
+      "kind": "theorem",
+      "title": "Typed local and global obstruction channels",
+      "oneBreath": "The sheaf edge cochain splits orthogonally into exact, face-coexact, and harmonic parts; the latter two give the completion residual and distinguish a face violation from a closed nonexact H1 class.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:face-invariance",
+      "kind": "theorem",
+      "title": "Face attachment and information boundary",
+      "oneBreath": "Changing compatible face maps can move an edge obstruction between coexact and harmonic channels but cannot change edge-completion detection without new observations.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:sheaf-edge-distance",
+      "kind": "theorem",
+      "title": "Typed sheaf report-error distance",
+      "oneBreath": "The minimum edge-group support of a nonzero compatible sheaf report sets exact thresholds dF>k for detecting every k-edge fault and dF>2k for unique recovery, with restricted-projection stability.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:relative-extension",
+      "kind": "theorem",
+      "title": "Relative extension criterion",
+      "oneBreath": "A visible compatible section extends over the declared hidden complex exactly when its relative connecting cohomology class vanishes.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:cycle-test",
+      "kind": "theorem",
+      "title": "Exact cycle test",
+      "oneBreath": "Graph-cycle sums, integer spanning-forest propagation, and zero completion residual are equivalent tests of edge-difference compatibility.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:compatibility-limits",
+      "kind": "theorem",
+      "title": "Information limits of compatibility",
+      "oneBreath": "Forests, gradient-shaped errors, and jointly false reports can have zero completion residual.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:duplicate-dominance",
+      "kind": "theorem",
+      "title": "Duplicate-claim dominance",
+      "oneBreath": "When all endpoint claims are visible, every positive cycle residual implies a repeated-node claim mismatch.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:failure-identifiability",
+      "kind": "theorem",
+      "title": "Conditional failure-mode identifiability",
+      "oneBreath": "A finite predeclared fault library is identifiable from projected reports exactly when its residual signatures have a positive pairwise separation margin; bounded projected noise below half that margin preserves nearest-signature classification.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:edge-monotonicity",
+      "kind": "theorem",
+      "title": "Redundant-observation monotonicity",
+      "oneBreath": "Adding an independently observed edge cannot reduce pairwise residual-signature distance for a fixed fault library and unweighted Euclidean objective.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:three-edge-identifiability",
+      "kind": "theorem",
+      "title": "Three-edge-connectivity criterion",
+      "oneBreath": "Signed unit single-edge report faults have distinct cycle projections exactly when the observation graph is three-edge-connected.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:sparse-cut-identifiability",
+      "kind": "theorem",
+      "title": "Sparse report-error identifiability",
+      "oneBreath": "Every arbitrary-amplitude k-sparse edge-report error has a distinct cycle projection exactly when the observation graph minimum cut exceeds 2k; a restricted singular value bounds noise sensitivity.",
+      "status": "standalone-only",
+      "chapters": [],
+      "paper": 8,
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
       "numbers": {
         "verified": 0,
         "internal": 0

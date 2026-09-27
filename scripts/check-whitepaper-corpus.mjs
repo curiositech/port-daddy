@@ -141,7 +141,7 @@ function checkCi(ci, label) {
 // ---------------------------------------------------------------------------
 
 const FORMAL_EXTENSIONS = /\.(?:tla|cfg|z3|smt2|pv|ec|spthy|als|thy)$/iu;
-const EXCLUDED_DIR_NAMES = new Set(['node_modules', '.git', '.claude', '.cache']);
+const EXCLUDED_DIR_NAMES = new Set(['node_modules', '.git', '.claude', '.cache', '.agents']);
 
 const EVIDENCE_POLICY_MAX = 500;
 

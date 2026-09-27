@@ -47,6 +47,12 @@ $$H^1=\ker(\delta_1)/\operatorname{im}(\delta_0),\qquad \dim H^1=\dim C^1-\opera
 
 provided `delta1 delta0=0`. A constant scalar connected graph without faces has `dim H1=beta1`; this does not extend to arbitrary stalk dimensions or restriction maps.
 
+## Predeclare fault signatures
+
+For one versioned feature and one observation watermark, specify which independently sourced edge packets the auditor receives. In a constant scalar graph with incidence matrix `B`, let `Q = I - B B^+`. Project each predeclared fault signature `s_j` to `z_j = Q s_j`, group labels with equal `z_j`, and compute their minimum pairwise separation. Equal signatures are observationally indistinguishable; a positive separation supports classification only within that library and a stated noise bound. The full residual vector carries this information, while its norm alone may not.
+
+For known signed unit single-edge errors in a connected loopless graph, distinct signatures for every edge and sign require three-edge connectivity. For arbitrary errors on at most `k` edge packets, the minimum cut must exceed `2k` for unique recovery modulo compatible reports. These are conditional graph results, not causal diagnoses or general sheaf theorems. Use `scripts/sheaf_observability_study.py` for exact fixture calculations, compare an equal-information direct contract checker, and obtain independent artifact truth before naming a workflow failure.
+
 ## Bounded follow-up, not automatic repair
 
 A residual support can suggest which observed coordinates to inspect. Ranking coordinates by residual energy/cost is a **local heuristic**; it is neither an optimal min-cut theorem nor a guarantee that one action reduces `beta1` or drives a residual to zero. Any data correction, schedule change, fence, payment, or other effect requires its own authority and independently verified domain rules.
