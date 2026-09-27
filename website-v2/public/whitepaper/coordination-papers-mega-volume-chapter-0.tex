@@ -1198,114 +1198,142 @@ Figure~\ref{fig:fipa-speech-acts} formalizes this state transition machine, popu
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  pd state/.style={draw=pdindigo,line width=0.8pt,fill=white,rounded corners=1.5pt,align=center,inner sep=3pt,font=\pdfiglabelsize},
-  pd focus state/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!8,rounded corners=1.5pt,align=center,inner sep=3pt,font=\pdfiglabelsize\bfseries},
-  pd term state/.style={draw=pdink!70,line width=0.8pt,double,fill=white,rounded corners=1.5pt,align=center,inner sep=3pt,font=\pdfiglabelsize},
-  pd edge/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
-  pd focus edge/.style={draw=pdcobalt,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  pd fail edge/.style={draw=pderror,line width=0.7pt,-{Stealth[length=3.5pt,width=2.5pt]}},
-  pd mute edge/.style={draw=pdinkmuted,line width=0.7pt,-{Stealth[length=3.5pt,width=2.5pt]}}
+  pd card/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
+  pd focus card/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
+  pd health card/.style={draw=pdhealth!90,line width=1.0pt,fill=pdhealth!10,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
+  pd error card/.style={draw=pderror!90,line width=0.9pt,fill=pderror!8,rounded corners=2pt,align=left,inner xsep=6pt,inner ysep=5pt},
+  pd edge/.style={draw=pdink!80,line width=0.8pt,-{Stealth[length=4.5pt,width=3.5pt]}},
+  pd focus edge/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd fail edge/.style={draw=pderror,line width=0.9pt,-{Stealth[length=4.5pt,width=3pt]}},
+  pd success edge/.style={draw=pdhealth,line width=1.1pt,-{Stealth[length=5pt,width=3.5pt]}}
 ]
-  \useasboundingbox (0, 0) rectangle (11.4, 10.6);
+  \useasboundingbox (0, 0) rectangle (15.5, 16.0);
 
-  % Track 1 Header: Directive
-  \node[anchor=north west, font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{pdcobalt}] at (0.1, 10.4) {DIRECTIVE SPEECH ACT: \texttt{request} $\implies$ \texttt{agree} / \texttt{refuse} $\implies$ \texttt{inform-done} / \texttt{failure}};
+  % =========================================================================
+  % LEFT COLUMN: CLIENT AGENT DISPATCH (x = 0.1 to 3.2)
+  % =========================================================================
+  \draw[draw=pdink!20,fill=pdinkmuted!4,rounded corners=2pt,line width=0.6pt] (0.1, 0.2) rectangle (3.2, 15.8);
+  \draw[draw=none,fill=pdink!12] (0.1, 15.1) rectangle (3.2, 15.8);
+  \node[anchor=west,font=\fontsize{8.0}{10.0}\selectfont\bfseries\color{pdink}] at (0.25, 15.45) {CLIENT DISPATCH};
 
-  % Track 2 Header: Assertive
-  \node[anchor=north west, font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{pdindigo}] at (2.5, 6.25) {ASSERTIVE SPEECH ACT: \texttt{inform} $\implies$ DIRECT BELIEF UPDATE};
-
-  % Track 3 Header: Commissive
-  \node[anchor=north west, font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{pdink}] at (2.5, 4.0) {COMMISSIVE SPEECH ACT: \texttt{propose} $\implies$ \texttt{accept} / \texttt{reject}};
-
-  % Initial State (x = 1.1, y = 4.9)
-  \node[pd state, text width=1.8cm] (init) at (1.1, 4.9) {%
-    \textbf{Client Idle}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont $\mathtt{State}: \mathtt{READY}$\\$\mathtt{Task}: \text{"add\_mfa"}$}%
+  \node[pd card, text width=2.6cm] (init) at (1.65, 7.6) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries Client Agent}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont State: \texttt{READY}\\[1pt]
+    Task: \texttt{"add\_mfa"}\\[1pt]
+    Role: Orchestrator\\[1pt]
+    Cap: Root $\mathcal{C}_0$}%
   };
 
-  % -------------------------------------------------------------------------
-  % Top Track: Directive / Request (y = 9.1 and y = 7.0)
-  % -------------------------------------------------------------------------
-  \node[pd state, text width=2.5cm] (req_sent) at (4.2, 9.1) {%
-    \textbf{Request Pending}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont Awaiting DB lock\\Timeout: $30\text{s}$ window}%
-  };
-  \node[pd focus state, text width=2.4cm] (exec) at (7.4, 9.1) {%
-    \textbf{Action Agreed}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont Lock: \texttt{0x9a} active\\Exclusive DDL open}%
-  };
-  \node[pd term state, text width=1.9cm] (done) at (10.15, 9.1) {%
-    {\color{pdhealth}\textbf{Inform-Done}}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont $\mathtt{LSN}: \mathtt{0x48a12}$\\[1pt]Committed WAL}%
+  % =========================================================================
+  % TRACK 1: DIRECTIVE SPEECH ACT (y = 8.8 to 15.8)
+  % =========================================================================
+  \draw[draw=pdcobalt!25,fill=pdcobalt!3,rounded corners=2pt,line width=0.6pt] (3.5, 8.8) rectangle (15.4, 15.8);
+  \draw[draw=none,fill=pdcobalt!14] (3.5, 15.1) rectangle (15.4, 15.8);
+  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdcobalt}] at (3.7, 15.45) {TRACK 1: DIRECTIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{request} $\implies$ \texttt{agree} / \texttt{refuse} $\implies$ \texttt{inform-done} / \texttt{failure}}};
+
+  % Track 1 Nominal (y = 13.3)
+  \node[pd card, text width=3.1cm] (req_sent) at (5.2, 13.3) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries Request Pending}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Awaiting DB lock lease\\[1pt]
+    Timeout: $30\,\text{s}$ window\\[1pt]
+    Action: \texttt{exec(migration)}}%
   };
 
-  % Refusal and Failure
-  \node[pd term state, text width=2.5cm] (refuse) at (4.2, 7.0) {%
-    \color{pdinkmuted}\textbf{Refused}\\[1pt]
-    {\fontsize{4.6}{5.6}\selectfont $\langle \mathtt{busy}: \text{ETL batch} \rangle$\\Retry next epoch}%
-  };
-  \node[pd term state, text width=2.4cm] (fail) at (7.4, 7.0) {%
-    \color{pderror}\textbf{Failure}\\[1pt]
-    {\fontsize{4.6}{5.6}\selectfont $\langle \mathtt{err}: \text{"dup col"} \rangle$\\Rollback \& emit $-!g$}%
+  \node[pd focus card, text width=3.4cm] (exec) at (10.0, 13.3) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Action Agreed}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Lock: \texttt{0x9a} (exclusive)\\[1pt]
+    DDL channel verified\\[1pt]
+    Worker running migration}%
   };
 
-  \draw[pd edge] (init.north) |- (req_sent.west);
-  \node[anchor=west, font=\fontsize{5.0}{6.0}\selectfont\color{pdcobalt}\bfseries] at (1.25, 7.8) {\texttt{request(migrate)}};
+  \node[pd health card, text width=2.3cm] (done) at (14.0, 13.3) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdhealth} Inform-Done}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont LSN: \texttt{0x48a12}\\[1pt]
+    Committed WAL\\[1pt]
+    Exit 0 Pass}%
+  };
+
+  % Track 1 Exceptions (y = 10.2)
+  \node[pd error card, text width=3.1cm] (refuse) at (5.2, 10.2) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Refused ($\neg\mathtt{agree}$)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Reason: \texttt{busy(ETL)}\\[1pt]
+    Retry window: $+60\,\text{s}$}%
+  };
+
+  \node[pd error card, text width=3.4cm] (fail) at (10.0, 10.2) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Failure Execution}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Error: \texttt{"dup column"}\\[1pt]
+    Rollback \& emit $-!g$\\[1pt]
+    Lock released closed}%
+  };
+
+  % Track 1 Transitions
+  \draw[pd edge] (init.north) |- (req_sent.west)
+    node[pos=0.75, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{request(migrate)}};
 
   \draw[pd focus edge] (req_sent) -- (exec)
-    node[midway, above=1.5pt, font=\fontsize{5.0}{6.0}\selectfont\color{pdcobalt}, fill=white, inner sep=1pt]
-    {\texttt{agree} $\langle 60\text{s}\rangle$};
+    node[midway, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{agree} $\langle 60\,\text{s}\rangle$};
 
-  \draw[pd edge] (exec) -- (done)
-    node[midway, above=1.5pt, font=\fontsize{5.0}{6.0}\selectfont\color{pdhealth}\bfseries, fill=white, inner sep=1pt]
-    {\texttt{done}};
+  \draw[pd success edge] (exec) -- (done)
+    node[midway, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdhealth}\bfseries, fill=white, inner sep=1.5pt] {\texttt{done}};
 
-  \draw[pd mute edge] (req_sent) -- (refuse)
-    node[midway, right=2pt, font=\fontsize{4.8}{5.8}\selectfont\color{pdinkmuted}]
-    {\texttt{refuse}};
+  \draw[pd fail edge] (req_sent.south) -- (refuse.north)
+    node[midway, right=3pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries] {\texttt{refuse}};
 
-  \draw[pd fail edge] (exec) -- (fail)
-    node[midway, right=2pt, font=\fontsize{4.8}{5.8}\selectfont\color{pderror}]
-    {\texttt{failure}};
+  \draw[pd fail edge] (exec.south) -- (fail.north)
+    node[midway, right=3pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries] {\texttt{failure}};
 
-  % -------------------------------------------------------------------------
-  % Middle Track: Assertive / Inform (y = 4.9)
-  % -------------------------------------------------------------------------
-  \node[pd term state, text width=6.0cm] (inf_done) at (7.5, 4.9) {%
-    \textbf{Belief Base Updated} ($bs \leftarrow bs \cup \{\phi\}$)\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont $bs \models \mathtt{Schema}(\text{"users"}, \mathtt{mfa\_secret})$; LSP TypeScript definitions regenerated and indexed}%
+  % =========================================================================
+  % TRACK 2: ASSERTIVE SPEECH ACT (y = 5.4 to 8.5)
+  % =========================================================================
+  \draw[draw=pdindigo!25,fill=pdindigo!3,rounded corners=2pt,line width=0.6pt] (3.5, 5.4) rectangle (15.4, 8.5);
+  \draw[draw=none,fill=pdindigo!14] (3.5, 7.8) rectangle (15.4, 8.5);
+  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdindigo}] at (3.7, 8.15) {TRACK 2: ASSERTIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{inform} $\implies$ Direct Belief Base Synchronous Mutation}};
+
+  \node[pd card, text width=9.2cm] (inf_done) at (10.3, 6.5) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries Belief Base Synchronously Mutated} ($bs \leftarrow bs \cup \{\phi\}$)\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Proposition: $bs \models \mathtt{Schema}(\text{"users"}, \mathtt{mfa\_secret})$ verified against catalog.\\[1pt]
+    Language Server Protocol (LSP) TypeScript definitions regenerated (\path{db.d.ts}).\\[1pt]
+    AST symbol index refreshed across all linked worktree sessions.}%
   };
 
   \draw[pd edge] (init.east) -- (inf_done.west)
-    node[midway, above=2pt, font=\fontsize{4.8}{5.8}\selectfont\color{pdindigo}\bfseries, align=center, fill=white, inner sep=1.2pt]
-    {\texttt{inform(types\_gen)}\\[1pt]$\langle \mathtt{file}: \text{"db.d.ts"} \rangle$};
+    node[pos=0.35, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdindigo}\bfseries, fill=white, inner sep=1.5pt] {\texttt{inform(types\_gen)}};
 
-  % -------------------------------------------------------------------------
-  % Bottom Track: Commissive / Propose (y = 2.65 and y = 0.85)
-  % -------------------------------------------------------------------------
-  \node[pd state, text width=2.5cm] (prop_sent) at (4.2, 2.65) {%
-    \textbf{Proposal Pending}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont Evaluate utility function\\$\mathcal{U}(\text{bid}) \ge \theta_{\text{min}}$ threshold}%
-  };
-  \node[pd focus state, text width=4.4cm] (accept) at (8.4, 2.65) {%
-    \textbf{Proposal Accepted}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont SLA bound: $5\%$ canary routing applied via Envoy proxy}%
-  };
-  \node[pd term state, text width=2.5cm] (reject) at (4.2, 0.85) {%
-    \color{pdinkmuted}\textbf{Rejected}\\[1pt]
-    {\fontsize{4.8}{5.8}\selectfont Budget cap exceeded: $\$0.02 > \$0.01$}%
+  % =========================================================================
+  % TRACK 3: COMMISSIVE SPEECH ACT (y = 0.2 to 5.1)
+  % =========================================================================
+  \draw[draw=pdink!20,fill=pdinkmuted!3,rounded corners=2pt,line width=0.6pt] (3.5, 0.2) rectangle (15.4, 5.1);
+  \draw[draw=none,fill=pdink!10] (3.5, 4.4) rectangle (15.4, 5.1);
+  \node[anchor=west,font=\fontsize{8.2}{10.2}\selectfont\bfseries\color{pdink}] at (3.7, 4.75) {TRACK 3: COMMISSIVE SPEECH ACT \quad {\normalfont\color{pdinkmuted}\textperiodcentered \quad \texttt{propose} $\implies$ Bilateral Utility Evaluation $\implies$ \texttt{accept} / \texttt{reject}}};
+
+  \node[pd card, text width=3.1cm] (prop_sent) at (5.2, 2.3) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries Proposal Pending}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Evaluate utility function:\\[1pt]
+    $\mathcal{U}(\text{bid}) \ge \theta_{\text{min}}$ threshold\\[1pt]
+    Resource bid: $\$0.02$ cap}%
   };
 
-  \draw[pd edge] (init.south) |- (prop_sent.west);
-  \node[anchor=west, font=\fontsize{5.0}{6.0}\selectfont\color{pdink}\bfseries] at (1.25, 3.4) {\texttt{propose(canary)}};
+  \node[pd focus card, text width=6.5cm] (accept) at (11.8, 3.4) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Proposal Accepted \& SLA Bound}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont SLA: $5\%$ canary routing applied via Envoy proxy\\[1pt]
+    Escrow: \texttt{PO:0x99} committed to kernel settlement ledger}%
+  };
 
-  \draw[pd focus edge] (prop_sent) -- (accept)
-    node[midway, above=1.5pt, font=\fontsize{5.0}{6.0}\selectfont\color{pdcobalt}, fill=white, inner sep=1pt]
-    {\texttt{accept} $\langle \mathtt{PO}: \mathtt{0x99} \rangle$};
+  \node[pd error card, text width=6.5cm] (reject) at (11.8, 1.2) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pderror} Proposal Rejected}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Budget cap exceeded: Bid $\$0.02 > \text{cap } \$0.01$ (hard spend cap)\\[1pt]
+    Task remains in open pool for alternative contractor bids}%
+  };
 
-  \draw[pd mute edge] (prop_sent) -- (reject)
-    node[midway, right=2pt, font=\fontsize{4.8}{5.8}\selectfont\color{pdinkmuted}]
-    {\texttt{reject}};
+  \draw[pd edge] (init.south) |- (prop_sent.west)
+    node[pos=0.75, above=2pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdink}\bfseries, fill=white, inner sep=1.5pt] {\texttt{propose(canary)}};
+
+  \draw[pd focus edge] (prop_sent.east) |- (accept.west)
+    node[pos=0.45, above=1pt, font=\fontsize{7.5}{9.0}\selectfont\color{pdcobalt}\bfseries, fill=white, inner sep=1.5pt] {\texttt{accept}};
+
+  \draw[pd fail edge] (prop_sent.east) |- (reject.west)
+    node[pos=0.45, below=1pt, font=\fontsize{7.5}{9.0}\selectfont\color{pderror}\bfseries, fill=white, inner sep=1.5pt] {\texttt{reject}};
 
 \end{tikzpicture}
 \caption{FIPA-00037 Communicative Speech Act state transition machine, populated with practical software engineering payloads. Top: Directive \texttt{request} lifecycle executing an atomic database migration under lock arbitration. Middle: Assertive \texttt{inform} directly mutating an agent's belief base. Bottom: Commissive \texttt{propose} negotiating an SLA for canary deployment routing.}
@@ -1328,85 +1356,92 @@ Figure~\ref{fig:contract-net-protocol} traces this complete lifecycle using a re
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  pd line/.style={draw=pdink!25,line width=0.7pt,dashed},
-  pd box/.style={draw=pdindigo,line width=0.8pt,fill=pdindigo!8,rounded corners=1.5pt,align=center,inner sep=3pt,font=\pdfiglabelsize\bfseries},
-  pd focus box/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!10,rounded corners=1.5pt,align=center,inner sep=3pt,font=\pdfiglabelsize\bfseries},
-  pd msg/.style={draw=pdink!80,line width=0.7pt,-{Stealth[length=4pt,width=3pt]}},
-  pd focus msg/.style={draw=pdcobalt,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  pd success msg/.style={draw=pdhealth,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  pd gold msg/.style={draw=pdgold,line width=0.9pt,-{Stealth[length=4pt,width=3pt]}},
-  pd actbar/.style={draw=pdcobalt!60,fill=pdcobalt!10,rounded corners=0.5pt,line width=0.5pt}
+  pd line/.style={draw=pdink!30,line width=0.8pt,dashed},
+  pd box/.style={draw=pdink!30,line width=0.8pt,fill=white,rounded corners=2pt,align=center,inner xsep=6pt,inner ysep=5pt,minimum height=1.35cm},
+  pd focus box/.style={draw=pdcobalt,line width=1.1pt,fill=pdcobalt!6,rounded corners=2pt,align=center,inner xsep=6pt,inner ysep=5pt,minimum height=1.35cm},
+  pd msg/.style={draw=pdink!80,line width=0.8pt,-{Stealth[length=5pt,width=3.5pt]}},
+  pd focus msg/.style={draw=pdcobalt,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
+  pd success msg/.style={draw=pdhealth,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
+  pd gold msg/.style={draw=pdgold,line width=1.1pt,-{Stealth[length=5.5pt,width=4pt]}},
+  pd actbar/.style={draw=pdcobalt!70,fill=pdcobalt!12,rounded corners=1pt,line width=0.6pt}
 ]
-  \useasboundingbox (0, 0.4) rectangle (11.4, 9.8);
+  \useasboundingbox (0, 0.2) rectangle (15.5, 14.8);
 
-  % Top Agent Header Nodes (within 11.4cm)
-  \node[pd focus box, text width=2.3cm] (mgr) at (1.4, 9.2) {%
-    \textbf{Manager Agent}\\
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Lead Orchestrator}%
+  % Top Agent Header Cards (y = 13.6)
+  \node[pd focus box, text width=3.0cm] (mgr) at (1.8, 13.6) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdcobalt} Manager Agent}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Lead Orchestrator\\[1pt]Root Lease Authority}%
   };
-  \node[pd box, text width=2.8cm] (c1) at (6.0, 9.2) {%
-    \textbf{Contractor 1 (Worker A)}\\
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Claude 3.7 $\cdot$ Vitest / Node}%
+
+  \node[pd box, text width=3.8cm] (c1) at (9.4, 13.6) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdindigo} Contractor 1 (Worker A)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Claude 3.7 $\cdot$ Vitest / Node\\[1pt]Capacity: Available}%
   };
-  \node[pd box, text width=2.4cm] (c2) at (10.2, 9.2) {%
-    \textbf{Contractor 2 (Worker B)}\\
-    {\fontsize{4.8}{5.8}\selectfont\normalfont Rust Toolchain Specialist}%
+
+  \node[pd box, text width=3.0cm] (c2) at (14.0, 13.6) {%
+    {\fontsize{8.5}{10.5}\selectfont\bfseries\color{pdink} Contractor 2 (Worker B)}\\[2pt]
+    {\fontsize{8.0}{9.5}\selectfont Rust Specialist\\[1pt]Capacity: Saturated}%
   };
 
   % Continuous Lifelines
-  \draw[pd line] (1.4, 8.5) -- (1.4, 0.6);
-  \draw[pd line] (6.0, 8.5) -- (6.0, 0.6);
-  \draw[pd line] (10.2, 8.5) -- (10.2, 0.6);
+  \draw[pd line] (1.8, 12.6) -- (1.8, 0.6);
+  \draw[pd line] (9.4, 12.6) -- (9.4, 0.6);
+  \draw[pd line] (14.0, 12.6) -- (14.0, 0.6);
 
-  % Manager Activation Bar
-  \draw[pd actbar] (1.30, 8.10) rectangle (1.50, 0.85);
-  % Contractor 1 Activation Bar (Active during lease)
-  \draw[draw=pdindigo!60,fill=pdindigo!10,rounded corners=0.5pt,line width=0.5pt] (5.90, 4.65) rectangle (6.10, 1.85);
+  % Activation Bars
+  \draw[pd actbar] (1.65, 12.0) rectangle (1.95, 1.2);
+  \draw[draw=pdindigo!70,fill=pdindigo!12,rounded corners=1pt,line width=0.6pt] (9.25, 7.8) rectangle (9.55, 2.8);
 
-  % 1. CFP Broadcast to Contractor 1 (y = 7.85)
-  \draw[pd msg] (1.50, 7.85) -- (5.90, 7.85)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdink}, fill=white, inner sep=1.2pt]
-    {1. \textbf{CFP}: \texttt{patch-openssl}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \text{budget}: \$12, \text{target}: \text{"crypto"} \rangle$}};
+  % 1. CFP Broadcast to Contractor 1 (y = 11.8)
+  \draw[pd msg] (1.95, 11.8) -- (9.25, 11.8)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdcobalt}1. Call for Proposals (CFP):} \texttt{patch-openssl}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont\color{pdinkmuted}$\langle \text{budget}: \$12.00, \text{target}: \text{"crypto"}, \text{timeout}: 10\text{m} \rangle$}};
 
-  % 1b. CFP Broadcast to Contractor 2 (y = 7.00)
-  \draw[pd msg] (1.50, 7.00) -- (10.10, 7.00)
-    node[pos=0.35, above=1.5pt, font=\fontsize{4.8}{5.8}\selectfont\color{pdinkmuted}, fill=white, inner sep=1.2pt]
-    {1. \textbf{CFP Broadcast} (monorepo alert $\cdot$ all registered workers)};
+  % 1b. CFP Broadcast to Contractor 2 (y = 10.5)
+  \draw[pd msg] (1.95, 10.5) -- (13.85, 10.5)
+    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
+    {1b. \textbf{CFP Broadcast} (monorepo alert $\cdot$ all registered fleet workers)};
 
-  % 2. Contractor 1 Submits Competitive Bid (y = 6.15)
-  \draw[pd msg] (5.90, 6.15) -- (1.50, 6.15)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdindigo}, fill=white, inner sep=1.2pt]
-    {2. \textbf{Formal Bid}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \text{cost}: \$4.20, \text{ETA}: 180\text{s}, \text{slot}: \text{free} \rangle$}};
+  % 2. Contractor 1 Submits Competitive Bid (y = 9.3)
+  \draw[pd msg] (9.25, 9.3) -- (1.95, 9.3)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdindigo}2. Formal Bid Submission}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont$\langle \text{cost}: \$4.20, \text{ETA}: 180\,\text{s}, \text{reputation}: 0.98 \rangle$}};
 
-  % 2b. Contractor 2 Refusal (y = 5.30)
-  \draw[pd msg] (10.10, 5.30) -- (1.50, 5.30)
-    node[pos=0.35, above=1.5pt, font=\fontsize{4.8}{5.8}\selectfont\color{pderror}, fill=white, inner sep=1.2pt]
-    {2. \textbf{Refusal}: $\langle \text{overloaded: 4 active locks, queue full} \rangle$};
+  % 2b. Contractor 2 Refusal (y = 8.1)
+  \draw[pd msg] (13.85, 8.1) -- (1.95, 8.1)
+    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pderror}\bfseries, fill=white, inner sep=2pt]
+    {2b. \textbf{Explicit Refusal}: $\langle \text{overloaded: 4 active locks, build queue full} \rangle$};
 
-  % 3. Manager Awards Contract to Contractor 1 (y = 4.45)
-  \draw[pd focus msg] (1.50, 4.45) -- (5.90, 4.45)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdcobalt}, fill=white, inner sep=1.2pt]
-    {\textbf{3. Award}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \mathtt{lease}: \mathtt{09b}, \mathtt{branch}: \text{"fix/tls"}, \mathtt{escrow}: \$4.20 \rangle$}};
+  % 3. Manager Awards Contract to Contractor 1 (y = 6.9)
+  \draw[pd focus msg] (1.95, 6.9) -- (9.25, 6.9)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdcobalt}3. Contract Award \& Worktree Lease}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont$\langle \mathtt{lease}: \mathtt{0x09b}, \mathtt{branch}: \text{"fix/tls"}, \mathtt{escrow}: \$4.20 \text{ locked} \rangle$}};
 
-  % 3b. Manager Rejection to Contractor 2 (y = 3.60)
-  \draw[pd msg] (1.50, 3.60) -- (10.10, 3.60)
-    node[pos=0.35, above=1.5pt, font=\fontsize{4.8}{5.8}\selectfont\color{pdinkmuted}, fill=white, inner sep=1.2pt]
-    {3. \textbf{Reject Proposal}: $\langle \text{peer capacity conflict resolved} \rangle$};
+  % 3b. Manager Rejection to Contractor 2 (y = 5.7)
+  \draw[pd msg] (1.95, 5.7) -- (13.85, 5.7)
+    node[pos=0.45, above=2pt, font=\fontsize{8.0}{9.5}\selectfont\color{pdinkmuted}, fill=white, inner sep=2pt]
+    {3b. \textbf{Reject Proposal}: $\langle \text{peer capacity conflict resolved} \rangle$};
 
-  % 4. Interim Progress Stream (y = 2.75)
-  \draw[pd msg] (5.90, 2.75) -- (1.50, 2.75)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdink}, fill=white, inner sep=1.2pt]
-    {4. \textbf{Progress}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \text{phase}: \text{"AST transform"}, \text{progress}: 60\% \rangle$}};
+  % 4. Interim Progress Stream (y = 4.5)
+  \draw[pd msg] (9.25, 4.5) -- (1.95, 4.5)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdindigo}4. Structured Progress Delta}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont$\langle \text{phase}: \text{"AST transform \& lockfile"}, \text{progress}: 60\% \rangle$}};
 
-  % 5. Delivery with Verification Receipts (y = 1.90)
-  \draw[pd success msg] (5.90, 1.90) -- (1.50, 1.90)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdhealth}, fill=white, inner sep=1.2pt]
-    {\textbf{5. Verified Delivery}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \mathtt{commit}: \mathtt{7a31f}, 142/142 \text{ pass}, \mathtt{receipt}: \mathtt{0x9f} \rangle$}};
+  % 5. Delivery with Verification Receipts (y = 3.1)
+  \draw[pd success msg] (9.25, 3.1) -- (1.95, 3.1)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdhealth}5. Verified Delivery with Evidence Receipts}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont$\langle \mathtt{commit}: \mathtt{7a31f}, 142/142 \text{ pass}, \mathtt{receipt}: \mathtt{0x9f} \rangle$}};
 
-  % 6. Escrow Settlement and Lock Release (y = 1.05)
-  \draw[pd gold msg] (1.50, 1.05) -- (5.90, 1.05)
-    node[pos=0.5, above=1pt, align=center, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdgold}, fill=white, inner sep=1.2pt]
-    {\textbf{6. Escrow Release}\\[1pt]{\normalfont\fontsize{4.4}{5.4}\selectfont$\langle \text{payout}: \$4.20, \mathtt{status}: \mathtt{MERGED} \rangle$}};
+  % 6. Escrow Settlement and Lock Release (y = 1.7)
+  \draw[pd gold msg] (1.95, 1.7) -- (9.25, 1.7)
+    node[pos=0.5, above=2pt, align=center, font=\fontsize{8.0}{9.5}\selectfont, fill=white, inner sep=2pt]
+    {\textbf{\color{pdgold}6. Escrow Release \& Final Settlement}\\[1pt]
+    {\fontsize{7.5}{9.0}\selectfont$\langle \text{payout}: \$4.20 \text{ unlocked}, \mathtt{status}: \mathtt{MERGED}, \text{lease freed} \rangle$}};
 
 \end{tikzpicture}
 \caption{Smith's (1980) Contract Net Protocol (CNP) negotiation cycle instantiated for autonomous software engineering. An Orchestrator broadcasts a Call for Proposals (CFP) to patch a critical dependency CVE across competing agent workers. Competing workers assess tools and queue capacity to submit bids. The winner receives an exclusive worktree lease, streams progress deltas, and claims escrow upon verified test execution.}
