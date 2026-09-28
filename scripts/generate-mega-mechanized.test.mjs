@@ -274,24 +274,46 @@ test('loadCorpus fails closed with a clear error when the manifest file is missi
 });
 
 test('the real whitepaper/corpus.json renders end to end without drift', () => {
-  const rendered = renderMechanizedClaims(loadCorpus());
+  const corpus = loadCorpus();
+  const rendered = renderMechanizedClaims(corpus);
+  const artifacts = [...corpus.formalArtifacts, ...corpus.researchProgramArtifacts];
+  const wired = artifacts.filter((artifact) => artifact.ci.status === 'wired').length;
   assert.match(rendered, /\\section\{Mechanized claims\}\\label\{app:mechanized\}/);
-  assert.match(rendered, /42 artifacts in total, 37 wired into continuous integration and 5 retired/);
+  assert.match(rendered, new RegExp(`${artifacts.length} artifacts in total, ${wired} wired into continuous integration and ${artifacts.length - wired} retired`));
+  assert.equal(artifacts.filter((artifact) => artifact.id === 'harbor-continuation-and-acquisition').length, 1);
   // Every method actually present in the real manifest gets its own table.
   for (const method of ['ProVerif', 'Kani', 'Z3', 'EasyCrypt', 'Monte Carlo']) {
     assert.match(rendered, new RegExp(`\\\\caption\\{${method} artifacts`));
   }
 });
 
-test('renderMechanizedClaims keeps every caption on the page of its first table chunk', () => {
+test('the 21-file R-script suite breaks into page-breakable rows without losing a path', () => {
+  const corpus = loadCorpus();
+  const suite = corpus.researchProgramArtifacts.find((artifact) => artifact.id === 'harbor-results-r-scripts');
+  assert.equal(suite.paths.length, 21);
+  const rendered = collapseBreakHints(renderMechanizedClaims(corpus));
+  const tableStart = rendered.indexOf('Python / R scripts artifacts');
+  const table = rendered.slice(tableStart, rendered.indexOf('\\end{xltabular}', tableStart));
+  const rows = table.split('\n').filter((line) => line.includes('\\texttt{harbor-results-r-scripts}'));
+  assert.equal(rows.length, 3);
+  assert.equal(rows.filter((line) => line.includes('\\textit{(continued)}')).length, 2);
+  for (const row of rows) {
+    assert.match(row, /\\texttt\{harbor-results-estate\} & \\textsc\{current\} & ---/);
+    assert.match(row, /\\textit\{\(7 files\)\}/);
+    assert.equal((row.match(/\\path\{[^{}]+\.py\}/g) ?? []).length, 7);
+  }
+  const basenames = rows.flatMap((row) => [...row.matchAll(/\\path\{([^{}]+\.py)\}/g)].map((match) => match[1]));
+  assert.deepEqual(basenames.sort(), suite.paths.map((path) => path.split('/').at(-1)).sort());
+});
+
+test('renderMechanizedClaims puts every caption in its table first head', () => {
   const rendered = renderMechanizedClaims(fixtureManifest());
-  const captionCount = [...rendered.matchAll(/\\captionof\{table\}/g)].length;
-  // Each caption opens inside an unbreakable full-width minipage ...
-  const opened = [...rendered.matchAll(/\\noindent\\begin\{minipage\}\{\\textwidth\}\n\\captionof\{table\}/g)].length;
-  assert.equal(opened, captionCount, 'every caption is preceded by the minipage opener');
-  // ... and that minipage closes right after the FIRST chunk's \end{tabularx},
-  // so later chunks (marked "(continued)") keep their own page-break points.
-  const closed = [...rendered.matchAll(/\\end\{tabularx\}\n\\end\{minipage\}/g)].length;
-  assert.equal(closed, captionCount, 'exactly one minipage close per table, after its first chunk');
-  assert.doesNotMatch(rendered, /\(continued\)\}\n\n\\begin\{tabularx\}[^]*?\\end\{tabularx\}\n\\end\{minipage\}/, 'a continuation chunk is never inside the minipage');
+  const tables = rendered.match(/\\begin\{xltabular\}[\s\S]*?\\end\{xltabular\}/g) ?? [];
+  assert.equal(tables.length, 3);
+  for (const table of tables) {
+    const firstHead = table.slice(0, table.indexOf('\\endfirsthead'));
+    assert.match(firstHead, /\\caption\{[^}]+\}\\label\{tab:mechanized-[^}]+\}/);
+    assert.equal((table.match(/\\caption\{/g) ?? []).length, 1);
+    assert.match(table, /\\endfirsthead[\s\S]*\\endhead/);
+  }
 });

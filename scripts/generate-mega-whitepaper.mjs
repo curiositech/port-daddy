@@ -1125,32 +1125,26 @@ function commonDirectoryPrefix(paths) {
 }
 
 // Multiple paths (a TLA+ entry's .tla plus its .cfg siblings; one manifest
-// entry names 18 research scripts under one directory) are stacked one per
+// entry names 21 research scripts under one directory) are stacked one per
 // line with \newline rather than run together with comma-and-space: a
 // forced break is unambiguous, where relying on wrapping to find a good
 // break among that many already-split \path{} runs left a residual overfull
-// \hbox. Printing the shared directory ONCE rather than in every one of the
-// 18 lines is not just tidier — repeating a ~30-character prefix on every
-// line was the actual remaining cause of that overfull box (one basename,
-// after its shared prefix was still counted 18 times over, no longer fit
+// \hbox. Printing the shared directory ONCE rather than in every line is
+// not just tidier — repeating a ~30-character prefix on every line was the
+// actual remaining cause of that overfull box (one basename, after its
+// shared prefix was still counted many times over, no longer fit
 // even the wider column this row's estimate assumed).
-// Above this many stacked lines, the row itself becomes the tallest thing on
-// its page -- the one entry that hits this (19 R-script files) made a row
-// tall enough that xltabular's own row-height estimate for it landed 2.96pt
-// short of an actual page break, an Overfull \vbox from the output routine
-// with no paragraph and no line of type to point at (row 1.10). A row this
-// tall was always going to be a bad page-break neighbour eventually; the
-// fix is not the break, it is the row -- one size smaller for its stacked
-// filenames shortens it enough that no page-break estimate this close to
-// the edge is left to get wrong.
 const MANY_PATHS_THRESHOLD = 8;
+// xltabular can break between rows, never within one. Keep a many-file
+// artifact's path lists in bounded rows so additions to the manifest cannot
+// turn one indivisible row into a page-height box.
+const MAX_PATHS_PER_ROW = 7;
 
-function texPaths(paths) {
+function texPaths(paths, compact = paths.length > MANY_PATHS_THRESHOLD) {
   if (paths.length < 2) return texPathBreakable(paths[0]);
   const prefix = commonDirectoryPrefix(paths);
-  const small = paths.length > MANY_PATHS_THRESHOLD;
-  const open = small ? '{\\footnotesize ' : '';
-  const close = small ? '}' : '';
+  const open = compact ? '{\\footnotesize ' : '';
+  const close = compact ? '}' : '';
   if (!prefix) {
     return open + paths.map((path) => texPathBreakable(path)).join('\\newline{}') + close;
   }
@@ -1226,16 +1220,25 @@ const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth}
   + '>{\\raggedright\\arraybackslash}p{0.13\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
 const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
 
-function renderRow(row) {
-  const claim = texCode(row.id);
+function renderRow(row, paths = row.paths, continued = false) {
+  const claim = `${texCode(row.id)}${continued ? '\\newline{}\\textit{(continued)}' : ''}`;
   const harness = row.harnessName ? `\\ (${texCode(row.harnessName)})` : '';
-  const artifact = `${texPaths(row.paths)}${harness}`;
+  const artifact = `${texPaths(paths, row.paths.length > MANY_PATHS_THRESHOLD)}${harness}`;
   const ci = row.ci.status === 'wired' ? row.ci.job.map((job) => texCode(job)).join(', ') : 'retired';
   const status = `\\textsc{${texText(row.status)}}`;
   const evidence = row.evidencePolicy
     ? texEscapeBreakable(row.evidencePolicy)
     : row.ci.status === 'retired' ? texEscapeBreakable(row.ci.reason) : '---';
   return `${claim} & ${artifact} & ${ci} & ${status} & ${evidence} \\\\`;
+}
+
+function renderRows(row) {
+  if (row.paths.length <= MAX_PATHS_PER_ROW) return [renderRow(row)];
+  const rows = [];
+  for (let start = 0; start < row.paths.length; start += MAX_PATHS_PER_ROW) {
+    rows.push(renderRow(row, row.paths.slice(start, start + MAX_PATHS_PER_ROW), start > 0));
+  }
+  return rows;
 }
 
 /**
@@ -1301,7 +1304,7 @@ function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {})
       '\\endhead',
       '\\bottomrule',
       '\\endlastfoot',
-      ...rows.map(renderRow),
+      ...rows.flatMap(renderRows),
       '\\end{xltabular}}',
     );
     lines.push('');
