@@ -425,7 +425,7 @@
       "id": "R6",
       "kind": "theorem",
       "title": "Information boundary and visible-cycle sensitivity of edge residuals",
-      "oneBreath": "An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). One-edge perturbations obey visible-cycle sensitivity; the number of components touched after deleting a sender, minus one, is the exact dimension of its invisible split views per coordinate.",
+      "oneBreath": "An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). One-edge faults have a sharp bounded-error separation threshold set by effective resistance; the sender blind-spot dimension and smallest projected singular value give the exact worst-case split-view margin.",
       "status": "folded",
       "chapters": [
         8

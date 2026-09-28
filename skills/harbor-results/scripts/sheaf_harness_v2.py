@@ -15,6 +15,8 @@ alarm, because consistent sender claims define a vertex assignment whose
 edge differences are a coboundary. A triangle-with-leaf witness tests the
 converse failure. The harness also verifies the one-edge cycle/bridge law,
 visibility masking, structural cokernel dimensions, and mutation controls.
+It also constructs the exact midpoint ambiguity at the bounded-error
+separation threshold and checks the sender-wide singular margin.
 
 All claims are about synthetic real-coordinate data. No signed receipt or
 production gossip protocol is implemented here. Deps: numpy, networkx.
@@ -376,6 +378,52 @@ def check_blind_spot_dimension():
     print(f"  Blind-spot dimension: component score = sender-map "
           f"nullity minus one on {checked} four-vertex graph/sender cases  [PASS]")
 
+def check_bounded_error_separation():
+    """Construct both sides of the exact error-ball boundary, independently by SVD."""
+    n, edges = cycle_edges(6)
+    restrictions = prefix_restrictions(edges, {e: 1 for e in edges}, 1)
+    B, _ = coboundary(n, edges, restrictions, 1)
+    cycle_basis = np.linalg.svd(B.T, full_matrices=True)[2][-1]
+    projector = np.outer(cycle_basis, cycle_basis)
+    signal = np.zeros(len(edges))
+    signal[0] = 3.0
+    v = projector @ signal
+    d = np.linalg.norm(v)
+    assert np.isclose(d, 3 / np.sqrt(6), atol=1e-10)
+
+    # At equality, the same projected observation has an honest and faulty
+    # explanation, with admissible errors v/2 and -v/2 respectively.
+    eps = d / 2
+    midpoint = v / 2
+    assert np.isclose(np.linalg.norm(midpoint), eps)
+    assert np.allclose(projector @ (signal - midpoint), midpoint)
+    assert np.isclose(np.linalg.norm(projector @ (signal - midpoint)), eps)
+
+    # Strict separation means even the fault's nearest projected observation
+    # lies beyond the honest alarm boundary.
+    eps_small = eps - 0.1
+    assert d - eps_small > eps_small
+
+    incident = [i for i, edge in enumerate(edges) if 0 in edge]
+    A = np.zeros((len(edges), len(incident)))
+    for col, row in enumerate(incident):
+        A[row, col] = B[row, 0]
+    nonuniform = np.array([1.0, -1.0]) / np.sqrt(2)
+    gamma = np.linalg.norm(projector @ A @ nonuniform)
+    assert np.isclose(gamma, np.sqrt(2 / 6), atol=1e-10)
+    assert np.linalg.norm(projector @ A @ np.ones(2)) < 1e-10
+
+    _, path = path_edges(6)
+    path_B, _ = coboundary(6, path,
+                           prefix_restrictions(path, {e: 1 for e in path}, 1), 1)
+    assert np.linalg.matrix_rank(path_B) == len(path)
+    path_signal = np.zeros(len(path))
+    path_signal[0] = 3.0
+    assert np.linalg.norm(path_signal - path_B @ np.linalg.lstsq(
+        path_B, path_signal, rcond=None)[0]) < 1e-10
+    print("  Bounded error: C6 midpoint at d/2, strict threshold, "
+          "sender margin sqrt(2/6), and path blindness  [PASS]")
+
 # --------------------------------------------------------------------------
 # scenarios
 # --------------------------------------------------------------------------
@@ -583,6 +631,7 @@ def main():
     reproduce_mechanism()
     reproduce_split_view_kernel_counterexample()
     check_blind_spot_dimension()
+    check_bounded_error_separation()
 
     print("\n" + "=" * 74)
     print("[1] STRUCTURAL SELF-CHECK (anti-D1) + beta1 netting")

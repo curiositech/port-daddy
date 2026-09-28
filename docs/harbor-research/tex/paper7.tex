@@ -37,6 +37,9 @@ nonzero fault on edge $e$ has $r=|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$: it is d
 cycle of the visible coordinate graph $K_c$. This criterion does \emph{not} extend to arbitrary split views by one
 witness; a triangle with a leaf supplies an explicit counterexample. For sender $q$, the number of visible-neighbor
 components after deleting $q$, minus one, is the exact dimension of invisible split views in each coordinate.
+Under a full projected error ball of radius $\epsilon$, a one-edge fault is distinguishable from honest data exactly
+when $|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon$; a sender-wide criterion combines the blind-spot dimension
+with a least singular value.
 More decisively, if the analyst receives both
 authenticated endpoint reports on each relayed link, it can compare a sender's reports directly. Every nonzero cycle
 residual then implies an inconsistency that this equal-information checker can already detect. The synthetic harness's
@@ -264,6 +267,60 @@ Effective resistance maps where a one-edge fault is hard to see in edge-only dat
 detours can lower the effective resistance of an edge and increase its one-edge sensitivity. Direct comparison remains
 the equal-information detection baseline, while scoring, localization, and audit cost need a common benchmark.
 
+\section{Sharp robustness under bounded error}\label{sec:robust}
+
+An exact zero/nonzero residual is not an operational alarm when legitimate edge measurements have error. Fix one
+coordinate, one visible graph $K_c$, its incidence map $B_c$, and its cycle-space projector $\Pi_c$. Assume both the
+honest and faulty hypotheses permit \emph{every} projected error vector of norm at most $\epsilon$, with unrestricted
+vertex potentials under each hypothesis. This is a deterministic worst-case error contract, not a noise distribution or
+a claim about signed-head uncertainty. The graph, feature map, coordinate scale, and snapshot are held fixed.
+
+\begin{thebox}
+\textbf{Theorem 3 (sharp bounded-error separation).} Let $e$ be a visible coordinate edge, let $s\ne0$, and define
+\[
+\mathcal H_0=\{B_cx+\eta:\|\Pi_c\eta\|\le\epsilon\},\qquad
+\mathcal H_1(e,s)=\{B_cx+s\mathbf e_e+\eta:\|\Pi_c\eta\|\le\epsilon\}.
+\]
+These sets of possible edge observations are disjoint if and only if
+\[
+|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon.\tag{1}\label{eq:noise-separation}
+\]
+When (1) holds, the rule $r(g)=\|\Pi_cg\|>\epsilon$ has zero worst-case false alarms and misses for this model. At
+equality the two classes share an observation. For an unknown fault edge in a specified visible set $T_c$ with
+$|s|\ge s_{\min}>0$, a uniform zero-error guarantee exists exactly when
+$s_{\min}\min_{e\in T_c}\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon$; a bridge makes the minimum zero.
+
+\emph{Proof.} Modulo $\operatorname{im}B_c$, the two classes are closed Euclidean $\epsilon$-balls centered at $0$ and
+$v=\Pi_c(s\mathbf e_e)$, respectively. Their center distance is the left side of (1), by Theorem~1. Balls of radius
+$\epsilon$ are disjoint exactly when that distance exceeds $2\epsilon$. Otherwise $v/2$ belongs to both classes,
+using errors $v/2$ and $-v/2$; unrestricted potentials absorb the gradient components. Under (1), honest observations
+have $r\le\epsilon$ and faulty observations have $r\ge\|v\|-\epsilon>\epsilon$. Taking the minimum over allowed
+edges proves the uniform statement.\hfill$\square$
+\end{thebox}
+
+The topological blind-spot dimension and the noise margin combine for \emph{all} split views by one sender. Fix a
+sender $q$ with at least two visible $c$-edges. Let $U_q^c$ be the line of uniform offsets on those edges, and define
+\[
+\gamma_q^c=\min_{\operatorname{dist}(o,U_q^c)=1}\|\Pi_cA_q^c o\|.
+\]
+Uniform offsets are coboundaries, so this is the smallest singular value of $\Pi_cA_q^c$ restricted to the orthogonal
+complement of $U_q^c$. The minimum is zero exactly when $b_q^c>0$. If an adversary may choose any offset with
+$\operatorname{dist}(o,U_q^c)\ge\tau>0$, the honest and one-sender-fault observation classes are disjoint for
+\emph{every} such offset if and only if
+\[
+b_q^c=0\quad\text{and}\quad\tau\gamma_q^c>2\epsilon.\tag{2}\label{eq:sender-noise}
+\]
+Indeed, when $b_q^c>0$, an invisible nonuniform kernel offset can be scaled beyond $\tau$. Otherwise the smallest
+projected signal is exactly $\tau\gamma_q^c$, attained by a least singular vector, and the ball argument above is
+necessary and sufficient. On a visible $C_n$ at a degree-two sender, $b_q^c=0$ and
+$\gamma_q^c=\sqrt{2/n}$; on a path's internal sender, $b_q^c>0$ and $\gamma_q^c=0$.
+
+These are zero-error boundaries under the stipulated complete error balls. Merely knowing an upper bound on error
+makes (1) and (2) sufficient, but their necessity can fail for restricted or asymmetric errors. A directional test may
+be better under a probability model; no statistical optimality or deployed false-alarm rate follows. If authenticated
+endpoint claims are available, their comparison remains the equal-information detection baseline and requires its own
+error model.
+
 \section{Related work and contribution}\label{sec:related}
 
 Cellular sheaves on graphs and their coboundary calculus follow Curry~\cite{curry}; spectral sheaf methods follow
@@ -273,6 +330,10 @@ cyclic residual~\cite{hodgerank}. Effective resistance as an incidence-row lever
 Abramsky--Brandenburger contextuality~\cite{abramsky-brandenburger}. Robinson~\cite{robinson} supplies the
 consistency-radius perspective. The projection, cycle-space identity, and effective-resistance law here are familiar
 graph linear algebra rather than a new cohomology invariant.
+
+Robust HodgeRank studies noisy and contaminated edge comparisons with cyclic projections and statistical outlier
+detection~\cite{robust-hodgerank}. The bounded-error separation above is an exact statement for the paper's specified
+edge-only evidence and adversarial Euclidean error balls; it does not claim a new general robust-ranking method.
 
 PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving authenticated statements that can identify a conflicting sender. When both endpoint claims are available to the analyst, a direct duplicate-claim check has that evidentiary advantage. The present real-coordinate model instead characterizes the consistency score of derived edge differences. An exact cycle-sum checker sees the same noiseless inconsistency as its least-squares residual; the residual adds a metric magnitude and a topology-dependent distribution of error. The contribution is an explicit information contract, the one-edge sensitivity formula under visible-edge deletion, the general single-sender kernel characterization, and a counterexample that prevents extending the one-edge criterion to arbitrary split views.
 
@@ -291,7 +352,8 @@ PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving 
 
 The synthetic scripts \texttt{sheaf\_mechanism\_proof.py}, \texttt{sheaf\_harness\_v2.py}, and
 \texttt{sheaf\_consistency\_radius.py} use seed 20260816 for their sampled arms. They reproduce the scalar cycle
-examples, visibility-mask checks, and effective-resistance calculations. The harness evaluates both the restricted
+examples, visibility-mask checks, effective-resistance calculations, and deterministic bounded-error midpoint cases.
+The harness evaluates both the restricted
 checked-edge baseline and an equal-information duplicate-claim checker; an assertion rejects any residual-only case
 against the latter. Its unrestricted completion construction does not solve the fixed-sender minimum. Its timing and
 localization reports depend on the sampled graphs, metric, and machine; no deployed signed-receipt system is tested.
@@ -307,6 +369,8 @@ contextuality. \emph{New Journal of Physics}, 13:113036, 2011.
 and Computational Topology}, 3:315--358, 2019.
 \bibitem{hodgerank} X.~Jiang, L.-H.~Lim, Y.~Yao, and Y.~Ye. Statistical ranking and combinatorial Hodge theory.
 \emph{Mathematical Programming}, 127:203--244, 2011.
+\bibitem{robust-hodgerank} Q.~Xu, J.~Xiong, X.~Cao, Q.~Huang, and Y.~Yao. Evaluating visual properties via robust
+HodgeRank. arXiv:1408.3467, revised 2021.
 \bibitem{drineas-mahoney} P.~Drineas and M.~W.~Mahoney. Effective resistances, statistical leverage, and applications
 to linear equation solving. arXiv:1005.3097, 2010.
 \bibitem{robinson} M.~Robinson. Sheaves are the canonical data structure for sensor integration. \emph{Information
