@@ -166,7 +166,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Figures:** `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
 
-**Scripts:** `skills/harbor-results/scripts/sheaf_mechanism_proof.py`, `skills/harbor-results/scripts/sheaf_harness_v2.py`
+**Scripts:** `skills/harbor-results/scripts/sheaf_mechanism_proof.py`, `skills/harbor-results/scripts/sheaf_harness_v2.py`, `skills/harbor-results/scripts/paper7_failure_cases.py`
 
 **Site:** `/research/paper7.pdf`
 

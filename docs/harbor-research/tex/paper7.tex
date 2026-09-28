@@ -341,7 +341,7 @@ the same declared feature metric. The candidate is an independently retained row
 the old visible graph, the residual after retaining the new receipt obeys
 \[
 r_{\mathrm{new}}^2-r^2
-=\frac{(y-b\hat x)^2}{1+bL^+b}
+=\frac{(y-b\hat x)^2}{1+bL^+b^\mathsf{T}}
 =\frac{(y-b\hat x)^2}{1+R_{\mathrm{eff}}^K(u,v)}.\tag{3}\label{eq:receipt-gain}
 \]
 The innovation $y-b\hat x$ is independent of the gauge chosen for $\hat x$. Its square is zero exactly when the
@@ -350,8 +350,8 @@ $r_{\mathrm{new}}^2=r^2$ for every $y$. This includes a first link between isola
 
 \emph{Proof.} Old least-squares orthogonality gives
 $\|g-B(\hat x+z)\|^2=r^2+\|Bz\|^2$. In a connected component, the least energy $\|Bz\|^2$
-subject to $bz=t$ is $t^2/(bL^+b)$, by the electrical variational principle. Minimizing
-$t^2/(bL^+b)+(y-b\hat x-t)^2$ over $t$ gives (3). If the endpoints are in different components,
+subject to $bz=t$ is $t^2/(bL^+b^\mathsf{T})$, by the electrical variational principle. Minimizing
+$t^2/(bL^+b^\mathsf{T})+(y-b\hat x-t)^2$ over $t$ gives (3). If the endpoints are in different components,
 their independent additive gauges realize any $bz$ at zero old energy, so the new row is fitted without
 changing the old minimum.\hfill$\square$
 \end{thebox}
@@ -364,7 +364,7 @@ disagrees with both old readings; a third reading of $0$ has gain $2/3$ although
 has zero immediate gain, but it can connect components so that a later receipt closes a cycle.
 
 For a predeclared finite library of failure hypotheses, apply (3) to the \emph{difference} between the two
-hypotheses' old edge signatures and predicted new readings. It gives their exact increase in squared projected
+hypotheses' old edge signatures and candidate-edge signatures. It gives their exact increase in squared projected
 separation. A candidate with zero innovation for a pair cannot separate that pair through this new row. A
 cost-aware audit may rank candidate rows by a declared worst-pair margin per query cost; the ranking needs
 predicted signatures and costs, and no universal optimality follows. Actual observed $y$ is unknown before a
