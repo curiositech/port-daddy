@@ -163,7 +163,7 @@ Full page-marked text compared with `exec3.pdf`. Mathematical statements match; 
 
 - **Results:** committed-input parity release verified for four secrets/depth 7 (p. 5), explicit payload-laundering limitation (p. 7), controlled egress theorem (pp. 7–9), adaptive privacy-filter distinction (pp. 9–10), canary assumptions and approximate sequential latency (pp. 11–12), output-channel capacity account (p. 13).
 - **Assumptions/gaps:** its current `submit` transition carries no payload, so it cannot express `t=f(secret)` followed by honest `g(t)` (p. 7). The paper explicitly distinguishes a valid DP mechanism from a malicious worker declaring a number (p. 10). Noninterference for a trusted committed-input gate does not directly cover adversarial release candidates; `q*b` is an observation-alphabet cap, with timing/termination and adaptive release metadata excluded unless charged. “Attested” deployment and side properties on p. 3 are design assertions here, not deployment evidence.
-- **Actionable question:** which typed release contract preserves confidentiality when the candidate, query selection, stopping, and status metadata are adversarially chosen? Build the smallest payload-bearing model and prove a transcript-capacity bound; compare a trusted fixed function of committed data, a public constant output, and worker-supplied candidates. Dependencies: declared observation alphabet, commit-bound input identities, and gate authority. This model gap should be resolved before mechanizing the present payload-free model at arbitrary depth.
+- **Actionable question:** which typed release contract preserves confidentiality when the candidate, query selection, stopping, and status metadata are adversarially chosen? Build the smallest model with explicit payloads and prove a transcript-capacity bound; compare a trusted fixed function of committed data, a public constant output, and worker-supplied candidates. Dependencies: declared observation alphabet, commit-bound input identities, and gate authority. This model gap should be resolved before mechanizing the present payload-free model at arbitrary depth.
 
 ### 22. `paper5.pdf` — 14 pages; read pp. 1–14
 
@@ -226,7 +226,7 @@ Full page-marked text compared with `exec3.pdf`. Mathematical statements match; 
 - **Strong task evidence:** p. 39 gives the indistinguishable-hidden-state obstruction to exact trajectory restoration and demands reconciliation of unresolved effects before retry. Page 40 explicitly rejects an independence assumption for reviewers and asks for pairwise/higher-order joint misses, protected heldouts, and pre-patch property writing. Pages 41–42 separate conflict detection from who may decide a tradeoff; this contradicts Paper6's inference from NP-completeness to a required human algorithm.
 - **Model cautions:** at-most-once effects cannot follow from a local journal alone when the remote adapter lacks deduplication/readback; this must become an explicit capability assumption. The role-epoch statement on p. 35 means at most one *currently authorized* epoch at an effect's linearization point, not that only one epoch can ever have produced an accepted effect.
 - **pp. 43–51 read; file complete:** federation/modal boundaries and the two-principal confidential work order (p. 43); dual key release and whole-worker labels (p. 44); payload, timing, receipt and adaptive-output leakage (pp. 45–46); small work-unit transition system (pp. 47–48); proposed build sequence and references (pp. 49–51).
-- **Result candidates:** the declared finite observation alphabet can give a transcript capacity bound; payload-bearing robust declassification needs a stricter model than label monotonicity (pp. 45–46). The work-unit model separates authorization, effects, claims, review and settlement (pp. 47–48); a finite model is a useful first deliverable, with fairness/reachability required for liveness.
+- **Result candidates:** the declared finite observation alphabet can give a transcript capacity bound; robust declassification with explicit payloads needs a stricter model than label monotonicity (pp. 45–46). The work-unit model separates authorization, effects, claims, review and settlement (pp. 47–48); a finite model is a useful first deliverable, with fairness/reachability required for liveness.
 - **Assumptions/gaps:** attestation, complete mediation, gate correctness and excluded side channels are explicit hypotheses (p. 45), not outcomes established in this memorandum. A generic natural-language confidentiality scanner is not a substitute for a release contract. The federation summary on p. 43 is a design heuristic; invariant confluence depends on the exact operations/invariant and must be checked before asserting every finite-budget design needs the same coordination structure.
 
 ## Narrow correction queue — separate from the research agenda
@@ -245,7 +245,7 @@ Other items in per-file notes are explicitly *cautions or untested premises* unl
 
 ## Ranked next research tasks
 
-**Recommendation:** start the safe-continuation model and the receipt-acquisition study in parallel; prepare the reviewer experiment as an independent empirical lane. Keep payload-bearing declassification as a fourth, independently scoped formal lane if there is capacity. This ranking weights concrete operational losses before breadth of theory. These are proposed studies, not demonstrated deployments or claims of novel theorems.
+**Recommendation:** start the safe-continuation model and the receipt-acquisition study in parallel; prepare the reviewer experiment as an independent empirical lane. Keep declassification with explicit payloads as a fourth, independently scoped formal lane if there is capacity. This ranking weights concrete operational losses before breadth of theory. These are proposed studies, not demonstrated deployments or claims of novel theorems.
 
 ### 1. Safe continuation when an external effect has an unknown outcome
 
@@ -282,7 +282,7 @@ Other items in per-file notes are explicitly *cautions or untested premises* unl
 - **Likely mathematical interest:** initially low; strong empirical and operational interest. A later finite-sample stopping/allocation bound would require a clearly defensible dependence/drift model and a separate literature review.
 - **Primary boundary:** independently built software has long been known to exhibit dependent failures; this general fact is not an LLM-era novelty. The open measurement is the effect of deliberately separated evidence on this workflow. [Knight and Leveson, *An Experimental Evaluation of the Assumption of Independence in Multi-Version Programming*](https://people.cs.rutgers.edu/~uli/cs673/papers/EvaluationMultiVersionProgramming86.pdf).
 
-### 4. A payload-bearing release model with an explicit transcript budget
+### 4. Explicit release payloads and a transcript budget
 
 - **Corpus basis:** `paper4.pdf` pp. 5,7,9–10,13; `The-Harbor-After-the-Harbor.pdf` pp. 43–46.
 - **Operational value:** determines which confidentiality promise survives when an untrusted worker chooses the candidate output and its release pattern. Closes a gap that a payload-free model cannot exercise.
@@ -304,7 +304,7 @@ flowchart TD
   A[1. Unknown-effect continuation model]
   B[2. Receipt-bundle design]
   D[3. Conditional reviewer benchmark]
-  E[4. Payload-bearing release model]
+  E[4. Release model with explicit payloads]
   F[Grounded workflow evaluation]
   C --> A
   C --> B

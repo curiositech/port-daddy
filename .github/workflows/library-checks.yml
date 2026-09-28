@@ -171,6 +171,9 @@ jobs:
       - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
         run: python3 scripts/harbor-research/check_research_program.py
 
+      - name: Reviewer study preparation and readiness boundaries
+        run: python3 scripts/harbor-research/check_reviewer_protocol.py --self-test
+
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: |
           set -euo pipefail
