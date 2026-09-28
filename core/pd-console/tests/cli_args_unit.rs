@@ -21,6 +21,13 @@ fn parses_pane_display_and_list_flags() {
     assert_eq!(args.initial_pane.as_deref(), Some("sorties"));
     assert_eq!(args.display_selector.as_deref(), Some("2"));
     assert!(args.list_displays);
+    assert!(!args.inspect_off);
+}
+
+#[test]
+fn inspection_requires_explicit_flag_and_does_not_accept_a_prefix() {
+    assert!(parse_console_args(["pd-console", "--inspect-off"]).inspect_off);
+    assert!(!parse_console_args(["pd-console", "--inspect-off-extra"]).inspect_off);
 }
 
 #[test]
