@@ -218,8 +218,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Cohomology of Equivocation',
     subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
     pdfPath: '/research/paper7.pdf',
-    pages: 10,
-    sizeKb: 410,
+    pages: 12,
+    sizeKb: 424,
     claim:
       'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
     pullQuote:
