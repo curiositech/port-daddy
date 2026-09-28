@@ -40,6 +40,9 @@ components after deleting $q$, minus one, is the exact dimension of invisible sp
 Under a full projected error ball of radius $\epsilon$, a one-edge fault is distinguishable from honest data exactly
 when $|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon$; a sender-wide criterion combines the blind-spot dimension
 with a least singular value.
+For an additional edge-only receipt, we give an exact marginal residual formula: a bridge into another
+visible component cannot raise the score immediately, while a same-component receipt raises its squared score by
+its squared least-squares innovation divided by one plus the endpoints' effective resistance.
 More decisively, if the analyst receives both
 authenticated endpoint reports on each relayed link, it can compare a sender's reports directly. Every nonzero cycle
 residual then implies an inconsistency that this equal-information checker can already detect. The synthetic harness's
@@ -324,6 +327,50 @@ be better under a probability model; no statistical optimality or deployed false
 endpoint claims are available, their comparison remains the equal-information detection baseline and requires its own
 error model.
 
+\section{The value of one more receipt}\label{sec:active-audit}
+
+An auditor with a fixed edge-only receipt budget can choose which missing comparison to request next. A new row may
+close a visible cycle, but the mere presence of a cycle does not determine its measured contribution. Fix one
+coordinate and snapshot, an oriented incidence matrix $B$ for the receipts already held, and their observed
+differences $g$. Write $L=B^\mathsf{T}B$, choose any least-squares solution $\hat x$, and let
+$r^2=\min_x\|g-Bx\|^2$. A candidate receipt has oriented row $b$ with one $+1$ and one $-1$ and reports $y$ in
+the same declared feature metric. The candidate is an independently retained row.
+
+\begin{thebox}
+\textbf{Theorem 4 (exact marginal receipt value).} If the endpoints of $b$ lie in the same connected component of
+the old visible graph, the residual after retaining the new receipt obeys
+\[
+r_{\mathrm{new}}^2-r^2
+=\frac{(y-b\hat x)^2}{1+bL^+b}
+=\frac{(y-b\hat x)^2}{1+R_{\mathrm{eff}}^K(u,v)}.\tag{3}\label{eq:receipt-gain}
+\]
+The innovation $y-b\hat x$ is independent of the gauge chosen for $\hat x$. Its square is zero exactly when the
+new row agrees with the old least-squares endpoint difference. If the endpoints lie in different old components,
+$r_{\mathrm{new}}^2=r^2$ for every $y$. This includes a first link between isolated vertices.
+
+\emph{Proof.} Old least-squares orthogonality gives
+$\|g-B(\hat x+z)\|^2=r^2+\|Bz\|^2$. In a connected component, the least energy $\|Bz\|^2$
+subject to $bz=t$ is $t^2/(bL^+b)$, by the electrical variational principle. Minimizing
+$t^2/(bL^+b)+(y-b\hat x-t)^2$ over $t$ gives (3). If the endpoints are in different components,
+their independent additive gauges realize any $bz$ at zero old energy, so the new row is fitted without
+changing the old minimum.\hfill$\square$
+\end{thebox}
+
+On the path $0\! -\!1\! -\!2$ with old differences $(0,0)$, an additional $0\! -\!2$ receipt of $y=3$
+has $R_{\mathrm{eff}}=2$ and raises $r^2$ by $9/3=3$. This is an exact \emph{marginal inconsistency score},
+not a probability of dishonesty. For a negative control, two parallel old receipts with readings $0$ and
+$2$ yield a fitted endpoint difference of $1$. A third reading of $1$ has zero marginal gain although it
+disagrees with both old readings; a third reading of $0$ has gain $2/3$ although it agrees with one. A bridge
+has zero immediate gain, but it can connect components so that a later receipt closes a cycle.
+
+For a predeclared finite library of failure hypotheses, apply (3) to the \emph{difference} between the two
+hypotheses' old edge signatures and predicted new readings. It gives their exact increase in squared projected
+separation. A candidate with zero innovation for a pair cannot separate that pair through this new row. A
+cost-aware audit may rank candidate rows by a declared worst-pair margin per query cost; the ranking needs
+predicted signatures and costs, and no universal optimality follows. Actual observed $y$ is unknown before a
+query, so (3) alone is not an ex ante information-gain promise. If authenticated endpoint claims are retained,
+direct sender-claim comparison is still the equal-information baseline.
+
 \section{Related work and contribution}\label{sec:related}
 
 Cellular sheaves on graphs and their coboundary calculus follow Curry~\cite{curry}; spectral sheaf methods follow
@@ -333,6 +380,9 @@ cyclic residual~\cite{hodgerank}. Effective resistance as an incidence-row lever
 Abramsky--Brandenburger contextuality~\cite{abramsky-brandenburger}. Robinson~\cite{robinson} supplies the
 consistency-radius perspective. The projection, cycle-space identity, and effective-resistance law here are familiar
 graph linear algebra rather than a new cohomology invariant.
+The marginal receipt formula is likewise a rank-one least-squares identity in graph form. Its use here is to
+state a checkable acquisition rule and its disconnected-component exception for this evidence contract; it is
+not a claim of a new resistance or experimental-design theorem.
 
 Robust HodgeRank studies noisy and contaminated edge comparisons with cyclic projections and statistical outlier
 detection~\cite{robust-hodgerank}. The bounded-error separation above is an exact statement for the paper's specified

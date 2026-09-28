@@ -615,6 +615,12 @@ Let $C=\bigcup_{e\in K}S_e$ and $T=|C|$. Coordinate selections split the project
 
 \paragraph{What it buys.} Where only authenticated edge differences are retained, the residual supplies a metric severity score and a topology-dependent error pattern. Exact cycle sums have the same noiseless detection set on those data. When raw authenticated claims are retained, direct sender-claim equality is the detection baseline and preserves evidence useful for attribution. Effective resistance describes the sensitivity of the edge-only score to a one-edge fault; it is not a reason to skip direct reconciliation.
 
+\paragraph{Choosing another receipt.} For one coordinate and snapshot, let $B$ be the incidence matrix of retained edge receipts, $g$ their readings, $L=B^{\mathsf T}B$, and $\hat x$ an old least-squares fit. Request a new independently retained receipt with row $b$ and reading $y$. If its endpoints already share a visible component, its exact increase in squared residual is
+\[
+r_{\mathrm{new}}^2-r^2=\frac{(y-b\hat x)^2}{1+bL^+b}.
+\]
+If they lie in different components, the immediate increase is zero: their independent gauges can fit the new row. A later receipt may close a cycle. On a length-two path with zero old readings, a closing receipt of $3$ raises $r^2$ by $3$. This is a rank-one least-squares rule for a declared edge-only metric, not a truth or culprit score. Before querying, its value depends on an unknown reading; a cost-aware choice needs predeclared competing signatures and query costs. Direct comparison remains the baseline if authenticated sender claims are retained.
+
 \begin{pdboundary}
 A zero residual certifies only that visible \emph{encoded edge differences} admit a potential. The triangle-with-leaf split view above is a one-sender counterexample to any broader all-clear. Two coordinated senders can also cancel. A nonzero residual identifies no culprit; signatures and retained receipt provenance are needed for attribution~\pdcite{sheng}. Severed edges supply no row to this edge-data calculation, although other retained evidence may remain. The real-coordinate obstruction depends on the declared feature map and metric, and a richer coefficient system may retain distinctions it loses~\pdcite{caru}. With measurement noise, thresholds must exceed a justified honest residual floor.
 \end{pdboundary}

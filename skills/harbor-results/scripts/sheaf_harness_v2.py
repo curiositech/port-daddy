@@ -425,6 +425,45 @@ def check_bounded_error_separation():
           "sender margin sqrt(2/6), and path blindness  [PASS]")
 
 # --------------------------------------------------------------------------
+def check_marginal_receipt_value():
+    """Independent least-squares checks of the active-receipt identity."""
+    def squared_residual(B, g):
+        fit = np.linalg.lstsq(B, g, rcond=None)[0]
+        return float(np.linalg.norm(g - B @ fit) ** 2)
+
+    def check_case(B, g, b, y, expected, connected):
+        old = squared_residual(B, g)
+        new = squared_residual(np.vstack((B, b)), np.append(g, y))
+        assert np.isclose(new - old, expected, atol=1e-10)
+        if connected:
+            xhat = np.linalg.lstsq(B, g, rcond=None)[0]
+            resistance = float(b @ np.linalg.pinv(B.T @ B) @ b)
+            predicted = float((y - b @ xhat) ** 2 / (1 + resistance))
+            assert np.isclose(new - old, predicted, atol=1e-10)
+        return new - old
+
+    path = np.array([[1., -1., 0.], [0., 1., -1.]])
+    assert np.isclose(check_case(path, np.zeros(2),
+                                 np.array([1., 0., -1.]), 3., 3., True), 3.)
+
+    # The pseudoinverse expression must not be used across components.
+    bridge = np.array([[1., -1., 0., 0.]])
+    check_case(bridge, np.array([2.]),
+               np.array([0., 1., -1., 0.]), 9., 0., False)
+
+    # Already inconsistent data: agreement with one old row is not gain zero.
+    parallel = np.array([[1., -1.], [1., -1.]])
+    g = np.array([0., 2.])
+    b = np.array([1., -1.])
+    check_case(parallel, g, b, 1., 0., True)
+    check_case(parallel, g, b, 0., 2. / 3., True)
+
+    # A predeclared pair of signatures follows the same identity by linearity.
+    check_case(path, np.array([1., -2.]),
+               np.array([1., 0., -1.]), 4., 25. / 3., True)
+    print("  Marginal receipt: cycle closure, disconnected bridge, "
+          "inconsistent data, and signature separation  [PASS]")
+
 # scenarios
 # --------------------------------------------------------------------------
 def scenario_two_path():
@@ -632,6 +671,7 @@ def main():
     reproduce_split_view_kernel_counterexample()
     check_blind_spot_dimension()
     check_bounded_error_separation()
+    check_marginal_receipt_value()
 
     print("\n" + "=" * 74)
     print("[1] STRUCTURAL SELF-CHECK (anti-D1) + beta1 netting")
