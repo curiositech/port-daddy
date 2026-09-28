@@ -9304,6 +9304,27 @@ fn render_shell_drawer(
 
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if crate::local_control::inspection_mode() {
+            // Deliberately separate from the live pane tree: no editor reads,
+            // action callbacks, launch affordances, or misleading stale data.
+            return div()
+                .size_full()
+                .flex().flex_col().items_center().justify_center()
+                .gap(px(18.0)).p(px(40.0))
+                .bg(rgb(current_theme().panel))
+                .text_color(rgb(current_theme().ink2))
+                .child(div().text_size(px(32.0)).font_weight(FontWeight::BOLD)
+                    .child("INSPECTION MODE"))
+                .child(div().text_size(px(17.0)).font_weight(FontWeight::SEMIBOLD)
+                    .child("This console is sealed from Port Daddy automation."))
+                .child(div().text_size(px(15.0))
+                    .child("No daemon discovery or connection, refresh worker, shell, scripting socket, or agent request is started by this window."))
+                .child(div().text_size(px(15.0))
+                    .child("Host daemon absence: UNKNOWN. Future starts by launchd, Bosun, another app, or another user: NOT PREVENTED."))
+                .child(div().text_size(px(14.0))
+                    .child("The local HALT marker is cooperative control. This window provides no host-wide Verified Off claim."))
+                .into_any_element();
+        }
         // Persistent editor state for every open Editor surface — created once
         // per file here (the only `&mut self` point before the tree renders),
         // NEVER inside render_leaf (the old per-frame construct + disk read).
@@ -10051,6 +10072,7 @@ impl Render for ConsoleView {
             .children(launcher)
             // Splash paints last so it sits above all chrome while booting.
             .children(splash)
+            .into_any_element()
     }
 }
 
