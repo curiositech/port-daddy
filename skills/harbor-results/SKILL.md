@@ -106,6 +106,8 @@ Read [the CR-4 counterexample and scope reference](references/cr4-repair-counter
 
 When adding a checker, register it in `whitepaper/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.
 
+For bounded follow-on research, run `scripts/continuation_observation_model.py` for the one-operation, two-epoch recovery model and its unsafe-policy witnesses, or `scripts/receipt_bundle_design.py` for exhaustive small receipt-acquisition instances. Their contracts and limits are in `continuation-observation-model.md` and `receipt-bundle-design.md` under the repository directory `docs/harbor-research/research/`. These checks do not certify a deployed adapter or a field diagnostic advantage. Before scheduling reviewer experiments, use `scripts/harbor-research/check_reviewer_protocol.py` from the repository root: planning validation is separate from admission to run an adjudicated benchmark.
+
 `b4_deontic_fragment.py` is also importable: imports define the pure checker
 without running experiments; direct execution or `run_experiments()` runs the
 original seeded sweep. The reference interval loop enumerates all active pairs,

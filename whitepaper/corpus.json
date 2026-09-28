@@ -706,6 +706,20 @@
       }
     },
     {
+      "id": "harbor-continuation-and-acquisition",
+      "kind": "bounded-research-model-checkers",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/continuation_observation_model.py",
+        "skills/harbor-results/scripts/receipt_bundle_design.py"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": ["harbor-results-estate"]
+      }
+    },
+    {
       "id": "harbor-results-cr4-contract",
       "kind": "deterministic-result-checker",
       "status": "current",
