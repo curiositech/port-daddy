@@ -353,12 +353,11 @@ PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving 
 
 \section*{Reproducibility}
 
-The synthetic scripts \texttt{sheaf\_mechanism\_proof.py}, \texttt{sheaf\_harness\_v2.py}, and
-\texttt{sheaf\_consistency\_radius.py} use seed 20260816 for their sampled arms. They reproduce the scalar cycle
+The synthetic scripts \path{sheaf_mechanism_proof.py}, \path{sheaf_harness_v2.py}, and
+\path{sheaf_consistency_radius.py} use seed 20260816 for their sampled arms. They reproduce the scalar cycle
 examples, visibility-mask checks, effective-resistance calculations, and deterministic bounded-error midpoint cases.
-The harness evaluates both the restricted
-checked-edge baseline and an equal-information duplicate-claim checker; an assertion rejects any residual-only case
-against the latter. Its unrestricted completion construction does not solve the fixed-sender minimum. Its timing and
+The harness runs the checked-edge baseline and an equal-information claim checker; an assertion rejects any
+residual-only case against the latter. Its unrestricted completion construction does not solve the fixed-sender minimum. Its timing and
 localization reports depend on the sampled graphs, metric, and machine; no deployed signed-receipt system is tested.
 The triangle-with-leaf counterexample and the componentwise kernel proof above are independent hand checks.
 
