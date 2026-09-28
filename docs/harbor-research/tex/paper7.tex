@@ -403,17 +403,12 @@ PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving 
 
 \section*{Reproducibility}
 
-The synthetic scripts use seed 20260816 for their sampled arms:
-\begin{itemize}
-\setlength{\itemsep}{0pt}
-\item \path{sheaf_mechanism_proof.py}: scalar cycle and bridge witnesses;
-\item \path{sheaf_harness_v2.py}: visibility, direct-claim comparison, and bounded-error midpoint;
-\item \path{sheaf_consistency_radius.py}: effective-resistance and radius calculations.
-\end{itemize}
-The harness runs the checked-edge baseline and an equal-information claim checker; an assertion rejects any
-residual-only case against the latter. Its unrestricted completion construction does not solve the fixed-sender minimum. Its timing and
-localization reports depend on the sampled graphs, metric, and machine; no deployed signed-receipt system is tested.
-The triangle-with-leaf counterexample and the componentwise kernel proof above are independent hand checks.
+The sampled arms use seed 20260816. \path{sheaf_mechanism_proof.py} checks cycle and bridge witnesses;
+\path{sheaf_harness_v2.py} checks visibility, direct claims, bounded-error margins, and marginal receipt value;
+\path{sheaf_consistency_radius.py} checks resistance and radius calculations. The harness rejects any residual-only
+case against an equal-information claim checker. Its unrestricted completion construction does not solve the
+fixed-sender minimum; timings and localization are synthetic, and no signed-receipt deployment is tested. The
+triangle-with-leaf and componentwise-kernel arguments are independent hand checks.
 
 \begin{thebibliography}{9}
 \bibitem{peerreview} A.~Haeberlen, P.~Kouznetsov, and P.~Druschel. PeerReview: practical accountability for distributed
