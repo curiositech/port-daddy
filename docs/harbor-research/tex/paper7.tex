@@ -286,7 +286,7 @@ These sets of possible edge observations are disjoint if and only if
 |s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon.\tag{1}\label{eq:noise-separation}
 \]
 When (1) holds, the rule $r(g)=\|\Pi_cg\|>\epsilon$ has zero worst-case false alarms and misses for this model. At
-equality the two classes share an observation. For an unknown fault edge in a specified visible set $T_c$ with
+equality the two classes share an observation. For an unknown fault edge in a specified nonempty visible set $T_c$ with
 $|s|\ge s_{\min}>0$, a uniform zero-error guarantee exists exactly when
 $s_{\min}\min_{e\in T_c}\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}>2\epsilon$; a bridge makes the minimum zero.
 
@@ -314,6 +314,9 @@ Indeed, when $b_q^c>0$, an invisible nonuniform kernel offset can be scaled beyo
 projected signal is exactly $\tau\gamma_q^c$, attained by a least singular vector, and the ball argument above is
 necessary and sufficient. On a visible $C_n$ at a degree-two sender, $b_q^c=0$ and
 $\gamma_q^c=\sqrt{2/n}$; on a path's internal sender, $b_q^c>0$ and $\gamma_q^c=0$.
+For $C_6$ with a one-edge fault of size $3$, the exact error budget is $\epsilon<3/(2\sqrt6)\approx0.6124$.
+For a degree-two sender on the same ring with nonuniform offset norm at least $1$, the all-split-view budget is
+$\epsilon<1/(2\sqrt3)\approx0.2887$.
 
 These are zero-error boundaries under the stipulated complete error balls. Merely knowing an upper bound on error
 makes (1) and (2) sufficient, but their necessity can fail for restricted or asymmetric errors. A directional test may
@@ -335,7 +338,7 @@ Robust HodgeRank studies noisy and contaminated edge comparisons with cyclic pro
 detection~\cite{robust-hodgerank}. The bounded-error separation above is an exact statement for the paper's specified
 edge-only evidence and adversarial Euclidean error balls; it does not claim a new general robust-ranking method.
 
-PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving authenticated statements that can identify a conflicting sender. When both endpoint claims are available to the analyst, a direct duplicate-claim check has that evidentiary advantage. The present real-coordinate model instead characterizes the consistency score of derived edge differences. An exact cycle-sum checker sees the same noiseless inconsistency as its least-squares residual; the residual adds a metric magnitude and a topology-dependent distribution of error. The contribution is an explicit information contract, the one-edge sensitivity formula under visible-edge deletion, the general single-sender kernel characterization, and a counterexample that prevents extending the one-edge criterion to arbitrary split views.
+PeerReview~\cite{peerreview} and BFT forensics~\cite{sheng} motivate preserving authenticated statements that can identify a conflicting sender. When both endpoint claims are available to the analyst, a direct duplicate-claim check has that evidentiary advantage. The present real-coordinate model instead characterizes the consistency score of derived edge differences. An exact cycle-sum checker sees the same noiseless inconsistency as its least-squares residual; the residual adds a metric magnitude and a topology-dependent distribution of error. The contribution is an explicit information contract, the one-edge sensitivity formula under visible-edge deletion, the general single-sender kernel characterization, sharp bounded-error margins for one-edge and all one-sender faults, and a counterexample that prevents extending the one-edge criterion to arbitrary split views.
 
 \section{Limits of the certificate}\label{sec:boundary}
 
