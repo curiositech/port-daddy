@@ -433,7 +433,8 @@
       "paper": 7,
       "scripts": [
         "skills/harbor-results/scripts/sheaf_mechanism_proof.py",
-        "skills/harbor-results/scripts/sheaf_harness_v2.py"
+        "skills/harbor-results/scripts/sheaf_harness_v2.py",
+        "skills/harbor-results/scripts/paper7_failure_cases.py"
       ],
       "numbers": {
         "verified": 0,

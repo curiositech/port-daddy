@@ -617,7 +617,7 @@ Let $C=\bigcup_{e\in K}S_e$ and $T=|C|$. Coordinate selections split the project
 
 \paragraph{Choosing another receipt.} For one coordinate and snapshot, let $B$ be the incidence matrix of retained edge receipts, $g$ their readings, $L=B^{\mathsf T}B$, and $\hat x$ an old least-squares fit. Request a new independently retained receipt with row $b$ and reading $y$. If its endpoints already share a visible component, its exact increase in squared residual is
 \[
-r_{\mathrm{new}}^2-r^2=\frac{(y-b\hat x)^2}{1+bL^+b}.
+r_{\mathrm{new}}^2-r^2=\frac{(y-b\hat x)^2}{1+bL^+b^\mathsf{T}}.
 \]
 If they lie in different components, the immediate increase is zero: their independent gauges can fit the new row. A later receipt may close a cycle. On a length-two path with zero old readings, a closing receipt of $3$ raises $r^2$ by $3$. This is a rank-one least-squares rule for a declared edge-only metric, not a truth or culprit score. Before querying, its value depends on an unknown reading; a cost-aware choice needs predeclared competing signatures and query costs. Direct comparison remains the baseline if authenticated sender claims are retained.
 
