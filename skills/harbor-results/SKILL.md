@@ -104,6 +104,8 @@ Read [the CR-4 counterexample and scope reference](references/cr4-repair-counter
 
 ## Scripts (regenerate every [internal] number)
 
+When adding a checker, register it in `whitepaper/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.
+
 `b4_deontic_fragment.py` is also importable: imports define the pure checker
 without running experiments; direct execution or `run_experiments()` runs the
 original seeded sweep. The reference interval loop enumerates all active pairs,
