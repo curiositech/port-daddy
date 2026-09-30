@@ -35,6 +35,7 @@ on:
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
+      - 'docs/harbor-research/research/claim-audit-example.json'
   pull_request:
     branches: [main]
     paths:
@@ -50,6 +51,7 @@ on:
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
+      - 'docs/harbor-research/research/claim-audit-example.json'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on
   # merge_group via their per-job `if:` below, and a skipped job reports
@@ -410,6 +412,15 @@ jobs:
             python3 "$s.py"
             echo "::endgroup::"
           done
+
+      - name: Check categorical claims and retained-evidence certificates
+        run: |
+          set -euo pipefail
+          python3 -B skills/harbor-results/scripts/test_claim_audit.py
+          python3 -B skills/harbor-results/scripts/test_costed_claim_certificates.py
+          python3 -B skills/harbor-results/scripts/claim_audit.py docs/harbor-research/research/claim-audit-example.json --hodge
+          python3 -B skills/harbor-results/scripts/research_envelopes.py
+          python3 -B skills/harbor-results/scripts/test_research_envelopes.py
 
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
   # 25 .pv models under analyses/ and proofs/** previously had
