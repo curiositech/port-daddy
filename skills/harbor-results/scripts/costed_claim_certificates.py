@@ -205,6 +205,7 @@ def main() -> int:
         return 0
     except (OSError, ValueError, TypeError, KeyError) as exc:
         parser.exit(2, f"invalid evidence: {exc}\n")
+        return 2
 
 
 if __name__ == "__main__":

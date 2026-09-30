@@ -112,11 +112,14 @@ Missing reciprocal reports must be excluded separately for each fact and
 snapshot. A zero difference is an observed equality, never a missingness marker.
 Raw sender comparison uses richer evidence and is reported separately.
 `scripts/test_claim_audit.py` checks against exhaustive categorical assignments;
+`scripts/costed_claim_certificates.py` computes the minimum retained evidence
+certificate, and
 `scripts/test_costed_claim_certificates.py` checks the exact minimum retained
 certificate cost against all subsets. The costed routine assumes answers are
 already observed; it is not an active-query oracle. `scripts/research_envelopes.py`
 checks the bounded future-activation and release-policy examples discussed in
-`docs/harbor-research/research/research-program-20260930.md`. These are new finite
+`docs/harbor-research/research/research-program-20260930.md`;
+`scripts/test_research_envelopes.py` checks those finite models. These are new finite
 checks, not inherited-suite coverage or empirical agent performance.
 
 When adding a checker, register it in `whitepaper/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.

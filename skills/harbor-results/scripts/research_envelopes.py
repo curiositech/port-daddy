@@ -122,7 +122,7 @@ def check_payloads():
         leaking += int(not equivalent)
     attack = tuple(s // 2 for s in range(4))
     require(not respects_parity(attack), "Payload laundering mutant not caught")
-    require(0 % 2 == 2 % 2 and attack[0] % 2 != attack[2] % 2,
+    require(attack[0] % 2 != attack[2] % 2,
             "Expected equal-parity distinguishing witness")
     # The one-bit-only mutant accepts all 256 maps, including this leaking map.
     require(all(value % 2 in (0, 1) for value in attack),
