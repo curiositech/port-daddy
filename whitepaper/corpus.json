@@ -720,6 +720,24 @@
       }
     },
     {
+      "id": "harbor-categorical-evidence",
+      "kind": "exact-offline-audit-and-finite-oracle-checks",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/claim_audit.py",
+        "skills/harbor-results/scripts/test_claim_audit.py",
+        "skills/harbor-results/scripts/costed_claim_certificates.py",
+        "skills/harbor-results/scripts/test_costed_claim_certificates.py",
+        "skills/harbor-results/scripts/research_envelopes.py",
+        "skills/harbor-results/scripts/test_research_envelopes.py"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": ["harbor-results-estate"]
+      }
+    },
+    {
       "id": "harbor-results-cr4-contract",
       "kind": "deterministic-result-checker",
       "status": "current",

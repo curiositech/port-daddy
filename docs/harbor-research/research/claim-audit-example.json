@@ -1,0 +1,18 @@
+{
+  "snapshot": "artifact-sha256:example-revision",
+  "facts": {
+    "artifact-verdict": ["a", "b"],
+    "release-channel": ["x", "y"]
+  },
+  "agents": ["A", "B", "C", "D"],
+  "edges": [["A", "B"], ["B", "C"], ["C", "D"]],
+  "messages": [
+    {"receipt": "r01", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "a", "sender": "A", "receiver": "B"},
+    {"receipt": "r02", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "b", "sender": "B", "receiver": "A"},
+    {"receipt": "r03", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "b", "sender": "B", "receiver": "C"},
+    {"receipt": "r04", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "b", "sender": "C", "receiver": "B"},
+    {"receipt": "r05", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "a", "sender": "C", "receiver": "D"},
+    {"receipt": "r06", "snapshot": "artifact-sha256:example-revision", "fact": "artifact-verdict", "value": "b", "sender": "D", "receiver": "C"},
+    {"receipt": "r07", "snapshot": "artifact-sha256:example-revision", "fact": "release-channel", "value": "x", "sender": "A", "receiver": "B"}
+  ]
+}

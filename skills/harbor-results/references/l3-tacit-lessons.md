@@ -15,7 +15,7 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 **Fix #1.** The right object is the obstruction of the *observed assignment*: is the disagreement cochain g in im(δ)? Its harmonic component (projection onto coker δ) is the equivocation signal — exactly the Abramsky–Brandenburger contextuality construction, which had been cited but not coded.
 **Mistake #2.** Tested on two cliques joined by a single bridge. A bridge is a *cut edge*: it lies on no cycle, so it carries no cocycle constraint — the one topology where the method provably cannot help.
 **Fix #2.** The value-add requires the uncompared edge to lie on a cycle (redundant paths). Minimal decisive case: C₆ with one uncompared edge — signal 1.225 while pairwise is blind; same lie on P₆'s bridge — signal 0.000.
-**Rules.** (a) Sheaf invariants of the *space* vs obstructions of the *data* are different objects; equivocation/contextuality lives in the data. (b) Before crediting a topological method, check the topology admits the constraint (cycles for cocycles). (c) Topological β₁ contaminates any counting claim — net it out against the honest baseline.
+**Rules.** (a) Sheaf invariants of the *space* vs obstructions of the *data* are different objects; equivocation/contextuality lives in the data. (b) Before crediting a linear residual, check the topology admits its cycle constraints. This is not an impossibility result for all detectors: categorical endpoint pins can contradict on a tree. (c) Residual energy is not a fault count, even after accounting for topology; attenuation and cancellation remain. (d) A comparison with an observer denied endpoint claims cannot establish an advantage over an equally informed sender checker.
 **Bit.** sheaf_experiment.py (wrong twice) → sheaf_diagnosis.py (right). Repo: wrong turns at docs/harbor-research/wrong-turns/{sheaf_experiment.py, sheaf_verdict.py}; working proof at skills/harbor-results/scripts/sheaf_mechanism_proof.py; rebuild spec HANDOFF §3.3.
 
 ## 3. Zoom's regime, stated or wrong
@@ -60,8 +60,8 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 
 ## 10. Super-additivity of split floors (a surprise worth remembering)
 **Context.** Joint digests for two readers (R2).
-**Fact.** Floor(N,2k,m) ≈ 2.1× Floor(N,k,m) — MORE than double (ratio over 2× is 1.05–1.08 across regimes), because log₂C(N,2k) grows faster than 2log₂C(N,k).
-**Rule.** When two guarantees share one artifact, cost the union directly; "sum of the parts" can be an *under*-estimate for combinatorial floors. One stored compaction under-provisions divergent readers by more than 2×.
+**Fact.** Write F(k)=log₂C(N,k)−log₂C(m,k), with N>m≥2k and k≥1. Then F(2k)>2F(k): the summands log₂((N−i)/(m−i)) strictly increase with i. The numerator-only explanation is false: C(N,2k)<C(N,k)². The floor difference, not that numerator, gives superadditivity.
+**Rule.** Cost the jointly required critical set in the declared source/decoder model. This counting comparison does not by itself require separate compaction processes: a common retained representation can have reader-specific decoders. Do not turn a lower bound into an architecture necessity without a matching representation theorem.
 
 
 ## 11. A quieter residual is not a repaired world

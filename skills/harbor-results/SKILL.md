@@ -104,6 +104,21 @@ Read [the CR-4 counterexample and scope reference](references/cr4-repair-counter
 
 ## Scripts (regenerate every [internal] number)
 
+For registered categorical facts, use `scripts/claim_audit.py` and the contract
+in `docs/harbor-research/research/claim-evidence-audit.md`. Its exact checker uses
+zero-edge equality components and endpoint value pins; it can detect a
+categorical contradiction on a tree even when the real-valued residual is zero.
+Missing reciprocal reports must be excluded separately for each fact and
+snapshot. A zero difference is an observed equality, never a missingness marker.
+Raw sender comparison uses richer evidence and is reported separately.
+`scripts/test_claim_audit.py` checks against exhaustive categorical assignments;
+`scripts/test_costed_claim_certificates.py` checks the exact minimum retained
+certificate cost against all subsets. The costed routine assumes answers are
+already observed; it is not an active-query oracle. `scripts/research_envelopes.py`
+checks the bounded future-activation and release-policy examples discussed in
+`docs/harbor-research/research/research-program-20260930.md`. These are new finite
+checks, not inherited-suite coverage or empirical agent performance.
+
 When adding a checker, register it in `whitepaper/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.
 
 For bounded follow-on research, run `scripts/continuation_observation_model.py` for the one-operation, two-epoch recovery model and its unsafe-policy witnesses, or `scripts/receipt_bundle_design.py` for exhaustive small receipt-acquisition instances. Their contracts and limits are in `continuation-observation-model.md` and `receipt-bundle-design.md` under the repository directory `docs/harbor-research/research/`. These checks do not certify a deployed adapter or a field diagnostic advantage. Before scheduling reviewer experiments, use `scripts/harbor-research/check_reviewer_protocol.py` from the repository root: planning validation is separate from admission to run an adjudicated benchmark.
