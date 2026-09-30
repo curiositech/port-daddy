@@ -132,7 +132,9 @@ class ClaimAuditContract(unittest.TestCase):
                                       f"feasible table has certificate states={states}")
                     assignment = fact_result(result)["categorical"]["assignment"]
                     self.assertEqual(set(assignment), {"A", "B", "C"})
-                    self.assertTrue(set(assignment.values()) <= set(alphabet))
+                    assigned_values = set(assignment.values())
+                    allowed_values = set(alphabet)
+                    self.assertLessEqual(assigned_values, allowed_values)
                     self.assertTrue(assignment_satisfies(assignment, TRIANGLE, rows),
                                     f"returned assignment violates raw constraints states={states}")
                 else:
