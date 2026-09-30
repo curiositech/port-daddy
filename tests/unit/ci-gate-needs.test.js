@@ -18,13 +18,14 @@ const REQUIRED_CI_JOBS = [
   'fleetbar',
   'integration-tests',
   'lint',
+  'porthole-recordings',
+  'relay-decode-guard',
   'rust-console',
   'rust-console-gpui',
   'rust-kernel',
   'skill-hygiene',
   'unit-tests',
   'version-drift-guard',
-  'website-terminal-recordings',
 ];
 
 const needsOf = (job) => {

@@ -47,8 +47,10 @@ The "unicode char + color + timestamp" format the first player needed **exists**
   proof casts contain no secrets. Future strict-privacy capture must redact before the first durable
   write and mark every affected cell/omission; it cannot persist an unfiltered cast first.
   `demos/porthole/drive.sh` is the reference driver. Never pass `-I` (records keystrokes/secrets).
-- Keep VHS `.tape` files as the *driver/DSL* for reproducible CI demos, but record them to `.cast`,
-  not GIF. VHS `.ascii` output doubles as a golden-file rendering test.
+- Porthole owns the recording path end to end: deterministic shell drivers write
+  asciicast evidence, the browser's VT interpreter replays it, and CI scans the
+  decoded transcript. The former VHS `.tape` workflow is retired; do not add a
+  second recording DSL or treat a recorder failure as an acceptable green run.
 
 ### B. Replay: interpret the cast, render stable DOM lines ("Porthole")
 `asciinema-player` is disqualified: fixed `cols×rows` viewport, **no scrollback** (long output is
