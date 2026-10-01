@@ -554,8 +554,10 @@
 
             <!-- Tool Switcher -->
       <div class="view-mode-group" style="margin-left: 8px;">
-        <button class="mode-btn active" id="tool-btn-select" title="Select, Move, and Resize Elements">👆 Select / Move</button>
-        <button class="mode-btn" id="tool-btn-arrow" title="Click two nodes to connect them with an arrow">↗️ Connect Arrow</button>
+        <button class="mode-btn active" id="tool-btn-select" title="Select, Move, and Resize Elements (V)">👆 Select / Move</button>
+        <button class="mode-btn" id="tool-btn-text" title="Click canvas to place Free Text (T)">🔤 Add Text</button>
+        <button class="mode-btn" id="tool-btn-box" title="Click canvas to place Box / Card (B)">📦 Add Box</button>
+        <button class="mode-btn" id="tool-btn-arrow" title="Click two nodes to connect with an arrow (A)">↗️ Connect Arrow</button>
       </div>
 
       <!-- View Mode Buttons -->
@@ -666,6 +668,39 @@
       <div class="sidebar-content">
         <!-- Tab 1: Part Inspector -->
         <div id="tab-pane-part">
+          <!-- Node Action Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; gap:6px;">
+              <button id="btn-add-text" class="btn btn-primary" style="padding:3px 8px; font-size:11px;">🔤 +Text</button>
+              <button id="btn-add-box" class="btn btn-primary" style="padding:3px 8px; font-size:11px;">📦 +Box</button>
+            </div>
+            <button id="btn-delete-node" class="btn" style="padding:3px 8px; font-size:11px; background:#ef4444; border-color:#dc2626; color:white;">🗑️ Delete Node</button>
+          </div>
+
+          <!-- Object Type & Box Styling -->
+          <div class="panel-card" style="margin-bottom:12px;">
+            <div class="panel-title">Object Type & Style</div>
+            <div class="coord-grid" style="margin-bottom:8px;">
+              <div class="input-field">
+                <label>Type</label>
+                <select id="inp-node-type">
+                  <option value="text">Free Text (No Box)</option>
+                  <option value="robot">Deliberation Robot</option>
+                  <option value="node">Standard Card / Node</option>
+                  <option value="shield">Security Shield (Padlock)</option>
+                  <option value="pill">Pill Badge</option>
+                  <option value="boundary">Boundary Box</option>
+                  <option value="casecard">Case Study Card</option>
+                </select>
+              </div>
+              <div class="input-field" style="justify-content:center;">
+                <label>Border / Card</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; text-transform:none; margin-top:4px;">
+                  <input type="checkbox" id="inp-show-box" style="width:15px; height:15px;"> Show Outer Box
+                </label>
+              </div>
+            </div>
+          </div>
           <!-- Text Editing -->
           <div class="panel-card" style="margin-bottom:12px;">
             <div class="panel-title">Label & Typography</div>
@@ -811,7 +846,8 @@
           { id: "outer_loop", label: "Agent Interaction Loop", type: "boundary", x: 0.60, y: 0.70, w: 10.40, h: 6.80, color: "#1e40af", fill: "rgba(238, 242, 255, 0.25)", strokeDash: "0.15, 0.1" },
           { id: "sess_start", label: "SessionStart", type: "pill", x: 1.80, y: 6.60, w: 2.00, h: 0.45, color: "#0f172a" },
           { id: "prompt_sub", label: "UserPromptSubmit", type: "pill", x: 1.80, y: 5.40, w: 2.40, h: 0.45, color: "#0f172a" },
-          { id: "delib_robot", label: "Agent Deliberation", type: "robot", x: 1.80, y: 3.40, w: 1.80, h: 1.60, color: "#003fb8" },
+          { id: "delib_robot", label: "", type: "robot", x: 1.80, y: 3.60, w: 1.80, h: 1.60, color: "#003fb8", showBox: false },
+          { id: "txt_agent_delib", label: "Agent Deliberation", type: "text", x: 1.80, y: 2.10, w: 2.60, h: 0.50, fontSize: 0.22, color: "#0f172a", showBox: false },
           { id: "inner_loop", label: "Inner Tool Loop", type: "boundary", x: 3.80, y: 1.20, w: 6.40, h: 5.80, color: "#2563eb", fill: "rgba(255, 255, 255, 0.9)", strokeDash: "0.12, 0.08" },
           { id: "node_delib", label: "Agent Deliberation", type: "card", x: 7.00, y: 6.00, w: 2.60, h: 1.20, color: "#003fb8" },
           { id: "node_sandbox", label: "Seatbelt Sandbox", type: "card", x: 8.80, y: 3.80, w: 1.80, h: 1.60, color: "#0f172a" },
@@ -1160,17 +1196,19 @@
           const gRobot = document.createElementNS("http://www.w3.org/2000/svg", "g");
           gRobot.setAttribute("transform", `translate(${part.x}, ${part.y})`);
 
-          // Background card container (subtle)
-          const bgCard = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          bgCard.setAttribute("x", -part.w/2);
-          bgCard.setAttribute("y", -part.h/2);
-          bgCard.setAttribute("width", part.w);
-          bgCard.setAttribute("height", part.h);
-          bgCard.setAttribute("rx", "0.15");
-          bgCard.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
-          bgCard.setAttribute("stroke", part.color || "#003fb8");
-          bgCard.setAttribute("stroke-width", "0.025");
-          gRobot.appendChild(bgCard);
+          // Draw background card ONLY if showBox is explicitly true
+          if (part.showBox === true) {
+            const bgCard = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            bgCard.setAttribute("x", -part.w/2);
+            bgCard.setAttribute("y", -part.h/2);
+            bgCard.setAttribute("width", part.w);
+            bgCard.setAttribute("height", part.h);
+            bgCard.setAttribute("rx", "0.15");
+            bgCard.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
+            bgCard.setAttribute("stroke", part.color || "#003fb8");
+            bgCard.setAttribute("stroke-width", "0.025");
+            gRobot.appendChild(bgCard);
+          }
 
           // 1. Desk line
           const desk = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -1281,17 +1319,19 @@
             gRobot.appendChild(eye);
           });
 
-          // 6. Label Under Desk
-          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          txt.setAttribute("x", 0);
-          txt.setAttribute("y", -part.h * 0.35);
-          txt.setAttribute("text-anchor", "middle");
-          txt.setAttribute("font-size", part.fontSize || "0.20");
-          txt.setAttribute("font-weight", "bold");
-          txt.setAttribute("fill", "#0f172a");
-          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.35))})`);
-          txt.textContent = part.label;
-          gRobot.appendChild(txt);
+          // 6. Optional Label Under Desk (if non-empty)
+          if (part.label && part.label.trim().length > 0) {
+            const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            txt.setAttribute("x", 0);
+            txt.setAttribute("y", -part.h * 0.35);
+            txt.setAttribute("text-anchor", "middle");
+            txt.setAttribute("font-size", part.fontSize || "0.20");
+            txt.setAttribute("font-weight", "bold");
+            txt.setAttribute("fill", "#0f172a");
+            txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.35))})`);
+            txt.textContent = part.label;
+            gRobot.appendChild(txt);
+          }
 
           g.appendChild(gRobot);
           nodesLayer.appendChild(g);
@@ -1454,6 +1494,21 @@
           gBox.appendChild(txt);
 
           g.appendChild(gBox);
+          nodesLayer.appendChild(g);
+        } else if (part.type === "text" || part.showBox === false) {
+          // --- FREE TEXT NODE (NO BOX / NO BORDER) ---
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", part.x);
+          txt.setAttribute("y", part.y);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("dominant-baseline", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.22");
+          txt.setAttribute("font-weight", part.fontWeight || "bold");
+          txt.setAttribute("fill", part.color || "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * part.y)})`);
+          txt.textContent = part.label;
+          g.appendChild(txt);
+
           nodesLayer.appendChild(g);
         } else {
           // Standard Node / Card / Pill
@@ -1751,6 +1806,11 @@
       inpW.value = part.w.toFixed(2);
       inpH.value = part.h.toFixed(2);
 
+      const inpNodeType = document.getElementById("inp-node-type");
+      const inpShowBox = document.getElementById("inp-show-box");
+      if (inpNodeType) inpNodeType.value = part.type || "node";
+      if (inpShowBox) inpShowBox.checked = part.showBox !== false && part.type !== "text";
+
       switchSidebarTab("part");
       renderAll();
     }
@@ -1900,6 +1960,11 @@
       inpY.value = part.y.toFixed(2);
       inpW.value = part.w.toFixed(2);
       inpH.value = part.h.toFixed(2);
+
+      const inpNodeType = document.getElementById("inp-node-type");
+      const inpShowBox = document.getElementById("inp-show-box");
+      if (inpNodeType) inpNodeType.value = part.type || "node";
+      if (inpShowBox) inpShowBox.checked = part.showBox !== false && part.type !== "text";
 
       renderAll();
       updateOutput();
@@ -2249,6 +2314,203 @@
         }
       });
     }
+
+    
+    // Node Type and ShowBox Inspector Handlers
+    const inpNodeType = document.getElementById("inp-node-type");
+    const inpShowBox = document.getElementById("inp-show-box");
+
+    if (inpNodeType) {
+      inpNodeType.addEventListener("change", () => {
+        if (!activePartId) return;
+        const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+        if (!part) return;
+        part.type = inpNodeType.value;
+        if (part.type === "text") {
+          part.showBox = false;
+          if (inpShowBox) inpShowBox.checked = false;
+        } else if (part.type === "robot") {
+          part.showBox = false;
+          if (inpShowBox) inpShowBox.checked = false;
+        } else {
+          part.showBox = true;
+          if (inpShowBox) inpShowBox.checked = true;
+        }
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    if (inpShowBox) {
+      inpShowBox.addEventListener("change", () => {
+        if (!activePartId) return;
+        const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+        if (!part) return;
+        part.showBox = inpShowBox.checked;
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    // Add Free Text Node
+    function addTextNode(x = 8.5, y = 4.2, label = "Agent Deliberation") {
+      const data = FIGURES[currentFig];
+      const newNode = {
+        id: `txt_${Date.now()}`,
+        label: label,
+        type: "text",
+        x: x,
+        y: y,
+        w: 2.6,
+        h: 0.5,
+        fontSize: 0.22,
+        color: "#0f172a",
+        showBox: false
+      };
+      data.parts.push(newNode);
+      selectPart(newNode.id);
+      setToolMode("select");
+      renderAll();
+      updateOutput();
+      switchSidebarTab("part");
+      inpText.focus();
+      inpText.select();
+      showToast("✓ Added free text node");
+    }
+
+    // Add Box / Card Node
+    function addBoxNode(x = 8.5, y = 4.2, label = "New Component") {
+      const data = FIGURES[currentFig];
+      const newNode = {
+        id: `node_${Date.now()}`,
+        label: label,
+        type: "node",
+        x: x,
+        y: y,
+        w: 2.4,
+        h: 1.1,
+        fontSize: 0.20,
+        color: "#003fb8",
+        showBox: true
+      };
+      data.parts.push(newNode);
+      selectPart(newNode.id);
+      setToolMode("select");
+      renderAll();
+      updateOutput();
+      switchSidebarTab("part");
+      inpText.focus();
+      inpText.select();
+      showToast("✓ Added card node");
+    }
+
+    // Delete Active Node
+    function deleteActiveNode() {
+      const data = FIGURES[currentFig];
+      if (!activePartId) return;
+      const idx = data.parts.findIndex(p => p.id === activePartId);
+      if (idx !== -1) {
+        const deletedId = activePartId;
+        data.parts.splice(idx, 1);
+        // Also remove connected arrows
+        if (data.arrows) {
+          data.arrows = data.arrows.filter(a => a.from !== deletedId && a.to !== deletedId);
+        }
+        activePartId = null;
+        renderAll();
+        updateOutput();
+        showToast("🗑️ Deleted node and connected arrows");
+      }
+    }
+
+    // Wire Sidebar Add/Delete Buttons
+    const btnAddText = document.getElementById("btn-add-text");
+    const btnAddBox = document.getElementById("btn-add-box");
+    const btnDeleteNode = document.getElementById("btn-delete-node");
+
+    if (btnAddText) btnAddText.addEventListener("click", () => addTextNode());
+    if (btnAddBox) btnAddBox.addEventListener("click", () => addBoxNode());
+    if (btnDeleteNode) btnDeleteNode.addEventListener("click", () => deleteActiveNode());
+
+    // Update setToolMode for text and box
+    const btnToolText = document.getElementById("tool-btn-text");
+    const btnToolBox = document.getElementById("tool-btn-box");
+
+    const oldSetToolMode = setToolMode;
+    setToolMode = function(mode) {
+      activeTool = mode;
+      arrowConnectSource = null;
+      document.querySelectorAll(".tool-btn, #tool-btn-select, #tool-btn-text, #tool-btn-box, #tool-btn-arrow").forEach(b => b.classList.remove("active"));
+
+      if (mode === "select") {
+        if (btnToolSelect) btnToolSelect.classList.add("active");
+        svg.style.cursor = "default";
+      } else if (mode === "text") {
+        if (btnToolText) btnToolText.classList.add("active");
+        svg.style.cursor = "text";
+        showToast("🔤 Click anywhere on canvas to place Free Text");
+      } else if (mode === "box") {
+        if (btnToolBox) btnToolBox.classList.add("active");
+        svg.style.cursor = "crosshair";
+        showToast("📦 Click anywhere on canvas to place a Box / Card");
+      } else if (mode === "arrow") {
+        if (btnToolArrow) btnToolArrow.classList.add("active");
+        svg.style.cursor = "crosshair";
+        showToast("↗️ Click start node, then destination node to connect");
+      }
+      renderAll();
+    };
+
+    if (btnToolText) btnToolText.addEventListener("click", () => setToolMode("text"));
+    if (btnToolBox) btnToolBox.addEventListener("click", () => setToolMode("box"));
+
+    // Canvas click in text or box creation mode
+    svg.addEventListener("click", (e) => {
+      if (activeTool === "text") {
+        const coords = getSvgCoordinates(e);
+        const x = Math.round(coords.x * 10) / 10;
+        const y = Math.round(coords.y * 10) / 10;
+        addTextNode(x, y, "Agent Deliberation");
+      } else if (activeTool === "box") {
+        const coords = getSvgCoordinates(e);
+        const x = Math.round(coords.x * 10) / 10;
+        const y = Math.round(coords.y * 10) / 10;
+        addBoxNode(x, y, "New Component");
+      }
+    });
+
+    // Keyboard Shortcuts (Delete / Backspace, V, T, B, A)
+    window.addEventListener("keydown", (e) => {
+      // Ignore if user is currently typing in an input or textarea
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+        return;
+      }
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (activePartId) {
+          e.preventDefault();
+          deleteActiveNode();
+        } else if (activeArrowId) {
+          e.preventDefault();
+          const btnDelArr = document.getElementById("btn-delete-arrow");
+          if (btnDelArr) btnDelArr.click();
+        }
+      } else if (e.key === "v" || e.key === "V") {
+        setToolMode("select");
+      } else if (e.key === "t" || e.key === "T") {
+        setToolMode("text");
+      } else if (e.key === "b" || e.key === "B") {
+        setToolMode("box");
+      } else if (e.key === "a" || e.key === "A") {
+        setToolMode("arrow");
+      } else if (e.key === "Escape") {
+        activePartId = null;
+        activeArrowId = null;
+        arrowConnectSource = null;
+        setToolMode("select");
+        renderAll();
+      }
+    });
 
     // Bootstrap
     loadFigure("fig-0.16");
