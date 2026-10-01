@@ -78,6 +78,11 @@ CH2's remaining implementation queue, in order:
   including examples that rehost editor modules. The PR reports the full
   headless target graph and exact-head hosted console checks; this is not a
   native interaction proof.
+- [x] Source-built and headless-tested: preserve live operations, imported history,
+  pending dependencies, claims and editor visibility during refused/failed reloads.
+  See [reload evidence](../research/egosystem-reconciliation/final/cooperative-editor-reload-evidence.md).
+  Device-local saving is source-merged in #10316; this is not process-restart
+  durability or native interaction proof for either change.
 - [ ] Local save lifecycle: explicit dirty state, validated filesystem target,
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
