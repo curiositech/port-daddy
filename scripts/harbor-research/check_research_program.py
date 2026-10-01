@@ -68,7 +68,10 @@ STANDALONE_FILE_RE = re.compile(r"paper(\d+)\.tex$")
 
 
 def load(path: Path):
-    return json.loads(document_text(path))
+    # Tests may inject a fixture outside this checkout; Omni only owns paths
+    # beneath its repository root.
+    source = document_text(path) if path.is_relative_to(REPO) else path.read_text(encoding="utf-8")
+    return json.loads(source)
 
 
 def dump(data) -> str:

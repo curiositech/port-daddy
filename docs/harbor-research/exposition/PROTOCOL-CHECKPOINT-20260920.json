@@ -57,8 +57,8 @@
     },
     {
       "path": "tests/harbor-research/test_protocol_style.py",
-      "sha256": "33d76a0499ea567ea5614f57422192467bf13e813c68c603d4cb1ac663a7f40b",
-      "bytes": 26469,
+      "sha256": "54cce80d559b1d634c8a3c20b9fba7e0314f3212e531652d1e80a3986dc76269",
+      "bytes": 27366,
       "change": "new"
     },
     {

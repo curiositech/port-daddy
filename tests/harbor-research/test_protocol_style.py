@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import unittest
+import zipfile
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -218,7 +219,20 @@ class ProtocolSourceTests(unittest.TestCase):
         for group in ("source_files", "fixture_repository_inputs"):
             for entry in manifest[group]:
                 with self.subTest(path=entry["path"]):
-                    actual = hashlib.sha256((ROOT / entry["path"]).read_bytes()).hexdigest()
+                    source = ROOT / entry["path"]
+                    if source.is_file():
+                        raw = source.read_bytes()
+                    else:
+                        # Only explicitly retired sources may move from the
+                        # loose tree to Omni's immutable source archive.
+                        ledger = json.loads((ROOT / "docs/harbor-research/omni-ledger.json").read_text())
+                        retired = {item["path"]: item for item in ledger["sources"]
+                                   if item["disposition"] == "retire"}
+                        self.assertIn(entry["path"], retired)
+                        with zipfile.ZipFile(ROOT / "docs/harbor-research/omni-sources.zip") as archive:
+                            raw = archive.read(entry["path"])
+                        self.assertEqual(hashlib.sha256(raw).hexdigest(), retired[entry["path"]]["sha256"])
+                    actual = hashlib.sha256(raw).hexdigest()
                     self.assertEqual(actual, entry["sha256"])
 
     def test_protocol_contract(self):
