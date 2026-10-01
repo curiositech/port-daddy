@@ -592,7 +592,7 @@ Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-cnp-diagram.jpg}%
+    \input{figures/fig-ch0-cnp-protocol.tex}%
   }
   \pdwidecaption{\textbf{Contract Net Protocol (CNP) Task Allocation Lifecycle and Settlement Under Kernel Confinement.} Grounded in Reid Smith's (1980) bilateral market protocol. Phase~1 (left): Manager agent broadcasts a Call for Proposals (CFP) with task specification and spend cap; eligible contractors evaluate tool capacity and submit bids, or return explicit refusals under lock contention. Phase~2 (right): Winning contractor receives an exclusive worktree lease ($\mathtt{0x09b}$), executing inside a Seatbelt sandbox under a zero-spend cap. Escrow funds unlock strictly upon presentation of signed git commit hashes and cryptographic test run receipts.}[fig:cnp-protocol]
 \end{figure}

@@ -1,0 +1,128 @@
+% fig-ch0-cnp-protocol.tex
+% Contract Net Protocol (CNP) Market Allocation Lifecycle and Settlement
+% Replaces raster fig-ch0-cnp-diagram.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actnode/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,font=\footnotesize,inner xsep=4pt,inner ysep=3pt},
+    stateinit/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    staterun/.style={draw=pdteal,line width=0.9pt,fill=pdteal!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    statedone/.style={draw=pdhealth,line width=1.1pt,fill=pdhealth!10,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    statefail/.style={draw=pderror,line width=0.9pt,dashed,fill=pderror!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    panel/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+  }
+
+  % =========================================================================
+  % PHASE 1: MARKET CLEARING & BIDDING (LEFT PANEL)
+  % =========================================================================
+  \draw[panel] (0.0,0.0) rectangle (7.3,9.2);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdcobalt] at (0.2,8.95) {Phase 1: Bidding \& Award};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (7.1,8.95) {Smith (1980)};
+
+  % Manager Agent
+  \node[actnode,draw=pdcobalt,fill=pdcobalt!8,text width=6.2cm] (mgr) at (3.65,7.8) {%
+    \textbf{Manager Agent}\\[1pt]
+    \scriptsize Task: \texttt{cve:patch} $\cdot$ Budget: \$0.00 $\cdot$ Deadline: $t_{\text{exp}}$
+  };
+
+  % CFP Broadcast
+  \node[font=\tiny\ttfamily,text=pdcobalt,fill=hhpaper,draw=pdcobalt!40,rounded corners=2pt,inner sep=2pt] (cfp) at (3.65,6.7) {%
+    broadcast CFP $\langle \mathtt{task}, \mathtt{spec}, \mathtt{budget} \rangle$%
+  };
+  \draw[pd arrow,pdcobalt] (mgr.south) -- (cfp.north);
+
+  % Three Contractors
+  \node[actnode,draw=pdhealth,fill=pdhealth!8,text width=1.9cm] (c1) at (1.3,5.15) {%
+    \textbf{Worker A}\\[1pt]
+    \scriptsize Cap: 85\%\\
+    \scriptsize \textbf{Bid: low-cost}
+  };
+
+  \node[actnode,draw=hhgray,fill=hhpaper,text width=1.9cm] (c2) at (3.65,5.15) {%
+    \textbf{Worker B}\\[1pt]
+    \scriptsize Cap: 40\%\\
+    \scriptsize Bid: high-cost
+  };
+
+  \node[statefail,text width=1.9cm] (c3) at (6.0,5.15) {%
+    \textbf{Worker C}\\[1pt]
+    \scriptsize Cap: 0\%\\
+    \scriptsize \texttt{refuse(busy)}
+  };
+
+  \draw[pd arrow,pdcobalt!60] (cfp.south) -| (c1.north);
+  \draw[pd arrow,pdcobalt!60] (cfp.south) -- (c2.north);
+  \draw[pd arrow,pdcobalt!60] (cfp.south) -| (c3.north);
+
+  % Utility Evaluation & Selection
+  \node[actnode,draw=pdcobalt,fill=pdpage,text width=6.2cm] (eval) at (3.65,3.0) {%
+    \textbf{Utility Evaluation \& Selection}\\[1pt]
+    \scriptsize $\mathcal{U}_M(b) = w_r \cdot \text{rep} - w_c \cdot \text{cost} - w_t \cdot \text{eta}$\\[1pt]
+    \scriptsize \textbf{Award:} Worker A optimal $\cdot$ B rejected
+  };
+
+  \draw[pd ready arrow] (c1.south) |- ([xshift=-1.6cm]eval.north);
+  \draw[pd arrow,hhgray] (c2.south) -- (eval.north);
+  \draw[pd breach arrow] (c3.south) |- ([xshift=1.6cm]eval.north);
+
+  % Lease Awarded
+  \node[statedone,text width=6.2cm] (lease) at (3.65,1.1) {%
+    \textbf{Exclusive Worktree Lease Minted} (\texttt{0x09b})\\[1pt]
+    \scriptsize Awarded to Worker A $\cdot$ Ephemeral Token Active
+  };
+  \draw[pd ready arrow] (eval.south) -- (lease.north);
+
+
+  % =========================================================================
+  % PHASE 2: CONFINED EXECUTION & SETTLEMENT (RIGHT PANEL)
+  % =========================================================================
+  \draw[panel] (7.9,0.0) rectangle (15.2,9.2);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdteal] at (8.1,8.95) {Phase 2: Execution};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,8.95) {Seatbelt Sandbox};
+
+  % Sandboxed Execution
+  \node[staterun,text width=6.2cm] (sb) at (11.55,7.8) {%
+    \textbf{Worker A: OS-Sandboxed Execution}\\[1pt]
+    \scriptsize $\bullet$ Seatbelt confinement $\cdot$ Zero spend cap (\$0.00)\\
+    \scriptsize $\bullet$ Branch \texttt{feat/cve-patch} $\cdot$ AST file lock held
+  };
+
+  % Execution & Verification Runner
+  \node[actnode,text width=6.2cm] (exec) at (11.55,5.9) {%
+    \textbf{Execution \& Verification Runner}\\[1pt]
+    \scriptsize $\bullet$ Local test suite execution: \texttt{npm test}\\
+    \scriptsize $\bullet$ Structured interim progress streaming
+  };
+  \draw[pd arrow,pdteal] (sb.south) -- (exec.north);
+
+  % Dual-Oracle Verification Gate
+  \node[actnode,draw=pdindigo,fill=pdindigo!8,text width=6.2cm] (gate) at (11.55,3.8) {%
+    \textbf{Dual-Oracle Verification Gate}\\[1pt]
+    \scriptsize 1. Deterministic test report: 48/48 passed\\
+    \scriptsize 2. Signed Git commit digest: \texttt{ed25519(hash)}
+  };
+  \draw[pd arrow,pdindigo] (exec.south) -- (gate.north);
+
+  % Bifurcation: Settle or Reclaim
+  \node[statedone,text width=2.8cm] (settle) at (9.8,1.4) {%
+    \textbf{Settlement}\\[1pt]
+    \scriptsize $\checkmark$ Diff merged\\
+    \scriptsize $\checkmark$ Escrow paid
+  };
+
+  \node[statefail,text width=2.8cm] (reclaim) at (13.3,1.4) {%
+    \textbf{Reclaim}\\[1pt]
+    \scriptsize $\times$ Worktree purged\\
+    \scriptsize $\times$ Escrow slashed
+  };
+
+  % Clean inverted-T junction from gate to settle and reclaim
+  \draw[pd ready arrow] (gate.south) -- ++(0,-0.6) -| node[pos=0.25,above,font=\tiny,text=pdhealth] {pass} (settle.north);
+  \draw[pd breach arrow] (gate.south) -- ++(0,-0.6) -| node[pos=0.25,above,font=\tiny,text=pderror] {fail} (reclaim.north);
+
+  % =========================================================================
+  % INTER-PHASE BRIDGE GUTTER (Drawn after sb is defined)
+  % =========================================================================
+  \draw[pd ready arrow,line width=1.1pt] (lease.east) -- (7.6,1.1) -- node[pos=0.5,font=\tiny\bfseries,text=pdhealth,fill=pdpage,inner sep=2pt,rotate=90] {lease \texttt{0x09b} dispatch} (7.6,7.8) -- (sb.west);
+
+\end{tikzpicture}
