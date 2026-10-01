@@ -25,6 +25,18 @@ metadata:
 
 # Harbor Results: The Executed Corpus (R1–R17)
 
+## Research work authority
+
+Read [the Omni ledger](../../docs/harbor-research/OMNI-LEDGER.md) for results,
+current work, acceptance conditions and source provenance. Its canonical data is
+`docs/harbor-research/omni-ledger.json`; the Markdown and website program are
+projections. Consolidated supporting documents are source records in that ledger,
+with exact original bytes in `docs/harbor-research/omni-sources.zip`. Use
+`scripts/harbor-research/omni_ledger.py` document APIs in checks rather than recreating
+retired paths. Paper manuscripts, publication PDFs and executable evidence remain live.
+An imported status is a source assertion; it does not certify a current proof or run.
+
+
 Seventeen inherited result records, each with a one-breath statement here and full depth in the references. The original scripts use program seed 20260816 where stated. This repair independently checks only the bounded CR-4 fixtures; it preserves the other result records and their original evidence labels without recertifying them.
 
 ## Evidence status for this repair
@@ -105,7 +117,7 @@ Read [the CR-4 counterexample and scope reference](references/cr4-repair-counter
 ## Scripts (regenerate every [internal] number)
 
 For registered categorical facts, use `scripts/claim_audit.py` and the contract
-in `docs/harbor-research/research/claim-evidence-audit.md`. Its exact checker uses
+in [Omni source SRC-135](../../docs/harbor-research/OMNI-LEDGER.md#source-src-135). Its exact checker uses
 zero-edge equality components and endpoint value pins; it can detect a
 categorical contradiction on a tree even when the real-valued residual is zero.
 Missing reciprocal reports must be excluded separately for each fact and
@@ -118,7 +130,7 @@ certificate, and
 certificate cost against all subsets. The costed routine assumes answers are
 already observed; it is not an active-query oracle. `scripts/research_envelopes.py`
 checks the bounded future-activation and release-policy examples discussed in
-`docs/harbor-research/research/research-program-20260930.md`;
+[Omni source SRC-142](../../docs/harbor-research/OMNI-LEDGER.md#source-src-142);
 `scripts/test_research_envelopes.py` checks those finite models. These are new finite
 checks, not inherited-suite coverage or empirical agent performance.
 

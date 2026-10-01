@@ -38,6 +38,7 @@ import json
 import re
 import sys
 from pathlib import Path
+import omni_ledger
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MD_PATH = REPO_ROOT / "docs" / "harbor-research" / "CRITIQUE-LEDGER.md"
@@ -79,7 +80,7 @@ def main() -> int:
             raise SystemExit(f"Duplicate id in {JSON_PATH}: {rid}")
         by_id[rid] = obj
 
-    template = MD_PATH.read_text(encoding="utf-8")
+    template = omni_ledger.document_text(MD_PATH)
     lines = template.split("\n")
     out_lines = []
     seen = set()
@@ -116,8 +117,8 @@ def main() -> int:
         sys.stdout.writelines(diff)
         return 1
 
-    MD_PATH.write_text(rendered, encoding="utf-8")
-    print(f"Wrote {MD_PATH} ({len(by_id)} rows).")
+    omni_ledger.update_document(MD_PATH, rendered)
+    print(f"Updated ledger source {MD_PATH} ({len(by_id)} rows).")
     return 0
 
 
