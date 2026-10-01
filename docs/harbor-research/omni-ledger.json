@@ -130239,6 +130239,1640 @@
       },
       "delivery": "not established by source import",
       "dependency_kind": "Research ingredient or stated prerequisite; does not itself schedule execution"
+    },
+    {
+      "id": "BOOK-RESEARCH-UPTAKE",
+      "title": "Book uptake of the research: coverage, corrections and useful imports",
+      "papers": [
+        "Book",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "kind": "source and publication assessment",
+      "status": "assessment complete; scientific and publication integration open",
+      "result": "The research already supplies much of the Book's formal backbone. The largest remaining value is to make evidence conditions operational, repair inconsistent statements, and carry source claims into the actual publication artifact.\n\n#### Scope and defensible coverage\n\nThe authoritative corpus is the eight chapters selected by `whitepaper/textbook.json`. The Swiss, maritime and technical roots use the same generated chapter body, so they are three presentations of one argument. This assessment covers those sources and the checked-in 589-page public Book PDF; it does not certify an external worktree or a deployed website.\n\nAll 17 R1–R17 index entries name a chapter. Of 34 total indexed entries, 20 have chapter locators and 14 Paper 8 entries have none. These are structural counts, not percentages of scientific correctness or pedagogical adoption. In particular, R17 and CR are marked `standalone-only` while also having chapter locations; the inspected chapter text takes precedence over that status field. The core is frequently developed through statements, proofs, examples and exercises, rather than merely cited. Paper 8's typed two-complex, relative extension and report-error distance remain substantial opportunities.\n\n#### Chapter-by-chapter assessment\n\n| Chapter | What is actually incorporated | What importing more research would let the reader do |\n|---|---|---|\n| 1. The Single-Writer Kernel | Strong: controllability, partial observation, work-unit invariants and mutation witnesses (R5, R8). | Turn incomplete observations into an adapter-specific safe-action rule; connect the unknown-effect warning to a worked retry/refusal case. |\n| 2. The Anchor Protocol | Applies the control boundary to capability admission; its own attenuation proof estate also lies outside R1–R17. | Bind admission to the exact evidence snapshot and current authority epoch; show why an authentic claim can still be stale or insufficient. |\n| 3. The Sealed Harbor | Strong: finite noninterference, atomic privacy-budget accounting, canary power and sequential detection (R9–R11). | Import the explicit payload-release factorization test; a small output alphabet alone does not establish release of the permitted information. |\n| 4. The Legible Swarm | Extensive: digest floors, split preferences, decision loss, zoom, escalation, specialization and paging (R1–R4, R14–R16); several statements need correction. | Correct formula/hypothesis mismatches first; then teach witness-preserving summaries and complementary evidence acquisition under a human inspection budget. |\n| 5. From Spawn to Person | Strong: no-mint transfer, engine substitution, migration, probation and inspection incentives (R7, R12, R13, B6). | Separate liability continuity from safe execution continuity; give an adapter table for atomic dedup/result, fenced readback, and unresolved remote effects. |\n| 6. The Harbor Economy | Strong: specialization/succession and a tractable deontic fragment (R15, R17). | Add future-fact admission conditions and distinguish deciding existence of conflict from enumerating every witness; the latter must pay for output size. |\n| 7. The Bonded Commons | Substantial institutional and settlement proof content; inspection-game calibration and evidence selection are only partially connected. | Derive an audit rate from the stated gain, detection and penalty model; choose cheap checkable dispute certificates without calling known-answer selection an optimal query policy. |\n| 8. The Federated Harbor | Current source substantially incorporates Paper 7: visibility, sender blind spots, residual scope, robustness and marginal receipt value. Typed Paper 8 constructions and exact categorical certificates are not developed. | Add a typed worked example, exact categorical contradictions, partial-section extension and edge-group error distance; use them to design observations for a declared fault model. |\n\n#### Corrections before expansion\n\n1. **Decision odds, Chapter 4 / Paper 1.** The displayed expected-cost rule is `Cmiss*a >= catt + Cfa*(1-a)`. When `Cmiss > catt`, its odds denominator is `Cmiss-catt`, not `Cmiss`. At `Cmiss=10, catt=1, Cfa=1, a=0.17`, passing costs 1.70 and inspecting costs 1.83, but the printed odds rule orders inspection. Handle equality and degenerate costs explicitly rather than dividing through a nonpositive denominator. Source: `legible-swarm.tex` lines 2205–2226; `paper1.tex` lines 125–136.\n2. **Strict zoom savings, Chapter 4 / Paper 1.** The displayed guaranteed-advantage expression equals one at density `d=1/12`. Strict improvement requires `d<1/12`, hence `f>12(p-delta)` for the stated composition; equality is break-even for that bound. Sources: Chapter 4 lines 1800–1888 and Paper 1 lines 214–228.\n3. **Split-floor reasoning, Chapter 4 / Paper 1.** The shared-budget inequality survives, but the numerator-only binomial-growth explanation is false. Use the increasing summands of `F(t)=sum(i=0..t-1) log2((N-i)/(m-i))` for `2k<=m<N`. Do not infer that separate model processes or separate stored representations are necessary from a result about incompatible scalar orderings. Source: Chapter 4 lines 2447–2459; ledger `P1-SPLIT-CORRECTION`.\n4. **Escalation hypotheses, Chapter 4.** Nondecreasing benefit and monotone validation do not imply a strictly increasing payoff or a unique exact root. For example, constant `b=V=1/2` and `delta*w=1` give zero payoff everywhere. Continuity, strictness, endpoint conditions and tie policy must match the claimed threshold theorem. Source: lines 1192–1211.\n5. **Paging contract, Chapter 4.** The theorem uses `h` as pinned-set size while the detailed research bound uses `h` for offline comparator capacity and `p` for pins. A guarantee for the specified Landlord algorithm does not certify arbitrary recency-plus-pin policies. Align algorithm, comparator, pins and repair-on-touch assumptions before presenting the bound as one theorem. Source: lines 2514–2552 and `b9_context_paging.py` lines 17–32.\n6. **Conflict enumeration, Chapter 6.** The every-witness interval bound omits emitted output. One scope with `n` obligations and `n` prohibitions yields `n^2` distinct clashes. Separate a yes/no or first-witness interface from full enumeration and include output cost. Source: `harbor-economy.tex` lines 786–800; ledger `P6-OUTPUT`.\n7. **Continuity claim, Chapter 5.** Behavioral-equivalence language for replay outruns the nearby unmeasured-fidelity qualification. Score/obligation preservation does not establish correct state restoration or absence of duplicate external effects. Source: `spawn-to-person.tex` lines 844–905 and 1575–1638.\n\n#### Publication artifact gap\n\nThe checked-in Book PDF, physical pages 459–461 (printed pages 441–443), asserts a `313/1101` pairwise-blind advantage and describes minimum adversary perturbation achievability too broadly. The current Chapter 8 source, lines 512–539 and 590–614, instead states zero residual-only and 209 direct-only cases under the equal-information synthetic comparison, and limits achievability to unrestricted edge-data correction. Those are different mathematical claims. Source incorporation therefore cannot be reported as PDF incorporation. Rebuild and inspect the Book after the scientific edits, then verify the same statements in each intended publication edition. No PDF was regenerated as part of this assessment.\n\n#### Highest-value imports and their boundaries\n\n- **Safe continuation (Chapters 1 and 5; `UNKNOWN-EFFECT`).** Give a decision table for retry, readback and refusal. A negative read does not justify retry while an earlier remote operation can still arrive. The finite one-operation/two-epoch model supports a bounded worked example; concurrent operations, retention windows and a real adapter require more work.\n- **Future-safe commitment admission (Chapters 1 and 6; `FUTURE-HORN`).** Show a conflict that is dormant at admission and activated by a permitted fact. A greatest-future-fact closure is exact under fixed positive rules and a jointly reachable maximum. Mutually exclusive futures require reachable-state reasoning; their union can conservatively reject a policy that is safe in every reachable state.\n- **Payload-aware release (Chapter 3; `RELEASE-FACTORIZATION`).** Teach the deterministic condition that the composed release must factor through the declared permitted observation. Then extend the model to submitted values, refusals, timing and adaptive traces before claiming a complete secrecy theorem.\n- **Exact evidence certificates (Chapters 4, 7 and 8; `CLAIM-EXACT`, `CLAIM-COST`).** For registered categorical facts, test feasibility before a real-valued residual. A contradictory path can have zero linear residual. Two incompatible pins plus a zero-equality path give a checkable certificate; optimize its cost among known observations. Authentication, fixed fact/schema/snapshot and missingness are admission requirements.\n- **Topology as an observation-design rule (Chapter 8; `P8-T3`, `P8-T4`, `P8-T6`).** Work through heterogeneous stalks and restriction maps, then show what declared redundancy buys: group distance greater than `k` detects every nonzero `k`-group error, and distance greater than `2k` identifies every such error modulo compatible data. In the graph model the latter is `lambda(G)>2k`. This concerns edge-report errors, not the identity or intention of an agent. Relative obstruction addresses extension of a visible compatible section; zero obstruction gives possible extension, not truth of unseen data. Adding a face without an independent observation does not add detection information.\n- **Evidence acquisition (Chapters 4, 7 and 8; `P7-BUNDLES`, `NEXT-P7`).** Use two individually uninformative receipts whose combination resolves a question. This refutes zero-one-step-gain stopping. An optimal adaptive policy still needs answer distributions or an adversarial objective, prices, privacy constraints and stopping loss; the known-answer certificate optimizer does not supply it.\n- **Calibrated institutional audit (Chapters 5 and 7; `R7`, `REVIEW-PILOT`).** Tie a rate and bond to an explicit gain, detection and slash convention. The chapter's 10% human-audit example is not itself a deterrence calculation. Correlated reviewers and wrongful penalties need measured, equal-budget cases; the prepared review protocol is not a completed experiment.\n\nThe main text should teach these as a small set of worked decisions, with exact hypotheses and witnesses beside each claim. Full algebra and exhaustive fixtures can sit in the research papers or appendices. Mathematical examples can be incorporated once their statements and independent checks agree; deployment and comparative-utility claims additionally require authenticated traces, adapter conformance and matched-information baselines.\n",
+      "assumptions": "Eight authoritative chapters and their shared visual editions; structural coverage is not mathematical correctness, runtime conformance, or an empirical utility score.",
+      "evidence": [
+        "Current source-section review and targeted comparison with the 589-page checked-in PDF; exact snapshots and 29 detailed findings retained in this record audit data.",
+        "Decision-odds counterexample independently recomputed using exact rational arithmetic. No claim of rerunning every cited proof or historical experiment."
+      ],
+      "next": "Correct the identified statements and publication mismatch, then integrate the bounded continuation, future-admission, categorical-certificate and topology-design examples.",
+      "acceptance": [
+        "Every incorporated result names its observation model, assumptions, decision consequence and source witness.",
+        "Correct formulas, comparator roles and output complexity agree across paper, chapter, figure and index.",
+        "Every intended Book PDF is generated from the accepted sources and checked for the corrected statements.",
+        "Uncertain-answer acquisition, field detection, replay fidelity and reviewer efficacy remain open until their declared experiments or refinements pass."
+      ],
+      "depends_on": [
+        "NEXT-P1",
+        "NEXT-P5",
+        "NEXT-P6",
+        "NEXT-P7",
+        "NEXT-P8",
+        "RELEASE-FACTORIZATION",
+        "BOOK-PROOFS"
+      ],
+      "sources": [
+        {
+          "path": "whitepaper/single-writer-kernel.tex",
+          "locator": "Chapter 1: The Single-Writer Kernel; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+          "locator": "Chapter 2: The Anchor Protocol; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+          "locator": "Chapter 3: The Sealed Harbor; detailed spans in audit findings"
+        },
+        {
+          "path": "whitepaper/legible-swarm.tex",
+          "locator": "Chapter 4: The Legible Swarm; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+          "locator": "Chapter 5: From Spawn to Person; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/harbor-economy.tex",
+          "locator": "Chapter 6: The Harbor Economy; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+          "locator": "Chapter 7: The Bonded Commons; detailed spans in audit findings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+          "locator": "Chapter 8: The Federated Harbor; detailed spans in audit findings"
+        },
+        {
+          "path": "whitepaper/textbook.json",
+          "locator": "edition, parts and chapter source authority"
+        },
+        {
+          "path": "scripts/generate-mega-whitepaper.mjs",
+          "locator": "generate(), shared chapter body and namespace mapping"
+        },
+        {
+          "path": "docs/harbor-research/library-index.json",
+          "locator": "34 entries; R1–R17 and Paper 8 chapter mappings"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+          "locator": "589 pages; physical pp. 459–461, printed pp. 441–443"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.tex",
+          "locator": "shared Book body"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-maritime.tex",
+          "locator": "shared Book body"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.tex",
+          "locator": "shared Book body"
+        },
+        {
+          "path": "docs/harbor-research/research/claim-evidence-audit.md",
+          "locator": "exact categorical test and known-answer minimum-cost certificate"
+        },
+        {
+          "path": "docs/harbor-research/research/research-program-20260930.md",
+          "locator": "future facts, release factorization and mathematical corrections"
+        },
+        {
+          "path": "docs/harbor-research/research/continuation-observation-model.md",
+          "locator": "finite continuation observation classes"
+        },
+        {
+          "path": "docs/harbor-research/research/receipt-bundle-design.md",
+          "locator": "complementary query fixtures"
+        },
+        {
+          "path": "skills/harbor-results/scripts/b9_context_paging.py",
+          "locator": "lines 17–32: comparator capacity and pins"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper1.tex",
+          "locator": "Paper 1; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper2.tex",
+          "locator": "Paper 2; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper3.tex",
+          "locator": "Paper 3; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper4.tex",
+          "locator": "Paper 4; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper5.tex",
+          "locator": "Paper 5; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper6.tex",
+          "locator": "Paper 6; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper7.tex",
+          "locator": "Paper 7; inspected claims and cross-reference sources"
+        },
+        {
+          "path": "docs/harbor-research/tex/paper8.tex",
+          "locator": "Paper 8; inspected claims and cross-reference sources"
+        }
+      ],
+      "queue_state": "current_work",
+      "priority": "P0",
+      "owner": "unassigned",
+      "verification": {
+        "basis": "Live source and PDF uptake assessment with exact file hashes; theorem-level issues have displayed witnesses or explicit assumption gaps.",
+        "fresh_check": "2026-09-30 source uptake audit"
+      },
+      "delivery": "Assessment recorded; manuscripts and publication PDFs not edited in this audit.",
+      "audit": {
+        "date_local": "2026-09-30",
+        "basis_commit": "984b982a675d4ffc00df028eba209d4a597b141d",
+        "method": "Structural index inventory plus source-section review and targeted PDF text comparison; no whole-Book proof certification or runtime test.",
+        "counts": {
+          "indexed_entries": 34,
+          "entries_with_chapter_locators": 20,
+          "core_results_with_chapter_locators": 17,
+          "core_results": 17,
+          "paper8_entries_without_chapter_locators": 14,
+          "checked_in_pdf_pages": 589
+        },
+        "unmapped_paper8_ids": [
+          "lem:chain",
+          "def:cellular-sheaf",
+          "def:compatible-report",
+          "thm:typed-hodge",
+          "thm:face-invariance",
+          "thm:sheaf-edge-distance",
+          "thm:relative-extension",
+          "thm:cycle-test",
+          "thm:compatibility-limits",
+          "thm:duplicate-dominance",
+          "thm:failure-identifiability",
+          "thm:edge-monotonicity",
+          "thm:three-edge-identifiability",
+          "thm:sparse-cut-identifiability"
+        ],
+        "source_snapshots": [
+          {
+            "path": "docs/harbor-research/library-index.json",
+            "sha256": "f8a7fe9ef546278c4862790642dd298bb7c37e9fb275added21e2a550c8c693b",
+            "bytes": 88275
+          },
+          {
+            "path": "docs/harbor-research/tex/paper1.tex",
+            "sha256": "b039a8d990413fd279ebb354b32f4fb4403f409f4315859f53f9513b30b606eb",
+            "bytes": 44056
+          },
+          {
+            "path": "docs/harbor-research/tex/paper2.tex",
+            "sha256": "d531eb122764f8c31bedb1463da66de530cfba3be887a8738eb195b70f352b81",
+            "bytes": 49843
+          },
+          {
+            "path": "docs/harbor-research/tex/paper3.tex",
+            "sha256": "d96b83a20d9eb33473ca636be8c89b1791afb6de42cf19bf603e7a5c1a29aa27",
+            "bytes": 41022
+          },
+          {
+            "path": "docs/harbor-research/tex/paper4.tex",
+            "sha256": "57ed7be39e1557afbe6ba44722663cb810c7a6513a122bae6d05e92dc3afe07b",
+            "bytes": 55607
+          },
+          {
+            "path": "docs/harbor-research/tex/paper5.tex",
+            "sha256": "d4013ef87a51e4aecb535a5e27f68873f18fd303cecd75a48cfbe9affec41582",
+            "bytes": 47443
+          },
+          {
+            "path": "docs/harbor-research/tex/paper6.tex",
+            "sha256": "7ee325a7ca5faa2e63824c9018655fe74f1ba0758984ce11002e111fc7a64868",
+            "bytes": 51695
+          },
+          {
+            "path": "docs/harbor-research/tex/paper7.tex",
+            "sha256": "55111214ffd90fa263ac3ea08b34dc0944116b554adbabd7c505ee75f466a25c",
+            "bytes": 37591
+          },
+          {
+            "path": "docs/harbor-research/tex/paper8.tex",
+            "sha256": "e3d024dc80cf1a19ea554ee3393ce6cd27028664b6274780546d73ce560bade7",
+            "bytes": 50246
+          },
+          {
+            "path": "scripts/generate-mega-whitepaper.mjs",
+            "sha256": "23e9a566f188169201e1637fad888e41e147aac1cb0de2ca5750bdedc388d302",
+            "bytes": 72553
+          },
+          {
+            "path": "skills/harbor-results/scripts/b9_context_paging.py",
+            "sha256": "7cebbd00f586ea4b3ae90cacdd94377917c33c8a25e8b926295ff2b3eced5cce",
+            "bytes": 28989
+          },
+          {
+            "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+            "sha256": "4632018329b756fb1f27e28471841c1aa107ed0d266be445ef877231b0437e47",
+            "bytes": 213958
+          },
+          {
+            "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+            "sha256": "15ece948299c5a9221dcd83f2d93cd2dae6d4e61860d588ef97cab8f6fca97fc",
+            "bytes": 127368
+          },
+          {
+            "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-maritime.tex",
+            "sha256": "371de29ca9e350d73870beae90f2d8e17f6d69735b840d3d0f88c43622206088",
+            "bytes": 268
+          },
+          {
+            "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.tex",
+            "sha256": "d12d0798beb748786845225022063d5fb23fece7c0d80cb9dbb9ababfbf50b4d",
+            "bytes": 253
+          },
+          {
+            "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.tex",
+            "sha256": "afffaddf4f3d244089896bffc6ffe159be148e0cfa723668073a071861e0d0d0",
+            "bytes": 268
+          },
+          {
+            "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+            "sha256": "bbe534cb636b4b79fb15b56b887ccee23a805ec1b509f643d1a87d403c8aa8c0",
+            "bytes": 9941022
+          },
+          {
+            "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+            "sha256": "102609bbd28efeb45b369ece08f109059c964340acc19df9e46aafcd7bf8ab31",
+            "bytes": 164012
+          },
+          {
+            "path": "website-v2/public/whitepaper/harbor-economy.tex",
+            "sha256": "894a047d40d5278c6144cec9847535874e5284fd8cc217995074b3e04f8d8d85",
+            "bytes": 185905
+          },
+          {
+            "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+            "sha256": "2dd618150da0fffab5b5ed33632c638974d7d784ae0a625c8acd949058c5c374",
+            "bytes": 92115
+          },
+          {
+            "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+            "sha256": "e5abca1d6713006bfac0817fccb3a3e21d76ae6e418809553e080839ba06e950",
+            "bytes": 212199
+          },
+          {
+            "path": "whitepaper/legible-swarm.tex",
+            "sha256": "f655b7cb6054f41115e1af2b0c652e210d0f077bd5d71fd6da593ac1bfb8012f",
+            "bytes": 267029
+          },
+          {
+            "path": "whitepaper/single-writer-kernel.tex",
+            "sha256": "5713646341fb708f4eec55d9d7f1641ac594382a937591cb03c0e2ca1833ebd7",
+            "bytes": 217862
+          },
+          {
+            "path": "whitepaper/textbook.json",
+            "sha256": "427a41bdf2447ba32dff5da2bf6a25569c6311ac7f9932f64d4a835c91ce209c",
+            "bytes": 10692
+          }
+        ],
+        "chapter_assessments": [
+          {
+            "chapter": 1,
+            "title": "The Single-Writer Kernel",
+            "uptake": "Strong: controllability, partial observation, work-unit invariants and mutation witnesses (R5, R8).",
+            "benefit": "Turn incomplete observations into an adapter-specific safe-action rule; connect the unknown-effect warning to a worked retry/refusal case."
+          },
+          {
+            "chapter": 2,
+            "title": "The Anchor Protocol",
+            "uptake": "Applies the control boundary to capability admission; its own attenuation proof estate also lies outside R1–R17.",
+            "benefit": "Bind admission to the exact evidence snapshot and current authority epoch; show why an authentic claim can still be stale or insufficient."
+          },
+          {
+            "chapter": 3,
+            "title": "The Sealed Harbor",
+            "uptake": "Strong: finite noninterference, atomic privacy-budget accounting, canary power and sequential detection (R9–R11).",
+            "benefit": "Import the explicit payload-release factorization test; a small output alphabet alone does not establish release of the permitted information."
+          },
+          {
+            "chapter": 4,
+            "title": "The Legible Swarm",
+            "uptake": "Extensive: digest floors, split preferences, decision loss, zoom, escalation, specialization and paging (R1–R4, R14–R16); several statements need correction.",
+            "benefit": "Correct formula/hypothesis mismatches first; then teach witness-preserving summaries and complementary evidence acquisition under a human inspection budget."
+          },
+          {
+            "chapter": 5,
+            "title": "From Spawn to Person",
+            "uptake": "Strong: no-mint transfer, engine substitution, migration, probation and inspection incentives (R7, R12, R13, B6).",
+            "benefit": "Separate liability continuity from safe execution continuity; give an adapter table for atomic dedup/result, fenced readback, and unresolved remote effects."
+          },
+          {
+            "chapter": 6,
+            "title": "The Harbor Economy",
+            "uptake": "Strong: specialization/succession and a tractable deontic fragment (R15, R17).",
+            "benefit": "Add future-fact admission conditions and distinguish deciding existence of conflict from enumerating every witness; the latter must pay for output size."
+          },
+          {
+            "chapter": 7,
+            "title": "The Bonded Commons",
+            "uptake": "Substantial institutional and settlement proof content; inspection-game calibration and evidence selection are only partially connected.",
+            "benefit": "Derive an audit rate from the stated gain, detection and penalty model; choose cheap checkable dispute certificates without calling known-answer selection an optimal query policy."
+          },
+          {
+            "chapter": 8,
+            "title": "The Federated Harbor",
+            "uptake": "Current source substantially incorporates Paper 7: visibility, sender blind spots, residual scope, robustness and marginal receipt value. Typed Paper 8 constructions and exact categorical certificates are not developed.",
+            "benefit": "Add a typed worked example, exact categorical contradictions, partial-section extension and edge-group error distance; use them to design observations for a declared fault model."
+          }
+        ],
+        "detailed_source_reviews": [
+          {
+            "scope": "Read-only source uptake audit for authoritative Book chapters 1-4 from whitepaper/textbook.json, 2026-09-30. Classifications compare prose to source-reported research; no theorem or script was rerun.",
+            "authoritative_chapters": [
+              {
+                "number": 1,
+                "path": "whitepaper/single-writer-kernel.tex"
+              },
+              {
+                "number": 2,
+                "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex"
+              },
+              {
+                "number": 3,
+                "path": "website-v2/public/whitepaper/sealed-harbor.tex"
+              },
+              {
+                "number": 4,
+                "path": "whitepaper/legible-swarm.tex"
+              }
+            ],
+            "classification_key": {
+              "embodied": "result and limiting assumptions are substantively explained in chapter",
+              "partial": "some result or boundary appears but actionable mechanism/condition is missing",
+              "absent": "not substantively incorporated, possibly intentionally deferred",
+              "conflict": "chapter formula or implication contradicts its own model or research source"
+            },
+            "findings": [
+              {
+                "id": "C1-C3-R5-CONTROL",
+                "research_ids": [
+                  "R5"
+                ],
+                "chapter": 1,
+                "classification": "embodied",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/single-writer-kernel.tex",
+                    "start_line": 1075,
+                    "end_line": 1155,
+                    "label": "sec:controllability; thm:regimentation-controllability"
+                  },
+                  {
+                    "path": "whitepaper/single-writer-kernel.tex",
+                    "start_line": 1240,
+                    "end_line": 1305,
+                    "label": "tab:policy-classification; sec:gate-the-channel"
+                  },
+                  {
+                    "path": "whitepaper/single-writer-kernel.tex",
+                    "start_line": 1344,
+                    "end_line": 1397,
+                    "label": "sec:partial-observation; thm:observability-regimentation"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+                    "start_line": 495,
+                    "end_line": 511,
+                    "label": "runtime Arbiter and kernel controllability cross-reference"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 550,
+                    "end_line": 634,
+                    "label": "sec:sealed-enforceability and compound taint/egress rule"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R5",
+                    "source": "Omni ledger; Paper 2"
+                  }
+                ],
+                "assessment": "Ch1 substantively states the controllability and partial-observation theorems with a compound taint/egress construction; Ch2 applies the admission boundary to cards, and Ch3 works the nine-event sealed-room case. Ch2/3 depend on actual mediation and witnessed taint, not on the formal classification alone.",
+                "concrete_benefit": "Readers can place a policy at a real effect gate and see which trigger/effect conditions make prevention possible.",
+                "evidence_needed": "Inventory every effect channel and observation class in deployment; verify token, identity and taint checks are ordered before effect admission.",
+                "priority": "medium",
+                "related_chapters": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "id": "C1-R8-WORKUNIT",
+                "research_ids": [
+                  "R8"
+                ],
+                "chapter": 1,
+                "classification": "embodied",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/single-writer-kernel.tex",
+                    "start_line": 1744,
+                    "end_line": 1814,
+                    "label": "sec:workunit; thm:workunit"
+                  },
+                  {
+                    "path": "whitepaper/single-writer-kernel.tex",
+                    "start_line": 1821,
+                    "end_line": 1866,
+                    "label": "tab:workunit-crimes"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R8",
+                    "source": "Omni ledger; results compendium"
+                  }
+                ],
+                "assessment": "Six invariants, the 536-state two-principal bound, and disabled-guard witnesses are integrated as the chapter’s central work-unit object, with a model-versus-daemon boundary stated nearby.",
+                "concrete_benefit": "Connects authority, receipts, epochs, effects and settlement in one checkable case file.",
+                "evidence_needed": "Runtime conformance/refinement and larger-state scaling before promoting the bounded model result to a deployed guarantee.",
+                "priority": "medium"
+              },
+              {
+                "id": "C3-R9-R11-ROOM",
+                "research_ids": [
+                  "R9",
+                  "R10-A3",
+                  "R11-A4"
+                ],
+                "chapter": 3,
+                "classification": "embodied",
+                "chapter_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 417,
+                    "end_line": 516,
+                    "label": "sec:sealed-noninterference; thm:sealed-noninterference"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 1017,
+                    "end_line": 1072,
+                    "label": "finite-model limitations and unwinding lift"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 674,
+                    "end_line": 805,
+                    "label": "sec:sealed-conservation; thm:sealed-conservation; prop:sealed-ledger-checked"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 813,
+                    "end_line": 841,
+                    "label": "advanced-composition crossover and syntactic meter caveat"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 847,
+                    "end_line": 949,
+                    "label": "sec:sealed-detection; thm:sealed-power; thm:sealed-latency"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R9",
+                    "source": "Omni ledger; Paper 4"
+                  },
+                  {
+                    "id": "R10-A3",
+                    "source": "Omni ledger; Paper 4"
+                  },
+                  {
+                    "id": "R11-A4",
+                    "source": "Omni ledger; Paper 4"
+                  }
+                ],
+                "assessment": "Chapter 3 embodies the finite two-run noninterference result, atomic ε-spend ledger, advanced-composition scope and independent-canary/Wald formulas, with explicit finite-model, semantic-output and side-channel boundaries. These are three worked mechanisms, not citation-only uptake.",
+                "concrete_benefit": "Connects the room’s release gate to a bounded secrecy statement, an auditable budget, and a conditional detection/response curve.",
+                "evidence_needed": "Payload-aware refinement and unbounded unwinding for broader secrecy; mechanism-level ε privacy proof; field canary miss, dependence and leakage rates. None was rerun in this uptake audit.",
+                "priority": "medium"
+              },
+              {
+                "id": "C3-RELEASE-FACTOR",
+                "research_ids": [
+                  "RELEASE-FACTORIZATION",
+                  "R9"
+                ],
+                "chapter": 3,
+                "classification": "partial",
+                "chapter_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 526,
+                    "end_line": 546,
+                    "label": "payload laundering boundary"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 981,
+                    "end_line": 1007,
+                    "label": "q·b leakage budget"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 1050,
+                    "end_line": 1072,
+                    "label": "open submit-payload extension"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+                    "start_line": 1154,
+                    "end_line": 1170,
+                    "label": "exercise on payload"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "RELEASE-FACTORIZATION",
+                    "source": "Omni ledger; research-program-20260930 factorization theorem"
+                  }
+                ],
+                "assessment": "The chapter recognizes candidate laundering and explicitly says its submit transition carries no payload. The newer factorization criterion—r∘f must factor through declared g for every admissible worker f—is absent as a usable contract test.",
+                "concrete_benefit": "Would turn the admitted attack into a precise release-policy decision and a small counterexample the reader can run.",
+                "evidence_needed": "State admissible f, observable traces and schedule; add payload-bearing submit transitions and compare against the existing finite model and declared q·b budget.",
+                "priority": "high"
+              },
+              {
+                "id": "C4-R1-R2-LEGIBILITY",
+                "research_ids": [
+                  "R1",
+                  "R2"
+                ],
+                "chapter": 4,
+                "classification": "conflict",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 1626,
+                    "end_line": 1719,
+                    "label": "sec:lowerbound; thm:lowerbound; 0/16 falsification and meter wrong turn"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 2110,
+                    "end_line": 2187,
+                    "label": "thm:split-ranker; thm:comonotone"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 2429,
+                    "end_line": 2470,
+                    "label": "thm:split-digest; thm:split-penalty"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 2442,
+                    "end_line": 2461,
+                    "label": "thm:split-penalty; false numerator-growth explanation"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R1",
+                    "source": "Omni ledger; Paper 1"
+                  },
+                  {
+                    "id": "R2",
+                    "source": "Omni ledger; Paper 1"
+                  },
+                  {
+                    "id": "P1-SPLIT-CORRECTION",
+                    "source": "Omni ledger; research-program-20260930 Paper 1 arithmetic"
+                  }
+                ],
+                "assessment": "R1’s counting floor and R2’s split-head crossing are substantively embodied. The R2 split-floor inequality is true for shared m with 2k<=m<N, but the Book repeats Paper 1’s false reason that log C(N,2k) grows faster than 2 log C(N,k). The numerator inequality goes the other way; the denominator change makes the full floor superadditive.",
+                "concrete_benefit": "Retains the useful two-reader budget insight while replacing a mathematically false proof sentence; avoids mistaking the shared-open-budget floor for a theorem about every two-decoder representation.",
+                "evidence_needed": "Use F(t)=sum_{i=0}^{t-1} log2((N-i)/(m-i)); each summand strictly rises for N>m, so the second k-block exceeds the first. State shared m and disjoint critical sets. Update Book and Paper 1 together; the source note reports 17,545 exact triples, not a fresh rerun here.",
+                "priority": "high"
+              },
+              {
+                "id": "C4-R3-ODDS",
+                "research_ids": [
+                  "R3"
+                ],
+                "chapter": 4,
+                "classification": "conflict",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 2205,
+                    "end_line": 2230,
+                    "label": "thm:regret-head; eq:bayes-regret"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 1192,
+                    "end_line": 1230,
+                    "label": "escalation threshold examples"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R3",
+                    "source": "Omni ledger; Paper 1"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper1.tex",
+                    "start_line": 125,
+                    "end_line": 136,
+                    "label": "Theorem 3 repeats wrong odds denominator"
+                  }
+                ],
+                "assessment": "The primary expected-cost inequality and numerical probability thresholds are correct, but the displayed “equivalently” odds condition has the wrong denominator in both Book and Paper 1. For Cmiss=10, c_att=1, Cfa=1, a=.17, it says inspect while direct costs say pass (1.70<1.83).",
+                "concrete_benefit": "Correcting the formula prevents an operator queue from acting on inconsistent threshold implementations.",
+                "evidence_needed": "For Cmiss>c_att, odds threshold is (c_att+Cfa)/(Cmiss-c_att); for Cmiss<=c_att inspect is never favored except degeneracies. Update Book and Paper 1 together; test direct-loss and odds forms on boundary and counterexample.",
+                "priority": "critical"
+              },
+              {
+                "id": "C4-R4-FRONTIER-BOUNDARY",
+                "research_ids": [
+                  "R4"
+                ],
+                "chapter": 4,
+                "classification": "conflict",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 1720,
+                    "end_line": 1930,
+                    "label": "thm:pinned-joint; thm:zoom-advantage; composition window and boundary"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 1800,
+                    "end_line": 1887,
+                    "label": "thm:zoom-advantage and composition window"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "R4",
+                    "source": "Omni ledger; Paper 1"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper1.tex",
+                    "start_line": 214,
+                    "end_line": 228,
+                    "label": "strict inequality repeated"
+                  }
+                ],
+                "assessment": "The Book substantively incorporates the Bernoulli two-constraint frontier, halving procedure, dense-regime reversal and domain caveats. Its strict improvement sentence is wrong at equality: with d=1/12 the displayed lower-bound advantage is exactly 1, so d<=1/12 cannot be equivalent to >1. Paper 1 repeats the slip.",
+                "concrete_benefit": "Keeps the useful sparse-flag theorem while distinguishing strict savings from break-even.",
+                "evidence_needed": "Use d<1/12 and f>12(p−δ) for strict bound-based gain; equality is break-even. Check stepwise ceiling and both Book/Paper 1 statements; field benefit still requires reliable unit-cost group queries.",
+                "priority": "high"
+              },
+              {
+                "id": "C4-P7P8-EVIDENCE-BRIDGE",
+                "research_ids": [
+                  "R6",
+                  "CLAIM-EXACT",
+                  "P7-C1",
+                  "P8-T2",
+                  "P8-T4"
+                ],
+                "chapter": 4,
+                "classification": "absent",
+                "chapter_evidence": [
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 3411,
+                    "end_line": 3444,
+                    "label": "open-problem map includes adversarial legibility without exact receipt model"
+                  },
+                  {
+                    "path": "whitepaper/legible-swarm.tex",
+                    "start_line": 3355,
+                    "end_line": 3389,
+                    "label": "legibility time-axis and outcome witness"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "id": "CLAIM-EXACT",
+                    "source": "Omni ledger; claim-evidence audit"
+                  },
+                  {
+                    "id": "P8-T4",
+                    "source": "Omni ledger; Paper 8"
+                  },
+                  {
+                    "id": "P8-T2",
+                    "source": "Omni ledger; Paper 8"
+                  },
+                  {
+                    "id": "P7-C1",
+                    "source": "Omni ledger; Paper 7"
+                  }
+                ],
+                "assessment": "Chapter 4’s adversarial-legibility open problem and time-axis handoff have no exact per-fact receipt or categorical-feasibility mechanism. This is a scope-appropriate deferral to later papers, yet a narrow bridge would prevent “more structure” from being mistaken for more observed evidence. Face attachment alone adds no measurement and zero relative obstruction only asserts some hidden extension exists.",
+                "concrete_benefit": "Gives the operator a concrete boundary for distinguishing missing observations, contradictory observed claims and geometric explanations.",
+                "evidence_needed": "Authenticated fact/snapshot receipts and a fixed watermark; compare categorical direct checks at equal information, then test whether typed topology improves explanation or acquisition.",
+                "priority": "medium"
+              }
+            ],
+            "coverage_notes": [
+              "The eight assessments group substantive result families; they do not imply chapter 2 has a separate R1–R11 theorem or that a citation is uptake.",
+              "R8 is embodied in chapter 1; its neighboring unknown-effect continuation is only a figure/short warning at lines 1814–1820 and needs operation-specific status or idempotency for progress.",
+              "Chapter 1 lines 2128–2136 correctly call rail-vs-merge-queue an empirical hypothesis. The S2 pilot remains undecided because D’s out-of-order/no-op defect and four missing N8 cells block H2; the chapter should not infer a rail advantage.",
+              "R7 inspection-game/tower work is naturally Chapter 5 rather than Chapters 1–4; no absence finding is inferred for these chapters. R6’s observation boundary appears only as the limited Paper 7/8 bridge opportunity recorded here.",
+              "Paper 7/8 exact and typed claim auditing chiefly belongs in later chapters; the suggested chapter 4 bridge is conditioned on authenticated observations and equal-information direct checks.",
+              "Research-source proof and experimental statuses are source-reported; this audit did not rerun them or test deployed behavior.",
+              "R14 escalation is substantively embodied at whitepaper/legible-swarm.tex:1192–1228: threshold, feasible/empty debit band, numeric example and monotone-validator limitation. Benefit is a priced alarm lane; field use requires measured V(u), benefit b(u), attention budget and miss costs. The printed theorem’s strict increase/unique root does not follow from merely nondecreasing b and monotone V; constant functions or jumps show the missing regularity/crossing conditions. This is an additional theorem-scope conflict, not a claim the source script was rerun.",
+              "R15 specialization is substantively embodied at whitepaper/legible-swarm.tex:919–1000 and 1004–1091: corrected Erlang-C threshold, false old threshold, breakdown floor and explicit mean-cost/exponential/Poisson assumptions. Benefit is a decision boundary for sole owner versus pool. Tail behavior and service-time robustness remain a stated empirical hypothesis needing matched lognormal/Pareto sweeps and measured arrivals/service, not a present theorem.",
+              "R16 paging is substantively attempted at whitepaper/legible-swarm.tex:2514–2552, but its theorem contract is internally inconsistent. At lines 2518–2528 h is called the size of the verifiable pinned set while k/(k−h+1)·OPT is imported from Landlord with h as the offline comparator cache capacity; the next paragraph separately uses p for true pinned size and OPT_(h−p), matching the research reference and b9_context_paging.py:17–32. The chapter also calls the algorithm a generic “recency-plus-pin policy,” while the imported weighted bound belongs to the specified PinLandlord/Landlord eviction rule, not every such policy. This is material uptake with a variable/algorithm contract conflict. Benefit remains a priced context-residency rule; repair requires naming comparator capacity h, pinned size p, the exact eviction algorithm, corruption-count/expectation semantics and unit-cost-density assumptions, then reconciling the theorem display with the detailed bound. The 122 synthetic cases do not certify a generic policy or adaptive field guarantee.",
+              "P1-SPLIT-CORRECTION affects the Book itself at whitepaper/legible-swarm.tex:2447–2459, not only Paper 1: the result F(2k)>2F(k) survives under shared m, but the stated numerator-growth justification is false. The archived 2026-09-30 research note gives an increasing-summand proof and explains that a vector-valued shared representation with two decision heads is not ruled out."
+            ]
+          },
+          {
+            "scope": "Actual Book uptake in authoritative textbook chapters 5–8 only, compared with research papers and Omni records; citations alone were not counted as adoption.",
+            "worktree": "/Users/erichowens/coding/tmp/paper-eight-observability-20260927",
+            "branch": "codex/research-omni-ledger",
+            "textbook_source": "whitepaper/textbook.json",
+            "chapters": {
+              "5": "website-v2/public/whitepaper/spawn-to-person.tex",
+              "6": "website-v2/public/whitepaper/harbor-economy.tex",
+              "7": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+              "8": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex"
+            },
+            "findings": [
+              {
+                "id": "U5-01",
+                "chapters": [
+                  5
+                ],
+                "research_ids": [
+                  "R12-A6"
+                ],
+                "verdict": "embodied",
+                "finding": "Chapter 5 teaches no-mint as live-credit transfer with source debit, gives the budget-only closure-sum counterexample 0.9+0.81+0.729=2.439, and connects the rule to principal-wide exposure. This goes beyond citing Paper 5: the reader sees the failed design, corrected invariant, sweep, worked lineage, and exercise.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L710-L735",
+                    "label": "sec:continuity",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L742-L810",
+                    "label": "no-mint example",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper5.tex",
+                    "lines": "L102-L173",
+                    "label": "sec:nomint",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A reader can distinguish conservative transfer from copying reputation, and calculate why a fork cannot multiply spendable credit.",
+                "required_proof_or_test_before_import": "Before a deployment claim, test concurrent multi-parent derivations, source-ID deduplication, witnessed-value creation, and cross-principal liability pooling against a separate ledger oracle.",
+                "limits": "Synthetic DAG sweep and prose are research evidence, not proof the runtime enforces every path."
+              },
+              {
+                "id": "U5-02",
+                "chapters": [
+                  5
+                ],
+                "research_ids": [
+                  "R13-B5"
+                ],
+                "verdict": "embodied",
+                "finding": "Chapter 5 develops the engine-swap economics as a two-part theorem with explicit full-quality pass-through, the Bertrand countercase, a numeric example, and a scope lemma: price per principal-engine pair, sanction per principal. It also gives migration model-check mutants.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L1450-L1574",
+                    "label": "thm:engine-swap",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L1583-L1627",
+                    "label": "thm:resurrection-soundness",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper5.tex",
+                    "lines": "L174-L292",
+                    "label": "sec:engine; sec:resurrection",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A buyer learns exactly which attestation and pricing assumptions turn reputation into a quality signal, and why migration must carry sanctions.",
+                "required_proof_or_test_before_import": "Verify actual attestation provenance per witnessed outcome and deployed adapter keying; test price and sanction scopes under concurrent migration, replay and provider failure.",
+                "limits": "Economic flip is conditional on a price hypothesis; 747-state bounded migration model is not a production guarantee."
+              },
+              {
+                "id": "U5-03",
+                "chapters": [
+                  5
+                ],
+                "research_ids": [
+                  "R13-B5"
+                ],
+                "verdict": "conflict",
+                "finding": "The recovery boundary is mostly honest: chapter 5 calls summary forwarding a checkpoint of record and labels neural rehydration designed. But it also says within one provider/model/version replay demonstrably restores behaviorally equivalent continuation and calls context overflow the same resurrection door with clauses collapsed to one. The behavioral-equivalence phrase conflicts with the nearby statement that replay fidelity is unmeasured and the mechanism has not shipped; the same-door claim also outruns the cited migration property, which follows ledger obligations rather than hidden inference state or effect replay.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L844-L905",
+                    "label": "sec:organs",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L1575-L1638",
+                    "label": "thm:resurrection-soundness",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper5.tex",
+                    "lines": "L243-L292",
+                    "label": "sec:resurrection",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "Keeping the distinction protects the reader from treating a correct succession record as proof that the successor loaded the right state or resumed without duplicate effects.",
+                "required_proof_or_test_before_import": "Run controlled crash/replay traces at exact commit and message offsets, with provider/model/version pinned; measure loaded-state coverage, pending obligations, duplicate effects and false beliefs, then narrow or support behavioral-equivalence wording.",
+                "limits": "The chapter itself names the continuity-witness schema and fidelity rate as open, so this is a local overstatement rather than a blanket failure of the section."
+              },
+              {
+                "id": "U5-04",
+                "chapters": [
+                  5,
+                  7
+                ],
+                "research_ids": [
+                  "R7"
+                ],
+                "verdict": "embodied_with_model_boundary",
+                "finding": "The inspection-game result is worked into chapter 5’s grading-oracle arc: detection-aware rho*d*B>=G, sealed heterogeneous sampling, a C=1 versus C=8 cost comparison, and amortized spending. The Bonded Commons supplies adjacent bond/appeal institutions but does not reprove this tower. The tower payoff and iff remain one-stage, risk-neutral and sealed-draw conditional, with correlation and honest-root measurement still owed.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L2180-L2308",
+                    "label": "thm:tower-imported; sec:oracle",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+                    "lines": "L1058-L1099",
+                    "label": "sec:pricing:settlement",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper3.tex",
+                    "lines": "L98-L157",
+                    "label": "thm:stage; thm:tower",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/findings.md",
+                    "lines": "L486-L556",
+                    "label": "falsification pass",
+                    "omni_source_id": "SRC-017",
+                    "access": "omni_ledger_source_text_or_zip"
+                  }
+                ],
+                "reader_benefit": "The reader can budget a conditional audit rate and see precisely why diversity changes the linear bribery phase rather than creating convergence.",
+                "required_proof_or_test_before_import": "Before operational import, measure d, cross-clique dependence and sampler secrecy; test strategic multi-period bribery and wrongful-slash compensation, then restate iff only for the proved payoff model.",
+                "limits": "Do not treat C=1 as impossible: current Book correctly shows a finite but longer path."
+              },
+              {
+                "id": "U6-01",
+                "chapters": [
+                  6
+                ],
+                "research_ids": [
+                  "R15-B8"
+                ],
+                "verdict": "embodied",
+                "finding": "The Harbor Economy makes the specialist-versus-pool result an actual Side 2 design decision. It states the breakdown-aware M/M/1 response-time formula, the unattained downtime floor, the eta*K<1 domain for D-star, a numeric canary 4.17 versus 8.17, and a rendered threshold figure.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L425-L525",
+                    "label": "thm:succession-price; fig:he-succession-price",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper6.tex",
+                    "lines": "L256-L387",
+                    "label": "sec:queue; sec:succession",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A renter can see why very high skill may still lose to a pool when recovery is slow, and can compute the decision boundary.",
+                "required_proof_or_test_before_import": "Measure service, death and restoration rates for the proposed workload; validate the exponential/preemptive-resume assumption and tail SLA separately before pricing real contracts.",
+                "limits": "Mean-cost theorem is not a tail or reliability guarantee."
+              },
+              {
+                "id": "U6-02",
+                "chapters": [
+                  6
+                ],
+                "research_ids": [
+                  "R17-B4"
+                ],
+                "verdict": "embodied",
+                "finding": "Chapter 6 specifies the ground Horn, O/F interval, exclusive-claim and difference-constraint fragment; proves a polynomial batch conflict check with witnesses; provides a three-rule hand example and ablated checker; and contrasts it with discharge-choice NP-completeness. This is research uptake, not citation-only.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L728-L944",
+                    "label": "thm:deontic-detect; thm:deontic-frontier; deontic example",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper6.tex",
+                    "lines": "L152-L255",
+                    "label": "sec:lang; sec:regiment",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A reader can map a policy proposal to either a mechanical refusal witness or a chartered resolution decision.",
+                "required_proof_or_test_before_import": "Reproduce proof and independent oracle on representative policy sets, including negative cycles and indirect Horn firing; reject extensions that add symbolic times, nonmonotone rules or nested modalities without a new complexity analysis.",
+                "limits": "Novelty is the selected combination and norm-set question; adjacent compliance literature already has a tractable-to-hard boundary."
+              },
+              {
+                "id": "U6-03",
+                "chapters": [
+                  6
+                ],
+                "research_ids": [
+                  "R17-B4"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 6 says the daemon can refuse a conflicting proposal at a mediated acceptance write, and correctly notes that only batch complexity and five-atom oracle agreement are established. The future-admission claim therefore remains conditional on complete mediation and production-scale performance; no cited runtime proof here shows every accepted-policy path passes the checker.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L920-L944",
+                    "label": "deontic guard and boundary",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L2022-L2062",
+                    "label": "ex:he-deontic-conflict-checker",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper6.tex",
+                    "lines": "L234-L255",
+                    "label": "sec:regiment",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper6.tex",
+                    "lines": "L466-L486",
+                    "label": "sec:boundary",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "Separates a checkable language result from an installed guard that a customer could trust to block unsafe admission.",
+                "required_proof_or_test_before_import": "Trace all acceptance APIs and bypasses; run a mutation that inserts conflicting policy outside the guard; benchmark batch and incremental paths at realistic size and verify refusal carries the exact conflict witness.",
+                "limits": "Source explicitly leaves incremental amortized claim and mediation audit open."
+              },
+              {
+                "id": "U7-01",
+                "chapters": [
+                  7
+                ],
+                "research_ids": [
+                  "R7"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 7 has adjacent oracle and audit governance, appeals and bond pricing, but its default randomized 10% human settlement audit is not derived from R7’s rho*d*B>=G or a stated G,d,B for that threat. The example gives institutions, not a calibrated application of the tower theorem.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+                    "lines": "L651-L700",
+                    "label": "sec:governance",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+                    "lines": "L1058-L1099",
+                    "label": "sec:pricing:settlement",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper3.tex",
+                    "lines": "L98-L157",
+                    "label": "thm:stage; thm:tower",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "Prevents a reader from mistaking an operational default for a deterrence guarantee.",
+                "required_proof_or_test_before_import": "Declare the relevant gain, detection probability, slash convention and bond for the settlement audit; either derive the rate or label 10% a provisional policy knob.",
+                "limits": "R7 is embodied in chapter 5; this is a cross-chapter application gap."
+              },
+              {
+                "id": "U8-01",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "paper7"
+                ],
+                "verdict": "embodied",
+                "finding": "Chapter 8 teaches Paper 7’s graph observation contract with compared, relayed and severed edges, an exact cycle-space residual, one-sender blind-spot counterexample, direct-claim baseline, robustness margin, hand cochain, and synthetic-arm status. The proof and examples distinguish incompatibility from culprit attribution.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L500-L616",
+                    "label": "sec:fh-sheaf; thm:sheaf-equivocation; thm:radius-soundness",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L1409-L1418",
+                    "label": "tab:fh-status",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper7.tex",
+                    "lines": "L96-L329",
+                    "label": "sec:model through sec:robust",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A reader can compute when a visible cycle detects one edge fault, why a severed link or coherent split can be silent, and when direct claim equality is the better check.",
+                "required_proof_or_test_before_import": "For deployed claims, acquire signed independent edge receipts with fixed schema/root/watermark, demonstrate identical-input direct checks, and measure false alarms under real topology and packet loss.",
+                "limits": "The graph result is a conditional observation model, not field evidence; Paper 7 should be the research id here, not R7 inspection game."
+              },
+              {
+                "id": "U8-02",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "paper7",
+                  "paper8"
+                ],
+                "verdict": "partial",
+                "finding": "The chapter imports Paper 7’s exact post-observation marginal receipt-gain formula and says candidate queries need predicted signatures and costs. Paper 8’s stronger typed acquisition contract is not present: no authenticated role/edge/face receipt schema or equal-information direct-contract field comparison is built in the chapter.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L618-L627",
+                    "label": "choosing another receipt",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L1409-L1418",
+                    "label": "tab:fh-status",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper7.tex",
+                    "lines": "L330-L373",
+                    "label": "sec:active-audit",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L352-L357",
+                    "label": "sec:application",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "The reader sees why adding a graph edge may or may not improve a residual, while understanding that choosing it before seeing its value is a separate design problem.",
+                "required_proof_or_test_before_import": "Predeclare candidate signature pairs, query costs, privacy limits and a truth oracle; then compare equal-evidence direct checking with graph/sheaf selection on real receipts, including abstentions.",
+                "limits": "The formula uses observed y; without a predictive library it is not a prospective optimal query policy."
+              },
+              {
+                "id": "U8-03",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "paper8"
+                ],
+                "verdict": "absent",
+                "finding": "Chapter 8 uses coordinate-selection graph stalks and a 1-dimensional cycle projection. It does not embody Paper 8’s heterogeneous two-complex: independent face contracts, BA=0, face versus harmonic channels, relative connecting class for a visible section, or typed edge-group distance. Mentioning sheaf Laplacians or citing Paper 8 does not provide these constructions.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L504-L628",
+                    "label": "sec:fh-sheaf",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L1409-L1418",
+                    "label": "tab:fh-status",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L27-L165",
+                    "label": "def:cellular-sheaf; thm:typed-hodge; thm:face-invariance; thm:relative-extension",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L129-L149",
+                    "label": "thm:sheaf-edge-distance",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A new worked role/handoff/face example could let readers see which exact feature overlaps and visibility gaps the graph simplification cannot express.",
+                "required_proof_or_test_before_import": "Before importing, declare role-specific stalk units and incidence maps, prove BA=0, acquire an independent three-party face receipt, reproduce exact Hodge/relative witnesses, and compare to the same-information symbolic solver.",
+                "limits": "Paper 8 explicitly says a drawn face without new evidence changes classification but not detection."
+              },
+              {
+                "id": "U6U8-01",
+                "chapters": [
+                  6,
+                  8
+                ],
+                "research_ids": [
+                  "paper8"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 6 deliberately labels its administrative-domain sheaf as an undefined gluing conjecture; chapter 8 separately defines a real-coordinate graph sheaf. Paper 8 supplies a typed cellular construction, but it does not automatically close the proposed semilattice-of-signed-ledgers federation gluing problem. Treat these as different coefficient objects and questions.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L1711-L1737",
+                    "label": "conj:sheaf",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L504-L529",
+                    "label": "sec:fh-sheaf",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L628-L629",
+                    "label": "sheaf Laplacian boundary",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L27-L75",
+                    "label": "def:cellular-sheaf; thm:typed-hodge",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L352-L362",
+                    "label": "operational scope",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "The reader retains a clean boundary between an evidence comparison method and a still-open federation theorem.",
+                "required_proof_or_test_before_import": "If making a categorical bridge, specify site, objects, restrictions, coefficient system and exact gluing statement; prove a mapping from signed-log semantics to the typed model or keep the conjecture open.",
+                "limits": "Paper 8’s vector-space sheaf is not a proof for append-only semilattice gossip."
+              },
+              {
+                "id": "U8-04",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "paper7",
+                  "paper8"
+                ],
+                "verdict": "partial",
+                "finding": "The sheaf-Laplacian passage accurately says no rate bound follows for discrete Byzantine anti-entropy gossip, yet a later open problem conjectures rounds-to-alarm as Theta(1/lambda2). This is properly marked open, but the proposed test needs a defined alarm event and must handle topology families where residual is structurally zero rather than merely slow.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L628-L629",
+                    "label": "sheaf Laplacian caveat",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L1012-L1016",
+                    "label": "sec:fh-lim-equiv",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper7.tex",
+                    "lines": "L393-L404",
+                    "label": "sec:boundary",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L194-L205",
+                    "label": "thm:compatibility-limits",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "The reader sees a falsifiable conjecture rather than an implied settled convergence theorem.",
+                "required_proof_or_test_before_import": "Predefine the discrete protocol, alarm threshold and stochastic loss model; separate never-detect topologies from finite detection-time samples; run topology-family sweep and report censoring and direct-check baseline.",
+                "limits": "Do not regress infinite/no-alarm trials into a finite spectral-time fit."
+              },
+              {
+                "id": "U5U8-01",
+                "chapters": [
+                  5,
+                  8
+                ],
+                "research_ids": [
+                  "R13-B5",
+                  "paper7",
+                  "paper8"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 5 explicitly leaves cross-operator attestation unsolved; chapter 8 offers transfer ceremony and witness-log sketches but grades cross-realm authenticity and signed-receipt implementation Partial. That continuity gap is not closed by a graph residual, and the Book mostly states this boundary honestly.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L1673-L1752",
+                    "label": "def:cross-operator-attestation",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L370-L444",
+                    "label": "sec:fh-xfer",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L1396-L1418",
+                    "label": "tab:fh-status",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper5.tex",
+                    "lines": "L243-L292",
+                    "label": "sec:resurrection",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "docs/harbor-research/tex/paper8.tex",
+                    "lines": "L352-L357",
+                    "label": "sec:application",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A reader can distinguish within-operator succession and evidence analysis from mutual trust between operators.",
+                "required_proof_or_test_before_import": "Verify witness-log freshness, signed role/edge receipts, grant attenuation, replay rejection and principal binding against a two-operator adversarial test; only then upgrade the maturity grade.",
+                "limits": "Do not infer deployed federation from a draft protocol or synthetic cochain test."
+              },
+              {
+                "id": "U5-05",
+                "chapters": [
+                  5
+                ],
+                "research_ids": [
+                  "UNKNOWN-EFFECT"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 5 names an idempotency journal and pending-effect capsule, but its resurrection theorem concerns inherited scores, lineage, attestation and open commitments. It gives no adapter-specific rule for a timed-out non-idempotent remote call. The archived finite continuation study separates atomic remote dedup/result, fenced ordered readback, and neither; a negative read alone cannot authorize retry while the old call may still arrive.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L1575-L1638",
+                    "label": "thm:resurrection-soundness and same-door continuation",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+                    "lines": "L2706-L2720",
+                    "label": "checkpoint exercise: idempotency journal",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/continuation-observation-model.md",
+                    "lines": "L3-L25",
+                    "label": "decision, observation class and adapter table",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-136"
+                  },
+                  {
+                    "path": "docs/harbor-research/research/continuation-observation-model.md",
+                    "lines": "L27-L50",
+                    "label": "finite counterexamples and safety/progress boundary",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-136"
+                  }
+                ],
+                "reader_benefit": "A successor can choose retry, readback or unresolved stop from an explicit external-effect contract without turning a timeout into duplicate payment or publication.",
+                "required_proof_or_test_before_import": "Specify stable operation ID and durable outbox; failure-inject crash, lost acknowledgment, pending old call, dedup eviction and epoch change against real adapter contracts; require at most one effect and a distinct progress report.",
+                "limits": "The archived checker covers one operation and two epochs; it is not a deployed Harbor or provider guarantee."
+              },
+              {
+                "id": "U6-05",
+                "chapters": [
+                  6
+                ],
+                "research_ids": [
+                  "FUTURE-HORN",
+                  "R17-B4"
+                ],
+                "verdict": "partial_with_future_conflict",
+                "finding": "Chapter 6 checks conflicts after Horn closure of facts at the acceptance moment and suggests a mediated guard can refuse the commit. It does not import the future-fact admission condition. An accepted rule set can be conflict-free now but become inconsistent when a permitted positive fact later fires a dormant rule. The archived maximal-fact lemma supplies exact safety only when fixed positive rules and jointly reachable maximum future facts are declared.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L786-L800",
+                    "label": "thm:deontic-detect",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L892-L944",
+                    "label": "worked current-fact conflict and mediated acceptance claim",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/research-program-20260930.md",
+                    "lines": "L43-L72",
+                    "label": "current-facts counterexample, maximal-fact theorem and reachability limit",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-142"
+                  }
+                ],
+                "reader_benefit": "Prevents the policy guard from greenlighting a dormant obligation/prohibition pair that an ordinary future event activates.",
+                "required_proof_or_test_before_import": "Add a three-transition witness: accept dormant rules, add an allowed fact, observe conflict; check reachable maximal fact sets or an exact transition model, annotate activating facts, and audit every policy and fact admission path.",
+                "limits": "The union envelope can reject safe rules when candidate facts are mutually exclusive; changing rules, retraction and negation require separate semantics."
+              },
+              {
+                "id": "U6-06",
+                "chapters": [
+                  6
+                ],
+                "research_ids": [
+                  "P6-OUTPUT",
+                  "R17-B4"
+                ],
+                "verdict": "conflict",
+                "finding": "Chapter 6 Theorem thm:deontic-detect says an interval sweep finds every obligation/prohibition and claim-overlap witness in O(T log T + X log X) without an output term. That bound cannot hold for explicit enumeration: n obligations and n prohibitions with one scope and interval yield n squared distinct clashes. Existence decision and complete witness enumeration are different interfaces.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L786-L800",
+                    "label": "thm:deontic-detect: every clash plus output-free bound",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/harbor-economy.tex",
+                    "lines": "L908-L944",
+                    "label": "witness-producing guard and small-oracle limit",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/research-program-20260930.md",
+                    "lines": "L74-L78",
+                    "label": "output-size counterexample and authority inference",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-142"
+                  }
+                ],
+                "reader_benefit": "Gives implementers an honest latency and memory bound for refusal receipts, including high-conflict policy batches.",
+                "required_proof_or_test_before_import": "Correct theorem and chapter text with an output-sensitive term and scope-incidence accounting; benchmark stop-at-first versus emit-all on n-by-n conflict fixtures and realistic corpora.",
+                "limits": "The reference Python scanner is quadratic even on some no-output cases; an improved bound needs a corresponding indexed algorithm."
+              },
+              {
+                "id": "U8-05",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "CLAIM-EXACT",
+                  "paper7",
+                  "paper8"
+                ],
+                "verdict": "absent",
+                "finding": "Chapter 8 explicitly limits its real-coordinate residual and says richer coefficient systems might preserve distinctions, but it does not teach the exact categorical feasibility check that precedes projection. For one finite-domain fact, union zero-difference edges and reject incompatible value pins in one component; two pins plus a zero path are a directly checkable witness. A three-vertex path can be categorically impossible while a linear residual is zero.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L504-L539",
+                    "label": "graph encoding and direct-claim baseline",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L625-L631",
+                    "label": "encoded-data boundary and richer coefficient caveat",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/claim-evidence-audit.md",
+                    "lines": "L49-L77",
+                    "label": "exact decision and certificate theorem",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-135"
+                  }
+                ],
+                "reader_benefit": "A reader gets a discrete correctness gate and a small verifiable contradiction witness before interpreting a metric residual.",
+                "required_proof_or_test_before_import": "Declare same-fact, same-snapshot signed reciprocal inputs and orientation; implement union-find pin scan; verify path3 zero-residual counterexample and compare identical-input direct sender checks.",
+                "limits": "Requires finite categorical domain and complete admitted edge observations; signatures and source authentication remain separate."
+              },
+              {
+                "id": "U8-06",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "CLAIM-COST"
+                ],
+                "verdict": "absent",
+                "finding": "Chapter 8 gives a cost caveat for requesting a new unknown receipt but has no minimum-cost contradictory subset among already retained categorical observations. The archived result chooses differing pins connected by the cheapest zero-edge path, charging their distinct source edges once. That is a retrospective certificate optimization, not a prospective query policy.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L618-L627",
+                    "label": "marginal gain and prospective cost caveat",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/claim-evidence-audit.md",
+                    "lines": "L79-L104",
+                    "label": "minimum-cost retained-evidence theorem",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-135"
+                  }
+                ],
+                "reader_benefit": "An auditor can present the least expensive sufficient contradiction and explain exactly which stored receipts support it.",
+                "required_proof_or_test_before_import": "Declare additive nonnegative receipt costs, prove shared source edge is charged once, compare solver to exhaustive subset optimum on small graphs, and require replayable pin/path witness.",
+                "limits": "All answers must already be observed; empty feasible digest remains unbound and uncertain acquisition is separate."
+              },
+              {
+                "id": "U8-07",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "P7-BUNDLES",
+                  "paper7",
+                  "paper8"
+                ],
+                "verdict": "partial",
+                "finding": "Chapter 8 correctly says a prospective query needs competing signatures and costs, but offers no acquisition policy for complementary receipts. Archived frozen fixtures have two individually zero-gain edge packets that jointly close a contradictory triangle; a one-step zero-gain stopping rule misses the bundle. Other fixtures show coherent false accounts need an external anchor and equal-price direct claims can match or beat topology-only diagnosis.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L618-L627",
+                    "label": "post-observation marginal formula and open prospective choice",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/research/receipt-bundle-design.md",
+                    "lines": "L21-L56",
+                    "label": "frozen packet libraries, exact acquisition results and same-information controls",
+                    "access": "omni_ledger_source_text_or_zip",
+                    "omni_source_id": "SRC-140"
+                  }
+                ],
+                "reader_benefit": "A reader can budget for receipt bundles that create a checkable cycle, or buy a direct claim or external anchor when it resolves the actual uncertainty more cheaply.",
+                "required_proof_or_test_before_import": "Predeclare available packets, authenticated provenance, answer uncertainty, total cost and stopping loss; compare exact bundles, one-step and two-step policies with equal-cost direct checks on held-out traces.",
+                "limits": "Fixture answers are known in advance; two-step success there gives no general adaptive optimality."
+              },
+              {
+                "id": "U8-08",
+                "chapters": [
+                  8
+                ],
+                "research_ids": [
+                  "paper7",
+                  "CLAIM-EXACT"
+                ],
+                "verdict": "publication_conflict",
+                "finding": "Current Chapter 8 TeX and Paper 7 have the corrected boundary, but the checked-in mega-volume PDF still prints an older claim that 313 of 1,101 residual detections refuted a pairwise CUT comparator and describes the radius as the minimum achievable adversary lie. Current source instead reports zero residual-only and 209 direct-only detections against equal-information direct claim checking; its radius is the minimum unrestricted edge-data correction, only a lower bound for a fixed sender. Thus source uptake and reader-visible published uptake disagree.",
+                "book_evidence": [
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L512-L539",
+                    "label": "corrected direct-claim baseline and 1,800-trial comparison",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                    "lines": "L590-L614",
+                    "label": "corrected radius scope",
+                    "access": "live_source_file"
+                  },
+                  {
+                    "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+                    "lines": "physical pp. 459-461; printed pp. 441-443",
+                    "label": "stale CUT claim and adversary-minimum radius",
+                    "access": "live_source_file"
+                  }
+                ],
+                "research_evidence": [
+                  {
+                    "path": "docs/harbor-research/tex/paper7.tex",
+                    "lines": "L96-L329",
+                    "label": "current graph model and equal-information boundary",
+                    "access": "live_source_file"
+                  }
+                ],
+                "reader_benefit": "A reader of the distributed PDF receives the same corrected detection and adversary-cost claims as the live chapter source.",
+                "required_proof_or_test_before_import": "Rebuild each published edition from current TeX, inspect the rendered Chapter 8 pages and search the PDFs for the stale 313/1101 CUT claim and fixed-sender achievability language; keep source and PDF provenance tied to the same build.",
+                "limits": "This is a stale rendered-publication mismatch, not a request to re-prove the source theorem."
+              }
+            ],
+            "summary": {
+              "embodied_or_conditional": 6,
+              "partial": 9,
+              "absent": 3,
+              "source_conflict": 2,
+              "publication_conflict": 1
+            },
+            "method": "Read current chapter source sections, paper sections, and structured Omni records. Judgments are about manuscript uptake, not installed runtime proof.",
+            "priority_imports": [
+              "UNKNOWN-EFFECT",
+              "FUTURE-HORN",
+              "P6-OUTPUT",
+              "CLAIM-EXACT",
+              "CLAIM-COST",
+              "P7-BUNDLES"
+            ]
+          }
+        ],
+        "independent_arithmetic_witness": {
+          "Cmiss": 10,
+          "catt": 1,
+          "Cfa": 1,
+          "a": "17/100",
+          "pass_loss": "17/10",
+          "inspection_loss": "183/100",
+          "printed_odds_decision": "inspect",
+          "direct_loss_decision": "pass"
+        },
+        "status_boundary": "The source hashes fix this assessment snapshot. Subsequent edits need renewed source/PDF comparison; archived assertions remain unchanged."
+      }
     }
   ],
   "coverage": {
