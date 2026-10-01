@@ -2,6 +2,14 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Stop and wait when blocked; merge your own PRs — operator order, 2026-10-01
+
+- When blocked on something only Erich can answer, state exactly what is needed in one short
+  message and stop. No scheduled check-ins, no timers, no polling, no PR subscriptions, no
+  re-reading state while waiting. Wait for the reply.
+- Open the PR, address review findings, then merge it yourself. Never wait on Erich to merge.
+- Keep status messages short. Do not restate state Erich already has.
+
 ## Local runtime halt takes precedence — operator order, 2026-09-05
 
 The Port Daddy local runtime is currently halted. This controls every later
