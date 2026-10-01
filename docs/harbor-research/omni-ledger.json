@@ -132027,29 +132027,26 @@
         "research portfolio"
       ],
       "kind": "program execution plan",
-      "status": "local scientific and publication verification complete; publishing branch for hosted checks",
-      "result": "Work proceeds in four gates: (1) reconcile the seven named mathematical/scope disagreements across manuscripts, chapters, figures, scripts and index; (2) rebuild paper mirrors and the Book, checking the actual rendered claims; (3) extend future commitment admission from a jointly reachable maximum to the antichain of maximal reachable fact sets with independent finite oracles and mutations; (4) group publication material by decision problem and evidence strength, allowing papers to merge or split. The 8 file identifiers are inventory locators, not a scientific requirement.",
+      "status": "scientific and pinned publication verification complete; final source checks and merge pending",
+      "result": "Twelve scoped mathematical and interpretive disagreements are reconciled across manuscripts, chapters, figures, scripts and index. The reachable-family admission theorem and least-cost categorical contradiction certificate have explicit hypotheses, independent finite checks and baseline comparisons. Six candidate publication questions organize the next work; the eight file identifiers are inventory locators, not a required paper count.",
       "assumptions": "Local Port Daddy remains halted. Source changes, local mathematical checks, rendered publication proof, hosted CI, merge and deployment are separate states. Historical source bytes remain immutable evidence.",
       "evidence": [
         "Operator authorization, 2026-09-30: rectify all known information disagreements, continue the research program, and change paper count/scope as justified.",
-        "New test_legibility_corrections.py: six exact-arithmetic boundary tests passed; odds-denominator, zoom equality, split-floor explanation, escalation hypotheses and deterministic-vs-expected corruption mutants covered.",
         "Extended test_research_envelopes.py: seven tests passed; 130560 explicit reachable families and 4096 program/fact truth-table cases; current-only and unreachable-union mutants rejected.",
         "Existing categorical suites rerun: 17 claim-audit tests and seven costed-certificate tests passed, including 12288 binary price cases and 512 ternary cases. These are reruns, not new test counts.",
         "Independent Paper8/Chapter8 proof review accepted the zero-component and minimum-cost arguments, conditional on the declared observation model.",
         "Primary source boundaries: Young https://arxiv.org/abs/cs/0205033 ; Doyen and Raskin https://arxiv.org/abs/0902.3958 . Imported competitive analysis and antichain reasoning are not claimed as new.",
-        "Second adversarial pass found three additional source overclaims: cover-counting upper bound called an optimum (N=4,k=2,m=3,B=1 gives optimum5/6 versus bound1); compatible tied orders treated as identical; one-reader/joint lower bounds treated as achieved representation costs. Repairs and explicit counterexamples are required before publication freeze.",
-        "Native editor compilation cannot load sibling preamble.tex; repository multi-file TeX build is the verification path. Papers5/6/8 built locally; Paper8 has14pages and zero overfull h/v boxes. Book build needed its output directory in TEXINPUTS for generated solutions; final build awaits source freeze.",
-        "PR10321 head1a85fdc7e hosted checks completed successfully. Current scientific changes are not yet on that head. Four issue-comment findings rechecked: archive manifest and external fixture reads resolved; silent critique projection overwrite and isolated import failure require fixes.",
-        "All three additional review findings corrected; eight new exact boundary tests passed. The scalar-order theorem additionally states finite X and one shared deterministic tie rule, avoiding arbitrary-order embedding and reader-specific tie-break loopholes.",
         "All four prior PR issue-comment findings now addressed: retired-source hash validation, external fixture reads, fail-before-write critique projection check, and isolated importlib loading. New no-mutation and clean-process regressions added; no source import is silently treated as current truth.",
         "Public research cards reconciled with manuscripts: remove authority-from-NP-hardness and peer-conviction claims, scope audit/privacy/identity assumptions, and link Paper8 to Chapter8. Website result mapping tests: six passed. Paper8 standalone arXiv source/preamble match and extracted PDF text matches current mirror; archive has deterministic zero timestamps.",
-        "Rendered inspection found overlapping Paper1 relation diagrams despite successful TeX compilation. R1 was redrawn as a complete six-item covering example; R4 relation repair and final page inspection are required before PDF publication. This is a publication gate, not a mathematical test result.",
         "Final diagram review found the calibration-direction error in R3 regime. Nine new legibility-boundary tests now pass, including overconfident early inspection and underconfident late inspection; the corresponding plot labels/caption are corrected as part of Paper1 visual repair.",
-        "Final local publication receipt verified against every listed SHA-256: Paper1 16 pages and Paper8 14 pages, both zero overfull boxes; Book592pages. All Paper1 pages/ten figure pages inspected. Public paper mirrors are byte-identical; metadata and archive/source checks pass."
+        "Final local publication receipt verified against every listed SHA-256: Paper1 16 pages and Paper8 14 pages, both zero overfull boxes; Book592pages. All Paper1 pages/ten figure pages inspected. Public paper mirrors are byte-identical; metadata and archive/source checks pass.",
+        "Native editor compilation cannot load sibling preamble.tex; successful repository multi-file builds provide compilation evidence. The Book build resolves generated solution inputs through its output directory in TEXINPUTS.",
+        "Hosted source checks caught a hardcoded 21-file fixture after the registry grew to 22. The regression now verifies every registered path exactly once across bounded page-breakable rows, including a singleton final row; 16 generator tests pass locally.",
+        "Pinned hosted publications: research run36809395777 and Book refresh36809449339 succeeded; all eight mirrors match. Book592pages, SHA03f47adfa8e5606c4659b05736e2843cbf5aa0e6e9d9ccb9368697efbc50547c; current publication digests match. Final source checks and merge remain separate."
       ],
       "next": "Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol.",
       "acceptance": [
-        "All seven named audit disagreements have an explicit corrected statement and check or a clearly delimited unresolved proof obligation.",
+        "All twelve enumerated audit disagreements have a corrected statement and check; unresolved reachability, implementation and empirical claims remain explicitly scoped.",
         "Source/PDF and index discrepancies have current file-bound receipts.",
         "New admission result states reachability provenance and does not treat incompatible futures as jointly reachable.",
         "Every proposed paper has a central question, strongest result, nearest baseline, utility test and a merge/split condition."
@@ -132077,7 +132074,7 @@
         },
         {
           "id": "publication-parity",
-          "status": "local PDF/source parity and visual checks pass; hosted pinned renderer pending"
+          "status": "local and hosted pinned PDFs verified; all eight mirrors match; Book592pages with corrected claims; strict metadata passes"
         },
         {
           "id": "reachable-antichain-result",
@@ -132491,7 +132488,177 @@
           "library_index": "0 failures across five checks",
           "book_pdf_checks": "1 PDF, two per-PDF, one per-directory, all clean"
         }
-      }
+      },
+      "hosted_publication_receipt": {
+        "book": {
+          "bytes": 9946995,
+          "pages": 592,
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+          "sha256": "03f47adfa8e5606c4659b05736e2843cbf5aa0e6e9d9ccb9368697efbc50547c"
+        },
+        "book_refresh_run": "https://github.com/curiositech/port-daddy/actions/runs/36809449339",
+        "book_text_audit": {
+          "chapter4_finite_scalar": [
+            216
+          ],
+          "chapter5_unknown_effect": [
+            282
+          ],
+          "chapter6_reachable_admission": [
+            333
+          ],
+          "chapter8_categorical": [
+            466
+          ],
+          "chapter8_direct_only": [
+            460
+          ],
+          "chapter8_residual_only": [
+            460
+          ],
+          "chapter8_unrestricted_correction": [
+            462
+          ],
+          "chapter8_unrestricted_summary": [
+            482
+          ],
+          "obsolete_1101_count": 0,
+          "obsolete_313_count": 0,
+          "obsolete_CUT_superiority_count": 0,
+          "obsolete_minimum_adversary_lie_count": 0
+        },
+        "head": "e3cba0bb02e6111d859bce234162e36602d2a1c0",
+        "metadata_strict_check": {
+          "exact_drift": [
+            {
+              "metadata_kb": 427,
+              "paper": 1,
+              "pdf_kb": 438
+            },
+            {
+              "metadata_kb": 324,
+              "paper": 5,
+              "pdf_kb": 335
+            },
+            {
+              "metadata_kb": 422,
+              "paper": 6,
+              "pdf_kb": 433
+            }
+          ],
+          "reason": "researchPapers.ts sizeKb drift on Papers 1, 5, 6 after pinned research renderer bot push",
+          "status": "FAIL"
+        },
+        "next": "Root runs metadata --fix then strict check and commits only derived metadata after integrating ci_watch test repair; inspect new PR exact head.",
+        "papers": [
+          {
+            "mirror_identical": true,
+            "number": 1,
+            "pdf": {
+              "bytes": 448600,
+              "pages": 16,
+              "path": "docs/harbor-research/pdf/paper1.pdf",
+              "sha256": "53c3a5f77a49bdaa5faf210d889bf1a8f64c8c3470bbe2cc9f4e262430752cda"
+            },
+            "site_mirror_sha256": "53c3a5f77a49bdaa5faf210d889bf1a8f64c8c3470bbe2cc9f4e262430752cda"
+          },
+          {
+            "mirror_identical": true,
+            "number": 2,
+            "pdf": {
+              "bytes": 371402,
+              "pages": 14,
+              "path": "docs/harbor-research/pdf/paper2.pdf",
+              "sha256": "96711f3ef237e5ac66b4e28bbcb95b9636eca5ac94262ee5a7d7a0ca3ec58112"
+            },
+            "site_mirror_sha256": "96711f3ef237e5ac66b4e28bbcb95b9636eca5ac94262ee5a7d7a0ca3ec58112"
+          },
+          {
+            "mirror_identical": true,
+            "number": 3,
+            "pdf": {
+              "bytes": 353308,
+              "pages": 12,
+              "path": "docs/harbor-research/pdf/paper3.pdf",
+              "sha256": "07484c2414832389a2eb8e208f2593dc106a830155c4d7041b9874fd1a961eb6"
+            },
+            "site_mirror_sha256": "07484c2414832389a2eb8e208f2593dc106a830155c4d7041b9874fd1a961eb6"
+          },
+          {
+            "mirror_identical": true,
+            "number": 4,
+            "pdf": {
+              "bytes": 416859,
+              "pages": 17,
+              "path": "docs/harbor-research/pdf/paper4.pdf",
+              "sha256": "32cfab32a723f0d681e5238be1fb3e11ef1138457e093e5d5ac9cf710e7793e0"
+            },
+            "site_mirror_sha256": "32cfab32a723f0d681e5238be1fb3e11ef1138457e093e5d5ac9cf710e7793e0"
+          },
+          {
+            "mirror_identical": true,
+            "number": 5,
+            "pdf": {
+              "bytes": 343458,
+              "pages": 15,
+              "path": "docs/harbor-research/pdf/paper5.pdf",
+              "sha256": "dd6118532c40535be35fbadc29e4dc3534d60464e6f55e31690a582baadcffad"
+            },
+            "site_mirror_sha256": "dd6118532c40535be35fbadc29e4dc3534d60464e6f55e31690a582baadcffad"
+          },
+          {
+            "mirror_identical": true,
+            "number": 6,
+            "pdf": {
+              "bytes": 442968,
+              "pages": 15,
+              "path": "docs/harbor-research/pdf/paper6.pdf",
+              "sha256": "b3070bef5b3dddbdfb34caf57b34315cd5aebcd3d688a234bb39e2763532f679"
+            },
+            "site_mirror_sha256": "b3070bef5b3dddbdfb34caf57b34315cd5aebcd3d688a234bb39e2763532f679"
+          },
+          {
+            "mirror_identical": true,
+            "number": 7,
+            "pdf": {
+              "bytes": 433494,
+              "pages": 11,
+              "path": "docs/harbor-research/pdf/paper7.pdf",
+              "sha256": "a90a6fc88aa2c534cfb76001f7d43e1ba000df67a377e2feee8824126844b6d1"
+            },
+            "site_mirror_sha256": "a90a6fc88aa2c534cfb76001f7d43e1ba000df67a377e2feee8824126844b6d1"
+          },
+          {
+            "mirror_identical": true,
+            "number": 8,
+            "pdf": {
+              "bytes": 298220,
+              "pages": 14,
+              "path": "docs/harbor-research/pdf/paper8.pdf",
+              "sha256": "38cc80b29f0a25b03b16613000d12df99d7c3d6f61c9a04705ef97610e110765"
+            },
+            "site_mirror_sha256": "38cc80b29f0a25b03b16613000d12df99d7c3d6f61c9a04705ef97610e110765"
+          }
+        ],
+        "pr": "https://github.com/curiositech/port-daddy/pull/10321",
+        "publication_digests": {
+          "$comment": "Generated by `npm run fix:whitepaper-metadata` in website-v2. SHA-256, page count and byte size of every committed publication PDF; tests/purser/whitepaper-hashes.test.js and tests/unit/spawn-whitepaper-contract.test.js pin against it. Do not edit by hand.",
+          "pdfs": {
+            "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
+              "bytes": 9946995,
+              "pages": 592,
+              "sha256": "03f47adfa8e5606c4659b05736e2843cbf5aa0e6e9d9ccb9368697efbc50547c"
+            }
+          }
+        },
+        "research_workflow_run": "https://github.com/curiositech/port-daddy/actions/runs/36809395777",
+        "workflow_status": {
+          "book_cover_band": "success",
+          "book_refresh": "success",
+          "research": "success"
+        }
+      },
+      "hosted_metadata_resolution": "After both bot commits, research card sizes synchronized to all eight hosted PDFs; npm run test:whitepaper-metadata -- --strict passes, including Book publication digests. This supersedes the receipt inspection’s intermediate metadata drift."
     }
   ],
   "coverage": {

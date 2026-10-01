@@ -287,23 +287,36 @@ test('the real whitepaper/corpus.json renders end to end without drift', () => {
   }
 });
 
-test('the 21-file R-script suite breaks into page-breakable rows without losing a path', () => {
+test('the registered R-script suite breaks into page-breakable rows without losing a path', () => {
   const corpus = loadCorpus();
   const suite = corpus.researchProgramArtifacts.find((artifact) => artifact.id === 'harbor-results-r-scripts');
-  assert.equal(suite.paths.length, 21);
+  assert.ok(suite.paths.length > 7, 'fixture must exercise multi-row rendering');
   const rendered = collapseBreakHints(renderMechanizedClaims(corpus));
   const tableStart = rendered.indexOf('Python / R scripts artifacts');
   const table = rendered.slice(tableStart, rendered.indexOf('\\end{xltabular}', tableStart));
   const rows = table.split('\n').filter((line) => line.includes('\\texttt{harbor-results-r-scripts}'));
-  assert.equal(rows.length, 3);
-  assert.equal(rows.filter((line) => line.includes('\\textit{(continued)}')).length, 2);
-  for (const row of rows) {
-    assert.match(row, /\\texttt\{harbor-results-estate\} & \\textsc\{current\} & ---/);
-    assert.match(row, /\\textit\{\(7 files\)\}/);
-    assert.equal((row.match(/\\path\{[^{}]+\.py\}/g) ?? []).length, 7);
+  const chunks = [];
+  for (let start = 0; start < suite.paths.length; start += 7) {
+    chunks.push(suite.paths.slice(start, start + 7));
   }
-  const basenames = rows.flatMap((row) => [...row.matchAll(/\\path\{([^{}]+\.py)\}/g)].map((match) => match[1]));
-  assert.deepEqual(basenames.sort(), suite.paths.map((path) => path.split('/').at(-1)).sort());
+  assert.equal(rows.length, chunks.length);
+  assert.equal(rows.filter((line) => line.includes('\\textit{(continued)}')).length, chunks.length - 1);
+  rows.forEach((row, index) => {
+    const chunk = chunks[index];
+    assert.ok(chunk.length <= 7, 'each row stays within the page-breakable path limit');
+    assert.match(row, /\\texttt\{harbor-results-estate\} & \\textsc\{current\} & ---/);
+    if (chunk.length > 1) {
+      assert.match(row, new RegExp(`\\\\textit\\{\\(${chunk.length} files\\)\\}`));
+    } else {
+      assert.doesNotMatch(row, /\\textit\{\(\d+ files\)\}/);
+    }
+    const rowPaths = [...row.matchAll(/\\path\{([^{}]+\.py)\}/g)].map((match) => match[1]);
+    assert.equal(rowPaths.length, chunk.length);
+    const expectedPaths = chunk.length === 1
+      ? chunk
+      : chunk.map((path) => path.split('/').at(-1));
+    assert.deepEqual(rowPaths, expectedPaths);
+  });
 });
 
 test('renderMechanizedClaims puts every caption in its table first head', () => {

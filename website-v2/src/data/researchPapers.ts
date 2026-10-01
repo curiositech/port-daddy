@@ -81,7 +81,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 427,
+    sizeKb: 438,
     claim:
       'A zero-miss digest has a combinatorial bit lower bound under a fixed inspection budget. Decision-specific rankings and adaptive group queries have separate, explicit assumptions.',
     pullQuote:
@@ -171,7 +171,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
     pages: 15,
-    sizeKb: 324,
+    sizeKb: 335,
     claim:
       'Ledger rules can conserve credit and inherited obligations across agent changes. Safe continuation of an unknown remote effect additionally requires an adapter-specific deduplication or fencing contract.',
     pullQuote:
@@ -195,7 +195,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
     pages: 15,
-    sizeKb: 422,
+    sizeKb: 433,
     claim:
       'A ground commitment language admits polynomial conflict checks. For a finite declared reachable family, future safety is decided on its inclusion-maximal fact sets.',
     pullQuote:
@@ -243,7 +243,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
     pages: 14,
-    sizeKb: 290,
+    sizeKb: 291,
     claim:
       'Typed maps specify which evidence can be compared. Exact categorical certificates, relative extension and report-error distance answer distinct compatibility questions.',
     pullQuote:
