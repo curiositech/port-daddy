@@ -200,7 +200,7 @@ Under the Anchor Protocol, every child capability is a strict, verifiable subset
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop2-attenuation.jpg}%
+    \input{figures/fig-spark-prop2-attenuation.tex}%
   }
   \pdwidecaption{\textbf{Proposition 2 Mechanics: Monotonic Capability Attenuation.} Chained cryptographic capability tokens enforce monotonic restriction at every delegation hop. An intermediate delegate can append attenuating caveats (narrowing path scopes, reducing budgets, and shortening TTLs), but can never widen authority or extend parent lifetimes ($C_0 \supset C_1 \supset C_2$).}[fig:spark-prop2]
 \end{figure}
