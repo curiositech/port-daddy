@@ -1,0 +1,39 @@
+% TEMPLATE: slope chart (two ranked columns, one line per item, the rank
+% change that is the chapter's claim highlighted in the chapter hue). Two
+% vertical spines rather than a pgfplots axis pair, since pgfplots' native
+% axis pair is awkward for exactly two ranked columns (S7: declare the grid
+% once). A crossing between two lines is a rank swap and is left alone, not
+% routed around: the crossing is itself the fact.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\sx{5.2}  \def\dy{-1.05}
+  \node[pd title] at (0,0.55) {before hardening};
+  \node[pd title] at (\sx,0.55) {after hardening};
+  \draw[pd rule] (0,0.25) -- (0,{4*\dy-0.25});
+  \draw[pd rule] (\sx,0.25) -- (\sx,{4*\dy-0.25});
+  \foreach \name/\rb/\ra in {%
+    {auth}/2/3,{bus}/1/2,{storage}/3/4,{network}/5/5}{
+      \draw[pd hairline] (0,{(\rb-1)*\dy}) -- (\sx,{(\ra-1)*\dy});
+      \node[pd datum] at (0,{(\rb-1)*\dy}) {};
+      \node[pd datum] at (\sx,{(\ra-1)*\dy}) {};
+      \node[pd label,anchor=east] at (-0.18,{(\rb-1)*\dy}) {\name};
+      \node[pd label,anchor=west] at ({\sx+0.18},{(\ra-1)*\dy}) {\name};}
+  % the chapter's subject: clock, rank 4 (before) to rank 1 (after)
+  \draw[pd focus rule] (0,{3*\dy}) -- (\sx,0);
+  \node[pd focus datum] at (0,{3*\dy}) {};
+  \node[pd focus datum] at (\sx,0) {};
+  \node[pd focus label,anchor=east] at (-0.18,{3*\dy}) {clock};
+  \node[pd focus label,anchor=west] at ({\sx+0.18},0) {clock};
+  \node[pd note,anchor=north west,text width=6.7cm] at (0,{4*\dy-0.55})
+    {rank 1 is the most critical dependency; clock crosses every other item
+    on its way to first.};
+\end{tikzpicture}
+\caption{A slope chart of five dependencies ranked by criticality before and
+after the hardening pass. Only the clock crosses the whole field, moving
+from rank 4 to rank 1; the other four items shift by at most one place and
+keep their relative order. The chapter's claim is the crossing itself, not
+either column read alone. [internal, illustrative]}
+\label{fig:tpl-slope-chart}
+\end{figure}

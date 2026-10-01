@@ -1,0 +1,102 @@
+% fig-ch0-arrows-consensus.tex
+% Arrow's Impossibility Theorem & Cardinal Test Oracle Resolution
+% Replaces raster fig-arrows-impossibility.png with 100% native vector Swiss TikZ.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actnode/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=2.5pt},
+    altnode/.style={circle,draw=pderror,line width=1.0pt,fill=pdpage,inner sep=3.5pt,font=\bfseries\footnotesize,text=pderror},
+    panel/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+  }
+
+  % =========================================================================
+  % LEFT PANEL: THE ORDINAL VOTING TRAP (ARROW 1951 / CONDORCET)
+  % =========================================================================
+  \draw[panel] (0.0,0.0) rectangle (7.8,8.8);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pderror] at (0.3,8.5) {The Ordinal Voting Trap};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (7.5,8.5) {Arrow (1951)};
+
+  % Scope background plane
+  \draw[draw=hhink!10,fill=pdpage,rounded corners=2pt] (0.3,0.3) rectangle (7.5,8.0);
+
+  % Alternatives in a balanced triangle
+  % Node A (top)
+  \node[altnode] (A) at (3.9,6.7) {$A$};
+  \node[anchor=south,font=\tiny\bfseries,text=hhink] at (3.9,7.1) {Proposal $A$ (Refactor)};
+
+  % Node B (bottom right)
+  \node[altnode] (B) at (5.3,4.7) {$B$};
+  \node[anchor=north,font=\tiny\bfseries,text=hhink] at (5.3,4.2) {Proposal $B$ (Cache)};
+
+  % Node C (bottom left)
+  \node[altnode] (C) at (2.5,4.7) {$C$};
+  \node[anchor=north,font=\tiny\bfseries,text=hhink] at (2.5,4.2) {Proposal $C$ (Inline)};
+
+  % Directed Condorcet Cycle Arrows
+  \draw[pd arrow,pderror,line width=1.1pt] (A) to[bend left=18] node[pos=0.5,above right,font=\tiny\bfseries,text=pderror] {$2/3$ vote} (B);
+  \draw[pd arrow,pderror,line width=1.1pt] (B) -- node[pos=0.5,above,font=\tiny\bfseries,text=pderror] {$2/3$ vote} (C);
+  \draw[pd arrow,pderror,line width=1.1pt] (C) to[bend left=18] node[pos=0.5,above left,font=\tiny\bfseries,text=pderror] {$2/3$ vote} (A);
+
+  % Center Condorcet Deadlock Badge
+  \node[draw=pderror,fill=pderror!10,rounded corners=2pt,inner sep=3pt,align=center] at (3.9,5.55) {%
+    {\tiny\bfseries\color{pderror} Condorcet Deadlock}\\[1pt]
+    {\scriptsize $A \succ B \succ C \succ A$}
+  };
+
+  % Preference Profile Card
+  \node[draw=hhink!30,fill=hhpaper!50,rounded corners=2pt,text width=6.2cm,inner ysep=3pt] at (3.9,2.4) {%
+    {\scriptsize\bfseries Individual Agent Ordinal Rankings:}\\[2pt]
+    \centering
+    \begin{tabular}{@{}ll@{}}
+      \tiny Agent $a_1$: & \tiny $A \succ B \succ C$ \quad (prefers refactor) \\
+      \tiny Agent $a_2$: & \tiny $B \succ C \succ A$ \quad (prefers cache) \\
+      \tiny Agent $a_3$: & \tiny $C \succ A \succ B$ \quad (prefers inline) \\
+    \end{tabular}\\[2pt]
+    {\tiny\itshape Pairwise majority induces cyclic intransitivity with no winner.}
+  };
+
+  % Bottom Theorem Banner
+  \node[anchor=center,font=\tiny\sffamily,text=pderror!90,fill=pderror!8,draw=pderror!30,rounded corners=2pt,inner sep=3pt,text width=6.2cm,align=center] at (3.9,0.75) {%
+    \textbf{Arrow's Theorem:} Ordinal voting with $\ge 3$ choices forces cyclic deadlocks or degenerates into a Dictatorship $D(a_k)$.%
+  };
+
+
+  % =========================================================================
+  % RIGHT PANEL: CARDINAL STAKE & OBJECTIVE ORACLES (PORT DADDY)
+  % =========================================================================
+  \draw[panel] (8.1,0.0) rectangle (15.2,8.8);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdcobalt] at (8.4,8.5) {Cardinal Utility \& Oracles};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (14.9,8.5) {Kernel Resolution};
+
+  % Card 1: Cardinal Utility Ledger
+  \node[actnode,draw=pdcobalt,fill=pdcobalt!8,text width=6.2cm,inner ysep=2.5pt] (c1) at (11.65,7.05) {%
+    {\scriptsize\bfseries 1. Cardinal Stake Bidding}\\[1.5pt]
+    {\tiny Agents submit scalar valuations $v_i(x) \in \mathbb{R}$ backed by escrow.}\\[1pt]
+    {\tiny\color{hhink!80} Eliminates ordinal ambiguity via quantitative utility weights.}
+  };
+
+  % Card 2: VCG Incentive Compatibility
+  \node[actnode,draw=pdteal,fill=pdteal!8,text width=6.2cm,inner ysep=2.5pt] (c2) at (11.65,4.80) {%
+    {\scriptsize\bfseries 2. VCG Mechanism / Clarke Pivot Tax}\\[1.5pt]
+    {\tiny Surplus maximization: $x^* = \arg\max_{x} \sum_{i} v_i(x)$}\\[1pt]
+    {\tiny Dominant strategy: truth-telling via pivot tax $p_i$}\\[1pt]
+    {\tiny\color{hhink!80} Removes strategic misrepresentation incentives.}
+  };
+  \draw[pd arrow,pdcobalt,line width=0.9pt] (c1.south) -- (c2.north);
+  \node[anchor=west,font=\tiny\bfseries,text=pdcobalt] at (12.15,5.92) {VCG clearing};
+
+  % Card 3: Objective Test Oracle Gate
+  \node[actnode,draw=pdindigo,fill=pdindigo!8,text width=6.2cm,inner ysep=2.5pt] (c3) at (11.65,2.50) {%
+    {\scriptsize\bfseries 3. Objective Test Oracle Gate}\\[1.5pt]
+    {\tiny Deterministic test oracle: $\mathcal{O}_{\text{test}}(x^*) \in \{\mathtt{PASS}, \mathtt{FAIL}\}$}\\[1pt]
+    {\tiny Broken tests forfeit escrow; sycophancy cannot pass.}
+  };
+  \draw[pd arrow,pdteal,line width=0.9pt] (c2.south) -- (c3.north);
+  \node[anchor=west,font=\tiny\bfseries,text=pdteal] at (12.15,3.65) {verify oracle};
+
+  % Bottom Invariant Banner
+  \node[anchor=center,font=\tiny\sffamily,text=hhink!90,fill=pdpage,draw=hhink!30,rounded corners=2pt,inner sep=3.5pt,text width=6.2cm,align=center] at (11.65,0.75) {%
+    \textbf{Operating Invariant:} Bounded economic stake and objective test oracles resolve swarm deadlock without voting politics.%
+  };
+
+\end{tikzpicture}

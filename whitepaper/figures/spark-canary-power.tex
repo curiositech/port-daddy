@@ -1,0 +1,28 @@
+% Analytical sparkline: detection power curve P(k) = 1 - beta^k.
+% Domain k in [1, 8]; curves for beta=0.2 (solid teal) and beta=0.5 (muted).
+% Fits inside the 93.95pt book margin column.
+% Source: thm:sealed-power (Canaries with a power curve).
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=8.5pt,y=36pt,font=\fontsize{7}{8}\selectfont]
+  % Subtle baseline and ceiling
+  \draw[pdinkmuted!35,line width=.35pt] (1,0) -- (8,0);
+  \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (1,1) -- (8,1);
+  % Reference curve beta=0.5 (muted dashed)
+  \draw[pdinkmuted!70,line width=.55pt,dash pattern=on 2pt off 1.5pt] plot[domain=1:8,samples=29]
+    (\x,{1 - 0.5^\x});
+  % Primary curve beta=0.2 (solid teal)
+  \draw[pdteal,line width=.85pt] plot[domain=1:8,samples=29]
+    (\x,{1 - 0.2^\x});
+  \foreach \k in {1,2,3,5,8}{%
+    \fill[pdteal] (\k,{1 - 0.2^\k}) circle[radius=1pt];
+  }
+  % Labels
+  \node[anchor=east,inner sep=1pt] at (1,0.8) {$0.8$};
+  \node[anchor=west,inner sep=1pt] at (8,1) {$1.0$};
+  \node[anchor=south,inner sep=1pt] at (4.5,1.02) {$1-\beta^k$};
+  \node[anchor=north,inner sep=1.5pt] at (4.5,0) {$k: 1\longrightarrow 8$};
+\end{tikzpicture}
+\makeatother\endgroup

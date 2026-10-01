@@ -1,0 +1,138 @@
+% fig-ch0-fipa-speech-acts.tex
+% FIPA-00037 Communicative Speech Act State Transition Machine
+% Replaces raster fig-ch0-fipa-speech-acts.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdindigo}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actnode/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,font=\footnotesize,inner xsep=4pt,inner ysep=3pt},
+    stateinit/.style={draw=pdindigo,line width=1.0pt,fill=pdindigo!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    staterun/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    statedone/.style={draw=pdhealth,line width=1.1pt,fill=pdhealth!10,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    statefail/.style={draw=pderror,line width=0.9pt,dashed,fill=pderror!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
+    panel/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+  }
+
+  % Three horizontal pipeline panels (height 3.2 each, 0.3 gap, total height 10.2)
+  % =========================================================================
+  % 1. DIRECTIVE PIPELINE: request (DB Migration under lock)
+  % =========================================================================
+  \draw[panel] (0.0,7.0) rectangle (15.2,10.2);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdindigo] at (0.2,9.95) {1. DIRECTIVE: \texttt{request} \normalfont\footnotesize\color{hhgray}(Atomic Action Execution)};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,9.95) {$\langle\mathtt{conv\_id}, \mathtt{sender}, \mathtt{token}, \mathtt{action}\rangle$};
+
+  % Row 1: Active Lifecycle (y = 8.8)
+  \node[stateinit] (req_init) at (1.8,8.8) {%
+    \textbf{Initiated}\\
+    \scriptsize \texttt{request(db:migrate)}
+  };
+
+  \node[actnode,text width=2.6cm] (req_eval) at (5.4,8.8) {%
+    \textbf{Arbitration}\\
+    \scriptsize Lock \& capability
+  };
+
+  \node[staterun] (req_exec) at (9.6,8.8) {%
+    \textbf{Agreed \& Sandboxed}\\
+    \scriptsize \texttt{agree} $\to$ run migration
+  };
+
+  \node[statedone] (req_done) at (13.6,8.8) {%
+    \textbf{Completed}\\
+    \scriptsize \texttt{inform-done(receipt)}
+  };
+
+  % Row 2: Terminal Failure / Refusal (y = 7.55)
+  \node[statefail,text width=2.8cm] (req_refuse) at (5.4,7.55) {%
+    \textbf{Refused}\\
+    \scriptsize \texttt{refuse(lock:held)}
+  };
+
+  \node[statefail,text width=2.8cm] (req_fail) at (9.6,7.55) {%
+    \textbf{Failed}\\
+    \scriptsize \texttt{failure(stderr)}
+  };
+
+  % Directive Arrows
+  \draw[pd arrow,pdindigo] (req_init.east) -- (req_eval.west);
+  \draw[pd arrow,pdcobalt] (req_eval.east) -- (req_exec.west);
+  \draw[pd ready arrow] (req_exec.east) -- (req_done.west);
+  \draw[pd breach arrow] (req_eval.south) -- (req_refuse.north);
+  \draw[pd breach arrow] (req_exec.south) -- (req_fail.north);
+
+
+  % =========================================================================
+  % 2. ASSERTIVE PIPELINE: inform (Belief Base Mutation)
+  % =========================================================================
+  \draw[panel] (0.0,3.5) rectangle (15.2,6.7);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdteal] at (0.2,6.45) {2. ASSERTIVE: \texttt{inform} \normalfont\footnotesize\color{hhgray}(Belief Base Mutation)};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,6.45) {Truth commitment: $\operatorname{Bel}_s(p) \land \operatorname{Des}_s(\operatorname{Bel}_r(p))$};
+
+  % Row 1: Active Lifecycle (y = 5.3)
+  \node[stateinit,draw=pdteal,fill=pdteal!8] (inf_init) at (1.8,5.3) {%
+    \textbf{Asserted}\\
+    \scriptsize \texttt{inform(status:green)}
+  };
+
+  \node[actnode,text width=2.6cm] (inf_verify) at (5.4,5.3) {%
+    \textbf{Integrity Check}\\
+    \scriptsize Ed25519 signature
+  };
+
+  \node[statedone] (inf_commit) at (13.6,5.3) {%
+    \textbf{Belief Mutated}\\
+    \scriptsize $+b \in bs$ committed to WAL
+  };
+
+  % Row 2: Malformed / Rejected (y = 4.05)
+  \node[statefail,text width=3.4cm] (inf_rej) at (5.4,4.05) {%
+    \textbf{Not Understood}\\
+    \scriptsize \texttt{not-understood(bad:sig)}
+  };
+
+  % Assertive Arrows
+  \draw[pd arrow,pdteal] (inf_init.east) -- (inf_verify.west);
+  \draw[pd ready arrow] (inf_verify.east) -- node[above,font=\tiny,text=pdhealth] {valid cryptographic proof $\to$ commit} (inf_commit.west);
+  \draw[pd breach arrow] (inf_verify.south) -- (inf_rej.north);
+
+
+  % =========================================================================
+  % 3. COMMISSIVE PIPELINE: propose (Contract / SLA Negotiation)
+  % =========================================================================
+  \draw[panel] (0.0,0.0) rectangle (15.2,3.2);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdgold] at (0.2,2.95) {3. COMMISSIVE: \texttt{propose} \normalfont\footnotesize\color{hhgray}(SLA \& Work Allocation)};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,2.95) {Mutual covenant: $\operatorname{Int}_s(\alpha) \land \operatorname{Commit}(s, r, \alpha)$};
+
+  % Row 1: Active Lifecycle (y = 1.8)
+  \node[stateinit,draw=pdgold,fill=pdgold!10] (prop_init) at (1.8,1.8) {%
+    \textbf{Proposed}\\
+    \scriptsize \texttt{propose(sla:99.9\%)}
+  };
+
+  \node[actnode,text width=2.6cm] (prop_eval) at (5.4,1.8) {%
+    \textbf{Utility Filter}\\
+    \scriptsize Capacity \& budget
+  };
+
+  \node[staterun,draw=pdgold,fill=pdgold!8] (prop_acc) at (9.6,1.8) {%
+    \textbf{Accepted}\\
+    \scriptsize \texttt{accept-proposal}
+  };
+
+  \node[statedone] (prop_bound) at (13.6,1.8) {%
+    \textbf{Escrow Bound}\\
+    \scriptsize Bidirectional lease locked
+  };
+
+  % Row 2: Rejection (y = 0.55)
+  \node[statefail,text width=2.8cm] (prop_rej) at (5.4,0.55) {%
+    \textbf{Rejected}\\
+    \scriptsize \texttt{reject-proposal}
+  };
+
+  % Commissive Arrows
+  \draw[pd arrow,pdgold] (prop_init.east) -- (prop_eval.west);
+  \draw[pd arrow,pdgold] (prop_eval.east) -- (prop_acc.west);
+  \draw[pd ready arrow] (prop_acc.east) -- (prop_bound.west);
+  \draw[pd breach arrow] (prop_eval.south) -- (prop_rej.north);
+
+\end{tikzpicture}

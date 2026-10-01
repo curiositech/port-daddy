@@ -85,7 +85,7 @@
       "edition": "swiss",
       "plate": "website-v2/public/whitepaper/plates/swiss/cover.jpg",
       "clean_band_floor": 0.30,
-      "measured": { "clean_band": 0.326 },
+      "measured": { "clean_band": 0.332 },
       "note": "Full-bleed photomontage, type placed at absolute TikZ coordinates."
     }
   ]

@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Clockwork mechanical parking meter with cobalt blue expired flag. Analogy for finite-duration capability grants and lease expiry.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "3a9030926a55b7c6ca713a540fe559a21b5ae95c6dba1e37cac5516900cfe311",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

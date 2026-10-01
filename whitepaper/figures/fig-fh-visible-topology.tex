@@ -1,0 +1,50 @@
+% Authored construction example; all source edges carry one fixed coordinate c.
+% Checked by scripts/harbor-research/check_visible_topology.py.
+% No residual or detection outcome is asserted.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  vt witness/.style={circle,draw=none,fill=pdink,inner sep=0pt,minimum size=3.5pt},
+  vt compared/.style={draw=pdink,line width=.8pt},
+  vt relayed/.style={draw=pdteal,line width=.9pt,line cap=butt,
+    dash pattern=on 3pt off 2pt},
+  vt severed/.style={draw=pdinkmuted,line width=.9pt,densely dotted}]
+  % Shared coordinates: only the visibility filter changes between panels.
+  \foreach \panel/\offset in {source/0,visible/5.8}{
+    \begin{scope}[xshift=\offset cm]
+      \foreach \name/\x/\y in {A/.45/2.1,B/1.5/3,C/1.5/1.2,
+        D/2.8/1.2,E/3.85/2.1,F/3.85/.3,G/4.95/.3}{
+        \node[vt witness] (\panel-\name) at (\x,\y) {};
+      }
+      \foreach \name/\side in {A/left,B/above,C/below,D/above,E/above,F/below,G/below}{
+        \node[pd label,\side=5pt] at (\panel-\name) {\name};
+      }
+      \foreach \u/\v in {A/B,A/C,D/E}{
+        \draw[vt compared] (\panel-\u)--(\panel-\v);
+      }
+      \foreach \u/\v in {B/C,C/D,D/F,F/G}{
+        \draw[vt relayed] (\panel-\u)--(\panel-\v);
+      }
+    \end{scope}
+  }
+  % The severed edge belongs to G_c only; no ghost closure is drawn in K_c.
+  \draw[vt severed] (source-E)--(source-F);
+  \node[pd title] at (2.65,4.05) {Source $G_c$};
+  \node[pd title] at (8.45,4.05) {Visible $K_c$};
+  \draw[draw=pdinkmuted,line width=.6pt,->] (4.8,3.25)--(6.1,3.25);
+  \node[pd label,anchor=south] at (5.45,3.42) {omit EF};
+  \node[pd label] at (2.65,-.75) {Cycles ABC and DEF};
+  \node[pd label] at (8.45,-.75) {Cycle ABC; DF is a bridge};
+  % One reserved legend band; line style is meaningful without color.
+  \draw[vt compared] (.2,-1.45)--(.9,-1.45);
+  \node[pd label,anchor=west] at (1.05,-1.45) {compared};
+  \draw[vt relayed] (4,-1.45)--(4.7,-1.45);
+  \node[pd label,anchor=west] at (4.85,-1.45) {relayed};
+  \draw[vt severed] (7.8,-1.45)--(8.5,-1.45);
+  \node[pd label,anchor=west] at (8.65,-1.45) {severed};
+\end{tikzpicture}
+\caption{The auditor loses the DEF cycle, not its witnesses.
+DF remains visible but becomes a bridge.
+Illustrative topology: a surviving cycle does not itself establish a lie.}
+\label{fig:fh-visible-topology}
+\end{figure}

@@ -1,0 +1,64 @@
+% II/fig:swk-durability-dramatization -- parent recomposition.
+% Question: what changes when the same acknowledged commit meets two faults?
+% Claim: losing only the process preserves the OS/WAL state; losing volatile
+% state can lose a recent unsynchronized commit. Five milliseconds is illustrative.
+% Grammar: one common storage state, then two aligned fault/outcome rows.
+% Required: acknowledgment, WAL/NORMAL, cache versus stable storage, same fault
+% instant, conditional survival, I1a Built / I1b NotGuar, no post-power-loss sync.
+% Reject: elapsed time as proof of missing sync; a checkpoint invocation as a
+% durability certificate; two already-durable outcomes; cache and disk conflation.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{swk-durability-dramatization}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=1pt,
+  dur label/.style={pd label,align=center,inner sep=0pt},
+  dur head/.style={dur label,font=\pdfiglabelbold},
+  dur flow/.style={-{Stealth[length=4pt,width=3pt]},draw=pdink,line width=.7pt}]
+  \node[dur head,anchor=west] at (0,95) {$t_0$: commit acknowledged};
+  % The folded record names the chapter's concrete objects, not a new schema.
+  \path[draw=pdink,line width=.7pt,fill=pdviolet!5]
+    (0,26) -- (0,75) -- (63,75) -- (75,63) -- (75,26) -- cycle;
+  \draw[draw=pdink,line width=.7pt] (63,75) -- (63,63) -- (75,63);
+  \node[dur label,text width=58pt] at (35,49) {claim\\+ note};
+  \draw[dur flow] (79,49) -- (105,49);
+  \path[draw=pdink!60,fill=pdcreamraised,line width=.6pt] (120,31) rectangle (193,71);
+  \path[draw=pdink!60,fill=pdpage,line width=.6pt] (113,26) rectangle (186,66);
+  \node[dur label,text width=62pt] at (149.5,47) {WAL in\\OS cache};
+  \draw[dur flow,dashed,draw=pdgold] (199,49) -- (251,49);
+  % Stable storage is a distinct destination, not another cache sheet.
+  \path[draw=pdink,fill=pdcreamraised,line width=.7pt]
+    (260,60) -- (260,34) arc[start angle=180,end angle=360,x radius=28,y radius=7]
+    -- (316,60);
+  \draw[draw=pdink,fill=pdcreamraised,line width=.7pt] (288,60) ellipse[x radius=28,y radius=7];
+  \node[dur label,text width=62pt] at (287,14) {stable storage};
+  \node[dur label,text width=111pt,text=pdgold,anchor=south] at (251,79)
+    {sync not established};
+  \node[dur label,anchor=west,text=pdinkmuted] at (0,5) {WAL / NORMAL};
+  \draw[draw=pdink!25,line width=.4pt] (0,-13) -- (321,-13);
+
+  % Same fault instant for both alternatives. The row positions are not time.
+  \node[dur head,text width=90pt] at (43,-32) {Fault at $t_0+5\,\mathrm{ms}$};
+  \node[dur head,text width=90pt] at (151,-32) {Volatile state};
+  \node[dur head,text width=106pt] at (268,-32) {On restart};
+  \path[fill=pdteal!5] (0,-95) rectangle (321,-47);
+  \path[fill=pdteal] (0,-95) rectangle (2,-47);
+  \node[dur label,text width=78pt] at (43,-71) {daemon\\killed};
+  \draw[dur flow,draw=pdteal] (88,-71) -- (104,-71);
+  \node[dur label,text width=82pt] at (151,-71) {OS/cache\\intact};
+  \draw[dur flow,draw=pdteal] (197,-71) -- (213,-71);
+  \node[dur head,text width=98pt,text=pdteal] at (268,-64) {record survives};
+  \node[dur label,text width=98pt] at (268,-82) {I1a: Built};
+
+  \path[fill=pdrust!5] (0,-156) rectangle (321,-108);
+  \path[fill=pdrust] (0,-156) rectangle (2,-108);
+  \node[dur label,text width=78pt] at (43,-132) {power\\lost};
+  \draw[dur flow,draw=pdrust] (88,-132) -- (104,-132);
+  \node[dur label,text width=82pt] at (151,-132) {cache\\erased};
+  \draw[dur flow,dashed,draw=pdrust] (197,-132) -- (213,-132);
+  \node[dur head,text width=98pt,text=pdrust] at (268,-125) {record may be lost};
+  \node[dur label,text width=98pt] at (268,-143) {I1b: NotGuar};
+\end{tikzpicture}%
+}
+\caption{With OS and database/WAL state intact, restart recovers a process-crash commit; power loss can erase an unsynchronized commit. The five-millisecond interval is illustrative.}
+\label{fig:swk-durability-dramatization}
+\end{figure}

@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. An upright closed laboratory specimen case with opaque black sides, a tamper-evident cobalt seal across its lid and a small detachable paper receipt attached outside. The case conceals its contents; the receipt is blank. Plain white ground and tight framing. An analogy for revealing an attestation without revealing the underlying evidence.",
+  "aspect": "3:4",
+  "image_size": "419x655",
+  "sha256": "cddaa67d201728cdf4b2fbe46494bc2703fcbe9206b1a35500006aaf048ba217",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

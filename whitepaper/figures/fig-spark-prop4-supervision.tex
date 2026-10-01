@@ -1,0 +1,216 @@
+% fig-spark-prop4-supervision.tex
+% Proposition 4: Supervision Has an Information Cost (Attention and Supervision)
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop4-supervision.jpg.
+% Full-width (14.6cm within \pdfullwidth = 15.0cm), pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2):
+% - Sentence case for all titles and labels (never ALL-CAPS).
+% - High Tufte data-ink ratio (quiet neutral tones, minimal non-data ink, crisp borders).
+% - Typographic law: \pdfiglabelsize (\footnotesize), pd title, pd label; zero inline \fontsize.
+% - Line weight ladder: 0.5pt (hairline/guides), 0.9pt (rules/arrows/borders), 1.6pt (spine).
+% - Semantic palette: pdcobalt (raw telemetry/status), pdrust (critical alerts), pdslate (streams).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    streamline/.style={
+      draw=pdslate!70!black,
+      line width=0.5pt,
+      ->,
+      >=Stealth
+    },
+    focusstream/.style={
+      draw=pdcobalt,
+      line width=0.9pt,
+      ->,
+      >=Stealth
+    },
+    filterhex/.style={
+      draw=pdcobalt,
+      line width=1.6pt,
+      fill=pdpage
+    },
+    filtercircle/.style={
+      draw=pdslate!80!black,
+      line width=0.7pt,
+      fill=pdcobalt!8
+    },
+    evidencepointer/.style={
+      draw=pdrust!90!black,
+      line width=0.5pt,
+      dashed,
+      ->,
+      >=Stealth
+    },
+    guideline/.style={
+      draw=pdink!60!black,
+      line width=0.5pt
+    }
+  }
+
+  % =========================================================================
+  % LEFT REGION: MULTI-STREAM EVENT FIREHOSE (x in [0.0, 4.4])
+  % =========================================================================
+  % Top Header (Sentence case)
+  \node[pd title,anchor=south,align=center,text=pdink] at (2.4, 8.5) {%
+    Multi-stream\\event firehose%
+  };
+
+  % Mathematical entropy annotation
+  \node[pd label,anchor=south west,align=left,text=pdink!80!black] at (3.8, 8.5) {%
+    $H_{\text{raw}} = \text{high}$\\%
+    $E_{\text{raw}} = \text{max}$%
+  };
+
+  % Side Callouts (Left column, anchor=west at x=0.0)
+  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 7.0) {%
+    High entropy\\raw logs and signals%
+  };
+  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 4.8) {%
+    Unfiltered data\\firehose%
+  };
+  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 2.6) {%
+    Information\\overload%
+  };
+
+  % Vertical Raw Event Streams
+  \foreach \x in {2.2, 2.5, 2.8, 3.1, 3.4} {
+    \draw[streamline] (\x, 8.2) -- (\x, 1.4);
+  }
+  % Highlighted Causal Streams
+  \draw[focusstream] (2.5, 8.2) -- (2.5, 1.4);
+  \draw[focusstream] (3.1, 8.2) -- (3.1, 1.4);
+
+  % Discrete Event Tokens along the streams
+  \foreach \y in {7.8, 7.2, 6.6, 6.0, 4.2, 3.6, 3.0, 2.4, 1.8} {
+    \filldraw[fill=pdcobalt!15,draw=pdcobalt,line width=0.5pt,rounded corners=1pt]
+      (2.1, \y-0.12) rectangle (2.3, \y+0.12);
+    \filldraw[fill=pdslate!15,draw=pdslate!80!black,line width=0.5pt,rounded corners=1pt]
+      (2.7, \y-0.12) rectangle (2.9, \y+0.12);
+    \filldraw[fill=pdrust!15,draw=pdrust,line width=0.5pt,rounded corners=1pt]
+      (3.3, \y-0.12) rectangle (3.5, \y+0.12);
+  }
+
+  % Converging Stream Curves into Attention Filter
+  \draw[focusstream] (3.4, 5.4) .. controls (4.2, 5.4) and (4.4, 5.2) .. (5.0, 5.2);
+  \draw[focusstream] (3.4, 5.0) -- (5.0, 5.0);
+  \draw[focusstream] (3.4, 4.6) .. controls (4.2, 4.6) and (4.4, 4.8) .. (5.0, 4.8);
+
+  % =========================================================================
+  % CENTER REGION: ATTENTION FILTER LENS (x in [5.0, 7.4])
+  % =========================================================================
+  % Top Label (Sentence case)
+  \node[pd title,anchor=south,align=center,text=pdink] at (6.2, 8.5) {%
+    Attention\\filter lens%
+  };
+
+  % Outer Hexagonal Aperture (centered at x=6.2, y=5.0)
+  \filldraw[filterhex]
+    (6.2, 6.6) -- (7.3, 5.95) -- (7.3, 4.05) -- (6.2, 3.4) -- (5.1, 4.05) -- (5.1, 5.95) -- cycle;
+
+  % Circuit / Aperture Ring
+  \draw[pd hairline,draw=pdcobalt!60!black]
+    (6.2, 6.4) -- (7.1, 5.85) -- (7.1, 4.15) -- (6.2, 3.6) -- (5.3, 4.15) -- (5.3, 5.85) -- cycle;
+
+  % Center Circle
+  \filldraw[filtercircle] (6.2, 5.0) circle (0.95cm);
+
+  % Core Label
+  \node[pd title,anchor=center,align=center,text=pdink] at (6.2, 5.25) {%
+    Supervisory\\attention filter%
+  };
+  \node[pd label,anchor=center,align=center,text=pdink!80!black] at (6.2, 4.55) {%
+    Information-theoretic\\compression%
+  };
+
+  % =========================================================================
+  % RIGHT REGION: STRUCTURED HUMAN OPERATOR DIGEST (x in [7.4, 14.6])
+  % =========================================================================
+  % Mathematical entropy annotation (placed safely between center and right)
+  \node[pd label,anchor=south,align=center,text=pdink!80!black] at (7.9, 8.5) {%
+    $I_{\text{digest}} = \text{low}$\\%
+    $E_{\text{digest}} = \text{min}$%
+  };
+
+  % Top Header (Sentence case)
+  \node[pd title,anchor=south,align=center,text=pdink] at (10.6, 8.5) {%
+    Structured human\\operator digest%
+  };
+
+  % Diverging Stream Curves from Filter into Digest Items
+  \draw[focusstream] (7.3, 5.2) .. controls (7.9, 5.2) and (8.2, 7.2) .. (8.6, 7.2);
+  \draw[focusstream] (7.3, 5.1) .. controls (7.9, 5.1) and (8.2, 6.1) .. (8.6, 6.1);
+  \draw[focusstream] (7.3, 5.0) -- (8.6, 5.0);
+  \draw[focusstream] (7.3, 4.9) .. controls (7.9, 4.9) and (8.2, 3.9) .. (8.6, 3.9);
+  \draw[focusstream] (7.3, 4.8) .. controls (7.9, 4.8) and (8.2, 2.8) .. (8.6, 2.8);
+
+  % Structured Digest Cards / Entries (Sentence case, single compound nodes)
+  % Entry 1: Status Stable
+  \filldraw[fill=pdcobalt] (8.7, 7.2) circle (2.5pt);
+  \node[pd label,anchor=west,align=left] at (8.85, 7.2) {%
+    \textbf{System status: stable}\\%
+    {\color{pdink!80!black}\mdseries Kernel invariants verified}%
+  };
+
+  % Entry 2: CPU Spike
+  \filldraw[fill=pdrust] (8.7, 6.1) circle (2.5pt);
+  \node[pd label,anchor=west,align=left] at (8.85, 6.1) {%
+    \textbf{\color{pdrust} Critical alert: CPU spike}\\%
+    {\color{pdink!80!black}\mdseries Worker threshold exceeded}%
+  };
+
+  % Entry 3: Login Anomaly
+  \filldraw[fill=pdcobalt] (8.7, 5.0) circle (2.5pt);
+  \node[pd label,anchor=west,align=left] at (8.85, 5.0) {%
+    \textbf{Security notice: port scan}\\%
+    {\color{pdink!80!black}\mdseries Unleased ingress dropped}%
+  };
+
+  % Entry 4: Disk Space
+  \filldraw[fill=pdrust] (8.7, 3.9) circle (2.5pt);
+  \node[pd label,anchor=west,align=left] at (8.85, 3.9) {%
+    \textbf{\color{pdrust} Storage warning: quota 85\%}\\%
+    {\color{pdink!80!black}\mdseries Compaction checkpoint active}%
+  };
+
+  % Entry 5: Network Traffic
+  \filldraw[fill=pdcobalt] (8.7, 2.8) circle (2.5pt);
+  \node[pd label,anchor=west,align=left] at (8.85, 2.8) {%
+    \textbf{Network traffic: burst limit}\\%
+    {\color{pdink!80!black}\mdseries Rate limiter enforced}%
+  };
+
+  % Right Brackets (Stacked vertically without overlap):
+  % Bracket 1: Top 2 items -> Low entropy summaries
+  \draw[guideline] (12.4, 7.4) -- (12.55, 7.4) -- (12.55, 5.75) -- (12.4, 5.75);
+  \node[pd label,anchor=west,align=left,text=pdink] at (12.65, 6.6) {%
+    Low entropy\\summaries%
+  };
+
+  % Bracket 2: Bottom 3 items -> Operator attention budget
+  \draw[guideline] (12.4, 5.25) -- (12.55, 5.25) -- (12.55, 2.45) -- (12.4, 2.45);
+  \node[pd label,anchor=west,align=left,text=pdink] at (12.65, 3.85) {%
+    Operator\\attention\\budget%
+  };
+
+  % =========================================================================
+  % BOTTOM: EVIDENCE POINTERS & REVERSIBLE COMPRESSION
+  % (Routing strictly outside the hexagon x >= 7.6, then turning under y <= 1.8)
+  % =========================================================================
+  \draw[evidencepointer] (8.7, 7.0) -- (8.2, 7.0) -- (8.2, 1.8) -- (3.5, 1.8);
+  \draw[evidencepointer] (8.7, 5.9) -- (8.0, 5.9) -- (8.0, 1.4) -- (3.5, 1.4);
+  \draw[evidencepointer] (8.7, 4.8) -- (7.8, 4.8) -- (7.8, 1.0) -- (3.5, 1.0);
+  \draw[evidencepointer] (8.7, 3.7) -- (7.6, 3.7) -- (7.6, 0.6) -- (3.5, 0.6);
+
+  % Evidence Pointers Callouts (Placed with fill=pdpage knockout)
+  \node[pd title,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (5.5, 2.2) {%
+    Evidence pointers%
+  };
+  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdink!80!black] at (5.5, 1.0) {%
+    Reversible compression%
+  };
+
+  % Bottom Central Takeaway (Sentence case)
+  \node[pd label,anchor=north,text=pdink] at (6.2, 0.1) {%
+    Summary as index into evidence, not a substitute%
+  };
+
+\end{tikzpicture}

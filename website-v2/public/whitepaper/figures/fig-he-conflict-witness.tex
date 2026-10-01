@@ -1,0 +1,59 @@
+% Figure IV.new --- the conflict witness: a fact nowhere written down.
+% ch6-10 (register: must).
+%
+% Reader question: can a conflict be indirect -- hidden behind one step of
+% ordinary rule inference -- and how would a checker miss it?
+% Claim: a single Horn-derived fact, never itself stated, triggers both an
+% obligation and a prohibition on write_prod with overlapping scope and
+% interval; a checker that skips Horn propagation never derives it and
+% misses the conflict entirely -- not a rare edge case, 100 of the 885
+% conflicting sweep instances.
+% Evidence: witness (seed 20260816): fact agent_deployed; Horn
+% agent_deployed -> prod_access; O(write_prod,env:prod,[0,10]);
+% F(write_prod,env:prod,[5,15]); real checker conflict=True pairs=[(0,1)];
+% mutant (no propagation) conflict=False; mutant misses 100/885 in sweep.
+% Must distinguish: the STATED fact from the DERIVED one (prod_access is
+% nowhere a fact) from the mutant's dead end where derivation is skipped.
+% Grammar chosen: derivation trace / DAG, time left to right (SKILL.md
+% "what derives from what"); O and F clash directly with each other (the
+% theorem's own O/F-pair definition), so they are drawn as two boxes
+% joined by one breach rule, not funnelled into a third node.
+% Grammar rejected: a named-state machine -- nothing transitions here, one
+% fact statically fires two rules; a third "conflict" box -- it would draw
+% a relation the theorem does not have (O and F clash with each other, not
+% with a separate conflict object).
+% Five-second test: a reader can trace fact to one Horn step to derived
+% fact to two rules, and see the two rules joined by the one breach rule
+% that names their overlap.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west,text width=9.6cm] at (-1.10,4.65)
+    {a fact nowhere written down triggers an obligation and a prohibition};
+  \node[pd state,minimum width=2.4cm] (F) at (0.10,2.30) {fact:\\agent\_deployed};
+  \node[pd focus state,minimum width=2.6cm] (D) at (3.35,2.30) {derived:\\prod\_access};
+  \draw[pd focus arrow] (F) -- (D);
+  \node[pd kind,anchor=south] at (1.72,2.76) {Horn rule};
+  \node[pd state,minimum width=3.0cm,align=center] (O) at (6.45,3.30)
+    {$\mathsf{O}(\text{write\_prod})$\\env:prod, $[0,10]$};
+  \node[pd state,minimum width=3.0cm,align=center] (Fo) at (6.45,1.30)
+    {$\mathsf{F}(\text{write\_prod})$\\env:prod, $[5,15]$};
+  \draw[pd thin arrow] (D) -- (O);
+  \draw[pd thin arrow] (D) -- (Fo);
+  \node[pd breach datum] (C) at (8.65,2.30) {};
+  \draw[pd breach rule] (O.east) -| (C.north);
+  \draw[pd breach rule] (Fo.east) -| (C.south);
+  \node[pd breach label,anchor=west,align=left,text width=1.15cm]
+    at (8.65,2.30) {overlap\\$[5,10]$};
+  \node[pd note,anchor=north west,text width=9.45cm] at (-1.10,-0.05)
+    {a checker that skips Horn propagation never derives prod\_access:
+     neither rule fires, and the conflict is invisible -- 100 of the 885
+     conflicting sweep instances (seed 20260816)};
+\end{tikzpicture}
+\caption{One Horn inference derives \texttt{prod\_access}, activating
+overlapping obligation and prohibition intervals. Skipping propagation misses
+100 of 885 conflicting sweep instances. [verified,
+\texttt{b4\_deontic\_fragment.py}]}
+\label{fig:he-conflict-witness}
+\end{figure}

@@ -1,0 +1,92 @@
+% fig-ch0-bbl-vision-cones.tex
+% Big Brother Logic (BBL) Dynamic Epistemic Vision Cones and Confinement
+% Replaces raster fig-ch0-bbl-diagram.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actnode/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=2.5pt},
+    agentnode/.style={circle,draw=hhink,line width=1.0pt,fill=pdpage,inner sep=3pt,font=\bfseries\footnotesize},
+    panel/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+  }
+
+  % =========================================================================
+  % LEFT PANEL: SPATIAL EPISTEMIC CONES & OCCLUSION
+  % =========================================================================
+  \draw[panel] (0.0,0.0) rectangle (7.8,8.8);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdcobalt] at (0.3,8.5) {Spatial Epistemic Cones};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (7.5,8.5) {Charrier et al. (2014)};
+
+  % Scope background plane
+  \draw[draw=hhink!10,fill=pdpage,rounded corners=2pt] (0.3,0.3) rectangle (7.5,8.0);
+
+  % 1. Supervisor Vision Cone (Wide arc from a0 covering a1 and rho1)
+  \fill[pdcobalt!12,draw=pdcobalt!80,line width=0.7pt,dashed] (1.3,7.0) -- ++(-105:5.6cm) arc[start angle=-105,end angle=-15,radius=5.6cm] -- cycle;
+  \node[font=\tiny\bfseries\sffamily,text=pdcobalt,fill=pdpage,draw=pdcobalt!30,rounded corners=1pt,inner sep=2pt] at (5.2,5.9) {Observation Cone $V(a_0)$};
+
+  % 2. Supervisor Agent a0 (Top Left)
+  \node[agentnode,draw=pdcobalt,fill=pdcobalt!15,text=pdcobalt] (a0) at (1.3,7.0) {$a_0$};
+  \node[anchor=south west,font=\tiny\bfseries,text=pdcobalt] at (0.4,7.4) {Kernel Supervisor $a_0$};
+
+  % 3. Worker Vision Cone (Drawn before worker node)
+  \fill[pdteal!18,draw=pdteal,line width=0.7pt,dashed] (3.5,4.3) -- ++(-155:2.9cm) arc[start angle=-155,end angle=-85,radius=2.9cm] -- cycle;
+  \node[font=\tiny\bfseries\sffamily,text=pdteal,fill=pdpage,draw=pdteal!30,rounded corners=1pt,inner sep=2pt] at (1.6,3.7) {Worker Cone $V(a_1)$};
+
+  % 4. Worker Agent a1 (Center)
+  \node[agentnode,draw=pdteal,fill=pdteal!15,text=pdteal] (a1) at (3.5,4.3) {$a_1$};
+  \node[anchor=west,font=\tiny\bfseries,text=pdteal] at (3.9,4.3) {Worker $a_1$};
+
+  % Asymmetric Observation Vector (a0 -> a1)
+  \draw[pd arrow,pdcobalt,line width=1.1pt] (a0) -- node[pos=0.48,above,sloped,font=\tiny\bfseries,text=pdcobalt] {observes ($a_1 \in V(a_0)$)} (a1);
+
+  % 5. Worktree Artifact (Inside V(a0) and V(a1))
+  \node[draw=hhink,fill=pdpage,rounded corners=2pt,font=\tiny\ttfamily,inner sep=3pt] (rho1) at (2.2,2.5) {$\rho_1$: \texttt{core/cve.ts}};
+  \node[anchor=north,font=\tiny\sffamily,text=hhgray,fill=pdpage,inner sep=1.5pt] at (2.2,2.05) {$\rho_1 \in V(a_0) \cap V(a_1)$};
+
+  % 6. Confinement Wall / Sandbox Boundary (Bottom Right)
+  \draw[draw=pderror,line width=1.0pt,fill=pderror!10,rounded corners=2pt] (4.6,0.4) rectangle (7.2,3.1);
+  \node[anchor=north,font=\tiny\bfseries,text=pderror] at (5.9,2.95) {Seatbelt Sandbox};
+
+  % 7. Sandboxed Tenant a2 (in Epistemic Shadow)
+  \node[agentnode,draw=pderror,fill=pderror!15,text=pderror] (a2) at (5.9,1.85) {$a_2$};
+  \node[anchor=south,font=\tiny\bfseries,text=pderror] at (5.9,2.15) {Tenant $a_2$};
+  \node[font=\tiny\sffamily,text=pderror,align=center] at (5.9,1.15) {Epistemic Shadow\\$\neg K_{a_2}(\text{secrets})$};
+
+
+  % =========================================================================
+  % RIGHT PANEL: EPISTEMIC MODAL VERIFICATION (KRIPKE WORLDS)
+  % =========================================================================
+  \draw[panel] (8.1,0.0) rectangle (15.2,8.8);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdindigo] at (8.4,8.5) {Epistemic Verification};
+  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (14.9,8.5) {$S5_n$ Modal Model};
+
+  % Card 1: Higher-Order Knowledge
+  \node[actnode,draw=pdcobalt,fill=pdcobalt!8,text width=6.0cm] (k3) at (11.65,6.85) {%
+    {\scriptsize\bfseries Supervisory Epistemic Dominance}\\[2pt]
+    {\tiny $a_1 \in V(a_0) \implies \mathcal{M}, w \models K_{a_0} K_{a_1}(\text{diff}(\rho_1))$}\\[2pt]
+    {\tiny\color{hhink!80} Supervisor verifies worker's verification of artifact diff}
+  };
+
+  % Card 2: Public Announcement
+  \node[actnode,draw=pdteal,fill=pdteal!8,text width=6.0cm] (k2) at (11.65,4.65) {%
+    {\scriptsize\bfseries Common Knowledge Establishment ($\psi!$)}\\[2pt]
+    {\tiny $\mathcal{M} \mid \psi \implies C_{\{a_0,a_1\}}(\mathtt{lock:acquired})$}\\[2pt]
+    {\tiny\color{hhink!80} Public announcement eliminates non-$\psi$ worlds}
+  };
+  \draw[pd arrow,pdcobalt,line width=0.9pt] (k3.south) -- (k2.north);
+  \node[anchor=west,font=\tiny\bfseries,text=pdcobalt] at (11.85,5.75) {broadcast $\psi!$};
+
+  % Card 3: Epistemic Shadow / Zero-Knowledge
+  \node[actnode,draw=pderror,fill=pderror!8,text width=6.0cm] (k1) at (11.65,2.45) {%
+    {\scriptsize\bfseries Epistemic Shadow \& Zero-Knowledge}\\[2pt]
+    {\tiny $w_{\text{secret}} \sim_{a_2} w_{\text{dummy}} \implies \neg K_{a_2}(\text{auth\_token})$}\\[2pt]
+    {\tiny\color{hhink!80} Indistinguishable Kripke worlds prevent side-channel leak}
+  };
+  \draw[pd arrow,pderror,line width=0.9pt] (k2.south) -- (k1.north);
+  \node[anchor=west,font=\tiny\bfseries,text=pderror] at (11.85,3.55) {quarantine / occlude};
+
+  % Bottom Theorem Banner
+  \node[anchor=center,font=\tiny\sffamily,text=hhink!90,fill=pdpage,draw=hhink!30,rounded corners=2pt,inner sep=3.5pt,text width=6.0cm,align=center] at (11.65,0.75) {%
+    \textbf{Theorem (BBL Reachability):} Dynamic cone reconfiguration $\pi$ satisfies epistemic target $\Phi \in \mathcal{L}_{BBL}$ without side-channel leakage.%
+  };
+
+\end{tikzpicture}

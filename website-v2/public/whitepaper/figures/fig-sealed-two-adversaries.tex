@@ -1,0 +1,68 @@
+% Paired interpretation of identical declared-spend accounting.
+% Source: sealed-harbor.tex, Whom the certificate binds; sec:sealed-budget.
+% Source-derived conceptual illustration; no fresh proof or runtime result.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{VIII/fig:sealed-two-adversaries}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries,outer sep=0pt] (honest) at (0,0) {Honest worker};
+  \node[anchor=north west,font=\SGType\bfseries,outer sep=0pt] (malicious) at (168,0) {Malicious worker};
+  \node[anchor=north west,outer sep=0pt] (valid) at (0,22) {valid privacy cost};
+  \node[anchor=north west,outer sep=0pt] (declared) at (168,22) {self-declared cost};
+
+  % Released artifact at left, chosen output at right. Same neutral paper form.
+  \draw[draw=sgInk,fill=sgTeal!6,line width=.85pt]
+    (0,48)--(79,48)--(86,55)--(86,86)--(0,86)--cycle;
+  \draw[sgInk,line width=.65pt] (79,48)--(79,55)--(86,55);
+  \node[outer sep=0pt] (private) at (43,60.5) {$\varepsilon_i$-private};
+  \node[outer sep=0pt] (release) at (43,74) {release};
+  \draw[sg/arrow] (94,67)--(111,67);
+  % Eye means observation, not authority or omniscient host monitoring.
+  \draw[sgInk,line width=.85pt]
+    (119,67)..controls (127,57) and (139,57)..(147,67)
+    ..controls (139,77) and (127,77)..(119,67);
+  \draw[draw=sgInk,fill=sgInk,line width=.65pt] (133,67) circle (2.5pt);
+  \node[anchor=north,outer sep=0pt] (observer) at (133,87) {observer};
+
+  % Pencil means the worker chooses output, not that it can mutate the ledger.
+  \draw[draw=sgRed,fill=sgRed!8,line width=.85pt]
+    (174,73)--(177,63)--(190,50)--(197,57)--(184,70)--cycle;
+  \draw[sgRed,line width=.65pt] (177,63)--(184,70) (187,53)--(194,60);
+  \draw[sg/arrow] (203,67)--(227,67);
+  \node[anchor=north,outer sep=0pt] (worker) at (185,87) {worker};
+  \draw[draw=sgInk,fill=sgRed!5,line width=.85pt]
+    (235,48)--(309,48)--(316,55)--(316,86)--(235,86)--cycle;
+  \draw[sgInk,line width=.65pt] (309,48)--(309,55)--(316,55);
+  \node[outer sep=0pt] (chosen) at (275.5,60.5) {chosen bits};
+  \node[outer sep=0pt] (cost) at (275.5,74) {declared $\varepsilon_i$};
+
+  \node[anchor=north,font=\SGType\bfseries,outer sep=0pt] (same) at (158,112) {Same accounting in both cases};
+  % Identical neutral ledger records; no flow branch on worker honesty.
+  \draw[draw=sgInk,fill=white,line width=.85pt]
+    (0,140)--(141,140)--(148,147)--(148,209)--(0,209)--cycle;
+  \draw[sgInk,line width=.65pt] (141,140)--(141,147)--(148,147);
+  \draw[draw=sgInk,fill=white,line width=.85pt]
+    (168,140)--(309,140)--(316,147)--(316,209)--(168,209)--cycle;
+  \draw[sgInk,line width=.65pt] (309,140)--(309,147)--(316,147);
+  \node[outer sep=0pt] (ledgerL) at (74,153) {ledger};
+  \node[outer sep=0pt] (ledgerR) at (242,153) {ledger};
+  \node[outer sep=0pt] (sumL) at (74,174) {$\sigma=\sum_{\Lambda}\varepsilon_i$};
+  \node[outer sep=0pt] (sumR) at (242,174) {$\sigma=\sum_{\Lambda}\varepsilon_i$};
+  \node[outer sep=0pt] (boundL) at (74,195) {$\sigma\le\varepsilon_{\max}$};
+  \node[outer sep=0pt] (boundR) at (242,195) {$\sigma\le\varepsilon_{\max}$};
+
+  \node[anchor=north,text=sgTeal,font=\SGType\bfseries,outer sep=0pt] (dphead) at (74,229) {Privacy bound};
+  \node[anchor=north,text=sgRed,font=\SGType\bfseries,outer sep=0pt] (nodp) at (242,229) {No DP certificate};
+  \node[anchor=north,outer sep=0pt] (dp) at (74,252) {$(\varepsilon_{\max},0)$-DP};
+  \node[anchor=north,outer sep=0pt] (capacity) at (242,252) {$q\cdot b$ bits};
+  \node[anchor=north,outer sep=0pt] (condition) at (74,276) {valid mechanisms only};
+  \node[anchor=north,outer sep=0pt] (timing) at (242,276) {before timing};
+
+  \foreach \name in {honest,malicious,valid,declared,private,release,observer,worker,
+    chosen,cost,same,ledgerL,ledgerR,sumL,sumR,boundL,boundR,dphead,nodp,dp,capacity,condition,timing}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{TA-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}}
+\caption{The same ledger conserves declared spend, not semantic privacy. DP needs valid mechanisms and complete mediation; $q\cdot b$ bounds only the specified output channel before timing. [internal, \S\ref{sec:sealed-budget}]}
+\label{fig:sealed-two-adversaries}
+\end{figure}

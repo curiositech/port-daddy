@@ -1,0 +1,78 @@
+% Brief (tikz-diagram-craft).
+% Reader question: what does each guard actually prevent?
+% Claim: remove any one of the five guards and the checker finds a run that
+%   breaks an invariant, in 1 to 7 steps; with all five on, none of the 536
+%   reachable states breaks one.
+% Evidence: skills/harbor-results/scripts/c0_workunit.py, mutation suite, the
+%   shortest counterexample per disabled guard, printed verbatim by the script:
+%   attenuate (1): delegate(ESCALATED); idem (2): ext_op(k1) -> ext_op(k1);
+%   epoch (4): authorize, start_exec, reassign_role, admit_effect(STALE);
+%   verify (4): authorize, start_exec, witness, verify; settle (7): authorize,
+%   start_exec, set_policy, admit_verifier_receipt, witness, verify, settle(p2!).
+% Must distinguish: which guard; the steps of its run in order; the step that
+%   breaks the invariant; how short each run is.
+% Grammar: small multiples -- one column per guard, the run top to bottom on a
+%   shared step ruler, sorted by length, the breaking step in pd breach.
+%   Rejected: the lifecycle state machine with a guard legend, which makes the
+%   reader assemble each crime from a diagram and a table.
+% Five-second test: "take away any one guard and here is exactly how it breaks".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\cw{2.12}   % column pitch
+  \def\xa{1.08}   % first column centre
+  \def\dy{1.22}   % step pitch: every box is two lines tall, so rows stay on the ruler
+  \tikzset{trace step/.style={pd artifact,text width=1.84cm,align=center,minimum height=9.4mm,
+                        inner xsep=2pt,inner ysep=2pt},
+           crime/.style={pd breach state,text width=1.84cm,align=center,minimum height=9.4mm,
+                        inner xsep=2pt,inner ysep=2pt},
+           head/.style={pd title,text width=1.9cm,align=center,anchor=south,text depth=0pt}}
+  % the step ruler
+  \foreach \k in {1,...,7}{\node[pd label,text=pdinkmuted,anchor=east] at (0.12,{-\k*\dy-.35}) {\k};}
+  \node[pd label,text=pdinkmuted,anchor=south east,align=right] at (0.20,-.62) {step};
+  % column 1: attenuation (1 step)
+  \node[head] at ({\xa},-.22) {attenuation};
+  \node[crime] (a1) at ({\xa},-1*\dy-.35) {delegate a\\wider grant};
+  % column 2: once per key (2)
+  \node[head] at ({\xa+\cw},-.22) {once per key};
+  \node[trace step]  (b1) at ({\xa+\cw},-1*\dy-.35) {external-op\\on key k1};
+  \node[crime] (b2) at ({\xa+\cw},-2*\dy-.35) {the same\\key again};
+  % column 3: current epoch (4)
+  \node[head] at ({\xa+2*\cw},-.22) {current epoch};
+  \node[trace step]  (e1) at ({\xa+2*\cw},-1*\dy-.35) {authorize};
+  \node[trace step]  (e2) at ({\xa+2*\cw},-2*\dy-.35) {start};
+  \node[trace step]  (e3) at ({\xa+2*\cw},-3*\dy-.35) {reassign role};
+  \node[crime] (e4) at ({\xa+2*\cw},-4*\dy-.35) {admit on a\\stale epoch};
+  % column 4: policy and receipt (4)
+  \node[head] at ({\xa+3*\cw},-.22) {policy $\wedge$ receipt};
+  \node[trace step]  (v1) at ({\xa+3*\cw},-1*\dy-.35) {authorize};
+  \node[trace step]  (v2) at ({\xa+3*\cw},-2*\dy-.35) {start};
+  \node[trace step]  (v3) at ({\xa+3*\cw},-3*\dy-.35) {witness};
+  \node[crime] (v4) at ({\xa+3*\cw},-4*\dy-.35) {verify with\\neither};
+  % column 5: settlement (7)
+  \node[head] at ({\xa+4*\cw},-.22) {settlement};
+  \node[trace step]  (s1) at ({\xa+4*\cw},-1*\dy-.35) {authorize};
+  \node[trace step]  (s2) at ({\xa+4*\cw},-2*\dy-.35) {start};
+  \node[trace step]  (s3) at ({\xa+4*\cw},-3*\dy-.35) {set policy};
+  \node[trace step]  (s4) at ({\xa+4*\cw},-4*\dy-.35) {admit receipt};
+  \node[trace step]  (s5) at ({\xa+4*\cw},-5*\dy-.35) {witness};
+  \node[trace step]  (s6) at ({\xa+4*\cw},-6*\dy-.35) {verify};
+  \node[crime] (s7) at ({\xa+4*\cw},-7*\dy-.35) {settle to\\principal p2};
+  % the runs
+  \foreach \a/\b in {b1/b2,e1/e2,e2/e3,e3/e4,v1/v2,v2/v3,v3/v4,s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7}
+    {\draw[pd thin arrow] (\a) -- (\b);}
+  % what each run breaks, under its last step
+  \foreach \n/\t in {a1/{escalated\\delegation (I4)},b2/{double\\settlement (I2)},e4/{stale write\\(I1, I5)},
+                     v4/{hollow\\``verified'' (I3)},s7/{wrong-principal\\payout (I6)}}
+    {\node[pd label,text=pderror!85!pdink,anchor=north,align=center,text width=1.9cm] at ($(\n.south)+(0,-2pt)$) {\t};}
+\end{tikzpicture}
+\caption{What each guard of the work-unit machine prevents. Each column switches
+one guard off and shows the shortest run the checker then finds, step by step,
+down to the step that breaks an invariant (red): one step for attenuation, two
+for once-per-key, four for the current epoch and for policy-and-receipt, seven
+for the settlement guard, which pays principal p2 for work p1 funded. With all five guards on, none of the 536 reachable
+states of the two-principal instance breaks any of the six invariants
+[internal, \texttt{c0\_workunit.py}].}
+\label{fig:swk-workunit-crimes}
+\end{figure}

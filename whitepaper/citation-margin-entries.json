@@ -1,0 +1,488 @@
+[
+  {
+    "key": "hirschman1970",
+    "original": "Albert O.\\ Hirschman.\n\\newblock \\textit{Exit, Voice, and Loyalty: Responses to Decline in Firms, Organizations, and States}. Harvard University Press, 1970.",
+    "margin": "Hirschman 1970. \\emph{Exit, Voice, and Loyalty: Responses to Decline in Firms, Organizations, and States}.",
+    "reason": "Author-date and complete title beside the exit/voice argument; full publisher metadata remains in the archival bibliography."
+  },
+  {
+    "key": "scott1998",
+    "original": "James C.\\ Scott.\n\\newblock \\textit{Seeing Like a State: How Certain Schemes to Improve the Human Condition Have Failed}. Yale University Press, 1998.",
+    "margin": "Scott 1998. \\emph{Seeing Like a State: How Certain Schemes to Improve the Human Condition Have Failed}.",
+    "reason": "Author-date and complete title accompany the portrait and the specific legibility argument; full publisher metadata remains archived."
+  },
+  {
+    "key": "rao2010",
+    "original": "Venkatesh Rao.\n\\newblock A Big Little Idea Called Legibility. \\textit{ribbonfarm}, 2010.\n\\newblock \\url{https://www.ribbonfarm.com/2010/07/26/a-big-little-idea-called-legibility/}",
+    "margin": "Rao 2010. \\href{https://www.ribbonfarm.com/2010/07/26/a-big-little-idea-called-legibility/}{\\emph{A Big Little Idea Called Legibility}}.",
+    "reason": "Author-date and linked complete title retain the reader's source access without a duplicate long URL in the margin."
+  },
+  {
+    "key": "zheng2023judging",
+    "original": "Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, et al.\n\\newblock Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.\n\\newblock In \\textit{Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks}, 2023.",
+    "margin": "Zheng et al. 2023. \\emph{Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena}.",
+    "reason": "Author-date and complete title beside the LLM-judge discussion. The full author and proceedings record remains in the archival bibliography; no scientific claim changes."
+  },
+  {
+    "key": "myerson1981",
+    "original": "Roger B. Myerson.\n\\newblock Optimal Auction Design.\n\\newblock \\textit{Mathematics of Operations Research}, 6(1):58--73, 1981.",
+    "margin": "Myerson 1981. \\emph{Optimal Auction Design}.",
+    "reason": "Author-date and complete title beside the mechanism-design premise; full journal and locator metadata remain archived."
+  },
+  {
+    "key": "spkicert1999",
+    "original": "Carl M. Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian M. Thomas, and Tatu Ylonen.\n\\newblock SPKI Certificate Theory.\n\\newblock IETF RFC 2693, 1999.",
+    "margin": "Ellison et al. 1999. \\emph{SPKI Certificate Theory}. RFC 2693.",
+    "reason": "Author-date and complete title beside the certificate-chain discussion. The full author list and publication record remain in the archival registry; the shorter credit releases space for the adjacent delegation-figure caption."
+  },
+  {
+    "key": "rivestlampson1996sdsi",
+    "original": "Ronald L. Rivest and Butler Lampson.\n\\newblock SDSI --- A Simple Distributed Security Infrastructure.\n\\newblock Technical report, 1996.",
+    "margin": "Rivest \\& Lampson 1996. \\emph{SDSI --- A Simple Distributed Security Infrastructure}.",
+    "reason": "Both authors, year and unabridged work title beside the discussion. Full catalogue metadata remains in the archival registry, rather than displacing the figure caption."
+  },
+  {
+    "key": "miller2006robustcomposition",
+    "original": "Mark S. Miller.\n\\newblock Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control.\n\\newblock PhD thesis, Johns Hopkins University, 2006.",
+    "margin": "Miller 2006. \\emph{Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control}.",
+    "reason": "Author-date and complete thesis title beside the object-capability argument. The degree and institution remain in the archival registry; no source or conceptual qualification is removed."
+  },
+  {
+    "key": "litzkow1997condor",
+    "original": "Michael Litzkow, Todd Tannenbaum, Jim Basney, and Miron Livny.\n\\newblock Checkpoint and Migration of UNIX Processes in the Condor Distributed Processing System.\n\\newblock University of Wisconsin--Madison Computer Sciences Technical Report \\#1346, 1997.",
+    "margin": "Litzkow et al. 1997. \\emph{Checkpoint and Migration of UNIX Processes in the Condor Distributed Processing System}.",
+    "reason": "Author-date and complete title beside the checkpoint comparison. Full authors and technical-report locator remain in the archival registry, allowing the following Orleans source to stay closer to its mention."
+  },
+  {
+    "key": "bernstein2014orleans",
+    "original": "Philip A.\\ Bernstein, Sergey Bykov, Alan Geller, Gabriel Kliot, and Jorgen Thelin.\n\\newblock Orleans: Distributed Virtual Actors for Programmability and Scalability.\n\\newblock Microsoft Research Technical Report MSR-TR-2014-41, 2014.",
+    "margin": "Bernstein et al. 2014. \\emph{Orleans: Distributed Virtual Actors for Programmability and Scalability}.",
+    "reason": "Author-date and complete title beside the identity/state comparison. Full author list and report number remain archived; no claim about resumable execution is strengthened."
+  },
+  {
+    "key": "mrv1999",
+    "original": "Silvio Micali, Michael Rabin, and Salil Vadhan.\n\\newblock Verifiable Random Functions.\n\\newblock In \\textit{Proceedings of the 40th Annual Symposium on Foundations of Computer Science (FOCS)}, pages 120--130. IEEE, 1999.",
+    "margin": "Micali, Rabin \\& Vadhan 1999. \\emph{Verifiable Random Functions}.",
+    "reason": "Author-date and complete title beside the VRF premise. Full names, proceedings and pages remain in the archival registry. Avoid displacing the adjacent audit-depth figure caption with a catalogue-length entry."
+  },
+  {
+    "key": "young2019gvisor",
+    "original": "Ethan G. Young, Pengfei Zhu, Tyler Caraza-Harter, Andrea C. Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.\n\\newblock The True Cost of Containing: A gVisor Case Study.\n\\newblock In \\textit{USENIX Workshop on Hot Topics in Cloud Computing (HotCloud)}, 2019.",
+    "margin": "Young et al. 2019. \\emph{The True Cost of Containing: A gVisor Case Study}.",
+    "reason": "Author-year and complete title beside the specific mention. The full author list and proceedings metadata remain in the archival registry; no source is removed to fit the margin."
+  },
+  {
+    "key": "mohan1992aries",
+    "original": "C. Mohan, Don Haderle, Bruce Lindsay, Hamid Pirahesh, and Peter Schwarz.\n\\newblock ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging.\n\\newblock \\textit{ACM Transactions on Database Systems}, 17(1):94--162, 1992.",
+    "margin": "Mohan et al. 1992. \\emph{ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging}.",
+    "reason": "Author-year and unabridged title instead of a relocated catalogue entry. Full authors, venue, volume and pages remain in the archival registry."
+  },
+  {
+    "key": "mega101",
+    "original": "Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, and Michael S. Bernstein.\n\\newblock Generative Agents: Interactive Simulacra of Human Behavior.\n\\newblock In \\textit{ACM Symposium on User Interface Software and Technology (UIST)}, 2023.",
+    "margin": "Park et al. 2023. \\href{https://arxiv.org/abs/2304.03442}{\\emph{Generative Agents: Interactive Simulacra of Human Behavior}}.",
+    "reason": "Unnumbered author-date credit and linked complete title. Full archival metadata remains in the registry; this is not a relocated bibliography entry."
+  },
+  {
+    "key": "mega234",
+    "original": "Anand~S. Rao and Michael~P. Georgeff.\n\\newblock Modeling Rational Agents within a BDI-Architecture.\n\\newblock In \\textit{International Conference on Principles of Knowledge Representation and Reasoning (KR)}, pages 473--484, 1991.",
+    "margin": "Rao \\& Georgeff 1991. \\emph{Modeling Rational Agents within a BDI-Architecture}.",
+    "reason": "Quiet author-date and full title, without redundant proceedings metadata."
+  },
+  {
+    "key": "mega045",
+    "original": "Jack B. Dennis and Earl C. Van Horn.\n\\newblock Programming Semantics for Multiprogrammed Computations.\n\\newblock \\textit{Communications of the ACM}, 9(3):143--155, 1966.",
+    "margin": "Dennis \\& Van Horn 1966. \\emph{Programming Semantics for Multiprogrammed Computations}.",
+    "reason": "Quiet author-date and full title; no global reference number or journal furniture."
+  },
+  {
+    "key": "mega029",
+    "original": "Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.\n\\newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.\n\\newblock In \\textit{Network and Distributed System Security Symposium (NDSS)}, 2014.\n\\newblock \\url{https://doi.org/10.14722/ndss.2014.23212}",
+    "margin": "Birgisson et al. 2014. \\href{https://doi.org/10.14722/ndss.2014.23212}{\\emph{Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud}}.",
+    "reason": "Author-date with linked complete title; keep the cryptographic distinction in authored prose, not repeated bibliography commentary."
+  },
+  {
+    "key": "mega001",
+    "original": "James P. Anderson.\n\\newblock Computer Security Technology Planning Study.\n\\newblock ESD-TR-73-51, U.S. Air Force Electronic Systems Division, 1972.\n\\newblock (The origin of the \\emph{reference monitor} concept.)",
+    "margin": "J. P. Anderson. \\emph{Computer Security Technology Planning Study}. ESD-TR-73-51, U.S. Air Force, 1972.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+  },
+  {
+    "key": "mega015",
+    "original": "Michael J. Fischer, Nancy A. Lynch, and Michael S. Paterson.\n\\newblock Impossibility of Distributed Consensus with One Faulty Process.\n\\newblock \\textit{Journal of the ACM}, 32(2):374--382, 1985.",
+    "margin": "M. J. Fischer, N. A. Lynch, and M. S. Paterson. ``Impossibility of Distributed Consensus with One Faulty Process.'' \\emph{J. ACM} 32(2):374--382, 1985.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+  },
+  {
+    "key": "mega012",
+    "original": "Martin Kleppmann.\n\\newblock \\textit{Designing Data-Intensive Applications}.\n\\newblock O'Reilly, 2017.\n\\newblock (Single-leader as the right default; consensus only when forced.)",
+    "margin": "M. Kleppmann. \\emph{Designing Data-Intensive Applications}. O'Reilly, 2017.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+  },
+  {
+    "key": "mega002",
+    "original": "Butler W. Lampson.\n\\newblock Protection.\n\\newblock \\textit{ACM SIGOPS Operating Systems Review}, 8(1):18--24, 1974.",
+    "margin": "B. W. Lampson. ``Protection.'' \\emph{ACM SIGOPS OS Review} 8(1):18--24, 1974.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+  },
+  {
+    "key": "mega003",
+    "original": "Jerome H. Saltzer and Michael D. Schroeder.\n\\newblock The Protection of Information in Computer Systems.\n\\newblock \\textit{Proceedings of the IEEE}, 63(9):1278--1308, 1975.",
+    "margin": "J. H. Saltzer and M. D. Schroeder. ``The Protection of Information in Computer Systems.'' \\emph{Proc. IEEE} 63(9):1278--1308, 1975.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+  },
+  {
+    "key": "mega033",
+    "original": "Gerwin Klein, Kevin Elphinstone, Gernot Heiser, June Andronick, David Cock, Philip Derrin, Dhammika Elkaduwe, Kai Engelhardt, Rafal Kolanski, Michael Norrish, Thomas Sewell, Harvey Tuch, and Simon Winwood.\n\\newblock seL4: Formal Verification of an OS Kernel.\n\\newblock In \\textit{ACM Symposium on Operating Systems Principles (SOSP)}, pages 207--220, 2009.",
+    "margin": "Klein et al. \\emph{seL4: Formal Verification of an OS Kernel}. ACM SOSP, pp. 207--220, 2009.",
+    "reason": "Collapses the 13-author list to the permitted first-author form while retaining the full title, venue, pages, and year."
+  },
+  {
+    "key": "mega035",
+    "original": "Alexandru Agache, Marc Brooker, Alexandra Iordache, Anthony Liguori, Rolf Neugebauer, Phil Piwonka, and Diana-Maria Popa.\n\\newblock Firecracker: Lightweight Virtualization for Serverless Applications.\n\\newblock In \\textit{USENIX Symposium on Networked Systems Design and Implementation (NSDI)}, 2020.",
+    "margin": "Agache et al. \\emph{Firecracker: Lightweight Virtualization for Serverless Applications}. USENIX NSDI, 2020.",
+    "reason": "Preserves the complete work title, venue identifier, and year; trims only the long author list."
+  },
+  {
+    "key": "mega036",
+    "original": "Thanumalayan Sankaranarayana Pillai, Vijay Chidambaram, Ramnatthan Alagappan, Samer Al-Kiswany, Andrea C. Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.\n\\newblock All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications.\n\\newblock In \\textit{Symposium on Operating Systems Design and Implementation (OSDI)}, pages 433--448, 2014.",
+    "margin": "Pillai et al. \\emph{All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications}. USENIX OSDI, pp. 433--448, 2014.",
+    "reason": "Retains the full long title, venue, pages, and year while using the allowed first-author et al. form."
+  },
+  {
+    "key": "mega043",
+    "original": "Gavin Lowe.\n\\newblock A Hierarchy of Authentication Specifications.\n\\newblock In \\textit{IEEE Computer Security Foundations Workshop (CSFW)}, 1997.",
+    "margin": "Lowe. \\emph{A Hierarchy of Authentication Specifications}. IEEE CSFW, 1997.",
+    "reason": "Already a single-author entry; removes only structural prose and keeps the complete title, venue, and year."
+  },
+  {
+    "key": "mega044",
+    "original": "Danny Dolev and Andrew Yao.\n\\newblock On the Security of Public Key Protocols.\n\\newblock \\textit{IEEE Transactions on Information Theory}, 29(2):198--208, 1983.",
+    "margin": "Dolev \\& Yao. \\emph{On the Security of Public Key Protocols}. IEEE Trans. Inf. Theory 29(2):198--208, 1983.",
+    "reason": "Keeps both authors, the full title, journal volume/pages, and year in a compact standard reference."
+  },
+  {
+    "key": "mega053",
+    "original": "Cas Cremers, Marko Horvat, Jonathan Hoyland, Sam Scott, and Thyla van der Merwe.\n\\newblock A Comprehensive Symbolic Analysis of TLS 1.3.\n\\newblock In \\textit{ACM Conference on Computer and Communications Security (CCS)}, 2017.",
+    "margin": "Cremers et al. \\emph{A Comprehensive Symbolic Analysis of TLS 1.3}. ACM CCS, 2017.",
+    "reason": "Preserves the complete title, explicit TLS version, venue, and year while shortening the five-author list."
+  },
+  {
+    "key": "mega052",
+    "original": "Nadim Kobeissi, Karthikeyan Bhargavan, and Bruno Blanchet.\n\\newblock Automated Verification for Secure Messaging Protocols and Their Implementations: A Symbolic and Computational Approach.\n\\newblock In \\textit{IEEE European Symposium on Security and Privacy (EuroS\\&P)}, 2017.",
+    "margin": "Kobeissi, Bhargavan \\& Blanchet. \\emph{Automated Verification for Secure Messaging Protocols and Their Implementations: A Symbolic and Computational Approach}. IEEE EuroS\\&P, 2017.",
+    "reason": "Retains all three identifiable authors, the unabridged title, venue identifier, escaped ampersand, and year."
+  },
+  {
+    "key": "mega042",
+    "original": "Bruno Blanchet, Vincent Cheval, and Véronique Cortier.\n\\newblock ProVerif with Lemmas, Induction, Fast Subsumption, and Much More.\n\\newblock In \\textit{IEEE Symposium on Security and Privacy (S\\&P)}, 2022.",
+    "margin": "Blanchet, Cheval \\& Cortier. \\emph{ProVerif with Lemmas, Induction, Fast Subsumption, and Much More}. IEEE S\\&P, 2022.",
+    "reason": "Keeps all named authors, the full title, venue identifier, TeX escape, and year without explanatory additions."
+  },
+  {
+    "key": "mega054",
+    "original": "Simon Meier, Benedikt Schmidt, Cas Cremers, and David Basin.\n\\newblock The TAMARIN Prover for the Symbolic Analysis of Security Protocols.\n\\newblock In \\textit{Computer Aided Verification (CAV)}, 2013.",
+    "margin": "Meier et al. \\emph{The TAMARIN Prover for the Symbolic Analysis of Security Protocols}. CAV, 2013.",
+    "reason": "Uses the allowed first-author et al. form and retains the full title, venue identifier, and year."
+  },
+  {
+    "key": "mega055",
+    "original": "David Basin, Jannik Dreier, Lucca Hirschi, Saša Radomirovic, Ralf Sasse, and Vincent Stettler.\n\\newblock A Formal Analysis of 5G Authentication.\n\\newblock In \\textit{ACM Conference on Computer and Communications Security (CCS)}, 2018.",
+    "margin": "Basin et al. \\emph{A Formal Analysis of 5G Authentication}. ACM CCS, 2018.",
+    "reason": "Retains the full title including 5G, the venue identifier, and year while shortening six authors."
+  },
+  {
+    "key": "mega041",
+    "original": "Bruno Blanchet.\n\\newblock CryptoVerif: A Computationally Sound Security Protocol Verifier.\n\\newblock INRIA Research Report, 2007.",
+    "margin": "Blanchet. \\emph{CryptoVerif: A Computationally Sound Security Protocol Verifier}. INRIA Research Report, 2007.",
+    "reason": "Preserves the complete report title, report identifier, and year for this single-author entry."
+  },
+  {
+    "key": "mega063",
+    "original": "Universal Commerce Protocol.\n\\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.\n\\newblock \\texttt{https://ucp.dev}.",
+    "margin": "Universal Commerce Protocol (Google, Shopify, et al.). \\emph{Specification and reference implementation (Apache-2.0)}, 2026. \\href{https://ucp.dev}{Source}.",
+    "reason": "Keeps the named protocol, participating organizations, full work-title phrase, year, and the existing source target; drops only implementation-detail prose."
+  },
+  {
+    "key": "mega067",
+    "original": "Agent Payments Protocol (AP2): Mandates.\n\\newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.\n\\newblock \\texttt{https://ap2-protocol.org}.",
+    "margin": "Agent Payments Protocol (AP2): \\emph{Mandates}, 2026. \\href{https://ap2-protocol.org}{Source}.",
+    "reason": "Retains the complete named work title, year, and source target while removing the explanatory protocol-mechanics annotation."
+  },
+  {
+    "key": "mega203",
+    "original": "C. Dwork, N. Lynch \\& L. Stockmeyer. ``Consensus in the Presence\nof Partial Synchrony.'' \\emph{Journal of the ACM} 35(2):288--323, 1988.",
+    "margin": "Dwork, Lynch \\& Stockmeyer. \\emph{Consensus in the Presence of Partial Synchrony}. J. ACM 35(2):288--323, 1988.",
+    "reason": "Normalizes the source's line-wrapped quotation into a compact citation while preserving all named authors, full title, journal locator, and year."
+  },
+  {
+    "key": "mega204",
+    "original": "B. Laurie. ``Certificate Transparency.'' \\emph{Communications\nof the ACM} 57(10):40--46, 2014.",
+    "margin": "Laurie. \\emph{Certificate Transparency}. Commun. ACM 57(10):40--46, 2014.",
+    "reason": "Preserves the full article title, journal locator, and year while removing source line wrapping and quotation markup."
+  },
+  {
+    "key": "mega205",
+    "original": "Ben Laurie, Adam Langley, and Emilia Kasper.\n\\newblock Certificate Transparency.\n\\newblock IETF RFC 6962, June 2013.",
+    "margin": "Laurie, Langley \\& Kasper. \\emph{Certificate Transparency}. IETF RFC 6962, 2013.",
+    "reason": "Distinguishes the RFC entry from mega204 by retaining all three authors and RFC 6962; the month is omitted as nonessential margin detail."
+  },
+  {
+    "key": "mega206",
+    "original": "E. Heilman, A. Kendler, A. Zohar \\& S. Goldberg. ``Eclipse\nAttacks on Bitcoin's Peer-to-Peer Network.'' \\emph{USENIX Security} 2015.",
+    "margin": "Heilman et al. \\emph{Eclipse Attacks on Bitcoin's Peer-to-Peer Network}. USENIX Security, 2015.",
+    "reason": "Retains the full title, Bitcoin peer-to-peer qualifier, venue, and year while shortening four authors."
+  },
+  {
+    "key": "mega207",
+    "original": "Maurice Herlihy.\n\\newblock Atomic Cross-Chain Swaps.\n\\newblock In \\textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 2018.",
+    "margin": "Herlihy. \\emph{Atomic Cross-Chain Swaps}. ACM PODC, 2018.",
+    "reason": "Preserves the complete title, PODC venue identifier, and year for the single-author work."
+  },
+  {
+    "key": "mega208",
+    "original": "M. Herlihy, B. Liskov \\& L. Shrira. ``Cross-Chain Deals and\nAdversarial Commerce.'' \\emph{The VLDB Journal} 31:1291--1309, 2022.",
+    "margin": "Herlihy, Liskov \\& Shrira. \\emph{Cross-Chain Deals and Adversarial Commerce}. The VLDB Journal 31:1291--1309, 2022.",
+    "reason": "Keeps all three authors, full title, journal locator, and year while removing line wrapping and quotation markup."
+  },
+  {
+    "key": "mega209",
+    "original": "H. Garcia-Molina \\& K. Salem. ``Sagas.'' \\emph{ACM SIGMOD} 1987.",
+    "margin": "Garcia-Molina \\& Salem. \\emph{Sagas}. ACM SIGMOD, 1987.",
+    "reason": "Preserves both authors, the complete short title, venue, and year in the minimum standard citation form."
+  },
+  {
+    "key": "mega210",
+    "original": "D. Spivak \\& R. Kent. ``Ologs: A Categorical Framework for\nKnowledge Representation.'' \\emph{PLoS ONE} 7(1):e24274, 2012.",
+    "margin": "Spivak \\& Kent. \\emph{Ologs: A Categorical Framework for Knowledge Representation}. PLoS ONE 7(1):e24274, 2012.",
+    "reason": "Retains the complete title, both authors, journal locator, and year while removing only line wrapping and quotation markup."
+  },
+  {
+    "key": "mega211",
+    "original": "B. Fong \\& D. Spivak. \\emph{Seven Sketches in Compositionality:\nAn Invitation to Applied Category Theory.} Cambridge University Press, 2019.",
+    "margin": "Fong \\& Spivak. \\emph{Seven Sketches in Compositionality: An Invitation to Applied Category Theory}. Cambridge UP, 2019.",
+    "reason": "Retains the full book title, both authors, publisher, and year while flattening source line wrapping."
+  },
+  {
+    "key": "mega212",
+    "original": "E. Ostrom. \\emph{Governing the Commons.} Cambridge University\nPress, 1990.",
+    "margin": "Ostrom. \\emph{Governing the Commons}. Cambridge UP, 1990.",
+    "reason": "Preserves the full book title, publisher, and year for the single-author entry."
+  },
+  {
+    "key": "mega213",
+    "original": "Universal Commerce Protocol. Google, Shopify, et al.\nSpecification and reference implementation, Apache-2.0, 2026.\n\\texttt{https://ucp.dev}; \\texttt{github.com/Universal-Commerce-Protocol/ucp}.",
+    "margin": "Universal Commerce Protocol (Google, Shopify, et al.). \\emph{Specification and reference implementation, Apache-2.0}, 2026. \\href{https://ucp.dev}{Source}; \\href{https://github.com/Universal-Commerce-Protocol/ucp}{Source}.",
+    "reason": "Preserves the full title phrase, named organizations, year, and both existing source targets as labelled href links."
+  },
+  {
+    "key": "mega214",
+    "original": "Agent Payments Protocol (AP2): Mandates.\nVerifiable-credential authorization chain (SD-JWT+kb checkout mandate, JWS\ndetached-content merchant authorization, JCS canonicalization), 2026.\n\\texttt{https://ap2-protocol.org}; UCP extension at\n\\texttt{ucp.dev/documentation/ucp-and-ap2/}.",
+    "margin": "Agent Payments Protocol (AP2): \\emph{Mandates}, 2026. \\href{https://ap2-protocol.org}{Source}; \\href{https://ucp.dev/documentation/ucp-and-ap2/}{Source}.",
+    "reason": "Keeps the complete named work title, year, and both existing source targets; removes only the explanatory mechanism annotation."
+  },
+  {
+    "key": "mega215",
+    "original": "Agentic Commerce Protocol. OpenAI \\& Stripe, 2025.\n\\texttt{https://agenticcommerce.dev}.",
+    "margin": "OpenAI \\& Stripe. \\emph{Agentic Commerce Protocol}, 2025. \\href{https://agenticcommerce.dev}{Source}.",
+    "reason": "Retains the identifiable organizations, complete title, year, and exact source target."
+  },
+  {
+    "key": "mega216",
+    "original": "DataDome. ``Agent Trust Management and the Universal\nCommerce Protocol,'' 2026.\n\\path{datadome.co/agent-trust-management/universal-commerce-protocol/}.",
+    "margin": "DataDome. \\emph{Agent Trust Management and the Universal Commerce Protocol}, 2026. \\href{https://datadome.co/agent-trust-management/universal-commerce-protocol/}{Source}.",
+    "reason": "Preserves the full report title, organization, year, and exact existing target while removing quotation and line-wrap markup."
+  },
+  {
+    "key": "mega008",
+    "original": "Andrew J. I. Jones and Marek Sergot.\n\\newblock On the Characterisation of Law and Computer Systems: The Normative Systems Perspective.\n\\newblock In \\textit{Deontic Logic in Computer Science}, Wiley, 1993.",
+    "margin": "Jones \\& Sergot. \\emph{On the Characterisation of Law and Computer Systems: The Normative Systems Perspective}. \\emph{Deontic Logic in Computer Science}, Wiley, 1993.",
+    "reason": "Keeps both authors, the full title, book/venue identifier, publisher, and year in a compact first-use reference."
+  },
+  {
+    "key": "mega016",
+    "original": "Tushar Deepak Chandra and Sam Toueg.\n\\newblock Unreliable Failure Detectors for Reliable Distributed Systems.\n\\newblock \\textit{Journal of the ACM}, 43(2):225--267, 1996.",
+    "margin": "Chandra \\& Toueg. \\emph{Unreliable Failure Detectors for Reliable Distributed Systems}. J. ACM 43(2):225--267, 1996.",
+    "reason": "Uses the standard compact J. ACM form while retaining both authors, full title, volume/pages, and year."
+  },
+  {
+    "key": "mega025",
+    "original": "Jeffrey O. Kephart and David M. Chess.\n\\newblock The Vision of Autonomic Computing.\n\\newblock \\textit{IEEE Computer}, 36(1):41--50, 2003.",
+    "margin": "Kephart \\& Chess. \\emph{The Vision of Autonomic Computing}. IEEE Computer 36(1):41--50, 2003.",
+    "reason": "Preserves both authors, complete title, journal locator, and year with a compact venue form."
+  },
+  {
+    "key": "mega026",
+    "original": "Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.\n\\newblock High-Speed High-Security Signatures.\n\\newblock \\textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.\n\\newblock (Ed25519 --- the signature scheme underlying the authorization chain.)",
+    "margin": "Bernstein et al. \\emph{High-Speed High-Security Signatures}. J. Cryptographic Engineering 2(2):77--89, 2012.",
+    "reason": "Retains the full title and publication locator/year while removing the chapter-specific Ed25519 annotation."
+  },
+  {
+    "key": "mega027",
+    "original": "Bruno Blanchet.\n\\newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.\n\\newblock \\textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.\n\\newblock (The class of tool in which the authorization chain's secrecy and integrity properties are mechanically verified.)",
+    "margin": "Blanchet. \\emph{Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif}. Foundations and Trends in Privacy and Security 1(1--2):1--135, 2016.",
+    "reason": "Keeps the complete work title and publication locator/year; removes the explanatory annotation about chapter usage."
+  },
+  {
+    "key": "mega028",
+    "original": "Michael T. Nygard.\n\\newblock \\textit{Release It! Design and Deploy Production-Ready Software}.\n\\newblock 2nd ed., Pragmatic Bookshelf, 2018.\n\\newblock (The bounded busy-wait as a bulkhead / timeout-budget under contention.)",
+    "margin": "Nygard. \\emph{Release It! Design and Deploy Production-Ready Software}. 2nd ed., Pragmatic Bookshelf, 2018.",
+    "reason": "Preserves the complete book title, edition, publisher, and year while removing the chapter-specific busy-wait note."
+  },
+  {
+    "key": "mega163",
+    "original": "Eric J. Friedman and Paul Resnick.\n\\newblock The Social Cost of Cheap Pseudonyms.\n\\newblock \\textit{Journal of Economics \\& Management Strategy}, 10(2):173--199, 2001.",
+    "margin": "Friedman \\& Resnick 2001. \\emph{The Social Cost of Cheap Pseudonyms}.",
+    "reason": "Both authors, year and complete title beside the newcomer argument; journal and locator remain in the archival bibliography."
+  },
+  {
+    "key": "mega165",
+    "original": "Ralph A. Bradley and Milton E. Terry.\n\\newblock Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons.\n\\newblock \\textit{Biometrika}, 39(3/4):324--345, 1952.",
+    "margin": "Bradley \\& Terry 1952. \\emph{Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons}.",
+    "reason": "Author-date and complete title beside the estimator comparison; full journal and page metadata remain archived rather than displacing Table 5.1's caption."
+  },
+  {
+    "key": "mega166",
+    "original": "Arpad E. Elo.\n\\newblock \\textit{The Rating of Chessplayers, Past and Present}.\n\\newblock Arco Publishing, 1978.",
+    "margin": "Elo 1978. \\emph{The Rating of Chessplayers, Past and Present}.",
+    "reason": "Author-date and complete title beside the estimator comparison; publisher metadata remains in the archival registry."
+  },
+  {
+    "key": "mega167",
+    "original": "Ralf Herbrich, Tom Minka, and Thore Graepel.\n\\newblock TrueSkill: A Bayesian Skill Rating System.\n\\newblock In \\textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2007.",
+    "margin": "Herbrich, Minka \\& Graepel 2007. \\emph{TrueSkill: A Bayesian Skill Rating System}.",
+    "reason": "All three authors, year and complete title remain beside the uncertainty-model comparison; full proceedings metadata stays archived."
+  },
+  {
+    "key": "mega168",
+    "original": "Paul Resnick, Richard Zeckhauser, John Swanson, and Kate Lockwood.\n\\newblock The Value of Reputation on eBay: A Controlled Experiment.\n\\newblock \\textit{Experimental Economics}, 9(2):79--101, 2006.",
+    "margin": "Resnick et al. 2006. \\emph{The Value of Reputation on eBay: A Controlled Experiment}.",
+    "reason": "Author-date and complete title beside the reported experiment; journal and locator remain in the archival bibliography."
+  },
+  {
+    "key": "mega169",
+    "original": "Steven Tadelis.\n\\newblock Reputation and Feedback Systems in Online Platform Markets.\n\\newblock \\textit{Annual Review of Economics}, 8:321--340, 2016.",
+    "margin": "Tadelis 2016. \\emph{Reputation and Feedback Systems in Online Platform Markets}.",
+    "reason": "Author-date and complete title beside the platform-market argument; journal and locator remain archived."
+  },
+  {
+    "key": "mega173",
+    "original": "Qingmin Liu and Andrzej Skrzypacz.\n\\newblock Limited Records and Reputation Bubbles.\n\\newblock \\textit{Journal of Economic Theory}, 151:2--29, 2014.",
+    "margin": "Liu \\& Skrzypacz 2014. \\emph{Limited Records and Reputation Bubbles}.",
+    "reason": "Both authors, year and complete title beside the bounded-memory argument; journal and locator remain archived."
+  },
+  {
+    "key": "mega177",
+    "original": "George A. Akerlof.\n\\newblock The Market for ``Lemons'': Quality Uncertainty and the Market Mechanism.\n\\newblock \\textit{Quarterly Journal of Economics}, 84(3):488--500, 1970.",
+    "margin": "Akerlof 1970. \\emph{The Market for ``Lemons'': Quality Uncertainty and the Market Mechanism}.",
+    "reason": "Author-date and complete quoted title beside the adverse-selection premise; journal and locator remain archived."
+  },
+  {
+    "key": "mega225",
+    "original": "T. J. Schaefer. ``The Complexity of Satisfiability Problems.''\n\\emph{STOC}, pp.~216--226, 1978.",
+    "margin": "Schaefer. \\emph{The Complexity of Satisfiability Problems}. STOC, pp.~216--226, 1978.",
+    "reason": "Retains the exact title, STOC identifier, pages, and year while normalizing the citation into compact TeX."
+  },
+  {
+    "key": "mega226",
+    "original": "R. Dechter, I. Meiri \\& J. Pearl. ``Temporal Constraint Networks.''\n\\emph{Artificial Intelligence} 49(1--3):61--95, 1991.",
+    "margin": "Dechter, Meiri \\& Pearl. \\emph{Temporal Constraint Networks}. Artificial Intelligence 49(1--3):61--95, 1991.",
+    "reason": "Keeps all three authors, full title, journal locator, and year while removing only quotation and line-wrap markup."
+  },
+  {
+    "key": "mega227",
+    "original": "K. Stergiou \\& M. Koubarakis. ``Backtracking Algorithms for\nDisjunctions of Temporal Constraints.'' \\emph{Artificial Intelligence}\n120(1):81--117, 2000.",
+    "margin": "Stergiou \\& Koubarakis. \\emph{Backtracking Algorithms for Disjunctions of Temporal Constraints}. Artificial Intelligence 120(1):81--117, 2000.",
+    "reason": "Preserves both authors, the full title, journal locator, and year while flattening source line wrapping."
+  },
+  {
+    "key": "mega228",
+    "original": "S. Colombo Tosatto, G. Governatori \\& N. van Beest. ``Business\nProcess Full Compliance with Respect to a Set of Conditional Obligations in\nPolynomial Time.'' arXiv:2001.10148, 2020.",
+    "margin": "Colombo Tosatto, Governatori \\& van Beest. \\emph{Business Process Full Compliance with Respect to a Set of Conditional Obligations in Polynomial Time}. arXiv:2001.10148, 2020.",
+    "reason": "Retains all named authors, complete title, arXiv identifier, and year; removes only source line wrapping and quotation markup."
+  },
+  {
+    "key": "mega229",
+    "original": "S. Colombo Tosatto, G. Governatori \\& N. van Beest. ``Proving\nRegulatory Compliance: Full Compliance Against an Expressive Unconditional\nObligation is coNP-Complete.'' arXiv:2105.05431, 2021.",
+    "margin": "Colombo Tosatto, Governatori \\& van Beest. \\emph{Proving Regulatory Compliance: Full Compliance Against an Expressive Unconditional Obligation is coNP-Complete}. arXiv:2105.05431, 2021.",
+    "reason": "Retains all named authors, complete title, arXiv identifier, and year; removes only source line wrapping and quotation markup."
+  },
+  {
+    "key": "mega182",
+    "original": "Port Daddy Harbor research program.\n\\newblock \\textit{Reputation is Amortized Verification: Inspection Games for Agent Economies}.\n\\newblock Companion formal paper (Paper~3), August 2026.\n\\newblock Source of the stage-deterrence and tower-contraction theorems restated in\nthe section on grading-oracle incentive compatibility.",
+    "margin": "Port Daddy Harbor research program. \\emph{Reputation is Amortized Verification: Inspection Games for Agent Economies}. Companion paper~3, August 2026.",
+    "reason": "Compact source identification; retain work title, year and publication/status, omit duplicate chapter commentary."
+  },
+  {
+    "key": "mega257",
+    "original": "Santiago Torres-Arias, Hammad Afzali, Trishank Karthik Kuppusamy, Reza Curtmola, and Justin Cappos.\n\\newblock in-toto: Providing farm-to-table guarantees for bits and bytes.\n\\newblock In \\textit{USENIX Security Symposium}, 2019.",
+    "margin": "Torres-Arias et al. \\emph{in-toto: Providing farm-to-table guarantees for bits and bytes}. USENIX Security, 2019.",
+    "reason": "Compact source identification; retain work title, year and publication/status, omit duplicate chapter commentary."
+  },
+  {
+    "key": "sep-hobbes",
+    "original": "Sharon A. Lloyd and Susanne Sreedhar.\n\\newblock \\textit{Hobbes's Moral and Political Philosophy}.\n\\newblock Stanford Encyclopedia of Philosophy, revised September 2022.\n\\newblock \\url{https://plato.stanford.edu/entries/hobbes-moral/}",
+    "margin": "S. A. Lloyd and S. Sreedhar. \\emph{Hobbes's Moral and Political Philosophy}. Stanford Encyclopedia of Philosophy, rev. 2022. \\href{https://plato.stanford.edu/entries/hobbes-moral/}{Source}.",
+    "reason": "Retain complete title, source identity and year; compact author/venue metadata and omit repeated explanatory commentary."
+  },
+  {
+    "key": "barbosa2021sok",
+    "original": "Manuel Barbosa, Gilles Barthe, Karthikeyan Bhargavan, Bruno Blanchet, Cas Cremers, Kevin Liao, and Bryan Parno.\n\\newblock SoK: Computer-Aided Cryptography.\n\\newblock In \\textit{IEEE Symposium on Security and Privacy (S\\&P)}, 2021.",
+    "margin": "Barbosa et al. \\emph{SoK: Computer-Aided Cryptography}. IEEE S\\&P, 2021.",
+    "reason": "Retain complete title, source identity and year; compact author/venue metadata and omit repeated explanatory commentary."
+  },
+  {
+    "key": "drv",
+    "original": "C.~Dwork, G.~N. Rothblum, and S.~Vadhan. Boosting and differential privacy. In\n\\emph{Proc.\\ 51st IEEE Symposium on Foundations of Computer Science (FOCS)}, pp.~51--60, 2010.",
+    "margin": "Dwork, Rothblum \\& Vadhan 2010. \\emph{Boosting and differential privacy}.",
+    "reason": "Unnumbered author-date and complete title beside the fixed-parameter composition bound. Full author, proceedings and page metadata remain in the archival registry. Avoid displacing the adjacent adaptive-filter citation."
+  },
+  {
+    "key": "vdm07",
+    "original": "R.~van der Meyden. What, indeed, is intransitive noninterference? (extended abstract). In\n\\emph{Proc.\\ European Symposium on Research in Computer Security (ESORICS)}, LNCS 4734, pages 235--250, 2007.",
+    "margin": "van der Meyden 2007. \\emph{What, indeed, is intransitive noninterference?} (extended abstract).",
+    "reason": "Author-date and complete title, including the extended-abstract qualification, beside the TA-security discussion. The full proceedings, volume and pages remain archival; do not lift the note away from its owning line to fit venue metadata."
+  },
+  {
+    "key": "wrrw23",
+    "original": "J.~Whitehouse, A.~Ramdas, R.~Rogers, and Z.~S. Wu. Fully-adaptive composition in\ndifferential privacy. In \\emph{Proc.\\ 40th International Conference on Machine Learning (ICML)},\nPMLR 202, pages 36990--37007, 2023.",
+    "margin": "Whitehouse et al. 2023. \\emph{Fully-adaptive composition in differential privacy}.",
+    "reason": "Unnumbered author-date and complete title at the mention of the separate advanced filter. Full authors, PMLR volume and proceedings/page metadata remain archival; no citation or scientific qualification is removed."
+  },
+  {
+    "key": "aacp11",
+    "original": "M.~S. Alvim, M.~E. Andr\\'es, K.~Chatzikokolakis, and C.~Palamidessi. On the\nrelation between differential privacy and quantitative information flow. In \\emph{Proc.\\ ICALP\n2011}, LNCS 6756, pages 60--76. Springer, 2011.",
+    "margin": "Alvim et al. 2011. \\emph{On the relation between differential privacy and quantitative information flow}.",
+    "reason": "Author-date and complete title beside the comparison of privacy measures. The full author list, proceedings, volume and pages remain in the archival registry. This avoids lifting the source note above its mention or displacing the neighboring Luo note."
+  },
+  {
+    "key": "pkube21",
+    "original": "T.~Luo, M.~Pan, P.~Tholoniat, A.~Cidon, R.~Geambasu, and M.~L\\'ecuyer. Privacy\nbudget scheduling. In \\emph{Proc.\\ 15th USENIX Symposium on Operating Systems Design and\nImplementation (OSDI)}, pages 55--74, 2021.",
+    "margin": "Luo et al. 2021. \\emph{Privacy budget scheduling}. OSDI, pp.\\ 55--74.",
+    "reason": "Author-date, complete title and venue/page locator beside the trusted-mechanism assumption. The full author list and proceedings name remain in the archival registry. This releases space for the adjacent two-adversaries caption without moving its owner or shrinking type."
+  },
+  {
+    "key": "wald",
+    "original": "A.~Wald. Sequential tests of statistical hypotheses. \\emph{Annals of Mathematical\nStatistics}, 16(2):117--186, 1945.",
+    "margin": "Wald 1945. \\emph{Sequential tests of statistical hypotheses}.",
+    "reason": "Author-date and complete title beside the stopping identity; journal and pagination remain in the archival registry. No source or title is omitted to fit the margin."
+  },
+  {
+    "key": "wald-wolfowitz",
+    "original": "A.~Wald and J.~Wolfowitz. Optimum character of the sequential probability\nratio test. \\emph{Annals of Mathematical Statistics}, 19(3):326--339, 1948.",
+    "margin": "Wald \\& Wolfowitz 1948. \\emph{Optimum character of the sequential probability ratio test}.",
+    "reason": "Author-date and complete title beside the exact identity/attained-error optimality block; full catalogue metadata remains in the archival registry."
+  },
+  {
+    "key": "jpbb04",
+    "original": "J.~Jung, V.~Paxson, A.~W. Berger, and H.~Balakrishnan. Fast portscan detection\nusing sequential hypothesis testing. In \\emph{Proc.\\ IEEE Symposium on Security and Privacy},\n2004.",
+    "margin": "Jung et al. 2004. \\emph{Fast portscan detection using sequential hypothesis testing}.",
+    "reason": "Author-date and complete title beside the security precedent and its approximation limits; all authors and proceedings remain in the archival registry."
+  },
+  {
+    "key": "harbor3",
+    "original": "\\emph{Reputation is Amortized Verification: Inspection Games for\nAgent Economies.} Paper~3 of the Port Daddy Harbor research program, 2026. (The\ncompanion technical paper: proves the bonded-inspection stage-game threshold\n$\\rho^\\star = G/(dB)$, its confiscation-convention fork\n$\\rho^\\star_c = G/(d(G{+}B))$, and the audit-tower contraction under sealed\nmulti-clique sampling.)",
+    "margin": "\\emph{Reputation is Amortized Verification: Inspection Games for Agent Economies}. Port Daddy Harbor research program, companion paper~3, 2026.",
+    "reason": "Retain complete title, source identity and year; compact author/venue metadata and omit repeated explanatory commentary."
+  }
+]

@@ -9,6 +9,10 @@
 \definecolor{pdblockChecked}{HTML}{006EA0}
 \definecolor{pdblockProtocol}{HTML}{007D73}
 \definecolor{pdblockNeutral}{HTML}{363B40}
+% End a heading paragraph without stranding it above the first body lines.
+% Unlike a forced line break, this also restores ordinary paragraph layout.
+\providecommand{\pdblockheadingend}{%
+  {\raggedright\par}\nobreak\smallskip\@afterindentfalse\@afterheading\ignorespaces}
 \newcommand{\pdblockfamily}[1]{%
   \def\pdblock@family{#1}%
   \ifdefstring{\pdblock@family}{Conjecture}{\def\pdblock@family{Empirical hypothesis}}{}%
