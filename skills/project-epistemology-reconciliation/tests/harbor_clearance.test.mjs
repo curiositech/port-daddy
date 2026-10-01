@@ -218,7 +218,7 @@ test('CLI rejects URLs and canonical output paths before any effect', () => {
   assert.throws(() => harbor.resolveOutputDir(repoRoot, 'docs/generated'), /must stay inside \.cache\/harbor-clearance/u)
 })
 
-test('CLI stdout mode produces a non-canonical report without creating output', () => {
+test('CLI stdout mode reports an oversized Omni ledger as truncated without creating output', () => {
   const output = []
   const errors = []
   const status = harbor.runCli(['--snapshot', snapshotPath, '--repo', repoRoot, '--stdout', '--format', 'json'], {
@@ -226,9 +226,11 @@ test('CLI stdout mode produces a non-canonical report without creating output', 
     stdout: (message) => output.push(message),
     stderr: (message) => errors.push(message),
   })
-  assert.equal(status, 0)
+  assert.equal(status, 2)
   assert.deepEqual(errors, [])
   const report = JSON.parse(output.join(''))
+  assert.equal(report.inventory.coverage.traversal, 'truncated')
+  assert.ok(report.inventory.skipped.some((item) => item.path === 'docs/harbor-research/omni-ledger.json' && item.reason === 'file-byte-limit'))
   assert.equal(report.generatedArtifact, true)
   assert.equal(report.safety.mode, 'offline-non-actuating')
   assert.equal(report.safety.githubWrites, false)
