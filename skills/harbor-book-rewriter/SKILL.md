@@ -388,7 +388,7 @@ Read these source skills when the pass needs their full apparatus:
   analytical design, margins, critiques, and evidence integrity.
 - `skills/tikz-diagram-craft/SKILL.md` and
   `references/figure-standard.md` for implementation and QA.
-- `skills/high-quality-latex-whitepaper/SKILL.md` for shared LaTeX machinery.
+- `skills/high-quality-latex-whitepaper/SKILL.md` for shared LaTeX machinery. <!-- cite-exempt -->
 - `research-paper-submission/references/exposition-craft.md`,
   `figures-and-examples.md`, and `exemplar-structures.md` for local formal
   exposition and community-aware figure practice.

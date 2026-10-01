@@ -115,7 +115,7 @@ rule, so the rule is applied with its known objection already in view rather tha
 
 - [ ] The idea, not just the name, carries the sentence before you add a `\pdmarginfigure`.
 - [ ] At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`, checked
-      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
+      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) <!-- cite-exempt --> — a small multiple, sparkline, or regime
       strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
 - [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing a portrait's macro call.
 - [ ] Use actual data, small drawings and counterexamples in the margin through

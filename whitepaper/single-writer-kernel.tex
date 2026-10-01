@@ -1811,6 +1811,13 @@ body, never that the successor inherited the predecessor's experience.
 Figure~\ref{fig:swk-rehydration-pipeline} draws the pipeline with its own
 exclusion: what replay restores, and the one thing it does not.
 
+Figure~\ref{fig:swk-unknown-effect} makes the retry boundary concrete: a
+caller that receives a transport timeout or lost response cannot infer
+whether the write failed or succeeded out of sight, and blind retry risks
+violating once-only state invariants unless bounded by the outcome ledger.
+
+\input{figures/swk-unknown-effect}
+
 \textbf{The witnessed-outcome ledger} --- the durable record of what an agent
 actually delivered --- is the subsystem on which reputation keys. A \BuiltWeak{}
 substrate now ships: durable commitments, daemon-derived deadlines, oracle-bound

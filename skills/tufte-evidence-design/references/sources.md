@@ -137,8 +137,8 @@ quote.
   status is obsolete. `figures/pd-margin-layout.tex` records shipped anchors and
   places measured boxes; `figures/pd-margin-evidence.tex` adds native-size tables,
   counterexamples and generated analogies. See `references/margin-apparatus.md`.
-- `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` and
-  `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` — the current
+- `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` <!-- cite-exempt --> and
+  `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` <!-- cite-exempt --> — the current
   marginalia proposal (which chapters/sections get which portrait, at most one
   per section) and the reading-flow measures (kinds-per-page, back-references,
   longest run with no visual). `[verified — read directly, this repo]`
