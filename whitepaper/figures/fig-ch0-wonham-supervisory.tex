@@ -1,159 +1,184 @@
 % fig-ch0-wonham-supervisory.tex
-% Ramadge--Wonham Discrete-Event Supervisory Control in Multi-Agent Swarms
-% Replaces raster fig-ch0-wonham-supervisory.jpg with 100% native vector Swiss TikZ.
+% Ramadge-Wonham Discrete-Event Supervisory Control in Multi-Agent Swarms
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    superbox/.style={draw=pdcobalt,line width=0.8pt,fill=hhpaper!25,rounded corners=3pt},
-    plantbox/.style={draw=pdslate,line width=0.8pt,fill=hhpaper!25,rounded corners=3pt},
-    subcard/.style={draw=hhink!25,line width=0.55pt,fill=pdpage,rounded corners=2pt,inner sep=4pt},
-    ctrlbox/.style={draw=pdteal!80!black,line width=0.7pt,fill=pdteal!6,rounded corners=2.5pt,inner sep=3pt},
-    unctrlbox/.style={draw=pdamber!90!black,line width=0.7pt,fill=pdamber!8,rounded corners=2.5pt,inner sep=3pt},
-    gatebox/.style={draw=pderror,line width=0.85pt,fill=pdpage,rounded corners=2.5pt,inner sep=4pt},
-    theoremnode/.style={draw=pdcobalt!50,line width=0.6pt,fill=pdcobalt!8,rounded corners=2.5pt,inner xsep=6pt,inner ysep=4pt}
+    superbox/.style={draw=pdcobalt!90!black,line width=1.1pt,fill=white,rounded corners=5pt},
+    plantbox/.style={draw=pdslate!90!black,line width=1.1pt,fill=white,rounded corners=5pt},
+    theoremnode/.style={draw=pdslate!90!black,line width=0.85pt,fill=white,rounded corners=3.5pt,inner xsep=8pt,inner ysep=4pt}
   }
 
   % =========================================================================
-  % TOP PANEL: SUPERVISORY CONTROLLER S (PORT DADDY KERNEL TCB)
-  % =========================================================================
-  \draw[superbox] (0.0,4.9) rectangle (15.0,9.1);
-
-  % Supervisor Header (Shortened slightly to guarantee zero overflow)
-  \node[anchor=north west,inner sep=0pt] at (0.25,8.88) {%
-    {\bfseries\fontsize{6.5}{7.8}\selectfont\color{pdcobalt} SUPERVISORY CONTROLLER $S$ (PORT DADDY KERNEL TCB)}\enspace%
-    {\fontsize{5.2}{6.5}\selectfont\color{hhgray!80!black}---}\enspace%
-    {\fontsize{5.0}{6.2}\selectfont\sffamily\color{hhgray} Ramadge--Wonham Framework (1987) $\cdot$ Dynamic Disablement Mask $\gamma(s)$}%
-  };
-
-  % Supervisor Subcard 1: Safety Specification K (Left: x in [0.25, 4.85])
-  \node[subcard,anchor=north west,text width=4.3cm] (spec_card) at (0.25,8.60) {%
-    {\bfseries\fontsize{5.8}{7.0}\selectfont\color{pdcobalt} Safety Specification $K$ (Invariants)}\\[3pt]
-    {\fontsize{4.8}{5.9}\selectfont\color{hhink}%
-    $\bullet$ \textbf{Spend Cap:} $\sum c_i \le B_{\text{max}}$ (\$0.00 cloud egress)\\
-    $\bullet$ \textbf{AST Lease:} $\mathtt{claim}(R) \implies \mathtt{owner}(R) = \mathtt{self}$\\
-    $\bullet$ \textbf{Sandbox:} $\mathtt{syscall\_filter}(e) = \mathtt{ALLOW}$\\
-    $\bullet$ \textbf{Compulsion:} $\mathtt{requireNotePerCommit}$%
-    }
-  };
-
-  % Supervisor Subcard 2: State Evaluator & Trace Observer (Center: x in [5.35, 10.15])
-  \node[subcard,anchor=north west,draw=pdindigo!70,fill=pdindigo!5,text width=4.5cm] (eval_card) at (5.35,8.60) {%
-    {\bfseries\fontsize{5.8}{7.0}\selectfont\color{pdindigo} Active Trace Observer: $s \in L(S/G)$}\\[3pt]
-    {\fontsize{4.8}{5.9}\selectfont\color{hhink}%
-    $\bullet$ Observes historical trajectory $s = \sigma_1 \sigma_2 \cdots \sigma_k$\\
-    $\bullet$ Evaluates proposed event: $s \xrightarrow{\sigma} s\sigma$\\
-    $\bullet$ Synthesizes admissible mask $\gamma(s) \in \Gamma$:\\
-    \quad $\gamma(s) = \Sigma_u \cup \big\{\sigma \in \Sigma_c \mid s\sigma \in \sup \mathcal{C}(K)\big\}$\\
-    $\bullet$ \textbf{Invariant:} $\Sigma_u \subseteq \gamma(s)$ (uncontrollables enabled)%
-    }
-  };
-
-  % Supervisor Subcard 3: Enforcement & Veto Barrier (Right: x in [10.65, 14.75])
-  \node[gatebox,anchor=north west,text width=3.8cm] (gate_card) at (10.65,8.60) {%
-    {\bfseries\fontsize{5.8}{7.0}\selectfont\color{pderror} Interception Barrier \& Disablement}\\[3pt]
-    {\fontsize{4.8}{5.9}\selectfont\color{hhink}%
-    $\bullet$ Evaluates proposed $\sigma \in \Sigma$:\\
-    \quad If $\sigma \in \gamma(s) \implies$ \textbf{\textcolor{pdhealth}{PASS}} (exec in sandbox)\\
-    \quad If $\sigma \in \Sigma_c \setminus \gamma(s) \implies$ \textbf{\textcolor{pderror}{VETO}} (intercept)\\
-    $\bullet$ \textbf{Veto Receipt:} $\langle \mathtt{REFUSAL}, \mathtt{E\_BREACH} \rangle$\\
-    $\bullet$ Blocks unleased writes, spend breaches, and un-noted commits.%
-    }
-  };
-
-  % Internal Supervisor Signal Arrows (In the 0.5cm gaps)
-  \draw[pd arrow,pdcobalt] (4.85,7.0) -- (5.35,7.0)
-    node[midway,above,font=\fontsize{4.6}{5.6}\selectfont\color{pdcobalt}] {$K$};
-  \draw[pd arrow,pdindigo] (10.15,7.0) -- (10.65,7.0)
-    node[midway,above,font=\fontsize{4.6}{5.6}\selectfont\color{pdindigo}] {$\gamma(s)$};
-
-  % =========================================================================
-  % INTERACTION CHANNELS & FEEDBACK PATHS (BETWEEN PLANT AND SUPERVISOR)
+  % LEFT: FOUR VOTING ROBOTS & DISABLEMENT BARRIER (Spatial match to prototype)
   % =========================================================================
 
-  % Path 1: Proposed Event Emission (Upward from Plant to Supervisor, left at x = 2.55)
-  \draw[pd arrow,line width=1.0pt,pdcobalt] (2.55,3.75) -- (2.55,4.9)
-    node[midway,fill=pdpage,draw=pdcobalt!50,rounded corners=2pt,inner xsep=4pt,inner ysep=2pt,font=\fontsize{4.9}{5.9}\selectfont\bfseries\color{pdcobalt}] {%
-      Proposed Event: $\sigma \in \Sigma$%
+  % Robot 1: Top Standing Robot (x=1.1, y=5.9)
+  \pdrobotbase[0.85]{(1.1, 5.9)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.8pt,fill=white,inner sep=1.5pt,font=\fontsize{6.5}{7.8}\selectfont\bfseries,text=pdcobalt] at (1.85, 5.3) {$s_0$};
+  \draw[pd arrow,line width=0.9pt,hhink] (1.1, 5.3) -- (0.7, 4.6);
+
+  % Robot 2: Middle Left (x=0.5, y=4.0)
+  \pdrobotbase[0.85]{(0.5, 4.0)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.8pt,fill=white,inner sep=1.5pt,font=\fontsize{6.5}{7.8}\selectfont\bfseries,text=pdcobalt] at (0.9, 3.1) {$s_1$};
+  \draw[pd arrow,line width=0.9pt,hhink] (0.5, 3.4) -- (0.7, 2.7);
+
+  % Robot 3: Lower Left (x=0.8, y=2.1)
+  \pdrobotbase[0.85]{(0.8, 2.1)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.8pt,fill=white,inner sep=1.5pt,font=\fontsize{6.5}{7.8}\selectfont\bfseries,text=pdcobalt] at (1.6, 1.4) {$s_2$};
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.3, 2.7) {Voting\\token};
+  \draw[pd arrow,line width=0.9pt,hhink] (1.2, 1.8) -- (1.8, 1.2);
+
+  % Robot 4: Bottom Center (x=2.2, y=0.9)
+  \pdrobotbase[0.85]{(2.2, 0.9)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.8pt,fill=white,inner sep=1.5pt,font=\fontsize{6.5}{7.8}\selectfont\bfseries,text=pdcobalt] at (2.8, 1.1) {$s_3$};
+
+  % Diagonal edge between Robot 1 and Robot 4
+  \draw[line width=0.9pt,hhink,dashed] (1.3, 5.3) -- (2.2, 1.5);
+
+  % Disablement Barrier (Red-and-white diagonal striped bar crossing diagonal transition)
+  \begin{scope}[shift={(0, 0)}]
+    \pdbarrierline{1.4}{3.8}{1.85}{3.8}
+    \fill[pderror!90!black] (1.85, 3.65) rectangle (2.05, 3.95);
+    \pdbarrierline{2.05}{3.8}{2.6}{3.8}
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},fill=white,inner sep=1.5pt,rounded corners=1.5pt] at (2.0, 4.0) {%
+      Disablement barrier%
+    };
+  \end{scope}
+
+  % Arrow from Supervisory Controller S down to Disablement Barrier
+  \draw[pd arrow,line width=1.3pt,pderror] (4.5, 4.15) to[out=-135,in=45] (2.6, 4.0);
+
+  % Proposal Arrow from Robot 4 into Plant G
+  \draw[pd arrow,line width=1.3pt,hhink] (2.6, 1.2) to[out=30,in=180] (3.6, 2.0);
+
+  % =========================================================================
+  % TOP RIGHT: SUPERVISORY CONTROLLER S (THE KERNEL TCB) (x in [3.6, 12.9], y in [4.15, 7.25])
+  % =========================================================================
+  \begin{scope}[shift={(3.6, 4.15)}]
+    \draw[superbox] (0, 0) rectangle (9.3, 3.1);
+    % Title
+    \node[anchor=west,font=\fontsize{8.5}{10.0}\selectfont\bfseries\color{hhink}] at (0.4, 2.7) {%
+      Supervisory Controller S (The Kernel TCB)%
     };
 
-  % Path 2A: Permitted Action Dispatch (Downward from Supervisor to Sandbox, center at x = 7.75)
-  \draw[pd ready arrow,line width=0.9pt] (7.75,4.9) -- (7.75,3.75)
-    node[midway,fill=pdpage,draw=pdhealth!60,rounded corners=2pt,inner xsep=4pt,inner ysep=2pt,font=\fontsize{4.9}{5.9}\selectfont\bfseries\color{pdhealth}] {%
-      $\sigma \in \gamma(s)$: Pass to Sandbox%
+    % Authoritative Kernel Shield / Processor Chip Icon
+    \begin{scope}[shift={(1.4, 1.55)}]
+      % Chip body
+      \fill[pdcobalt!95!black,rounded corners=2pt] (-0.45, -0.45) rectangle (0.45, 0.45);
+      % Chip pins
+      \foreach \p in {-0.30, -0.10, 0.10, 0.30} {
+        \draw[line width=1.1pt,pdcobalt!90!black] (\p, 0.45) -- (\p, 0.58);
+        \draw[line width=1.1pt,pdcobalt!90!black] (\p, -0.45) -- (\p, -0.58);
+        \draw[line width=1.1pt,pdcobalt!90!black] (-0.45, \p) -- (-0.58, \p);
+        \draw[line width=1.1pt,pdcobalt!90!black] (0.45, \p) -- (0.58, \p);
+      }
+      % Shield with checkmark inside
+      \draw[fill=white,draw=none] (-0.26, 0.26) -- (0.26, 0.26) to[out=-30,in=90] (0.26, -0.05) to[out=-90,in=0] (0, -0.34) to[out=180,in=-90] (-0.26, -0.05) to[out=90,in=210] cycle;
+      \draw[line width=1.2pt,pdcobalt,line cap=round,line join=round] (-0.13, -0.02) -- (-0.03, -0.13) -- (0.15, 0.08);
+      % Label below (Generous clearance to box bottom)
+      \node[anchor=north,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{hhink},align=center] at (0, -0.72) {%
+        Authoritative kernel\\shield/processor%
+      };
+    \end{scope}
+
+    % Specification Text
+    \node[anchor=west,font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink},align=left] at (2.4, 1.55) {%
+      Evaluate: \textbf{L(G)} vs. \textbf{E}\\specification%
     };
 
-  % Path 2B: Refusal / Veto Feedback (Downward from Gate back to Agent Context, right at x = 12.80)
-  \draw[pd breach arrow,line width=0.9pt,dashed] (12.80,4.9) -- (12.80,3.75)
-    node[midway,fill=pdpage,draw=pderror!60,rounded corners=2pt,inner xsep=4pt,inner ysep=2pt,font=\fontsize{4.9}{5.9}\selectfont\bfseries\color{pderror}] {%
-      $\sigma \notin \gamma(s)$: Refusal Receipt%
+    % Arrow: Disablement mask gamma(s)
+    \draw[pd arrow,line width=1.5pt,hhink] (4.9, 1.55) -- (9.05, 1.55);
+    \node[anchor=south,font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] at (7.0, 1.65) {%
+      Disablement mask $\gamma(s)$%
+    };
+    \node[anchor=north,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (7.0, 1.45) {%
+      Selectively disables\\illegal controllable events%
     };
 
-  % =========================================================================
-  % BOTTOM PANEL: DISCRETE-EVENT PLANT G (AUTONOMOUS AGENT SWARM)
-  % =========================================================================
-  \draw[plantbox] (0.0,1.25) rectangle (15.0,3.75);
-
-  % Plant Header (Clean and contained)
-  \node[anchor=north west,inner sep=0pt] at (0.25,3.58) {%
-    {\bfseries\fontsize{6.5}{7.8}\selectfont\color{pdslate} DISCRETE-EVENT PLANT $G$ (AUTONOMOUS AGENT SWARM)}\enspace%
-    {\fontsize{5.2}{6.5}\selectfont\color{hhgray!80!black}---}\enspace%
-    {\fontsize{5.0}{6.2}\selectfont\sffamily\color{hhgray} Uncontrolled Generator $L(G) \subseteq \Sigma^*$}%
-  };
-
-  % Controllable Events Panel (Left: x in [0.25, 7.35])
-  \node[ctrlbox,anchor=north west,text width=6.9cm] (ctrl_events) at (0.25,3.35) {%
-    \begin{minipage}{6.9cm}
-      \noindent{\bfseries\fontsize{5.6}{6.8}\selectfont\color{pdteal!90!black} Controllable Events $\Sigma_c$}%
-      \hfill{\fontsize{4.6}{5.6}\selectfont\sffamily\color{pdteal} Subject to Supervisory Disablement $\gamma(s)$}\\[2pt]
-      \noindent\begin{minipage}[t]{3.4cm}
-        {\fontsize{4.8}{5.8}\selectfont\color{hhink}%
-        $\bullet$ \texttt{exec\_command} (tool execution)\\
-        $\bullet$ \texttt{write\_file} (filesystem mutation)\\
-        $\bullet$ \texttt{git\_commit} (code checkpoint)%
-        }
-      \end{minipage}%
-      \hfill%
-      \begin{minipage}[t]{3.4cm}
-        {\fontsize{4.8}{5.8}\selectfont\color{hhink}%
-        $\bullet$ \texttt{http\_egress} (external network)\\
-        $\bullet$ \texttt{claim\_lease} (lock / region lease)\\
-        $\bullet$ \texttt{spawn\_agent} (process creation)%
-        }
-      \end{minipage}
-    \end{minipage}
-  };
-
-  % Uncontrollable Events Panel (Right: x in [7.65, 14.75])
-  \node[unctrlbox,anchor=north west,text width=6.9cm] (unctrl_events) at (7.65,3.35) {%
-    \begin{minipage}{6.9cm}
-      \noindent{\bfseries\fontsize{5.6}{6.8}\selectfont\color{pdamber!95!black} Uncontrollable Events $\Sigma_u$}%
-      \hfill{\fontsize{4.6}{5.6}\selectfont\sffamily\color{pdamber!90!black} Must Always Be Enabled: $\Sigma_u \subseteq \gamma(s)$}\\[2pt]
-      \noindent\begin{minipage}[t]{3.4cm}
-        {\fontsize{4.8}{5.8}\selectfont\color{hhink}%
-        $\bullet$ \texttt{token\_emit} (LLM autoregression)\\
-        $\bullet$ \texttt{os\_signal} (\texttt{SIGKILL}, \texttt{SIGINT})\\
-        $\bullet$ \texttt{oom\_event} (host memory pressure)%
-        }
-      \end{minipage}%
-      \hfill%
-      \begin{minipage}[t]{3.4cm}
-        {\fontsize{4.8}{5.8}\selectfont\color{hhink}%
-        $\bullet$ \texttt{socket\_drop} (network disconnect)\\
-        $\bullet$ \texttt{timer\_exp} (deadline expiration)\\
-        $\bullet$ \texttt{host\_crash} (hardware fault)%
-        }
-      \end{minipage}
-    \end{minipage}
-  };
+    % Solid Red Disablement Block on right wall
+    \fill[pderror!90!black] (9.15, 1.25) rectangle (9.35, 1.85);
+  \end{scope}
 
   % =========================================================================
-  % BOTTOM THEOREM BAR
+  % BOTTOM RIGHT: PLANT G (THE AUTONOMOUS AGENT GENERATOR) (x in [3.6, 12.9], y in [1.45, 3.85])
   % =========================================================================
-  \node[theoremnode,anchor=south west,text width=14.5cm] (thm_bar) at (0.0,0.0) {%
-    {\bfseries\fontsize{5.6}{6.8}\selectfont\color{pdcobalt} Fundamental Controllability Theorem (Ramadge \& Wonham, 1987):}\enspace%
-    {\fontsize{4.9}{6.0}\selectfont\color{hhink}%
-    A target sublanguage $K \subseteq L(G)$ is controllable with respect to plant $G$ and uncontrollable alphabet $\Sigma_u$ if and only if $\overline{K}\Sigma_u \cap L(G) \subseteq \overline{K}$. When $K$ is not controllable, the unique minimally restrictive supervisor synthesizes the supremal controllable sublanguage $\sup \mathcal{C}(K) = K \setminus \big((L(G) \setminus K) / \Sigma_u^*\big)\Sigma^*$. In Port Daddy, this guarantees that controllable tool events are disabled if and only if they lead inevitably to an unpreventable invariant breach via uncontrollable events, guaranteeing safety while maximizing autonomous agent capability.%
-    }
+  \begin{scope}[shift={(3.6, 1.45)}]
+    \draw[plantbox] (0, 0) rectangle (9.3, 2.4);
+    % Title
+    \node[anchor=west,font=\fontsize{8.5}{10.0}\selectfont\bfseries\color{hhink}] at (2.4, 2.1) {%
+      Plant G (The Autonomous Agent Generator)%
+    };
+
+    % Robot on Left of Plant
+    \pdrobotbase[0.85]{(0.8, 1.15)}{pdcobalt}
+    \node[font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink},align=center] at (1.7, 1.45) {%
+      Generate\\proposal\\$\Sigma$%
+    };
+
+    % Controllable Events Sigma_c (x centers: 2.7, 3.85, 5.1)
+    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink}] at (3.85, 1.65) {Controllable Events $\Sigma_c$};
+    % 1. Tool calls
+    \pdicontools[0.7]{(2.7, 1.05)}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (2.7, 0.45) {Tool calls};
+
+    % 2. Git commits (branch diamond)
+    \begin{scope}[shift={(3.85, 1.05)}]
+      \draw[fill=pdslate!90!black,draw=none,rotate=45] (-0.18, -0.18) rectangle (0.18, 0.18);
+      \draw[line width=0.9pt,white] (0, -0.12) -- (0, 0.12);
+      \draw[line width=0.9pt,white] (0, 0) to[out=45,in=180] (0.12, 0.08);
+      \fill[white] (0, -0.12) circle (0.04);
+      \fill[white] (0, 0.12) circle (0.04);
+      \fill[white] (0.12, 0.08) circle (0.04);
+    \end{scope}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (3.85, 0.45) {git\\commits};
+
+    % 3. External network egress (globe)
+    \begin{scope}[shift={(5.1, 1.05)}]
+      \draw[line width=0.9pt,pdcobalt] (0, 0) circle (0.22);
+      \draw[line width=0.7pt,pdcobalt] (0, 0) ellipse (0.11 and 0.22);
+      \draw[line width=0.7pt,pdcobalt] (-0.22, 0) -- (0.22, 0);
+      \draw[line width=0.6pt,pdcobalt] (-0.18, 0.11) -- (0.18, 0.11);
+      \draw[line width=0.6pt,pdcobalt] (-0.18, -0.11) -- (0.18, -0.11);
+    \end{scope}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (5.1, 0.45) {external net-\\work egress};
+
+    % Uncontrollable Events Sigma_uc (x centers: 6.35, 7.45, 8.5)
+    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink}] at (7.45, 1.65) {Uncontrollable Events $\Sigma_{uc}$};
+
+    % 4. Host OS signals (gear)
+    \pdicongear[0.65]{(6.35, 1.05)}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (6.35, 0.45) {Host OS\\signals};
+
+    % 5. Timer expirations (stopwatch)
+    \begin{scope}[shift={(7.45, 1.05)}]
+      \draw[line width=0.9pt,pdamber!90!black] (0, 0) circle (0.20);
+      \draw[line width=0.8pt,pdamber!90!black] (0, 0.20) -- (0, 0.26);
+      \draw[line width=0.8pt,pdamber!90!black] (0, 0) -- (0.12, 0);
+      \draw[line width=0.8pt,pdamber!90!black] (0, 0) -- (0.09, 0);
+      \fill[pdamber!90!black] (0, 0) circle (0.035);
+    \end{scope}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (7.45, 0.45) {Timer\\expirations};
+
+    % 6. Hardware crashes (lightning bolt)
+    \begin{scope}[shift={(8.5, 1.05)}]
+      \fill[pderror!90!black] (-0.05, 0.22) -- (0.12, 0.22) -- (0.02, 0.02) -- (0.12, 0.02) -- (-0.10, -0.22) -- (-0.02, -0.03) -- (-0.12, -0.03) -- cycle;
+    \end{scope}
+    \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (8.5, 0.45) {Hardware\\crashes};
+  \end{scope}
+
+  % =========================================================================
+  % FEEDBACK ARROW: Supervisory Controller -> Plant G (x=13.3 safely inside canvas!)
+  % =========================================================================
+  \draw[pd arrow,line width=1.4pt,hhink] (12.9, 5.7) -- (13.3, 5.7) -- (13.3, 2.65) -- (12.9, 2.65);
+
+  % =========================================================================
+  % BOTTOM: THEOREM FOOTER CARD (x in [3.6, 12.9], y=0.70)
+  % =========================================================================
+  \node[theoremnode,anchor=center,text width=8.9cm,align=center] at (8.25, 0.70) {%
+    {\fontsize{7.2}{8.6}\selectfont \textbf{Theorem:} The minimally restrictive supervisor enables the largest controllable sublanguage $\sup\mathcal{C}(E)$, guaranteeing safety without unnecessary intervention.}%
   };
 
 \end{tikzpicture}

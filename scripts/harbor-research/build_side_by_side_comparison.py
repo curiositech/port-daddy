@@ -121,6 +121,40 @@ figures_data = [
         ]
     },
     {
+        "id": "Figure 0.7",
+        "title": "Proposition 7 Mechanics: Bonded Execution & Liquidated Damages",
+        "section": "Section 0.2.7 · Agent Governance · Bonded Commons & Arbitration",
+        "raster": "figures/fig-spark-prop7-bonded.jpg",
+        "tex": "figures/fig-spark-prop7-bonded.tex",
+        "notes_raster": [
+            "Low-resolution clip-art figures with raster scaling artifacts",
+            "Broken layout margins with blurry text in arbitration and remedy boxes",
+            "Inconsistent line styling between workflow steps and failure branches"
+        ],
+        "notes_vector": [
+            "3-stage pipeline: Bonded Stake Deposit, Randomized Audit, and Contest Arbitration",
+            "Dual-outcome branching: Valid Outcome (Bond Released) vs. Defect/Harm (Stake Slashed)",
+            "Integrated remedy sequence: Automatic liquidation and compensation to affected parties"
+        ]
+    },
+    {
+        "id": "Figure 0.8",
+        "title": "Proposition 8 Mechanics: Cross-Harbor Relay & Zero-Trust Federation",
+        "section": "Section 0.2.8 · Distributed Architecture · Relay Fabric & Proof Gossip",
+        "raster": "figures/fig-spark-prop8-federation.jpg",
+        "tex": "figures/fig-spark-prop8-federation.tex",
+        "notes_raster": [
+            "Heavy raster compression artifacts on database cylinders and security boundaries",
+            "Illegible Merkle tree leaf labels and blurry cryptographic signature badges",
+            "Disconnected arrows and fuzzy zero-trust relay cylinder boundary"
+        ],
+        "notes_vector": [
+            "Bilateral federation: Harbor Host A and Harbor Host B with isolated security boundaries",
+            "Central zero-trust relay fabric with cryptographic witness receipts and Merkle proofs",
+            "Zero shared database and zero global sovereign invariant strictly enforced"
+        ]
+    },
+    {
         "id": "Figure 0.9",
         "title": "BDI Execution Flow and Operational Choice Architecture",
         "section": "Section 0.1.3 · Classical Multi-Agent Theory · AgentSpeak(L) Semantics",
@@ -192,12 +226,12 @@ figures_data = [
         "id": "Figure 0.13",
         "title": "Dynamic Epistemic Observation Cones in Big Brother Logic",
         "section": "Section 0.1.7 · Epistemic Logic · Charrier et al. (2014) BBL",
-        "raster": "figures/fig-ch0-big-brother-logic.jpg",
+        "raster": "figures/fig-ch0-bbl-diagram.jpg",
         "tex": "figures/fig-ch0-bbl-vision-cones.tex",
         "notes_raster": [
             "Vision cones are rendered as muddy gradient wedges with jagged edges",
-            "Blind spots and epistemic shadows lack geometric definition",
-            "Higher-order knowledge formulas ($K_{a_1} K_{a_2} \\phi$) rendered in broken raster fonts"
+            "Coordinate grid numbers and formulas have pixelated compression artifacts",
+            "Observer and worker agent icons suffer from raster scaling blur"
         ],
         "notes_vector": [
             "Exact geometric vision cones with angular field-of-view and sightline vectors",
@@ -226,15 +260,15 @@ figures_data = [
         "id": "Figure 0.15",
         "title": "Progressive Disclosure of Skills Across Logarithmic Decades",
         "section": "Section 0.3.3 · Tool Calling & Extensibility · Skill Architecture",
-        "raster": "figures/fig-ch0-skills-logarithmic.jpg",
+        "raster": "figures/fig-ch0-skills-diagram.jpg",
         "tex": "figures/fig-ch0-progressive-skills.tex",
         "notes_raster": [
-            "Decade brackets ($10^0$ to $10^{-4}$) are misaligned with log axis",
-            "Context window token consumption curve is hand-drawn and inaccurate",
-            "Text labels inside disclosure tiers crowd the borders and overlap"
+            "Raster diagram suffers from non-vector text pixelation at standard book scale",
+            "Token counts (~100, ~1,000, ~5,000) blur when resized to two-page spread width",
+            "Robot token meter icon and decade pill borders show compression ringing"
         ],
         "notes_vector": [
-            "Mathematically exact logarithmic scale ($10^0, 10^{-1}, 10^{-2}, 10^{-3}, 10^{-4}$)",
+            "Mathematically exact logarithmic scale ($10^0, 10^{-1}, 10^{-2}, 10^{-4}$)",
             "Four progressive tiers: Discovery Metadata (100 B), Instructions (2 KB), Scripts (0 B context), Schemas",
             "Shows exponential context savings achieved by keeping procedural code outside the LLM window"
         ]
@@ -243,12 +277,12 @@ figures_data = [
         "id": "Figure 0.16",
         "title": "The Agent Lifecycle Hook Cross-Section",
         "section": "Section 0.3.4 · Hooks & Interception · Claude Code & Giant Squid",
-        "raster": "figures/fig-ch0-lifecycle-hooks.jpg",
+        "raster": "figures/fig-ch0-lifecycle-diagram.jpg",
         "tex": "figures/fig-ch0-lifecycle-hooks.tex",
         "notes_raster": [
-            "Nested loops are visually muddy; impossible to tell outer turn loop from inner tool loop",
-            "Interception hook labels (PreToolUse, PostToolUse) bleed into the background",
-            "Production trace examples (Cases A-C) are illegible at book scale"
+            "Raster loop text and arrow labels show blurry compression halos",
+            "Interception hook labels (PreToolUse, PostToolUse) suffer from low contrast",
+            "Production trace callout boxes (Cases A-C) lose crispness at high print resolutions"
         ],
         "notes_vector": [
             "Two distinct supervisory loops: Outer Session/Turn Lifecycle vs. Inner Agentic Tool Loop",
@@ -277,53 +311,17 @@ figures_data = [
         "id": "Figure 0.18",
         "title": "The Closed Agentic Architecture Loop",
         "section": "Section 0.4.1 · Closed-Loop Governance · Three-Tier Operating Architecture",
-        "raster": "figures/fig-ch0-closed-loop.jpg",
+        "raster": "figures/fig-ch0-closed-loop-diagram.jpg",
         "tex": "figures/fig-ch0-closed-loop-diagram.tex",
         "notes_raster": [
-            "Tiers are unevenly distributed; arrows between deliberation and execution loop randomly",
-            "Database WAL and capability verification blocks look like generic cloud clip art",
-            "Text inside execution boxes is squeezed and clipped"
+            "Raster icons (chip, terminal, lock) blur and degrade at print resolution",
+            "Layer text boxes show edge fringing and JPEG compression artifacts",
+            "Sanitized observation feedback arrow text suffers from raster blur"
         ],
         "notes_vector": [
             "Three clean architectural strata: 1. Probabilistic Deliberation, 2. Confined Execution, 3. Deterministic Governance",
             "Rigorous separation of powers: LLMs reason, Sandboxes execute, Kernels arbitrate and persist",
             "Cryptographic attestation and immutable receipts closing the loop back to operator oversight"
-        ]
-    },
-    {
-        "id": "Landmark 01",
-        "title": "Landmark 01 Plate: Mineral Slate Bedrock vs. Green Prototype",
-        "section": "Part 0 & Chapter 0 Opener · Architectural Philosophy & Visual Anchor",
-        "raster": "plates/swiss/landmark-01-previous-green.jpg",
-        "tex_type": "plate",
-        "replacement_img": "plates/swiss/landmark-01.jpg",
-        "notes_raster": [
-            "Uncalibrated bright green blocks ('green psychosis') clashing with the book's palette",
-            "Saturated neon tones distracting from the architectural seriousness of the volume",
-            "Lack of grounding; felt like an arbitrary digital graphic rather than physical bedrock"
-        ],
-        "notes_vector": [
-            "Mineral slate gray palette (#384856) harmonizing with Swiss book design language",
-            "Stepped monoliths anchored upon coarse halftone foundational bedrock footing",
-            "Uncompromising black datum line with precise red origin registration square"
-        ]
-    },
-    {
-        "id": "Part 0 Plate",
-        "title": "Part 0 Opener Plate: Foundations and Prerequisites",
-        "section": "Book Part 0 · Two-Page Spread Verso Section Head Plate",
-        "raster": "plates/swiss/part-0.jpg",
-        "tex_type": "part_plate",
-        "replacement_img": "plates/swiss/part-0.jpg",
-        "notes_raster": [
-            "Part 0 previously lacked an authentic full-spread section head plate",
-            "Chapter 0 started abruptly without the monumental gateway present in subsequent Parts I-IV",
-            "Missing visual anchor for the foundational pre-LLM and kernel gap theory"
-        ],
-        "notes_vector": [
-            "Full 3:2 landscape proportion (2100x1400) designed specifically for the pdslate verso spread",
-            "Features the complete architectural motif: Bedrock footing, stepped slate towers, and red datum",
-            "Fully registered in PROVENANCE.json with 0 test failures and zero external spend"
         ]
     }
 ]
@@ -393,12 +391,12 @@ for idx, fig in enumerate(figures_data):
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={{\\pdgrotesk\\footnotesize\\bfseries \\color{{white}} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \\hfill \\texttt{{.jpg / .png}}}}
   ]
-    \\begin{{minipage}}[c][5.6cm][c]{{\\linewidth}}
+    \\begin{{minipage}}[c][8.3cm][c]{{\\linewidth}}
       \\centering
-      \\includegraphics[width=\\linewidth,height=5.3cm,keepaspectratio]{{{raster_file}}}
+      \\includegraphics[width=\\linewidth,height=8.0cm,keepaspectratio]{{{raster_file}}}
     \\end{{minipage}}
     \\tcblower
-    \\begin{{minipage}}[t][2.2cm][t]{{\\linewidth}}
+    \\begin{{minipage}}[t][2.0cm][t]{{\\linewidth}}
       \\pdgrotesk\\scriptsize
       \\textbf{{\\color{{pderror!90!black}} Artifact \\& Limitation Audit:}}\\\\
       \\begin{{itemize}}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -415,20 +413,20 @@ for idx, fig in enumerate(figures_data):
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\\pdgrotesk\\footnotesize\\bfseries \\color{white} B. Authoritative Native Vector Replacement \\hfill \\texttt{.tex / TikZ / PGF}}
   ]
-    \\begin{minipage}[c][5.6cm][c]{\\linewidth}
+    \\begin{minipage}[c][8.3cm][c]{\\linewidth}
       \\centering
 """
     if fig.get("tex_type") == "plate" or fig.get("tex_type") == "part_plate":
         rep_img = fig["replacement_img"]
-        latex_doc += f"      \\includegraphics[width=\\linewidth,height=5.3cm,keepaspectratio]{{{rep_img}}}\n"
+        latex_doc += f"      \\includegraphics[width=\\linewidth,height=8.0cm,keepaspectratio]{{{rep_img}}}\n"
     else:
         tex_file = fig["tex"]
         latex_doc += f"      \\sbox{{\\pdfigbox}}{{\\input{{{tex_file}}}}}\n"
-        latex_doc += f"      \\pdautoscale{{5.3cm}}{{\\linewidth}}\n"
+        latex_doc += f"      \\pdautoscale{{8.0cm}}{{\\linewidth}}\n"
         
     latex_doc += """    \\end{minipage}
     \\tcblower
-    \\begin{minipage}[t][2.2cm][t]{\\linewidth}
+    \\begin{minipage}[t][2.0cm][t]{\\linewidth}
       \\pdgrotesk\\scriptsize
       \\textbf{{\\color{pdcobalt} Engineering \\& Typography Guarantees:}}\\\\
       \\begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]

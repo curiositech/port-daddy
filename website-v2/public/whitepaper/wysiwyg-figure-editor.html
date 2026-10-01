@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port Daddy · TikZ WYSIWYG Studio & Coordinate Calibrator</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --panel-bg: rgba(18, 24, 38, 0.96);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #2563eb;
+      --accent-hover: #3b82f6;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --crimson: #ef4444;
+      --teal: #0d9488;
+      --grid-cm: rgba(255, 255, 255, 0.12);
+      --grid-mm: rgba(255, 255, 255, 0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Suisse Intl", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Header Bar */
+    header {
+      height: 52px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: white;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .figure-select {
+      background: #162032;
+      color: var(--text-main);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .view-mode-group {
+      display: flex;
+      background: #111827;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .mode-btn:hover { color: white; }
+    .mode-btn.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .slider-group input[type="range"] {
+      width: 75px;
+      accent-color: var(--accent);
+    }
+
+    .btn {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--panel-border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover { background: #334155; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--emerald); border-color: var(--emerald); color: white; }
+    .btn-success:hover { background: #059669; }
+
+    /* Workspace */
+    .workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 52px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Panel: Source Reference Prototype */
+    .source-panel {
+      width: 38%;
+      min-width: 340px;
+      max-width: 650px;
+      height: 100%;
+      background: #080c14;
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s ease;
+    }
+
+    .source-header {
+      height: 38px;
+      padding: 0 14px;
+      background: #0f1622;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .source-header .badge {
+      background: rgba(37, 99, 235, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .source-body {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+      background-size: 16px 16px;
+    }
+
+    .source-img-wrapper {
+      position: relative;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .source-img-wrapper img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* Center: Canvas Area */
+    .canvas-container {
+      flex: 1;
+      height: 100%;
+      background: #06090e;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+      background-size: 20px 20px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    svg#figure-canvas {
+      display: block;
+    }
+
+    /* Draggable Elements */
+    .drag-node {
+      cursor: grab;
+      transition: filter 0.1s ease;
+    }
+    .drag-node:hover {
+      filter: drop-shadow(0 0 5px rgba(37, 99, 235, 0.6));
+    }
+    .drag-node.selected {
+      filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.9));
+    }
+    .drag-node:active {
+      cursor: grabbing;
+    }
+
+    /* Interactive Arrows */
+    .arrow-path {
+      cursor: pointer;
+      transition: stroke-width 0.1s ease, filter 0.1s ease;
+    }
+    .arrow-path:hover {
+      stroke-width: 0.08 !important;
+      filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.8));
+    }
+    .arrow-path.selected {
+      stroke-width: 0.09 !important;
+      filter: drop-shadow(0 0 6px rgba(37, 99, 235, 1));
+    }
+
+    .arrow-label-group {
+      cursor: pointer;
+    }
+    .arrow-label-group:hover rect {
+      stroke: var(--accent);
+      stroke-width: 0.03;
+    }
+
+    /* Resize Handles */
+    .resize-handle {
+      fill: #ffffff;
+      stroke: #2563eb;
+      stroke-width: 0.03;
+      cursor: pointer;
+    }
+    .resize-handle:hover {
+      fill: #2563eb;
+    }
+    .handle-nw, .handle-se { cursor: nwse-resize; }
+    .handle-ne, .handle-sw { cursor: nesw-resize; }
+    .handle-n,  .handle-s  { cursor: ns-resize; }
+    .handle-e,  .handle-w  { cursor: ew-resize; }
+
+    /* Right Sidebar Inspector */
+    .sidebar {
+      width: 360px;
+      height: 100%;
+      background: var(--panel-bg);
+      border-left: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+    }
+
+    .sidebar-header {
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--panel-border);
+      background: #0d131e;
+    }
+
+    .s-tab {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .s-tab:hover { color: white; }
+    .s-tab.active {
+      color: var(--accent-hover);
+      border-bottom-color: var(--accent);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-card {
+      background: #131a26;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-hover);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .coord-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .input-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-field label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .input-field input, .input-field textarea, .input-field select {
+      background: #0a0e16;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      padding: 5px 7px;
+      color: var(--text-main);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .input-field textarea {
+      resize: vertical;
+      line-height: 1.3;
+    }
+    .input-field input:focus, .input-field textarea:focus, .input-field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      background: #0a0e16;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+    .item-row:hover { background: #182234; }
+    .item-row.active {
+      background: #1e2c44;
+      border-color: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .item-row .tag {
+      font-size: 9px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.08);
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* Output Console */
+    .output-section {
+      height: 160px;
+      background: #080c14;
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .output-header {
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .output-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .output-tab {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .output-tab.active {
+      color: white;
+      background: #1e293b;
+      font-weight: 600;
+    }
+
+    pre#output-text {
+      flex: 1;
+      padding: 8px 12px;
+      font-family: "SF Mono", Monaco, Consolas, monospace;
+      font-size: 10px;
+      color: #93c5fd;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #10b981;
+      color: white;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1000;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header>
+    <div class="header-left">
+      <span class="brand-badge">TikZ Studio</span>
+      <select id="figure-select" class="figure-select">
+        <option value="fig-0.16">Fig 0.16 · Agent Lifecycle Hooks Cross-Section</option>
+        <option value="fig-0.15">Fig 0.15 · Progressive Disclosure of Skills</option>
+        <option value="fig-0.17">Fig 0.17 · Ramadge-Wonham Supervisory Control</option>
+        <option value="fig-0.18">Fig 0.18 · Closed-Loop Architecture</option>
+        <option value="fig-0.10">Fig 0.10 · Virtual Actors vs. CSP</option>
+        <option value="fig-0.11">Fig 0.11 · BDI Execution Flow</option>
+        <option value="fig-0.12">Fig 0.12 · FIPA Speech Acts</option>
+        <option value="fig-0.13">Fig 0.13 · Contract Net Protocol</option>
+        <option value="fig-0.14">Fig 0.14 · Big Brother Logic Vision Cones</option>
+      </select>
+
+      <!-- View Mode Buttons -->
+      <div class="view-mode-group">
+        <button class="mode-btn active" id="btn-mode-split" title="Display Source Figure and Vector Canvas Side-by-Side">🌓 Side-by-Side</button>
+        <button class="mode-btn" id="btn-mode-overlay" title="Overlay Source Figure directly under vector canvas">🧅 Onion Overlay</button>
+        <button class="mode-btn" id="btn-mode-canvas" title="Clean Vector Canvas Only">📐 Canvas Only</button>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="slider-group" id="group-opacity">
+        <span>Overlay Opacity:</span>
+        <input type="range" id="overlay-opacity" min="0" max="1" step="0.05" value="0.30">
+        <span id="opacity-val">30%</span>
+      </div>
+
+      <div class="slider-group">
+        <label><input type="checkbox" id="snap-grid" checked> Snap 0.1cm</label>
+      </div>
+
+      <button id="btn-reset" class="btn">↺ Reset</button>
+      <button id="btn-copy-json" class="btn btn-primary">📋 Copy JSON</button>
+      <button id="btn-save-server" class="btn btn-success">💾 Send to Agent</button>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <div class="workspace" id="workspace">
+    
+    <!-- Left: Source Reference Figure Panel -->
+    <div class="source-panel" id="source-panel">
+      <div class="source-header">
+        <span>Original Prototype Reference</span>
+        <span class="badge" id="source-res-badge">High-Res Target</span>
+      </div>
+      <div class="source-body">
+        <div class="source-img-wrapper">
+          <img id="source-ref-img" src="figures/fig-ch0-lifecycle-hooks.jpg" alt="Source Figure Prototype">
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Interactive Canvas Container -->
+    <div class="canvas-container" id="canvas-container">
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <svg id="figure-canvas" width="1020" height="520" viewBox="0 0 17 8.5">
+          <defs>
+            <!-- Grid Patterns (1 unit = 1 cm) -->
+            <pattern id="grid-1mm" width="0.1" height="0.1" patternUnits="userSpaceOnUse">
+              <path d="M 0.1 0 L 0 0 0 0.1" fill="none" stroke="rgba(0,0,0,0.04)" stroke-width="0.01"/>
+            </pattern>
+            <pattern id="grid-1cm" width="1.0" height="1.0" patternUnits="userSpaceOnUse">
+              <rect width="1.0" height="1.0" fill="url(#grid-1mm)"/>
+              <path d="M 1 0 L 0 0 0 1" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="0.02"/>
+            </pattern>
+
+            <!-- Arrow Markers -->
+            <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981"/>
+            </marker>
+            <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ef4444"/>
+            </marker>
+            <marker id="arrow-cobalt" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#003fb8"/>
+            </marker>
+            <marker id="arrow-teal" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0d9488"/>
+            </marker>
+            <marker id="arrow-dark" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1e293b"/>
+            </marker>
+          </defs>
+
+          <!-- Grid Background -->
+          <rect width="17" height="8.5" fill="#f8fafc"/>
+          <rect width="17" height="8.5" fill="url(#grid-1cm)"/>
+
+          <!-- Prototype Raster Background Layer (for overlay mode) -->
+          <image id="prototype-image" x="0.2" y="0.2" width="16.5" height="8.1" preserveAspectRatio="none" opacity="0.30" href="figures/fig-ch0-lifecycle-hooks.jpg"/>
+
+          <!-- Interactive Vector Layer (TikZ Cartesian Coords: y=0 at bottom) -->
+          <g id="vector-layer" transform="scale(1, -1) translate(0, -8.5)">
+            <g id="boundaries-layer"></g>
+            <g id="arrows-layer"></g>
+            <g id="nodes-layer"></g>
+            <g id="handles-layer"></g>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Right Sidebar Inspector -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>Component Inspector</span>
+        <span id="selected-badge" style="color: white; font-weight: 600;">None Selected</span>
+      </div>
+
+      <!-- Inspector Tabs -->
+      <div class="sidebar-tabs">
+        <button class="s-tab active" data-stab="part" id="tab-btn-part">Node Properties</button>
+        <button class="s-tab" data-stab="arrow" id="tab-btn-arrow">Arrows & Paths</button>
+        <button class="s-tab" data-stab="layers" id="tab-btn-layers">Elements List</button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- Tab 1: Part Inspector -->
+        <div id="tab-pane-part">
+          <!-- Text Editing -->
+          <div class="panel-card" style="margin-bottom:12px;">
+            <div class="panel-title">Label & Typography</div>
+            <div class="input-field" style="margin-bottom:8px;">
+              <label>Text Content (Double click node on canvas)</label>
+              <textarea id="inp-text" rows="2"></textarea>
+            </div>
+            <div class="coord-grid">
+              <div class="input-field">
+                <label>Font Size (cm)</label>
+                <input type="number" id="inp-fontsize" step="0.02" value="0.22">
+              </div>
+              <div class="input-field">
+                <label>Theme Color</label>
+                <select id="inp-color">
+                  <option value="#003fb8">Cobalt Blue (#003fb8)</option>
+                  <option value="#10b981">Emerald Green (#10b981)</option>
+                  <option value="#ef4444">Crimson Red (#ef4444)</option>
+                  <option value="#0d9488">Teal (#0d9488)</option>
+                  <option value="#f59e0b">Amber (#f59e0b)</option>
+                  <option value="#0f172a">Dark Slate (#0f172a)</option>
+                  <option value="#64748b">Muted Slate (#64748b)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Position & Size -->
+          <div class="panel-card">
+            <div class="panel-title">
+              <span>Position & Dimensions (cm)</span>
+              <span style="font-size:9px; color:var(--text-muted);">Y=0 is bottom</span>
+            </div>
+            <div class="coord-grid">
+              <div class="input-field">
+                <label>X Center</label>
+                <input type="number" id="inp-x" step="0.05">
+              </div>
+              <div class="input-field">
+                <label>Y Center</label>
+                <input type="number" id="inp-y" step="0.05">
+              </div>
+              <div class="input-field">
+                <label>Width (W)</label>
+                <input type="number" id="inp-w" step="0.05">
+              </div>
+              <div class="input-field">
+                <label>Height (H)</label>
+                <input type="number" id="inp-h" step="0.05">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Arrow Inspector -->
+        <div id="tab-pane-arrow" style="display:none;">
+          <div class="panel-card" style="margin-bottom:12px;">
+            <div class="panel-title">Selected Arrow</div>
+            <div class="input-field" style="margin-bottom:8px;">
+              <label>Arrow Label (Pill Text)</label>
+              <input type="text" id="inp-arrow-label" placeholder="e.g. Exit 0 (Permit)">
+            </div>
+            <div class="coord-grid" style="margin-bottom:8px;">
+              <div class="input-field">
+                <label>From Node</label>
+                <select id="inp-arrow-from"></select>
+              </div>
+              <div class="input-field">
+                <label>To Node</label>
+                <select id="inp-arrow-to"></select>
+              </div>
+              <div class="input-field">
+                <label>Arrow Color</label>
+                <select id="inp-arrow-color">
+                  <option value="#10b981">Green (Permit / Success)</option>
+                  <option value="#ef4444">Red (Veto / Halt)</option>
+                  <option value="#003fb8">Cobalt (Control Flow)</option>
+                  <option value="#0d9488">Teal (Data Flow)</option>
+                  <option value="#64748b">Slate (Transition)</option>
+                </select>
+              </div>
+              <div class="input-field">
+                <label>Line Style</label>
+                <select id="inp-arrow-style">
+                  <option value="solid">Solid Line</option>
+                  <option value="dashed">Dashed Line</option>
+                  <option value="dotted">Dotted Line</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-title">Figure Arrows</div>
+            <div class="item-list" id="arrows-list">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Layers / Parts List -->
+        <div id="tab-pane-layers" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-title">Figure Components</div>
+            <div class="item-list" id="parts-list">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time Output & Export -->
+      <div class="output-section">
+        <div class="output-header">
+          <div class="output-tabs">
+            <button class="output-tab active" data-tab="json">JSON Spec</button>
+            <button class="output-tab" data-tab="tikz">TikZ Code</button>
+          </div>
+          <span style="font-size: 10px; color: var(--emerald);">● Live Auto-Sync</span>
+        </div>
+        <pre id="output-text"></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast">Saved directly to workspace!</div>
+
+  <script>
+    // Master Registry of Figures with Components, Dimensions, Text & Arrows
+    const FIGURES = {
+      "fig-0.16": {
+        name: "Figure 0.16 · Agent Lifecycle Hooks Cross-Section",
+        image: "figures/fig-ch0-lifecycle-hooks.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "outer_loop", label: "Agent Interaction Loop", type: "boundary", x: 0.35, y: 0.75, w: 10.65, h: 6.75, color: "#1e40af", fill: "rgba(238, 242, 255, 0.35)", strokeDash: "0.15, 0.1" },
+          { id: "sess_start", label: "SessionStart", type: "pill", x: 1.30, y: 6.60, w: 2.2, h: 0.5, color: "#0f172a" },
+          { id: "prompt_sub", label: "UserPromptSubmit", type: "pill", x: 1.30, y: 5.20, w: 2.6, h: 0.5, color: "#0f172a" },
+          { id: "delib_robot", label: "Deliberation Robot", type: "robot", x: 1.30, y: 3.25, w: 2.0, h: 1.8, color: "#003fb8" },
+          { id: "inner_loop", label: "Inner Tool Loop", type: "boundary", x: 3.20, y: 0.95, w: 6.70, h: 5.70, color: "#2563eb", fill: "rgba(255, 255, 255, 0.9)", strokeDash: "0.12, 0.08" },
+          { id: "node_delib", label: "Agent Deliberation Card", type: "card", x: 6.55, y: 5.75, w: 2.50, h: 1.10, color: "#003fb8" },
+          { id: "node_secgate", label: "PreToolUse Security Gate", type: "shield", x: 4.45, y: 3.80, w: 2.00, h: 1.20, color: "#003fb8" },
+          { id: "node_sandbox", label: "Seatbelt Sandbox", type: "card", x: 8.75, y: 3.80, w: 1.70, h: 1.90, color: "#0f172a" },
+          { id: "node_hygiene", label: "PostToolUse Hygiene", type: "node", x: 6.55, y: 1.95, w: 2.20, h: 1.00, color: "#0d9488" },
+          { id: "stop_gate", label: "Stop Gate", type: "shield", x: 10.45, y: 0.55, w: 1.6, h: 1.1, color: "#003fb8" },
+          { id: "case_a", label: "Case A (Security Veto)", type: "casecard", x: 11.60, y: 5.25, w: 4.80, h: 2.10, color: "#ef4444" },
+          { id: "case_b", label: "Case B (Code Hygiene)", type: "casecard", x: 11.60, y: 2.80, w: 4.80, h: 2.10, color: "#10b981" },
+          { id: "case_c", label: "Case C (Test Gate)", type: "casecard", x: 11.60, y: 0.35, w: 4.80, h: 2.10, color: "#f59e0b" }
+        ],
+        arrows: [
+          { id: "arr_sess_prompt", from: "sess_start", to: "prompt_sub", label: "Init Context", color: "#64748b", style: "solid" },
+          { id: "arr_prompt_robot", from: "prompt_sub", to: "delib_robot", label: "User Prompt", color: "#003fb8", style: "solid" },
+          { id: "arr_robot_delib", from: "delib_robot", to: "node_delib", label: "Turn Begins", color: "#003fb8", style: "orthogonal" },
+          { id: "arr_delib_secgate", from: "node_delib", to: "node_secgate", label: "Tool Call", color: "#003fb8", style: "solid" },
+          { id: "arr_secgate_sandbox", from: "node_secgate", to: "node_sandbox", label: "Exit 0 (Permit)", color: "#10b981", style: "solid" },
+          { id: "arr_sandbox_hygiene", from: "node_sandbox", to: "node_hygiene", label: "Tool Output", color: "#0d9488", style: "solid" },
+          { id: "arr_hygiene_delib", from: "node_hygiene", to: "node_delib", label: "Exit 0 (Clean Prompt)", color: "#10b981", style: "solid" },
+          { id: "arr_sandbox_stop", from: "node_sandbox", to: "stop_gate", label: "Exit 2 (Hard Veto)", color: "#ef4444", style: "orthogonal", strokeDash: "0.1, 0.05" },
+          { id: "arr_delib_case_a", from: "node_delib", to: "case_a", label: "Veto Trigger", color: "#94a3b8", style: "dashed" },
+          { id: "arr_hygiene_case_b", from: "node_hygiene", to: "case_b", label: "Linter Gate", color: "#94a3b8", style: "dashed" },
+          { id: "arr_stop_case_c", from: "stop_gate", to: "case_c", label: "Oracle Check", color: "#94a3b8", style: "dashed" }
+        ]
+      },
+      "fig-0.15": {
+        name: "Figure 0.15 · Progressive Disclosure of Skills",
+        image: "figures/fig-ch0-skills-logarithmic.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "card_1", label: "Decade 10^0: Frontmatter (~100t)", type: "card", x: 2.20, y: 4.20, w: 2.40, h: 5.60, color: "#ef4444" },
+          { id: "card_2", label: "Decade 10^-1: Manual (~1,000t)", type: "card", x: 5.00, y: 4.20, w: 2.40, h: 5.60, color: "#10b981" },
+          { id: "card_3", label: "Decade 10^-2: Catalog (~5,000t)", type: "card", x: 7.80, y: 4.20, w: 2.40, h: 5.60, color: "#2563eb" },
+          { id: "card_4", label: "Decade 10^-4: Host Scripts (0t)", type: "card", x: 10.60, y: 4.20, w: 2.40, h: 5.60, color: "#0f172a" },
+          { id: "host_terminal", label: "Host Substrate Terminal", type: "node", x: 12.80, y: 3.40, w: 1.60, h: 1.40, color: "#475569" },
+          { id: "robot_meter", label: "Token Savings Robot", type: "robot", x: 15.00, y: 4.20, w: 2.20, h: 4.80, color: "#003fb8" },
+          { id: "banner_invariant", label: "Context Preservation Invariant", type: "pill", x: 13.80, y: 7.20, w: 4.80, h: 1.00, color: "#0f172a" }
+        ],
+        arrows: [
+          { id: "arr_d1_d2", from: "card_1", to: "card_2", label: "10% Filter", color: "#10b981", style: "solid" },
+          { id: "arr_d2_d3", from: "card_2", to: "card_3", label: "1% Selection", color: "#2563eb", style: "solid" },
+          { id: "arr_d3_d4", from: "card_3", to: "card_4", label: "Offloaded", color: "#0f172a", style: "solid" },
+          { id: "arr_d4_term", from: "card_4", to: "host_terminal", label: "Zero Tokens", color: "#10b981", style: "solid" },
+          { id: "arr_d4_meter", from: "card_4", to: "robot_meter", label: "98.4% Saved", color: "#10b981", style: "solid" }
+        ]
+      },
+      "fig-0.17": {
+        name: "Figure 0.17 · Ramadge-Wonham Supervisory Control",
+        image: "figures/fig-ch0-wonham-supervisory.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "supervisor_box", label: "Supervisory Controller S (Kernel TCB)", type: "card", x: 10.80, y: 6.20, w: 8.40, h: 2.60, color: "#003fb8" },
+          { id: "plant_box", label: "Plant G (Autonomous Agent Generator)", type: "card", x: 10.80, y: 3.20, w: 8.40, h: 2.60, color: "#0f172a" },
+          { id: "theorem_box", label: "Minimally Restrictive Theorem Box", type: "card", x: 10.80, y: 0.90, w: 8.40, h: 1.20, color: "#334155" },
+          { id: "robot_s0", label: "Automaton State s0 Robot", type: "robot", x: 2.40, y: 6.20, w: 1.60, h: 1.60, color: "#003fb8" },
+          { id: "robot_s1", label: "Automaton State s1 Robot", type: "robot", x: 1.60, y: 4.20, w: 1.60, h: 1.60, color: "#003fb8" },
+          { id: "robot_s2", label: "Automaton State s2 Robot", type: "robot", x: 2.20, y: 2.20, w: 1.60, h: 1.60, color: "#003fb8" },
+          { id: "robot_s3", label: "Automaton State s3 Robot", type: "robot", x: 3.60, y: 1.20, w: 1.60, h: 1.60, color: "#003fb8" },
+          { id: "hazard_barrier", label: "Disablement Hazard Barrier", type: "veto", x: 4.20, y: 4.80, w: 2.40, h: 0.60, color: "#ef4444" }
+        ],
+        arrows: [
+          { id: "arr_plant_sup", from: "plant_box", to: "supervisor_box", label: "Events Σ (feedback)", color: "#003fb8", style: "solid" },
+          { id: "arr_sup_plant", from: "supervisor_box", to: "plant_box", label: "Control Map γ(s)", color: "#10b981", style: "solid" },
+          { id: "arr_s0_s1", from: "robot_s0", to: "robot_s1", label: "σ1", color: "#003fb8", style: "solid" },
+          { id: "arr_s1_s2", from: "robot_s1", to: "robot_s2", label: "σ2", color: "#003fb8", style: "solid" },
+          { id: "arr_s2_s3", from: "robot_s2", to: "robot_s3", label: "σ3", color: "#003fb8", style: "solid" },
+          { id: "arr_hazard_veto", from: "hazard_barrier", to: "robot_s2", label: "Disable σ_bad", color: "#ef4444", style: "dashed" }
+        ]
+      },
+      "fig-0.18": {
+        name: "Figure 0.18 · The Closed Agentic Architecture Loop",
+        image: "figures/fig-ch0-closed-loop-diagram.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "robot_actor", label: "Voting Tokens Agent", type: "robot", x: 1.80, y: 5.60, w: 1.80, h: 2.00, color: "#003fb8" },
+          { id: "layer_delib", label: "Layer 1: Probabilistic Deliberation", type: "card", x: 9.80, y: 6.40, w: 11.20, h: 2.10, color: "#003fb8" },
+          { id: "layer_exec", label: "Layer 2: Confined Host Execution", type: "card", x: 9.80, y: 3.85, w: 11.20, h: 2.10, color: "#334155" },
+          { id: "layer_gov", label: "Layer 3: Deterministic Governance", type: "card", x: 9.80, y: 1.30, w: 11.20, h: 2.10, color: "#0f172a" },
+          { id: "feedback_pipe", label: "Sanitized Feedback Pipe", type: "badge", x: 3.60, y: 3.85, w: 0.80, h: 5.20, color: "#10b981" }
+        ],
+        arrows: [
+          { id: "arr_actor_delib", from: "robot_actor", to: "layer_delib", label: "User Prompt", color: "#003fb8", style: "solid" },
+          { id: "arr_delib_exec", from: "layer_delib", to: "layer_exec", label: "Tool Execution Request", color: "#003fb8", style: "solid" },
+          { id: "arr_exec_gov", from: "layer_exec", to: "layer_gov", label: "Receipts & Work Claims", color: "#10b981", style: "solid" },
+          { id: "arr_gov_pipe", from: "layer_gov", to: "feedback_pipe", label: "Audit Sealed", color: "#10b981", style: "orthogonal" },
+          { id: "arr_pipe_delib", from: "feedback_pipe", to: "layer_delib", label: "Safe Observation", color: "#10b981", style: "orthogonal" }
+        ]
+      },
+      "fig-0.10": {
+        name: "Figure 0.10 · Virtual Actors vs. CSP Rendezvous",
+        image: "figures/fig-ch0-concurrency-diagram.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "actor_panel", label: "Hewitt-Agha Actor Model (Asynchronous)", type: "boundary", x: 0.35, y: 0.65, w: 7.80, h: 6.80, color: "#003fb8", fill: "rgba(238, 242, 255, 0.4)" },
+          { id: "actor_robot", label: "Receiver Robot", type: "robot", x: 1.80, y: 4.60, w: 1.60, h: 1.60, color: "#003fb8" },
+          { id: "actor_mailbox", label: "Designated Private Mailbox", type: "card", x: 4.80, y: 4.60, w: 2.80, h: 1.20, color: "#0d9488" },
+          { id: "actor_state", label: "Isolated Private State", type: "card", x: 4.80, y: 2.00, w: 3.00, h: 2.20, color: "#003fb8" },
+          { id: "csp_panel", label: "Hoare CSP Rendezvous (Synchronous)", type: "boundary", x: 8.85, y: 0.65, w: 7.80, h: 6.80, color: "#ef4444", fill: "rgba(254, 242, 242, 0.4)" },
+          { id: "csp_proc_a", label: "Process P", type: "card", x: 10.50, y: 4.20, w: 2.00, h: 2.00, color: "#ef4444" },
+          { id: "csp_channel", label: "Unbuffered Channel c!", type: "node", x: 12.75, y: 4.20, w: 1.80, h: 1.00, color: "#0f172a" },
+          { id: "csp_proc_b", label: "Process Q", type: "card", x: 15.00, y: 4.20, w: 2.00, h: 2.00, color: "#10b981" }
+        ],
+        arrows: [
+          { id: "arr_actor_msg", from: "actor_robot", to: "actor_mailbox", label: "send(msg)", color: "#003fb8", style: "solid" },
+          { id: "arr_actor_dequeue", from: "actor_mailbox", to: "actor_state", label: "dequeue", color: "#0d9488", style: "solid" },
+          { id: "arr_csp_sync1", from: "csp_proc_a", to: "csp_channel", label: "c!v (Block)", color: "#ef4444", style: "solid" },
+          { id: "arr_csp_sync2", from: "csp_channel", to: "csp_proc_b", label: "c?x (Rendezvous)", color: "#10b981", style: "solid" }
+        ]
+      },
+      "fig-0.11": {
+        name: "Figure 0.11 · BDI Execution Flow",
+        image: "figures/fig-ch0-bdi-diagram.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "belief_box", label: "Belief Base (B)", type: "card", x: 4.00, y: 5.80, w: 3.20, h: 1.80, color: "#003fb8" },
+          { id: "desire_box", label: "Desires / Options (D)", type: "card", x: 8.50, y: 5.80, w: 3.20, h: 1.80, color: "#10b981" },
+          { id: "intention_box", label: "Intention Stack (I)", type: "card", x: 13.00, y: 5.80, w: 3.20, h: 1.80, color: "#ef4444" },
+          { id: "selection_eng", label: "Option Generator (SO)", type: "node", x: 6.25, y: 3.00, w: 2.80, h: 1.40, color: "#0d9488" },
+          { id: "delib_eng", label: "Deliberation Filter (SI)", type: "node", x: 10.75, y: 3.00, w: 2.80, h: 1.40, color: "#003fb8" },
+          { id: "act_exec", label: "Action Execution Engine", type: "card", x: 8.50, y: 1.00, w: 4.50, h: 1.40, color: "#0f172a" }
+        ],
+        arrows: [
+          { id: "arr_b_so", from: "belief_box", to: "selection_eng", label: "Belief State", color: "#003fb8", style: "solid" },
+          { id: "arr_d_so", from: "desire_box", to: "selection_eng", label: "Goals", color: "#10b981", style: "solid" },
+          { id: "arr_so_si", from: "selection_eng", to: "delib_eng", label: "Viable Options", color: "#0d9488", style: "solid" },
+          { id: "arr_si_i", from: "delib_eng", to: "intention_box", label: "Committed Plans", color: "#ef4444", style: "solid" },
+          { id: "arr_i_act", from: "intention_box", to: "act_exec", label: "Execute Next Step", color: "#ef4444", style: "orthogonal" },
+          { id: "arr_act_b", from: "act_exec", to: "belief_box", label: "Perception Update", color: "#003fb8", style: "orthogonal" }
+        ]
+      },
+      "fig-0.12": {
+        name: "Figure 0.12 · FIPA Speech Acts Taxonomy",
+        image: "figures/fig-ch0-fipa-speech-acts.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "info_group", label: "Information Passing", type: "boundary", x: 0.50, y: 4.40, w: 5.00, h: 3.60, color: "#003fb8", fill: "rgba(238,242,255,0.4)" },
+          { id: "act_inform", label: "inform", type: "pill", x: 3.00, y: 6.80, w: 3.00, h: 0.60, color: "#003fb8" },
+          { id: "act_query", label: "query-if / query-ref", type: "pill", x: 3.00, y: 5.20, w: 3.60, h: 0.60, color: "#003fb8" },
+          { id: "action_group", label: "Action Delegation", type: "boundary", x: 6.00, y: 4.40, w: 5.00, h: 3.60, color: "#10b981", fill: "rgba(236,253,245,0.4)" },
+          { id: "act_request", label: "request", type: "pill", x: 8.50, y: 6.80, w: 3.00, h: 0.60, color: "#10b981" },
+          { id: "act_agree", label: "agree / refuse", type: "pill", x: 8.50, y: 5.20, w: 3.20, h: 0.60, color: "#10b981" },
+          { id: "neg_group", label: "Negotiation (CNP)", type: "boundary", x: 11.50, y: 4.40, w: 5.00, h: 3.60, color: "#f59e0b", fill: "rgba(254,243,199,0.4)" },
+          { id: "act_cfp", label: "cfp (Call For Proposals)", type: "pill", x: 14.00, y: 6.80, w: 3.80, h: 0.60, color: "#f59e0b" },
+          { id: "act_prop", label: "propose / accept / reject", type: "pill", x: 14.00, y: 5.20, w: 4.00, h: 0.60, color: "#f59e0b" },
+          { id: "error_group", label: "Error & Failure Signaling", type: "card", x: 8.50, y: 1.80, w: 10.00, h: 1.80, color: "#ef4444" }
+        ],
+        arrows: [
+          { id: "arr_req_agree", from: "act_request", to: "act_agree", label: "Commitment Gate", color: "#10b981", style: "solid" },
+          { id: "arr_cfp_prop", from: "act_cfp", to: "act_prop", label: "Bidding Protocol", color: "#f59e0b", style: "solid" },
+          { id: "arr_fail_sig", from: "act_agree", to: "error_group", label: "failure / not-understood", color: "#ef4444", style: "orthogonal" }
+        ]
+      },
+      "fig-0.13": {
+        name: "Figure 0.13 · Contract Net Protocol State Machine",
+        image: "figures/fig-ch0-cnp-diagram.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "mgr_agent", label: "Manager Agent (Task Owner)", type: "card", x: 3.20, y: 4.25, w: 4.40, h: 6.50, color: "#003fb8" },
+          { id: "contractor_1", label: "Contractor 1 (Worker)", type: "card", x: 13.50, y: 6.60, w: 4.20, h: 1.80, color: "#10b981" },
+          { id: "contractor_2", label: "Contractor 2 (Worker)", type: "card", x: 13.50, y: 4.25, w: 4.20, h: 1.80, color: "#10b981" },
+          { id: "contractor_3", label: "Contractor 3 (Worker)", type: "card", x: 13.50, y: 1.90, w: 4.20, h: 1.80, color: "#64748b" }
+        ],
+        arrows: [
+          { id: "arr_cfp_all", from: "mgr_agent", to: "contractor_1", label: "1. Broadcast CFP", color: "#003fb8", style: "solid" },
+          { id: "arr_bid_c1", from: "contractor_1", to: "mgr_agent", label: "2. Submit Bid ($15)", color: "#10b981", style: "solid" },
+          { id: "arr_bid_c2", from: "contractor_2", to: "mgr_agent", label: "2. Submit Bid ($22)", color: "#10b981", style: "solid" },
+          { id: "arr_award_c1", from: "mgr_agent", to: "contractor_1", label: "3. Award Contract", color: "#ef4444", style: "solid" }
+        ]
+      },
+      "fig-0.14": {
+        name: "Figure 0.14 · Big Brother Logic Vision Cones",
+        image: "figures/fig-ch0-bbl-diagram.jpg",
+        viewBox: { w: 17.0, h: 8.5 },
+        parts: [
+          { id: "agent_a", label: "Agent A (Observer)", type: "card", x: 3.00, y: 6.00, w: 3.60, h: 2.20, color: "#003fb8" },
+          { id: "agent_b", label: "Agent B (Observed)", type: "card", x: 14.00, y: 6.00, w: 3.60, h: 2.20, color: "#10b981" },
+          { id: "shared_channel", label: "Observable Communication Channel", type: "boundary", x: 4.00, y: 2.00, w: 9.00, h: 2.20, color: "#0d9488", fill: "rgba(204,251,241,0.3)" },
+          { id: "eavesdropper", label: "Audit / Overseer (Big Brother)", type: "card", x: 8.50, y: 0.90, w: 4.50, h: 1.20, color: "#ef4444" }
+        ],
+        arrows: [
+          { id: "arr_a_chan", from: "agent_a", to: "shared_channel", label: "Public Broadcast", color: "#003fb8", style: "solid" },
+          { id: "arr_chan_b", from: "shared_channel", to: "agent_b", label: "Deliver Msg", color: "#10b981", style: "solid" },
+          { id: "arr_audit_tap", from: "shared_channel", to: "eavesdropper", label: "Universal Tap (K_Audit)", color: "#ef4444", style: "solid" }
+        ]
+      }
+    };
+
+    // State
+    let currentFig = "fig-0.16";
+    let activePartId = null;
+    let activeArrowId = null;
+    let isDragging = false;
+    let isResizing = false;
+    let resizeHandleType = null;
+    let dragOffset = { x: 0, y: 0 };
+    let resizeAnchor = { x: 0, y: 0, w: 0, h: 0 };
+    let activeTab = "json";
+    let viewMode = "split"; // 'split', 'overlay', 'canvas'
+
+    // DOM Elements
+    const svg = document.getElementById("figure-canvas");
+    const boundariesLayer = document.getElementById("boundaries-layer");
+    const arrowsLayer = document.getElementById("arrows-layer");
+    const nodesLayer = document.getElementById("nodes-layer");
+    const handlesLayer = document.getElementById("handles-layer");
+    const partsList = document.getElementById("parts-list");
+    const arrowsList = document.getElementById("arrows-list");
+    const selectedBadge = document.getElementById("selected-badge");
+    const sourceRefImg = document.getElementById("source-ref-img");
+    const protoImg = document.getElementById("prototype-image");
+    const sourcePanel = document.getElementById("source-panel");
+    const workspace = document.getElementById("workspace");
+
+    // Input Fields
+    const inpText = document.getElementById("inp-text");
+    const inpFontSize = document.getElementById("inp-fontsize");
+    const inpColor = document.getElementById("inp-color");
+    const inpX = document.getElementById("inp-x");
+    const inpY = document.getElementById("inp-y");
+    const inpW = document.getElementById("inp-w");
+    const inpH = document.getElementById("inp-h");
+
+    // Arrow Fields
+    const inpArrowLabel = document.getElementById("inp-arrow-label");
+    const inpArrowFrom = document.getElementById("inp-arrow-from");
+    const inpArrowTo = document.getElementById("inp-arrow-to");
+    const inpArrowColor = document.getElementById("inp-arrow-color");
+    const inpArrowStyle = document.getElementById("inp-arrow-style");
+
+    const outputText = document.getElementById("output-text");
+    const opacitySlider = document.getElementById("overlay-opacity");
+    const opacityVal = document.getElementById("opacity-val");
+    const snapCheckbox = document.getElementById("snap-grid");
+
+    // Initialize Figure
+    function loadFigure(key) {
+      currentFig = key;
+      const data = FIGURES[key];
+      protoImg.setAttribute("href", data.image);
+      sourceRefImg.setAttribute("src", data.image);
+      activePartId = null;
+      activeArrowId = null;
+      
+      populateArrowSelects();
+      renderAll();
+      updateOutput();
+    }
+
+    // Populate dropdowns for arrow nodes
+    function populateArrowSelects() {
+      const data = FIGURES[currentFig];
+      inpArrowFrom.innerHTML = "";
+      inpArrowTo.innerHTML = "";
+      data.parts.forEach(p => {
+        const opt1 = document.createElement("option");
+        opt1.value = p.id;
+        opt1.textContent = p.label;
+        inpArrowFrom.appendChild(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.value = p.id;
+        opt2.textContent = p.label;
+        inpArrowTo.appendChild(opt2);
+      });
+    }
+
+    // Render Everything
+    function renderAll() {
+      renderBoundariesAndNodes();
+      renderArrows();
+      renderResizeHandles();
+      renderSidebarLists();
+    }
+
+    // Render Boundaries and Nodes
+    function renderBoundariesAndNodes() {
+      boundariesLayer.innerHTML = "";
+      nodesLayer.innerHTML = "";
+      const data = FIGURES[currentFig];
+
+      data.parts.forEach(part => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", `drag-node ${part.id === activePartId ? "selected" : ""}`);
+        g.setAttribute("data-id", part.id);
+
+        if (part.type === "boundary") {
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", part.x);
+          rect.setAttribute("y", part.y);
+          rect.setAttribute("width", part.w);
+          rect.setAttribute("height", part.h);
+          rect.setAttribute("rx", "0.25");
+          rect.setAttribute("fill", part.fill || "none");
+          rect.setAttribute("stroke", part.color);
+          rect.setAttribute("stroke-width", "0.035");
+          rect.setAttribute("stroke-dasharray", part.strokeDash || "0.15, 0.1");
+          g.appendChild(rect);
+
+          const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          title.setAttribute("x", part.x + part.w / 2);
+          title.setAttribute("y", part.y + part.h - 0.05);
+          title.setAttribute("text-anchor", "middle");
+          title.setAttribute("fill", part.color);
+          title.setAttribute("font-size", part.fontSize || "0.24");
+          title.setAttribute("font-weight", "bold");
+          title.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (part.y + part.h - 0.05))})`);
+          title.textContent = part.label;
+          g.appendChild(title);
+
+          boundariesLayer.appendChild(g);
+        } else if (part.type === "casecard") {
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", part.x);
+          rect.setAttribute("y", part.y);
+          rect.setAttribute("width", part.w);
+          rect.setAttribute("height", part.h);
+          rect.setAttribute("rx", "0.18");
+          rect.setAttribute("fill", "#ffffff");
+          rect.setAttribute("stroke", "#cbd5e1");
+          rect.setAttribute("stroke-width", "0.025");
+          g.appendChild(rect);
+
+          const pill = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          pill.setAttribute("x", part.x + 0.15);
+          pill.setAttribute("y", part.y + part.h - 0.35);
+          pill.setAttribute("width", "1.4");
+          pill.setAttribute("height", "0.28");
+          pill.setAttribute("rx", "0.08");
+          pill.setAttribute("fill", part.color);
+          g.appendChild(pill);
+
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", part.x + 0.2);
+          txt.setAttribute("y", part.y + part.h - 0.55);
+          txt.setAttribute("font-size", part.fontSize || "0.22");
+          txt.setAttribute("font-weight", "bold");
+          txt.setAttribute("fill", "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (part.y + part.h - 0.55))})`);
+          txt.textContent = part.label;
+          g.appendChild(txt);
+
+          nodesLayer.appendChild(g);
+        } else {
+          // Standard Node / Card / Shield / Pill
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", part.x - part.w/2);
+          rect.setAttribute("y", part.y - part.h/2);
+          rect.setAttribute("width", part.w);
+          rect.setAttribute("height", part.h);
+          rect.setAttribute("rx", part.type === "pill" ? part.h/2 : "0.15");
+          rect.setAttribute("fill", part.type === "pill" ? part.color : "#ffffff");
+          rect.setAttribute("stroke", part.color);
+          rect.setAttribute("stroke-width", "0.025");
+          g.appendChild(rect);
+
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", part.x);
+          txt.setAttribute("y", part.y);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("dominant-baseline", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.20");
+          txt.setAttribute("font-weight", "600");
+          txt.setAttribute("fill", part.type === "pill" ? "#ffffff" : "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * part.y)})`);
+          txt.textContent = part.label;
+          g.appendChild(txt);
+
+          nodesLayer.appendChild(g);
+        }
+
+        // Event Listeners
+        g.addEventListener("mousedown", (e) => startDrag(e, part));
+        g.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          selectPart(part.id);
+          switchSidebarTab("part");
+          inpText.focus();
+          inpText.select();
+        });
+      });
+    }
+
+    // Helper: Get Component Bounding Box in Cartesian
+    function getPartBounds(p) {
+      if (p.type === "boundary" || p.type === "casecard") {
+        return {
+          minX: p.x, maxX: p.x + p.w,
+          minY: p.y, maxY: p.y + p.h,
+          cx: p.x + p.w / 2, cy: p.y + p.h / 2,
+          w: p.w, h: p.h
+        };
+      }
+      return {
+        minX: p.x - p.w/2, maxX: p.x + p.w/2,
+        minY: p.y - p.h/2, maxY: p.y + p.h/2,
+        cx: p.x, cy: p.y,
+        w: p.w, h: p.h
+      };
+    }
+
+    // Render Dynamic Arrows & Connectors
+    function renderArrows() {
+      arrowsLayer.innerHTML = "";
+      const data = FIGURES[currentFig];
+      if (!data.arrows) return;
+
+      data.arrows.forEach(arr => {
+        const fromPart = data.parts.find(p => p.id === arr.from);
+        const toPart = data.parts.find(p => p.id === arr.to);
+        if (!fromPart || !toPart) return;
+
+        const bA = getPartBounds(fromPart);
+        const bB = getPartBounds(toPart);
+
+        // Compute start and end points
+        let x1, y1, x2, y2;
+        const dx = bB.cx - bA.cx;
+        const dy = bB.cy - bA.cy;
+
+        if (arr.style === "orthogonal") {
+          // L-shaped or stepped
+          if (Math.abs(dx) > Math.abs(dy)) {
+            x1 = dx > 0 ? bA.maxX : bA.minX;
+            y1 = bA.cy;
+            x2 = bB.cx;
+            y2 = dy > 0 ? bB.minY : bB.maxY;
+          } else {
+            x1 = bA.cx;
+            y1 = dy > 0 ? bA.maxY : bA.minY;
+            x2 = dx > 0 ? bB.minX : bB.maxX;
+            y2 = bB.cy;
+          }
+        } else {
+          // Direct straight
+          if (Math.abs(dx) > Math.abs(dy)) {
+            x1 = dx > 0 ? bA.maxX : bA.minX;
+            y1 = bA.cy;
+            x2 = dx > 0 ? bB.minX : bB.maxX;
+            y2 = bB.cy;
+          } else {
+            x1 = bA.cx;
+            y1 = dy > 0 ? bA.maxY : bA.minY;
+            x2 = bB.cx;
+            y2 = dy > 0 ? bB.minY : bB.maxY;
+          }
+        }
+
+        // SVG Path
+        let d = "";
+        let midX = (x1 + x2) / 2;
+        let midY = (y1 + y2) / 2;
+
+        if (arr.style === "orthogonal") {
+          d = `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2}`;
+          midX = x2;
+          midY = (y1 + y2) / 2;
+        } else {
+          d = `M ${x1} ${y1} L ${x2} ${y2}`;
+        }
+
+        // Marker Color mapping
+        let markerId = "arrow-dark";
+        if (arr.color === "#10b981") markerId = "arrow-green";
+        else if (arr.color === "#ef4444") markerId = "arrow-red";
+        else if (arr.color === "#003fb8") markerId = "arrow-cobalt";
+        else if (arr.color === "#0d9488") markerId = "arrow-teal";
+
+        const gArr = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        gArr.setAttribute("class", "arrow-group");
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("class", `arrow-path ${arr.id === activeArrowId ? "selected" : ""}`);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", arr.color);
+        path.setAttribute("stroke-width", "0.045");
+        if (arr.style === "dashed" || arr.strokeDash) {
+          path.setAttribute("stroke-dasharray", arr.strokeDash || "0.1, 0.06");
+        } else if (arr.style === "dotted") {
+          path.setAttribute("stroke-dasharray", "0.04, 0.04");
+        }
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        gArr.appendChild(path);
+
+        // Click to select arrow
+        path.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectArrow(arr.id);
+        });
+
+        // Optional Pill Label
+        if (arr.label && arr.label.trim().length > 0) {
+          const gLabel = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gLabel.setAttribute("class", "arrow-label-group");
+          
+          const labelWidth = Math.max(0.9, arr.label.length * 0.12);
+          const labelHeight = 0.28;
+
+          const pillBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          pillBg.setAttribute("x", midX - labelWidth/2);
+          pillBg.setAttribute("y", midY - labelHeight/2);
+          pillBg.setAttribute("width", labelWidth);
+          pillBg.setAttribute("height", labelHeight);
+          pillBg.setAttribute("rx", "0.06");
+          pillBg.setAttribute("fill", "#ffffff");
+          pillBg.setAttribute("stroke", arr.color);
+          pillBg.setAttribute("stroke-width", "0.015");
+          gLabel.appendChild(pillBg);
+
+          const lText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          lText.setAttribute("x", midX);
+          lText.setAttribute("y", midY);
+          lText.setAttribute("text-anchor", "middle");
+          lText.setAttribute("dominant-baseline", "middle");
+          lText.setAttribute("font-size", "0.16");
+          lText.setAttribute("font-weight", "600");
+          lText.setAttribute("fill", arr.color);
+          lText.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * midY)})`);
+          lText.textContent = arr.label;
+          gLabel.appendChild(lText);
+
+          gLabel.addEventListener("click", (e) => {
+            e.stopPropagation();
+            selectArrow(arr.id);
+          });
+
+          gArr.appendChild(gLabel);
+        }
+
+        arrowsLayer.appendChild(gArr);
+      });
+    }
+
+    // Render 8-point interactive resize handles
+    function renderResizeHandles() {
+      handlesLayer.innerHTML = "";
+      if (!activePartId) return;
+
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+
+      const b = getPartBounds(part);
+      const hs = 0.18; // handle size in cm
+
+      // Bounding dashed box
+      const box = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      box.setAttribute("x", b.minX);
+      box.setAttribute("y", b.minY);
+      box.setAttribute("width", b.w);
+      box.setAttribute("height", b.h);
+      box.setAttribute("fill", "none");
+      box.setAttribute("stroke", "#2563eb");
+      box.setAttribute("stroke-width", "0.02");
+      box.setAttribute("stroke-dasharray", "0.08, 0.05");
+      handlesLayer.appendChild(box);
+
+      // 8 Resize Handles
+      const handles = [
+        { type: "nw", x: b.minX, y: b.maxY },
+        { type: "n",  x: b.cx,   y: b.maxY },
+        { type: "ne", x: b.maxX, y: b.maxY },
+        { type: "e",  x: b.maxX, y: b.cy },
+        { type: "se", x: b.maxX, y: b.minY },
+        { type: "s",  x: b.cx,   y: b.minY },
+        { type: "sw", x: b.minX, y: b.minY },
+        { type: "w",  x: b.minX, y: b.cy }
+      ];
+
+      handles.forEach(h => {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", h.x - hs/2);
+        rect.setAttribute("y", h.y - hs/2);
+        rect.setAttribute("width", hs);
+        rect.setAttribute("height", hs);
+        rect.setAttribute("rx", "0.03");
+        rect.setAttribute("class", `resize-handle handle-${h.type}`);
+        rect.addEventListener("mousedown", (e) => startResize(e, part, h.type));
+        handlesLayer.appendChild(rect);
+      });
+    }
+
+    // Populate Sidebar Lists
+    function renderSidebarLists() {
+      // Parts List
+      partsList.innerHTML = "";
+      const data = FIGURES[currentFig];
+      data.parts.forEach(part => {
+        const row = document.createElement("div");
+        row.className = `item-row ${part.id === activePartId ? "active" : ""}`;
+        row.innerHTML = `
+          <span>${part.label}</span>
+          <span class="tag">${part.w.toFixed(1)} × ${part.h.toFixed(1)}</span>
+        `;
+        row.addEventListener("click", () => selectPart(part.id));
+        partsList.appendChild(row);
+      });
+
+      // Arrows List
+      arrowsList.innerHTML = "";
+      if (data.arrows) {
+        data.arrows.forEach(arr => {
+          const row = document.createElement("div");
+          row.className = `item-row ${arr.id === activeArrowId ? "active" : ""}`;
+          row.innerHTML = `
+            <span>${arr.label || arr.id}</span>
+            <span class="tag" style="color:${arr.color}">→</span>
+          `;
+          row.addEventListener("click", () => selectArrow(arr.id));
+          arrowsList.appendChild(row);
+        });
+      }
+    }
+
+    // Select a Part
+    function selectPart(id) {
+      activePartId = id;
+      activeArrowId = null;
+      const part = FIGURES[currentFig].parts.find(p => p.id === id);
+      if (!part) return;
+
+      selectedBadge.textContent = part.label;
+      inpText.value = part.label;
+      inpFontSize.value = part.fontSize || 0.22;
+      inpColor.value = part.color || "#003fb8";
+
+      inpX.value = part.x.toFixed(2);
+      inpY.value = part.y.toFixed(2);
+      inpW.value = part.w.toFixed(2);
+      inpH.value = part.h.toFixed(2);
+
+      switchSidebarTab("part");
+      renderAll();
+    }
+
+    // Select an Arrow
+    function selectArrow(id) {
+      activeArrowId = id;
+      activePartId = null;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === id);
+      if (!arr) return;
+
+      selectedBadge.textContent = "Arrow: " + (arr.label || arr.id);
+      inpArrowLabel.value = arr.label || "";
+      inpArrowFrom.value = arr.from;
+      inpArrowTo.value = arr.to;
+      inpArrowColor.value = arr.color;
+      inpArrowStyle.value = arr.style || "solid";
+
+      switchSidebarTab("arrow");
+      renderAll();
+    }
+
+    // Sidebar Tab Switcher
+    function switchSidebarTab(tabName) {
+      document.querySelectorAll(".s-tab").forEach(t => t.classList.remove("active"));
+      document.getElementById("tab-pane-part").style.display = tabName === "part" ? "block" : "none";
+      document.getElementById("tab-pane-arrow").style.display = tabName === "arrow" ? "block" : "none";
+      document.getElementById("tab-pane-layers").style.display = tabName === "layers" ? "block" : "none";
+
+      const btn = document.querySelector(`.s-tab[data-stab="${tabName}"]`);
+      if (btn) btn.classList.add("active");
+    }
+
+    document.querySelectorAll(".s-tab").forEach(tab => {
+      tab.addEventListener("click", () => switchSidebarTab(tab.dataset.stab));
+    });
+
+    // Screen to TikZ Cartesian SVG Coordinates
+    function getSvgCoordinates(e) {
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      return { x: svgP.x, y: 8.5 - svgP.y };
+    }
+
+    // Dragging Logic
+    function startDrag(e, part) {
+      e.stopPropagation();
+      selectPart(part.id);
+      isDragging = true;
+      const coords = getSvgCoordinates(e);
+      dragOffset.x = coords.x - part.x;
+      dragOffset.y = coords.y - part.y;
+
+      window.addEventListener("mousemove", onDrag);
+      window.addEventListener("mouseup", stopDrag);
+    }
+
+    function onDrag(e) {
+      if (!isDragging || !activePartId) return;
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+
+      const coords = getSvgCoordinates(e);
+      let newX = coords.x - dragOffset.x;
+      let newY = coords.y - dragOffset.y;
+
+      if (snapCheckbox.checked) {
+        newX = Math.round(newX * 10) / 10;
+        newY = Math.round(newY * 10) / 10;
+      }
+
+      part.x = Math.max(0, Math.min(17.0, newX));
+      part.y = Math.max(0, Math.min(8.5, newY));
+
+      inpX.value = part.x.toFixed(2);
+      inpY.value = part.y.toFixed(2);
+
+      renderAll();
+      updateOutput();
+    }
+
+    function stopDrag() {
+      isDragging = false;
+      window.removeEventListener("mousemove", onDrag);
+      window.removeEventListener("mouseup", stopDrag);
+    }
+
+    // Resize Logic (8 Handles)
+    function startResize(e, part, handleType) {
+      e.stopPropagation();
+      isResizing = true;
+      resizeHandleType = handleType;
+      const b = getPartBounds(part);
+      resizeAnchor = {
+        minX: b.minX, maxX: b.maxX,
+        minY: b.minY, maxY: b.maxY,
+        cx: b.cx, cy: b.cy,
+        w: b.w, h: b.h
+      };
+
+      window.addEventListener("mousemove", onResize);
+      window.addEventListener("mouseup", stopResize);
+    }
+
+    function onResize(e) {
+      if (!isResizing || !activePartId) return;
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+
+      const coords = getSvgCoordinates(e);
+      let curX = coords.x;
+      let curY = coords.y;
+
+      if (snapCheckbox.checked) {
+        curX = Math.round(curX * 10) / 10;
+        curY = Math.round(curY * 10) / 10;
+      }
+
+      let newMinX = resizeAnchor.minX;
+      let newMaxX = resizeAnchor.maxX;
+      let newMinY = resizeAnchor.minY;
+      let newMaxY = resizeAnchor.maxY;
+
+      if (resizeHandleType.includes("w")) newMinX = Math.min(curX, resizeAnchor.maxX - 0.4);
+      if (resizeHandleType.includes("e")) newMaxX = Math.max(curX, resizeAnchor.minX + 0.4);
+      if (resizeHandleType.includes("s")) newMinY = Math.min(curY, resizeAnchor.maxY - 0.3);
+      if (resizeHandleType.includes("n")) newMaxY = Math.max(curY, resizeAnchor.minY + 0.3);
+
+      const newW = newMaxX - newMinX;
+      const newH = newMaxY - newMinY;
+
+      if (part.type === "boundary" || part.type === "casecard") {
+        part.x = newMinX;
+        part.y = newMinY;
+        part.w = newW;
+        part.h = newH;
+      } else {
+        part.x = (newMinX + newMaxX) / 2;
+        part.y = (newMinY + newMaxY) / 2;
+        part.w = newW;
+        part.h = newH;
+      }
+
+      inpX.value = part.x.toFixed(2);
+      inpY.value = part.y.toFixed(2);
+      inpW.value = part.w.toFixed(2);
+      inpH.value = part.h.toFixed(2);
+
+      renderAll();
+      updateOutput();
+    }
+
+    function stopResize() {
+      isResizing = false;
+      window.removeEventListener("mousemove", onResize);
+      window.removeEventListener("mouseup", stopResize);
+    }
+
+    // Input Listeners: Node Properties
+    inpText.addEventListener("input", () => {
+      if (!activePartId) return;
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+      part.label = inpText.value;
+      selectedBadge.textContent = part.label;
+      renderAll();
+      updateOutput();
+    });
+
+    inpFontSize.addEventListener("input", () => {
+      if (!activePartId) return;
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+      part.fontSize = parseFloat(inpFontSize.value) || 0.22;
+      renderAll();
+      updateOutput();
+    });
+
+    inpColor.addEventListener("change", () => {
+      if (!activePartId) return;
+      const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+      if (!part) return;
+      part.color = inpColor.value;
+      renderAll();
+      updateOutput();
+    });
+
+    [inpX, inpY, inpW, inpH].forEach(input => {
+      input.addEventListener("input", () => {
+        if (!activePartId) return;
+        const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+        if (!part) return;
+
+        part.x = parseFloat(inpX.value) || 0;
+        part.y = parseFloat(inpY.value) || 0;
+        part.w = Math.max(0.4, parseFloat(inpW.value) || 0.5);
+        part.h = Math.max(0.3, parseFloat(inpH.value) || 0.5);
+
+        renderAll();
+        updateOutput();
+      });
+    });
+
+    // Input Listeners: Arrow Properties
+    inpArrowLabel.addEventListener("input", () => {
+      if (!activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+      arr.label = inpArrowLabel.value;
+      renderAll();
+      updateOutput();
+    });
+
+    inpArrowColor.addEventListener("change", () => {
+      if (!activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+      arr.color = inpArrowColor.value;
+      renderAll();
+      updateOutput();
+    });
+
+    inpArrowStyle.addEventListener("change", () => {
+      if (!activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+      arr.style = inpArrowStyle.value;
+      renderAll();
+      updateOutput();
+    });
+
+    inpArrowFrom.addEventListener("change", () => {
+      if (!activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+      arr.from = inpArrowFrom.value;
+      renderAll();
+      updateOutput();
+    });
+
+    inpArrowTo.addEventListener("change", () => {
+      if (!activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+      arr.to = inpArrowTo.value;
+      renderAll();
+      updateOutput();
+    });
+
+    // View Mode Toggles
+    const btnSplit = document.getElementById("btn-mode-split");
+    const btnOverlay = document.getElementById("btn-mode-overlay");
+    const btnCanvas = document.getElementById("btn-mode-canvas");
+    const groupOpacity = document.getElementById("group-opacity");
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+
+      if (mode === "split") {
+        btnSplit.classList.add("active");
+        sourcePanel.style.display = "flex";
+        protoImg.style.display = "block";
+        protoImg.setAttribute("opacity", opacitySlider.value);
+        groupOpacity.style.display = "flex";
+      } else if (mode === "overlay") {
+        btnOverlay.classList.add("active");
+        sourcePanel.style.display = "none";
+        protoImg.style.display = "block";
+        protoImg.setAttribute("opacity", opacitySlider.value);
+        groupOpacity.style.display = "flex";
+      } else if (mode === "canvas") {
+        btnCanvas.classList.add("active");
+        sourcePanel.style.display = "none";
+        protoImg.style.display = "none";
+        groupOpacity.style.display = "none";
+      }
+    }
+
+    btnSplit.addEventListener("click", () => setViewMode("split"));
+    btnOverlay.addEventListener("click", () => setViewMode("overlay"));
+    btnCanvas.addEventListener("click", () => setViewMode("canvas"));
+
+    // Opacity Slider
+    opacitySlider.addEventListener("input", (e) => {
+      protoImg.setAttribute("opacity", e.target.value);
+      opacityVal.textContent = Math.round(e.target.value * 100) + "%";
+    });
+
+    // Update Output Pre
+    function updateOutput() {
+      const data = FIGURES[currentFig];
+      if (activeTab === "json") {
+        const exportObj = {
+          figure: currentFig,
+          title: data.name,
+          parts: {},
+          arrows: data.arrows || []
+        };
+        data.parts.forEach(p => {
+          exportObj.parts[p.id] = {
+            label: p.label,
+            x: +p.x.toFixed(2),
+            y: +p.y.toFixed(2),
+            w: +p.w.toFixed(2),
+            h: +p.h.toFixed(2),
+            color: p.color
+          };
+        });
+        outputText.textContent = JSON.stringify(exportObj, null, 2);
+      } else {
+        let tikzStr = `% TikZ Layout Calibration for ${data.name}\n`;
+        tikzStr += `% Coordinates in centimeters (Y=0 at bottom)\n\n`;
+        
+        data.parts.forEach(p => {
+          tikzStr += `\\coordinate (${p.id}) at (${p.x.toFixed(2)}, ${p.y.toFixed(2)});\n`;
+        });
+
+        if (data.arrows && data.arrows.length > 0) {
+          tikzStr += `\n% Arrows & Connections\n`;
+          data.arrows.forEach(a => {
+            const lbl = a.label ? ` node[fill=white, inner sep=1.5pt] {${a.label}}` : "";
+            const dash = a.style === "dashed" ? ", dashed" : "";
+            tikzStr += `\\draw[pd arrow${dash}] (${a.from}) --${lbl} (${a.to});\n`;
+          });
+        }
+
+        outputText.textContent = tikzStr;
+      }
+    }
+
+    // Switch Tabs in Console
+    document.querySelectorAll(".output-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".output-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        activeTab = tab.dataset.tab;
+        updateOutput();
+      });
+    });
+
+    // Copy to Clipboard
+    document.getElementById("btn-copy-json").addEventListener("click", () => {
+      navigator.clipboard.writeText(outputText.textContent).then(() => {
+        showToast("✓ Copied layout spec to clipboard!");
+      });
+    });
+
+    // Save to Server
+    document.getElementById("btn-save-server").addEventListener("click", async () => {
+      const payload = {
+        figure: currentFig,
+        timestamp: new Date().toISOString(),
+        parts: FIGURES[currentFig].parts,
+        arrows: FIGURES[currentFig].arrows || []
+      };
+
+      try {
+        const res = await fetch("/api/save-positions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast("✓ Saved directly to workspace for agent ingestion!");
+        } else {
+          navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+          showToast("✓ Positions copied to clipboard (local fallback)!");
+        }
+      } catch (err) {
+        navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        showToast("✓ Copied layout positions to clipboard!");
+      }
+    });
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    // Figure Selector
+    document.getElementById("figure-select").addEventListener("change", (e) => {
+      loadFigure(e.target.value);
+    });
+
+    // Reset Figure
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      loadFigure(currentFig);
+      showToast("↺ Reset figure layout to defaults");
+    });
+
+    // Bootstrap
+    loadFigure("fig-0.16");
+    setViewMode("split");
+  </script>
+</body>
+</html>

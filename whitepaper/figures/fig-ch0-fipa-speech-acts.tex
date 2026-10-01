@@ -1,138 +1,137 @@
 % fig-ch0-fipa-speech-acts.tex
-% FIPA-00037 Communicative Speech Act State Transition Machine
-% Replaces raster fig-ch0-fipa-speech-acts.jpg with 100% native vector Swiss TikZ.
-\pdfigurehue{pdindigo}%
+% FIPA-00037 Communicative Speech Act State Machine
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    actnode/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,font=\footnotesize,inner xsep=4pt,inner ysep=3pt},
-    stateinit/.style={draw=pdindigo,line width=1.0pt,fill=pdindigo!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
-    staterun/.style={draw=pdcobalt,line width=0.9pt,fill=pdcobalt!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
-    statedone/.style={draw=pdhealth,line width=1.1pt,fill=pdhealth!10,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
-    statefail/.style={draw=pderror,line width=0.9pt,dashed,fill=pderror!8,rounded corners=3pt,align=center,font=\footnotesize,inner xsep=5pt,inner ysep=4pt},
-    panel/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+    actnode/.style={draw=none,fill=pdslate!90!black,rounded corners=2pt,inner xsep=5pt,inner ysep=2.5pt},
+    evalnode/.style={draw=pdcobalt!80!black,line width=0.7pt,fill=pdcobalt!15,rounded corners=2pt,inner xsep=5pt,inner ysep=2.5pt},
+    acceptpill/.style={draw=none,fill=pdhealth!90!black,rounded corners=2pt,inner xsep=5pt,inner ysep=2.5pt},
+    rejectpill/.style={draw=none,fill=pderror!90!black,rounded corners=2pt,inner xsep=5pt,inner ysep=2.5pt},
+    envelopebox/.style={draw=pdcobalt!80!black,line width=0.7pt,fill=pdcobalt!90!black,rounded corners=3pt},
+    badgeitem/.style={draw=none,fill=white,rounded corners=1.5pt,inner xsep=4pt,inner ysep=2pt}
   }
 
-  % Three horizontal pipeline panels (height 3.2 each, 0.3 gap, total height 10.2)
   % =========================================================================
-  % 1. DIRECTIVE PIPELINE: request (DB Migration under lock)
+  % LEFT: CLIENT DISPATCH AGENT (x in [0.1, 2.5])
   % =========================================================================
-  \draw[panel] (0.0,7.0) rectangle (15.2,10.2);
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdindigo] at (0.2,9.95) {1. DIRECTIVE: \texttt{request} \normalfont\footnotesize\color{hhgray}(Atomic Action Execution)};
-  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,9.95) {$\langle\mathtt{conv\_id}, \mathtt{sender}, \mathtt{token}, \mathtt{action}\rangle$};
-
-  % Row 1: Active Lifecycle (y = 8.8)
-  \node[stateinit] (req_init) at (1.8,8.8) {%
-    \textbf{Initiated}\\
-    \scriptsize \texttt{request(db:migrate)}
+  \pdrobotbase[0.72]{(1.2, 3.75)}{pdcobalt}
+  \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{hhink},align=center] at (1.2, 4.75) {%
+    Client Dispatch Agent%
+  };
+  \node[font=\fontsize{4.4}{5.2}\selectfont\color{hhgray!90!black},align=center,text width=2.4cm] at (1.2, 2.75) {%
+    Orchestrating and\\issues structured\\requests%
   };
 
-  \node[actnode,text width=2.6cm] (req_eval) at (5.4,8.8) {%
-    \textbf{Arbitration}\\
-    \scriptsize Lock \& capability
-  };
-
-  \node[staterun] (req_exec) at (9.6,8.8) {%
-    \textbf{Agreed \& Sandboxed}\\
-    \scriptsize \texttt{agree} $\to$ run migration
-  };
-
-  \node[statedone] (req_done) at (13.6,8.8) {%
-    \textbf{Completed}\\
-    \scriptsize \texttt{inform-done(receipt)}
-  };
-
-  % Row 2: Terminal Failure / Refusal (y = 7.55)
-  \node[statefail,text width=2.8cm] (req_refuse) at (5.4,7.55) {%
-    \textbf{Refused}\\
-    \scriptsize \texttt{refuse(lock:held)}
-  };
-
-  \node[statefail,text width=2.8cm] (req_fail) at (9.6,7.55) {%
-    \textbf{Failed}\\
-    \scriptsize \texttt{failure(stderr)}
-  };
-
-  % Directive Arrows
-  \draw[pd arrow,pdindigo] (req_init.east) -- (req_eval.west);
-  \draw[pd arrow,pdcobalt] (req_eval.east) -- (req_exec.west);
-  \draw[pd ready arrow] (req_exec.east) -- (req_done.west);
-  \draw[pd breach arrow] (req_eval.south) -- (req_refuse.north);
-  \draw[pd breach arrow] (req_exec.south) -- (req_fail.north);
-
+  % Envelope dispatching from Client
+  \begin{scope}[shift={(2.4, 3.8)}]
+    \draw[fill=white,draw=pdcobalt,line width=0.5pt,rounded corners=1pt] (-0.25, -0.16) rectangle (0.25, 0.16);
+    \draw[line width=0.4pt,pdcobalt] (-0.25, 0.16) -- (0, -0.02) -- (0.25, 0.16);
+  \end{scope}
 
   % =========================================================================
-  % 2. ASSERTIVE PIPELINE: inform (Belief Base Mutation)
+  % CENTER: FORMAL SPEECH ACT TRANSITION FINITE STATE MACHINE (x in [2.8, 10.8])
   % =========================================================================
-  \draw[panel] (0.0,3.5) rectangle (15.2,6.7);
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdteal] at (0.2,6.45) {2. ASSERTIVE: \texttt{inform} \normalfont\footnotesize\color{hhgray}(Belief Base Mutation)};
-  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,6.45) {Truth commitment: $\operatorname{Bel}_s(p) \land \operatorname{Des}_s(\operatorname{Bel}_r(p))$};
-
-  % Row 1: Active Lifecycle (y = 5.3)
-  \node[stateinit,draw=pdteal,fill=pdteal!8] (inf_init) at (1.8,5.3) {%
-    \textbf{Asserted}\\
-    \scriptsize \texttt{inform(status:green)}
+  \node[font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{hhink}] at (6.8, 5.0) {%
+    Formal Speech Act Transition Finite State Machine%
   };
 
-  \node[actnode,text width=2.6cm] (inf_verify) at (5.4,5.3) {%
-    \textbf{Integrity Check}\\
-    \scriptsize Ed25519 signature
+  % --- PATH 1: Propose (y = 4.25) ---
+  \node[font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhgray!80!black}] at (3.3, 4.45) {Path 1};
+  \node[actnode] (propose_node) at (4.0, 4.2) {%
+    \fontsize{4.8}{5.8}\selectfont\bfseries\color{white} Propose%
+  };
+  \node[evalnode] (eval_node) at (5.7, 4.2) {%
+    \fontsize{4.8}{5.8}\selectfont\bfseries\color{pdcobalt} Evaluated%
+  };
+  \node[acceptpill] (accept_prop) at (8.0, 4.55) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Accept-Proposal%
+  };
+  \node[rejectpill] (reject_prop) at (8.0, 3.85) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Reject-Proposal%
   };
 
-  \node[statedone] (inf_commit) at (13.6,5.3) {%
-    \textbf{Belief Mutated}\\
-    \scriptsize $+b \in bs$ committed to WAL
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (propose_node) -- (eval_node);
+  \draw[pd ready arrow,line width=0.7pt] (eval_node) to[out=20,in=180] (accept_prop);
+  \draw[pd breach arrow,line width=0.7pt] (eval_node) to[out=-20,in=180] (reject_prop);
+
+  % --- PATH 2: Request (y = 2.65) ---
+  \node[font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhgray!80!black}] at (3.3, 2.95) {Path 2};
+  \node[actnode] (req_node) at (4.0, 2.65) {%
+    \fontsize{4.8}{5.8}\selectfont\bfseries\color{white} Request%
+  };
+  \node[acceptpill] (agree_node) at (5.7, 3.0) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Agree%
+  };
+  \node[rejectpill] (refuse_node) at (5.7, 2.3) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Refuse%
+  };
+  \node[evalnode] (exec_node) at (7.35, 2.65) {%
+    \fontsize{4.8}{5.8}\selectfont\bfseries\color{pdcobalt} Execution%
+  };
+  \node[acceptpill] (inform_node) at (9.2, 3.0) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Inform-Done%
+  };
+  \node[rejectpill] (fail_node) at (9.2, 2.3) {%
+    \fontsize{4.6}{5.5}\selectfont\bfseries\color{white} Failure%
   };
 
-  % Row 2: Malformed / Rejected (y = 4.05)
-  \node[statefail,text width=3.4cm] (inf_rej) at (5.4,4.05) {%
-    \textbf{Not Understood}\\
-    \scriptsize \texttt{not-understood(bad:sig)}
-  };
+  \draw[pd ready arrow,line width=0.7pt] (req_node) to[out=20,in=180] (agree_node);
+  \draw[pd breach arrow,line width=0.7pt] (req_node) to[out=-20,in=180] (refuse_node);
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (agree_node) to[out=0,in=160] (exec_node);
+  \draw[pd ready arrow,line width=0.7pt] (exec_node) to[out=20,in=180] (inform_node);
+  \draw[pd breach arrow,line width=0.7pt] (exec_node) to[out=-20,in=180] (fail_node);
 
-  % Assertive Arrows
-  \draw[pd arrow,pdteal] (inf_init.east) -- (inf_verify.west);
-  \draw[pd ready arrow] (inf_verify.east) -- node[above,font=\tiny,text=pdhealth] {valid cryptographic proof $\to$ commit} (inf_commit.west);
-  \draw[pd breach arrow] (inf_verify.south) -- (inf_rej.north);
-
+  % Arrows into Worker Agent
+  \draw[pd arrow,line width=0.8pt,pdteal] (accept_prop.east) to[out=0,in=160] (11.4, 4.0);
+  \draw[pd arrow,line width=0.8pt,pdteal] (inform_node.east) to[out=0,in=-160] (11.4, 3.6);
 
   % =========================================================================
-  % 3. COMMISSIVE PIPELINE: propose (Contract / SLA Negotiation)
+  % RIGHT: WORKER CONTRACTOR AGENT (x in [11.0, 13.5])
   % =========================================================================
-  \draw[panel] (0.0,0.0) rectangle (15.2,3.2);
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdgold] at (0.2,2.95) {3. COMMISSIVE: \texttt{propose} \normalfont\footnotesize\color{hhgray}(SLA \& Work Allocation)};
-  \node[anchor=north east,font=\tiny\sffamily,text=hhgray] at (15.0,2.95) {Mutual covenant: $\operatorname{Int}_s(\alpha) \land \operatorname{Commit}(s, r, \alpha)$};
-
-  % Row 1: Active Lifecycle (y = 1.8)
-  \node[stateinit,draw=pdgold,fill=pdgold!10] (prop_init) at (1.8,1.8) {%
-    \textbf{Proposed}\\
-    \scriptsize \texttt{propose(sla:99.9\%)}
+  \pdrobotbase[0.72]{(12.3, 3.75)}{pdteal}
+  \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{hhink},align=center] at (12.3, 4.75) {%
+    Worker Contractor\\Agent%
+  };
+  \node[draw=pdteal,line width=0.5pt,fill=pdteal!8,rounded corners=2pt,font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{pdteal!90!black},align=center] at (12.3, 2.75) {%
+    Sandboxed\\Workspace%
   };
 
-  \node[actnode,text width=2.6cm] (prop_eval) at (5.4,1.8) {%
-    \textbf{Utility Filter}\\
-    \scriptsize Capacity \& budget
-  };
-
-  \node[staterun,draw=pdgold,fill=pdgold!8] (prop_acc) at (9.6,1.8) {%
-    \textbf{Accepted}\\
-    \scriptsize \texttt{accept-proposal}
-  };
-
-  \node[statedone] (prop_bound) at (13.6,1.8) {%
-    \textbf{Escrow Bound}\\
-    \scriptsize Bidirectional lease locked
-  };
-
-  % Row 2: Rejection (y = 0.55)
-  \node[statefail,text width=2.8cm] (prop_rej) at (5.4,0.55) {%
-    \textbf{Rejected}\\
-    \scriptsize \texttt{reject-proposal}
-  };
-
-  % Commissive Arrows
-  \draw[pd arrow,pdgold] (prop_init.east) -- (prop_eval.west);
-  \draw[pd arrow,pdgold] (prop_eval.east) -- (prop_acc.west);
-  \draw[pd ready arrow] (prop_acc.east) -- (prop_bound.west);
-  \draw[pd breach arrow] (prop_eval.south) -- (prop_rej.north);
+  % =========================================================================
+  % BOTTOM: CRYPTOGRAPHIC SPEECH ACT ENVELOPE STRUCTURE (x in [2.5, 11.1])
+  % =========================================================================
+  \begin{scope}[shift={(6.8, 0.85)}]
+    \draw[draw=pdcobalt!90!black,line width=0.8pt,fill=white,rounded corners=3pt] (-4.3, -0.65) rectangle (4.3, 0.65);
+    \draw[fill=pdcobalt!90!black,draw=none,rounded corners=2pt] (-4.3, 0.22) rectangle (4.3, 0.65);
+    % Title
+    \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{white}] at (0, 0.435) {%
+      Cryptographic Speech Act Envelope Structure%
+    };
+    % Row 1 Badges
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-2.7, -0.05) {%
+      Performative%
+    };
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-0.1, -0.05) {%
+      Sender / Receiver IDs%
+    };
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (2.6, -0.05) {%
+      ConversationId%
+    };
+    % Row 2 Badges
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-3.1, -0.42) {%
+      Reply-With%
+    };
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-1.4, -0.42) {%
+      In-Reply-To%
+    };
+    \node[draw=pdcobalt,fill=pdcobalt!10,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{pdcobalt}] at (0.6, -0.42) {%
+      Capability Token%
+    };
+    \node[draw=pdslate!60,fill=hhpaper,rounded corners=1.5pt,inner xsep=4pt,inner ysep=1.8pt,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (2.8, -0.42) {%
+      SHA256 Diff Payload%
+    };
+  \end{scope}
 
 \end{tikzpicture}

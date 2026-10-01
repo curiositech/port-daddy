@@ -1,202 +1,208 @@
 % fig-ch0-closed-loop-diagram.tex
-% The Closed Agentic Architecture Loop (Three-Tier Closed-Loop Attestation)
-% Replaces raster fig-ch0-closed-loop-diagram.jpg with 100% native vector Swiss TikZ.
+% The Closed Agentic Architecture Loop: Three-Tier Operating Strata
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    tier1box/.style={draw=pdcobalt!85!black,line width=0.8pt,fill=hhpaper!25,rounded corners=3pt},
-    tier2box/.style={draw=pdteal!85!black,line width=0.8pt,fill=hhpaper!25,rounded corners=3pt},
-    tier3box/.style={draw=pdindigo!85!black,line width=0.8pt,fill=hhpaper!25,rounded corners=3pt},
-    cardprompt/.style={draw=pdcobalt!60,line width=0.6pt,fill=pdpage,rounded corners=2.5pt,inner sep=3.5pt},
-    cardllm/.style={draw=pdindigo!70,line width=0.65pt,fill=pdindigo!5,rounded corners=2.5pt,inner sep=3.5pt},
-    cardgate/.style={draw=pdteal!80!black,line width=0.6pt,fill=pdteal!6,rounded corners=2.5pt,inner sep=3.5pt},
-    cardspend/.style={draw=pdamber!90!black,line width=0.65pt,fill=pdamber!8,rounded corners=2.5pt,inner sep=3.5pt},
-    cardhost/.style={draw=pdslate!80!black,line width=0.6pt,fill=pdpage,rounded corners=2.5pt,inner sep=3.5pt},
-    cardsandbox/.style={draw=pdhealth!80!black,line width=0.65pt,fill=pdhealth!6,rounded corners=2.5pt,inner sep=3.5pt},
-    cardkernel/.style={draw=pdcobalt,line width=0.7pt,fill=pdcobalt!8,rounded corners=2.5pt,inner sep=3.5pt},
-    cardwal/.style={draw=pdindigo!80!black,line width=0.65pt,fill=pdindigo!8,rounded corners=2.5pt,inner sep=3.5pt},
-    cardmerkle/.style={draw=pdhealth!85!black,line width=0.65pt,fill=pdhealth!8,rounded corners=2.5pt,inner sep=3.5pt}
+    layerbox/.style={draw=pdslate!40,fill=hhpaper!30,line width=0.9pt,rounded corners=5pt},
+    subcard/.style={fill=white,draw=pdslate!60,line width=0.8pt,rounded corners=3.5pt},
+    goldcard/.style={fill=pdslate!95!black,draw=pdamber,line width=1.1pt,rounded corners=3.5pt}
   }
 
   % =========================================================================
-  % LEFT BUS: SANITIZED OBSERVATION & RECEIPT FEEDBACK CHANNEL
+  % LEFT: ROBOT EMITTING VOTING TOKENS (x=1.1, y=6.0)
   % =========================================================================
-  % Feedback path: Tier 3 Kernel West -> Bus -> Tier 1 Context Buffer West
-  \draw[pd ready arrow,line width=1.1pt] (2.05,1.10) -- (0.75,1.10) -- (0.75,7.80) -- (2.05,7.80);
-  
-  \node[rotate=90,anchor=center,fill=pdpage,draw=pdhealth!70,rounded corners=2pt,inner xsep=5pt,inner ysep=2.5pt] 
-    at (0.75,4.45) {%
-      {\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdhealth!90!black}%
-      Sanitized Observation Feedback $\langle\mathtt{stdout}, \mathtt{stderr}, \mathtt{rcpt}\rangle$}%
+  \begin{scope}[shift={(1.1, 6.0)}]
+    \pdrobotbase[0.85]{(0, 0)}{pdcobalt}
+    \node[anchor=south,font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink}] at (0, 1.1) {Voting tokens};
+    \draw[pd arrow,line width=0.9pt,hhink] (0.6, 0.0) -- (1.0, 0.0);
+  \end{scope}
+
+  % =========================================================================
+  % LAYER 1: DELIBERATION LAYER (x in [3.6, 13.5], y in [4.9, 7.2])
+  % =========================================================================
+  \draw[layerbox] (3.6, 4.9) rectangle (13.5, 7.2);
+  % Blue Header Banner
+  \fill[pdcobalt!90!black,rounded corners=3.5pt] (3.64, 6.80) rectangle (13.46, 7.16);
+  \node[anchor=west,text=white,font=\fontsize{7.8}{9.2}\selectfont\bfseries] at (3.85, 6.98) {%
+    DELIBERATION LAYER: Probabilistic Reasoning Engine%
+  };
+
+  % 1A: Context Buffer (History & Prompt)
+  \begin{scope}[shift={(5.0, 5.8)}]
+    \draw[subcard] (-1.20, -0.75) rectangle (1.20, 0.75);
+    % 3 Blue horizontal database/buffer bars
+    \fill[pdcobalt!90!black,rounded corners=1.5pt] (-0.90, 0.44) rectangle (0.90, 0.58);
+    \fill[pdcobalt!90!black,rounded corners=1.5pt] (-0.90, 0.25) rectangle (0.90, 0.39);
+    \fill[pdcobalt!90!black,rounded corners=1.5pt] (-0.90, 0.06) rectangle (0.90, 0.20);
+    \node[anchor=north,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (0, -0.06) {%
+      Context Buffer\\{\fontsize{5.5}{6.5}\selectfont(History \& Prompt)}%
     };
+  \end{scope}
 
-  % =========================================================================
-  % TIER 1: PROBABILISTIC DELIBERATION LAYER (REASONING ENGINE)
-  % =========================================================================
-  \draw[tier1box] (1.85,6.70) rectangle (14.85,9.20);
+  % Proposal Arrow
+  \draw[pd arrow,line width=1.5pt,pderror] (6.25, 5.8) -- (7.35, 5.8)
+    node[midway,above,font=\fontsize{7.0}{8.3}\selectfont\bfseries\color{hhink}] {Proposal};
 
-  % Header
-  \node[anchor=north west,inner sep=0pt] at (2.05,9.02) {%
-    {\bfseries\fontsize{6.3}{7.6}\selectfont\color{pdcobalt} TIER 1: PROBABILISTIC DELIBERATION LAYER (REASONING ENGINE)}\enspace%
-    {\fontsize{5.0}{6.2}\selectfont\color{hhgray!80!black}---}\enspace%
-    {\fontsize{4.8}{6.0}\selectfont\sffamily\color{hhgray} Indeterminate Sequence Policy $\pi_\theta(a_t \mid C_t)$}%
-  };
-
-  % Card 1.1: Context Buffer (Left: x in [2.05, 5.65])
-  \node[cardprompt,anchor=north west,text width=3.35cm] (c11) at (2.05,8.70) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdcobalt} Context Buffer $C_t$}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ System prompt \& persona directives\\
-    $\bullet$ Injected skills (\texttt{SKILL.md} recipes)\\
-    $\bullet$ Multi-turn history \& symbol index\\
-    $\bullet$ Injected observation from feedback bus%
-    }
-  };
-
-  % Card 1.2: LLM Policy Engine (Center: x in [6.45, 10.25])
-  \node[cardllm,anchor=north west,text width=3.55cm] (c12) at (6.45,8.70) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdindigo} LLM Reasoning Engine $\pi_\theta$}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Autoregressive token generation\\
-    $\bullet$ Deliberation: ReAct / CoT / POMDP\\
-    $\bullet$ Formulates candidate action $\sigma \in \Sigma$\\
-    $\bullet$ Synthesizes tool call parameters%
-    }
-  };
-
-  % Card 1.3: Output Validation Gate (Right: x in [11.05, 14.65])
-  \node[cardgate,anchor=north west,text width=3.35cm] (c13) at (11.05,8.70) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdteal!90!black} Output Validation Gate}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ JSON Schema parameter validation\\
-    $\bullet$ AST structural syntax parsing\\
-    $\bullet$ Pre-execution type verification\\
-    $\bullet$ Intercepts malformed proposals%
-    }
-  };
-
-  % Horizontal Arrows in Tier 1 (Left to Right)
-  \draw[pd arrow,pdcobalt] (5.65,7.80) -- (6.45,7.80)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdcobalt}] {Prompt};
-  \draw[pd arrow,pdindigo] (10.25,7.80) -- (11.05,7.80)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdindigo}] {Proposal};
-
-  % =========================================================================
-  % DOWNLINK 1 -> 2: VALIDATED TOOL DISPATCH (Right Edge, in 0.85cm gap)
-  % =========================================================================
-  \draw[pd arrow,line width=1.0pt,pdteal] (12.85,6.70) -- (12.85,5.85)
-    node[midway,fill=pdpage,draw=pdteal!60,rounded corners=2pt,inner xsep=4pt,inner ysep=1.5pt,font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdteal}] {%
-      Validated Tool Dispatch%
+  % 1B: LLM Reasoning Engine (Policy)
+  \begin{scope}[shift={(8.5, 5.8)}]
+    \draw[subcard] (-1.10, -0.75) rectangle (1.10, 0.75);
+    % Open book with </> icon
+    \begin{scope}[shift={(0, 0.35)}]
+      \draw[fill=hhpaper,draw=pdslate!80,line width=0.6pt,rounded corners=1pt] (-0.50, -0.22) rectangle (0.50, 0.22);
+      \draw[line width=0.6pt,pdslate!80] (0, -0.22) -- (0, 0.22);
+      \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdcobalt}] at (-0.25, 0.0) {\texttt{</>}};
+      \draw[line width=0.5pt,pdslate!60] (0.1, 0.08) -- (0.42, 0.08);
+      \draw[line width=0.5pt,pdslate!60] (0.1, -0.04) -- (0.42, -0.04);
+      \draw[line width=0.5pt,pdslate!60] (0.1, -0.14) -- (0.32, -0.14);
+    \end{scope}
+    \node[anchor=north,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (0, 0.02) {%
+      LLM Reasoning Engine\\{\fontsize{5.5}{6.5}\selectfont(Policy)}%
     };
+  \end{scope}
 
-  % =========================================================================
-  % TIER 2: CONFINED EXECUTION LAYER (HOST RUNTIME)
-  % =========================================================================
-  \draw[tier2box] (1.85,3.35) rectangle (14.85,5.85);
+  % Validation Arrow
+  \draw[pd arrow,line width=1.5pt,pderror] (9.65, 5.8) -- (10.65, 5.8)
+    node[midway,above,font=\fontsize{7.0}{8.3}\selectfont\bfseries\color{hhink}] {Validation};
 
-  % Header
-  \node[anchor=north west,inner sep=0pt] at (2.05,5.67) {%
-    {\bfseries\fontsize{6.3}{7.6}\selectfont\color{pdteal} TIER 2: CONFINED EXECUTION LAYER (HOST RUNTIME)}\enspace%
-    {\fontsize{5.0}{6.2}\selectfont\color{hhgray!80!black}---}\enspace%
-    {\fontsize{4.8}{6.0}\selectfont\sffamily\color{hhgray} OS Sandbox Enclave $\cdot$ Coast Guard Egress Caps}%
-  };
+  % 1C: Output Validation Gate
+  \begin{scope}[shift={(12.0, 5.8)}]
+    % Checkmark circle cleanly to the left of gate
+    \draw[fill=white,draw=pdslate!90!black,line width=0.9pt] (-1.0, 0.0) circle (0.22);
+    \draw[line width=1.1pt,pdhealth,line cap=round,line join=round] (-1.08, 0.0) -- (-1.01, -0.08) -- (-0.91, 0.08);
 
-  % Card 2.3: Pre-Execution Spend Gate (Right: x in [11.05, 14.65])
-  \node[cardspend,anchor=north west,text width=3.35cm] (c23) at (11.05,5.35) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdamber!95!black} Spend \& Egress Gate}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ \$0.00 hard external cloud spend cap\\
-    $\bullet$ Egress filter: local loopback only\\
-    $\bullet$ Capability token verification\\
-    $\bullet$ Dynamic disablement mask $\gamma(s)$%
-    }
-  };
-
-  % Card 2.2: Host Worker Subprocess (Center: x in [6.45, 10.25])
-  \node[cardhost,anchor=north west,text width=3.55cm] (c22) at (6.45,5.35) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdslate} Host Worker Subprocess}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Subprocess invocation (\texttt{exec}, \texttt{bash})\\
-    $\bullet$ Deterministic tools (\texttt{pytest}, \texttt{git})\\
-    $\bullet$ File mutations in leased worktree\\
-    $\bullet$ AST symbol patch application%
-    }
-  };
-
-  % Card 2.1: Seatbelt Sandbox Enclave (Left: x in [2.05, 5.65])
-  \node[cardsandbox,anchor=north west,text width=3.35cm] (c21) at (2.05,5.35) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdhealth!90!black} Seatbelt Sandbox Enclave}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Seatbelt (macOS) / Bubblewrap (Linux)\\
-    $\bullet$ Env scrubbing: strips tokens \& SSH keys\\
-    $\bullet$ Truncation: preserves head/tail tokens\\
-    $\bullet$ Sanitizes raw \texttt{stdout} and \texttt{stderr}%
-    }
-  };
-
-  % Horizontal Arrows in Tier 2 (Right to Left)
-  \draw[pd arrow,pdamber] (11.05,4.45) -- (10.25,4.45)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdamber!90!black}] {Admit};
-  \draw[pd arrow,pdslate] (6.45,4.45) -- (5.65,4.45)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdslate}] {Output};
-
-  % =========================================================================
-  % DOWNLINK 2 -> 3: STATE MUTATION WITNESSING (Left Edge, in 0.85cm gap)
-  % =========================================================================
-  \draw[pd arrow,line width=1.0pt,pdindigo] (3.85,3.35) -- (3.85,2.50)
-    node[midway,fill=pdpage,draw=pdindigo!60,rounded corners=2pt,inner xsep=4pt,inner ysep=1.5pt,font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdindigo}] {%
-      State Mutation Witnessing%
+    % Blue Pill with Lock inside
+    \draw[fill=pdcobalt!90!black,draw=none,rounded corners=3.5pt] (-0.70, -0.70) rectangle (0.70, 0.70);
+    \node[anchor=north,text=white,font=\fontsize{6.5}{7.8}\selectfont\bfseries,align=center] at (0, 0.62) {%
+      Output\\Validation Gate%
     };
+    \begin{scope}[shift={(0, -0.32)}]
+      \pdiconlock[0.46]{(0, 0)}
+    \end{scope}
+  \end{scope}
 
   % =========================================================================
-  % TIER 3: DETERMINISTIC GOVERNANCE LAYER (PORT DADDY TCB)
+  % LAYER 2: EXECUTION LAYER (x in [3.6, 13.5], y in [2.5, 4.6])
   % =========================================================================
-  \draw[tier3box] (1.85,0.0) rectangle (14.85,2.50);
-
-  % Header
-  \node[anchor=north west,inner sep=0pt] at (2.05,2.32) {%
-    {\bfseries\fontsize{6.3}{7.6}\selectfont\color{pdindigo} TIER 3: DETERMINISTIC GOVERNANCE LAYER (PORT DADDY TCB)}\enspace%
-    {\fontsize{5.0}{6.2}\selectfont\color{hhgray!80!black}---}\enspace%
-    {\fontsize{4.8}{6.0}\selectfont\sffamily\color{hhgray} Single-Writer SQLite WAL $\cdot$ Merkle Attestation Trail}%
+  \draw[layerbox] (3.6, 2.5) rectangle (13.5, 4.6);
+  % Slate Header Banner
+  \fill[pdslate!90!black,rounded corners=3.5pt] (3.64, 4.20) rectangle (13.46, 4.56);
+  \node[anchor=west,text=white,font=\fontsize{7.8}{9.2}\selectfont\bfseries] at (3.85, 4.38) {%
+    EXECUTION LAYER: Confined Host Runtime%
   };
 
-  % Card 3.1: Supervisory Kernel TCB (Left: x in [2.05, 5.65])
-  \node[cardkernel,anchor=north west,text width=3.35cm] (c31) at (2.05,2.00) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdcobalt} Supervisory Kernel (TCB)}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Mutual exclusion \& AST lock arbiter\\
-    $\bullet$ Compulsion: \texttt{requireNotePerCommit}\\
-    $\bullet$ Zombie watchdog \& heartbeat tracking\\
-    $\bullet$ Mints signed execution receipt $\langle\mathtt{rcpt}\rangle$%
-    }
+  % 2A: Seatbelt Sandbox Enclave
+  \begin{scope}[shift={(5.5, 3.35)}]
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=3.5pt] (-1.30, -0.65) rectangle (1.30, 0.65);
+    % Shield with Lock
+    \draw[fill=white,draw=none] (-0.85, 0.32) -- (-0.45, 0.32) to[out=-30,in=90] (-0.45, -0.05) to[out=-90,in=0] (-0.65, -0.36) to[out=180,in=-90] (-0.85, -0.05) to[out=90,in=210] cycle;
+    \begin{scope}[shift={(-0.65, -0.06)}]
+      \pdiconlock[0.40]{(0, 0)}
+    \end{scope}
+    \node[anchor=west,text=white,font=\fontsize{6.8}{8.0}\selectfont\bfseries,align=left] at (-0.30, 0.0) {%
+      Seatbelt\\Sandbox Enclave%
+    };
+  \end{scope}
+
+  % Orthogonal Arrow down from Gate into Sandbox via clear inter-layer channel
+  \draw[pd arrow,line width=1.4pt,hhink,rounded corners=3pt] (12.0, 5.1) -- (12.0, 4.75) -- (5.5, 4.75) -- (5.5, 4.05);
+
+  % Validated dispatch Arrow
+  \draw[pd arrow,line width=1.5pt,hhink] (6.85, 3.35) -- (8.25, 3.35)
+    node[midway,above,font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink},align=center] {Validated\\dispatch};
+
+  % 2B: Host Worker Subprocess (Taller card so text doesn't touch bottom)
+  \begin{scope}[shift={(9.6, 3.35)}]
+    \draw[subcard] (-1.25, -0.70) rectangle (1.25, 0.70);
+    % Terminal icon with gear
+    \begin{scope}[shift={(0, 0.28)}]
+      \draw[fill=hhpaper,draw=pdslate!90!black,line width=0.6pt,rounded corners=1.5pt] (-0.45, -0.16) rectangle (0.45, 0.32);
+      \draw[fill=pdslate!90!black,draw=none,rounded corners=1pt] (-0.40, -0.12) rectangle (0.40, 0.22);
+      \node[font=\fontsize{5.5}{6.5}\selectfont\bfseries\color{white}] at (-0.18, 0.05) {\texttt{>\_}};
+      \pdicongear[0.32]{(0.22, 0.05)}
+    \end{scope}
+    \node[anchor=north,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (0, 0.02) {%
+      Host Worker\\Subprocess%
+    };
+  \end{scope}
+
+  % Arrow to Spend Cap Monitor
+  \draw[pd arrow,line width=1.5pt,hhink] (10.9, 3.35) -- (11.7, 3.35);
+
+  % 2C: Spend Cap Monitor
+  \begin{scope}[shift={(12.55, 3.35)}]
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=3.5pt] (-0.75, -0.65) rectangle (0.75, 0.65);
+    \node[text=white,font=\fontsize{6.8}{8.0}\selectfont\bfseries,align=center] at (0, 0.0) {%
+      Spend Cap\\Monitor%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % LAYER 3: GOVERNANCE LAYER (x in [3.6, 13.5], y in [0.15, 2.25])
+  % =========================================================================
+  \draw[layerbox] (3.6, 0.15) rectangle (13.5, 2.25);
+  % Navy Header Banner
+  \fill[pdslate!95!black,rounded corners=3.5pt] (3.64, 1.87) rectangle (13.46, 2.21);
+  \node[anchor=west,text=pdamber,font=\fontsize{7.8}{9.2}\selectfont\bfseries] at (3.85, 2.04) {%
+    GOVERNANCE LAYER: Kernel Authority (TCB)%
   };
 
-  % Card 3.2: Append-Only Evidence Ledger (Center: x in [6.45, 10.25])
-  \node[cardwal,anchor=north west,text width=3.55cm] (c32) at (6.45,2.00) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdindigo} Evidence Ledger (SQLite WAL)}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Single-writer serialized transactions\\
-    $\bullet$ Content-addressed blob store (SHA-256)\\
-    $\bullet$ Crash-durable recovery / salvage trail\\
-    $\bullet$ Append-only causal trajectory records%
-    }
-  };
+  % Attestation State Box on Left
+  \begin{scope}[shift={(4.6, 1.0)}]
+    \draw[subcard] (-0.85, -0.60) rectangle (0.85, 0.60);
+    \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (0, 0.0) {%
+      State\\attestation%
+    };
+  \end{scope}
 
-  % Card 3.3: Merkle Attestation Gate (Right: x in [11.05, 14.65])
-  \node[cardmerkle,anchor=north west,text width=3.35cm] (c33) at (11.05,2.00) {%
-    {\bfseries\fontsize{5.6}{6.7}\selectfont\color{pdhealth!90!black} Merkle Attestation Gate}\\[2pt]
-    {\fontsize{4.6}{5.6}\selectfont\color{hhink}%
-    $\bullet$ Test oracle verification (\texttt{PASS}/\texttt{FAIL})\\
-    $\bullet$ Tamper-evident Merkle root binding\\
-    $\bullet$ Provable action receipts (deeds done)\\
-    $\bullet$ Multi-agent consensus \& release gate%
-    }
-  };
+  % Arrow to Supervisory Kernel
+  \draw[pd arrow,line width=1.5pt,hhink] (5.5, 1.0) -- (6.15, 1.0);
 
-  % Horizontal Arrows in Tier 3 (Left to Right)
-  \draw[pd arrow,pdcobalt] (5.65,1.10) -- (6.45,1.10)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdcobalt}] {Commit};
-  \draw[pd arrow,pdindigo] (10.25,1.10) -- (11.05,1.10)
-    node[midway,above,font=\fontsize{4.5}{5.5}\selectfont\color{pdindigo}] {Verify};
+  % 3A: Supervisory Kernel (TCB) with gold border & crisp WHITE text
+  \begin{scope}[shift={(7.0, 1.0)}]
+    \draw[goldcard] (-0.80, -0.60) rectangle (0.80, 0.60);
+    \node[text=white,font=\fontsize{6.8}{8.0}\selectfont\bfseries,align=center] at (0, 0.0) {%
+      Supervisory\\Kernel\\(TCB)%
+    };
+  \end{scope}
+
+  % Syscall interception Arrow
+  \draw[pd arrow,line width=1.5pt,hhink] (7.85, 1.0) -- (8.85, 1.0)
+    node[midway,above,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] {Syscall\\interception};
+
+  % 3B: Append-Only Evidence Ledger (WAL) with WHITE text
+  \begin{scope}[shift={(10.15, 1.0)}]
+    \draw[fill=pdcobalt!90!black,draw=none,rounded corners=3.5pt] (-1.20, -0.60) rectangle (1.20, 0.60);
+    % Padlock Seal on top
+    \begin{scope}[shift={(0, 0.25)}]
+      \fill[white] (0, 0) circle (0.16);
+      \pdiconlock[0.36]{(0, 0)}
+    \end{scope}
+    \node[anchor=north,text=white,font=\fontsize{6.2}{7.4}\selectfont\bfseries,align=center] at (0, 0.06) {%
+      Append-Only Evidence\\Ledger (WAL)%
+    };
+  \end{scope}
+
+  % Arrow to Hook Interceptor
+  \draw[pd arrow,line width=1.5pt,pdamber] (11.40, 1.0) -- (11.90, 1.0);
+
+  % 3C: Hook Interceptor with WHITE text
+  \begin{scope}[shift={(12.65, 1.0)}]
+    \draw[goldcard] (-0.70, -0.60) rectangle (0.70, 0.60);
+    \node[text=white,font=\fontsize{6.5}{7.8}\selectfont\bfseries,align=center] at (0, 0.0) {%
+      Hook\\Interceptor%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % BIG GREEN SANITIZED FEEDBACK LOOP (Clean orthogonal path, no collision)
+  % =========================================================================
+  \draw[pd arrow,line width=1.8pt,pdhealth!90!black,rounded corners=4pt] (3.75, 1.0) -- (2.3, 1.0) -- (2.3, 5.8) -- (3.75, 5.8);
+  \node[rotate=90,font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink},align=center] at (1.85, 3.4) {%
+    Sanitized Observation Feedback\\%
+    {\fontsize{5.6}{6.8}\selectfont (Filtered stdout/stderr \& Execution Receipts)}%
+  };
 
 \end{tikzpicture}

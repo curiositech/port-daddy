@@ -722,8 +722,9 @@ function stripPaperApparatus(body) {
       let end = balancedGroupEnd(next, open);
       if (marker.startsWith('\\noindent\\textbf{Keywords:}')) {
         // the keyword list runs on after the bold label until the paragraph ends
-        const para = next.indexOf('\n\n', end);
-        end = para < 0 ? next.length : para;
+        // (either a blank line, or a following \vspace, \noindent, \section, \begin, etc.)
+        const match = next.slice(end).match(/\n\s*(?:\n|\\(?:vspace|noindent|section|begin|tableofcontents|newpage)\b)/);
+        end = match ? end + match.index : next.length;
       }
       cut(at, end, marker.includes('Keywords') ? 'keywords' : 'reading-time');
     }

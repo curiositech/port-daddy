@@ -8,6 +8,9 @@
 \usepackage{enumitem}
 
 \input{coordination-papers-mega-volume-preamble.tex}
+\makeatletter
+\let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\makeatother
 \geometry{a4paper,landscape,top=0.6cm,bottom=0.6cm,left=1.0cm,right=1.0cm}
 
 \pagestyle{fancy}
@@ -21,15 +24,21 @@
 
 \newsavebox{\pdfigbox}
 \newsavebox{\pdscaledbox}
+\newdimen\pdmaxh
+\newdimen\pdmaxw
+\newdimen\pdcurh
+\newdimen\pdcurw
 \newcommand{\pdautoscale}[2]{% #1 max height, #2 max width
+  \pdmaxh=#1\relax
+  \pdmaxw=#2\relax
   \sbox{\pdscaledbox}{\usebox{\pdfigbox}}%
-  \ifdim\dimexpr\ht\pdscaledbox+\dp\pdscaledbox\relax>#1
-    \sbox{\pdscaledbox}{\resizebox{!}{#1}{\usebox{\pdscaledbox}}}%
+  \pdcurh=\dimexpr\ht\pdscaledbox+\dp\pdscaledbox\relax
+  \pdcurw=\wd\pdscaledbox
+  \ifdim\dimexpr\pdcurw * 100 / \pdmaxw\relax > \dimexpr\pdcurh * 100 / \pdmaxh\relax
+    \resizebox{\pdmaxw}{!}{\usebox{\pdscaledbox}}%
+  \else
+    \resizebox{!}{\pdmaxh}{\usebox{\pdscaledbox}}%
   \fi
-  \ifdim\wd\pdscaledbox>#2
-    \sbox{\pdscaledbox}{\resizebox{#2}{!}{\usebox{\pdscaledbox}}}%
-  \fi
-  \usebox{\pdscaledbox}%
 }
 
 \begin{document}
@@ -53,12 +62,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop1-funnel.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop1-funnel.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -75,13 +84,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop1-funnel.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -127,12 +136,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop2-attenuation.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop2-attenuation.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -149,13 +158,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop2-attenuation.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -201,12 +210,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop3-confinement.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop3-confinement.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -223,13 +232,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop3-confinement.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -275,12 +284,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop4-supervision.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop4-supervision.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -297,13 +306,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop4-supervision.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -349,12 +358,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop5-identity.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop5-identity.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -371,13 +380,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop5-identity.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -423,12 +432,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-spark-prop6-instruments.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop6-instruments.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -445,13 +454,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-spark-prop6-instruments.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -479,7 +488,155 @@
 \clearpage
 
 % =========================================================================
-% PAGE 7: Figure 0.9
+% PAGE 7: Figure 0.7
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.7 \textperiodcentered\ Proposition 7 Mechanics: Bonded Execution \& Liquidated Damages}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.7 · Agent Governance · Bonded Commons \& Arbitration}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop7-bonded.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Low-resolution clip-art figures with raster scaling artifacts
+        \item Broken layout margins with blurry text in arbitration and remedy boxes
+        \item Inconsistent line styling between workflow steps and failure branches
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop7-bonded.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item 3-stage pipeline: Bonded Stake Deposit, Randomized Audit, and Contest Arbitration
+        \item Dual-outcome branching: Valid Outcome (Bond Released) vs. Defect/Harm (Stake Slashed)
+        \item Integrated remedy sequence: Automatic liquidation and compensation to affected parties
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 8: Figure 0.8
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.8 \textperiodcentered\ Proposition 8 Mechanics: Cross-Harbor Relay \& Zero-Trust Federation}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.8 · Distributed Architecture · Relay Fabric \& Proof Gossip}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop8-federation.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Heavy raster compression artifacts on database cylinders and security boundaries
+        \item Illegible Merkle tree leaf labels and blurry cryptographic signature badges
+        \item Disconnected arrows and fuzzy zero-trust relay cylinder boundary
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop8-federation.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Bilateral federation: Harbor Host A and Harbor Host B with isolated security boundaries
+        \item Central zero-trust relay fabric with cryptographic witness receipts and Merkle proofs
+        \item Zero shared database and zero global sovereign invariant strictly enforced
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 9: Figure 0.9
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -497,12 +654,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-bdi-diagram.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-bdi-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -519,13 +676,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-bdi-execution.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -553,7 +710,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 8: Figure 0.10
+% PAGE 10: Figure 0.10
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -571,12 +728,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-concurrency-diagram.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-concurrency-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -593,13 +750,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-concurrency-actors-csp.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -627,7 +784,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 9: Figure 0.11
+% PAGE 11: Figure 0.11
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -645,12 +802,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-fipa-speech-acts.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-fipa-speech-acts.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -667,13 +824,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-fipa-speech-acts.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -701,7 +858,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 10: Figure 0.12
+% PAGE 12: Figure 0.12
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -719,12 +876,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-cnp-diagram.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-cnp-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -741,13 +898,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-cnp-protocol.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -775,7 +932,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 11: Figure 0.13
+% PAGE 13: Figure 0.13
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -793,18 +950,18 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-big-brother-logic.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-bbl-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
         \item Vision cones are rendered as muddy gradient wedges with jagged edges
-        \item Blind spots and epistemic shadows lack geometric definition
-        \item Higher-order knowledge formulas ($K_{a_1} K_{a_2} \phi$) rendered in broken raster fonts
+        \item Coordinate grid numbers and formulas have pixelated compression artifacts
+        \item Observer and worker agent icons suffer from raster scaling blur
       \end{itemize}
     \end{minipage}
   \end{tcolorbox}
@@ -815,13 +972,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-bbl-vision-cones.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -849,7 +1006,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 12: Figure 0.14
+% PAGE 14: Figure 0.14
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -867,12 +1024,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-arrows-impossibility.png}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-arrows-impossibility.png}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -889,13 +1046,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-arrows-consensus.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -923,7 +1080,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 13: Figure 0.15
+% PAGE 15: Figure 0.15
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -941,18 +1098,18 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-skills-logarithmic.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-skills-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Decade brackets ($10^0$ to $10^{-4}$) are misaligned with log axis
-        \item Context window token consumption curve is hand-drawn and inaccurate
-        \item Text labels inside disclosure tiers crowd the borders and overlap
+        \item Raster diagram suffers from non-vector text pixelation at standard book scale
+        \item Token counts (~100, ~1,000, ~5,000) blur when resized to two-page spread width
+        \item Robot token meter icon and decade pill borders show compression ringing
       \end{itemize}
     \end{minipage}
   \end{tcolorbox}
@@ -963,17 +1120,17 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-progressive-skills.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Mathematically exact logarithmic scale ($10^0, 10^{-1}, 10^{-2}, 10^{-3}, 10^{-4}$)
+        \item Mathematically exact logarithmic scale ($10^0, 10^{-1}, 10^{-2}, 10^{-4}$)
         \item Four progressive tiers: Discovery Metadata (100 B), Instructions (2 KB), Scripts (0 B context), Schemas
         \item Shows exponential context savings achieved by keeping procedural code outside the LLM window
       \end{itemize}
@@ -997,7 +1154,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 14: Figure 0.16
+% PAGE 16: Figure 0.16
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -1015,18 +1172,18 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-lifecycle-hooks.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-lifecycle-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Nested loops are visually muddy; impossible to tell outer turn loop from inner tool loop
-        \item Interception hook labels (PreToolUse, PostToolUse) bleed into the background
-        \item Production trace examples (Cases A-C) are illegible at book scale
+        \item Raster loop text and arrow labels show blurry compression halos
+        \item Interception hook labels (PreToolUse, PostToolUse) suffer from low contrast
+        \item Production trace callout boxes (Cases A-C) lose crispness at high print resolutions
       \end{itemize}
     \end{minipage}
   \end{tcolorbox}
@@ -1037,13 +1194,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-lifecycle-hooks.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -1071,7 +1228,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 15: Figure 0.17
+% PAGE 17: Figure 0.17
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -1089,12 +1246,12 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-wonham-supervisory.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-wonham-supervisory.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -1111,13 +1268,13 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-wonham-supervisory.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
@@ -1145,7 +1302,7 @@
 \clearpage
 
 % =========================================================================
-% PAGE 16: Figure 0.18
+% PAGE 18: Figure 0.18
 % =========================================================================
 \noindent
 \begin{minipage}[t]{\linewidth}
@@ -1163,18 +1320,18 @@
     boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{figures/fig-ch0-closed-loop.jpg}
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-closed-loop-diagram.jpg}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Tiers are unevenly distributed; arrows between deliberation and execution loop randomly
-        \item Database WAL and capability verification blocks look like generic cloud clip art
-        \item Text inside execution boxes is squeezed and clipped
+        \item Raster icons (chip, terminal, lock) blur and degrade at print resolution
+        \item Layer text boxes show edge fringing and JPEG compression artifacts
+        \item Sanitized observation feedback arrow text suffers from raster blur
       \end{itemize}
     \end{minipage}
   \end{tcolorbox}
@@ -1185,165 +1342,19 @@
     boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
     title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
   ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
       \centering
       \sbox{\pdfigbox}{\input{figures/fig-ch0-closed-loop-diagram.tex}}
-      \pdautoscale{5.3cm}{\linewidth}
+      \pdautoscale{8.0cm}{\linewidth}
     \end{minipage}
     \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
       \pdgrotesk\scriptsize
       \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
       \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
         \item Three clean architectural strata: 1. Probabilistic Deliberation, 2. Confined Execution, 3. Deterministic Governance
         \item Rigorous separation of powers: LLMs reason, Sandboxes execute, Kernels arbitrate and persist
         \item Cryptographic attestation and immutable receipts closing the loop back to operator oversight
-      \end{itemize}
-    \end{minipage}
-  \end{tcolorbox}
-\end{minipage}
-
-\vspace*{0.05cm}
-\noindent
-\begin{tcolorbox}[
-  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
-  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
-]
-  \pdgrotesk\scriptsize
-  \noindent
-  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
-  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
-  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
-  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
-\end{tcolorbox}
-\clearpage
-
-% =========================================================================
-% PAGE 17: Landmark 01
-% =========================================================================
-\noindent
-\begin{minipage}[t]{\linewidth}
-  \noindent{\pdgrotesk\large\bfseries Landmark 01 \textperiodcentered\ Landmark 01 Plate: Mineral Slate Bedrock vs. Green Prototype}\hfill
-  {\pdgrotesk\footnotesize\color{hhgray} Part 0 \& Chapter 0 Opener · Architectural Philosophy \& Visual Anchor}\\
-  \vspace*{0.03cm}
-  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
-\end{minipage}
-
-\vspace*{0.05cm}
-\noindent
-\begin{minipage}[t]{0.492\linewidth}
-  \begin{tcolorbox}[
-    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
-    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
-    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
-  ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{plates/swiss/landmark-01-previous-green.jpg}
-    \end{minipage}
-    \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
-      \pdgrotesk\scriptsize
-      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
-      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Uncalibrated bright green blocks ('green psychosis') clashing with the book's palette
-        \item Saturated neon tones distracting from the architectural seriousness of the volume
-        \item Lack of grounding; felt like an arbitrary digital graphic rather than physical bedrock
-      \end{itemize}
-    \end{minipage}
-  \end{tcolorbox}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.492\linewidth}
-  \begin{tcolorbox}[
-    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
-    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
-    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
-  ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{plates/swiss/landmark-01.jpg}
-    \end{minipage}
-    \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
-      \pdgrotesk\scriptsize
-      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
-      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Mineral slate gray palette (\#384856) harmonizing with Swiss book design language
-        \item Stepped monoliths anchored upon coarse halftone foundational bedrock footing
-        \item Uncompromising black datum line with precise red origin registration square
-      \end{itemize}
-    \end{minipage}
-  \end{tcolorbox}
-\end{minipage}
-
-\vspace*{0.05cm}
-\noindent
-\begin{tcolorbox}[
-  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
-  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
-]
-  \pdgrotesk\scriptsize
-  \noindent
-  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
-  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
-  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
-  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
-\end{tcolorbox}
-\clearpage
-
-% =========================================================================
-% PAGE 18: Part 0 Plate
-% =========================================================================
-\noindent
-\begin{minipage}[t]{\linewidth}
-  \noindent{\pdgrotesk\large\bfseries Part 0 Plate \textperiodcentered\ Part 0 Opener Plate: Foundations and Prerequisites}\hfill
-  {\pdgrotesk\footnotesize\color{hhgray} Book Part 0 · Two-Page Spread Verso Section Head Plate}\\
-  \vspace*{0.03cm}
-  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
-\end{minipage}
-
-\vspace*{0.05cm}
-\noindent
-\begin{minipage}[t]{0.492\linewidth}
-  \begin{tcolorbox}[
-    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
-    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
-    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
-  ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{plates/swiss/part-0.jpg}
-    \end{minipage}
-    \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
-      \pdgrotesk\scriptsize
-      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
-      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Part 0 previously lacked an authentic full-spread section head plate
-        \item Chapter 0 started abruptly without the monumental gateway present in subsequent Parts I-IV
-        \item Missing visual anchor for the foundational pre-LLM and kernel gap theory
-      \end{itemize}
-    \end{minipage}
-  \end{tcolorbox}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.492\linewidth}
-  \begin{tcolorbox}[
-    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
-    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
-    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
-  ]
-    \begin{minipage}[c][5.6cm][c]{\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=5.3cm,keepaspectratio]{plates/swiss/part-0.jpg}
-    \end{minipage}
-    \tcblower
-    \begin{minipage}[t][2.2cm][t]{\linewidth}
-      \pdgrotesk\scriptsize
-      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
-      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
-        \item Full 3:2 landscape proportion (2100x1400) designed specifically for the pdslate verso spread
-        \item Features the complete architectural motif: Bedrock footing, stepped slate towers, and red datum
-        \item Fully registered in PROVENANCE.json with 0 test failures and zero external spend
       \end{itemize}
     \end{minipage}
   \end{tcolorbox}

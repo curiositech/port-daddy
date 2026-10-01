@@ -1,226 +1,284 @@
 % fig-ch0-progressive-skills.tex
-% Progressive Skill Disclosure Across Contracting Logarithmic Decades
-% Replaces raster fig-ch0-skills-diagram.jpg with 100% native vector Swiss TikZ.
+% Progressive Disclosure of Skills Across Logarithmic Decades
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    pillar/.style={draw=hhink!25,line width=0.6pt,rounded corners=3pt,fill=pdpage},
-    headerpill/.style={rounded corners=2pt,align=center,inner xsep=2pt,inner ysep=2.5pt},
-    tokencard/.style={draw=hhink!15,line width=0.5pt,rounded corners=2pt,fill=hhpaper!40,align=center,inner xsep=2pt,inner ysep=3pt},
-    bodycard/.style={draw=none,fill=none,align=left,font=\fontsize{5.5}{6.8}\selectfont,text=hhink!90,inner sep=0pt},
-    footerpill/.style={rounded corners=2pt,align=center,font=\bfseries\fontsize{5.4}{6.6}\selectfont,inner xsep=3pt,inner ysep=2.5pt},
-    hostpanel/.style={draw=pdcobalt!40,line width=0.8pt,rounded corners=3pt,fill=pdcobalt!4}
+    decbox1/.style={draw=pderror!90!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox2/.style={draw=pdteal!85!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox3/.style={draw=pdcobalt!90!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox4/.style={draw=pdslate!90!black,line width=0.9pt,fill=white,rounded corners=4pt}
   }
 
   % =========================================================================
-  % LOGARITHMIC CONTRACTION AXIS (BOTTOM)
+  % TOP RIGHT: CONTEXT PRESERVATION INVARIANT PROSE (Exact match to prototype)
   % =========================================================================
-  \draw[draw=hhink!20,fill=hhpaper!30,rounded corners=2pt] (0.0,-0.05) rectangle (11.55,1.15);
-  \node[anchor=north west,font=\fontsize{5.4}{6.5}\selectfont\bfseries,text=hhink!60] at (0.3,1.06) {LOGARITHMIC ACTIVATION FREQUENCY ($\log_{10} P$)};
-  
-  \draw[line width=0.7pt,hhink!50,-latex] (0.3,0.50) -- (11.25,0.50);
-  
-  % Ticks and indicators
-  \draw[line width=0.8pt,hhink!60] (1.35,0.42) -- (1.35,0.58);
-  \node[anchor=north,font=\fontsize{5.8}{7}\selectfont\bfseries,text=pdcobalt] at (1.35,0.40) {$10^0$ ($100\%$)};
-
-  \draw[line width=0.8pt,hhink!60] (4.3,0.42) -- (4.3,0.58);
-  \node[anchor=north,font=\fontsize{5.8}{7}\selectfont\bfseries,text=pdteal] at (4.3,0.40) {$10^{-1}$ ($10\%$)};
-
-  \draw[line width=0.8pt,hhink!60] (7.25,0.42) -- (7.25,0.58);
-  \node[anchor=north,font=\fontsize{5.8}{7}\selectfont\bfseries,text=pdindigo] at (7.25,0.40) {$10^{-2}$ ($1\%$)};
-
-  \draw[line width=0.8pt,hhink!60] (10.2,0.42) -- (10.2,0.58);
-  \node[anchor=north,font=\fontsize{5.8}{7}\selectfont\bfseries,text=pdhealth!80!black] at (10.2,0.40) {$10^{-4}$ ($0.01\%$)};
-
-  % =========================================================================
-  % PILLAR 1: TIER 1 FRONTMATTER METADATA (Decade 10^0)
-  % =========================================================================
-  \draw[pillar] (0.0,1.3) rectangle (2.7,8.6);
-  
-  % Header badge (Strictly 2 lines)
-  \node[headerpill,anchor=north,fill=pdcobalt!12,draw=pdcobalt,text=pdcobalt,text width=2.4cm] at (1.35,8.48) {%
-    {\bfseries\fontsize{6.2}{7.5}\selectfont Tier 1: Frontmatter}\\[1.5pt]
-    {\fontsize{5.1}{6.2}\selectfont Decade $10^0$ \textperiodcentered\ Resident}
-  };
-
-  % Token Footprint Badge
-  \node[tokencard,anchor=north,text width=2.4cm] at (1.35,7.65) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{pdcobalt} $\approx 100$ tokens / skill}\\[1pt]
-    {\fontsize{5.1}{6.3}\selectfont $\approx 15\text{k}$ in system prompt}
-  };
-
-  % Architectural Spec Body (Starts at 5.80, plenty of clearance)
-  \node[bodycard,anchor=north,text width=2.45cm] at (1.35,5.80) {%
-    \textbf{Scope:}\\
-    System prompt index.\\[3.5pt]
-    \textbf{Payload:}\\
-    \texttt{id}, description, triggers, signatures.\\[3.5pt]
-    \textbf{Hardware:}\\
-    GPU HBM prefix cached ($>90\%$ hit rate).\\[3.5pt]
-    \textbf{Role:}\\
-    Signals capabilities with zero prompt code.
-  };
-
-  % Footer Badge
-  \node[footerpill,anchor=south,fill=pdcobalt!10,draw=pdcobalt!40,text=pdcobalt!90!black,text width=2.4cm] at (1.35,1.45) {%
-    HBM Prefix Cached\\[1pt]
-    {\fontsize{5}{6}\selectfont $P = 1.0$ (Resident)}
+  \node[anchor=north west,text width=4.3cm,align=left] at (8.3, 7.3) {%
+    {\fontsize{7.5}{9.2}\selectfont\bfseries\color{hhink} Context Preservation Invariant:}\\[2pt]
+    {\fontsize{6.8}{8.2}\selectfont\color{hhink}%
+    99\% of operational code executes on the host substrate with \textbf{0 LLM context footprint}.}%
   };
 
   % =========================================================================
-  % PILLAR 2: TIER 2 OPERATIONAL MANUAL (Decade 10^-1)
+  % FOUR PROGRESSIVE DECADE CARDS (x in [0.2, 9.35])
   % =========================================================================
-  \draw[pillar] (2.95,1.3) rectangle (5.65,8.6);
-  
-  % Header badge (Strictly 2 lines)
-  \node[headerpill,anchor=north,fill=pdteal!12,draw=pdteal,text=pdteal,text width=2.4cm] at (4.3,8.48) {%
-    {\bfseries\fontsize{6.2}{7.5}\selectfont Tier 2: Manual}\\[1.5pt]
-    {\fontsize{5.1}{6.2}\selectfont Decade $10^{-1}$ \textperiodcentered\ On Match}
-  };
 
-  % Token Footprint Badge
-  \node[tokencard,anchor=north,text width=2.4cm] at (4.3,7.65) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{pdteal} $\approx 1{,}000$ tokens / load}\\[1pt]
-    {\fontsize{5.1}{6.3}\selectfont On-demand procedural guide}
-  };
+  % --- CARD 1: Decade 10^0 (Frontmatter Metadata) ---
+  \begin{scope}[shift={(0.2, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 5.55) {%
+      Decade $\mathbf{10^0}$\\Always Resident\\{\fontsize{5.5}{6.5}\selectfont 100\% of turns}%
+    };
+    % Card Body (Red border)
+    \draw[decbox1] (0, 0) rectangle (2.1, 5.5);
+    % Top Header Pill (Red)
+    \draw[fill=pderror!90!black,draw=none,rounded corners=3pt] (0.05, 4.50) rectangle (2.05, 5.45);
+    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{white},align=center] at (1.05, 4.95) {%
+      Frontmatter\\Metadata%
+    };
+    % Token pill
+    \node[draw=pderror!70,fill=pderror!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pderror!90!black}] at (1.05, 4.05) {%
+      $\sim$100 tokens%
+    };
+    % Icons: Upper Browser with Gear/Key, Lower Gear with Key
+    \begin{scope}[shift={(1.05, 2.85)}]
+      % Upper browser window with upload arrow
+      \draw[fill=hhpaper,draw=pdslate!70,line width=0.5pt,rounded corners=1.5pt] (-0.45, 0.25) rectangle (0.45, 0.70);
+      \fill[pdslate!60] (-0.35, 0.60) circle (0.035);
+      \fill[pdslate!60] (-0.25, 0.60) circle (0.035);
+      \fill[pdslate!60] (-0.15, 0.60) circle (0.035);
+      \pdicongear[0.35]{(-0.2, 0.40)}
+      \pdiconkey[0.35]{(0.2, 0.40)}
+      \draw[pd arrow,line width=0.8pt,pderror] (0, 0.70) -- (0, 0.90);
 
-  % Architectural Spec Body
-  \node[bodycard,anchor=north,text width=2.45cm] at (4.3,5.80) {%
-    \textbf{Scope:}\\
-    \path{SKILL.md} workflow manual.\\[3.5pt]
-    \textbf{Payload:}\\
-    Decision DAGs, validation, error recovery.\\[3.5pt]
-    \textbf{Lifecycle:}\\
-    Loaded on trigger match; evicted post-turn.\\[3.5pt]
-    \textbf{Role:}\\
-    Transient guide; zero permanent bloat.
-  };
+      % Lower large gear with diagonal key
+      \pdicongear[0.75]{(0.0, -0.45)}
+      \begin{scope}[shift={(0.0, -0.45)},rotate=-45]
+        \pdiconkey[0.65]{(0, 0)}
+      \end{scope}
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.35) {%
+      System prompt,\\tool signatures,\\quick triggers.%
+    };
+  \end{scope}
 
-  % Footer Badge
-  \node[footerpill,anchor=south,fill=pdteal!10,draw=pdteal!40,text=pdteal!90!black,text width=2.4cm] at (4.3,1.45) {%
-    Evicted Post-Turn\\[1pt]
-    {\fontsize{5}{6}\selectfont $P \approx 0.10$ (10\% Turns)}
-  };
+  % --- CARD 2: Decade 10^-1 (Operational Manual) ---
+  \begin{scope}[shift={(2.55, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 5.05) {%
+      Decade $\mathbf{10^{-1}}$\\On Intent Match\\{\fontsize{5.5}{6.5}\selectfont 10\% of turns}%
+    };
+    % Card Body (Green border)
+    \draw[decbox2] (0, 0) rectangle (2.1, 5.0);
+    % Top Header Pill (Green)
+    \draw[fill=pdteal!85!black,draw=none,rounded corners=3pt] (0.05, 4.05) rectangle (2.05, 4.95);
+    \node[font=\fontsize{7.0}{8.3}\selectfont\bfseries\color{white},align=center] at (1.05, 4.50) {%
+      Operational\\Manual {\fontsize{5.2}{6.2}\selectfont(SKILL.md)}%
+    };
+    % Token pill
+    \node[draw=pdteal!80,fill=pdteal!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdteal!90!black}] at (1.05, 3.60) {%
+      $\sim$1,000 tokens%
+    };
+    % Flowchart Document Icon
+    \begin{scope}[shift={(1.05, 2.55)}]
+      \draw[fill=hhpaper,draw=pdslate!80,line width=0.6pt,rounded corners=1.5pt] (-0.50, -0.65) rectangle (0.50, 0.65);
+      % 3 header dots
+      \fill[pdslate!60] (-0.35, 0.52) circle (0.035);
+      \fill[pdslate!60] (-0.22, 0.52) circle (0.035);
+      \fill[pdslate!60] (-0.09, 0.52) circle (0.035);
+      % Start circle
+      \draw[fill=pdteal!30,draw=pdteal,line width=0.4pt] (0, 0.35) circle (0.08);
+      \draw[pd arrow,line width=0.4pt,pdteal] (0, 0.27) -- (0, 0.14);
+      % Decision Diamond
+      \draw[fill=pdteal!20,draw=pdteal,line width=0.4pt] (0, 0.14) -- (0.18, 0) -- (0, -0.14) -- (-0.18, 0) -- cycle;
+      % Action boxes
+      \draw[pd arrow,line width=0.4pt,pdteal] (-0.18, 0) -- (-0.30, 0) -- (-0.30, -0.30);
+      \draw[pd arrow,line width=0.4pt,pdteal] (0.18, 0) -- (0.30, 0) -- (0.30, -0.30);
+      \draw[fill=pdteal!40,draw=pdteal,line width=0.4pt] (-0.40, -0.46) rectangle (-0.20, -0.30);
+      \draw[fill=pdteal!40,draw=pdteal,line width=0.4pt] (0.20, -0.46) rectangle (0.40, -0.30);
+      % Feedback loop
+      \draw[line width=0.35pt,pdteal] (-0.30, -0.46) -- (-0.30, -0.56) -- (0.30, -0.56) -- (0.30, -0.46);
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.35) {%
+      Workflow decision\\tree, anti-patterns,\\core process.%
+    };
+  \end{scope}
+
+  % --- CARD 3: Decade 10^-2 (Reference Catalog & Schemas) ---
+  \begin{scope}[shift={(4.9, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 4.55) {%
+      Decade $\mathbf{10^{-2}}$\\On Subtask Dispatch\\{\fontsize{5.5}{6.5}\selectfont 1\% of turns}%
+    };
+    % Card Body (Blue border)
+    \draw[decbox3] (0, 0) rectangle (2.1, 4.65);
+    % Top Header Pill (Vibrant Cobalt)
+    \draw[fill=pdcobalt,draw=none,rounded corners=3pt] (0.05, 3.55) rectangle (2.05, 4.60);
+    \node[text=white,font=\fontsize{7.0}{8.3}\selectfont\bfseries,align=center] at (1.05, 4.07) {%
+      Reference\\Catalog \& Schemas%
+    };
+    % Token pill
+    \node[draw=pdcobalt!80,fill=pdcobalt!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdcobalt}] at (1.05, 3.15) {%
+      $\sim$5,000 tokens%
+    };
+    % Open Book Icon
+    \begin{scope}[shift={(1.05, 2.30)}]
+      \draw[fill=hhpaper,draw=pdcobalt!90,line width=0.7pt,rounded corners=1pt] (-0.55, -0.45) rectangle (0.55, 0.45);
+      \draw[line width=0.6pt,pdcobalt!90] (0, -0.45) -- (0, 0.45);
+      % Left page: square block and lines
+      \draw[fill=pdcobalt!30,draw=none] (-0.45, 0.12) rectangle (-0.22, 0.35);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.05) -- (-0.1, -0.05);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.18) -- (-0.1, -0.18);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.32) -- (-0.2, -0.32);
+      % Right page: table grid
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.32) -- (0.45, 0.32);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.16) -- (0.45, 0.16);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.0) -- (0.45, 0.0);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, -0.16) -- (0.45, -0.16);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, -0.32) -- (0.45, -0.32);
+      \draw[line width=0.4pt,pdcobalt!70] (0.27, -0.38) -- (0.27, 0.38);
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.45) {%
+      Specialized subagent\\system prompts, API\\full guides%
+    };
+  \end{scope}
+
+  % --- CARD 4: Decade 10^-4 (Deterministic Host Scripts) ---
+  \begin{scope}[shift={(7.25, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 4.05) {%
+      Decade $\mathbf{10^{-4}}$\\Zero Context Cost\\{\fontsize{5.5}{6.5}\selectfont 0.01\% of turns}%
+    };
+    % Card Body (Dark navy border)
+    \draw[decbox4] (0, 0) rectangle (2.1, 4.0);
+    % Top Header Pill (Dark Navy)
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=3pt] (0.05, 3.05) rectangle (2.05, 3.95);
+    \node[text=white,font=\fontsize{7.0}{8.3}\selectfont\bfseries,align=center] at (1.05, 3.50) {%
+      Deterministic\\Host Scripts%
+    };
+    % Token pill (Zero Context!)
+    \node[draw=pdhealth!80!black,fill=pdhealth!12,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdhealth!90!black}] at (1.05, 2.65) {%
+      \textbf{0 context tokens!}%
+    };
+    % Description
+    \node[anchor=north,font=\fontsize{5.2}{6.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 2.0) {%
+      Python/Bash scripts,\\test oracles, and\\compilers executing\\on host OS%
+    };
+  \end{scope}
 
   % =========================================================================
-  % PILLAR 3: TIER 3 REFERENCE CATALOGS & SCHEMAS (Decade 10^-2)
+  % RIGHT: COMPUTER TERMINAL AND BIG ROBOT WITH TOKEN METER
   % =========================================================================
-  \draw[pillar] (5.9,1.3) rectangle (8.6,8.6);
-  
-  % Header badge (Strictly 2 lines)
-  \node[headerpill,anchor=north,fill=pdindigo!12,draw=pdindigo,text=pdindigo,text width=2.4cm] at (7.25,8.48) {%
-    {\bfseries\fontsize{6.2}{7.5}\selectfont Tier 3: Reference}\\[1.5pt]
-    {\fontsize{5.1}{6.2}\selectfont Decade $10^{-2}$ \textperiodcentered\ Subtask}
-  };
 
-  % Token Footprint Badge
-  \node[tokencard,anchor=north,text width=2.4cm] at (7.25,7.65) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{pdindigo} $\approx 3\text{k}$--$5\text{k}$ tokens}\\[1pt]
-    {\fontsize{5.1}{6.3}\selectfont Byte-offset pagination}
-  };
+  % Arrow from Card 4 to Host Terminal
+  \draw[pd arrow,line width=1.3pt,hhink] (9.45, 2.3) -- (10.05, 2.3);
 
-  % Architectural Spec Body
-  \node[bodycard,anchor=north,text width=2.45cm] at (7.25,5.80) {%
-    \textbf{Scope:}\\
-    \path{references/*.md} specs.\\[3.5pt]
-    \textbf{Payload:}\\
-    API schemas, data contracts, subagent specs.\\[3.5pt]
-    \textbf{Retrieval:}\\
-    Targeted line ranges (\texttt{ContentOffset}).\\[3.5pt]
-    \textbf{Role:}\\
-    Deep domain lookup without attention blowup.
-  };
+  % Host Terminal Station (x=10.65, y=2.3)
+  \begin{scope}[shift={(10.65, 2.3)}]
+    % Monitor
+    \draw[fill=hhpaper,draw=pdslate!90!black,line width=0.9pt,rounded corners=2pt] (-0.50, -0.22) rectangle (0.50, 0.60);
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=1.5pt] (-0.44, -0.16) rectangle (0.44, 0.44);
+    % 3 dots top bar
+    \fill[pdslate!60] (-0.38, 0.52) circle (0.028);
+    \fill[pdslate!60] (-0.29, 0.52) circle (0.028);
+    \fill[pdslate!60] (-0.20, 0.52) circle (0.028);
+    % Terminal prompt
+    \node[font=\fontsize{7.5}{8.5}\selectfont\bfseries\color{white}] at (-0.1, 0.16) {\texttt{>\_}};
 
-  % Footer Badge
-  \node[footerpill,anchor=south,fill=pdindigo!10,draw=pdindigo!40,text=pdindigo!90!black,text width=2.4cm] at (7.25,1.45) {%
-    Byte-Range Addressed\\[1pt]
-    {\fontsize{5}{6}\selectfont $P \approx 0.01$ (1\% Turns)}
-  };
+    % Base unit / keyboard underneath
+    \draw[fill=hhpaper,draw=pdslate!90!black,line width=0.9pt,rounded corners=1.5pt] (-0.55, -0.60) rectangle (0.55, -0.32);
+    \fill[pdslate!60] (-0.38, -0.46) circle (0.035);
+    \fill[pdslate!60] (-0.24, -0.46) circle (0.035);
+    \fill[pdslate!60] (-0.10, -0.46) circle (0.035);
+    \draw[line width=0.9pt,pdslate!70] (0.12, -0.46) -- (0.40, -0.46);
+
+    % Label below terminal
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (0, -0.72) {%
+      Host\\operating system\\substrate%
+    };
+  \end{scope}
 
   % =========================================================================
-  % PILLAR 4: TIER 4 DETERMINISTIC HOST SCRIPTS (Decade 10^-4)
+  % BIG VECTOR ROBOT WITH INTEGRATED TOKEN METER (x=12.4, y=2.8)
   % =========================================================================
-  \draw[pillar,draw=pdhealth!50!black,fill=pdhealth!4] (8.85,1.3) rectangle (11.55,8.6);
-  
-  % Header badge (Strictly 2 lines)
-  \node[headerpill,anchor=north,fill=pdhealth!20,draw=pdhealth!80!black,text=pdhealth!80!black,text width=2.4cm] at (10.2,8.48) {%
-    {\bfseries\fontsize{6.2}{7.5}\selectfont Tier 4: Substrate}\\[1.5pt]
-    {\fontsize{5.1}{6.2}\selectfont Decade $10^{-4}$ \textperiodcentered\ Exec}
-  };
+  \begin{scope}[shift={(12.4, 2.8)}]
+    % Head: rounded rectangle with antennas, glowing eyes, mouth
+    \draw[fill=pdcobalt!90!black,draw=pdcobalt!95!black,line width=1.1pt,rounded corners=3.5pt] (-0.60, 1.55) rectangle (0.60, 2.45);
+    % Antennas with ball tips
+    \draw[line width=1.1pt,pdcobalt!90!black] (-0.38, 2.45) -- (-0.38, 2.85);
+    \fill[pdcobalt!90!black] (-0.38, 2.85) circle (0.09);
+    \draw[line width=1.1pt,pdcobalt!90!black] (0.38, 2.45) -- (0.38, 2.85);
+    \fill[pdcobalt!90!black] (0.38, 2.85) circle (0.09);
+    % Ears / Bolts
+    \fill[pdcobalt!70!black] (-0.72, 1.88) rectangle (-0.60, 2.12);
+    \fill[pdcobalt!70!black] (0.60, 1.88) rectangle (0.72, 2.12);
+    % Glowing Eyes
+    \fill[white] (-0.28, 2.0) circle (0.10);
+    \fill[white] (0.28, 2.0) circle (0.10);
+    % Mouth line
+    \draw[line width=1.4pt,white,line cap=round] (-0.28, 1.72) -- (0.28, 1.72);
 
-  % Token Footprint Badge
-  \node[tokencard,anchor=north,draw=pdhealth!40,fill=pdpage,text width=2.4cm] at (10.2,7.65) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{pdhealth!80!black} $0$ Context Tokens!}\\[1pt]
-    {\fontsize{5.1}{6.3}\selectfont Host Subprocess Execution}
-  };
+    % Neck joint
+    \fill[pdslate!60!black] (-0.20, 1.45) rectangle (0.20, 1.55);
 
-  % Architectural Spec Body
-  \node[bodycard,anchor=north,text width=2.45cm] at (10.2,5.80) {%
-    \textbf{Scope:}\\
-    \path{scripts/*.py}, \path{*.sh}.\\[3.5pt]
-    \textbf{Payload:}\\
-    Compilers, test oracles, AST linters, SQLite.\\[3.5pt]
-    \textbf{Execution:}\\
-    Confined inside host subshell sandbox.\\[3.5pt]
-    \textbf{Role:}\\
-    Deterministic execution; outputs receipts only.
-  };
+    % Arms on hips (symmetric, clean, matching prototype)
+    % Left Arm
+    \fill[pdcobalt!70!black] (-0.80, 1.15) circle (0.13);
+    \draw[line width=3.5pt,pdcobalt!90!black,line cap=round,line join=round] (-0.80, 1.15) -- (-1.15, 0.45) -- (-0.80, -0.15);
+    \draw[line width=1.6pt,pdcobalt!95!black] (-0.80, -0.15) to[out=-135,in=90] (-0.95, -0.40);
+    \draw[line width=1.6pt,pdcobalt!95!black] (-0.80, -0.15) to[out=-45,in=90] (-0.65, -0.40);
 
-  % Footer Badge
-  \node[footerpill,anchor=south,fill=pdhealth!15,draw=pdhealth!60!black,text=pdhealth!80!black,text width=2.4cm] at (10.2,1.45) {%
-    Host Process Boundary\\[1pt]
-    {\fontsize{5}{6}\selectfont $P \le 10^{-4}$ (Execution)}
-  };
+    % Right Arm
+    \fill[pdcobalt!70!black] (0.80, 1.15) circle (0.13);
+    \draw[line width=3.5pt,pdcobalt!90!black,line cap=round,line join=round] (0.80, 1.15) -- (1.15, 0.45) -- (0.80, -0.15);
+    \draw[line width=1.6pt,pdcobalt!95!black] (0.80, -0.15) to[out=-45,in=90] (0.95, -0.40);
+    \draw[line width=1.6pt,pdcobalt!95!black] (0.80, -0.15) to[out=-135,in=90] (0.65, -0.40);
 
-  % =========================================================================
-  % CONNECTOR ARROW: FROM TIER 4 TO HOST SUBSTRATE
-  % =========================================================================
-  \draw[pd arrow,pdhealth!80!black,line width=1.3pt] (11.55,6.6) -- (12.1,6.6);
+    % TORSO: INTEGRAL TOKEN METER (Chest)
+    \draw[fill=pdcobalt!95!black,draw=pdcobalt!95!black,line width=1.1pt,rounded corners=4.5pt] (-0.80, -0.90) rectangle (0.80, 1.45);
 
-  % =========================================================================
-  % RIGHT PANEL: HOST EXECUTION SUBSTRATE & INVARIANT
-  % =========================================================================
-  \draw[hostpanel] (11.9,0.0) rectangle (15.5,8.6);
+    % Token Meter Header
+    \node[text=white,font=\fontsize{7.0}{8.2}\selectfont\bfseries] at (0, 1.22) {Token Meter};
 
-  % Header
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdcobalt] at (12.05,8.4) {Host Substrate};
-  \node[anchor=north west,font=\fontsize{5.8}{7}\selectfont,text=hhgray] at (12.05,8.05) {Confinement \& Context Invariant};
+    % Rainbow Gauge / Semi-Circle Arc
+    \begin{scope}[shift={(0, 0.58)}]
+      % Background white dial
+      \fill[white] (-0.58, 0) arc (180:0:0.58) -- cycle;
+      % Green section (left)
+      \fill[pdhealth!90!black] (-0.58, 0) arc (180:90:0.58) -- (0, 0) -- cycle;
+      % Red section (right)
+      \fill[pderror!90!black] (0, 0) arc (90:0:0.58) -- (0, 0) -- cycle;
+      % Inner white cutout
+      \fill[white] (-0.36, 0) arc (180:0:0.36) -- cycle;
+      % Needle pointing into green savings zone
+      \draw[line width=1.5pt,pdslate!90!black,line cap=round] (0, 0) -- (-0.34, 0.38);
+      \fill[pdslate!90!black] (0, 0) circle (0.08);
+    \end{scope}
 
-  % Terminal / Shell Sandbox Icon Box
-  \draw[draw=hhink!30,fill=pdpage,rounded corners=2pt] (12.1,5.6) rectangle (15.3,7.6);
-  % Terminal header bar
-  \draw[draw=none,fill=hhpaper!60,rounded corners=2pt] (12.1,7.2) rectangle (15.3,7.6);
-  \fill[pderror] (12.3,7.4) circle (1.2pt);
-  \fill[pdamber] (12.55,7.4) circle (1.2pt);
-  \fill[pdhealth] (12.8,7.4) circle (1.2pt);
-  \node[anchor=west,font=\fontsize{5}{6}\selectfont\ttfamily,text=hhink!60] at (13.0,7.4) {sandbox: subshell};
+    % MASSIVE CONTEXT SAVINGS Banner
+    \node[text=white,font=\fontsize{6.5}{7.6}\selectfont\bfseries,align=center] at (0, -0.42) {%
+      MASSIVE\\CONTEXT\\SAVINGS%
+    };
 
-  \node[anchor=north west,align=left,text width=3.0cm,font=\fontsize{5.5}{6.8}\selectfont\ttfamily,text=hhink!90] at (12.2,7.1) {%
-    \$ run\_test.sh --suite\\
-    {[\textcolor{pdhealth}{PASS}]} 64/64 passed\\
-    {[\textcolor{pdcobalt}{INFO}]} 0 leaks detected\\
-    Exit code: 0
-  };
+    % LEGS & FEET
+    % Left Leg with Knee Joint
+    \draw[line width=3.8pt,pdcobalt!90!black] (-0.42, -0.90) -- (-0.42, -1.95);
+    \draw[fill=white,draw=pdcobalt!90!black,line width=1.3pt] (-0.42, -1.45) circle (0.15);
+    \fill[pdcobalt!90!black] (-0.42, -1.45) circle (0.07);
+    % Left Foot
+    \fill[pdcobalt!95!black,rounded corners=1.5pt] (-0.68, -2.12) rectangle (-0.16, -1.90);
 
-  % Telemetry Invariant Card
-  \node[draw=pdcobalt!40,fill=pdpage,rounded corners=2pt,text width=2.9cm,inner sep=4pt] at (13.7,4.35) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{pdcobalt} Context Invariant:}\\[2pt]
-    {\fontsize{5.8}{7.2}\selectfont
-    $99\%$ of operational code and test assets reside strictly on host storage, producing zero self-attention expansion.}
-  };
-
-  % Quadratic Defense Card
-  \node[draw=hhink!20,fill=pdpage,rounded corners=2pt,text width=2.9cm,inner sep=4pt] at (13.7,2.5) {%
-    {\bfseries\fontsize{6.8}{8.2}\selectfont\color{hhink} Attention Defense:}\\[2pt]
-    {\fontsize{5.8}{7.2}\selectfont
-    Transformer compute scales with $\mathcal{O}(N^2)$ sequence length. Progressive disclosure caps active $N \le 16\text{k}$ tokens, ensuring linear cost stability.}
-  };
-
-  % Bottom Telemetry Stats
-  \node[tokencard,draw=pdhealth!50,fill=pdhealth!8,text width=2.9cm] at (13.7,0.7) {%
-    {\bfseries\fontsize{7}{8.5}\selectfont\color{pdhealth!80!black} $>90\%$ Cache Hits}\\[1pt]
-    {\fontsize{5.5}{6.8}\selectfont Prefix caching preserves working memory}
-  };
+    % Right Leg with Knee Joint
+    \draw[line width=3.8pt,pdcobalt!90!black] (0.42, -0.90) -- (0.42, -1.95);
+    \draw[fill=white,draw=pdcobalt!90!black,line width=1.3pt] (0.42, -1.45) circle (0.15);
+    \fill[pdcobalt!90!black] (0.42, -1.45) circle (0.07);
+    % Right Foot
+    \fill[pdcobalt!95!black,rounded corners=1.5pt] (0.16, -2.12) rectangle (0.68, -1.90);
+  \end{scope}
 
 \end{tikzpicture}

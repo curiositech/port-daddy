@@ -1,113 +1,146 @@
 % fig-ch0-concurrency-actors-csp.tex
-% Concurrency Foundations: Hewitt-Agha Actors vs. Hoare CSP Synchronous Rendezvous
-% Replaces raster fig-ch0-concurrency-diagram.jpg with 100% native vector Swiss TikZ.
-\pdfigurehue{pdviolet}%
+% Concurrency Foundations: Virtual Actors vs. CSP Rendezvous
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    box/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,inner xsep=4pt,inner ysep=4pt},
-    panel/.style={draw=hhink!25,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30},
-    actorbox/.style={draw=pdviolet,line width=1.0pt,fill=pdviolet!8,rounded corners=3pt,text width=2.4cm,align=center,inner sep=4pt},
-    cspbox/.style={draw=pdteal,line width=1.0pt,fill=pdteal!8,rounded corners=3pt,text width=2.4cm,align=center,inner sep=4pt},
-    mailbox/.style={draw=pdcobalt,line width=0.8pt,fill=pdcobalt!10,rounded corners=2pt,text width=2.3cm,align=center,inner sep=3pt},
-    barrier/.style={draw=pderror,line width=1.3pt,dash pattern=on 4pt off 2pt}
+    containerbox/.style={draw=pdslate!40,line width=0.7pt,fill=white,rounded corners=3.5pt},
+    headerpill/.style={line width=0pt,rounded corners=2.5pt},
+    usedforpill/.style={draw=none,fill=pdcobalt!90!black,rounded corners=2pt,inner xsep=6pt,inner ysep=2.5pt},
+    cardbox/.style={draw=pdslate!30,line width=0.5pt,fill=hhpaper!30,rounded corners=2pt,inner sep=2pt}
   }
 
   % =========================================================================
-  % PANEL 1: HEWITT-AGHA ACTOR MODEL (Asynchronous Isolation)
+  % LEFT PANEL: HEWITT-AGHA ACTOR MODEL (x in [0.1, 6.6])
   % =========================================================================
-  \draw[panel] (0.0,-0.3) rectangle (7.3,6.5);
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdviolet] at (0.2,6.35) {HEWITT--AGHA ACTORS};
-  \node[anchor=north west,font=\scriptsize\itshape,text=hhink!70] at (0.2,5.95) {Asynchronous Mailbox \& Share-Nothing Isolation};
-
-  % Actor Alpha 1 (Sender)
-  \node[actorbox] (actor1) at (2.2,4.8) {%
-    \textbf{Actor } $\alpha_1$\\
-    \scriptsize State $\sigma_1 \in \Sigma_1$\\
-    \scriptsize Local memory only
+  \draw[containerbox] (0.1, 0.65) rectangle (6.6, 5.15);
+  % Header (Navy)
+  \draw[fill=pdcobalt!90!black,draw=none,rounded corners=2.5pt] (0.14, 4.75) rectangle (6.56, 5.11);
+  \node[font=\fontsize{5.6}{6.8}\selectfont\bfseries\color{white}] at (3.35, 4.93) {%
+    Hewitt-Agha Actor Model (Asynchronous)%
   };
 
-  % Mailbox
-  \node[mailbox] (mbox) at (2.2,3.1) {%
-    \textbf{Mailbox } $\mathcal{M}_2$\\
-    \scriptsize FIFO Buffer $\langle m_1, m_2 \rangle$
+  % Robot Receiver (Left)
+  \pdrobotbase[0.65]{(0.9, 3.8)}{pdcobalt}
+  \node[font=\fontsize{4.6}{5.4}\selectfont\color{hhink},align=center] at (2.2, 4.35) {%
+    Receives messages\\{\fontsize{4.0}{4.8}\selectfont(capability tokens)}%
   };
 
-  % Actor Alpha 2 (Receiver)
-  \node[actorbox] (actor2) at (2.2,1.2) {%
-    \textbf{Actor } $\alpha_2$\\
-    \scriptsize State $\sigma_2 \in \Sigma_2$\\
-    \scriptsize Replacement $\sigma_2'$
-  };
+  % Envelope with token
+  \begin{scope}[shift={(1.85, 3.8)}]
+    \draw[fill=white,draw=pdcobalt,line width=0.5pt,rounded corners=1pt] (-0.35, -0.22) rectangle (0.35, 0.22);
+    \draw[line width=0.4pt,pdcobalt] (-0.35, 0.22) -- (0, -0.05) -- (0.35, 0.22);
+    \draw[pd arrow,line width=0.6pt,pdcobalt] (0.45, 0) -- (0.85, 0);
+  \end{scope}
 
-  % Spawned Actor Alpha 3
-  \node[actorbox,draw=pdindigo,fill=pdindigo!8] (actor3) at (5.7,2.6) {%
-    \textbf{Spawned } $\alpha_3$\\
-    \scriptsize Dynamic Creation\\
-    \scriptsize Fresh Address ID
-  };
+  % Designated private mailbox
+  \begin{scope}[shift={(2.5, 3.1)}]
+    \draw[cardbox] (-1.0, -0.4) rectangle (1.0, 0.4);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{hhink},align=center] at (0, 0.15) {%
+      Designated\\private mailbox%
+    };
+    % mini queue bar
+    \draw[fill=pdteal!30,draw=pdteal,line width=0.4pt,rounded corners=1pt] (-0.7, -0.3) rectangle (0.7, -0.08);
+    \draw[pdteal,line width=0.4pt] (-0.25, -0.3) -- (-0.25, -0.08);
+    \draw[pdteal,line width=0.4pt] (0.25, -0.3) -- (0.25, -0.08);
+  \end{scope}
 
-  % Connections
-  \draw[pd arrow,pdviolet] (actor1.south) -- node[pd label,right,font=\tiny] {async post $m$} (mbox.north);
-  \draw[pd arrow,pdviolet] (mbox.south) -- node[pd label,right,font=\tiny] {dequeue $m$} (actor2.north);
+  % Isolated Private State (Right Column of Actor Panel)
+  \begin{scope}[shift={(5.1, 3.3)}]
+    \draw[draw=pdslate!40,line width=0.6pt,fill=hhpaper!15,rounded corners=2.5pt] (-1.25, -1.8) rectangle (1.25, 0.85);
+    \node[font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdcobalt}] at (0, 0.65) {Isolated Private State};
+    % 3 Become pills
+    \draw[fill=pdcobalt!85,draw=none,rounded corners=2pt] (-0.95, 0.15) rectangle (0.95, 0.48);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{white}] at (0, 0.315) {become};
 
-  % Replacement become loop on left (fits inside panel)
-  \draw[pd arrow,pdviolet] (actor2.west) .. controls +(-0.7,0.3) and +(-0.7,-0.3) .. node[pd label,left,font=\tiny] {$\mathtt{become} \; \sigma_2'$} (actor2.west);
+    \draw[fill=pdcobalt!85,draw=none,rounded corners=2pt] (-0.95, -0.35) rectangle (0.95, -0.02);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{white}] at (0, -0.185) {become};
 
-  % Spawn arrow
-  \draw[pd arrow,pdindigo,dashed,rounded corners=4pt] (actor2.east) -- (4.2,1.2) |- node[pd label,above,pos=0.6,font=\tiny] {create} (actor3.west);
+    \draw[fill=pdcobalt!85,draw=none,rounded corners=2pt] (-0.95, -0.85) rectangle (0.95, -0.52);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{white}] at (0, -0.685) {become};
 
-  % Explanatory bullets
-  \node[anchor=north west,font=\tiny,text=hhink!80,align=left] at (3.8,5.3) {%
-    $\bullet$ Share-nothing state\\
-    $\bullet$ Non-blocking send\\
-    $\bullet$ Unbounded mailbox\\
-    $\bullet$ Isolated crash domain
+    \draw[pd arrow,line width=0.6pt,pdcobalt] (0, 0.15) -- (0, -0.02);
+    \draw[pd arrow,line width=0.6pt,pdcobalt] (0, -0.35) -- (0, -0.52);
+  \end{scope}
+
+  % Asynchronous Queue label & arrow
+  \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{hhink}] at (2.5, 2.35) {Asynchronous Queue};
+  \draw[pd arrow,line width=0.8pt,pdcobalt] (1.3, 2.0) -- (3.7, 2.0);
+  \node[font=\fontsize{4.2}{5.0}\selectfont\color{hhgray!90!black},align=center] at (1.5, 1.7) {Deposits\\message};
+  \node[font=\fontsize{4.2}{5.0}\selectfont\color{hhgray!90!black},align=center] at (3.5, 1.7) {Process at\\own pace};
+
+  % Bottom Pill: Used for
+  \node[usedforpill,anchor=south] at (3.35, 0.72) {%
+    {\fontsize{4.5}{5.4}\selectfont\color{white}\textbf{Used for:} Stochastic Agent Reasoning \& Isolated Sandboxes}%
   };
 
   % =========================================================================
-  % PANEL 2: HOARE CSP (Synchronous Rendezvous)
+  % RIGHT PANEL: HOARE CSP SYNCHRONOUS RENDEZVOUS (x in [6.9, 13.5])
   % =========================================================================
-  \draw[panel] (7.7,-0.3) rectangle (15.2,6.5);
-  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdteal] at (7.9,6.35) {HOARE'S CSP (SYNCHRONOUS)};
-  \node[anchor=north west,font=\scriptsize\itshape,text=hhink!70] at (7.9,5.95) {Unbuffered Channels \& Rendezvous Barrier};
-
-  % Process 1 (Worker)
-  \node[cspbox] (proc1) at (9.3,4.8) {%
-    \textbf{Process } $P_1$\\
-    \scriptsize Agent Worker\\
-    \scriptsize Post $c!v$
+  \draw[containerbox] (6.9, 0.65) rectangle (13.5, 5.15);
+  % Header (Teal)
+  \draw[fill=pdteal!90!black,draw=none,rounded corners=2.5pt] (6.94, 4.75) rectangle (13.46, 5.11);
+  \node[font=\fontsize{5.6}{6.8}\selectfont\bfseries\color{white}] at (10.2, 4.93) {%
+    Hoare CSP Synchronous Rendezvous%
   };
 
-  % Process 2 (Resource Broker)
-  \node[cspbox] (proc2) at (13.6,4.8) {%
-    \textbf{Process } $P_2$\\
-    \scriptsize Host Broker\\
-    \scriptsize Recv $c?x$
+  % Sender Robot (Left)
+  \pdrobotbase[0.62]{(7.6, 3.8)}{pdteal}
+  \node[font=\fontsize{4.6}{5.4}\selectfont\bfseries\color{hhink}] at (7.6, 4.45) {Sender};
+
+  % Receiver Robot (Right)
+  \pdrobotbase[0.62]{(12.8, 3.8)}{pdcobalt}
+  \node[font=\fontsize{4.6}{5.4}\selectfont\bfseries\color{hhink}] at (12.8, 4.45) {Receiver};
+
+  % Defined, unbuffered channel barrier (Interlocking Gate in Center)
+  \begin{scope}[shift={(10.2, 3.8)}]
+    \node[font=\fontsize{4.5}{5.4}\selectfont\bfseries\color{hhink},align=center] at (0, 0.65) {%
+      Defined, unbuffered\\channel barrier%
+    };
+    % Interlocking Gate / Barrier
+    \draw[fill=pdteal!30,draw=pdteal!90!black,line width=0.6pt] (-0.8, -0.3) rectangle (-0.2, 0.3);
+    \draw[fill=pdcobalt!30,draw=pdcobalt!90!black,line width=0.6pt] (0.2, -0.3) rectangle (0.8, 0.3);
+    \draw[fill=white,draw=pderror,line width=0.7pt,rounded corners=1pt] (-0.3, -0.15) rectangle (0.3, 0.15);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pderror}] at (0, 0) {Block};
+  \end{scope}
+
+  % Synchronous Handshake Card (Left Bottom of CSP)
+  \begin{scope}[shift={(8.45, 2.25)}]
+    \draw[cardbox] (-1.25, -0.7) rectangle (1.25, 0.55);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{hhink}] at (0, 0.38) {Synchronous Handshake};
+    % Status bar
+    \draw[fill=pdhealth,draw=none] (-0.6, 0.12) rectangle (-0.3, 0.24);
+    \draw[fill=pdhealth,draw=none] (-0.2, 0.12) rectangle (0.1, 0.24);
+    \draw[fill=pdhealth,draw=none] (0.2, 0.12) rectangle (0.5, 0.24);
+    \node[font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdhealth!90!black}] at (0.8, 0.18) {Status};
+    \node[font=\fontsize{4.2}{5.0}\selectfont\color{hhgray!90!black},align=center,text width=2.3cm] at (0, -0.28) {%
+      Until at valive arrives\\to exchange data%
+    };
+  \end{scope}
+
+  % Guarded External Choice Card (Right Bottom of CSP)
+  \begin{scope}[shift={(11.95, 2.25)}]
+    \draw[cardbox] (-1.25, -0.7) rectangle (1.25, 0.55);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{hhink}] at (0, 0.38) {Guarded External Choice};
+    % Bell / Alarm icon
+    \pdiconcrash[0.45]{(-0.8, -0.05)}
+    \node[font=\fontsize{4.2}{5.0}\selectfont\color{hhgray!90!black},align=left,text width=1.6cm] at (0.25, -0.1) {%
+      Timeout alarm\\if choice isn't made\\prevent deadlocks%
+    };
+  \end{scope}
+
+  % Bottom Pill: Used for
+  \node[usedforpill,anchor=south] at (10.2, 0.72) {%
+    {\fontsize{4.5}{5.4}\selectfont\color{white}\textbf{Used for:} Physical Host Resource Locks, Port Claims \& WAL Commits}%
   };
 
-  % Lifelines
-  \draw[pd guide] (9.3,4.0) -- (9.3,1.7);
-  \draw[pd guide] (13.6,4.0) -- (13.6,1.7);
-
-  % Timeline arrivals
-  \node[anchor=east,font=\tiny,text=hhgray] at (9.1,3.8) {$P_1$ arrives ($t_1$)};
-  \draw[pd arrow,pdteal] (9.1,3.8) -- (9.3,3.6);
-  \node[anchor=east,font=\tiny,text=pderror] at (9.1,3.2) {blocks};
-
-  \node[anchor=west,font=\tiny,text=hhgray] at (13.8,3.2) {$P_2$ arrives ($t_2 > t_1$)};
-  \draw[pd arrow,pdteal] (13.8,3.2) -- (13.6,3.0);
-
-  % Rendezvous Barrier
-  \draw[barrier] (9.3,2.6) -- (13.6,2.6);
-  \node[anchor=south,font=\scriptsize\bfseries,text=pderror] at (11.45,2.65) {Rendezvous Barrier $\Delta t = 0$};
-
-  % Handshake Arrow
-  \draw[pd arrow,pdhealth,line width=1.1pt] (9.3,2.1) -- node[pd label,above,font=\scriptsize] {Atomic Handshake $v \to x$} (13.6,2.1);
-
-  % Guarded Choice / Timeout box
-  \node[box,draw=pdamber,fill=pdamber!10,text width=5.6cm] at (11.45,0.7) {%
-    \textbf{Guarded Choice: } $c!v \mathrel{\square} \mathtt{timeout}(\Delta\tau)$\\
-    \scriptsize Prevents circular deadlock during host resource contention
+  % =========================================================================
+  % BOTTOM FOOTER BANNER (x in [0.1, 13.5])
+  % =========================================================================
+  \node[draw=pdcobalt!40,line width=0.5pt,fill=pdcobalt!5,rounded corners=2pt,anchor=south,inner xsep=6pt,inner ysep=2.5pt] at (6.8, 0.1) {%
+    {\fontsize{4.8}{5.8}\selectfont\color{hhink}\textbf{The Agent Kernel Synthesis:} Sovereign Actors communicate via Mailboxes; Scarce Physical Host Resources synchronize via CSP Barriers.}%
   };
 
 \end{tikzpicture}
