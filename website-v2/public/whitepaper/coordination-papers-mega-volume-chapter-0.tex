@@ -1070,7 +1070,7 @@ To eliminate race conditions across concurrent workers, an operating kernel enfo
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-wonham-supervisory.jpg}%
+    \input{figures/fig-ch0-wonham-supervisory.tex}%
   }
   \pdwidecaption{\textbf{Ramadge--Wonham Discrete-Event Supervisory Control in Multi-Agent Swarms.} Uncontrolled swarm execution $G$ is restricted by supervisory controller $S$ to enforce safe language $K \subset L(G)$. Controllable tool events $\Sigma_c$ (file writes, process spawns, network requests) that violate mutual exclusion or spend caps are disabled by the supervisor, guaranteeing system-wide safety invariants.}[fig:wonham-supervisory]
 \end{figure}
