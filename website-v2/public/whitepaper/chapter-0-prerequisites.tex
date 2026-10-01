@@ -701,11 +701,11 @@ When agents have independent objective functions, coordination cannot assume alt
   u_i(v_i(t_i, \theta_i) - p_i(t_i)) \;\ge\; u_i(v_i(\hat{\theta}_i, \theta_i) - p_i(\hat{\theta}_i)), \quad \forall \hat{\theta}_i \neq \theta_i
   \end{equation}
 
-  \item \textbf{Vickrey--Clarke--Groves (VCG) Mechanisms:}\enspace For allocating discrete resources (e.g., exclusive GPU reservation slots, compile worker nodes), VCG enforces dominant-strategy incentive compatibility (DSIC) by charging each agent the \emph{externality} its presence imposes on all other agents:
+  \item \textbf{Vickrey--Clarke--Groves (VCG) Mechanisms:}\enspace For allocating discrete resources (e.g., exclusive GPU reservation slots, compile worker nodes), VCG~\pdcite{vickrey1961counterspeculation,clarke1971multipart,groves1973incentives} enforces dominant-strategy incentive compatibility (DSIC) by charging each agent the \emph{externality} its presence imposes on all other agents:
   \begin{equation}
   p_i(\hat{\theta}) \;=\; \max_{k \in \mathcal{K}} \sum_{j \neq i} \hat{v}_j(k) \;-\; \sum_{j \neq i} \hat{v}_j(k^*(\hat{\theta}))
   \end{equation}
-  Under VCG, truthful bidding ($\hat{\theta}_i = \theta_i$) is a strictly dominant strategy regardless of peer agent behavior.
+  Under VCG, truthful bidding ($\hat{\theta}_i = \theta_i$) is a strictly dominant strategy regardless of peer agent behavior. Furthermore, while the Myerson--Satterthwaite theorem~\pdcite{myerson1983efficient} proves that no bilateral trade mechanism can simultaneously guarantee incentive compatibility, individual rationality, and budget balance without external subsidies, VCG achieves dominant-strategy truthfulness by accepting budget surplus (or pivot taxes).
 \end{enumerate}
 
 \subsection{Social Choice Theory and Arrow's Impossibility Theorem}
@@ -794,7 +794,7 @@ The matrix product $Q K^T$ forms an $L \times L$ attention matrix representing t
 While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoid materializing the full $L \times L$ matrix in High-Bandwidth Memory (HBM), the underlying FLOP count remains quadratic in context length $L$. For an agent maintaining an uncompacted context of $L = 128{,}000$ tokens, a single attention pass requires evaluating $\approx 1.63 \times 10^{10}$ token-pair affinities per attention head.
 
 \subsubsection{The Key-Value (KV) Cache and Memory Bandwidth Bottlenecks}
-In autoregressive text generation, the model predicts one token at a time: $x_{t} \sim P_\theta(x_t \mid x_{<t})$. Because previous tokens do not change, recomputing their Key and Value representations at every decoding step would result in $O(L^3)$ aggregate compute. Production inference engines therefore cache Key and Value vectors in high-bandwidth GPU memory (HBM).
+In autoregressive text generation, the model predicts one token at a time: $x_{t} \sim P_\theta(x_t \mid x_{<t})$. Because previous tokens do not change, recomputing their Key and Value representations at every decoding step would result in $O(L^3)$ aggregate compute. Production inference engines (such as vLLM~\pdcite{kwon2023vllm}) therefore cache Key and Value vectors in high-bandwidth GPU memory (HBM).
 
 For a transformer with $N_l$ layers, $N_h$ key-value heads, dimension $d_h$, sequence length $L$, and precision $b_p$ bytes (typically 2 for FP16/BF16), the KV-cache memory consumption per active agent sequence is:
 \begin{equation}\label{eq:kv-cache-full}
@@ -831,7 +831,7 @@ Modern coding models undergo a three-stage training pipeline, each stage imparti
   \end{equation}
   Pretraining instills syntactic fluency, programming language grammars, algorithmic patterns, and broad world knowledge. However, base models cannot follow instructions reliably; they simply predict statistically probable text continuations.
 
-  \item \textbf{Supervised Fine-Tuning (SFT) with Loss Masking:} SFT trains the model to act as an assistant, following instruction schemas and executing tool calls. Crucially, modern tool-use SFT employs \textbf{loss masking}: gradients are computed strictly over assistant tokens and tool call arguments, masking prompt templates and system instructions:
+  \item \textbf{Supervised Fine-Tuning (SFT) with Loss Masking:} SFT trains the model to act as an assistant, following instruction schemas and executing tool calls~\pdcite{ouyang2022instruct}. Crucially, modern tool-use SFT employs \textbf{loss masking}: gradients are computed strictly over assistant tokens and tool call arguments, masking prompt templates and system instructions:
   \begin{equation}
   \mathcal{L}_{\mathrm{SFT}}(\theta) \;=\; -\sum_{t \in \mathcal{T}_{\mathrm{assistant}}} \log P_\theta(y_t \mid x, y_{<t})
   \end{equation}
@@ -1218,6 +1218,8 @@ The remainder of this textbook is organized into eight cumulative chapters acros
 \begin{itemize}
 \item[]
 \end{itemize}
+
+
 
 
 
