@@ -52,6 +52,17 @@ Figures must be designed for 300+ DPI monochrome and color book print:
 - No label may overlap or touch an adjacent label (minimum 5 pt clear gutter).
 - No graphical element may extend past the declared bounding box (`\useasboundingbox`) or collide with the caption text beneath the drawing (figcheck T2–T4 and T8 clean).
 
+### 6. Vector Reconstruction & Collision Invariants (Production Lessons)
+Hard-won lessons from reconstructing complex raster prototypes into native Swiss TikZ:
+1. **The Single-Node Compound Label Rule:** Never split a title and its accompanying descriptive subtitle into two separate `\node` declarations with a hardcoded $\Delta y$. If the title wraps due to `text width`, its lower line will collide directly into the subtitle node below it. Instead, format them inside a **single** `\node[align=left]` using `\textbf{Title}\\{\color{pdink!80!black}\mdseries Subtitle}`. This guarantees that TeX's layout engine manages leading (`\baselineskip`) naturally, completely eliminating self-collision.
+2. **The Coordinate Budget Law (`\pdfullwidth = 15.0cm`):** In Tufte-style full-width book layouts, all graphical elements and text must reside strictly within $[0.0, 14.8]\,\text{cm}$. Anchor leftmost callouts at $x \ge 0.0$ with `anchor=west`. Anchoring at $x = 0.8$ with `anchor=east` causes text to project into negative coordinates ($x \approx -1.2\,\text{cm}$), which silently expands the bounding box and forces right-hand marginal elements past the page edge.
+3. **The Strict Sentence-Case Doctrine:** Prototype raster diagrams frequently employ ALL-CAPS for titles and labels. During vector reconstruction, convert all text to strict sentence case (`Concurrent processes`, `Serial funnel`, `Multi-stream event firehose`). ALL-CAPS forms dense, ink-heavy geometric rectangles that impair readability and violate Tufte data-ink principles.
+4. **Central Hub Routing Clearance:** In topologies featuring a central processing hub (e.g., attention filter hexagon, supervisor, dispatcher), return/feedback paths must route strictly along the *outer* perimeter of the hub before turning horizontally. Never allow lines to penetrate the hub interior or cross through internal status text.
+5. **Stacked Bracket Partitioning:** When annotating groups with curly brackets on the margin, ensure brackets partition the vertical domain (e.g., bracket 1 covers entries 1–2; bracket 2 covers entries 3–5). Never place labels for separate brackets at identical vertical coordinates ($y$).
+6. **Descent Clearance Above Enclosures:** Arrows dropping from an outer authority envelope into a nested child container must terminate with clear vertical clearance above the child title ($y_{\text{arrow end}} \ge y_{\text{title}} + 0.35\,\text{cm}$) to prevent arrowheads from impaling letter ascenders.
+7. **Knockout Dimensioning:** Any dimension rule or callout arrow passing through an annotation zone must use `\node[..., fill=pdpage, inner sep=2pt]` to knock out underlying rules and preserve pristine typography.
+8. **No Embedded Canvas Titles:** Never embed title banners (e.g., `Figure 0.4: Attention Filter`) inside the TikZ canvas. Titles belong exclusively in the caption (`\pdwidecaption{...}`) or running header.
+
 ---
 
 ## Page Role Classification

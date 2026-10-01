@@ -33,8 +33,10 @@ The 5-point legibility rubric in [`craft-rules.md`](craft-rules.md) applies in c
   - **Hard Error:** Never invoke `\rmfamily`, `\textrm`, `\normalfont`, or Computer Modern / Pagella serif faces inside a drawing.
   - `\texttt` is reserved exclusively for literal identifiers (code keywords, file paths, tool names).
   - Math mode (`$...$`) is reserved exclusively for formal mathematical variables and expressions; do not set ordinary English words or message names in math italics.
-- **Text Formatting:**
-  - Sentence case for titles and labels; never use ALL-CAPS for state names.
+- **Text Formatting & The Sentence-Case Mandate:**
+  - **Strict Sentence Case:** Every title, panel header, node label, axis label, and annotation inside the drawing area must use **sentence case** (e.g., `Concurrent processes`, `Serial funnel`, `Unbypassable commit boundary`, `Multi-stream event firehose`, `Structured human operator digest`).
+  - **ALL-CAPS is strictly forbidden** across all diagram elements, including state names and headers. The only exceptions are single-token uppercase identifiers (`P1`, `T1`, `C0`) and standard acronyms (`WAL`, `CPU`, `BDI`, `CSP`, `FIPA`). Prototype raster diagrams often use ALL-CAPS; during vector reconstruction, all such text must be translated to sentence case. ALL-CAPS forms heavy geometric rectangles of black ink that degrade reading flow and destroy the Tufte data-ink balance.
+  - **No Redundant Canvas Titles:** Do not embed title banners or duplicate figure titles (e.g., `Figure 0.4: Attention Filter`) inside the TikZ drawing canvas. Titles belong exclusively in the caption (`\caption{...}` / `\pdwidecaption{...}`) or running header. Panel titles within a figure must describe internal structural regions (`Multi-stream event firehose`, `Attention filter lens`), never restate the whole figure title.
   - No hyphenation inside figures (`\hyphenpenalty=10000`). If a label wraps, declare an explicit `text width=` and break lines manually with natural phrasing.
 
 ---

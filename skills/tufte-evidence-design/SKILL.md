@@ -88,7 +88,14 @@ rule, so the rule is applied with its known objection already in view rather tha
 - [ ] Any retained "redundant" ink (a gridline, both a legend and direct labels) is retained because it demonstrably
       speeds reading for this audience, not by default — see `references/critiques-and-limits.md` (Few, Wilke) before
       reflexively stripping it.
-- [ ] Run `scripts/ink_audit.py` on the rendered PNG as a second opinion, not a verdict (see below).
+- [ ] **Vector Reconstruction & Data-Ink Integrity (Production Doctrine):**
+      - Raster prototype graphics (JPEGs/PNGs) must be completely reconstructed as native Swiss TikZ/PGF/PGFPlots with pure white ground (`pdpage`).
+      - Eliminate solid dark blocks, fake gradient slabs, and AI hallucinatory glyphs.
+      - Quiet neutral frames (`pdslate!10`, `0.5pt` borders) provide structural context; semantic accents (`pdcobalt`, `pdrust`) are reserved strictly for active states, causal paths, and critical alerts.
+      - **Sentence-Case Mandate:** Convert all prototype ALL-CAPS titles and labels to sentence case (`Concurrent processes`, `Serial funnel`). ALL-CAPS forms dense, heavy ink rectangles that impair readability and degrade data-ink efficiency.
+      - **Zero Duplicate Canvas Titles:** Figure titles belong in the caption or running header, never embedded as banners in the TikZ drawing area.
+      - **Single-Node Compound Labels:** Multi-line annotations (title + subtitle) must use a single `\node[align=left]` so TeX manages leading (`\baselineskip`) naturally, preventing text collision.
+- [ ] Run `scripts/ink_audit.py` on the rendered PNG as a second opinion, not a verdict (target ink fraction $\le 0.15$ with zero chartjunk flags).
 
 ### Small multiples (when the tree says "many entities, same shape")
 
