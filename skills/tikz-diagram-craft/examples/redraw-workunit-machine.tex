@@ -1,0 +1,79 @@
+% Redraw of fig-swk-workunit-machine to the tikz-diagram-craft standard: the
+% honest path as a weighted spine in the chapter hue, every transition named
+% once in a single gutter, guarded transitions carrying a numbered badge keyed
+% to a ruled legend, and the write targets in the legibility hue behind a named
+% panel.  Facts from whitepaper/single-writer-kernel.tex, thm:workunit and
+% tab:workunit-crimes [internal, c0_workunit.py].
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\dy{1.32}   % phase pitch; transitions are named at the half-pitch
+  \def\sx{3.90}   % spine column
+  \def\jx{8.90}   % write-target column
+  \def\gx{2.30}   % right edge of the naming gutter
+  \def\rx{0.15}   % the off-ramp rail
+  \def\R{11.15}   % right margin of the picture
+  % ---- the subordinate panel, behind everything ---------------------------
+  \begin{scope}[on background layer]
+    \node[pd panel,fit={(6.80,{4*\dy+.52}) (10.90,{1*\dy-.52})}] (panel) {};
+  \end{scope}
+  \node[pd title,anchor=south] at ([yshift=1.5pt]panel.north) {append-only write targets};
+  % ---- the honest path, in the chapter hue --------------------------------
+  \node[pd focus state,minimum width=2.7cm] (P) at (\sx,{5*\dy}) {proposed};
+  \node[pd focus state,minimum width=2.7cm] (A) at (\sx,{4*\dy}) {authorized};
+  \node[pd focus state,minimum width=2.7cm] (X) at (\sx,{3*\dy}) {executing};
+  \node[pd focus state,minimum width=2.7cm] (W) at (\sx,{2*\dy}) {witnessed};
+  \node[pd focus state,minimum width=2.7cm] (V) at (\sx,{1*\dy}) {verified};
+  \node[pd value state,minimum width=2.7cm] (S) at (\sx,0) {settlement record};
+  \foreach \a/\b in {P/A,A/X,X/W,W/V}{\draw[pd focus arrow] (\a)--(\b);}
+  \draw[pd value arrow,line width=1.6pt] (V)--(S);
+  % ---- every transition named once, in one gutter, on the half-pitch ------
+  \foreach \i/\t in {4.5/authorize,3.5/start,2.5/witness,1.5/verify,0.5/settle}{
+    \node[pd label,anchor=east] at ({\gx-.60},{\i*\dy}) {\t};}
+  \foreach \i/\n in {1.5/3,0.5/5}{\node[pd badge] at ({\gx-.25},{\i*\dy}) {\n};}
+  % ---- the off-ramp: the one phase that is not on the honest path ---------
+  \node[pd breach state,minimum width=2.2cm] (C) at (1.35,-1.05) {contested};
+  \draw[pd breach arrow,rounded corners=3pt]
+    (W.west) -- (\rx,{2*\dy}) -- (\rx,-1.05) -- (C.west);
+  % ---- write targets, in the legibility hue -------------------------------
+  \node[pd legible state,minimum width=4.0cm] (EP) at (\jx,{4*\dy}) {role epoch};
+  \node[pd legible state,minimum width=4.0cm] (EJ) at (\jx,{3*\dy}) {effect journal};
+  \node[pd legible state,minimum width=4.0cm] (IJ) at (\jx,{2*\dy}) {idempotency journal};
+  \node[pd legible state,minimum width=4.0cm] (GR) at (\jx,{1*\dy}) {grants with parentage};
+  \draw[pd thin arrow] (W.east)--(IJ.west);
+  \node[pd tag,anchor=south east] at (6.30,{2*\dy+.14}) {record};
+  \foreach \a/\b/\n in {A/EP/2,X/EJ/1,V/GR/4}{
+    \node[pd badge] (h\n) at ($(\a.east)!.5!(\b.west)$) {\n};
+    \draw[pd thin arrow,pd to badge,-] (\a.east)--(h\n);
+    \draw[pd thin arrow,pd from badge] (h\n)--(\b.west);}
+  % ---- the legend: each guard, its crime, its cost ------------------------
+  \def\ly{-2.25}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
+  \node[pd title,anchor=north west] at (5.55,{\ly-.16}) {crime once it is removed};
+  \node[pd title,anchor=north east] at (\R,{\ly-.16}) {steps};
+  \draw[pd hairline] (0,{\ly-.62}) -- (\R,{\ly-.62});
+  \foreach \i/\n/\g/\c/\s in {%
+    0/1/{admit-effect: current epoch}/{the stale write}/{4},
+    1/2/{external-op: once per key}/{the double settlement}/{2},
+    2/3/{verify: policy and receipt}/{the hollow verified}/{4},
+    3/4/{delegate: scope within parent}/{the escalated delegation}/{1},
+    4/5/{settle: funded, verified, receipted}/{the wrong-principal payout}/{7}}{
+      \node[pd badge] at (.28,{\ly-.98-\i*.60}) {\n};
+      \node[pd label,anchor=west,align=left] at (.62,{\ly-.98-\i*.60}) {\g};
+      \node[pd label,anchor=west,align=left,text=pderror] at (5.55,{\ly-.98-\i*.60}) {\c};
+      \node[pd label,anchor=east] at (\R,{\ly-.98-\i*.60}) {\s};}
+\end{tikzpicture}
+\caption{The work-unit machine: six phases down the spine from proposed to a
+settlement record, contested leaving the path at witnessed, and the four
+append-only write targets on the right. Blue is the kernel's own state, teal
+the records it may append to, gold the settlement, red the contested
+off-ramp. Five transitions are guarded; the legend gives each guard's
+predicate, the crime a checker constructs once that guard is removed, and the
+length of the shortest violating trace. With every guard on, all 536 reachable
+states of the two-principal instance satisfy the six invariants [internal,
+\texttt{c0\_workunit.py}].}
+\label{fig:swk-workunit-machine}
+\end{figure}
