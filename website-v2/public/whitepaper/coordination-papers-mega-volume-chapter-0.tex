@@ -977,7 +977,7 @@ Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section o
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-lifecycle-diagram.jpg}%
+    \input{figures/fig-ch0-lifecycle-hooks.tex}%
   }
   \pdwidecaption{\textbf{The Agent Lifecycle Hook Cross-Section.} Modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution is partitioned into two nested supervisory loops: the outer Session and Turn lifecycle manages user context, memory compaction (\texttt{PreCompact}), and test verification (\texttt{Stop}), while the inner \texttt{AGENTIC TOOL LOOP} supervises iterative tool invocations, pre-execution security vetoes (\texttt{PreToolUse}), sandbox execution, and reactive post-tool sanitization (\texttt{PostToolUse}). Concrete production traces (Cases A--C) illustrate deterministic enforcement at binary interception points.}[fig:lifecycle-hooks-engines]
 \end{figure}

@@ -1,0 +1,148 @@
+% fig-ch0-lifecycle-hooks.tex
+% The Agent Lifecycle Hook Cross-Section (Two Nested Supervisory Loops)
+% Replaces raster fig-ch0-lifecycle-diagram.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actnode/.style={draw=hhink!30,line width=0.6pt,fill=pdpage,rounded corners=2pt,align=center,inner xsep=4pt,inner ysep=3pt},
+    statenode/.style={draw=pdcobalt,line width=0.8pt,fill=pdcobalt!8,rounded corners=2.5pt,align=center,inner xsep=4pt,inner ysep=3pt},
+    securitygate/.style={draw=pderror,line width=0.9pt,fill=pderror!8,rounded corners=2.5pt,align=center,inner xsep=4pt,inner ysep=3pt},
+    sandboxnode/.style={draw=pdhealth!80!black,line width=0.9pt,fill=pdhealth!8,rounded corners=2.5pt,align=center,inner xsep=4pt,inner ysep=3pt},
+    hygienenode/.style={draw=pdteal,line width=0.8pt,fill=pdteal!8,rounded corners=2.5pt,align=center,inner xsep=4pt,inner ysep=3pt},
+    casenode/.style={draw=hhink!20,line width=0.6pt,fill=pdpage,rounded corners=3pt,inner xsep=5pt,inner ysep=4pt,font=\fontsize{5.6}{7.0}\selectfont},
+    outerloop/.style={draw=pdcobalt!35,line width=0.7pt,dashed,rounded corners=4pt,fill=hhpaper!25},
+    innerloop/.style={draw=pdhealth!50!black,line width=0.7pt,rounded corners=3pt,fill=pdpage}
+  }
+
+  % =========================================================================
+  % LEFT PANEL: TWO NESTED SUPERVISORY LOOPS (x in [0, 9.6])
+  % =========================================================================
+  \draw[outerloop] (0.0,0.0) rectangle (9.6,8.8);
+  
+  % Outer Loop Header
+  \node[anchor=north west,font=\fontsize{6.2}{7.5}\selectfont\bfseries,text=pdcobalt] at (0.2,8.62) {%
+    Outer Loop: Session \& Turn Lifecycle%
+  };
+  \node[anchor=north east,font=\fontsize{5}{6}\selectfont\sffamily,text=hhgray] at (9.4,8.62) {%
+    Ramadge--Wonham ($S/G$)%
+  };
+
+  % Outer Loop Sequential Nodes (Left Column: x = 1.15)
+  \node[statenode,text width=1.9cm] (sess_start) at (1.15,7.6) {%
+    {\bfseries\fontsize{5.8}{7}\selectfont SessionStart}\\[1pt]
+    {\fontsize{4.8}{5.8}\selectfont Attention/briefing}
+  };
+
+  \node[statenode,fill=pdteal!8,draw=pdteal,text width=1.9cm] (prompt_sub) at (1.15,5.8) {%
+    {\bfseries\fontsize{5.8}{7}\selectfont UserPromptSubmit}\\[1pt]
+    {\fontsize{4.8}{5.8}\selectfont Context injection}
+  };
+
+  \node[securitygate,fill=pdamber!12,draw=pdamber,text width=1.9cm] (stop_gate) at (1.15,2.4) {%
+    {\bfseries\fontsize{5.8}{7}\selectfont\color{pdamber!90!black} Stop Gate}\\[1pt]
+    {\fontsize{4.8}{5.8}\selectfont Test oracle check}
+  };
+
+  \node[actnode,fill=hhpaper!50,text width=1.9cm] (sess_end) at (1.15,0.85) {%
+    {\bfseries\fontsize{5.8}{7}\selectfont SessionEnd}\\[1pt]
+    {\fontsize{4.8}{5.8}\selectfont Ledger \& unlock}
+  };
+
+  \draw[pd arrow,pdcobalt,line width=0.8pt] (sess_start) -- (prompt_sub);
+  \draw[pd arrow,pdamber,line width=0.8pt] (stop_gate) -- node[pos=0.5,left,font=\fontsize{4.5}{5.5}\selectfont\bfseries,text=pdhealth!80!black] {PASS} (sess_end);
+
+  % Straight upward repair loop between stop_gate and prompt_sub with filled badge
+  \draw[pd arrow,pderror,line width=0.8pt,dashed] (stop_gate.north) -- node[pos=0.5,fill=hhpaper!25,inner sep=1.5pt,font=\fontsize{4.6}{5.6}\selectfont\bfseries,text=pderror] {FAIL $\to$ Repair} (prompt_sub.south);
+
+  % =========================================================================
+  % INNER AGENTIC TOOL LOOP (x in [2.6, 9.4], y in [0.4, 8.0])
+  % =========================================================================
+  \draw[innerloop] (2.6,0.4) rectangle (9.4,8.0);
+  
+  \node[anchor=north west,font=\fontsize{5.6}{6.8}\selectfont\bfseries,text=pdhealth!80!black] at (2.8,7.82) {%
+    Inner Loop: Agentic Tool Deliberation \& Confinement%
+  };
+
+  % Inner Node 1: Deliberation (Top)
+  \node[statenode,fill=pdpage,draw=pdcobalt,text width=4.8cm] (delib) at (6.0,6.75) {%
+    {\bfseries\fontsize{6.2}{7.5}\selectfont LLM Deliberation \& Tool Synthesis}\\[1.5pt]
+    {\fontsize{5.0}{6.0}\selectfont Autoregressive tokens $\to$ Schema: $\mathtt{tools/call}\langle\mathtt{tool}, \mathtt{params}\rangle$}
+  };
+
+  % Prompt injection into delib.west (upper track at y = 6.95)
+  \draw[pd arrow,pdteal,line width=0.8pt] (prompt_sub.east) -- ++(0.4,0) |- ([yshift=5pt]delib.west);
+
+  % Outer Turn Done from delib.west to stop_gate.east with filled badge
+  \draw[pd arrow,pdamber,line width=0.9pt] ([yshift=-5pt]delib.west) -- ++(-0.6,0) |- node[pos=0.35,fill=hhpaper!25,inner sep=1.5pt,font=\fontsize{4.6}{5.6}\selectfont\bfseries,text=pdamber] {Turn Done} (stop_gate.east);
+
+  % Inner Node 2: PreToolUse Security Gate (Middle Right: x = 7.6, y = 4.6)
+  \node[securitygate,text width=2.8cm] (pre_tool) at (7.6,4.6) {%
+    {\bfseries\fontsize{6}{7.2}\selectfont PreToolUse Security Gate}\\[1.5pt]
+    {\fontsize{4.9}{5.9}\selectfont AST regex, spend cap check,\\protected branch validation}
+  };
+
+  % Inner Node 3: OS Sandbox Execution (Bottom Right: x = 7.6, y = 2.2)
+  \node[sandboxnode,text width=2.8cm] (sandbox) at (7.6,2.2) {%
+    {\bfseries\fontsize{6}{7.2}\selectfont Seatbelt / Landlock Sandbox}\\[1.5pt]
+    {\fontsize{4.9}{5.9}\selectfont Scrubbed env, \$0.00 spend cap,\\isolated ephemeral worktree}
+  };
+
+  % Inner Node 4: PostToolUse Hygiene (Bottom Left: x = 4.4, y = 2.2)
+  \node[hygienenode,text width=2.8cm] (post_tool) at (4.4,2.2) {%
+    {\bfseries\fontsize{6.2}{7.2}\selectfont PostToolUse Reactive Hygiene}\\[1.5pt]
+    {\fontsize{4.9}{5.9}\selectfont AST formatting, untracked diff rollback, receipt signing}
+  };
+
+  % Inner Loop Directed Orthogonal Arrows
+  % 1. Delib -> PreTool (straight down at x = 7.3)
+  \draw[pd arrow,hhink!70,line width=0.8pt] (7.3,6.25) -- (7.3,5.25);
+  \node[anchor=east,font=\fontsize{4.5}{5.5}\selectfont\ttfamily,text=hhink!70] at (7.25,5.75) {call};
+
+  % 2. PreTool -> Delib (VETO feedback: straight up at x = 7.9)
+  \draw[pd arrow,pderror,line width=0.8pt,dashed] (7.9,5.25) -- (7.9,6.25);
+  \node[anchor=west,font=\fontsize{4.5}{5.5}\selectfont\bfseries,text=pderror] at (7.95,5.75) {VETO (Exit 2)};
+
+  % 3. PreTool -> Sandbox (Allow: straight down at x = 7.6)
+  \draw[pd arrow,pdhealth!80!black,line width=1.1pt] (pre_tool.south) -- node[pos=0.5,right,font=\fontsize{4.8}{5.8}\selectfont\bfseries,text=pdhealth!80!black] {ALLOW (Exit 0)} (sandbox.north);
+
+  % 4. Sandbox -> PostTool (straight left at y = 2.2)
+  \draw[pd arrow,pdhealth!80!black,line width=0.8pt] (sandbox.west) -- (post_tool.east);
+
+  % 5. PostTool -> Delib (Clean observation: straight up at x = 4.4)
+  \draw[pd arrow,pdteal,line width=0.9pt] (post_tool.north) -- node[pos=0.5,left,font=\fontsize{4.8}{5.8}\selectfont\bfseries,text=pdteal] {Observation} (4.4,6.25);
+
+  % =========================================================================
+  % RIGHT PANEL: PRODUCTION ENFORCEMENT CASE STUDIES (x in [9.8, 15.5])
+  % =========================================================================
+
+  % -------------------------------------------------------------------------
+  % CASE A: PRE-TOOL SECURITY VETO
+  % -------------------------------------------------------------------------
+  \node[casenode,anchor=north west,text width=5.2cm] at (9.8,8.65) {%
+    {\color{pderror}\bfseries\fontsize{6.2}{7.5}\selectfont Case A: Pre-Tool Security Veto}\\[2pt]
+    \textbf{Target:} \texttt{bash("git reset --hard origin/main")}\\[2pt]
+    \textbf{Gate:} \texttt{PreToolUse} AST parser flags unleased mutation on protected branch \texttt{main}.\\[2pt]
+    \textbf{Outcome:} Aborted before OS dispatch (\textcolor{pderror}{\textbf{Exit 2}}).
+  };
+
+  % -------------------------------------------------------------------------
+  % CASE B: REACTIVE CODE HYGIENE
+  % -------------------------------------------------------------------------
+  \node[casenode,anchor=north west,text width=5.2cm] at (9.8,5.75) {%
+    {\color{pdteal}\bfseries\fontsize{6.2}{7.5}\selectfont Case B: Reactive Worktree Hygiene}\\[2pt]
+    \textbf{Target:} \texttt{npm run build} emits untracked artifacts.\\[2pt]
+    \textbf{Gate:} \texttt{PostToolUse} inspects \texttt{git status --porcelain} for dirty files outside leased sandbox.\\[2pt]
+    \textbf{Outcome:} Rollback cleans rogue artifacts; auto-formats diff (\textcolor{pdhealth}{\textbf{Exit 0}}).
+  };
+
+  % -------------------------------------------------------------------------
+  % CASE C: CLOSEOUT TEST ORACLE GATE
+  % -------------------------------------------------------------------------
+  \node[casenode,anchor=north west,text width=5.2cm] at (9.8,2.85) {%
+    {\color{pdamber!90!black}\bfseries\fontsize{6.2}{7.5}\selectfont Case C: Closeout Test Oracle Gate}\\[2pt]
+    \textbf{Target:} Model claims completion and calls \texttt{stop}.\\[2pt]
+    \textbf{Gate:} \texttt{Stop} hook independently executes regression test suite outside agent workspace.\\[2pt]
+    \textbf{Outcome:} Tests fail (\textcolor{pderror}{\textbf{Exit 1}}); exit blocked; repair compelled.
+  };
+
+\end{tikzpicture}
