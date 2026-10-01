@@ -662,6 +662,12 @@
             <marker id="arrow-dark" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
               <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1e293b"/>
             </marker>
+            <marker id="arrow-slate" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b"/>
+            </marker>
+            <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f59e0b"/>
+            </marker>
           </defs>
 
           <!-- Grid Background -->
@@ -821,7 +827,7 @@
         <div id="tab-pane-arrow" style="display:none;">
           <div class="panel-card" style="margin-bottom:12px;">
             <div class="panel-title">
-              <span>Selected Arrow</span>
+              <span>Selected Arrow: <span id="lbl-active-arrow" style="font-size:11px; font-weight:600; color:var(--pd-cobalt);">(None selected)</span></span>
               <div style="display:flex; gap:6px;">
                 <button id="btn-add-arrow" class="btn btn-primary" style="padding:2px 8px; font-size:10px;">➕ Add</button>
                 <button id="btn-delete-arrow" class="btn" style="padding:2px 8px; font-size:10px; background:#ef4444; border-color:#dc2626; color:white;">🗑️ Delete</button>
@@ -975,7 +981,8 @@
           { id: "arr_sess_prompt", from: "sess_start", fromAnchor: "bottom", to: "prompt_sub", toAnchor: "top", label: "", color: "#0f172a", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
           { id: "arr_prompt_robot", from: "prompt_sub", fromAnchor: "bottom", to: "delib_robot", toAnchor: "top", label: "", color: "#0f172a", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
           { id: "arr_txt_robot", from: "txt_agent_delib", fromAnchor: "top", to: "delib_robot", toAnchor: "bottom", label: "", color: "#003fb8", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
-          { id: "arr_robot_delib", from: "delib_robot", fromAnchor: "right", to: "node_delib", toAnchor: "left", label: "Turn Begins", color: "#003fb8", style: "orthogonal", routing: "orthogonal", direction: "forward", thickness: 0.045 },
+          { id: "arr_robot_delib", from: "delib_robot", fromAnchor: "top", to: "node_delib", toAnchor: "left", label: "Turn Begins", color: "#003fb8", style: "orthogonal", routing: "orthogonal", direction: "forward", thickness: 0.045 },
+          { id: "arr_robot_secgate", from: "delib_robot", fromAnchor: "right", to: "node_secgate", toAnchor: "left", label: "", color: "#64748b", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
           { id: "arr_delib_sandbox", from: "node_delib", fromAnchor: "right", to: "node_sandbox", toAnchor: "top", label: "(Exit 0)", color: "#10b981", style: "solid", routing: "spline", bend: 0.1, direction: "forward", thickness: 0.045 },
           { id: "arr_sandbox_hygiene", from: "node_sandbox", fromAnchor: "bottom", to: "node_hygiene", toAnchor: "right", label: "", color: "#10b981", style: "solid", routing: "spline", bend: 0.2, direction: "forward", thickness: 0.045 },
           { id: "arr_hygiene_secgate", from: "node_hygiene", fromAnchor: "left", to: "node_secgate", toAnchor: "bottom", label: "(Exit 0)", color: "#10b981", style: "solid", routing: "spline", bend: -0.2, direction: "forward", thickness: 0.045 },
@@ -1290,19 +1297,59 @@
     // Populate dropdowns for arrow nodes with Taxonomy
     function populateArrowSelects() {
       const data = FIGURES[currentFig];
+      const curFrom = inpArrowFrom.value;
+      const curTo = inpArrowTo.value;
+
       inpArrowFrom.innerHTML = "";
       inpArrowTo.innerHTML = "";
-      data.parts.forEach(p => {
+
+      const functionalParts = data.parts.filter(p => p.type !== "boundary");
+      const boundaryParts = data.parts.filter(p => p.type === "boundary");
+
+      const grpFromFunc = document.createElement("optgroup");
+      grpFromFunc.label = "Functional Nodes";
+      const grpToFunc = document.createElement("optgroup");
+      grpToFunc.label = "Functional Nodes";
+
+      functionalParts.forEach(p => {
         const opt1 = document.createElement("option");
         opt1.value = p.id;
         opt1.textContent = getNodeDisplayName(p);
-        inpArrowFrom.appendChild(opt1);
+        grpFromFunc.appendChild(opt1);
 
         const opt2 = document.createElement("option");
         opt2.value = p.id;
         opt2.textContent = getNodeDisplayName(p);
-        inpArrowTo.appendChild(opt2);
+        grpToFunc.appendChild(opt2);
       });
+
+      inpArrowFrom.appendChild(grpFromFunc);
+      inpArrowTo.appendChild(grpToFunc);
+
+      if (boundaryParts.length > 0) {
+        const grpFromBound = document.createElement("optgroup");
+        grpFromBound.label = "Boundary Containers";
+        const grpToBound = document.createElement("optgroup");
+        grpToBound.label = "Boundary Containers";
+
+        boundaryParts.forEach(p => {
+          const opt1 = document.createElement("option");
+          opt1.value = p.id;
+          opt1.textContent = getNodeDisplayName(p);
+          grpFromBound.appendChild(opt1);
+
+          const opt2 = document.createElement("option");
+          opt2.value = p.id;
+          opt2.textContent = getNodeDisplayName(p);
+          grpToBound.appendChild(opt2);
+        });
+
+        inpArrowFrom.appendChild(grpFromBound);
+        inpArrowTo.appendChild(grpToBound);
+      }
+
+      if (curFrom && data.parts.some(p => p.id === curFrom)) inpArrowFrom.value = curFrom;
+      if (curTo && data.parts.some(p => p.id === curTo)) inpArrowTo.value = curTo;
     }
 
     // Render Everything
@@ -1812,21 +1859,19 @@
           fromAnchor: arrowConnectFromAnchor,
           to: partId,
           toAnchor: anchorName,
-          label: "",
-          color: "#003fb8",
-          style: "solid",
-          routing: "spline",
-          direction: "forward",
-          bend: 0.0,
-          thickness: 0.045
+          label: inpArrowLabel.value || "",
+          color: inpArrowColor.value || "#64748b",
+          style: inpArrowStyle.value || "solid",
+          routing: inpArrowRouting.value || "straight",
+          direction: inpArrowDirection.value || "forward",
+          bend: parseFloat(inpArrowBend ? inpArrowBend.value : 0) || 0.0,
+          thickness: parseFloat(inpArrowThick ? inpArrowThick.value : 0.045) || 0.045
         };
         if (!data.arrows) data.arrows = [];
         data.arrows.push(newArr);
-        activeArrowId = newArr.id;
-        activePartId = null;
         arrowConnectSource = null;
         arrowConnectFromAnchor = null;
-        switchSidebarTab("arrow");
+        selectArrow(newArr.id);
         renderAll();
         updateOutput();
         showToast(`✓ Connected: ${newArr.from}.${newArr.fromAnchor} → ${newArr.to}.${newArr.toAnchor}`);
@@ -2164,9 +2209,10 @@
         data.arrows.forEach(arr => {
           const row = document.createElement("div");
           row.className = `item-row ${arr.id === activeArrowId ? "active" : ""}`;
+          const displayTxt = arr.label ? `${arr.label} (${arr.from} → ${arr.to})` : `${arr.from} → ${arr.to}`;
           row.innerHTML = `
-            <span>${arr.label || arr.id}</span>
-            <span class="tag" style="color:${arr.color}">→</span>
+            <span style="font-size:11px;">${displayTxt}</span>
+            <span class="tag" style="color:${arr.color || '#003fb8'}; font-weight:600;">${arr.routing || 'straight'}</span>
           `;
           row.addEventListener("click", () => selectArrow(arr.id));
           arrowsList.appendChild(row);
@@ -2180,6 +2226,10 @@
       activeArrowId = null;
       const part = FIGURES[currentFig].parts.find(p => p.id === id);
       if (!part) return;
+
+      if (inpArrowFrom && part.type !== "boundary") {
+        inpArrowFrom.value = id;
+      }
 
       selectedBadge.textContent = part.label;
       inpText.value = part.label;
@@ -2204,10 +2254,15 @@
     function selectArrow(id) {
       activeArrowId = id;
       activePartId = null;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === id);
+      const data = FIGURES[currentFig];
+      if (!data.arrows) return;
+      const arr = data.arrows.find(a => a.id === id);
       if (!arr) return;
 
-      selectedBadge.textContent = "Arrow: " + (arr.label || arr.id);
+      const lblActive = document.getElementById("lbl-active-arrow");
+      if (lblActive) lblActive.textContent = `(${arr.from} → ${arr.to})`;
+
+      selectedBadge.textContent = "Arrow: " + (arr.label || `${arr.from} → ${arr.to}`);
       inpArrowLabel.value = arr.label || "";
       inpArrowFrom.value = arr.from;
       if (inpArrowFromAnchor) inpArrowFromAnchor.value = arr.fromAnchor || "auto";
@@ -2215,23 +2270,23 @@
       if (inpArrowToAnchor) inpArrowToAnchor.value = arr.toAnchor || "auto";
       if (inpArrowRouting) inpArrowRouting.value = arr.routing || (arr.style === "orthogonal" ? "orthogonal" : "spline");
       if (inpArrowDirection) inpArrowDirection.value = arr.direction || "forward";
-      inpArrowColor.value = arr.color || "#003fb8";
+      inpArrowColor.value = arr.color || "#64748b";
       inpArrowStyle.value = arr.style || "solid";
       if (inpArrowBend) {
         inpArrowBend.value = arr.bend !== undefined ? arr.bend : 0.0;
         if (valArrowBend) valArrowBend.textContent = (arr.bend !== undefined ? arr.bend : 0.0).toFixed(1);
       }
       if (inpArrowThick) {
-        inpArrowThick.value = arr.thickness !== undefined ? arr.thickness : 0.05;
-        if (valArrowThick) valArrowThick.textContent = (arr.thickness !== undefined ? arr.thickness : 0.05).toFixed(2);
+        inpArrowThick.value = arr.thickness !== undefined ? arr.thickness : 0.045;
+        if (valArrowThick) valArrowThick.textContent = (arr.thickness !== undefined ? arr.thickness : 0.045).toFixed(2);
       }
 
-      switchSidebarTab("arrow");
+      switchSidebarTab("arrow", false);
       renderAll();
     }
 
     // Sidebar Tab Switcher
-    function switchSidebarTab(tabName) {
+    function switchSidebarTab(tabName, autoSelect = true) {
       document.querySelectorAll(".s-tab").forEach(t => t.classList.remove("active"));
       document.getElementById("tab-pane-part").style.display = tabName === "part" ? "block" : "none";
       document.getElementById("tab-pane-arrow").style.display = tabName === "arrow" ? "block" : "none";
@@ -2239,6 +2294,13 @@
 
       const btn = document.querySelector(`.s-tab[data-stab="${tabName}"]`);
       if (btn) btn.classList.add("active");
+
+      if (tabName === "arrow" && autoSelect) {
+        const data = FIGURES[currentFig];
+        if (!activeArrowId && data.arrows && data.arrows.length > 0) {
+          selectArrow(data.arrows[data.arrows.length - 1].id);
+        }
+      }
     }
 
     document.querySelectorAll(".s-tab").forEach(tab => {
@@ -2476,10 +2538,52 @@
       window.removeEventListener("mouseup", stopSplineBendDrag);
     }
 
+    // Helper: Ensure an active arrow exists for the inspector
+    function ensureActiveArrow() {
+      const data = FIGURES[currentFig];
+      if (!data.arrows) data.arrows = [];
+      let arr = data.arrows.find(a => a.id === activeArrowId);
+      if (!arr) {
+        // Check if an arrow already connects the selected from/to
+        const match = data.arrows.find(a => a.from === inpArrowFrom.value && a.to === inpArrowTo.value);
+        if (match) {
+          activeArrowId = match.id;
+          const lblActive = document.getElementById("lbl-active-arrow");
+          if (lblActive) lblActive.textContent = `(${match.from} → ${match.to})`;
+          return match;
+        }
+
+        // Auto-create new arrow with user's settings!
+        const functionalParts = data.parts.filter(p => p.type !== "boundary");
+        const fromVal = inpArrowFrom.value || (functionalParts[0] ? functionalParts[0].id : "delib_robot");
+        const toVal = inpArrowTo.value || (functionalParts[1] ? functionalParts[1].id : "node_secgate");
+        const newArr = {
+          id: `arr_${Date.now()}`,
+          from: fromVal,
+          fromAnchor: inpArrowFromAnchor.value || "auto",
+          to: toVal,
+          toAnchor: inpArrowToAnchor.value || "auto",
+          label: inpArrowLabel.value || "",
+          color: inpArrowColor.value || "#64748b",
+          style: inpArrowStyle.value || "solid",
+          routing: inpArrowRouting.value || "straight",
+          direction: inpArrowDirection.value || "forward",
+          bend: parseFloat(inpArrowBend ? inpArrowBend.value : 0) || 0.0,
+          thickness: parseFloat(inpArrowThick ? inpArrowThick.value : 0.045) || 0.045
+        };
+        data.arrows.push(newArr);
+        activeArrowId = newArr.id;
+        arr = newArr;
+        const lblActive = document.getElementById("lbl-active-arrow");
+        if (lblActive) lblActive.textContent = `(${arr.from} → ${arr.to})`;
+        showToast(`✓ Bound arrow: ${fromVal} → ${toVal}`);
+      }
+      return arr;
+    }
+
     // Input Listeners: Arrow Properties
     inpArrowLabel.addEventListener("input", () => {
-      if (!activeArrowId) return;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      const arr = ensureActiveArrow();
       if (!arr) return;
       arr.label = inpArrowLabel.value;
       renderAll();
@@ -2487,8 +2591,7 @@
     });
 
     inpArrowColor.addEventListener("change", () => {
-      if (!activeArrowId) return;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      const arr = ensureActiveArrow();
       if (!arr) return;
       arr.color = inpArrowColor.value;
       renderAll();
@@ -2496,8 +2599,7 @@
     });
 
     inpArrowStyle.addEventListener("change", () => {
-      if (!activeArrowId) return;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      const arr = ensureActiveArrow();
       if (!arr) return;
       arr.style = inpArrowStyle.value;
       renderAll();
@@ -2505,18 +2607,18 @@
     });
 
     inpArrowFrom.addEventListener("change", () => {
-      if (!activeArrowId) return;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      const arr = ensureActiveArrow();
       if (!arr) return;
       arr.from = inpArrowFrom.value;
+      const lblActive = document.getElementById("lbl-active-arrow");
+      if (lblActive) lblActive.textContent = `(${arr.from} → ${arr.to})`;
       renderAll();
       updateOutput();
     });
 
     if (inpArrowFromAnchor) {
       inpArrowFromAnchor.addEventListener("change", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
         arr.fromAnchor = inpArrowFromAnchor.value;
         renderAll();
@@ -2525,18 +2627,18 @@
     }
 
     inpArrowTo.addEventListener("change", () => {
-      if (!activeArrowId) return;
-      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      const arr = ensureActiveArrow();
       if (!arr) return;
       arr.to = inpArrowTo.value;
+      const lblActive = document.getElementById("lbl-active-arrow");
+      if (lblActive) lblActive.textContent = `(${arr.from} → ${arr.to})`;
       renderAll();
       updateOutput();
     });
 
     if (inpArrowToAnchor) {
       inpArrowToAnchor.addEventListener("change", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
         arr.toAnchor = inpArrowToAnchor.value;
         renderAll();
@@ -2546,8 +2648,7 @@
 
     if (inpArrowRouting) {
       inpArrowRouting.addEventListener("change", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
         arr.routing = inpArrowRouting.value;
         renderAll();
@@ -2557,8 +2658,7 @@
 
     if (inpArrowDirection) {
       inpArrowDirection.addEventListener("change", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
         arr.direction = inpArrowDirection.value;
         renderAll();
@@ -2568,8 +2668,7 @@
 
     if (inpArrowBend) {
       inpArrowBend.addEventListener("input", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
         arr.bend = parseFloat(inpArrowBend.value) || 0.0;
         if (valArrowBend) valArrowBend.textContent = arr.bend.toFixed(1);
@@ -2582,10 +2681,9 @@
 
     if (inpArrowThick) {
       inpArrowThick.addEventListener("input", () => {
-        if (!activeArrowId) return;
-        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        const arr = ensureActiveArrow();
         if (!arr) return;
-        arr.thickness = parseFloat(inpArrowThick.value) || 0.05;
+        arr.thickness = parseFloat(inpArrowThick.value) || 0.045;
         if (valArrowThick) valArrowThick.textContent = arr.thickness.toFixed(2);
         renderAll();
         updateOutput();
@@ -2805,20 +2903,24 @@
         const newArr = {
           id: `arr_${Date.now()}`,
           from: arrowConnectSource,
+          fromAnchor: "auto",
           to: partId,
+          toAnchor: "auto",
           label: "",
-          color: "#10b981",
-          style: "solid"
+          color: inpArrowColor.value || "#64748b",
+          style: inpArrowStyle.value || "solid",
+          routing: inpArrowRouting.value || "straight",
+          direction: inpArrowDirection.value || "forward",
+          bend: parseFloat(inpArrowBend ? inpArrowBend.value : 0) || 0.0,
+          thickness: parseFloat(inpArrowThick ? inpArrowThick.value : 0.045) || 0.045
         };
         if (!data.arrows) data.arrows = [];
         data.arrows.push(newArr);
         arrowConnectSource = null;
-        activeArrowId = newArr.id;
-        activePartId = null;
-        switchSidebarTab("arrow");
+        selectArrow(newArr.id);
         renderAll();
         updateOutput();
-        showToast(`✓ Created arrow: ${fromPart.label} → ${toPart.label}`);
+        showToast(`✓ Created arrow: ${fromPart.label || fromPart.id} → ${toPart.label || toPart.id}`);
       } else {
         arrowConnectSource = null;
         renderAll();
@@ -2831,24 +2933,42 @@
       btnAddArrow.addEventListener("click", () => {
         const data = FIGURES[currentFig];
         if (!data.parts || data.parts.length < 2) return;
-        const fromId = activePartId || data.parts[0].id;
-        const toPart = data.parts.find(p => p.id !== fromId) || data.parts[1];
+        const functionalParts = data.parts.filter(p => p.type !== "boundary");
+
+        let fromId = inpArrowFrom.value;
+        if (!fromId || !data.parts.some(p => p.id === fromId)) {
+          fromId = (activePartId && functionalParts.some(p => p.id === activePartId))
+            ? activePartId
+            : (functionalParts[0] ? functionalParts[0].id : data.parts[0].id);
+        }
+
+        let toId = inpArrowTo.value;
+        if (!toId || toId === fromId || !data.parts.some(p => p.id === toId)) {
+          const candidate = functionalParts.find(p => p.id !== fromId) || data.parts.find(p => p.id !== fromId);
+          toId = candidate ? candidate.id : fromId;
+        }
+
         const newArr = {
           id: `arr_${Date.now()}`,
           from: fromId,
-          to: toPart.id,
-          label: "Flow",
-          color: "#10b981",
-          style: "solid"
+          fromAnchor: inpArrowFromAnchor.value || "auto",
+          to: toId,
+          toAnchor: inpArrowToAnchor.value || "auto",
+          label: inpArrowLabel.value || "",
+          color: inpArrowColor.value || "#64748b",
+          style: inpArrowStyle.value || "solid",
+          routing: inpArrowRouting.value || "straight",
+          direction: inpArrowDirection.value || "forward",
+          bend: parseFloat(inpArrowBend ? inpArrowBend.value : 0) || 0.0,
+          thickness: parseFloat(inpArrowThick ? inpArrowThick.value : 0.045) || 0.045
         };
+
         if (!data.arrows) data.arrows = [];
         data.arrows.push(newArr);
-        activeArrowId = newArr.id;
-        activePartId = null;
-        switchSidebarTab("arrow");
+        selectArrow(newArr.id);
         renderAll();
         updateOutput();
-        showToast("✓ Added new arrow");
+        showToast(`✓ Added arrow: ${fromId} → ${toId}`);
       });
     }
 
@@ -2862,6 +2982,8 @@
         if (idx !== -1) {
           data.arrows.splice(idx, 1);
           activeArrowId = null;
+          const lblActive = document.getElementById("lbl-active-arrow");
+          if (lblActive) lblActive.textContent = "(None selected)";
           renderAll();
           updateOutput();
           showToast("🗑️ Deleted arrow");
@@ -2922,6 +3044,7 @@
         showBox: false
       };
       data.parts.push(newNode);
+      populateArrowSelects();
       selectPart(newNode.id);
       setToolMode("select");
       renderAll();
@@ -2948,6 +3071,7 @@
         showBox: true
       };
       data.parts.push(newNode);
+      populateArrowSelects();
       selectPart(newNode.id);
       setToolMode("select");
       renderAll();
@@ -2971,6 +3095,7 @@
           data.arrows = data.arrows.filter(a => a.from !== deletedId && a.to !== deletedId);
         }
         activePartId = null;
+        populateArrowSelects();
         renderAll();
         updateOutput();
         showToast("🗑️ Deleted node and connected arrows");
