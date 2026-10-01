@@ -2913,7 +2913,10 @@ the unbounded family proved above.
 \input{figures/legible-swarm-split-penalty}
 
 \paragraph{Architectural corollary: the SLM sidecar.}
-Theorem~\ref{thm:split-digest} dictates that the system must never ask the worker agent to author its own operator-facing summary (which invites self-attestation bias and Potemkin digests~\S\ref{sec:verifiable}). Instead, the design calls for two separate pipelines:
+Theorem~\ref{thm:split-digest} motivates separate reader-specific decisions;
+the trust boundary independently motivates an oversight summary sourced from
+kernel evidence rather than worker self-report (\S\ref{sec:verifiable}).
+The design uses two reader-facing heads over evidence that may share a store:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Task-Continuation Head ($R_1$, \Designed):} Authored by the worker agent or structured state-checkpoints, optimized for continuation fidelity.
 \item \textbf{Oversight Head ($R_2$, \Vision):} An embedded, air-gapped \textbf{Small Language Model (SLM) Sidecar} (e.g., a local 8B model running via \texttt{llama.cpp}) that \emph{would} read raw kernel events and disk diffs as data, computing $\mathrm{regret}(x)$ and surfacing truthful digests without worker collusion.
