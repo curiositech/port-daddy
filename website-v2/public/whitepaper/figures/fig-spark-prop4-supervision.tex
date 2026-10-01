@@ -1,12 +1,12 @@
 % fig-spark-prop4-supervision.tex
 % Proposition 4: Supervision Has an Information Cost (Attention and Supervision)
 % Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop4-supervision.jpg.
-% Sized to the captioned text column (x in [0.0, 11.4] cm) with margin caption alongside in Tufte margin.
+% Sized to the captioned text column (x in [0.0, 10.8] cm) with margin caption alongside in Tufte margin.
 % Strict adherence to Harbor Figure Standard (v2) and operator directives:
-% - Crystal stretched wider and taller; crystal labels placed strictly ABOVE the shape.
+% - Crystal stretched wider and taller (width 2.2cm, height 3.0cm); labels strictly ABOVE the shape.
 % - Inside crystal: pure optical refraction facets with zero colliding text.
 % - Converging stream edges lessened by 1/3 (Delta x = 0.5 cm).
-% - Brackets and summary/budget callouts pulled out to the right of digest cards (x in [9.4, 11.4]).
+% - Brackets and summary/budget callouts pulled out to the right of digest cards (x in [8.8, 10.8]).
 % - All captions in margins only; image footer completely clear of captions/summaries.
 % - Strict sentence case across all text elements.
 % - Line weight ladder: 0.5pt (hairline), 0.9pt (wire), 1.6pt (spine).
@@ -48,163 +48,169 @@
   }
 
   % =========================================================================
-  % LEFT REGION: MULTI-STREAM EVENT FIREHOSE (x in [0.0, 2.7])
+  % HEADER REGION: INPUT ENTROPY & OUTPUT COMPRESSION (y in [8.1, 8.8])
   % =========================================================================
-  % Top Header (Sentence case)
-  \node[pd title,anchor=south,align=center,text=pdink] at (1.4, 8.5) {%
+  % Top Header Left (Sentence case)
+  \node[pd title,anchor=south,align=center,text=pdink] at (1.2, 8.3) {%
     Multi-stream\\event firehose%
   };
 
-  % Mathematical entropy annotation
-  \node[pd label,anchor=south west,align=left,text=pdink!80!black] at (2.4, 8.5) {%
+  % Mathematical entropy annotation Left
+  \node[pd label,anchor=south west,align=left,text=pdink!80!black] at (2.2, 8.3) {%
     $H_{\text{raw}} = \text{high}$\\%
     $E_{\text{raw}} = \text{max}$%
   };
 
-  % Side Callouts (Left column, anchor=west at x=0.0)
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 7.0) {%
-    High entropy\\raw logs and signals%
-  };
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 4.8) {%
-    Unfiltered data\\firehose%
-  };
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 2.6) {%
-    Information\\overload%
-  };
-
-  % Vertical Raw Event Streams
-  \foreach \x in {2.1, 2.4, 2.7} {
-    \draw[streamline] (\x, 8.2) -- (\x, 1.4);
-  }
-  % Highlighted Causal Stream
-  \draw[focusstream] (2.4, 8.2) -- (2.4, 1.4);
-
-  % Discrete Event Tokens along the streams
-  \foreach \y in {7.8, 7.2, 6.6, 6.0, 4.2, 3.6, 3.0, 2.4, 1.8} {
-    \filldraw[fill=pdcobalt!15,draw=pdcobalt,line width=0.5pt,rounded corners=1pt]
-      (2.0, \y-0.12) rectangle (2.2, \y+0.12);
-    \filldraw[fill=pdslate!15,draw=pdslate!80!black,line width=0.5pt,rounded corners=1pt]
-      (2.3, \y-0.12) rectangle (2.5, \y+0.12);
-    \filldraw[fill=pdrust!15,draw=pdrust,line width=0.5pt,rounded corners=1pt]
-      (2.6, \y-0.12) rectangle (2.8, \y+0.12);
-  }
-
-  % Converging Stream Curves into Attention Filter (edges shortened by 1/3: 2.7 -> 3.2, Delta x = 0.5 cm)
-  \draw[focusstream] (2.7, 5.3) .. controls (2.95, 5.3) and (3.1, 5.15) .. (3.2, 5.15);
-  \draw[focusstream] (2.7, 5.0) -- (3.2, 5.0);
-  \draw[focusstream] (2.7, 4.7) .. controls (2.95, 4.7) and (3.1, 4.85) .. (3.2, 4.85);
-
-  % =========================================================================
-  % CENTER REGION: STRETCHED ATTENTION FILTER CRYSTAL (x in [3.2, 5.8])
-  % =========================================================================
-  % Crystal Labels placed strictly ABOVE the shape (zero text clutter inside!)
-  \node[pd title,anchor=south,align=center,text=pdink] at (4.5, 7.3) {%
-    \textbf{Supervisory attention filter}\\%
-    {\color{pdslate}\mdseries Information-theoretic compression}%
-  };
-
-  % Outer Stretched Hexagonal Crystal (centered at x=4.5, y=5.0, width 2.6cm, height 3.8cm)
-  \filldraw[filterhex]
-    (4.5, 6.9) -- (5.8, 5.95) -- (5.8, 4.05) -- (4.5, 3.1) -- (3.2, 4.05) -- (3.2, 5.95) -- cycle;
-
-  % Inner Optical Facet Ring
-  \draw[pdhair,draw=pdcobalt!80!black]
-    (4.5, 6.55) -- (5.55, 5.75) -- (5.55, 4.25) -- (4.5, 3.45) -- (3.45, 4.25) -- (3.45, 5.75) -- cycle;
-
-  % Internal Facet Refraction Optics (Gem-like structure)
-  \draw[pdhair,draw=pdcobalt!40] (3.2, 5.0) -- (5.8, 5.0);
-  \draw[pdhair,draw=pdcobalt!40] (4.5, 6.9) -- (4.5, 3.1);
-  \draw[pdhair,draw=pdcobalt!30] (3.2, 5.95) -- (5.8, 4.05);
-  \draw[pdhair,draw=pdcobalt!30] (3.2, 4.05) -- (5.8, 5.95);
-
-  % Central Optical Aperture Diamond
-  \filldraw[fill=pdcobalt!10,draw=pdcobalt,line width=0.9pt]
-    (4.5, 5.5) -- (5.0, 5.0) -- (4.5, 4.5) -- (4.0, 5.0) -- cycle;
-  \fill[pdcobalt] (4.5, 5.0) circle (0.10cm);
-
-  % =========================================================================
-  % RIGHT REGION: STRUCTURED OPERATOR DIGEST & BRACKETS (x in [5.8, 11.4])
-  % =========================================================================
-  % Mathematical entropy annotation
-  \node[pd label,anchor=south east,align=right,text=pdink!80!black] at (6.8, 8.5) {%
+  % Mathematical entropy annotation Right
+  \node[pd label,anchor=south east,align=right,text=pdink!80!black] at (6.2, 8.3) {%
     $I_{\text{digest}} = \text{low}$\\%
     $E_{\text{digest}} = \text{min}$%
   };
 
-  % Top Header (Sentence case)
-  \node[pd title,anchor=south,align=center,text=pdink] at (8.6, 8.5) {%
+  % Top Header Right (Sentence case)
+  \node[pd title,anchor=south,align=center,text=pdink] at (7.6, 8.3) {%
     Structured human\\operator digest%
   };
 
+  % =========================================================================
+  % LEFT REGION: MULTI-STREAM EVENT FIREHOSE (x in [0.0, 2.7])
+  % =========================================================================
+  % Side Callouts (Left column, anchor=east at x=2.0 to guarantee zero collision)
+  \node[pd label,anchor=east,align=right,text=pdink] at (2.0, 6.8) {%
+    High entropy\\signals%
+  };
+  \node[pd label,anchor=east,align=right,text=pdink] at (2.0, 4.8) {%
+    Unfiltered\\data firehose%
+  };
+  \node[pd label,anchor=east,align=right,text=pdink] at (2.0, 2.8) {%
+    Information\\overload%
+  };
+
+  % Vertical Raw Event Streams (starting at y=6.6, ending at y=0.4)
+  \foreach \x in {2.2, 2.45, 2.7} {
+    \draw[streamline] (\x, 6.6) -- (\x, 0.4);
+  }
+  % Highlighted Causal Stream
+  \draw[focusstream] (2.45, 6.6) -- (2.45, 0.4);
+
+  % Discrete Event Tokens along the streams (spaced evenly, skipping y=5.0)
+  \foreach \y in {6.2, 5.6, 4.2, 3.6, 3.0, 2.4, 1.8} {
+    \filldraw[fill=pdcobalt!15,draw=pdcobalt,line width=0.5pt,rounded corners=1pt]
+      (2.1, \y-0.10) rectangle (2.3, \y+0.10);
+    \filldraw[fill=pdslate!15,draw=pdslate!80!black,line width=0.5pt,rounded corners=1pt]
+      (2.35, \y-0.10) rectangle (2.55, \y+0.10);
+    \filldraw[fill=pdrust!15,draw=pdrust,line width=0.5pt,rounded corners=1pt]
+      (2.6, \y-0.10) rectangle (2.8, \y+0.10);
+  }
+
+  % Converging Stream Curves into Attention Filter (edges shortened by 1/3: 2.7 -> 3.2, Delta x = 0.5 cm)
+  \draw[focusstream] (2.7, 5.2) .. controls (2.9, 5.2) and (3.05, 5.1) .. (3.2, 5.1);
+  \draw[focusstream] (2.7, 5.0) -- (3.2, 5.0);
+  \draw[focusstream] (2.7, 4.8) .. controls (2.9, 4.8) and (3.05, 4.9) .. (3.2, 4.9);
+
+  % =========================================================================
+  % CENTER REGION: STRETCHED ATTENTION FILTER CRYSTAL (x in [3.2, 5.4])
+  % =========================================================================
+  % Crystal Labels placed strictly ABOVE the shape (zero text clutter inside!)
+  % Precisely anchored at (4.3, 6.65) for guaranteed vertical and lateral clearance
+  \node[pd title,anchor=south,align=center,text=pdink] at (4.3, 6.65) {%
+    \textbf{Supervisory attention}\\%
+    \textbf{filter}\\[2pt]%
+    {\pdcaptionfont\color{pdslate}\mdseries Information}\\%
+    {\pdcaptionfont\color{pdslate}\mdseries compression}%
+  };
+
+  % Outer Stretched Hexagonal Crystal (centered at x=4.3, y=5.0, width 2.2cm, height 3.0cm)
+  \filldraw[filterhex]
+    (4.3, 6.5) -- (5.4, 5.75) -- (5.4, 4.25) -- (4.3, 3.5) -- (3.2, 4.25) -- (3.2, 5.75) -- cycle;
+
+  % Inner Optical Facet Ring
+  \draw[pdhair,draw=pdcobalt!80!black]
+    (4.3, 6.2) -- (5.15, 5.55) -- (5.15, 4.45) -- (4.3, 3.8) -- (3.45, 4.45) -- (3.45, 5.55) -- cycle;
+
+  % Internal Facet Refraction Optics (Gem-like structure)
+  \draw[pdhair,draw=pdcobalt!40] (3.2, 5.0) -- (5.4, 5.0);
+  \draw[pdhair,draw=pdcobalt!40] (4.3, 6.5) -- (4.3, 3.5);
+  \draw[pdhair,draw=pdcobalt!30] (3.2, 5.75) -- (5.4, 4.25);
+  \draw[pdhair,draw=pdcobalt!30] (3.2, 4.25) -- (5.4, 5.75);
+
+  % Central Optical Aperture Diamond
+  \filldraw[fill=pdcobalt!10,draw=pdcobalt,line width=0.9pt]
+    (4.3, 5.45) -- (4.75, 5.0) -- (4.3, 4.55) -- (3.85, 5.0) -- cycle;
+  \fill[pdcobalt] (4.3, 5.0) circle (0.09cm);
+
+  % =========================================================================
+  % RIGHT REGION: STRUCTURED OPERATOR DIGEST & BRACKETS (x in [5.4, 10.8])
+  % =========================================================================
   % Diverging Stream Curves from Crystal into Digest Items
-  \draw[focusstream] (5.8, 5.2) .. controls (6.05, 5.2) and (6.2, 7.2) .. (6.4, 7.2);
-  \draw[focusstream] (5.8, 5.1) .. controls (6.05, 5.1) and (6.2, 6.1) .. (6.4, 6.1);
-  \draw[focusstream] (5.8, 5.0) -- (6.4, 5.0);
-  \draw[focusstream] (5.8, 4.9) .. controls (6.05, 4.9) and (6.2, 3.9) .. (6.4, 3.9);
-  \draw[focusstream] (5.8, 4.8) .. controls (6.05, 4.8) and (6.2, 2.8) .. (6.4, 2.8);
+  \draw[focusstream] (5.4, 5.2) .. controls (5.6, 5.2) and (5.75, 7.0) .. (5.9, 7.0);
+  \draw[focusstream] (5.4, 5.1) .. controls (5.6, 5.1) and (5.75, 6.0) .. (5.9, 6.0);
+  \draw[focusstream] (5.4, 5.0) -- (5.9, 5.0);
+  \draw[focusstream] (5.4, 4.9) .. controls (5.6, 4.9) and (5.75, 4.0) .. (5.9, 4.0);
+  \draw[focusstream] (5.4, 4.8) .. controls (5.6, 4.8) and (5.75, 3.0) .. (5.9, 3.0);
 
   % Structured Digest Cards / Entries (Sentence case, single compound nodes)
-  % Entry 1: Status Stable
-  \filldraw[fill=pdcobalt] (6.4, 7.2) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 7.2) {%
-    \textbf{System status: stable}\\%
-    {\color{pdink!80!black}\mdseries Kernel invariants verified}%
+  % Entry 1: Fleet Status Stable
+  \filldraw[fill=pdcobalt] (5.9, 7.0) circle (2.0pt);
+  \node[pd label,anchor=west,align=left] at (6.1, 7.0) {%
+    \textbf{Fleet status: stable}\\%
+    {\color{pdink!80!black}\mdseries Invariants verified}%
   };
 
   % Entry 2: CPU Spike
-  \filldraw[fill=pdrust] (6.4, 6.1) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 6.1) {%
-    \textbf{\color{pdrust} Critical alert: CPU spike}\\%
-    {\color{pdink!80!black}\mdseries Worker threshold exceeded}%
+  \filldraw[fill=pdrust] (5.9, 6.0) circle (2.0pt);
+  \node[pd label,anchor=west,align=left] at (6.1, 6.0) {%
+    \textbf{\color{pdrust} Alert: CPU spike}\\%
+    {\color{pdink!80!black}\mdseries Threshold exceeded}%
   };
 
-  % Entry 3: Security Notice
-  \filldraw[fill=pdcobalt] (6.4, 5.0) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 5.0) {%
-    \textbf{Security notice: port scan}\\%
-    {\color{pdink!80!black}\mdseries Unleased ingress dropped}%
+  % Entry 3: Security Alert
+  \filldraw[fill=pdcobalt] (5.9, 5.0) circle (2.0pt);
+  \node[pd label,anchor=west,align=left] at (6.1, 5.0) {%
+    \textbf{Security alert}\\%
+    {\color{pdink!80!black}\mdseries Port scan blocked}%
   };
 
   % Entry 4: Storage Warning
-  \filldraw[fill=pdrust] (6.4, 3.9) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 3.9) {%
-    \textbf{\color{pdrust} Storage warning: quota 85\%}\\%
-    {\color{pdink!80!black}\mdseries Compaction checkpoint active}%
+  \filldraw[fill=pdrust] (5.9, 4.0) circle (2.0pt);
+  \node[pd label,anchor=west,align=left] at (6.1, 4.0) {%
+    \textbf{\color{pdrust} Warning: quota 85\%}\\%
+    {\color{pdink!80!black}\mdseries Compaction active}%
   };
 
   % Entry 5: Network Traffic
-  \filldraw[fill=pdcobalt] (6.4, 2.8) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 2.8) {%
-    \textbf{Network traffic: burst limit}\\%
-    {\color{pdink!80!black}\mdseries Rate limiter enforced}%
+  \filldraw[fill=pdcobalt] (5.9, 3.0) circle (2.0pt);
+  \node[pd label,anchor=west,align=left] at (6.1, 3.0) {%
+    \textbf{Traffic: burst limit}\\%
+    {\color{pdink!80!black}\mdseries Limit enforced}%
   };
 
-  % Right Brackets (Pulled out to the right of digest cards at x=9.4):
-  % Bracket 1: Top 2 items -> Low entropy summaries
-  \draw[guideline] (9.4, 7.4) -- (9.55, 7.4) -- (9.55, 5.8) -- (9.4, 5.8);
-  \draw[guideline] (9.55, 6.6) -- (9.75, 6.6);
-  \node[pd label,anchor=west,align=left,text=pdink] at (9.85, 6.6) {%
-    \textbf{Low entropy}\\\textbf{summaries}%
+  % Right Brackets (Pulled out to the right of digest cards at x=8.8):
+  % Bracket 1: Top 2 items -> Low-entropy summaries
+  \draw[guideline] (8.8, 7.2) -- (8.95, 7.2) -- (8.95, 5.8) -- (8.8, 5.8);
+  \draw[guideline] (8.95, 6.5) -- (9.15, 6.5);
+  \node[pd label,anchor=west,align=left,text=pdink] at (9.25, 6.5) {%
+    \textbf{Low-entropy}\\\textbf{summaries}%
   };
 
   % Bracket 2: Bottom 3 items -> Operator attention budget
-  \draw[guideline] (9.4, 5.3) -- (9.55, 5.3) -- (9.55, 2.5) -- (9.4, 2.5);
-  \draw[guideline] (9.55, 3.9) -- (9.75, 3.9);
-  \node[pd label,anchor=west,align=left,text=pdink] at (9.85, 3.9) {%
-    \textbf{Operator}\\\textbf{attention budget}%
+  \draw[guideline] (8.8, 5.2) -- (8.95, 5.2) -- (8.95, 2.8) -- (8.8, 2.8);
+  \draw[guideline] (8.95, 4.0) -- (9.15, 4.0);
+  \node[pd label,anchor=west,align=left,text=pdink] at (9.25, 4.0) {%
+    \textbf{Operator}\\\textbf{attention}\\\textbf{budget}%
   };
 
   % =========================================================================
   % BOTTOM: EVIDENCE RETURN POINTERS
-  % (Routing safely outside the stretched crystal x >= 5.8, then turning under y <= 1.8)
+  % (Routing safely outside the stretched crystal x >= 5.4, then turning under y <= 1.8)
   % =========================================================================
-  \draw[evidencepointer] (6.4, 7.0) -- (5.9, 7.0) -- (5.9, 1.8) -- (2.8, 1.8);
-  \draw[evidencepointer] (6.4, 5.9) -- (5.8, 5.9) -- (5.8, 1.4) -- (2.8, 1.4);
-  \draw[evidencepointer] (6.4, 4.8) -- (5.7, 4.8) -- (5.7, 1.0) -- (2.8, 1.0);
-  \draw[evidencepointer] (6.4, 3.7) -- (5.6, 3.7) -- (5.6, 0.6) -- (2.8, 0.6);
+  \draw[evidencepointer] (5.9, 6.8) -- (5.5, 6.8) -- (5.5, 1.8) -- (2.45, 1.8);
+  \draw[evidencepointer] (5.9, 5.8) -- (5.4, 5.8) -- (5.4, 1.4) -- (2.45, 1.4);
+  \draw[evidencepointer] (5.9, 4.8) -- (5.3, 4.8) -- (5.3, 1.0) -- (2.45, 1.0);
+  \draw[evidencepointer] (5.9, 3.8) -- (5.2, 3.8) -- (5.2, 0.6) -- (2.45, 0.6);
 
   % Evidence Pointers Callout (Knockout background to guarantee zero line clash)
-  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (4.2, 1.4) {%
+  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (3.9, 1.4) {%
     \textbf{Evidence pointers}%
   };
 
