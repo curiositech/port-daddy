@@ -1,0 +1,250 @@
+% fig-spark-prop6-instruments.tex
+% Proposition 6: The Four Economic Instruments of Agent Coordination
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop6-instruments.jpg.
+% Full-width (14.6cm within \pdfullwidth = 15.0cm), pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2):
+% - Sentence case for all titles and labels (never ALL-CAPS).
+% - High Tufte data-ink ratio (quiet neutral tones, minimal non-data ink, crisp borders).
+% - Typographic law: pd title, pd label; zero inline \fontsize.
+% - Line weight ladder: 0.5pt (hairline/guides), 0.9pt (rules/arrows/borders), 1.6pt (spine).
+% - Semantic palette: pdcobalt (payment), pdgold (collateral), pdteal (evidence), pdslate (settlement), pdrust (hazard warning).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pdhair/.style={line width=0.5pt},
+    pdwire/.style={line width=0.9pt},
+    pdspine/.style={line width=1.6pt},
+    cardframe/.style={
+      fill=pdpage,
+      line width=0.9pt,
+      rounded corners=2pt
+    },
+    cardheader/.style={
+      rounded corners=2pt
+    },
+    flowline/.style={
+      draw=pdslate!80!black,
+      line width=0.9pt,
+      ->,
+      >=Stealth
+    },
+    hazardline/.style={
+      draw=pdslate!60,
+      line width=0.5pt
+    }
+  }
+
+  % =========================================================================
+  % CARD 1: PAYMENT (Top-Left)
+  % =========================================================================
+  \draw[cardframe, draw=pdcobalt] (0.2, 4.9) rectangle (7.1, 8.2);
+  \fill[cardheader, fill=pdcobalt!12] (0.2, 7.6) rectangle (7.1, 8.2);
+  \draw[draw=pdcobalt!40, line width=0.5pt] (0.2, 7.6) -- (7.1, 7.6);
+  \node[pd label, anchor=west, inner sep=0pt] at (0.4, 7.9) {%
+    \textbf{\color{pdcobalt}1. Payment:}\ \textnormal{Rewards delivered work.}%
+  };
+
+  % Worker agent icon
+  \fill[pdcobalt] (1.3, 6.55) circle (0.22cm);
+  \fill[pdcobalt] (1.0, 5.95) arc(180:0:0.3cm and 0.28cm) -- (1.6, 5.95) -- cycle;
+  \node[pd title, align=center] at (1.3, 5.55) {%
+    Worker agent%
+  };
+
+  % Delivery arrow with single-node compound label
+  \draw[pdwire, ->, draw=pdcobalt] (1.9, 6.25) -- (3.8, 6.25);
+  \node[pd label, above, align=center] at (2.85, 6.35) {%
+    \textbf{Delivered work}\\%
+    {\color{pdslate}\mdseries Completed tasks}%
+  };
+
+  % Forking elbow connectors
+  \draw[pdwire, ->, draw=pdcobalt] (3.8, 6.25) |- (4.4, 6.85);
+  \draw[pdwire, ->, draw=pdcobalt] (3.8, 6.25) |- (4.4, 5.65);
+
+  % Top fork: Token balance increment
+  \draw[pdwire, fill=pdgold!25, draw=pdgold!80!black] (4.8, 6.65) ellipse (0.30cm and 0.08cm);
+  \draw[pdwire, fill=pdgold!25, draw=pdgold!80!black] (4.8, 6.80) ellipse (0.30cm and 0.08cm);
+  \draw[pdwire, fill=pdgold!25, draw=pdgold!80!black] (4.8, 6.95) ellipse (0.30cm and 0.08cm);
+  \node[pd label, anchor=west, align=left] at (5.25, 6.85) {%
+    \textbf{Token balance}\\%
+    {\color{pdslate}\mdseries +Fee per deliverable}%
+  };
+
+  % Bottom fork: Escrow transfer
+  \draw[pdwire, fill=pdteal!15, draw=pdteal, rounded corners=1pt] (4.5, 5.45) rectangle (5.1, 5.85);
+  \draw[draw=pdteal, fill=white, line width=0.6pt] (4.8, 5.65) circle (0.10cm);
+  \node[pd label] at (4.8, 5.65) {{\color{pdteal}\$}};
+  \node[pd label, anchor=west, align=left] at (5.25, 5.65) {%
+    \textbf{Escrow transfer}\\%
+    {\color{pdslate}\mdseries Irrevocable payout}%
+  };
+
+  % =========================================================================
+  % CARD 2: COLLATERAL (Top-Right)
+  % =========================================================================
+  \draw[cardframe, draw=pdgold!80!black] (7.7, 4.9) rectangle (14.6, 8.2);
+  \fill[cardheader, fill=pdgold!12] (7.7, 7.6) rectangle (14.6, 8.2);
+  \draw[draw=pdgold!40!black, line width=0.5pt] (7.7, 7.6) -- (14.6, 7.6);
+  \node[pd label, anchor=west, inner sep=0pt] at (7.9, 7.9) {%
+    \textbf{\color{pdgold!80!black}2. Collateral:}\ \textnormal{Prices bounded failure and bonds.}%
+  };
+
+  % Top flow: Contractor posts bond
+  \fill[pdgold!80!black] (8.5, 7.05) circle (0.16cm);
+  \fill[pdgold!80!black] (8.3, 6.65) arc(180:0:0.2cm and 0.22cm) -- (8.7, 6.65) -- cycle;
+  \node[pd title, align=center] at (8.5, 6.35) {%
+    Contractor%
+  };
+
+  \draw[pdwire, ->, draw=pdgold!80!black] (8.9, 6.9) -- (9.9, 6.9);
+  % Bond document icon
+  \draw[pdwire, fill=pdgold!20, draw=pdgold!80!black, rounded corners=1pt] (10.0, 6.65) rectangle (10.5, 7.15);
+  \draw[draw=pdgold!80!black, line width=0.5pt] (10.1, 7.0) -- (10.4, 7.0);
+  \draw[draw=pdgold!80!black, line width=0.5pt] (10.1, 6.85) -- (10.4, 6.85);
+  \node[pd label, above, align=center] at (9.4, 6.95) {%
+    \textbf{Pledge bond}\\%
+    {\color{pdslate}\mdseries $C \ge \mathcal{V}(\text{risk})$}%
+  };
+
+  \draw[pdwire, ->, draw=pdgold!80!black] (10.6, 6.9) -- (12.2, 6.9);
+
+  % Bond escrow vault
+  \draw[draw=pdslate, fill=pdslate!10, line width=1.1pt, rounded corners=1.5pt] (12.4, 5.4) rectangle (14.2, 7.2);
+  \draw[draw=pdslate!40, line width=0.6pt] (12.6, 5.55) rectangle (14.0, 7.05);
+  \draw[draw=pdslate, fill=white, line width=0.9pt] (13.3, 6.3) circle (0.32cm);
+  \draw[draw=pdslate, line width=0.8pt] (13.08, 6.3) -- (13.52, 6.3);
+  \draw[draw=pdslate, line width=0.8pt] (13.3, 6.08) -- (13.3, 6.52);
+  \fill[pdslate] (12.7, 5.3) rectangle (12.9, 5.4);
+  \fill[pdslate] (13.7, 5.3) rectangle (13.9, 5.4);
+  \node[pd title, above] at (13.3, 7.25) {%
+    Bond escrow%
+  };
+
+  % Bottom flow: Lock / refund or slash
+  \draw[pdwire, draw=pdrust] (12.4, 5.75) -- (10.8, 5.75);
+  % Padlock glyph
+  \draw[pdwire, draw=pdrust] (10.33, 5.85) arc(180:0:0.12cm and 0.16cm);
+  \draw[pdwire, fill=pdrust!20, draw=pdrust, rounded corners=1pt] (10.2, 5.6) rectangle (10.6, 5.85);
+  \draw[pdwire, ->, draw=pdslate] (10.1, 5.75) -- (8.9, 5.75);
+  \node[pd label, below, align=center] at (10.5, 5.5) {%
+    \textbf{Refund on proof}\ \textnormal{or}\ \textbf{\color{pdrust}slashed on fault}%
+  };
+
+  % =========================================================================
+  % CARD 3: EVIDENCE (Bottom-Left)
+  % =========================================================================
+  \draw[cardframe, draw=pdteal] (0.2, 0.4) rectangle (7.1, 3.7);
+  \fill[cardheader, fill=pdteal!12] (0.2, 3.1) rectangle (7.1, 3.7);
+  \draw[draw=pdteal!40, line width=0.5pt] (0.2, 3.1) -- (7.1, 3.1);
+  \node[pd label, anchor=west, inner sep=0pt] at (0.4, 3.4) {%
+    \textbf{\color{pdteal}3. Evidence:}\ \textnormal{Cryptographic hash and execution trace.}%
+  };
+
+  % Witness seal
+  \draw[draw=pdteal, fill=pdteal!15, line width=0.9pt] (0.7, 1.4) -- (0.7, 2.1) -- (1.1, 2.3) -- (1.5, 2.1) -- (1.5, 1.4) -- (1.1, 1.1) -- cycle;
+  \node[pd label] at (1.1, 1.7) {{\color{pdteal}\textbf{\checkmark}}};
+  \node[pd label, align=center] at (1.1, 0.75) {%
+    \textbf{Witness receipt}\\%
+    {\color{pdslate}\mdseries Signed claim}%
+  };
+
+  \draw[pdwire, ->, draw=pdteal] (1.6, 1.75) -- (2.05, 1.75);
+
+  % Chained Merkle hashes
+  \draw[pdwire, fill=white, draw=pdteal, rounded corners=1pt] (2.1, 1.4) rectangle (2.85, 2.1);
+  \node[pd label] at (2.47, 1.75) {\textbf{Hash}\\$H_0$};
+  \draw[pdwire, ->, draw=pdteal] (2.85, 1.75) -- (3.15, 1.75);
+
+  \draw[pdwire, fill=white, draw=pdteal, rounded corners=1pt] (3.15, 1.4) rectangle (3.9, 2.1);
+  \node[pd label] at (3.52, 1.75) {\textbf{Hash}\\$H_1$};
+  \draw[pdwire, ->, draw=pdteal] (3.9, 1.75) -- (4.2, 1.75);
+
+  \draw[pdwire, fill=white, draw=pdteal, rounded corners=1pt] (4.2, 1.4) rectangle (4.95, 2.1);
+  \node[pd label] at (4.57, 1.75) {\textbf{Hash}\\$H_2$};
+  \draw[pdwire, ->, draw=pdteal] (4.95, 1.75) -- (5.35, 1.75);
+
+  \node[pd label, align=center] at (3.55, 0.75) {%
+    \textbf{Merkle hash chain}\\%
+    {\color{pdslate}\mdseries Content-addressed digest}%
+  };
+
+  % Execution trace log window
+  \draw[draw=pdteal, fill=white, line width=0.9pt, rounded corners=1.5pt] (5.45, 0.8) rectangle (6.85, 2.7);
+  \fill[fill=pdteal!15] (5.45, 2.45) rectangle (6.85, 2.7);
+  \draw[draw=pdteal!40, line width=0.5pt] (5.45, 2.45) -- (6.85, 2.45);
+  \fill[pdteal] (5.65, 2.57) circle (0.04cm);
+  \fill[pdteal] (5.80, 2.57) circle (0.04cm);
+  \fill[pdteal] (5.95, 2.57) circle (0.04cm);
+
+  \draw[line width=0.7pt, pdteal] (5.65, 2.25) -- (6.65, 2.25);
+  \draw[line width=0.7pt, pdslate] (5.75, 2.00) -- (6.75, 2.00);
+  \draw[line width=0.7pt, pdcobalt] (5.75, 1.75) -- (6.55, 1.75);
+  \draw[line width=0.7pt, pdteal] (5.65, 1.50) -- (6.45, 1.50);
+  \draw[line width=0.7pt, pdslate] (5.75, 1.25) -- (6.70, 1.25);
+  \draw[line width=0.7pt, pdteal] (5.65, 1.00) -- (6.35, 1.00);
+  \node[pd title] at (6.15, 0.55) {Trace log};
+
+  % =========================================================================
+  % CARD 4: SETTLEMENT (Bottom-Right)
+  % =========================================================================
+  \draw[cardframe, draw=pdslate!80!black] (7.7, 0.4) rectangle (14.6, 3.7);
+  \fill[cardheader, fill=pdslate!12] (7.7, 3.1) rectangle (14.6, 3.7);
+  \draw[draw=pdslate!40, line width=0.5pt] (7.7, 3.1) -- (14.6, 3.1);
+  \node[pd label, anchor=west, inner sep=0pt] at (7.9, 3.4) {%
+    \textbf{\color{pdslate!90!black}4. Settlement:}\ \textnormal{Atomic final close.}%
+  };
+
+  % Counterparty agent
+  \fill[pdslate!90!black] (8.5, 2.05) circle (0.18cm);
+  \fill[pdslate!90!black] (8.25, 1.55) arc(180:0:0.25cm and 0.25cm) -- (8.75, 1.55) -- cycle;
+  \node[pd title, align=center] at (8.5, 0.85) {%
+    Counterparties%
+  };
+
+  % Decisive spine arrow with single-node compound label
+  \draw[pdspine, ->, draw=pdslate!90!black, line width=1.6pt] (9.2, 1.75) -- (12.3, 1.75);
+  \node[pd label, above, align=center] at (10.75, 1.85) {%
+    \textbf{Set of atomic finalization}\\%
+    {\color{pdslate}\mdseries All transactions close simultaneously}%
+  };
+  \node[pd label, below, align=center] at (10.75, 1.65) {%
+    \textit{Decisive, irrevocable conclusion}%
+  };
+
+  % Notary stamp and seal
+  \fill[pdslate!90!black] (13.3, 2.65) circle (0.16cm);
+  \draw[draw=pdslate!90!black, line width=1.6pt] (13.3, 2.65) -- (13.3, 2.15);
+  \draw[draw=pdslate!90!black, fill=pdslate!25, line width=1.0pt, rounded corners=1pt] (12.8, 1.95) rectangle (13.8, 2.15);
+
+  \draw[draw=pdrust, fill=pdrust!15, line width=1.0pt] (13.3, 1.45) circle (0.35cm);
+  \draw[draw=pdrust, line width=0.8pt] (13.22, 1.50) arc(180:0:0.08cm and 0.12cm);
+  \draw[draw=pdrust, fill=pdrust!30, line width=0.8pt, rounded corners=0.5pt] (13.16, 1.32) rectangle (13.44, 1.50);
+
+  \node[pd label, align=center] at (13.3, 0.75) {%
+    \textbf{Notarized close}\\%
+    {\color{pdslate}\mdseries Irreversible}%
+  };
+
+  % =========================================================================
+  % CENTRAL HAZARD AXIOM & WARNING CALLOUT
+  % =========================================================================
+  \fill[fill=pdrust!8, draw=pdrust!60, line width=0.8pt, rounded corners=2pt] (2.9, 3.85) rectangle (11.9, 4.75);
+
+  % Warning triangle
+  \draw[draw=pdrust, fill=pdrust!20, line width=0.9pt, rounded corners=1pt] (3.15, 4.05) -- (3.4, 4.55) -- (3.65, 4.05) -- cycle;
+  \node[pd label] at (3.4, 4.22) {{\textbf{\color{pdrust}!}}};
+
+  % Axiom text in strict sentence case
+  \node[pd label, anchor=west, align=left] at (3.85, 4.3) {%
+    \textbf{\color{pdrust}Conflating these four elements into a single token or score}\\%
+    \textbf{\color{pdrust}creates adverse selection and moral hazard.}%
+  };
+
+  % Routing lines connecting the 4 quadrants to the central axiom
+  \draw[hazardline] (4.8, 4.9) -- (4.8, 4.6) -- (2.9, 4.6);
+  \draw[hazardline] (10.0, 4.9) -- (10.0, 4.6) -- (11.9, 4.6);
+  \draw[hazardline] (4.8, 3.7) -- (4.8, 4.0) -- (2.9, 4.0);
+  \draw[hazardline] (10.0, 3.7) -- (10.0, 4.0) -- (11.9, 4.0);
+
+\end{tikzpicture}
