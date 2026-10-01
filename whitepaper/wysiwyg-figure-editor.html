@@ -250,6 +250,14 @@
       display: block;
     }
 
+    
+    /* Pending Arrow Source Pulse */
+    .arrow-source-pending {
+      filter: drop-shadow(0 0 10px #10b981) !important;
+      stroke: #10b981 !important;
+      stroke-width: 0.05 !important;
+    }
+
     /* Draggable Elements */
     .drag-node {
       cursor: grab;
@@ -544,6 +552,12 @@
         <option value="fig-0.14">Fig 0.14 · Big Brother Logic Vision Cones</option>
       </select>
 
+            <!-- Tool Switcher -->
+      <div class="view-mode-group" style="margin-left: 8px;">
+        <button class="mode-btn active" id="tool-btn-select" title="Select, Move, and Resize Elements">👆 Select / Move</button>
+        <button class="mode-btn" id="tool-btn-arrow" title="Click two nodes to connect them with an arrow">↗️ Connect Arrow</button>
+      </div>
+
       <!-- View Mode Buttons -->
       <div class="view-mode-group">
         <button class="mode-btn active" id="btn-mode-split" title="Display Source Figure and Vector Canvas Side-by-Side">🌓 Side-by-Side</button>
@@ -709,7 +723,13 @@
         <!-- Tab 2: Arrow Inspector -->
         <div id="tab-pane-arrow" style="display:none;">
           <div class="panel-card" style="margin-bottom:12px;">
-            <div class="panel-title">Selected Arrow</div>
+            <div class="panel-title">
+              <span>Selected Arrow</span>
+              <div style="display:flex; gap:6px;">
+                <button id="btn-add-arrow" class="btn btn-primary" style="padding:2px 8px; font-size:10px;">➕ Add</button>
+                <button id="btn-delete-arrow" class="btn" style="padding:2px 8px; font-size:10px; background:#ef4444; border-color:#dc2626; color:white;">🗑️ Delete</button>
+              </div>
+            </div>
             <div class="input-field" style="margin-bottom:8px;">
               <label>Arrow Label (Pill Text)</label>
               <input type="text" id="inp-arrow-label" placeholder="e.g. Exit 0 (Permit)">
@@ -985,6 +1005,9 @@
     let dragOffset = { x: 0, y: 0 };
     let resizeAnchor = { x: 0, y: 0, w: 0, h: 0 };
     let activeTab = "json";
+    let activeTool = "select"; // "select" or "arrow"
+    let arrowConnectSource = null;
+
     let viewMode = "split"; // 'split', 'overlay', 'canvas'
 
     // DOM Elements
@@ -1063,14 +1086,16 @@
     }
 
     // Render Boundaries and Nodes
-    function renderBoundariesAndNodes() {
+        function renderBoundariesAndNodes() {
       boundariesLayer.innerHTML = "";
       nodesLayer.innerHTML = "";
       const data = FIGURES[currentFig];
 
       data.parts.forEach(part => {
         const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        g.setAttribute("class", `drag-node ${part.id === activePartId ? "selected" : ""}`);
+        const isSelected = part.id === activePartId;
+        const isArrowSource = arrowConnectSource === part.id;
+        g.setAttribute("class", `drag-node ${isSelected ? "selected" : ""} ${isArrowSource ? "arrow-source-pending" : ""}`);
         g.setAttribute("data-id", part.id);
 
         if (part.type === "boundary") {
@@ -1130,8 +1155,308 @@
           g.appendChild(txt);
 
           nodesLayer.appendChild(g);
+        } else if (part.type === "robot") {
+          // --- FULL VECTOR ILLUSTRATED ROBOT AT LAPTOP ---
+          const gRobot = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gRobot.setAttribute("transform", `translate(${part.x}, ${part.y})`);
+
+          // Background card container (subtle)
+          const bgCard = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          bgCard.setAttribute("x", -part.w/2);
+          bgCard.setAttribute("y", -part.h/2);
+          bgCard.setAttribute("width", part.w);
+          bgCard.setAttribute("height", part.h);
+          bgCard.setAttribute("rx", "0.15");
+          bgCard.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
+          bgCard.setAttribute("stroke", part.color || "#003fb8");
+          bgCard.setAttribute("stroke-width", "0.025");
+          gRobot.appendChild(bgCard);
+
+          // 1. Desk line
+          const desk = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          desk.setAttribute("x1", -part.w * 0.42);
+          desk.setAttribute("y1", -0.15);
+          desk.setAttribute("x2", part.w * 0.42);
+          desk.setAttribute("y2", -0.15);
+          desk.setAttribute("stroke", "#475569");
+          desk.setAttribute("stroke-width", "0.035");
+          gRobot.appendChild(desk);
+
+          // 2. Laptop Base
+          const laptopBase = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          laptopBase.setAttribute("points", "-0.15,-0.15 0.45,-0.15 0.40,-0.10 -0.10,-0.10");
+          laptopBase.setAttribute("fill", "#64748b");
+          laptopBase.setAttribute("stroke", "#0f172a");
+          laptopBase.setAttribute("stroke-width", "0.015");
+          gRobot.appendChild(laptopBase);
+
+          // 3. Laptop Screen (tilted open)
+          const laptopScreen = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          laptopScreen.setAttribute("points", "0.36,-0.10 0.48,0.30 0.12,0.30 0.04,-0.10");
+          laptopScreen.setAttribute("fill", "#0f172a");
+          laptopScreen.setAttribute("stroke", "#334155");
+          laptopScreen.setAttribute("stroke-width", "0.02");
+          gRobot.appendChild(laptopScreen);
+
+          // Code lines on laptop screen (cyan glow)
+          [0.24, 0.14, 0.04, -0.04].forEach((cy, idx) => {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", 0.14);
+            line.setAttribute("y1", cy);
+            line.setAttribute("x2", 0.36 - idx * 0.04);
+            line.setAttribute("y2", cy);
+            line.setAttribute("stroke", idx === 0 ? "#10b981" : "#38bdf8");
+            line.setAttribute("stroke-width", "0.02");
+            gRobot.appendChild(line);
+          });
+
+          // 4. Robot Torso
+          const torso = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          torso.setAttribute("x", -0.50);
+          torso.setAttribute("y", -0.12);
+          torso.setAttribute("width", 0.50);
+          torso.setAttribute("height", 0.40);
+          torso.setAttribute("rx", "0.06");
+          torso.setAttribute("fill", part.color || "#003fb8");
+          torso.setAttribute("stroke", "#0f172a");
+          torso.setAttribute("stroke-width", "0.025");
+          gRobot.appendChild(torso);
+
+          // Arms reaching toward laptop
+          const arms = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          arms.setAttribute("d", "M -0.32 0.12 C -0.18 -0.02 -0.05 -0.08 0.12 -0.12 L 0.16 -0.15 L -0.25 0.02 Z");
+          arms.setAttribute("fill", "#2563eb");
+          arms.setAttribute("stroke", "#0f172a");
+          arms.setAttribute("stroke-width", "0.02");
+          gRobot.appendChild(arms);
+
+          // 5. Robot Head
+          const head = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          head.setAttribute("x", -0.46);
+          head.setAttribute("y", 0.32);
+          head.setAttribute("width", 0.42);
+          head.setAttribute("height", 0.30);
+          head.setAttribute("rx", "0.06");
+          head.setAttribute("fill", part.color || "#003fb8");
+          head.setAttribute("stroke", "#0f172a");
+          head.setAttribute("stroke-width", "0.025");
+          gRobot.appendChild(head);
+
+          // Dual Antennae
+          [-0.38, -0.12].forEach((ax, idx) => {
+            const ant = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            ant.setAttribute("x1", ax);
+            ant.setAttribute("y1", 0.62);
+            ant.setAttribute("x2", ax + (idx === 0 ? -0.04 : 0.04));
+            ant.setAttribute("y2", 0.74);
+            ant.setAttribute("stroke", "#0f172a");
+            ant.setAttribute("stroke-width", "0.025");
+            gRobot.appendChild(ant);
+
+            const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            ball.setAttribute("cx", ax + (idx === 0 ? -0.04 : 0.04));
+            ball.setAttribute("cy", 0.74);
+            ball.setAttribute("r", "0.035");
+            ball.setAttribute("fill", "#2dd4bf");
+            gRobot.appendChild(ball);
+          });
+
+          // Visor Screen
+          const visor = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          visor.setAttribute("x", -0.41);
+          visor.setAttribute("y", 0.38);
+          visor.setAttribute("width", 0.32);
+          visor.setAttribute("height", 0.18);
+          visor.setAttribute("rx", "0.04");
+          visor.setAttribute("fill", "#0f172a");
+          gRobot.appendChild(visor);
+
+          // Glowing Eyes
+          [-0.32, -0.18].forEach(ex => {
+            const eye = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            eye.setAttribute("cx", ex);
+            eye.setAttribute("cy", 0.47);
+            eye.setAttribute("r", "0.03");
+            eye.setAttribute("fill", "#67e8f9");
+            gRobot.appendChild(eye);
+          });
+
+          // 6. Label Under Desk
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", 0);
+          txt.setAttribute("y", -part.h * 0.35);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.20");
+          txt.setAttribute("font-weight", "bold");
+          txt.setAttribute("fill", "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.35))})`);
+          txt.textContent = part.label;
+          gRobot.appendChild(txt);
+
+          g.appendChild(gRobot);
+          nodesLayer.appendChild(g);
+        } else if (part.type === "shield") {
+          // --- SECURITY SHIELD WITH PADLOCK ---
+          const gShield = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gShield.setAttribute("transform", `translate(${part.x}, ${part.y})`);
+
+          const sw = part.w * 0.35;
+          const sh = part.h * 0.35;
+          const shield = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          shield.setAttribute("d", `M ${-sw} ${sh*0.5} L ${sw} ${sh*0.5} L ${sw} ${-sh*0.1} C ${sw} ${-sh*0.7} 0 ${-sh} 0 ${-sh} C 0 ${-sh} ${-sw} ${-sh*0.7} ${-sw} ${-sh*0.1} Z`);
+          shield.setAttribute("fill", part.color || "#003fb8");
+          shield.setAttribute("stroke", "#0f172a");
+          shield.setAttribute("stroke-width", "0.03");
+          gShield.appendChild(shield);
+
+          // White Padlock Body
+          const lockBody = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          lockBody.setAttribute("x", -0.14);
+          lockBody.setAttribute("y", -sh * 0.25);
+          lockBody.setAttribute("width", 0.28);
+          lockBody.setAttribute("height", 0.22);
+          lockBody.setAttribute("rx", "0.03");
+          lockBody.setAttribute("fill", "#ffffff");
+          gShield.appendChild(lockBody);
+
+          // Padlock Shackle
+          const shackle = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          shackle.setAttribute("d", `M -0.09 ${-sh * 0.25} V ${-sh * 0.25 + 0.12} C -0.09 ${-sh * 0.25 + 0.22} 0.09 ${-sh * 0.25 + 0.22} 0.09 ${-sh * 0.25 + 0.12} V ${-sh * 0.25}`);
+          shackle.setAttribute("fill", "none");
+          shackle.setAttribute("stroke", "#ffffff");
+          shackle.setAttribute("stroke-width", "0.035");
+          gShield.appendChild(shackle);
+
+          // Keyhole
+          const keyhole = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          keyhole.setAttribute("cx", 0);
+          keyhole.setAttribute("cy", -sh * 0.14);
+          keyhole.setAttribute("r", "0.025");
+          keyhole.setAttribute("fill", "#0f172a");
+          gShield.appendChild(keyhole);
+
+          // Label
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", 0);
+          txt.setAttribute("y", -part.h * 0.52);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.19");
+          txt.setAttribute("font-weight", "bold");
+          txt.setAttribute("fill", "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.52))})`);
+          txt.textContent = part.label;
+          gShield.appendChild(txt);
+
+          g.appendChild(gShield);
+          nodesLayer.appendChild(g);
+        } else if (part.id === "node_hygiene") {
+          // --- BROOM WITH SPARKLES FOR POST-TOOL HYGIENE ---
+          const gHyg = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gHyg.setAttribute("transform", `translate(${part.x}, ${part.y})`);
+
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", -part.w/2);
+          rect.setAttribute("y", -part.h/2);
+          rect.setAttribute("width", part.w);
+          rect.setAttribute("height", part.h);
+          rect.setAttribute("rx", "0.15");
+          rect.setAttribute("fill", "#ffffff");
+          rect.setAttribute("stroke", part.color || "#0d9488");
+          rect.setAttribute("stroke-width", "0.025");
+          gHyg.appendChild(rect);
+
+          // Broom Handle
+          const handle = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          handle.setAttribute("x1", -part.w * 0.35);
+          handle.setAttribute("y1", 0.20);
+          handle.setAttribute("x2", -part.w * 0.15);
+          handle.setAttribute("y2", -0.15);
+          handle.setAttribute("stroke", "#b45309");
+          handle.setAttribute("stroke-width", "0.035");
+          handle.setAttribute("stroke-linecap", "round");
+          gHyg.appendChild(handle);
+
+          // Broom Brush
+          const brush = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          brush.setAttribute("points", `${-part.w * 0.2},-0.08 ${-part.w * 0.05},0.05 ${-part.w * 0.1},-0.22 ${-part.w * 0.25},-0.18`);
+          brush.setAttribute("fill", "#f59e0b");
+          gHyg.appendChild(brush);
+
+          // Sparkle Star
+          const star = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          star.setAttribute("d", `M ${-part.w * 0.02} 0.15 L ${0.01} 0.22 L ${0.08} 0.25 L ${0.01} 0.28 L ${-part.w * 0.02} 0.35 L ${-0.05} 0.28 L ${-0.12} 0.25 L ${-0.05} 0.22 Z`);
+          star.setAttribute("fill", "#38bdf8");
+          gHyg.appendChild(star);
+
+          // Label
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", 0.25);
+          txt.setAttribute("y", 0);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("dominant-baseline", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.20");
+          txt.setAttribute("font-weight", "600");
+          txt.setAttribute("fill", "#0f172a");
+          txt.setAttribute("transform", "scale(1, -1)");
+          txt.textContent = part.label;
+          gHyg.appendChild(txt);
+
+          g.appendChild(gHyg);
+          nodesLayer.appendChild(g);
+        } else if (part.id === "node_sandbox") {
+          // --- SEATBELT SANDBOX WITH SPEND CAP BADGE ---
+          const gBox = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gBox.setAttribute("transform", `translate(${part.x}, ${part.y})`);
+
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", -part.w/2);
+          rect.setAttribute("y", -part.h/2);
+          rect.setAttribute("width", part.w);
+          rect.setAttribute("height", part.h);
+          rect.setAttribute("rx", "0.15");
+          rect.setAttribute("fill", "#ffffff");
+          rect.setAttribute("stroke", part.color || "#0f172a");
+          rect.setAttribute("stroke-width", "0.025");
+          gBox.appendChild(rect);
+
+          // Spend Cap Speedo Pill on top
+          const pill = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          pill.setAttribute("x", -0.6);
+          pill.setAttribute("y", part.h/2 - 0.25);
+          pill.setAttribute("width", 1.2);
+          pill.setAttribute("height", 0.25);
+          pill.setAttribute("rx", "0.06");
+          pill.setAttribute("fill", "#10b981");
+          gBox.appendChild(pill);
+
+          const pillTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          pillTxt.setAttribute("x", 0);
+          pillTxt.setAttribute("y", part.h/2 - 0.125);
+          pillTxt.setAttribute("text-anchor", "middle");
+          pillTxt.setAttribute("dominant-baseline", "middle");
+          pillTxt.setAttribute("font-size", "0.14");
+          pillTxt.setAttribute("font-weight", "bold");
+          pillTxt.setAttribute("fill", "#ffffff");
+          pillTxt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (part.h/2 - 0.125))})`);
+          pillTxt.textContent = "Spend cap";
+          gBox.appendChild(pillTxt);
+
+          // Card Label
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", 0);
+          txt.setAttribute("y", -0.15);
+          txt.setAttribute("text-anchor", "middle");
+          txt.setAttribute("font-size", part.fontSize || "0.20");
+          txt.setAttribute("font-weight", "600");
+          txt.setAttribute("fill", "#0f172a");
+          txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-0.15))})`);
+          txt.textContent = part.label;
+          gBox.appendChild(txt);
+
+          g.appendChild(gBox);
+          nodesLayer.appendChild(g);
         } else {
-          // Standard Node / Card / Shield / Pill
+          // Standard Node / Card / Pill
           const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
           rect.setAttribute("x", part.x - part.w/2);
           rect.setAttribute("y", part.y - part.h/2);
@@ -1158,8 +1483,16 @@
           nodesLayer.appendChild(g);
         }
 
-        // Event Listeners
-        g.addEventListener("mousedown", (e) => startDrag(e, part));
+        // Event Listeners: Click and Drag
+        g.addEventListener("mousedown", (e) => {
+          if (activeTool === "arrow") {
+            e.stopPropagation();
+            handleArrowConnectClick(part.id);
+          } else {
+            startDrag(e, part);
+          }
+        });
+
         g.addEventListener("dblclick", (e) => {
           e.stopPropagation();
           selectPart(part.id);
@@ -1812,6 +2145,110 @@
       loadFigure(currentFig);
       showToast("↺ Reset figure layout to defaults");
     });
+
+    
+    // Tool Mode Switching (Select vs Connect Arrow)
+    const btnToolSelect = document.getElementById("tool-btn-select");
+    const btnToolArrow = document.getElementById("tool-btn-arrow");
+
+    function setToolMode(mode) {
+      activeTool = mode;
+      arrowConnectSource = null;
+      if (mode === "select") {
+        btnToolSelect.classList.add("active");
+        btnToolArrow.classList.remove("active");
+        svg.style.cursor = "default";
+      } else {
+        btnToolSelect.classList.remove("active");
+        btnToolArrow.classList.add("active");
+        svg.style.cursor = "crosshair";
+        showToast("↗️ Click start node, then destination node to create arrow");
+      }
+      renderAll();
+    }
+
+    if (btnToolSelect && btnToolArrow) {
+      btnToolSelect.addEventListener("click", () => setToolMode("select"));
+      btnToolArrow.addEventListener("click", () => setToolMode("arrow"));
+    }
+
+    // Interactive Arrow Connection
+    function handleArrowConnectClick(partId) {
+      const data = FIGURES[currentFig];
+      if (!arrowConnectSource) {
+        arrowConnectSource = partId;
+        const p = data.parts.find(x => x.id === partId);
+        showToast(`Selected start: ${p.label}. Now click destination node!`);
+        renderAll();
+      } else if (arrowConnectSource !== partId) {
+        const fromPart = data.parts.find(x => x.id === arrowConnectSource);
+        const toPart = data.parts.find(x => x.id === partId);
+        const newArr = {
+          id: `arr_${Date.now()}`,
+          from: arrowConnectSource,
+          to: partId,
+          label: "",
+          color: "#10b981",
+          style: "solid"
+        };
+        if (!data.arrows) data.arrows = [];
+        data.arrows.push(newArr);
+        arrowConnectSource = null;
+        activeArrowId = newArr.id;
+        activePartId = null;
+        switchSidebarTab("arrow");
+        renderAll();
+        updateOutput();
+        showToast(`✓ Created arrow: ${fromPart.label} → ${toPart.label}`);
+      } else {
+        arrowConnectSource = null;
+        renderAll();
+      }
+    }
+
+    // Add Arrow via Button
+    const btnAddArrow = document.getElementById("btn-add-arrow");
+    if (btnAddArrow) {
+      btnAddArrow.addEventListener("click", () => {
+        const data = FIGURES[currentFig];
+        if (!data.parts || data.parts.length < 2) return;
+        const fromId = activePartId || data.parts[0].id;
+        const toPart = data.parts.find(p => p.id !== fromId) || data.parts[1];
+        const newArr = {
+          id: `arr_${Date.now()}`,
+          from: fromId,
+          to: toPart.id,
+          label: "Flow",
+          color: "#10b981",
+          style: "solid"
+        };
+        if (!data.arrows) data.arrows = [];
+        data.arrows.push(newArr);
+        activeArrowId = newArr.id;
+        activePartId = null;
+        switchSidebarTab("arrow");
+        renderAll();
+        updateOutput();
+        showToast("✓ Added new arrow");
+      });
+    }
+
+    // Delete Arrow via Button
+    const btnDeleteArrow = document.getElementById("btn-delete-arrow");
+    if (btnDeleteArrow) {
+      btnDeleteArrow.addEventListener("click", () => {
+        const data = FIGURES[currentFig];
+        if (!activeArrowId || !data.arrows) return;
+        const idx = data.arrows.findIndex(a => a.id === activeArrowId);
+        if (idx !== -1) {
+          data.arrows.splice(idx, 1);
+          activeArrowId = null;
+          renderAll();
+          updateOutput();
+          showToast("🗑️ Deleted arrow");
+        }
+      });
+    }
 
     // Bootstrap
     loadFigure("fig-0.16");
