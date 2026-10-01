@@ -1,5 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsoleCliArgs {
+    /// Starts a sealed, daemon-free visual inspection window.
+    pub inspect_off: bool,
     pub initial_pane: Option<String>,
     pub display_selector: Option<String>,
     pub list_displays: bool,
@@ -15,6 +17,7 @@ where
 {
     let args: Vec<String> = args.into_iter().map(|a| a.as_ref().to_string()).collect();
     ConsoleCliArgs {
+        inspect_off: args.iter().any(|a| a == "--inspect-off"),
         initial_pane: value_after(&args, "--pane"),
         display_selector: value_after(&args, "--display"),
         list_displays: args.iter().any(|a| a == "--list-displays"),

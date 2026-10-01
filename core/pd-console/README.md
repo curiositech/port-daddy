@@ -1,5 +1,25 @@
 # pd-console
 
+## Sealed inspection window
+
+`pd-console --inspect-off` opens a static, read-only inspection window. It does
+not discover a daemon endpoint, create a daemon refresh worker, launch the CLI
+shell, bind the scripting control socket, or render live action controls. Its
+process-local admission latch rejects console HTTP and shell effects. The screen
+states those narrow guarantees and shows **UNKNOWN** for host daemon absence.
+
+This is a viewer self-containment mode, not a host-wide **Verified Off** state.
+The existing `HALT` and `hooks.disabled` files are cooperative controls; a
+one-time process or launchd scan could only describe the moment it ran. Another
+process, a login item, launchd, Bosun, or another user can still start work.
+Proof that the host is stopped and stays stopped would require a separate,
+protected authority controlling every relevant supervisor and spawn admission
+path, plus durable read-back. This console does not possess that authority, so
+it does not present a green Verified Off claim. It has no resume control.
+
+Build and compile checks are safe while the local runtime halt is in force;
+opening the native window remains prohibited by the operator's current halt.
+
 The GPU-native operator console for Port Daddy (ADR-0046). It opens on one
 full-window **Mission** conversation: describe an outcome, watch Port Daddy
 admit a governed agent, follow that exact agent's live transcript, and open the
