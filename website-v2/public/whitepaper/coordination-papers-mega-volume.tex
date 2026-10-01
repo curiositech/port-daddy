@@ -175,6 +175,21 @@ The empirical aftermath on developer machines is immediate and destructive: back
 The failure of autonomous AI agents is not a deficiency of intelligence. It is the absence of an operating kernel. This textbook makes one fundamental claim: \emph{autonomy scales only when authority, evidence, and consequence remain strictly coupled at every effect boundary}. Generative models are untrusted, non-deterministic user-space processes. They require an authoritative, crash-durable single-writer kernel that serializes concurrent mutation under happened-before causality, enforces attenuated capability grants that can only narrow at each delegation hop, isolates risky execution within sealed enclaves, and preserves tamper-evident cryptographic receipts across process crashes and restarts. Trust cannot be wished into existence through prompt cajoling; it must be made unnecessary where mechanical structure can enforce invariants, measurable where economic uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
+\newcommand{\pdreaderleftprose}{%
+Use an express-lane paragraph to locate a claim, then read its assumptions
+and evidence label. If the notation is unfamiliar, start with the worked
+example and return to the formal statement. When resuming after a break,
+the chapter question and the last example provide a useful starting point.
+Worked numbers carry a tag:
+\textsf{[verified]} when a named script in the repository regenerates them,
+\textsf{[internal]} when only the chapter's own derivation does. Exercises come
+in three kinds, \textsc{Check}, \textsc{Trace}, and \textsc{Open}, rated one to
+three; their solutions are collected at the back of the book, and each
+exercise and solution links to the other.\par}
+
+\cleartoleftpage
+\input{figures/fig-book-reader-map}
+
 \cleartoleftpage
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{complete contents}
 
