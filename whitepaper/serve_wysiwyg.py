@@ -45,6 +45,40 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+        elif self.path == "/api/request-glyph":
+            content_length = int(self.headers.get("Content-Length", 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode("utf-8"))
+                req_path = os.path.join(BASE_DIR, "figure-requests.json")
+                requests_list = []
+                if os.path.exists(req_path):
+                    with open(req_path, "r", encoding="utf-8") as f:
+                        try:
+                            requests_list = json.load(f)
+                        except Exception:
+                            requests_list = []
+                requests_list.append(data)
+                with open(req_path, "w", encoding="utf-8") as f:
+                    json.dump(requests_list, f, indent=2)
+                
+                # Twin sync
+                twin_path = os.path.abspath(os.path.join(BASE_DIR, "../../../whitepaper/figure-requests.json"))
+                if os.path.exists(os.path.dirname(twin_path)):
+                    with open(twin_path, "w", encoding="utf-8") as f:
+                        json.dump(requests_list, f, indent=2)
+
+                print(f"[TikZ Studio] Recorded AI glyph request: {data.get('prompt')}")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok", "count": len(requests_list)}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
         else:
             self.send_response(404)
             self.end_headers()

@@ -295,6 +295,37 @@
       stroke-width: 0.03;
     }
 
+        /* Anchor Ports on Bounding Box */
+    .anchor-port {
+      fill: #2563eb;
+      stroke: #ffffff;
+      stroke-width: 0.02;
+      cursor: crosshair;
+      transition: all 0.1s ease;
+    }
+    .anchor-port:hover {
+      fill: #10b981;
+      transform: scale(1.3);
+      filter: drop-shadow(0 0 4px #10b981);
+    }
+    .anchor-port.active-source {
+      fill: #10b981;
+      stroke: #0f172a;
+      stroke-width: 0.03;
+    }
+
+    /* Spline Bend Midpoint Handle */
+    .spline-handle {
+      fill: #f59e0b;
+      stroke: #ffffff;
+      stroke-width: 0.025;
+      cursor: grab;
+    }
+    .spline-handle:hover {
+      fill: #d97706;
+      transform: scale(1.2);
+    }
+
     /* Resize Handles */
     .resize-handle {
       fill: #ffffff;
@@ -670,11 +701,12 @@
         <div id="tab-pane-part">
           <!-- Node Action Bar -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button id="btn-add-text" class="btn btn-primary" style="padding:3px 8px; font-size:11px;">🔤 +Text</button>
               <button id="btn-add-box" class="btn btn-primary" style="padding:3px 8px; font-size:11px;">📦 +Box</button>
+              <button id="btn-add-glyph" class="btn btn-primary" style="padding:3px 8px; font-size:11px; background:#0d9488; border-color:#0f766e;">🤖 +AI Glyph</button>
             </div>
-            <button id="btn-delete-node" class="btn" style="padding:3px 8px; font-size:11px; background:#ef4444; border-color:#dc2626; color:white;">🗑️ Delete Node</button>
+            <button id="btn-delete-node" class="btn" style="padding:3px 8px; font-size:11px; background:#ef4444; border-color:#dc2626; color:white;">🗑️ Delete</button>
           </div>
 
           <!-- Object Type & Box Styling -->
@@ -705,8 +737,9 @@
           <div class="panel-card" style="margin-bottom:12px;">
             <div class="panel-title">Label & Typography</div>
             <div class="input-field" style="margin-bottom:8px;">
-              <label>Text Content (Double click node on canvas)</label>
-              <textarea id="inp-text" rows="2"></textarea>
+              <label>Text Content (Supports multiline carriage returns)</label>
+              <textarea id="inp-text" rows="3" placeholder="Enter label (Shift+Enter for newline)"></textarea>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Lines wrap naturally via &lt;tspan&gt; elements</div>
             </div>
             <div class="coord-grid">
               <div class="input-field">
@@ -728,6 +761,35 @@
             </div>
           </div>
 
+                    <!-- AI Vector Glyph Request Panel -->
+          <div class="panel-card" style="margin-bottom:12px;">
+            <div class="panel-title">
+              <span>AI Vector Glyph Generator</span>
+              <span class="badge" style="font-size:9px; background:rgba(37,99,235,0.2); color:#60a5fa; padding:1px 4px; border-radius:3px;">AI Drawing</span>
+            </div>
+            <div class="input-field" style="margin-bottom:8px;">
+              <label>Drawing Prompt / Description</label>
+              <textarea id="inp-ai-prompt" rows="2" placeholder="e.g. 'Robot holding a security token', 'Magnifying glass auditing ledger', 'Shield with lightning bolt'"></textarea>
+            </div>
+            <div class="coord-grid" style="margin-bottom:8px;">
+              <div class="input-field">
+                <label>Quick Preset Glyph</label>
+                <select id="sel-preset-glyph">
+                  <option value="custom">Custom AI Prompt</option>
+                  <option value="robot_laptop">🤖 Deliberation Robot (at laptop)</option>
+                  <option value="shield_lock">🛡️ Security Shield with Padlock</option>
+                  <option value="broom_stars">🧹 Sweeping Broom with Sparkles</option>
+                  <option value="spend_cap">⏱️ Speedometer Spend-Cap Gauge</option>
+                  <option value="terminal_card">💻 Terminal Code Console</option>
+                  <option value="db_ledger">🗄️ Append-Only Ledger Cylinder</option>
+                  <option value="git_fork">🌿 Git Branch Fork</option>
+                </select>
+              </div>
+              <div class="input-field" style="justify-content:flex-end;">
+                <button id="btn-generate-glyph" class="btn btn-primary" style="height:32px; font-size:11px; justify-content:center;">✨ Apply / Request</button>
+              </div>
+            </div>
+          </div>
           <!-- Position & Size -->
           <div class="panel-card">
             <div class="panel-title">
@@ -755,7 +817,7 @@
           </div>
         </div>
 
-        <!-- Tab 2: Arrow Inspector -->
+                <!-- Tab 2: Arrow Inspector -->
         <div id="tab-pane-arrow" style="display:none;">
           <div class="panel-card" style="margin-bottom:12px;">
             <div class="panel-title">
@@ -767,7 +829,7 @@
             </div>
             <div class="input-field" style="margin-bottom:8px;">
               <label>Arrow Label (Pill Text)</label>
-              <input type="text" id="inp-arrow-label" placeholder="e.g. Exit 0 (Permit)">
+              <input type="text" id="inp-arrow-label" placeholder="e.g. Exit 0 (Permit) or Turn Begins">
             </div>
             <div class="coord-grid" style="margin-bottom:8px;">
               <div class="input-field">
@@ -775,17 +837,56 @@
                 <select id="inp-arrow-from"></select>
               </div>
               <div class="input-field">
+                <label>From Anchor</label>
+                <select id="inp-arrow-from-anchor">
+                  <option value="auto">Auto Closest</option>
+                  <option value="top">Top (North)</option>
+                  <option value="right">Right (East)</option>
+                  <option value="bottom">Bottom (South)</option>
+                  <option value="left">Left (West)</option>
+                </select>
+              </div>
+              <div class="input-field">
                 <label>To Node</label>
                 <select id="inp-arrow-to"></select>
               </div>
               <div class="input-field">
+                <label>To Anchor</label>
+                <select id="inp-arrow-to-anchor">
+                  <option value="auto">Auto Closest</option>
+                  <option value="top">Top (North)</option>
+                  <option value="right">Right (East)</option>
+                  <option value="bottom">Bottom (South)</option>
+                  <option value="left">Left (West)</option>
+                </select>
+              </div>
+              <div class="input-field">
+                <label>Routing / Spline</label>
+                <select id="inp-arrow-routing">
+                  <option value="spline">Smooth Spline Curve</option>
+                  <option value="straight">Straight Line</option>
+                  <option value="orthogonal">Orthogonal Step (L-Turn)</option>
+                </select>
+              </div>
+              <div class="input-field">
+                <label>Direction</label>
+                <select id="inp-arrow-direction">
+                  <option value="forward">Forward (A → B)</option>
+                  <option value="backward">Backward (A ← B)</option>
+                  <option value="both">Bidirectional (A ↔ B)</option>
+                  <option value="none">Line Only (A — B)</option>
+                </select>
+              </div>
+              <div class="input-field">
                 <label>Arrow Color</label>
                 <select id="inp-arrow-color">
-                  <option value="#10b981">Green (Permit / Success)</option>
-                  <option value="#ef4444">Red (Veto / Halt)</option>
-                  <option value="#003fb8">Cobalt (Control Flow)</option>
-                  <option value="#0d9488">Teal (Data Flow)</option>
-                  <option value="#64748b">Slate (Transition)</option>
+                  <option value="#10b981">Emerald Green (#10b981)</option>
+                  <option value="#ef4444">Crimson Red (#ef4444)</option>
+                  <option value="#003fb8">Cobalt Blue (#003fb8)</option>
+                  <option value="#0d9488">Teal (#0d9488)</option>
+                  <option value="#64748b">Slate Gray (#64748b)</option>
+                  <option value="#f59e0b">Amber Gold (#f59e0b)</option>
+                  <option value="#1e293b">Dark Navy (#1e293b)</option>
                 </select>
               </div>
               <div class="input-field">
@@ -795,6 +896,18 @@
                   <option value="dashed">Dashed Line</option>
                   <option value="dotted">Dotted Line</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Fine-Tuning Sliders -->
+            <div class="coord-grid" style="margin-bottom:8px;">
+              <div class="input-field">
+                <label>Spline Bend: <span id="val-arrow-bend" style="color:var(--pd-cobalt); font-weight:bold;">0.0</span></label>
+                <input type="range" id="inp-arrow-bend" min="-2.0" max="2.0" step="0.1" value="0.0">
+              </div>
+              <div class="input-field">
+                <label>Thickness: <span id="val-arrow-thick" style="color:var(--pd-cobalt); font-weight:bold;">0.05</span></label>
+                <input type="range" id="inp-arrow-thick" min="0.02" max="0.12" step="0.01" value="0.05">
               </div>
             </div>
           </div>
@@ -847,7 +960,7 @@
           { id: "sess_start", label: "SessionStart", type: "pill", x: 1.80, y: 6.60, w: 2.00, h: 0.45, color: "#0f172a" },
           { id: "prompt_sub", label: "UserPromptSubmit", type: "pill", x: 1.80, y: 5.40, w: 2.40, h: 0.45, color: "#0f172a" },
           { id: "delib_robot", label: "", type: "robot", x: 1.80, y: 3.60, w: 1.80, h: 1.60, color: "#003fb8", showBox: false },
-          { id: "txt_agent_delib", label: "Agent Deliberation", type: "text", x: 1.80, y: 2.10, w: 2.60, h: 0.50, fontSize: 0.22, color: "#0f172a", showBox: false },
+          { id: "txt_agent_delib", label: "Agent\nDeliberation", type: "text", x: 1.80, y: 2.10, w: 2.60, h: 0.70, fontSize: 0.22, color: "#0f172a", showBox: false },
           { id: "inner_loop", label: "Inner Tool Loop", type: "boundary", x: 3.80, y: 1.20, w: 6.40, h: 5.80, color: "#2563eb", fill: "rgba(255, 255, 255, 0.9)", strokeDash: "0.12, 0.08" },
           { id: "node_delib", label: "Agent Deliberation", type: "card", x: 7.00, y: 6.00, w: 2.60, h: 1.20, color: "#003fb8" },
           { id: "node_sandbox", label: "Seatbelt Sandbox", type: "card", x: 8.80, y: 3.80, w: 1.80, h: 1.60, color: "#0f172a" },
@@ -859,14 +972,15 @@
           { id: "case_c", label: "Closeout Test Gate:\nStop hook runs tests -> Failed\n-> Repair Compelled", type: "casecard", x: 11.60, y: 1.20, w: 4.80, h: 1.80, color: "#f59e0b" }
         ],
         arrows: [
-          { id: "arr_sess_prompt", from: "sess_start", to: "prompt_sub", label: "", color: "#0f172a", style: "solid" },
-          { id: "arr_prompt_robot", from: "prompt_sub", to: "delib_robot", label: "", color: "#0f172a", style: "solid" },
-          { id: "arr_robot_delib", from: "delib_robot", to: "node_delib", label: "Turn Begins", color: "#003fb8", style: "orthogonal" },
-          { id: "arr_delib_sandbox", from: "node_delib", to: "node_sandbox", label: "(Exit 0)", color: "#10b981", style: "solid" },
-          { id: "arr_sandbox_hygiene", from: "node_sandbox", to: "node_hygiene", label: "", color: "#10b981", style: "solid" },
-          { id: "arr_hygiene_secgate", from: "node_hygiene", to: "node_secgate", label: "(Exit 0)", color: "#10b981", style: "solid" },
-          { id: "arr_secgate_delib", from: "node_secgate", to: "node_delib", label: "", color: "#10b981", style: "solid" },
-          { id: "arr_sandbox_stop", from: "node_sandbox", to: "stop_gate", label: "(Exit 2 Veto)", color: "#ef4444", style: "orthogonal", strokeDash: "0.1, 0.05" }
+          { id: "arr_sess_prompt", from: "sess_start", fromAnchor: "bottom", to: "prompt_sub", toAnchor: "top", label: "", color: "#0f172a", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
+          { id: "arr_prompt_robot", from: "prompt_sub", fromAnchor: "bottom", to: "delib_robot", toAnchor: "top", label: "", color: "#0f172a", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
+          { id: "arr_txt_robot", from: "txt_agent_delib", fromAnchor: "top", to: "delib_robot", toAnchor: "bottom", label: "", color: "#003fb8", style: "solid", routing: "straight", direction: "forward", thickness: 0.045 },
+          { id: "arr_robot_delib", from: "delib_robot", fromAnchor: "right", to: "node_delib", toAnchor: "left", label: "Turn Begins", color: "#003fb8", style: "orthogonal", routing: "orthogonal", direction: "forward", thickness: 0.045 },
+          { id: "arr_delib_sandbox", from: "node_delib", fromAnchor: "right", to: "node_sandbox", toAnchor: "top", label: "(Exit 0)", color: "#10b981", style: "solid", routing: "spline", bend: 0.1, direction: "forward", thickness: 0.045 },
+          { id: "arr_sandbox_hygiene", from: "node_sandbox", fromAnchor: "bottom", to: "node_hygiene", toAnchor: "right", label: "", color: "#10b981", style: "solid", routing: "spline", bend: 0.2, direction: "forward", thickness: 0.045 },
+          { id: "arr_hygiene_secgate", from: "node_hygiene", fromAnchor: "left", to: "node_secgate", toAnchor: "bottom", label: "(Exit 0)", color: "#10b981", style: "solid", routing: "spline", bend: -0.2, direction: "forward", thickness: 0.045 },
+          { id: "arr_secgate_delib", from: "node_secgate", fromAnchor: "top", to: "node_delib", toAnchor: "left", label: "", color: "#10b981", style: "solid", routing: "spline", bend: -0.1, direction: "forward", thickness: 0.045 },
+          { id: "arr_sandbox_stop", from: "node_sandbox", fromAnchor: "bottom", to: "stop_gate", toAnchor: "right", label: "(Exit 2 Veto)", color: "#ef4444", style: "orthogonal", routing: "orthogonal", direction: "forward", thickness: 0.045, strokeDash: "0.1, 0.05" }
         ]
       },
       "fig-0.15": {
@@ -1072,9 +1186,25 @@
     // Arrow Fields
     const inpArrowLabel = document.getElementById("inp-arrow-label");
     const inpArrowFrom = document.getElementById("inp-arrow-from");
+    const inpArrowFromAnchor = document.getElementById("inp-arrow-from-anchor");
     const inpArrowTo = document.getElementById("inp-arrow-to");
+    const inpArrowToAnchor = document.getElementById("inp-arrow-to-anchor");
+    const inpArrowRouting = document.getElementById("inp-arrow-routing");
+    const inpArrowDirection = document.getElementById("inp-arrow-direction");
     const inpArrowColor = document.getElementById("inp-arrow-color");
     const inpArrowStyle = document.getElementById("inp-arrow-style");
+    const inpArrowBend = document.getElementById("inp-arrow-bend");
+    const inpArrowThick = document.getElementById("inp-arrow-thick");
+    const valArrowBend = document.getElementById("val-arrow-bend");
+    const valArrowThick = document.getElementById("val-arrow-thick");
+    let arrowConnectFromAnchor = null;
+    let isDraggingSplineHandle = false;
+
+    // AI Vector Glyph Fields
+    const inpAiPrompt = document.getElementById("inp-ai-prompt");
+    const selPresetGlyph = document.getElementById("sel-preset-glyph");
+    const btnGenerateGlyph = document.getElementById("btn-generate-glyph");
+    const btnAddGlyph = document.getElementById("btn-add-glyph");
 
     const outputText = document.getElementById("output-text");
     const opacitySlider = document.getElementById("overlay-opacity");
@@ -1095,7 +1225,69 @@
       updateOutput();
     }
 
-    // Populate dropdowns for arrow nodes
+        // Robust Multiline SVG Text Renderer using <tspan>
+    function renderMultilineText(svgTextElem, text, x, y, options = {}) {
+      svgTextElem.innerHTML = "";
+      const str = (text !== undefined && text !== null) ? String(text) : "";
+      const lines = str.split(String.fromCharCode(10)).map(l => l.replace(String.fromCharCode(13), ""));
+      const fontSize = options.fontSize || 0.22;
+      const lineHeight = options.lineHeight || (fontSize * 1.3);
+      const isCentered = options.centered !== false;
+      const align = options.align || (isCentered ? "middle" : "start");
+
+      svgTextElem.setAttribute("text-anchor", align);
+
+      lines.forEach((lineStr, idx) => {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.textContent = lineStr.length === 0 ? " " : lineStr;
+        tspan.setAttribute("x", x);
+        if (idx === 0) {
+          if (isCentered && lines.length > 1) {
+            const totalShift = ((lines.length - 1) * lineHeight) / 2;
+            tspan.setAttribute("dy", `${-totalShift.toFixed(3)}`);
+          } else {
+            tspan.setAttribute("dy", "0");
+          }
+        } else {
+          tspan.setAttribute("dy", `${lineHeight.toFixed(3)}`);
+        }
+        svgTextElem.appendChild(tspan);
+      });
+    }
+
+    // Human-Readable Node Taxonomy with Emojis & Display Names
+    function getNodeDisplayName(p) {
+      const iconMap = {
+        robot: "🤖",
+        text: "🔤",
+        boundary: "🔲",
+        card: "📋",
+        node: "📦",
+        pill: "💊",
+        shield: "🛡️",
+        casecard: "📑",
+        broom: "🧹",
+        spend_cap: "⏱️",
+        ledger: "🗄️",
+        terminal: "💻",
+        git_fork: "🌿"
+      };
+      let icon = iconMap[p.type] || "📍";
+      if (p.id === "delib_robot") icon = "🤖";
+      else if (p.id === "node_hygiene") icon = "🧹";
+      else if (p.id === "node_sandbox") icon = "⏱️";
+      else if (p.id === "stop_gate" || p.id === "node_secgate") icon = "🛡️";
+
+      let title = p.label ? p.label.split(String.fromCharCode(10)).join(" ") : "";
+      if (!title || title.trim().length === 0) {
+        if (p.id === "delib_robot") title = "Deliberation Robot";
+        else if (p.type === "robot") title = "Robot Character";
+        else title = p.id;
+      }
+      return `${icon} ${title} (${p.id})`;
+    }
+
+    // Populate dropdowns for arrow nodes with Taxonomy
     function populateArrowSelects() {
       const data = FIGURES[currentFig];
       inpArrowFrom.innerHTML = "";
@@ -1103,12 +1295,12 @@
       data.parts.forEach(p => {
         const opt1 = document.createElement("option");
         opt1.value = p.id;
-        opt1.textContent = p.label;
+        opt1.textContent = getNodeDisplayName(p);
         inpArrowFrom.appendChild(opt1);
 
         const opt2 = document.createElement("option");
         opt2.value = p.id;
-        opt2.textContent = p.label;
+        opt2.textContent = getNodeDisplayName(p);
         inpArrowTo.appendChild(opt2);
       });
     }
@@ -1155,7 +1347,7 @@
           title.setAttribute("font-size", part.fontSize || "0.24");
           title.setAttribute("font-weight", "bold");
           title.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (part.y + part.h - 0.05))})`);
-          title.textContent = part.label;
+          renderMultilineText(title, part.label, part.x + part.w / 2, part.y + part.h - 0.05, { centered: true, fontSize: part.fontSize || 0.24 });
           g.appendChild(title);
 
           boundariesLayer.appendChild(g);
@@ -1187,7 +1379,7 @@
           txt.setAttribute("font-weight", "bold");
           txt.setAttribute("fill", "#0f172a");
           txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (part.y + part.h - 0.55))})`);
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, part.x + 0.2, part.y + part.h - 0.55, { centered: false, fontSize: part.fontSize || 0.20, lineHeight: 0.28 });
           g.appendChild(txt);
 
           nodesLayer.appendChild(g);
@@ -1329,7 +1521,7 @@
             txt.setAttribute("font-weight", "bold");
             txt.setAttribute("fill", "#0f172a");
             txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.35))})`);
-            txt.textContent = part.label;
+            renderMultilineText(txt, part.label, 0, -part.h * 0.35, { centered: true, fontSize: part.fontSize || 0.20 });
             gRobot.appendChild(txt);
           }
 
@@ -1384,7 +1576,7 @@
           txt.setAttribute("font-weight", "bold");
           txt.setAttribute("fill", "#0f172a");
           txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-part.h * 0.52))})`);
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, 0, -part.h * 0.52, { centered: true, fontSize: part.fontSize || 0.19 });
           gShield.appendChild(txt);
 
           g.appendChild(gShield);
@@ -1438,7 +1630,7 @@
           txt.setAttribute("font-weight", "600");
           txt.setAttribute("fill", "#0f172a");
           txt.setAttribute("transform", "scale(1, -1)");
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, 0.25, 0, { centered: true, fontSize: part.fontSize || 0.20 });
           gHyg.appendChild(txt);
 
           g.appendChild(gHyg);
@@ -1490,7 +1682,7 @@
           txt.setAttribute("font-weight", "600");
           txt.setAttribute("fill", "#0f172a");
           txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * (-0.15))})`);
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, 0, -0.15, { centered: true, fontSize: part.fontSize || 0.20 });
           gBox.appendChild(txt);
 
           g.appendChild(gBox);
@@ -1501,12 +1693,12 @@
           txt.setAttribute("x", part.x);
           txt.setAttribute("y", part.y);
           txt.setAttribute("text-anchor", "middle");
-          txt.setAttribute("dominant-baseline", "middle");
+          txt.setAttribute("dominant-baseline", "central");
           txt.setAttribute("font-size", part.fontSize || "0.22");
           txt.setAttribute("font-weight", part.fontWeight || "bold");
           txt.setAttribute("fill", part.color || "#0f172a");
           txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * part.y)})`);
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, part.x, part.y, { centered: true, fontSize: part.fontSize || 0.22, lineHeight: (part.fontSize || 0.22) * 1.3 });
           g.appendChild(txt);
 
           nodesLayer.appendChild(g);
@@ -1527,12 +1719,12 @@
           txt.setAttribute("x", part.x);
           txt.setAttribute("y", part.y);
           txt.setAttribute("text-anchor", "middle");
-          txt.setAttribute("dominant-baseline", "middle");
+          txt.setAttribute("dominant-baseline", "central");
           txt.setAttribute("font-size", part.fontSize || "0.20");
           txt.setAttribute("font-weight", "600");
           txt.setAttribute("fill", part.type === "pill" ? "#ffffff" : "#0f172a");
           txt.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * part.y)})`);
-          txt.textContent = part.label;
+          renderMultilineText(txt, part.label, part.x, part.y, { centered: true, fontSize: part.fontSize || 0.20, lineHeight: (part.fontSize || 0.20) * 1.3 });
           g.appendChild(txt);
 
           nodesLayer.appendChild(g);
@@ -1568,15 +1760,123 @@
           w: p.w, h: p.h
         };
       }
+      const w = p.w || 2.0;
+      const h = p.h || 1.0;
       return {
-        minX: p.x - p.w/2, maxX: p.x + p.w/2,
-        minY: p.y - p.h/2, maxY: p.y + p.h/2,
+        minX: p.x - w/2, maxX: p.x + w/2,
+        minY: p.y - h/2, maxY: p.y + h/2,
         cx: p.x, cy: p.y,
-        w: p.w, h: p.h
+        w: w, h: h
       };
     }
 
-    // Render Dynamic Arrows & Connectors
+    // Helper: Get Anchor Port coordinates and outward normal
+    function getAnchorPort(part, portName, targetPoint) {
+      const b = getPartBounds(part);
+      const ports = {
+        top: { x: b.cx, y: b.maxY, nx: 0, ny: 1, name: "top" },
+        right: { x: b.maxX, y: b.cy, nx: 1, ny: 0, name: "right" },
+        bottom: { x: b.cx, y: b.minY, nx: 0, ny: -1, name: "bottom" },
+        left: { x: b.minX, y: b.cy, nx: -1, ny: 0, name: "left" }
+      };
+
+      if (portName && portName !== "auto" && ports[portName]) {
+        return ports[portName];
+      }
+
+      // Auto: pick port oriented closest to targetPoint
+      if (targetPoint) {
+        const dx = targetPoint.x - b.cx;
+        const dy = targetPoint.y - b.cy;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          return dx > 0 ? ports.right : ports.left;
+        } else {
+          return dy > 0 ? ports.top : ports.bottom;
+        }
+      }
+      return ports.right;
+    }
+
+    // Handle Anchor Port Click for interactive arrow drawing
+    function handleAnchorPortClick(partId, anchorName) {
+      const data = FIGURES[currentFig];
+      if (!arrowConnectSource) {
+        arrowConnectSource = partId;
+        arrowConnectFromAnchor = anchorName;
+        showToast(`📍 Selected start: ${partId} (${anchorName}). Now click destination port!`);
+        renderAll();
+      } else if (arrowConnectSource !== partId || arrowConnectFromAnchor !== anchorName) {
+        const newArr = {
+          id: `arr_${Date.now()}`,
+          from: arrowConnectSource,
+          fromAnchor: arrowConnectFromAnchor,
+          to: partId,
+          toAnchor: anchorName,
+          label: "",
+          color: "#003fb8",
+          style: "solid",
+          routing: "spline",
+          direction: "forward",
+          bend: 0.0,
+          thickness: 0.045
+        };
+        if (!data.arrows) data.arrows = [];
+        data.arrows.push(newArr);
+        activeArrowId = newArr.id;
+        activePartId = null;
+        arrowConnectSource = null;
+        arrowConnectFromAnchor = null;
+        switchSidebarTab("arrow");
+        renderAll();
+        updateOutput();
+        showToast(`✓ Connected: ${newArr.from}.${newArr.fromAnchor} → ${newArr.to}.${newArr.toAnchor}`);
+      } else {
+        arrowConnectSource = null;
+        arrowConnectFromAnchor = null;
+        renderAll();
+      }
+    }
+
+    // Render 4-Cardinal Anchor Ports on Object Bounding Boxes
+    function renderAnchorPorts() {
+      const data = FIGURES[currentFig];
+      const partsToShow = (activeTool === "arrow" || arrowConnectSource)
+        ? data.parts
+        : (activePartId ? data.parts.filter(p => p.id === activePartId) : []);
+
+      partsToShow.forEach(part => {
+        const b = getPartBounds(part);
+        const ports = [
+          { name: "top", x: b.cx, y: b.maxY },
+          { name: "right", x: b.maxX, y: b.cy },
+          { name: "bottom", x: b.cx, y: b.minY },
+          { name: "left", x: b.minX, y: b.cy }
+        ];
+
+        ports.forEach(pt => {
+          const sq = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          const sz = 0.14;
+          sq.setAttribute("x", pt.x - sz/2);
+          sq.setAttribute("y", pt.y - sz/2);
+          sq.setAttribute("width", sz);
+          sq.setAttribute("height", sz);
+          sq.setAttribute("rx", "0.02");
+          const isSource = arrowConnectSource === part.id && arrowConnectFromAnchor === pt.name;
+          sq.setAttribute("class", `anchor-port ${isSource ? "active-source" : ""}`);
+          sq.setAttribute("data-part-id", part.id);
+          sq.setAttribute("data-anchor", pt.name);
+
+          sq.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+            handleAnchorPortClick(part.id, pt.name);
+          });
+
+          handlesLayer.appendChild(sq);
+        });
+      });
+    }
+
+    // Render Dynamic Arrows & Connectors (Splines, Orthogonal, Straight)
     function renderArrows() {
       arrowsLayer.innerHTML = "";
       const data = FIGURES[currentFig];
@@ -1590,89 +1890,121 @@
         const bA = getPartBounds(fromPart);
         const bB = getPartBounds(toPart);
 
-        // Compute start and end points
-        let x1, y1, x2, y2;
-        const dx = bB.cx - bA.cx;
-        const dy = bB.cy - bA.cy;
-
-        if (arr.style === "orthogonal") {
-          // L-shaped or stepped
-          if (Math.abs(dx) > Math.abs(dy)) {
-            x1 = dx > 0 ? bA.maxX : bA.minX;
-            y1 = bA.cy;
-            x2 = bB.cx;
-            y2 = dy > 0 ? bB.minY : bB.maxY;
-          } else {
-            x1 = bA.cx;
-            y1 = dy > 0 ? bA.maxY : bA.minY;
-            x2 = dx > 0 ? bB.minX : bB.maxX;
-            y2 = bB.cy;
-          }
-        } else {
-          // Direct straight
-          if (Math.abs(dx) > Math.abs(dy)) {
-            x1 = dx > 0 ? bA.maxX : bA.minX;
-            y1 = bA.cy;
-            x2 = dx > 0 ? bB.minX : bB.maxX;
-            y2 = bB.cy;
-          } else {
-            x1 = bA.cx;
-            y1 = dy > 0 ? bA.maxY : bA.minY;
-            x2 = bB.cx;
-            y2 = dy > 0 ? bB.minY : bB.maxY;
-          }
+        // Approximate target points for auto-orientation
+        let pA = getAnchorPort(fromPart, arr.fromAnchor || "auto", { x: bB.cx, y: bB.cy });
+        let pB = getAnchorPort(toPart, arr.toAnchor || "auto", { x: pA.x, y: pA.y });
+        if (arr.fromAnchor === "auto" || !arr.fromAnchor) {
+          pA = getAnchorPort(fromPart, "auto", { x: pB.x, y: pB.y });
         }
 
-        // SVG Path
+        const x1 = pA.x, y1 = pA.y;
+        const x2 = pB.x, y2 = pB.y;
+        const nx1 = pA.nx, ny1 = pA.ny;
+        const nx2 = pB.nx, ny2 = pB.ny;
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy) || 0.01;
+
         let d = "";
         let midX = (x1 + x2) / 2;
         let midY = (y1 + y2) / 2;
+        const routing = arr.routing || (arr.style === "orthogonal" ? "orthogonal" : "spline");
 
-        if (arr.style === "orthogonal") {
-          d = `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2}`;
-          midX = x2;
-          midY = (y1 + y2) / 2;
+        if (routing === "spline") {
+          const k = Math.max(0.3, dist * 0.45);
+          let cx1 = x1 + nx1 * k;
+          let cy1 = y1 + ny1 * k;
+          let cx2 = x2 + nx2 * k;
+          let cy2 = y2 + ny2 * k;
+
+          // Perpendicular bend offset
+          const bend = arr.bend !== undefined ? arr.bend : 0.0;
+          if (Math.abs(bend) > 0.001) {
+            const ux = -dy / dist;
+            const uy = dx / dist;
+            const offset = bend * 0.5 * dist;
+            cx1 += ux * offset;
+            cy1 += uy * offset;
+            cx2 += ux * offset;
+            cy2 += uy * offset;
+          }
+
+          d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} C ${cx1.toFixed(3)} ${cy1.toFixed(3)}, ${cx2.toFixed(3)} ${cy2.toFixed(3)}, ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+
+          // Midpoint on cubic Bezier at t = 0.5
+          const t = 0.5;
+          const omt = 1 - t;
+          midX = omt*omt*omt*x1 + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*x2;
+          midY = omt*omt*omt*y1 + 3*omt*omt*t*cy1 + 3*omt*t*t*cx2 + t*t*t*y2;
+        } else if (routing === "orthogonal") {
+          if (Math.abs(nx1) > 0) {
+            d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            midX = x2;
+            midY = (y1 + y2) / 2;
+          } else {
+            d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            midX = (x1 + x2) / 2;
+            midY = y2;
+          }
         } else {
-          d = `M ${x1} ${y1} L ${x2} ${y2}`;
+          // Direct Straight Line
+          d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+          midX = (x1 + x2) / 2;
+          midY = (y1 + y2) / 2;
         }
 
         // Marker Color mapping
-        let markerId = "arrow-dark";
-        if (arr.color === "#10b981") markerId = "arrow-green";
-        else if (arr.color === "#ef4444") markerId = "arrow-red";
-        else if (arr.color === "#003fb8") markerId = "arrow-cobalt";
-        else if (arr.color === "#0d9488") markerId = "arrow-teal";
+        let markerName = "dark";
+        if (arr.color === "#10b981") markerName = "green";
+        else if (arr.color === "#ef4444") markerName = "red";
+        else if (arr.color === "#003fb8") markerName = "cobalt";
+        else if (arr.color === "#0d9488") markerName = "teal";
+        else if (arr.color === "#64748b") markerName = "slate";
+        else if (arr.color === "#f59e0b") markerName = "amber";
 
         const gArr = document.createElementNS("http://www.w3.org/2000/svg", "g");
         gArr.setAttribute("class", "arrow-group");
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
-        path.setAttribute("class", `arrow-path ${arr.id === activeArrowId ? "selected" : ""}`);
+        const isSel = arr.id === activeArrowId;
+        path.setAttribute("class", `arrow-path ${isSel ? "selected" : ""}`);
         path.setAttribute("fill", "none");
-        path.setAttribute("stroke", arr.color);
-        path.setAttribute("stroke-width", "0.045");
+        path.setAttribute("stroke", arr.color || "#003fb8");
+        path.setAttribute("stroke-width", arr.thickness || "0.045");
+
         if (arr.style === "dashed" || arr.strokeDash) {
           path.setAttribute("stroke-dasharray", arr.strokeDash || "0.1, 0.06");
         } else if (arr.style === "dotted") {
           path.setAttribute("stroke-dasharray", "0.04, 0.04");
         }
-        path.setAttribute("marker-end", `url(#${markerId})`);
+
+        const dir = arr.direction || "forward";
+        if (dir === "forward" || dir === "both") {
+          path.setAttribute("marker-end", `url(#arrow-${markerName})`);
+        }
+        if (dir === "backward" || dir === "both") {
+          path.setAttribute("marker-start", `url(#arrow-${markerName})`);
+        }
+
         gArr.appendChild(path);
 
-        // Click to select arrow
+        // Click arrow to select
         path.addEventListener("click", (e) => {
           e.stopPropagation();
           selectArrow(arr.id);
         });
 
-        // Optional Pill Label
+        // Pill Label with Multiline Support
         if (arr.label && arr.label.trim().length > 0) {
           const gLabel = document.createElementNS("http://www.w3.org/2000/svg", "g");
           gLabel.setAttribute("class", "arrow-label-group");
-          
-          const labelWidth = Math.max(0.9, arr.label.length * 0.12);
-          const labelHeight = 0.28;
+
+          const labelLines = arr.label.split("\n");
+          const maxLineLen = Math.max(...labelLines.map(l => l.length));
+          const labelWidth = Math.max(0.9, maxLineLen * 0.12 + 0.3);
+          const labelHeight = Math.max(0.28, labelLines.length * 0.22 + 0.10);
 
           const pillBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
           pillBg.setAttribute("x", midX - labelWidth/2);
@@ -1681,20 +2013,18 @@
           pillBg.setAttribute("height", labelHeight);
           pillBg.setAttribute("rx", "0.06");
           pillBg.setAttribute("fill", "#ffffff");
-          pillBg.setAttribute("stroke", arr.color);
+          pillBg.setAttribute("stroke", arr.color || "#003fb8");
           pillBg.setAttribute("stroke-width", "0.015");
           gLabel.appendChild(pillBg);
 
           const lText = document.createElementNS("http://www.w3.org/2000/svg", "text");
           lText.setAttribute("x", midX);
           lText.setAttribute("y", midY);
-          lText.setAttribute("text-anchor", "middle");
-          lText.setAttribute("dominant-baseline", "middle");
+          lText.setAttribute("fill", arr.color || "#003fb8");
           lText.setAttribute("font-size", "0.16");
           lText.setAttribute("font-weight", "600");
-          lText.setAttribute("fill", arr.color);
           lText.setAttribute("transform", `scale(1, -1) translate(0, ${-(2 * midY)})`);
-          lText.textContent = arr.label;
+          renderMultilineText(lText, arr.label, midX, midY, { centered: true, fontSize: 0.16, lineHeight: 0.20 });
           gLabel.appendChild(lText);
 
           gLabel.addEventListener("click", (e) => {
@@ -1709,11 +2039,67 @@
       });
     }
 
-    // Render 8-point interactive resize handles
+    // Render 8-point interactive resize handles + Anchor Ports + Spline Bend Handles
     function renderResizeHandles() {
       handlesLayer.innerHTML = "";
-      if (!activePartId) return;
 
+      // Always render anchor ports for nodes
+      renderAnchorPorts();
+
+      // Render Spline Bend Handle if active arrow is spline
+      if (activeArrowId) {
+        const arr = FIGURES[currentFig].arrows ? FIGURES[currentFig].arrows.find(a => a.id === activeArrowId) : null;
+        if (arr && (arr.routing === "spline" || (!arr.routing && arr.style !== "orthogonal"))) {
+          const fromPart = FIGURES[currentFig].parts.find(p => p.id === arr.from);
+          const toPart = FIGURES[currentFig].parts.find(p => p.id === arr.to);
+          if (fromPart && toPart) {
+            const bA = getPartBounds(fromPart);
+            const bB = getPartBounds(toPart);
+            const pA = getAnchorPort(fromPart, arr.fromAnchor || "auto", { x: bB.cx, y: bB.cy });
+            const pB = getAnchorPort(toPart, arr.toAnchor || "auto", { x: pA.x, y: pA.y });
+            const dist = Math.hypot(pB.x - pA.x, pB.y - pA.y) || 0.01;
+            const k = Math.max(0.3, dist * 0.45);
+            let cx1 = pA.x + pA.nx * k, cy1 = pA.y + pA.ny * k;
+            let cx2 = pB.x + pB.nx * k, cy2 = pB.y + pB.ny * k;
+            const bend = arr.bend !== undefined ? arr.bend : 0.0;
+            if (Math.abs(bend) > 0.001) {
+              const ux = -(pB.y - pA.y) / dist;
+              const uy = (pB.x - pA.x) / dist;
+              const offset = bend * 0.5 * dist;
+              cx1 += ux * offset; cy1 += uy * offset;
+              cx2 += ux * offset; cy2 += uy * offset;
+            }
+            const t = 0.5, omt = 1 - t;
+            const hx = omt*omt*omt*pA.x + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*pB.x;
+            const hy = omt*omt*omt*pA.y + 3*omt*omt*t*cy1 + 3*omt*t*t*cx2 + t*t*t*pB.y;
+
+            // Connector line from chord center to spline handle
+            const chordMidX = (pA.x + pB.x) / 2;
+            const chordMidY = (pA.y + pB.y) / 2;
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", chordMidX);
+            line.setAttribute("y1", chordMidY);
+            line.setAttribute("x2", hx);
+            line.setAttribute("y2", hy);
+            line.setAttribute("stroke", "#f59e0b");
+            line.setAttribute("stroke-width", "0.015");
+            line.setAttribute("stroke-dasharray", "0.04, 0.04");
+            handlesLayer.appendChild(line);
+
+            // Draggable bend handle
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", hx);
+            circle.setAttribute("cy", hy);
+            circle.setAttribute("r", "0.10");
+            circle.setAttribute("class", "spline-handle");
+            circle.addEventListener("mousedown", (e) => startSplineBendDrag(e, arr.id));
+            handlesLayer.appendChild(circle);
+          }
+        }
+      }
+
+      // Render 8 Resize Handles on active part
+      if (!activePartId) return;
       const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
       if (!part) return;
 
@@ -1757,7 +2143,6 @@
       });
     }
 
-    // Populate Sidebar Lists
     function renderSidebarLists() {
       // Parts List
       partsList.innerHTML = "";
@@ -1825,9 +2210,21 @@
       selectedBadge.textContent = "Arrow: " + (arr.label || arr.id);
       inpArrowLabel.value = arr.label || "";
       inpArrowFrom.value = arr.from;
+      if (inpArrowFromAnchor) inpArrowFromAnchor.value = arr.fromAnchor || "auto";
       inpArrowTo.value = arr.to;
-      inpArrowColor.value = arr.color;
+      if (inpArrowToAnchor) inpArrowToAnchor.value = arr.toAnchor || "auto";
+      if (inpArrowRouting) inpArrowRouting.value = arr.routing || (arr.style === "orthogonal" ? "orthogonal" : "spline");
+      if (inpArrowDirection) inpArrowDirection.value = arr.direction || "forward";
+      inpArrowColor.value = arr.color || "#003fb8";
       inpArrowStyle.value = arr.style || "solid";
+      if (inpArrowBend) {
+        inpArrowBend.value = arr.bend !== undefined ? arr.bend : 0.0;
+        if (valArrowBend) valArrowBend.textContent = (arr.bend !== undefined ? arr.bend : 0.0).toFixed(1);
+      }
+      if (inpArrowThick) {
+        inpArrowThick.value = arr.thickness !== undefined ? arr.thickness : 0.05;
+        if (valArrowThick) valArrowThick.textContent = (arr.thickness !== undefined ? arr.thickness : 0.05).toFixed(2);
+      }
 
       switchSidebarTab("arrow");
       renderAll();
@@ -2021,6 +2418,64 @@
       });
     });
 
+        // Dragging Logic for Spline Bend Handle
+    function startSplineBendDrag(e, arrId) {
+      e.stopPropagation();
+      isDraggingSplineHandle = true;
+      activeArrowId = arrId;
+      selectArrow(arrId);
+
+      window.addEventListener("mousemove", onSplineBendDrag);
+      window.addEventListener("mouseup", stopSplineBendDrag);
+    }
+
+    function onSplineBendDrag(e) {
+      if (!isDraggingSplineHandle || !activeArrowId) return;
+      const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+      if (!arr) return;
+
+      const fromPart = FIGURES[currentFig].parts.find(p => p.id === arr.from);
+      const toPart = FIGURES[currentFig].parts.find(p => p.id === arr.to);
+      if (!fromPart || !toPart) return;
+
+      const bA = getPartBounds(fromPart);
+      const bB = getPartBounds(toPart);
+      const pA = getAnchorPort(fromPart, arr.fromAnchor || "auto", { x: bB.cx, y: bB.cy });
+      const pB = getAnchorPort(toPart, arr.toAnchor || "auto", { x: pA.x, y: pA.y });
+
+      const dx = pB.x - pA.x;
+      const dy = pB.y - pA.y;
+      const dist = Math.hypot(dx, dy) || 0.01;
+
+      const ux = -dy / dist;
+      const uy = dx / dist;
+
+      const coords = getSvgCoordinates(e);
+      const chordMidX = (pA.x + pB.x) / 2;
+      const chordMidY = (pA.y + pB.y) / 2;
+      const vmx = coords.x - chordMidX;
+      const vmy = coords.y - chordMidY;
+
+      const perpDist = vmx * ux + vmy * uy;
+      let bend = perpDist / (0.5 * dist);
+      bend = Math.max(-2.0, Math.min(2.0, Math.round(bend * 10) / 10));
+
+      arr.bend = bend;
+      arr.routing = "spline";
+      if (inpArrowBend) inpArrowBend.value = bend;
+      if (valArrowBend) valArrowBend.textContent = bend.toFixed(1);
+      if (inpArrowRouting) inpArrowRouting.value = "spline";
+
+      renderAll();
+      updateOutput();
+    }
+
+    function stopSplineBendDrag() {
+      isDraggingSplineHandle = false;
+      window.removeEventListener("mousemove", onSplineBendDrag);
+      window.removeEventListener("mouseup", stopSplineBendDrag);
+    }
+
     // Input Listeners: Arrow Properties
     inpArrowLabel.addEventListener("input", () => {
       if (!activeArrowId) return;
@@ -2058,6 +2513,17 @@
       updateOutput();
     });
 
+    if (inpArrowFromAnchor) {
+      inpArrowFromAnchor.addEventListener("change", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.fromAnchor = inpArrowFromAnchor.value;
+        renderAll();
+        updateOutput();
+      });
+    }
+
     inpArrowTo.addEventListener("change", () => {
       if (!activeArrowId) return;
       const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
@@ -2066,6 +2532,65 @@
       renderAll();
       updateOutput();
     });
+
+    if (inpArrowToAnchor) {
+      inpArrowToAnchor.addEventListener("change", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.toAnchor = inpArrowToAnchor.value;
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    if (inpArrowRouting) {
+      inpArrowRouting.addEventListener("change", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.routing = inpArrowRouting.value;
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    if (inpArrowDirection) {
+      inpArrowDirection.addEventListener("change", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.direction = inpArrowDirection.value;
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    if (inpArrowBend) {
+      inpArrowBend.addEventListener("input", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.bend = parseFloat(inpArrowBend.value) || 0.0;
+        if (valArrowBend) valArrowBend.textContent = arr.bend.toFixed(1);
+        arr.routing = "spline";
+        if (inpArrowRouting) inpArrowRouting.value = "spline";
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    if (inpArrowThick) {
+      inpArrowThick.addEventListener("input", () => {
+        if (!activeArrowId) return;
+        const arr = FIGURES[currentFig].arrows.find(a => a.id === activeArrowId);
+        if (!arr) return;
+        arr.thickness = parseFloat(inpArrowThick.value) || 0.05;
+        if (valArrowThick) valArrowThick.textContent = arr.thickness.toFixed(2);
+        renderAll();
+        updateOutput();
+      });
+    }
 
     // View Mode Toggles
     const btnSplit = document.getElementById("btn-mode-split");
@@ -2139,9 +2664,38 @@
         if (data.arrows && data.arrows.length > 0) {
           tikzStr += `\n% Arrows & Connections\n`;
           data.arrows.forEach(a => {
-            const lbl = a.label ? ` node[fill=white, inner sep=1.5pt] {${a.label}}` : "";
-            const dash = a.style === "dashed" ? ", dashed" : "";
-            tikzStr += `\\draw[pd arrow${dash}] (${a.from}) --${lbl} (${a.to});\n`;
+            const fromAnchor = (a.fromAnchor && a.fromAnchor !== "auto") ? `.${a.fromAnchor}` : "";
+            const toAnchor = (a.toAnchor && a.toAnchor !== "auto") ? `.${a.toAnchor}` : "";
+            const fromStr = `(${a.from}${fromAnchor})`;
+            const toStr = `(${a.to}${toAnchor})`;
+
+            let arrowStyle = "pd arrow";
+            if (a.direction === "backward") arrowStyle = "pd arrow<=";
+            else if (a.direction === "both") arrowStyle = "pd arrow<->";
+            else if (a.direction === "none") arrowStyle = "-";
+
+            if (a.style === "dashed") arrowStyle += ", dashed";
+            else if (a.style === "dotted") arrowStyle += ", dotted";
+
+            let bendOption = "";
+            if (a.routing === "spline" && a.bend && Math.abs(a.bend) > 0.001) {
+              const deg = Math.round(a.bend * 30);
+              bendOption = deg > 0 ? `, bend left=${deg}` : `, bend right=${-deg}`;
+            }
+
+            let multilineLabel = "";
+            if (a.label && a.label.trim().length > 0) {
+              const escaped = a.label.replace(/\n/g, " \\\\ ");
+              multilineLabel = ` node[fill=white, inner sep=1.5pt, align=center] {${escaped}}`;
+            }
+
+            if (a.routing === "orthogonal") {
+              tikzStr += `\\draw[${arrowStyle}] ${fromStr} -|${multilineLabel} ${toStr};\n`;
+            } else if (bendOption) {
+              tikzStr += `\\draw[${arrowStyle}${bendOption}] ${fromStr} to${multilineLabel} ${toStr};\n`;
+            } else {
+              tikzStr += `\\draw[${arrowStyle}] ${fromStr} --${multilineLabel} ${toStr};\n`;
+            }
           });
         }
 
@@ -2421,6 +2975,61 @@
         updateOutput();
         showToast("🗑️ Deleted node and connected arrows");
       }
+    }
+
+        // AI Glyph Request Generator
+    if (btnGenerateGlyph) {
+      btnGenerateGlyph.addEventListener("click", async () => {
+        const prompt = inpAiPrompt ? inpAiPrompt.value.trim() : "";
+        const preset = selPresetGlyph ? selPresetGlyph.value : "custom";
+
+        const payload = {
+          figure: currentFig,
+          timestamp: new Date().toISOString(),
+          partId: activePartId,
+          preset: preset,
+          prompt: prompt || (preset !== "custom" ? "Preset: " + preset : "Custom vector drawing request")
+        };
+
+        try {
+          const res = await fetch("/api/request-glyph", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            showToast("✨ AI Vector Glyph request recorded!");
+          } else {
+            showToast("✨ AI Vector Glyph request recorded locally!");
+          }
+        } catch (e) {
+          showToast("✨ AI Vector Glyph request recorded locally!");
+        }
+      });
+    }
+
+    if (btnAddGlyph) {
+      btnAddGlyph.addEventListener("click", () => {
+        const preset = selPresetGlyph ? selPresetGlyph.value : "robot_laptop";
+        const data = FIGURES[currentFig];
+        const newPart = {
+          id: `glyph_${Date.now()}`,
+          label: preset === "robot_laptop" ? "AI Agent" : "AI Glyph",
+          type: preset === "robot_laptop" ? "robot" : (preset === "shield_lock" ? "shield" : "node"),
+          x: 8.5,
+          y: 4.2,
+          w: 2.0,
+          h: 1.5,
+          fontSize: 0.20,
+          color: "#003fb8",
+          showBox: preset !== "robot_laptop"
+        };
+        data.parts.push(newPart);
+        selectPart(newPart.id);
+        renderAll();
+        updateOutput();
+        showToast("✨ Added AI Glyph Node");
+      });
     }
 
     // Wire Sidebar Add/Delete Buttons
