@@ -580,7 +580,7 @@
       </div>
       <div class="source-body">
         <div class="source-img-wrapper">
-          <img id="source-ref-img" src="figures/fig-ch0-lifecycle-hooks.jpg" alt="Source Figure Prototype">
+          <img id="source-ref-img" src="figures/fig-ch0-lifecycle-diagram.jpg" alt="Source Figure Prototype">
         </div>
       </div>
     </div>
@@ -622,7 +622,7 @@
           <rect width="17" height="8.5" fill="url(#grid-1cm)"/>
 
           <!-- Prototype Raster Background Layer (for overlay mode) -->
-          <image id="prototype-image" x="0.2" y="0.2" width="16.5" height="8.1" preserveAspectRatio="none" opacity="0.30" href="figures/fig-ch0-lifecycle-hooks.jpg"/>
+          <image id="prototype-image" x="0.2" y="0.2" width="16.5" height="8.1" preserveAspectRatio="none" opacity="0.30" href="figures/fig-ch0-lifecycle-diagram.jpg"/>
 
           <!-- Interactive Vector Layer (TikZ Cartesian Coords: y=0 at bottom) -->
           <g id="vector-layer" transform="scale(1, -1) translate(0, -8.5)">
@@ -784,41 +784,38 @@
     // Master Registry of Figures with Components, Dimensions, Text & Arrows
     const FIGURES = {
       "fig-0.16": {
-        name: "Figure 0.16 · Agent Lifecycle Hooks Cross-Section",
-        image: "figures/fig-ch0-lifecycle-hooks.jpg",
+        name: "Figure 0.16 · The Agent Lifecycle Hook Cross-Section",
+        image: "figures/fig-ch0-lifecycle-diagram.jpg",
         viewBox: { w: 17.0, h: 8.5 },
         parts: [
-          { id: "outer_loop", label: "Agent Interaction Loop", type: "boundary", x: 0.35, y: 0.75, w: 10.65, h: 6.75, color: "#1e40af", fill: "rgba(238, 242, 255, 0.35)", strokeDash: "0.15, 0.1" },
-          { id: "sess_start", label: "SessionStart", type: "pill", x: 1.30, y: 6.60, w: 2.2, h: 0.5, color: "#0f172a" },
-          { id: "prompt_sub", label: "UserPromptSubmit", type: "pill", x: 1.30, y: 5.20, w: 2.6, h: 0.5, color: "#0f172a" },
-          { id: "delib_robot", label: "Deliberation Robot", type: "robot", x: 1.30, y: 3.25, w: 2.0, h: 1.8, color: "#003fb8" },
-          { id: "inner_loop", label: "Inner Tool Loop", type: "boundary", x: 3.20, y: 0.95, w: 6.70, h: 5.70, color: "#2563eb", fill: "rgba(255, 255, 255, 0.9)", strokeDash: "0.12, 0.08" },
-          { id: "node_delib", label: "Agent Deliberation Card", type: "card", x: 6.55, y: 5.75, w: 2.50, h: 1.10, color: "#003fb8" },
-          { id: "node_secgate", label: "PreToolUse Security Gate", type: "shield", x: 4.45, y: 3.80, w: 2.00, h: 1.20, color: "#003fb8" },
-          { id: "node_sandbox", label: "Seatbelt Sandbox", type: "card", x: 8.75, y: 3.80, w: 1.70, h: 1.90, color: "#0f172a" },
-          { id: "node_hygiene", label: "PostToolUse Hygiene", type: "node", x: 6.55, y: 1.95, w: 2.20, h: 1.00, color: "#0d9488" },
-          { id: "stop_gate", label: "Stop Gate", type: "shield", x: 10.45, y: 0.55, w: 1.6, h: 1.1, color: "#003fb8" },
-          { id: "case_a", label: "Case A (Security Veto)", type: "casecard", x: 11.60, y: 5.25, w: 4.80, h: 2.10, color: "#ef4444" },
-          { id: "case_b", label: "Case B (Code Hygiene)", type: "casecard", x: 11.60, y: 2.80, w: 4.80, h: 2.10, color: "#10b981" },
-          { id: "case_c", label: "Case C (Test Gate)", type: "casecard", x: 11.60, y: 0.35, w: 4.80, h: 2.10, color: "#f59e0b" }
+          { id: "outer_loop", label: "Agent Interaction Loop", type: "boundary", x: 0.60, y: 0.70, w: 10.40, h: 6.80, color: "#1e40af", fill: "rgba(238, 242, 255, 0.25)", strokeDash: "0.15, 0.1" },
+          { id: "sess_start", label: "SessionStart", type: "pill", x: 1.80, y: 6.60, w: 2.00, h: 0.45, color: "#0f172a" },
+          { id: "prompt_sub", label: "UserPromptSubmit", type: "pill", x: 1.80, y: 5.40, w: 2.40, h: 0.45, color: "#0f172a" },
+          { id: "delib_robot", label: "Agent Deliberation", type: "robot", x: 1.80, y: 3.40, w: 1.80, h: 1.60, color: "#003fb8" },
+          { id: "inner_loop", label: "Inner Tool Loop", type: "boundary", x: 3.80, y: 1.20, w: 6.40, h: 5.80, color: "#2563eb", fill: "rgba(255, 255, 255, 0.9)", strokeDash: "0.12, 0.08" },
+          { id: "node_delib", label: "Agent Deliberation", type: "card", x: 7.00, y: 6.00, w: 2.60, h: 1.20, color: "#003fb8" },
+          { id: "node_sandbox", label: "Seatbelt Sandbox", type: "card", x: 8.80, y: 3.80, w: 1.80, h: 1.60, color: "#0f172a" },
+          { id: "node_hygiene", label: "PostToolUse Hygiene", type: "node", x: 7.00, y: 1.80, w: 2.40, h: 1.00, color: "#0d9488" },
+          { id: "node_secgate", label: "PreToolUse Security Gate", type: "shield", x: 5.00, y: 3.80, w: 2.00, h: 1.30, color: "#003fb8" },
+          { id: "stop_gate", label: "Stop Gate", type: "shield", x: 10.40, y: 0.80, w: 1.60, h: 1.10, color: "#003fb8" },
+          { id: "case_a", label: "Pre-Tool Security Veto:\nBash('git push -f origin main')\n-> Blocked (Exit 2)", type: "casecard", x: 11.60, y: 5.40, w: 4.80, h: 1.80, color: "#ef4444" },
+          { id: "case_b", label: "Reactive Code Hygiene:\nEdit('jwt.ts')\n-> Biome Formatted (Exit 0)", type: "casecard", x: 11.60, y: 3.30, w: 4.80, h: 1.80, color: "#10b981" },
+          { id: "case_c", label: "Closeout Test Gate:\nStop hook runs tests -> Failed\n-> Repair Compelled", type: "casecard", x: 11.60, y: 1.20, w: 4.80, h: 1.80, color: "#f59e0b" }
         ],
         arrows: [
-          { id: "arr_sess_prompt", from: "sess_start", to: "prompt_sub", label: "Init Context", color: "#64748b", style: "solid" },
-          { id: "arr_prompt_robot", from: "prompt_sub", to: "delib_robot", label: "User Prompt", color: "#003fb8", style: "solid" },
+          { id: "arr_sess_prompt", from: "sess_start", to: "prompt_sub", label: "", color: "#0f172a", style: "solid" },
+          { id: "arr_prompt_robot", from: "prompt_sub", to: "delib_robot", label: "", color: "#0f172a", style: "solid" },
           { id: "arr_robot_delib", from: "delib_robot", to: "node_delib", label: "Turn Begins", color: "#003fb8", style: "orthogonal" },
-          { id: "arr_delib_secgate", from: "node_delib", to: "node_secgate", label: "Tool Call", color: "#003fb8", style: "solid" },
-          { id: "arr_secgate_sandbox", from: "node_secgate", to: "node_sandbox", label: "Exit 0 (Permit)", color: "#10b981", style: "solid" },
-          { id: "arr_sandbox_hygiene", from: "node_sandbox", to: "node_hygiene", label: "Tool Output", color: "#0d9488", style: "solid" },
-          { id: "arr_hygiene_delib", from: "node_hygiene", to: "node_delib", label: "Exit 0 (Clean Prompt)", color: "#10b981", style: "solid" },
-          { id: "arr_sandbox_stop", from: "node_sandbox", to: "stop_gate", label: "Exit 2 (Hard Veto)", color: "#ef4444", style: "orthogonal", strokeDash: "0.1, 0.05" },
-          { id: "arr_delib_case_a", from: "node_delib", to: "case_a", label: "Veto Trigger", color: "#94a3b8", style: "dashed" },
-          { id: "arr_hygiene_case_b", from: "node_hygiene", to: "case_b", label: "Linter Gate", color: "#94a3b8", style: "dashed" },
-          { id: "arr_stop_case_c", from: "stop_gate", to: "case_c", label: "Oracle Check", color: "#94a3b8", style: "dashed" }
+          { id: "arr_delib_sandbox", from: "node_delib", to: "node_sandbox", label: "(Exit 0)", color: "#10b981", style: "solid" },
+          { id: "arr_sandbox_hygiene", from: "node_sandbox", to: "node_hygiene", label: "", color: "#10b981", style: "solid" },
+          { id: "arr_hygiene_secgate", from: "node_hygiene", to: "node_secgate", label: "(Exit 0)", color: "#10b981", style: "solid" },
+          { id: "arr_secgate_delib", from: "node_secgate", to: "node_delib", label: "", color: "#10b981", style: "solid" },
+          { id: "arr_sandbox_stop", from: "node_sandbox", to: "stop_gate", label: "(Exit 2 Veto)", color: "#ef4444", style: "orthogonal", strokeDash: "0.1, 0.05" }
         ]
       },
       "fig-0.15": {
         name: "Figure 0.15 · Progressive Disclosure of Skills",
-        image: "figures/fig-ch0-skills-logarithmic.jpg",
+        image: "figures/fig-ch0-skills-diagram.jpg",
         viewBox: { w: 17.0, h: 8.5 },
         parts: [
           { id: "card_1", label: "Decade 10^0: Frontmatter (~100t)", type: "card", x: 2.20, y: 4.20, w: 2.40, h: 5.60, color: "#ef4444" },
