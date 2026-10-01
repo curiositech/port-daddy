@@ -1153,7 +1153,7 @@ Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified 
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-closed-loop-diagram.jpg}%
+    \input{figures/fig-ch0-closed-loop-diagram.tex}%
   }
   \pdwidecaption{\textbf{The Closed Agentic Architecture Loop.} Three architectural tiers separating probabilistic deliberation from deterministic kernel coordination: (1)~Probabilistic Deliberation Layer (LLM reasoning and planning); (2)~Confined Execution Layer (sandboxed host containers and tool execution); and (3)~Deterministic Governance Layer (single-writer SQLite WAL, capability verification, and tamper-evident Merkle attestation).}[fig:pre-agent-loop]
 \end{figure}
