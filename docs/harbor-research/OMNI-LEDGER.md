@@ -8,9 +8,9 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 
 | ID | Work | Papers | Status | Next action |
 |---|---|---|---|---|
-| [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | twelve scoped source corrections and local publication reconciliation complete; hosted checks pending | Finish Paper1 visual gate and hosted publication validation; twelve scoped corrections resolved, remaining research imports stay open. |
-| [NEXT-P1](#work-next-p1) | Decision-preserving oversight and manuscript arithmetic | ["1"] | open | Propagate the proved arithmetic corrections to manuscript, chapter, figures and index; evaluate a witness-preserving digest against a structured index. |
-| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | open | Integrate reachable-maximum admission, activation witnesses and corrected enumeration claims; handle mutually exclusive futures explicitly. |
+| [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | twelve scoped corrections and pinned publication reconciliation complete; final source CI pending | Finish exact-head source CI and protected merge; remaining research imports stay open and ordered in PROGRAM-RECONCILIATION. |
+| [NEXT-P1](#work-next-p1) | Decision-preserving oversight and manuscript arithmetic | ["1"] | arithmetic and publication corrections complete; comparative utility open | Evaluate a witness-preserving digest against a structured index using held-out decision loss and total inspection cost. |
+| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | finite reachable-family result verified; reachability integration open | Supply and validate a real reachability provider; compare incremental admission and witness enumeration with batch Horn closure and SAT/SMT on matched workloads. |
 | [NEXT-P8](#work-next-p8) | Authenticated typed evidence auditor and topology design | ["8"] | open | Add authenticated packet admission and a framework adapter; design topology for declared detection/correction distance and cost. |
 | [PROGRAM-RECONCILIATION](#work-program-reconciliation) | Correct the scientific estate and develop evidence-safe decisions | ["Book", "research portfolio"] | scientific and pinned publication verification complete; final source checks and merge pending | Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol. |
 | [SOURCE-RETENTION](#work-source-retention) | Exact source preservation and paper retention | [] | implemented; local integrity checks passed | Keep the ledger and its projections current; observe hosted checks for publication. |
@@ -231,9 +231,9 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 <a id="work-book-research-uptake"></a>
 ### BOOK-RESEARCH-UPTAKE: Book uptake of the research: coverage, corrections and useful imports
 
-**Status:** twelve scoped source corrections and local publication reconciliation complete; hosted checks pending. **Kind:** source and publication assessment.
+**Status:** twelve scoped corrections and pinned publication reconciliation complete; final source CI pending. **Kind:** source and publication assessment.
 
-**Result or question:** Current reconciliation: the seven named mathematical/scope conflicts have source patches and bounded checks. Chapters 5, 6 and 8 now develop safe continuation, finite reachable-family admission and least-cost categorical certificates. The rebuilt 592-page Book has been inspected at the changed claims; the source/PDF hashes and exact text searches are recorded in PROGRAM-RECONCILIATION. Hosted checks remain pending. Remaining research imports retain their open status. The assessment below is the hash-bound audit snapshot; its findings are superseded only by explicit resolutions.
+**Result or question:** Current reconciliation: twelve enumerated mathematical and interpretive conflicts have source corrections and bounded checks. Chapters 5, 6 and 8 develop safe continuation, finite reachable-family admission and least-cost categorical certificates. The pinned 592-page Book has been inspected at the changed claims; source/PDF hashes and exact text searches are recorded in PROGRAM-RECONCILIATION. Research PDF mirrors and strict publication metadata pass. Final source CI and merge remain pending. Remaining research imports retain their open status. The assessment below is the hash-bound audit snapshot; its findings are superseded only by explicit resolutions.
 
 The research already supplies much of the Book's formal backbone. The largest remaining value is to make evidence conditions operational, repair inconsistent statements, and carry source claims into the actual publication artifact.
 
@@ -287,7 +287,7 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 **Evidence:** Current source-section review and targeted comparison with the 589-page checked-in PDF; exact snapshots and 29 detailed findings retained in this record audit data.; Decision-odds counterexample independently recomputed using exact rational arithmetic. No claim of rerunning every cited proof or historical experiment.
 
-**Next action:** Finish Paper1 visual gate and hosted publication validation; twelve scoped corrections resolved, remaining research imports stay open.
+**Next action:** Finish exact-head source CI and protected merge; remaining research imports stay open and ordered in PROGRAM-RECONCILIATION.
 
 **Completion condition:** Every incorporated result names its observation model, assumptions, decision consequence and source witness.; Correct formulas, comparator roles and output complexity agree across paper, chapter, figure and index.; Every intended Book PDF is generated from the accepted sources and checked for the corrected statements.; Uncertain-answer acquisition, field detection, replay fidelity and reviewer efficacy remain open until their declared experiments or refinements pass.
 
@@ -298,13 +298,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-next-p1"></a>
 ### NEXT-P1: Decision-preserving oversight and manuscript arithmetic
 
-**Status:** open. **Kind:** research task.
+**Status:** arithmetic and publication corrections complete; comparative utility open. **Kind:** research task.
 
-**Result or question:** The bounded digest results do not prove that separate model processes are necessary. The superadditivity reason and odds denominator require correction.
+**Result or question:** The bounded digest results do not prove that separate model processes are necessary. The split-floor reasoning, odds denominator, strict boundaries and other enumerated scope errors are corrected across Paper1 and Chapter4.
 
 **Assumptions:** Declared observation, authority, and cost model; no field validation inferred from finite fixtures.
 
-**Next action:** Propagate the proved arithmetic corrections to manuscript, chapter, figures and index; evaluate a witness-preserving digest against a structured index.
+**Evidence:** PROGRAM-RECONCILIATION: nine exact boundary tests and source/figure/PDF verification.
+
+**Next action:** Evaluate a witness-preserving digest against a structured index using held-out decision loss and total inspection cost.
 
 **Completion condition:** Correct probability and odds thresholds; all twins agree; held-out decision loss and inspection cost reported.
 
@@ -315,15 +317,17 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-next-p6"></a>
 ### NEXT-P6: Future-safe commitments and output-sensitive conflict checking
 
-**Status:** open. **Kind:** research task.
+**Status:** finite reachable-family result verified; reachability integration open. **Kind:** research task.
 
 **Result or question:** Dormant facts can activate conflict after admission; all-conflict enumeration must charge output size.
 
 **Assumptions:** Declared observation, authority, and cost model; no field validation inferred from finite fixtures.
 
-**Next action:** Integrate reachable-maximum admission, activation witnesses and corrected enumeration claims; handle mutually exclusive futures explicitly.
+**Evidence:** PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.
 
-**Completion condition:** Current-state-only admission mutant fails; unreachable union does not masquerade as exact; decision and enumeration complexity separated.
+**Next action:** Supply and validate a real reachability provider; compare incremental admission and witness enumeration with batch Horn closure and SAT/SMT on matched workloads.
+
+**Completion condition:** Preserve current-state and unreachable-union counterexamples; verify reachability provenance and output-sensitive cost on operational workloads.
 
 **Dependencies:** FUTURE-HORN; R17-B4; R5
 
