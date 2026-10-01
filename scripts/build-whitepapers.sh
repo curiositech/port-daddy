@@ -241,6 +241,8 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
+  # Reference licensed fonts in place; never copy them into public/.
+  python3 scripts/prepare-book-fonts.py "$outdir" || return 1
 
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
