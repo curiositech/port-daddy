@@ -162,6 +162,29 @@ def call_gemini(
     )
 
 
+def _autoload_api_key() -> str | None:
+    """Self-source GEMINI_API_KEY so callers can skip the grep/cut env dance.
+
+    Every session used to run:
+      export GEMINI_API_KEY=$(grep "^GEMINI_API_KEY=" ~/coding/jbuds4life/next-app/.env.local | cut -d= -f2-)
+    That incantation now lives here. Checked in order; first hit wins.
+    """
+    candidates = [
+        Path.home() / "coding/jbuds4life/next-app/.env.local",
+        Path.home() / ".claude/skills/nano-banana-image-gen/.env.local",
+    ]
+    for env_file in candidates:
+        try:
+            for line in env_file.read_text().splitlines():
+                if line.startswith("GEMINI_API_KEY="):
+                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if key:
+                        return key
+        except OSError:
+            continue
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scene", required=True, help="Scene description (the [New scenario] piece of the prompt formula)")
@@ -179,9 +202,9 @@ def main() -> int:
     if args.aspect not in VALID_ASPECTS:
         sys.exit(f"Unsupported aspect ratio: {args.aspect}. Supported: {sorted(VALID_ASPECTS)}")
 
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY") or _autoload_api_key()
     if not api_key:
-        sys.exit("GEMINI_API_KEY not set. Get a key at https://aistudio.google.com/app/apikey")
+        sys.exit("GEMINI_API_KEY not set and not found in known .env.local files. Get a key at https://aistudio.google.com/app/apikey")
 
     refs: list[Path] = []
     for p in (args.char, args.style):

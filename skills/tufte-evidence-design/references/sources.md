@@ -124,26 +124,19 @@ quote.
 - `website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex`
   — the Book's 7×10 trim geometry: 4.5in text column, 1.3in `marginparwidth`,
   0.2in `marginparsep`; `\pdfullwidth` macro and the `pgfsys@typesetpicturebox`
-  hook that promotes an over-wide TikZ picture to a full-width figure
-  automatically. `[verified — read directly, this repo]`
+  hook. Captioned figures must fit the body column; new margin evidence fails
+  rather than scaling. A legacy spill/scale path remains for other inline art
+  and must not be treated as an authoring recommendation.
 - `website-v2/public/whitepaper/figures/pd-pedagogy.tex` (byte-identical twin of
   `whitepaper/figures/pd-pedagogy.tex`) — defines `\pdmarginfigure{slug}{caption}`
   (a duotone portrait keyed to `plates/marginalia/<slug>.jpg`, Book-only, silently
   a no-op when `\ifpdmargincolumn` is false) and the whole pedagogic apparatus
   (`pdclaim`, `pdboundary`, `pdexample`, `pdrecitation`, `pdexercise`,
   `pdsession`). `[verified — read directly, this repo]`
-- `\pdgloss{Term}{one-line definition}` **is implemented** in
-  `whitepaper/figures/pd-pedagogy.tex` (and its byte-identical twin
-  `website-v2/public/whitepaper/figures/pd-pedagogy.tex`), in the "Shared
-  helpers" section alongside `\pd@marginglyph`. It sets `Term` bold at its
-  point of definition in the running text, then, when the Book's
-  `\ifpdmargincolumn` switch is true, carries the definition as one combined
-  margin note (a small-caps repeat of `Term` above the definition, set at
-  `\marginfont`); in a standalone chapter (`\ifpdmargincolumn` false, the
-  default) it instead folds the definition back into the sentence as an
-  italic parenthetical, so no content is lost either way. `[verified — read
-  directly, this repo]` It is safe to tell a caller to use `\pdgloss`. See
-  `references/margin-apparatus.md`.
+- `\pdgloss` is implemented in the pedagogy twins. The older handoff's planned
+  status is obsolete. `figures/pd-margin-layout.tex` records shipped anchors and
+  places measured boxes; `figures/pd-margin-evidence.tex` adds native-size tables,
+  counterexamples and generated analogies. See `references/margin-apparatus.md`.
 - `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` and
   `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` — the current
   marginalia proposal (which chapters/sections get which portrait, at most one
