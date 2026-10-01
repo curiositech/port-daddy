@@ -1462,6 +1462,11 @@ mod tests {
         assert!(pane.error.as_deref().unwrap().contains("existing buffer was kept"));
         assert!(Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
         assert!(!pane.has_unpersisted_operations());
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        let verification = pane.prepare_save().unwrap();
+        assert!(verification.is_verification());
+        assert!(pane.complete_save(verification.run()).is_err(),
+            "failed reload must retain the old save target and detect the external change");
 
         std::fs::write(&path, "other\n").unwrap();
         pane.load();
@@ -1470,6 +1475,27 @@ mod tests {
         assert!(pane.error.is_none());
         assert!(!pane.has_unpersisted_operations());
         assert!(!Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+    }
+
+    #[test]
+    fn reload_waits_for_save_and_preserves_history_after_successful_text_write() {
+        let path = write_temp("reload-during-save.txt", "first\n");
+        let mut pane = make_pane(&path, None);
+        let peer = pane.buffer().unwrap().local_peer();
+        pane.apply_local_text_edit(0..0, "mine ").unwrap();
+        let request = pane.prepare_save().unwrap();
+        pane.load();
+        assert_eq!(pane.save_status(), "SAVING LOCAL");
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        pane.complete_save(request.run()).unwrap();
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "mine first\n");
+        pane.load();
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert!(pane.has_unpersisted_operations(),
+            "a text save does not persist the CRDT edit and undo history");
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
     }
 
     #[test]
@@ -1482,7 +1508,7 @@ mod tests {
         let pending = peer.replace_authored(7..7, "later");
         let stamp = pane.buffer().unwrap().change_stamp();
         let incarnation = pane.buffer().unwrap().local_peer();
-        pane.buffer().unwrap().apply_remote_ops(&pending).unwrap();
+        pane.buffer().unwrap().apply_remote_ops(&pending.delta).unwrap();
         assert_eq!(pane.buffer().unwrap().change_stamp(), stamp,
             "the visible frontier alone cannot detect dependency-pending work");
         assert!(pane.has_unpersisted_operations());
