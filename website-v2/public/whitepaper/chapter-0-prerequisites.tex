@@ -50,6 +50,10 @@
 \input{figures/pd-swiss-evidence}
 
 \newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}{Corollary}[section]
 
 \providecommand{\keyidea}[1]{}
 \providecommand{\pitfall}[1]{}
@@ -439,7 +443,7 @@ Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architec
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-bdi-diagram.jpg}%
+    \input{figures/fig-ch0-bdi-execution.tex}%
   }
   \pdwidecaption{\textbf{BDI Execution Flow and Operational Choice Architecture.} Grounded in real-world software engineering workflows, adapted from AgentSpeak(L) semantics (Bordini et al., 2007). Contrasting reactive rule triggers, static STRIPS-style planners, and dynamic BDI agents. The three core selection functions ($S_E$ for events, $S_O$ for applicable plans, and $S_I$ for intention stacks) arbitrate runtime goal scheduling, with explicit plan failure handling via the $-!g$ recovery event.}[fig:bdi-execution-flow]
 \end{figure}
@@ -498,7 +502,7 @@ Figure~\ref{fig:actor-concurrency} details the dual concurrency architecture: He
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-concurrency-diagram.jpg}%
+    \input{figures/fig-ch0-concurrency-actors-csp.tex}%
   }
   \pdwidecaption{\textbf{Concurrency Foundations for Multi-Agent Operating Kernels.} Synthesizing Hewitt--Agha virtual actor isolation (asynchronous mailboxes, capability tokens, and $\mathtt{become}$ state transitions) with Hoare's Communicating Sequential Processes (synchronous rendezvous barriers, $\Delta t = 0$, and guarded external choice with lease timeouts). Sovereign actors deliberate in isolated sandboxes, while physical host resource contention (TCP ports, SQLite WAL writes, git locks) is arbitrated via synchronous CSP rendezvous.}[fig:actor-concurrency]
 \end{figure}
@@ -554,7 +558,7 @@ In a developer's autonomous coding environment, speech acts are not abstract phi
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-ch0-fipa-speech-acts.jpg}%
+    \input{figures/fig-ch0-fipa-speech-acts.tex}%
   }
   \pdwidecaption{\textbf{FIPA-00037 Communicative Speech Act State Transition Machine.} Grounded in practical software engineering payloads. Top: Directive \texttt{request} lifecycle executing an atomic database migration under lock arbitration. Middle: Assertive \texttt{inform} directly mutating an agent's belief base. Bottom: Commissive \texttt{propose} negotiating an SLA for canary deployment routing. Every envelope carries cryptographic sender/receiver verification, monotonic capability tokens, and explicit conversation correlation IDs.}[fig:fipa-speech-acts]
 \end{figure}

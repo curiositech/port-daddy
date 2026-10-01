@@ -1,0 +1,113 @@
+% fig-ch0-concurrency-actors-csp.tex
+% Concurrency Foundations: Hewitt-Agha Actors vs. Hoare CSP Synchronous Rendezvous
+% Replaces raster fig-ch0-concurrency-diagram.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    box/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,inner xsep=4pt,inner ysep=4pt},
+    panel/.style={draw=hhink!25,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30},
+    actorbox/.style={draw=pdviolet,line width=1.0pt,fill=pdviolet!8,rounded corners=3pt,text width=2.4cm,align=center,inner sep=4pt},
+    cspbox/.style={draw=pdteal,line width=1.0pt,fill=pdteal!8,rounded corners=3pt,text width=2.4cm,align=center,inner sep=4pt},
+    mailbox/.style={draw=pdcobalt,line width=0.8pt,fill=pdcobalt!10,rounded corners=2pt,text width=2.3cm,align=center,inner sep=3pt},
+    barrier/.style={draw=pderror,line width=1.3pt,dash pattern=on 4pt off 2pt}
+  }
+
+  % =========================================================================
+  % PANEL 1: HEWITT-AGHA ACTOR MODEL (Asynchronous Isolation)
+  % =========================================================================
+  \draw[panel] (0.0,-0.3) rectangle (7.3,6.5);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdviolet] at (0.2,6.35) {HEWITT--AGHA ACTORS};
+  \node[anchor=north west,font=\scriptsize\itshape,text=hhink!70] at (0.2,5.95) {Asynchronous Mailbox \& Share-Nothing Isolation};
+
+  % Actor Alpha 1 (Sender)
+  \node[actorbox] (actor1) at (2.2,4.8) {%
+    \textbf{Actor } $\alpha_1$\\
+    \scriptsize State $\sigma_1 \in \Sigma_1$\\
+    \scriptsize Local memory only
+  };
+
+  % Mailbox
+  \node[mailbox] (mbox) at (2.2,3.1) {%
+    \textbf{Mailbox } $\mathcal{M}_2$\\
+    \scriptsize FIFO Buffer $\langle m_1, m_2 \rangle$
+  };
+
+  % Actor Alpha 2 (Receiver)
+  \node[actorbox] (actor2) at (2.2,1.2) {%
+    \textbf{Actor } $\alpha_2$\\
+    \scriptsize State $\sigma_2 \in \Sigma_2$\\
+    \scriptsize Replacement $\sigma_2'$
+  };
+
+  % Spawned Actor Alpha 3
+  \node[actorbox,draw=pdindigo,fill=pdindigo!8] (actor3) at (5.7,2.6) {%
+    \textbf{Spawned } $\alpha_3$\\
+    \scriptsize Dynamic Creation\\
+    \scriptsize Fresh Address ID
+  };
+
+  % Connections
+  \draw[pd arrow,pdviolet] (actor1.south) -- node[pd label,right,font=\tiny] {async post $m$} (mbox.north);
+  \draw[pd arrow,pdviolet] (mbox.south) -- node[pd label,right,font=\tiny] {dequeue $m$} (actor2.north);
+
+  % Replacement become loop on left (fits inside panel)
+  \draw[pd arrow,pdviolet] (actor2.west) .. controls +(-0.7,0.3) and +(-0.7,-0.3) .. node[pd label,left,font=\tiny] {$\mathtt{become} \; \sigma_2'$} (actor2.west);
+
+  % Spawn arrow
+  \draw[pd arrow,pdindigo,dashed,rounded corners=4pt] (actor2.east) -- (4.2,1.2) |- node[pd label,above,pos=0.6,font=\tiny] {create} (actor3.west);
+
+  % Explanatory bullets
+  \node[anchor=north west,font=\tiny,text=hhink!80,align=left] at (3.8,5.3) {%
+    $\bullet$ Share-nothing state\\
+    $\bullet$ Non-blocking send\\
+    $\bullet$ Unbounded mailbox\\
+    $\bullet$ Isolated crash domain
+  };
+
+  % =========================================================================
+  % PANEL 2: HOARE CSP (Synchronous Rendezvous)
+  % =========================================================================
+  \draw[panel] (7.7,-0.3) rectangle (15.2,6.5);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=pdteal] at (7.9,6.35) {HOARE'S CSP (SYNCHRONOUS)};
+  \node[anchor=north west,font=\scriptsize\itshape,text=hhink!70] at (7.9,5.95) {Unbuffered Channels \& Rendezvous Barrier};
+
+  % Process 1 (Worker)
+  \node[cspbox] (proc1) at (9.3,4.8) {%
+    \textbf{Process } $P_1$\\
+    \scriptsize Agent Worker\\
+    \scriptsize Post $c!v$
+  };
+
+  % Process 2 (Resource Broker)
+  \node[cspbox] (proc2) at (13.6,4.8) {%
+    \textbf{Process } $P_2$\\
+    \scriptsize Host Broker\\
+    \scriptsize Recv $c?x$
+  };
+
+  % Lifelines
+  \draw[pd guide] (9.3,4.0) -- (9.3,1.7);
+  \draw[pd guide] (13.6,4.0) -- (13.6,1.7);
+
+  % Timeline arrivals
+  \node[anchor=east,font=\tiny,text=hhgray] at (9.1,3.8) {$P_1$ arrives ($t_1$)};
+  \draw[pd arrow,pdteal] (9.1,3.8) -- (9.3,3.6);
+  \node[anchor=east,font=\tiny,text=pderror] at (9.1,3.2) {blocks};
+
+  \node[anchor=west,font=\tiny,text=hhgray] at (13.8,3.2) {$P_2$ arrives ($t_2 > t_1$)};
+  \draw[pd arrow,pdteal] (13.8,3.2) -- (13.6,3.0);
+
+  % Rendezvous Barrier
+  \draw[barrier] (9.3,2.6) -- (13.6,2.6);
+  \node[anchor=south,font=\scriptsize\bfseries,text=pderror] at (11.45,2.65) {Rendezvous Barrier $\Delta t = 0$};
+
+  % Handshake Arrow
+  \draw[pd arrow,pdhealth,line width=1.1pt] (9.3,2.1) -- node[pd label,above,font=\scriptsize] {Atomic Handshake $v \to x$} (13.6,2.1);
+
+  % Guarded Choice / Timeout box
+  \node[box,draw=pdamber,fill=pdamber!10,text width=5.6cm] at (11.45,0.7) {%
+    \textbf{Guarded Choice: } $c!v \mathrel{\square} \mathtt{timeout}(\Delta\tau)$\\
+    \scriptsize Prevents circular deadlock during host resource contention
+  };
+
+\end{tikzpicture}

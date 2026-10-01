@@ -1,0 +1,111 @@
+% fig-ch0-bdi-execution.tex
+% BDI Execution Flow and Operational Choice Architecture (AgentSpeak(L) semantics)
+% Replaces raster fig-ch0-bdi-diagram.jpg with 100% native vector Swiss TikZ.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    box/.style={draw=hhink,line width=0.7pt,fill=pdpage,rounded corners=2pt,align=center,inner xsep=4pt,inner ysep=4pt},
+    statebox/.style={box,text width=2.9cm},
+    databox/.style={draw=pdteal,line width=0.7pt,fill=pdteal!8,rounded corners=2pt,text width=2.8cm,align=center,inner xsep=4pt,inner ysep=4pt},
+    fnbox/.style={draw=pdcobalt,line width=1.0pt,fill=pdcobalt!10,rounded corners=2pt,text width=2.8cm,align=center,inner xsep=4pt,inner ysep=4pt},
+    breachbox/.style={draw=pderror,line width=0.8pt,fill=pderror!8,dashed,rounded corners=2pt,text width=2.8cm,align=center,inner xsep=4pt,inner ysep=4pt},
+    lane/.style={draw=hhink!20,line width=0.5pt,densely dotted,rounded corners=3pt,fill=hhpaper!30}
+  }
+
+  % Background lanes: total width ~15.2cm (fits cleanly inside \textwidth)
+  \draw[lane] (0.0,-0.3) rectangle (4.6,6.4);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=hhink!70] at (0.15,6.25) {1. PERCEPTION \& EVENTS};
+
+  \draw[lane] (5.0,-0.3) rectangle (10.0,6.4);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=hhink!70] at (5.15,6.25) {2. PLAN DELIBERATION};
+
+  \draw[lane] (10.4,-0.3) rectangle (15.2,6.4);
+  \node[anchor=north west,font=\pdfiglabelsize\bfseries,text=hhink!70] at (10.55,6.25) {3. INTENTION EXECUTION};
+
+  % --- Lane 1: Event Queue & SE ---
+  \node[databox] (percepts) at (2.4,5.2) {%
+    \textbf{Percepts \& Messages}\\
+    \scriptsize External signals, $\pm b$
+  };
+
+  \node[statebox,draw=pdindigo,line width=1.0pt,fill=pdindigo!8] (eventq) at (2.4,3.7) {%
+    \textbf{Event Queue } $\mathcal{E}$\\
+    \scriptsize $\langle +!g, i_1 \rangle, \langle +b, \emptyset \rangle$\\
+    \scriptsize $\langle -!g, i_2 \rangle$
+  };
+
+  \node[fnbox] (se) at (2.4,2.2) {%
+    \textbf{Event Selector } $S_E$\\
+    \scriptsize Selects $\epsilon = \langle te, i \rangle \in \mathcal{E}$
+  };
+
+  \node[breachbox] (failnode) at (2.4,0.7) {%
+    \textbf{Failure Handler } $-!g$\\
+    \scriptsize $\mathrm{App} = \emptyset \implies \langle -!g, \mathrm{pop}(i) \rangle$
+  };
+
+  % --- Lane 2: Belief Base, Plan Library, SO ---
+  \node[databox] (beliefs) at (7.5,5.2) {%
+    \textbf{Belief Base } $bs$\\
+    \scriptsize Ground atoms $B(t) \subset \mathcal{B}$
+  };
+
+  \node[databox,fill=pdcobalt!8,draw=pdcobalt] (plans) at (7.5,3.7) {%
+    \textbf{Plan Library } $ps$\\
+    \scriptsize Rules $te : c \leftarrow h_1; \dots; h_k$
+  };
+
+  \node[fnbox] (so) at (7.5,2.2) {%
+    \textbf{Plan Selector } $S_O$\\
+    \scriptsize Selects $p \in \mathrm{App}(\mathrm{Rel}, bs)$
+  };
+
+  % --- Lane 3: Intention Stack, SI, Actions ---
+  \node[statebox,draw=pdviolet,line width=1.0pt,fill=pdviolet!8] (intentions) at (12.8,4.7) {%
+    \textbf{Intention Stacks } $is$\\
+    \scriptsize Active $\{i_1, \dots, i_m\}$\\
+    \scriptsize Frames: $\mathrm{head}(i) \to h_j$
+  };
+
+  \node[fnbox] (si) at (12.8,3.0) {%
+    \textbf{Intention Selector } $S_I$\\
+    \scriptsize Arbitrates active stack $i^*$
+  };
+
+  \node[databox,draw=pdhealth,fill=pdhealth!8] (exec) at (12.8,1.2) {%
+    \textbf{Execution Engine}\\
+    \scriptsize Action $\alpha$, Subgoal $+!g'$, $\pm b$
+  };
+
+  % --- Arrows & Data Flow ---
+  % Percepts to Event Queue
+  \draw[pd arrow] (percepts.south) -- (eventq.north);
+
+  % Event Queue to SE
+  \draw[pd arrow] (eventq.south) -- (se.north);
+
+  % SE to SO (triggering event)
+  \draw[pd arrow,pdcobalt] (se.east) -- node[pd label,above,font=\scriptsize] {$\epsilon = \langle te, i \rangle$} (so.west);
+
+  % Beliefs to plans to SO
+  \draw[pd arrow,pdteal] (beliefs.south) -- node[pd label,right,font=\scriptsize] {$c \models bs$} (plans.north);
+  \draw[pd arrow,pdteal] (plans.south) -- node[pd label,right,font=\scriptsize] {$\mathrm{App}$} (so.north);
+
+  % SO to Intentions: routes cleanly through the gutter between Lane 2 and Lane 3
+  \draw[pd arrow,pdcobalt,rounded corners=4pt] (so.east) -- (10.2,2.2) -- (10.2,4.7) -- node[pd label,above,pos=0.5,font=\scriptsize] {Adopt $p$} (intentions.west);
+
+  % Intentions to SI to Execution
+  \draw[pd arrow] (intentions.south) -- (si.north);
+  \draw[pd arrow,pdhealth] (si.south) -- node[pd label,right,font=\scriptsize] {Next $h_j$} (exec.north);
+
+  % Feedback: Sub-goal back to Event Queue via lower channel
+  \draw[pd arrow,pdindigo,rounded corners=4pt] (exec.west) -- (10.2,1.2) -- (10.2,0.1) -- node[pd label,below,pos=0.45,font=\tiny] {Internal Sub-goal $+!g'$} (4.8,0.1) -- (4.8,3.7) -- (eventq.east);
+
+  % Feedback: Belief update back to Belief Base via outer right gutter
+  \draw[pd arrow,pdteal,rounded corners=4pt] (exec.east) -- (14.9,1.2) -- (14.9,5.2) -- node[pd label,above,pos=0.7,font=\scriptsize] {$\pm b$} (beliefs.east);
+
+  % Failure recovery loop: from SO to Failure Handler, then back to Event Queue
+  \draw[pd breach arrow,rounded corners=4pt] (so.south) -- (7.5,1.5) -- node[pd label,above,pos=0.4,text=pderror,font=\tiny] {Plan fail / $\mathrm{App} = \emptyset$} (3.9,1.5) |- (failnode.east);
+  \draw[pd breach arrow,rounded corners=4pt] (failnode.west) -- (0.25,0.7) -- node[pd label,left,pos=0.5,text=pderror,font=\tiny] {Post $-!g$} (0.25,3.7) -- (eventq.west);
+
+\end{tikzpicture}
