@@ -925,6 +925,10 @@
       \Crefname{pdworkedexample}{Numbers by Hand}{Numbers by Hand Examples}%
     \fi
   \fi}
+% End a heading paragraph without stranding it above the first body lines.
+% Unlike a forced line break, this also restores ordinary paragraph layout.
+\providecommand{\pdblockheadingend}{%
+  {\raggedright\par}\nobreak\smallskip\@afterindentfalse\@afterheading\ignorespaces}
 \newcommand{\pd@numberedhead}[3][theorem]{%
   \ifcsname c@#1\endcsname\refstepcounter{#1}\fi
   \def\@currentlabelname{#3}%

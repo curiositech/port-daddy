@@ -241,8 +241,6 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
-  # Reference licensed fonts in place; never copy them into public/.
-  python3 scripts/prepare-book-fonts.py "$outdir" || return 1
 
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
@@ -265,6 +263,10 @@ build_one() {
           return 1
         }
         node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+      fi
+      # Reference licensed fonts in place; never copy them into public/.
+      if command -v python3 >/dev/null 2>&1; then
+        python3 scripts/prepare-book-fonts.py "$outdir" || return 1
       fi
       ;;
   esac
@@ -342,7 +344,7 @@ list_unchanged_since() {
 }
 
 main() {
-  local row srcdir roottex dest base
+  local row srcdir roottex dest base matched=0
   if [ -n "$LIST_UNCHANGED_SINCE" ]; then
     list_unchanged_since "$LIST_UNCHANGED_SINCE"
     return 0
@@ -359,6 +361,7 @@ main() {
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue
     fi
+    matched=1
     if [ -n "$CHANGED_SINCE" ] && ! paper_changed_since "$CHANGED_SINCE" "$srcdir" "$roottex"; then
       echo "skip $roottex (no imported TeX changed since $CHANGED_SINCE)"
       continue
@@ -369,6 +372,11 @@ main() {
       FAILED+=("$roottex")
     fi
   done
+
+  if [ -n "$FILTER" ] && [ "$matched" -eq 0 ]; then
+    echo "error: '$FILTER' is not a Book target; chapter PDFs are retired" >&2
+    exit 2
+  fi
 
   echo ""
   echo "built ${#BUILT[@]} PDF(s); ${#FAILED[@]} failure(s)"

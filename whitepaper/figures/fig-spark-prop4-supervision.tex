@@ -1,16 +1,20 @@
 % fig-spark-prop4-supervision.tex
 % Proposition 4: Supervision Has an Information Cost (Attention and Supervision)
-% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop4-supervision.jpg.
-% Sized to the captioned text column (x in [0.0, 11.4] cm) with margin caption alongside in Tufte margin.
-% Strict adherence to Harbor Figure Standard (v2) and operator directives:
-% - Crystal stretched wider and taller; crystal labels placed strictly ABOVE the shape.
-% - Inside crystal: pure optical refraction facets with zero colliding text.
-% - Converging stream edges lessened by 1/3 (Delta x = 0.5 cm).
-% - Brackets and summary/budget callouts pulled out to the right of digest cards (x in [9.4, 11.4]).
-% - All captions in margins only; image footer completely clear of captions/summaries.
-% - Strict sentence case across all text elements.
-% - Line weight ladder: 0.5pt (hairline), 0.9pt (wire), 1.6pt (spine).
-% - Semantic palette: pdcobalt (raw telemetry/status), pdrust (critical alerts), pdslate (streams).
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop4-supervision.
+% Full-width book layout, pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2) and operator directives (V4):
+% - Left side: "Event Firehose" title placed directly above concise bulleted characteristics.
+% - Zoom-in callouts with folded paper sheet style showing raw telemetry and ingress payloads;
+%   each key/value on its own line with doubled height.
+% - Stream labels spaced out to the left of the first stream with 20% shorter dotted connecting arrows.
+% - Doubled event stream firehose (5 vertical lifelines with dense, disparate arrival tokens).
+% - Hexagon: "Supervisory attention layer" strictly ABOVE, "Information compression" strictly BELOW.
+% - Pure optical refraction facets and central aperture diamond dot inside hexagon (zero colliding text).
+% - Right side: "Example: Structured human operator digest" on a single unwrapped line above window.
+% - FleetBar UI program window widened by 6 characters; status and details on clean rows.
+% - Brackets brought 2 characters to the left, snugly embracing the widened window; labels scooted over.
+% - Evidence pointers cleanly routed under Information compression returning to event streams.
+% - Sentence case throughout; semantic color coding (pdcobalt, pdslate, pdrust).
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
@@ -18,8 +22,7 @@
     pdwire/.style={line width=0.9pt},
     pdspine/.style={line width=1.6pt},
     streamline/.style={
-      draw=pdslate!70!black,
-      line width=0.5pt,
+      line width=0.7pt,
       ->,
       >=Stealth
     },
@@ -44,168 +47,292 @@
     guideline/.style={
       draw=pdink!60!black,
       line width=0.5pt
+    },
+    calloutbox/.style={
+      draw=pdslate!70!black,
+      line width=0.5pt,
+      fill=pdslate!8,
+      rounded corners=1.5pt
+    },
+    uiwindow/.style={
+      draw=pdslate!70!black,
+      line width=0.7pt,
+      fill=pdpage,
+      rounded corners=2.5pt
     }
   }
 
+  \begin{scope}[scale=0.540, every node/.append style={transform shape}]
+
   % =========================================================================
-  % LEFT REGION: MULTI-STREAM EVENT FIREHOSE (x in [0.0, 2.7])
+  % COLUMN A: TITLE & CHARACTERISTICS (x in [0.0, 2.4], y in [7.7, 9.4])
   % =========================================================================
-  % Top Header (Sentence case)
-  \node[pd title,anchor=south,align=center,text=pdink] at (1.4, 8.5) {%
-    Multi-stream\\event firehose%
+  % Title placed right above the bulleted characteristics
+  \node[pd title,anchor=north west,align=left,text=pdink] at (0.0, 9.4) {%
+    \textbf{Event Firehose}%
   };
 
-  % Mathematical entropy annotation
-  \node[pd label,anchor=south west,align=left,text=pdink!80!black] at (2.4, 8.5) {%
-    $H_{\text{raw}} = \text{high}$\\%
-    $E_{\text{raw}} = \text{max}$%
+  % Bulleted characteristics list (exact requested lowercase text, clean 2-line wraps)
+  \node[pd label,anchor=north west,align=left,text=pdink,text width=2.5cm] at (0.0, 8.85) {%
+    \textendash\ \ high-entropy,\\[1pt]\phantom{\textendash\ \ }raw logs\\[3.5pt]%
+    \textendash\ \ high-volume\\[1pt]\phantom{\textendash\ \ }signals\\[3.5pt]%
+    \textendash\ \ unfiltered,\\[1pt]\phantom{\textendash\ \ }irregular%
   };
 
-  % Side Callouts (Left column, anchor=west at x=0.0)
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 7.0) {%
-    High entropy\\raw logs and signals%
-  };
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 4.8) {%
-    Unfiltered data\\firehose%
-  };
-  \node[pd label,anchor=west,align=left,text=pdink] at (0.0, 2.6) {%
-    Information\\overload%
+  % =========================================================================
+  % COLUMN A (LOWER): PACKET / STRUCT ZOOM-IN CALLOUTS (x in [0.0, 3.1])
+  % Folded paper sheet style with doubled height; each key/value on its own line
+  % =========================================================================
+  % Zoom-in Callout 1 (Telemetry struct: x in [0.0, 3.1], y in [2.7, 5.0], height 2.3 cm)
+  % Frustum projection fill & hairlines to token on Stream 1 at (6.0, 4.6)
+  \fill[pdcobalt!8,opacity=0.35] (2.85, 5.0) -- (5.9, 4.7) -- (5.9, 4.5) -- (3.1, 2.7) -- cycle;
+  \draw[guideline,dashed,draw=pdcobalt!80] (2.85, 5.0) -- (5.9, 4.7);
+  \draw[guideline,dashed,draw=pdcobalt!80] (3.1, 2.7) -- (5.9, 4.5);
+
+  % Folded sheet outline
+  \filldraw[calloutbox]
+    (0.0, 2.7) -- (3.1, 2.7) -- (3.1, 4.75) -- (2.85, 5.0) -- (0.0, 5.0) -- cycle;
+  % Dog-ear folded corner
+  \filldraw[fill=pdslate!25,draw=pdslate!70!black,line width=0.5pt]
+    (2.85, 5.0) -- (2.85, 4.75) -- (3.1, 4.75) -- cycle;
+  % Monospace packet fields: each key/value on its own line
+  \node[anchor=north west,align=left,font=\pdfiglabel\ttfamily,text=pdink] at (0.10, 4.88) {%
+    \textbf{\color{pdcobalt}Packet: raw\_telemetry.json}\\[3pt]
+    \{"src": "worker:4",\\[2pt]
+    \ "rss": "418M",\\[2pt]
+    \ "syscall": "recvmsg",\\[2pt]
+    \ "tsc": "0x9a4f"\}%
   };
 
-  % Vertical Raw Event Streams
-  \foreach \x in {2.1, 2.4, 2.7} {
-    \draw[streamline] (\x, 8.2) -- (\x, 1.4);
-  }
-  % Highlighted Causal Stream
-  \draw[focusstream] (2.4, 8.2) -- (2.4, 1.4);
+  % Zoom-in Callout 2 (Ingress traffic struct: x in [0.0, 3.1], y in [0.2, 2.5], height 2.3 cm)
+  % Frustum projection fill & hairlines to token on Stream 4 at (7.2, 1.6)
+  \fill[pdrust!8,opacity=0.35] (2.85, 2.5) -- (7.1, 1.7) -- (7.1, 1.5) -- (3.1, 0.2) -- cycle;
+  \draw[guideline,dashed,draw=pdrust!80] (2.85, 2.5) -- (7.1, 1.7);
+  \draw[guideline,dashed,draw=pdrust!80] (3.1, 0.2) -- (7.1, 1.5);
 
-  % Discrete Event Tokens along the streams
-  \foreach \y in {7.8, 7.2, 6.6, 6.0, 4.2, 3.6, 3.0, 2.4, 1.8} {
+  % Folded sheet outline
+  \filldraw[calloutbox]
+    (0.0, 0.2) -- (3.1, 0.2) -- (3.1, 2.25) -- (2.85, 2.5) -- (0.0, 2.5) -- cycle;
+  % Dog-ear folded corner
+  \filldraw[fill=pdslate!25,draw=pdslate!70!black,line width=0.5pt]
+    (2.85, 2.5) -- (2.85, 2.25) -- (3.1, 2.25) -- cycle;
+  % Monospace packet fields: each key/value on its own line
+  \node[anchor=north west,align=left,font=\pdfiglabel\ttfamily,text=pdink] at (0.10, 2.38) {%
+    \textbf{\color{pdrust}Packet: ingress\_event.raw}\\[3pt]
+    \{"ip": "10.0.8.14",\\[2pt]
+    \ "port": 9876,\\[2pt]
+    \ "flags": "SYN|ACK",\\[2pt]
+    \ "len": 8192\}%
+  };
+
+  % =========================================================================
+  % COLUMN B: STREAM ANNOTATIONS WITH DOTTED ARROWS (20% SHORTER, SPACED OUT)
+  % Positioned cleanly at x=5.40, y in [7.3, 8.8], full 10mm gutter from Column A
+  % =========================================================================
+  \node[pd label,anchor=east,align=right,text=pdcobalt] (lblT) at (5.40, 8.8) {%
+    \textbf{e.g., Telemetry}%
+  };
+  \draw[guideline,dashed,->,>=Stealth,draw=pdcobalt] (5.52, 8.8) -- (5.97, 8.8);
+
+  \node[pd label,anchor=east,align=right,text=pdslate!90!black] (lblL) at (5.40, 8.3) {%
+    \textbf{e.g., Worker logs}%
+  };
+  \draw[guideline,dashed,->,>=Stealth,draw=pdslate!90!black] (5.52, 8.3) -- (6.37, 8.3);
+
+  \node[pd label,anchor=east,align=right,text=pdslate!70!black] (lblS) at (5.40, 7.8) {%
+    \textbf{e.g., Syscall trace}%
+  };
+  \draw[guideline,dashed,->,>=Stealth,draw=pdslate!70!black] (5.52, 7.8) -- (6.77, 7.8);
+
+  \node[pd label,anchor=east,align=right,text=pdrust] (lblI) at (5.40, 7.3) {%
+    \textbf{e.g., Ingress traffic}%
+  };
+  \draw[guideline,dashed,->,>=Stealth,draw=pdrust] (5.52, 7.3) -- (7.17, 7.3);
+
+  % =========================================================================
+  % 5 VERTICAL EVENT STREAM LIFELINES (x in [6.0, 7.6], y in [1.3, 8.9])
+  % Doubled event stream firehose with dense, disparate arrival tokens
+  % =========================================================================
+  % Stream 1 (Cobalt: Telemetry)
+  \draw[streamline,draw=pdcobalt] (6.0, 8.9) -- (6.0, 1.3);
+  % Stream 2 (Slate: Worker stderr)
+  \draw[streamline,draw=pdslate!90!black] (6.4, 8.9) -- (6.4, 1.3);
+  % Stream 3 (Slate!70: Syscall trace)
+  \draw[streamline,draw=pdslate!70!black] (6.8, 8.9) -- (6.8, 1.3);
+  % Stream 4 (Rust: Ingress traffic)
+  \draw[streamline,draw=pdrust] (7.2, 8.9) -- (7.2, 1.3);
+  % Stream 5 (Slate!80: WAL commits)
+  \draw[streamline,draw=pdslate!80!black] (7.6, 8.9) -- (7.6, 1.3);
+
+  % Stream 1 Tokens (Cobalt, x=6.0)
+  \foreach \y in {8.1, 7.3, 6.5, 5.8, 4.6, 3.4, 2.2} {
     \filldraw[fill=pdcobalt!15,draw=pdcobalt,line width=0.5pt,rounded corners=1pt]
-      (2.0, \y-0.12) rectangle (2.2, \y+0.12);
-    \filldraw[fill=pdslate!15,draw=pdslate!80!black,line width=0.5pt,rounded corners=1pt]
-      (2.3, \y-0.12) rectangle (2.5, \y+0.12);
+      (5.9, \y-0.10) rectangle (6.1, \y+0.10);
+  }
+  % Stream 2 Tokens (Slate, x=6.4)
+  \foreach \y in {8.3, 7.1, 6.3, 5.2, 4.2, 3.1, 2.0} {
+    \filldraw[fill=pdslate!20,draw=pdslate!90!black,line width=0.5pt,rounded corners=1pt]
+      (6.3, \y-0.10) rectangle (6.5, \y+0.10);
+  }
+  % Stream 3 Tokens (Slate!70, x=6.8)
+  \foreach \y in {8.0, 7.5, 6.0, 5.4, 4.4, 3.6, 2.5, 1.7} {
+    \filldraw[fill=pdslate!20,draw=pdslate!70!black,line width=0.5pt,rounded corners=1pt]
+      (6.7, \y-0.10) rectangle (6.9, \y+0.10);
+  }
+  % Stream 4 Tokens (Rust, x=7.2)
+  \foreach \y in {7.9, 7.0, 5.5, 4.7, 3.8, 2.8, 1.6} {
     \filldraw[fill=pdrust!15,draw=pdrust,line width=0.5pt,rounded corners=1pt]
-      (2.6, \y-0.12) rectangle (2.8, \y+0.12);
+      (7.1, \y-0.10) rectangle (7.3, \y+0.10);
+  }
+  % Stream 5 Tokens (Slate!80, x=7.6)
+  \foreach \y in {8.2, 7.4, 6.6, 5.0, 3.9, 3.0, 1.9} {
+    \filldraw[fill=pdslate!25,draw=pdslate!80!black,line width=0.5pt,rounded corners=1pt]
+      (7.5, \y-0.10) rectangle (7.7, \y+0.10);
   }
 
-  % Converging Stream Curves into Attention Filter (edges shortened by 1/3: 2.7 -> 3.2, Delta x = 0.5 cm)
-  \draw[focusstream] (2.7, 5.3) .. controls (2.95, 5.3) and (3.1, 5.15) .. (3.2, 5.15);
-  \draw[focusstream] (2.7, 5.0) -- (3.2, 5.0);
-  \draw[focusstream] (2.7, 4.7) .. controls (2.95, 4.7) and (3.1, 4.85) .. (3.2, 4.85);
+  % =========================================================================
+  % INGRESS: CONVERGING ARROWS (Delta x = 1.2 cm, x: 7.6 -> 8.8)
+  % =========================================================================
+  \draw[focusstream] (7.6, 5.5) .. controls (8.1, 5.5) and (8.4, 5.1) .. (8.8, 5.1);
+  \draw[focusstream] (7.6, 4.6) -- (8.8, 4.6);
+  \draw[focusstream] (7.6, 3.7) .. controls (8.1, 3.7) and (8.4, 4.1) .. (8.8, 4.1);
 
   % =========================================================================
-  % CENTER REGION: STRETCHED ATTENTION FILTER CRYSTAL (x in [3.2, 5.8])
+  % CENTER REGION: ATTENTION FILTER CRYSTAL (x in [8.8, 10.8], center = 9.8)
   % =========================================================================
-  % Crystal Labels placed strictly ABOVE the shape (zero text clutter inside!)
-  \node[pd title,anchor=south,align=center,text=pdink] at (4.5, 7.3) {%
-    \textbf{Supervisory attention filter}\\%
-    {\color{pdslate}\mdseries Information-theoretic compression}%
+  % Supervisory attention layer placed strictly ABOVE the hexagon
+  \node[pd title,anchor=south,align=center,text=pdink] at (9.8, 7.0) {%
+    \textbf{Supervisory attention layer}%
   };
 
-  % Outer Stretched Hexagonal Crystal (centered at x=4.5, y=5.0, width 2.6cm, height 3.8cm)
+  % Outer Hexagonal Crystal (centered at x=9.8, y=4.6, width 2.0cm, height 3.2cm)
+  % Transmission facets on left (x=8.8) and right (x=10.8)
   \filldraw[filterhex]
-    (4.5, 6.9) -- (5.8, 5.95) -- (5.8, 4.05) -- (4.5, 3.1) -- (3.2, 4.05) -- (3.2, 5.95) -- cycle;
+    (9.8, 6.2) -- (10.8, 5.4) -- (10.8, 3.8) -- (9.8, 3.0) -- (8.8, 3.8) -- (8.8, 5.4) -- cycle;
 
   % Inner Optical Facet Ring
   \draw[pdhair,draw=pdcobalt!80!black]
-    (4.5, 6.55) -- (5.55, 5.75) -- (5.55, 4.25) -- (4.5, 3.45) -- (3.45, 4.25) -- (3.45, 5.75) -- cycle;
+    (9.8, 5.9) -- (10.65, 5.2) -- (10.65, 4.0) -- (9.8, 3.3) -- (8.95, 4.0) -- (8.95, 5.2) -- cycle;
 
-  % Internal Facet Refraction Optics (Gem-like structure)
-  \draw[pdhair,draw=pdcobalt!40] (3.2, 5.0) -- (5.8, 5.0);
-  \draw[pdhair,draw=pdcobalt!40] (4.5, 6.9) -- (4.5, 3.1);
-  \draw[pdhair,draw=pdcobalt!30] (3.2, 5.95) -- (5.8, 4.05);
-  \draw[pdhair,draw=pdcobalt!30] (3.2, 4.05) -- (5.8, 5.95);
+  % Internal Facet Refraction Optics (Zero colliding text inside)
+  \draw[pdhair,draw=pdcobalt!40] (8.8, 4.6) -- (10.8, 4.6);
+  \draw[pdhair,draw=pdcobalt!40] (9.8, 6.2) -- (9.8, 3.0);
+  \draw[pdhair,draw=pdcobalt!30] (8.8, 5.4) -- (10.8, 3.8);
+  \draw[pdhair,draw=pdcobalt!30] (8.8, 3.8) -- (10.8, 5.4);
 
   % Central Optical Aperture Diamond
   \filldraw[fill=pdcobalt!10,draw=pdcobalt,line width=0.9pt]
-    (4.5, 5.5) -- (5.0, 5.0) -- (4.5, 4.5) -- (4.0, 5.0) -- cycle;
-  \fill[pdcobalt] (4.5, 5.0) circle (0.10cm);
+    (9.8, 4.95) -- (10.15, 4.6) -- (9.8, 4.25) -- (9.45, 4.6) -- cycle;
+  \fill[pdcobalt] (9.8, 4.6) circle (0.08cm);
+
+  % Information compression placed strictly BELOW the hexagon
+  \node[pd title,anchor=north,align=center,text=pdink] at (9.8, 2.2) {%
+    \textbf{Information compression}%
+  };
 
   % =========================================================================
-  % RIGHT REGION: STRUCTURED OPERATOR DIGEST & BRACKETS (x in [5.8, 11.4])
+  % EGRESS: DIVERGING ARROWS (Delta x = 1.8 cm, x: 10.8 -> 12.6)
   % =========================================================================
-  % Mathematical entropy annotation
-  \node[pd label,anchor=south east,align=right,text=pdink!80!black] at (6.8, 8.5) {%
-    $I_{\text{digest}} = \text{low}$\\%
-    $E_{\text{digest}} = \text{min}$%
+  \draw[focusstream] (10.8, 5.3) .. controls (11.4, 5.3) and (12.0, 6.65) .. (12.6, 6.65);
+  \draw[focusstream] (10.8, 4.95) .. controls (11.4, 4.95) and (12.0, 5.55) .. (12.6, 5.55);
+  \draw[focusstream] (10.8, 4.6) -- (12.6, 4.45);
+  \draw[focusstream] (10.8, 4.25) .. controls (11.4, 4.25) and (12.0, 3.35) .. (12.6, 3.35);
+  \draw[focusstream] (10.8, 3.9) .. controls (11.4, 3.9) and (12.0, 2.25) .. (12.6, 2.25);
+
+  % =========================================================================
+  % RIGHT REGION: FLEETBAR CONSOLE UI PROGRAM WINDOW (x in [12.6, 17.8])
+  % Widened by 6+ characters, two-line status entries, single-line title above
+  % =========================================================================
+  % Top Header above UI Window: Single unwrapped line moved up
+  \node[pd title,anchor=south west,text=pdink] at (12.6, 7.85) {%
+    \textbf{Example: Structured human operator digest}%
   };
 
-  % Top Header (Sentence case)
-  \node[pd title,anchor=south,align=center,text=pdink] at (8.6, 8.5) {%
-    Structured human\\operator digest%
+  % UI Program Window Frame (Widened: x from 12.6 to 17.8)
+  \filldraw[uiwindow] (12.6, 1.8) rectangle (17.8, 7.6);
+  % Window Header Bar
+  \fill[pdslate!15,rounded corners=2pt] (12.6, 7.2) rectangle (17.8, 7.6);
+  \draw[guideline,draw=pdslate!60] (12.6, 7.2) -- (17.8, 7.2);
+  % macOS Window Control Dots
+  \fill[pdslate!50] (12.85, 7.4) circle (1.8pt);
+  \fill[pdslate!50] (13.05, 7.4) circle (1.8pt);
+  \fill[pdslate!50] (13.25, 7.4) circle (1.8pt);
+  % Console Title Bar Text
+  \node[anchor=west,font=\pdfiglabel\ttfamily,text=pdink!80!black] at (13.45, 7.4) {%
+    FleetBar Console :9876%
   };
 
-  % Diverging Stream Curves from Crystal into Digest Items
-  \draw[focusstream] (5.8, 5.2) .. controls (6.05, 5.2) and (6.2, 7.2) .. (6.4, 7.2);
-  \draw[focusstream] (5.8, 5.1) .. controls (6.05, 5.1) and (6.2, 6.1) .. (6.4, 6.1);
-  \draw[focusstream] (5.8, 5.0) -- (6.4, 5.0);
-  \draw[focusstream] (5.8, 4.9) .. controls (6.05, 4.9) and (6.2, 3.9) .. (6.4, 3.9);
-  \draw[focusstream] (5.8, 4.8) .. controls (6.05, 4.8) and (6.2, 2.8) .. (6.4, 2.8);
+  % Internal UI Rows (Spacious cards with status dots and plenty of right padding)
+  % Row 1: System Status (y = 6.6)
+  \filldraw[fill=pdcobalt] (12.85, 6.7) circle (2pt);
+  \node[pd label,anchor=west,align=left] at (13.05, 6.6) {%
+    \textbf{System status: stable}\\[1.5pt]%
+    {\color{pdink!75!black}\mdseries Kernel invariants verified}%
+  };
+  \draw[guideline,draw=pdslate!25] (12.75, 6.05) -- (17.65, 6.05);
 
-  % Structured Digest Cards / Entries (Sentence case, single compound nodes)
-  % Entry 1: Status Stable
-  \filldraw[fill=pdcobalt] (6.4, 7.2) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 7.2) {%
-    \textbf{System status: stable}\\%
-    {\color{pdink!80!black}\mdseries Kernel invariants verified}%
+  % Row 2: CPU Spike Alert (y = 5.5)
+  \filldraw[fill=pdrust] (12.85, 5.6) circle (2pt);
+  \node[pd label,anchor=west,align=left] at (13.05, 5.5) {%
+    \textbf{\color{pdrust}Critical alert: CPU spike}\\[1.5pt]%
+    {\color{pdink!75!black}\mdseries Worker threshold exceeded}%
+  };
+  \draw[guideline,draw=pdslate!25] (12.75, 4.95) -- (17.65, 4.95);
+
+  % Row 3: Security Notice (y = 4.4)
+  \filldraw[fill=pdcobalt] (12.85, 4.5) circle (2pt);
+  \node[pd label,anchor=west,align=left] at (13.05, 4.4) {%
+    \textbf{Security notice: port scan}\\[1.5pt]%
+    {\color{pdink!75!black}\mdseries Unleased ingress dropped}%
+  };
+  \draw[guideline,draw=pdslate!25] (12.75, 3.85) -- (17.65, 3.85);
+
+  % Row 4: Storage Warning (y = 3.3)
+  \filldraw[fill=pdrust] (12.85, 3.4) circle (2pt);
+  \node[pd label,anchor=west,align=left] at (13.05, 3.3) {%
+    \textbf{\color{pdrust}Storage warning: quota 85\%}\\[1.5pt]%
+    {\color{pdink!75!black}\mdseries Compaction active}%
+  };
+  \draw[guideline,draw=pdslate!25] (12.75, 2.75) -- (17.65, 2.75);
+
+  % Row 5: Network Traffic (y = 2.2)
+  \filldraw[fill=pdcobalt] (12.85, 2.3) circle (2pt);
+  \node[pd label,anchor=west,align=left] at (13.05, 2.2) {%
+    \textbf{Network traffic: burst limit}\\[1.5pt]%
+    {\color{pdink!75!black}\mdseries Rate limiter enforced}%
   };
 
-  % Entry 2: CPU Spike
-  \filldraw[fill=pdrust] (6.4, 6.1) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 6.1) {%
-    \textbf{\color{pdrust} Critical alert: CPU spike}\\%
-    {\color{pdink!80!black}\mdseries Worker threshold exceeded}%
+  % =========================================================================
+  % RIGHT BRACKETS: BROUGHT SNUG TO WIDENED WINDOW (x in [17.95, 20.0])
+  % Snugly embracing the widened window; labels scooted cleanly over
+  % =========================================================================
+  % Bracket 1: Top 2 items -> Low-entropy summaries (y in [5.05, 7.10])
+  \draw[guideline] (17.95, 7.10) -- (18.05, 7.10) -- (18.05, 5.05) -- (17.95, 5.05);
+  \draw[guideline] (18.05, 6.05) -- (18.20, 6.05);
+  \node[pd label,anchor=west,align=left,text=pdink] at (18.28, 6.05) {%
+    \textbf{Low-entropy}\\\textbf{summaries}%
   };
 
-  % Entry 3: Security Notice
-  \filldraw[fill=pdcobalt] (6.4, 5.0) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 5.0) {%
-    \textbf{Security notice: port scan}\\%
-    {\color{pdink!80!black}\mdseries Unleased ingress dropped}%
-  };
-
-  % Entry 4: Storage Warning
-  \filldraw[fill=pdrust] (6.4, 3.9) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 3.9) {%
-    \textbf{\color{pdrust} Storage warning: quota 85\%}\\%
-    {\color{pdink!80!black}\mdseries Compaction checkpoint active}%
-  };
-
-  % Entry 5: Network Traffic
-  \filldraw[fill=pdcobalt] (6.4, 2.8) circle (2.2pt);
-  \node[pd label,anchor=west,align=left] at (6.6, 2.8) {%
-    \textbf{Network traffic: burst limit}\\%
-    {\color{pdink!80!black}\mdseries Rate limiter enforced}%
-  };
-
-  % Right Brackets (Pulled out to the right of digest cards at x=9.4):
-  % Bracket 1: Top 2 items -> Low entropy summaries
-  \draw[guideline] (9.4, 7.4) -- (9.55, 7.4) -- (9.55, 5.8) -- (9.4, 5.8);
-  \draw[guideline] (9.55, 6.6) -- (9.75, 6.6);
-  \node[pd label,anchor=west,align=left,text=pdink] at (9.85, 6.6) {%
-    \textbf{Low entropy}\\\textbf{summaries}%
-  };
-
-  % Bracket 2: Bottom 3 items -> Operator attention budget
-  \draw[guideline] (9.4, 5.3) -- (9.55, 5.3) -- (9.55, 2.5) -- (9.4, 2.5);
-  \draw[guideline] (9.55, 3.9) -- (9.75, 3.9);
-  \node[pd label,anchor=west,align=left,text=pdink] at (9.85, 3.9) {%
-    \textbf{Operator}\\\textbf{attention budget}%
+  % Bracket 2: Bottom 3 items -> Operator attention budget (y in [1.80, 4.85])
+  \draw[guideline] (17.95, 4.85) -- (18.05, 4.85) -- (18.05, 1.80) -- (17.95, 1.80);
+  \draw[guideline] (18.05, 3.30) -- (18.20, 3.30);
+  \node[pd label,anchor=west,align=left,text=pdink] at (18.28, 3.30) {%
+    \textbf{Operator}\\\textbf{attention}\\\textbf{budget}%
   };
 
   % =========================================================================
   % BOTTOM: EVIDENCE RETURN POINTERS
-  % (Routing safely outside the stretched crystal x >= 5.8, then turning under y <= 1.8)
+  % (Routing cleanly under Information compression at y <= 1.2, returning to streams)
   % =========================================================================
-  \draw[evidencepointer] (6.4, 7.0) -- (5.9, 7.0) -- (5.9, 1.8) -- (2.8, 1.8);
-  \draw[evidencepointer] (6.4, 5.9) -- (5.8, 5.9) -- (5.8, 1.4) -- (2.8, 1.4);
-  \draw[evidencepointer] (6.4, 4.8) -- (5.7, 4.8) -- (5.7, 1.0) -- (2.8, 1.0);
-  \draw[evidencepointer] (6.4, 3.7) -- (5.6, 3.7) -- (5.6, 0.6) -- (2.8, 0.6);
+  \draw[evidencepointer] (12.6, 5.5) -- (12.1, 5.5) -- (12.1, 1.1) -- (7.2, 1.1) -- (7.2, 1.3);
+  \draw[evidencepointer] (12.6, 4.4) -- (11.9, 4.4) -- (11.9, 0.8) -- (6.8, 0.8) -- (6.8, 1.3);
+  \draw[evidencepointer] (12.6, 3.3) -- (11.7, 3.3) -- (11.7, 0.5) -- (6.4, 0.5) -- (6.4, 1.3);
+  \draw[evidencepointer] (12.6, 2.2) -- (11.5, 2.2) -- (11.5, 0.2) -- (6.0, 0.2) -- (6.0, 1.3);
 
-  % Evidence Pointers Callout (Knockout background to guarantee zero line clash)
-  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (4.2, 1.4) {%
+  % Evidence Pointers Callout (Centered at x=9.8, y=0.65, cleanly below Information compression)
+  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (9.8, 0.65) {%
     \textbf{Evidence pointers}%
   };
 
+  \end{scope}
 \end{tikzpicture}

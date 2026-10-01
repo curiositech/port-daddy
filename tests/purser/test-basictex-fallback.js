@@ -21,9 +21,9 @@ test('BasicTeX fallback uses bounded xelatex passes without mutating the host in
     const result = runFallbackBuild(root);
 
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(result.stdout, /xelatex fallback pass 1\/6/u);
-    assert.match(result.stdout, /xelatex fallback pass 2\/6/u);
-    assert.doesNotMatch(result.stdout, /xelatex fallback pass 3\/6/u);
+    assert.match(result.stdout, /xelatex fallback pass 1\/4/u);
+    assert.match(result.stdout, /xelatex fallback pass 2\/4/u);
+    assert.doesNotMatch(result.stdout, /xelatex fallback pass 3\/4/u);
     assert.equal(result.calls.length, 2);
     assert.ok(existsSync(resolve(root, 'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf')));
   } finally {
