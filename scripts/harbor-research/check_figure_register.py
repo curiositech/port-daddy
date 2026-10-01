@@ -57,6 +57,7 @@ import json
 import os
 import re
 import sys
+import omni_ledger
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -114,6 +115,10 @@ def abspath(rel_path: str) -> str:
 
 
 def read_lines(rel_path: str) -> list[str] | None:
+    if os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT):
+        if not omni_ledger.document_exists(rel_path):
+            return None
+        return omni_ledger.document_text(rel_path).split("\n")
     p = abspath(rel_path)
     if not os.path.isfile(p):
         return None

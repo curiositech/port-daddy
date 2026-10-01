@@ -272,6 +272,11 @@ build_one() {
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
+    # answers.sty writes chapter solution streams into -output-directory.
+    # XeTeX's \input does not search that directory without TEXINPUTS, even
+    # when \IfFileExists finds the file there. Keep default TeX paths via the
+    # trailing colon; every solution is still required and rendered.
+    export TEXINPUTS="$outdir:${TEXINPUTS:-}:"
     # The Book sets its monospace face through fontspec (a Unicode-engine
     # package) and turns off XeTeX's glyph-metric line boxes, so it is
     # compiled with xelatex. Every row this script can reach is a

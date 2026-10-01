@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""The research program's one source of record, and the guard that keeps the
-website honest about it.
+"""Check the research program site projection against the canonical Omni ledger.
+
+The Omni ledger owns the research work records and publication-program inventory.
+This script derives program.json and keeps the website mirror byte-identical.
 
 `docs/harbor-research/program.json` is what the site's /research page renders.
-Half of it is written by hand (studies, open problems, deep dives, wrong turns,
-planned lifts, the papers) and half is derived from the files that already
-carry the truth:
+Its publication inventories are projected from `omni-ledger.json`
+`publication_program`; the other sections are derived from the named sources:
 
   results        <- docs/harbor-research/library-index.json   (every executed result)
   estate         <- whitepaper/corpus.json                    (every mechanized artifact)
@@ -21,7 +22,7 @@ site must carry:
 
   1. the derived sections equal a fresh derivation (edit the index, the corpus
      manifest, or the ledger and program.json goes stale until `--sync`);
-  2. the hand-written inventories match the repository: every research paper
+  2. the Omni-owned inventories match the repository: every research paper
      source, every deep-dive directory, every wrong-turn script, and every
      study directory is listed, and nothing listed is missing;
   3. every `source` path the program cites exists;
@@ -42,6 +43,14 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
+
+# This script is loaded directly by focused tests as well as executed by path.
+# In both cases its sibling Omni helper must resolve without test-order imports.
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from omni_ledger import document_exists, document_glob, document_text, load as load_omni
 
 REPO = Path(__file__).resolve().parents[2]
 PROGRAM = REPO / "docs/harbor-research/program.json"
@@ -65,7 +74,10 @@ STANDALONE_FILE_RE = re.compile(r"paper(\d+)\.tex$")
 
 
 def load(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Tests may inject a fixture outside this checkout; Omni only owns paths
+    # beneath its repository root.
+    source = document_text(path) if path.is_relative_to(REPO) else path.read_text(encoding="utf-8")
+    return json.loads(source)
 
 
 def dump(data) -> str:
@@ -136,7 +148,7 @@ STATUS_RE = re.compile(r"^(DONE|DECLINED|BLOCKED|IN-WAVE-\d+|OPEN)", re.IGNORECA
 
 
 def derive_critique_ledger() -> dict:
-    rows = load(CRITIQUE_LEDGER)
+    rows = load_omni()["critique_rows"]
     tally: Counter[str] = Counter()
     for row in rows:
         status = str(row.get("Status", "")).strip()
@@ -160,10 +172,12 @@ def derive_critique_ledger() -> dict:
 
 
 def derive_all() -> dict:
+    publication = load_omni()["publication_program"]
     return {
         "results": derive_results(),
         "estate": derive_estate(),
         "critiqueLedger": derive_critique_ledger(),
+        **{key: publication[key] for key in HAND_KEYS},
     }
 
 
@@ -274,7 +288,7 @@ def validate_schema(instance, schema: dict, pointer: str = "") -> list[str]:
 
 
 def silence_count() -> int:
-    text = SILENCES_DOC.read_text(encoding="utf-8")
+    text = document_text(SILENCES_DOC)
     if SILENCES_HEADING not in text:
         return -1
     tail = text.split(SILENCES_HEADING, 1)[1]
@@ -294,7 +308,7 @@ def check(program: dict) -> list[str]:
 
     # 1. derived sections are fresh
     fresh = derive_all()
-    for key in DERIVED_KEYS:
+    for key in DERIVED_KEYS + HAND_KEYS:
         if program[key] != fresh[key]:
             problems.append(
                 f"'{key}' is stale against its source of record; run check_research_program.py --sync"
@@ -314,12 +328,12 @@ def check(program: dict) -> list[str]:
     if tex_papers != listed_papers:
         problems.append(f"papers: {rel(PAPER_TEX_DIR)} has {tex_papers}, program.json lists {listed_papers}")
 
-    dive_dirs = sorted(p.name for p in DEEP_DIVES_DIR.iterdir() if p.is_dir())
+    dive_dirs = sorted({Path(path).parent.name for path in document_glob("docs/harbor-research/deep-dives/*/findings.md")})
     listed_dives = sorted(d["dir"] for d in program["deepDives"])
     if dive_dirs != listed_dives:
         problems.append(f"deepDives: on disk {dive_dirs}, listed {listed_dives}")
     for dive in program["deepDives"]:
-        if not (DEEP_DIVES_DIR / dive["dir"] / "findings.md").exists():
+        if not document_exists(DEEP_DIVES_DIR / dive["dir"] / "findings.md"):
             problems.append(f"deepDives: {dive['dir']} has no findings.md")
 
     turn_files = sorted(p.name for p in WRONG_TURNS_DIR.glob("*.py"))
@@ -338,7 +352,7 @@ def check(program: dict) -> list[str]:
             for k, v in node.items():
                 if k in ("source", "protocol", "tex", "findings") and isinstance(v, str):
                     path = v.split("#", 1)[0]
-                    if not (REPO / path).exists():
+                    if not document_exists(path):
                         problems.append(f"{trail}.{k}: {path} does not exist")
                 else:
                     walk(v, f"{trail}.{k}")
@@ -376,7 +390,7 @@ def check(program: dict) -> list[str]:
     # follows from being identical to the already-validated source).
     if not MIRROR.exists():
         problems.append(f"{rel(MIRROR)} is missing; run --sync")
-    elif MIRROR.read_bytes() != PROGRAM.read_bytes():
+    elif MIRROR.read_bytes() != document_text(PROGRAM).encode("utf-8"):
         problems.append(f"{rel(MIRROR)} differs from {rel(PROGRAM)}; run --sync")
 
     return problems

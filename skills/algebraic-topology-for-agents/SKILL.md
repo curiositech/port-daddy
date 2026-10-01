@@ -64,6 +64,12 @@ $$\|\Pi(s e_e)\|_2 = |s|\sqrt{1-R_{\mathrm{eff}}(e)}, \qquad R_{\mathrm{eff}}(e)
 
 Here `L^+` is the full Laplacian pseudoinverse. A grounded inverse may be used internally to solve a gauge-fixed system, but it is not substituted into this formula without a derivation. Weighted graphs and nonconstant sheaves require their own model and derivation.
 
+### Conditional fault separation
+
+For one exact feature, artifact version, and watermark, predeclare an independently observed edge cochain and a finite library of fault signatures `s_j`, including no fault. In the constant scalar graph model above, compute `z_j = Pi s_j` and the minimum pairwise distance `gamma = min_{i != j} ||z_i - z_j||_2`. Equal projected signatures cannot be distinguished by this evidence. A positive margin separates only the declared signatures under a stated observation-error bound; the scalar norm `||Pi g||_2` alone does not identify an edge or an agent.
+
+For known signed unit errors on one edge of a connected loopless graph, all labels have distinct projected signatures exactly when the graph is three-edge-connected. For arbitrary errors on at most `k` edges, unique recovery modulo a compatible vertex-potential difference requires minimum edge-cut size greater than `2k`. These graph criteria do not transfer automatically to heterogeneous sheaves or semantic failure labels. Verify the exact finite cases with `scripts/sheaf_observability_study.py`, then compare with direct checks given the same evidence and an independent artifact or ledger oracle.
+
 ## Three worked calculations
 
 ### 1. Filled triangle: independently observed edge values

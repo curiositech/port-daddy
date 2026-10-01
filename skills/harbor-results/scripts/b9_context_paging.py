@@ -22,34 +22,24 @@ CACM 28(2):202-208, 1985 is the unweighted ancestor; variable span sizes
 and refetch costs are exactly why the file-caching version is needed
 rather than vanilla LRU's bound.)
 
-Theorem B9.2 (new — linear phi-degradation). Pin-augmented Landlord keeps
-reported pins resident and runs Landlord on the unpinned region. Let the
-honestly-pinned set P have total size p, let C be the number of corrupted
-consultations (E[C] = phi*N), and c_refetch = max_f c(f). Under unit cost
-density and repair-on-touch, for every h with p <= h <= k:
-    cost_total  <=  c(P) + (k-p)/(k-h+1) * OPT_{h-p}(sigma_unpinned)
-                         + C * c_refetch,
-i.e. the Landlord bound on the honestly-unpinned region PLUS
-phi*N*c_refetch — additive and LINEAR in phi: graceful degradation, never
-a cliff. The whitepaper form k/(k-h+1)*OPT + phi*N*c_refetch follows a
-fortiori since (k-p)/(k-h+1) <= k/(k-h+1).
-  Charging argument. Each corrupted consultation perturbs exactly one
-eviction pass. (a) MISSED PIN f: f is evictable in that pass only; if
-evicted, repair-on-touch refetches and re-pins it at its next request —
-one refetch, charge c(f) <= c_refetch. (b) MIS-PINNED junk g: g is
-protected for one pass, so the pass displaces other spans of total volume
-<= s(g); under unit density their eventual refetch cost is <= s(g)
-<= c_refetch. Each corruption is charged at most once; second-order state
-divergence (the corrupted run's Landlord credits drift from the honest
-run's) is absorbed by the multiplicative slack of the Landlord term — the
-full bound is verified below on EVERY tested instance, and the sharper
-per-corruption charge measured against the coupled honest RUN is reported
-separately (it is the one place the charging is an accounting against the
-bound, not a step-coupling; the sweep hunts for exactly that gap).
+Hypothesis B9.2 (finite-test target, not a proved bound). Pin-augmented
+Landlord keeps reported pins resident and runs Landlord on the unpinned
+region. Let the honestly-pinned set P have total size p, let C be the
+ACTUAL number of corrupted consultations, and c_refetch = max_f c(f).
+The sweep tests, for p <= h <= k under unit cost density and repair-on-touch:
+    cost_total <= c(P) + (k-p)/(k-h+1) * OPT_{h-p}(sigma_unpinned)
+                         + C * c_refetch.
+Here h is the offline comparator capacity, not pin count. E[C]=phi*N only
+under a specified random corruption schedule; phi*N*c_refetch is then a
+candidate EXPECTED charge, never a per-run replacement for C*c_refetch.
 
-phi is SHARED with R1's forgeable-feature budget: one number, two
-mechanisms (the digest floor's forgeable features and the paging layer's
-forgeable pins are the same adversarial knob).
+One-pass repair suggests a charge per corruption, but a changed eviction
+can alter later Landlord credits and evictions. The second-order state
+coupling has no general proof. The checks below seek counterexamples in
+finite fixtures, including an adaptive greedy schedule; they cannot
+certify arbitrary request or corruption sequences. The digest floor and
+pin oracle may share a feature-corruption budget when the same measured
+feature population drives both, but that equality is a modeling choice.
 
 Falsification-first protocol (skills/falsification-first):
  (1) B9.1 verified against EXACT offline OPT (subset-DP with dominance
@@ -525,21 +515,19 @@ print(f"  30 random instances at phi in {{0.2,0.4}}: {hunt_viol} B9.2 violations
 print("  wrong-turn candidate (adaptive corruption, adversary sees cache state):")
 if adaptive_break:
     BOUNDARY_NOTES.append(
-        "ADAPTIVE corruption exceeded the B9.2 bound: the theorem requires an "
-        "OBLIVIOUS adversary; state the oblivious condition as the boundary.")
-    print("    ** adaptive corruption BROKE the additive bound -> theorem holds only "
-          "for oblivious adversaries; boundary recorded.")
+        "ADAPTIVE corruption exceeded the B9.2 candidate on this fixture; "
+        "investigate the counterexample and its assumptions.")
+    print("    ** adaptive corruption BROKE the tested candidate on this fixture; "
+          "the universal bound is not established.")
 else:
-    print("    adaptive greedy-rollout corruption spends its budget on maximally "
-          "damaging flips but stays INSIDE the")
-    print("    additive bound: linearity does NOT break — each corruption still "
-          "perturbs one eviction pass and charges <= c_refetch")
-    print("    against the bound. Adaptivity tightens the constant toward the "
-          "ceiling; it does not change the exponent.")
+    print("    adaptive greedy-rollout corruption stays inside the candidate "
+          "bound in these fixtures.")
+    print("    This does not prove the general credit-coupling step. Adaptive "
+          "schedules raised observed charges toward the ceiling here.")
     print("    (The classical oblivious/adaptive gap lives in the MULTIPLICATIVE "
           "term — randomized marking's O(log k) needs")
-    print("    obliviousness; deterministic Landlord's k/(k-h+1) and this additive "
-          "term do not.)")
+    print("    obliviousness; deterministic Landlord's imported bound remains separate "
+          "from the corruption candidate.)")
 
 # ============================================== (5) MUTATION: blind pin trust
 print("\n=== (5) MUTATION: blind pin-trust must be catastrophic (repair-on-touch is critical) ===")
@@ -641,7 +629,7 @@ if FAILURES:
         print(f"   - {f_}")
     sys.exit(1)
 print("  B9.1 (Landlord import) verified against exact OPT on every instance, every h.")
-print("  B9.2 (linear phi-degradation) verified: additive bound holds on every "
+print("  B9.2 candidate held on every tested "
       "instance incl. adaptive corruption;")
 print("  cost-vs-phi linear with slope below N*c_refetch; blind-trust mutant "
       "catastrophic. 0 violations. Exit 0.")

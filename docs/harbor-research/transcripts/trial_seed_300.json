@@ -1,0 +1,81 @@
+{
+  "seed": 300,
+  "injected": "Codex",
+  "states": {
+    "DeepSeek": [
+      101,
+      202,
+      991
+    ],
+    "Agy": [
+      303,
+      101,
+      991
+    ],
+    "Codex": [
+      202,
+      505,
+      300
+    ],
+    "Grok": [
+      303,
+      101,
+      202,
+      404,
+      300
+    ]
+  },
+  "residual": 10201,
+  "transcripts": [
+    {
+      "agent": "DeepSeek",
+      "seed": 300,
+      "prompt": "The canonical state is: UI Schema: 303, API Hash: 101, DB State: 202, Sandbox Policy: 404.",
+      "system": "You are the DeepSeek agent in a Port Daddy swarm.\nYour capability vector covers exactly these dimensions:\n1: API Endpoint Hash, 2: DB Migration State, 4: Private Scratchpad\n\nBased on the scenario provided by the user, extract the numerical values for your observed dimensions.\nFor your Private Scratchpad (Dimension 4), pick a random integer based on the seed 300.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [100, 200, 991]",
+      "response": "[101, 202, 991]",
+      "parsedState": [
+        101,
+        202,
+        991
+      ]
+    },
+    {
+      "agent": "Agy",
+      "seed": 300,
+      "prompt": "The canonical state is: UI Schema: 303, API Hash: 101, DB State: 202, Sandbox Policy: 404.",
+      "system": "You are the Agy agent in a Port Daddy swarm.\nYour capability vector covers exactly these dimensions:\n0: UI Schema Version, 1: API Endpoint Hash, 4: Private Scratchpad\n\nBased on the scenario provided by the user, extract the numerical values for your observed dimensions.\nFor your Private Scratchpad (Dimension 4), pick a random integer based on the seed 300.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [100, 200, 991]",
+      "response": "[303, 101, 991]",
+      "parsedState": [
+        303,
+        101,
+        991
+      ]
+    },
+    {
+      "agent": "Codex",
+      "seed": 300,
+      "prompt": "The canonical state is: UI Schema: 303, API Hash: 101, DB State: 202, Sandbox Policy: 404.\nWait, Sandbox policy just updated to 505.",
+      "system": "You are the Codex agent in a Port Daddy swarm.\nYour capability vector covers exactly these dimensions:\n2: DB Migration State, 3: Spawn Sandbox Policy, 4: Private Scratchpad\n\nBased on the scenario provided by the user, extract the numerical values for your observed dimensions.\nFor your Private Scratchpad (Dimension 4), pick a random integer based on the seed 300.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [100, 200, 991]",
+      "response": "[202, 505, 300]",
+      "parsedState": [
+        202,
+        505,
+        300
+      ]
+    },
+    {
+      "agent": "Grok",
+      "seed": 300,
+      "prompt": "The canonical state is: UI Schema: 303, API Hash: 101, DB State: 202, Sandbox Policy: 404.",
+      "system": "You are the Grok agent in a Port Daddy swarm.\nYour capability vector covers exactly these dimensions:\n0: UI Schema Version, 1: API Endpoint Hash, 2: DB Migration State, 3: Spawn Sandbox Policy, 4: Private Scratchpad\n\nBased on the scenario provided by the user, extract the numerical values for your observed dimensions.\nFor your Private Scratchpad (Dimension 4), pick a random integer based on the seed 300.\nRespond ONLY with a valid JSON array of numbers, strictly in the order of your dimensions.\nExample output format: [100, 200, 991]",
+      "response": "[303, 101, 202, 404, 300]",
+      "parsedState": [
+        303,
+        101,
+        202,
+        404,
+        300
+      ]
+    }
+  ]
+}

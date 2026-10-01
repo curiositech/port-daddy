@@ -1,0 +1,579 @@
+{
+  "provenance": "synthetic topology and typed feature fixture; no semantic failure attribution or field claims",
+  "coordinates": [
+    "completion_count",
+    "validated_handoff_count"
+  ],
+  "vertex_order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "edge_order": [
+    "01:count",
+    "12:count",
+    "02:count",
+    "02:handoff",
+    "23:handoff",
+    "03:handoff"
+  ],
+  "a_d0": [
+    [
+      "-1",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "0",
+      "0",
+      "-1",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "-1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "0",
+      "-1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0"
+    ],
+    [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "-1",
+      "0",
+      "1"
+    ],
+    [
+      "0",
+      "-1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "1"
+    ]
+  ],
+  "b_d1": [
+    [
+      "1",
+      "1",
+      "-1",
+      "0",
+      "0",
+      "0"
+    ]
+  ],
+  "b_with_face023": [
+    [
+      "1",
+      "1",
+      "-1",
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "0",
+      "0",
+      "0",
+      "1",
+      "1",
+      "-1"
+    ]
+  ],
+  "base": {
+    "rank_d0": 4,
+    "rank_d1": 1,
+    "h0": 4,
+    "h1": 1,
+    "h2": 0
+  },
+  "filled": {
+    "rank_d0": 4,
+    "rank_d1": 2,
+    "h0": 4,
+    "h1": 0,
+    "h2": 0
+  },
+  "examples": {
+    "local_count": {
+      "observation": [
+        "1",
+        "1",
+        "-1",
+        "0",
+        "0",
+        "0"
+      ],
+      "base": {
+        "gradient": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "1",
+          "1",
+          "-1",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "1",
+          "1",
+          "-1",
+          "0",
+          "0",
+          "0"
+        ],
+        "gradient_norm_squared": "0",
+        "coexact_norm_squared": "3",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "3",
+        "face_syndrome": [
+          "3"
+        ]
+      },
+      "filled": {
+        "gradient": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "1",
+          "1",
+          "-1",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "1",
+          "1",
+          "-1",
+          "0",
+          "0",
+          "0"
+        ],
+        "gradient_norm_squared": "0",
+        "coexact_norm_squared": "3",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "3",
+        "face_syndrome": [
+          "3",
+          "0"
+        ]
+      }
+    },
+    "global_handoff": {
+      "observation": [
+        "0",
+        "0",
+        "0",
+        "1",
+        "1",
+        "-1"
+      ],
+      "base": {
+        "gradient": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "-1"
+        ],
+        "compatibility_residual": [
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "-1"
+        ],
+        "gradient_norm_squared": "0",
+        "coexact_norm_squared": "0",
+        "harmonic_norm_squared": "3",
+        "residual_norm_squared": "3",
+        "face_syndrome": [
+          "0"
+        ]
+      },
+      "filled": {
+        "gradient": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "-1"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "-1"
+        ],
+        "gradient_norm_squared": "0",
+        "coexact_norm_squared": "3",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "3",
+        "face_syndrome": [
+          "0",
+          "3"
+        ]
+      }
+    },
+    "gradient_alias_difference": {
+      "observation": [
+        "1",
+        "0",
+        "1",
+        "0",
+        "0",
+        "0"
+      ],
+      "base": {
+        "gradient": [
+          "1",
+          "0",
+          "1",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "gradient_norm_squared": "2",
+        "coexact_norm_squared": "0",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "0",
+        "face_syndrome": [
+          "0"
+        ]
+      },
+      "filled": {
+        "gradient": [
+          "1",
+          "0",
+          "1",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "gradient_norm_squared": "2",
+        "coexact_norm_squared": "0",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "0",
+        "face_syndrome": [
+          "0",
+          "0"
+        ]
+      }
+    },
+    "mixed": {
+      "observation": [
+        "2",
+        "1",
+        "0",
+        "1",
+        "1",
+        "-1"
+      ],
+      "base": {
+        "gradient": [
+          "1",
+          "0",
+          "1",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "1",
+          "1",
+          "-1",
+          "0",
+          "0",
+          "0"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "-1"
+        ],
+        "compatibility_residual": [
+          "1",
+          "1",
+          "-1",
+          "1",
+          "1",
+          "-1"
+        ],
+        "gradient_norm_squared": "2",
+        "coexact_norm_squared": "3",
+        "harmonic_norm_squared": "3",
+        "residual_norm_squared": "6",
+        "face_syndrome": [
+          "3"
+        ]
+      },
+      "filled": {
+        "gradient": [
+          "1",
+          "0",
+          "1",
+          "0",
+          "0",
+          "0"
+        ],
+        "coexact": [
+          "1",
+          "1",
+          "-1",
+          "1",
+          "1",
+          "-1"
+        ],
+        "harmonic": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "compatibility_residual": [
+          "1",
+          "1",
+          "-1",
+          "1",
+          "1",
+          "-1"
+        ],
+        "gradient_norm_squared": "2",
+        "coexact_norm_squared": "6",
+        "harmonic_norm_squared": "0",
+        "residual_norm_squared": "6",
+        "face_syndrome": [
+          "3",
+          "3"
+        ]
+      }
+    }
+  },
+  "sheaf_code": {
+    "distance_edge_groups": 2,
+    "witness_groups": [
+      0,
+      1
+    ],
+    "witness_vertex_values": [
+      "0",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "witness_d0": [
+      "1",
+      "-1",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "one_edge_alias_left": [
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "one_edge_alias_right": [
+      "0",
+      "0",
+      "-1",
+      "0",
+      "0",
+      "0"
+    ],
+    "alias_difference": [
+      "1",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0"
+    ],
+    "alias_vertex_values": [
+      "-1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  "relative_visible_subcomplex": {
+    "h0_k": 4,
+    "h0_l": 4,
+    "restriction_rank": 3,
+    "h1_relative": 2,
+    "connecting_rank": 1,
+    "locally_compatible_nonextendible_handoff": [
+      "0",
+      "1",
+      "-1",
+      "0"
+    ],
+    "nonextendible_detected": true,
+    "equal_handoff_extendible": true,
+    "equal_handoff_connecting_cochain": [
+      "0",
+      "0",
+      "-1",
+      "-1"
+    ]
+  }
+}

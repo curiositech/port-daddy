@@ -7,12 +7,13 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { readRetiredDocument } from '../helpers/omni-retired-source.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 
 const kernelPaper = read('whitepaper/single-writer-kernel.tex');
 const economyPaper = read('website-v2/public/whitepaper/harbor-economy.tex');
-const roadmap = read('docs/roadmap/whitepaper-research-program.md');
+const roadmap = readRetiredDocument('docs/roadmap/whitepaper-research-program.md');
 
 describe('Coordination Papers implementation-status contract', () => {
   test('witnessed-outcome ledger stays PARTIAL: commitment substrate exists and richer outcomes do not', () => {

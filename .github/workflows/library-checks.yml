@@ -159,6 +159,11 @@ jobs:
       - name: Reviewer corrections reached every site that echoes them
         run: python3 scripts/harbor-research/check_propagated_corrections.py
 
+      - name: Omni research ledger integrity and deletion safeguards
+        run: |
+          python3 -B scripts/harbor-research/omni_ledger.py check
+          python3 -B scripts/harbor-research/test_omni_ledger.py
+
       - name: Library index matches the corpora it claims to index
         run: python3 scripts/harbor-research/check_library_index.py
 
@@ -170,6 +175,9 @@ jobs:
 
       - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
         run: python3 scripts/harbor-research/check_research_program.py
+
+      - name: Reviewer study preparation and readiness boundaries
+        run: python3 scripts/harbor-research/check_reviewer_protocol.py --self-test
 
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: |

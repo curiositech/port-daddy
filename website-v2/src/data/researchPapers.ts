@@ -10,13 +10,14 @@ import {
 } from 'lucide-react'
 
 /**
- * The seven Harbor research papers — arXiv-style, adversarially reviewed
- * proofs, distinct from the seven product whitepapers showcased at
+ * The eight Harbor research papers — arXiv-style research artifacts,
+ * distinct from the seven product whitepapers showcased at
  * `/library`. The whitepapers make the harbor's claims in prose; these
- * papers are where the claims that needed hard math get it: closed-form
+ * papers investigate claims that need hard math: closed-form
  * bit floors, a controllability theorem, a bribery-proof inspection tower,
- * conservation laws for reputation, an NP-completeness frontier, a
- * sheaf-cohomology detector with a certified lower bound.
+ * conservation laws for reputation, an NP-completeness frontier, and a
+ * bounded sheaf-consistency detector. Publication here does not certify
+ * every interpretation or application proposed in a paper.
  *
  * Page counts and file sizes are read from the built PDFs
  * (`public/research/paperN.pdf` via `pdfinfo`), not asserted — see the
@@ -42,7 +43,7 @@ export interface PriorArtDive {
 
 export interface ResearchPaper {
   id: string
-  /** Arabic numeral, 1–7 — deliberately distinct from the whitepapers' Roman-numeral chapters. */
+  /** Arabic numeral — deliberately distinct from the whitepapers' Roman-numeral chapters. */
   number: string
   title: string
   subtitle: string
@@ -51,9 +52,9 @@ export interface ResearchPaper {
   pages: number
   /** KB, `Math.round(bytes / 1024)` on the committed PDF. */
   sizeKb: number
-  /** What this paper proves, in one sentence, in our own words — not lifted from the abstract. */
+  /** Supported result or research question, in one sentence, in our own words. */
   claim: string
-  /** A verbatim headline number or theorem statement from the paper's abstract. */
+  /** A short evidence-bounded statement for the public listing. */
   pullQuote: string
   /** The R-numbers (results-compendium.md, R1–R17) this paper discharges. */
   resultTags: string[]
@@ -80,16 +81,16 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 452,
+    sizeKb: 438,
     claim:
-      'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
+      'A zero-miss digest has a combinatorial bit lower bound under a fixed inspection budget. Decision-specific rankings and adaptive group queries have separate, explicit assumptions.',
     pullQuote:
-      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k critical artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
+      'At least log₂C(N,k) − log₂C(m,k) bits are needed to cover every critical k-set using m opens. The counting bound alone does not construct an encoder that attains it.',
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
     tone: 'primary',
     icon: Binary,
     chapterRef: 'legible-swarm',
-    chapterWhy: 'prices the digest-with-zoom loop the flagship chapter only argues for in prose',
+    chapterWhy: 'develops the oversight bounds, decision thresholds and zoom procedure embodied in Chapter 4',
   },
   {
     id: 'regimented-or-enforced',
@@ -100,18 +101,18 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 363,
     claim:
-      'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
+      'In the declared full-observation event model, controllability determines which safety policies a mediator can enforce before an effect.',
     pullQuote:
-      'A safety policy is regimentable — preventable pre-effect — iff it is controllable in the Ramadge–Wonham sense. The design rule it proves: gate the channel, never the token.',
+      'Prevention requires control of the relevant effect channel. Observation, authentication and adapter semantics determine whether that model applies.',
     resultTags: ['R5'],
     tone: 'health',
     icon: Workflow,
     chapterRef: 'single-writer-kernel',
-    chapterWhy: 'mechanizes the kernel chapter’s own "detector vs. regimenter" distinction as a theorem',
+    chapterWhy: 'formalizes the kernel chapter’s mediation boundary and its observation assumptions',
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'The rumored same-year preprint is real but orthogonal; the actual prior problem is Basin et al. (TISSEC 2013) — two correctness bugs against Schneider’s original theorem were found and fixed.',
+        'The enforcement claim is scoped to its event model, controllable channels and observation assumptions. Partial observation and real adapter behavior require additional contracts.',
       findingsPath: 'flag-2-runtime-enforceability-priority/findings.md',
     },
   },
@@ -124,9 +125,9 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 12,
     sizeKb: 345,
     claim:
-      'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
+      'In the inspection game, deterrence requires audit probability times detection probability times penalty to cover the deviation gain. Hierarchy guarantees depend on bounded depth and the stated collusion model.',
     pullQuote:
-      'Lifetime audit spend falls from Θ(T) flat to Θ(log T) to O(1) as a track record grows. Reputation is not a soft layer bolted onto verification — it is the mechanism that amortizes its cost.',
+      'Audit savings depend on the assumed gain, detection and penalty schedules. They require calibration before they can guide a real verification budget.',
     resultTags: ['R7'],
     tone: 'rust',
     icon: Layers3,
@@ -135,7 +136,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one named competing result turned out to support the tower theorem, not contradict it — but the adversarial re-read caught and fixed a real arithmetic defect in the paper’s own C=1 counter-case.',
+        'The finite-depth hierarchy and collusion assumptions delimit the result. A bounded literature review is not a proof of priority or universal applicability.',
       findingsPath: 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md',
     },
   },
@@ -146,11 +147,11 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
     pages: 17,
-    sizeKb: 408,
+    sizeKb: 407,
     claim:
-      'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
+      'A declared release interface combines a finite noninterference model, mediated effects, atomic privacy accounting and a calibrated canary test.',
     pullQuote:
-      'Four independently verified pillars — exhaustive noninterference, the controllability boundary, ε-conservation of the release ledger, a canary detector with a quotable operating curve — priced honestly as q·b bits across q jobs, before timing channels, which are out of model.',
+      'A q·b output-bit cap bounds the declared output channel. It does not establish which information those bits reveal, and timing channels remain outside that model.',
     resultTags: ['R5', 'R9', 'R10', 'R11'],
     tone: 'accent',
     icon: ShieldCheck,
@@ -159,7 +160,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'Each pillar narrows to a known result (delimited release, a privacy filter) the paper mostly pre-concedes; one corollary applied an invalid composition bound and was rewritten to the model it actually holds for.',
+        'The assurance argument composes scoped information-flow, privacy-accounting and detection results. Each pillar retains its own assumptions and proof boundary.',
       findingsPath: 'paper4-sealed-harbor/findings.md',
     },
   },
@@ -169,12 +170,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Continuity Without Metaphysics',
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
-    pages: 14,
-    sizeKb: 327,
+    pages: 15,
+    sizeKb: 335,
     claim:
-      'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
+      'Ledger rules can conserve credit and inherited obligations across agent changes. Safe continuation of an unknown remote effect additionally requires an adapter-specific deduplication or fencing contract.',
     pullQuote:
-      'Unattested, swapping in a cheap engine always pays — Akerlof’s death spiral runs inside one identity. Attest the engine id and the incentive flips to the planner’s own efficiency rule, at zero audit stake.',
+      'An authenticated checkpoint does not prove behavioral equivalence. Negative readback cannot justify retry while a prior request can still commit.',
     resultTags: ['R12', 'R13'],
     tone: 'violet',
     icon: Fingerprint,
@@ -183,7 +184,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'No prior work proves the theorems, but Theorem 2a was misnamed — it’s Akerlof’s lemons result, not the unraveling theorem the paper originally called it — and a plotted crossing value the paper’s own figure contradicted was corrected.',
+        'The economic substitution result assumes the stated quality-pricing contract. Credit conservation, behavioral fidelity and safe external effects are distinct obligations.',
       findingsPath: 'paper5-continuity-without-metaphysics/findings.md',
     },
   },
@@ -193,21 +194,21 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'What Needs an Authority',
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
-    pages: 14,
-    sizeKb: 422,
+    pages: 15,
+    sizeKb: 433,
     claim:
-      'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
+      'A ground commitment language admits polynomial conflict checks. For a finite declared reachable family, future safety is decided on its inclusion-maximal fact sets.',
     pullQuote:
-      'One step outside the tractable fragment (disjunctive obligations), conflict-freedom is NP-complete — validated against a brute-force oracle on 3,000 random policy sets, zero disagreements. An authority is needed exactly where the algorithm ends.',
+      'Disjunctive discharge choices make the decision NP-complete. That changes worst-case computational cost; it does not prove that a human judge is necessary.',
     resultTags: ['R15', 'R17'],
     tone: 'warm',
     icon: SplitSquareVertical,
     chapterRef: 'harbor-economy',
-    chapterWhy: 'corrects the market chapter’s sole-owner-vs-pooled-swarm threshold with the actual Erlang-C crossing point',
+    chapterWhy: 'supplies scoped admission checks, future-fact conditions and specialization economics for Chapter 6',
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'The tractable-then-NP-complete shape is already mapped by the Colombo Tosatto/Governatori compliance line; the paper’s specific fragment survives as novel, and a wrong-strictness "iff" in Theorem 3 — stated three different ways across four sites — was found and unified.',
+        'The fragment uses established Horn, interval and difference-constraint methods. Its reachable-family result specializes monotonicity reasoning and requires independent reachability evidence.',
       findingsPath: 'flag-3-deontic-tractability-frontier/findings.md',
     },
   },
@@ -215,48 +216,48 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     id: 'the-cohomology-of-equivocation',
     number: '7',
     title: 'The Cohomology of Equivocation',
-    subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
+    subtitle: 'What Cycle Residuals Certify in Federated Witness-Log Gossip',
     pdfPath: '/research/paper7.pdf',
-    pages: 14,
-    sizeKb: 466,
+    pages: 11,
+    sizeKb: 423,
     claim:
-      'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
+      'A nonzero cycle residual rules out a global real-valued completion of the admitted edge observations. It neither identifies a liar nor detects every inconsistent raw claim.',
     pullQuote:
-      'r = |s|·√(1 − R_eff(e)), closed form — the harness’s measured 1.2247 is exactly 3√(1 − 5/6). r > 0 proves no global history explains the data; a coalition on a cycle cancels to 0, measured at 6×10⁻¹⁵.',
-    resultTags: ['R6'],
+      'With the same visible endpoint claims, direct equality detects every cycle inconsistency and can detect more. Sparse visibility and privacy change the evidence contract.',
+    resultTags: ['R6', 'CR'],
     tone: 'indigo',
     icon: Radar,
     chapterRef: 'federated-harbor',
-    chapterWhy: 'gives the federation chapter’s witness-log gossip a detector for lies on links nobody directly compared',
+    chapterWhy: 'gives Chapter 8 a scoped consistency test, visibility limits and equal-information comparisons',
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one citation flagged as possibly fabricated turned out to be real but irrelevant — excluded on relevance, not fraud — and Herlihy–Shavit plus three more foundational citations were added to close a real omission.',
+        'Graph projection and effective resistance provide the mathematical baseline. The research question is which authenticated observations justify a useful decision.',
       findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
     },
   },
   {
     id: 'active-sheaf-cohomology-for-swarms',
     number: '8',
-    title: 'The Cohomology of Swarms',
-    subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
+    title: 'The Cohomology of Agent Evidence',
+    subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
-    pages: 24,
-    sizeKb: 542,
+    pages: 14,
+    sizeKb: 291,
     claim:
-      'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
+      'Typed maps specify which evidence can be compared. Exact categorical certificates, relative extension and report-error distance answer distinct compatibility questions.',
     pullQuote:
-      'L(g) = ||h||² / (||h||² + ||δ₁* ψ||²) separates micro-triad bugs from macro-network splits in < 2 ms without LLM calls, and greedy min-cut repair drives residual r → 0 in at most β₁(G) rounds.',
-    resultTags: ['CR-1', 'CR-2', 'CR-3', 'CR-4', 'CR-5'],
+      'A contradictory categorical table can have zero real residual. Its least-cost retained witness consists of incompatible pins and a connecting zero-edge path.',
+    resultTags: ['thm:categorical-certificate', 'thm:sheaf-edge-distance'],
     tone: 'primary',
     icon: Layers3,
-    chapterRef: 'legible-swarm',
-    chapterWhy: 'provides the active control closed-loop, higher-order 2-complex triage, and polynomial-time repair for the fleet',
+    chapterRef: 'federated-harbor',
+    chapterWhy: 'develops Chapter 8’s categorical certificates and typed observation limits; field utility and causal attribution remain open',
     priorArtDive: {
-      verdict: 'CLEAR',
+      verdict: 'NARROW',
       summary:
-        'Robinson (2014) established static sensor sheaves; Bodnar et al. (2022) established continuous GNN sheaf diffusion. Neither addressed autonomous LLM swarms, triadic review contracts, or active cycle-matroid repair.',
-      findingsPath: 'paper8-active-sheaf-cohomology/findings.md',
+        'Cellular sheaf cohomology, Hodge decomposition, and sparse recovery supply the mathematics. The testable contribution is a typed agent-evidence contract, exact observability certificates, and controlled comparison with direct checks.',
+      findingsPath: 'paper8-typed-evidence-sheaf/findings.md',
     },
   },
 ]

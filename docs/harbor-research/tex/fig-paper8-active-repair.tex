@@ -1,6 +1,5 @@
 % Paper 8 Figure 5: Theorem CR-4 Active Cohomological Repair Closed Loop.
-% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
-% metric coordinate drafting grid, and strict chromatic state taxonomy.
+% Specification: visual proofs, clean layout, coordinate drafting grid, and strict chromatic state taxonomy.
 
 \begin{figure}[htbp]
 \centering
@@ -11,8 +10,8 @@
   fencednode/.style={circle, draw=ptDark!50, fill=ptLightGray, line width=1pt, dashed, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small, text=ptDark!60}
 ]
 
-% 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
-\draw[swissgrid] (-0.35, -1.5) grid (14.25, 5.35);
+% 1. Coordinate Grid Context
+\draw[canvasgrid] (-0.35, -1.5) grid (14.25, 5.35);
 \draw[majorgrid] (-0.35, -1.5) grid (14.25, 5.35);
 
 % =========================================================================
@@ -95,6 +94,6 @@
 };
 
 \end{tikzpicture}
-\caption{Theorem CR-4 active repair closed loop adhering to Swiss Modern Systems Graphics. (Step 1) An equivocator $v_1^*$ injects contradiction $s = 3.0$, creating non-zero circulation $\rho \ne 0$ detected by the projection residual $r > 0$. (Step 2) The greedy controller computes residual energy-to-cost ratios $E(e)/w(e)$ across active channels, identifying $e_{12}^*$ as the unique maximal violator. (Step 3) Severing optimal edge $e_{12}^*$ breaks the cycle constraint, restoring consensus ($r \to 0$) in polynomial time.}
+\caption{Theorem CR-4 active repair closed loop. (Step 1) An equivocator $v_1^*$ injects contradiction $s = 3.0$, creating non-zero circulation $\rho \ne 0$ detected by the projection residual $r > 0$. (Step 2) The greedy controller computes residual energy-to-cost ratios $E(e)/w(e)$ across active channels, identifying $e_{12}^*$ as the unique maximal violator. (Step 3) Severing optimal edge $e_{12}^*$ breaks the cycle constraint, restoring consensus ($r \to 0$) in polynomial time.}
 \label{fig:repair}
 \end{figure}

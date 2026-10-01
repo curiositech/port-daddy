@@ -1,6 +1,5 @@
 % Paper 8 Figure 4: Simplicial Hodge Decomposition and the Swarm Legibility Ratio.
-% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
-% metric coordinate drafting grid, and strict chromatic state taxonomy.
+% Specification: visual proofs, clean layout, coordinate drafting grid, and strict chromatic state taxonomy.
 
 \begin{figure}[htbp]
 \centering
@@ -18,8 +17,8 @@
   vnode/.style={circle, draw=ptDark, fill=ptLightGray, line width=1.1pt, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small},
   fieldbox/.style={rectangle, draw=ptDark, fill=white, line width=1pt, inner sep=6pt, font=\footnotesize, align=left, anchor=north}
 ]
-  % 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
-  \draw[swissgrid] (-0.35, -1.6) grid (5.35, 4.85);
+  % 1. Coordinate Grid Context
+  \draw[canvasgrid] (-0.35, -1.6) grid (5.35, 4.85);
   \draw[majorgrid] (-0.35, -1.6) grid (5.35, 4.85);
 
   % Triangle coordinates
@@ -64,8 +63,8 @@
 \begin{tikzpicture}[
   font=\small
 ]
-  % 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
-  \draw[swissgrid] (-0.35, -1.2) grid (9.25, 6.1);
+  % 1. Coordinate Grid Context
+  \draw[canvasgrid] (-0.35, -1.2) grid (9.25, 6.1);
   \draw[majorgrid] (-0.35, -1.2) grid (9.25, 6.1);
 
   % Subspace 1: Gradient (ptBlue)
@@ -105,6 +104,6 @@
 \end{tikzpicture}
 \end{minipage}
 
-\caption{Discrete Hodge decomposition on a simplicial 2-complex conforming to Swiss Modern Systems Graphics. (a) A 2-simplex $\tau = [v_0, v_1, v_2]$ modeling a 3-way review contract with oriented boundary $\partial_2 \tau = e_{01} + e_{12} - e_{02}$. (b) The Hodge 1-Laplacian $L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ decomposes observed discrepancies into mutually orthogonal gauge gradients ($\mathrm{im}(\delta_0)$, blue), harmonic cavities ($\mathcal{H}^1$, dark), and triadic curls ($\mathrm{im}(\delta_1^*)$, red), yielding the zero-token Swarm Legibility Ratio $\mathcal{L}(g)$.}
+\caption{Discrete Hodge decomposition on a simplicial 2-complex. (a) A 2-simplex $\tau = [v_0, v_1, v_2]$ modeling a 3-way review contract with oriented boundary $\partial_2 \tau = e_{01} + e_{12} - e_{02}$. (b) The Hodge 1-Laplacian $L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ decomposes observed discrepancies into mutually orthogonal gauge gradients ($\mathrm{im}(\delta_0)$, blue), harmonic cavities ($\mathcal{H}^1$, dark), and triadic curls ($\mathrm{im}(\delta_1^*)$, red), yielding the zero-token Swarm Legibility Ratio $\mathcal{L}(g)$.}
 \label{fig:hodge}
 \end{figure}

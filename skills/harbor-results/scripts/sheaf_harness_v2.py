@@ -1,77 +1,26 @@
 #!/usr/bin/env python3
 """
-SHEAF STATISTICAL HARNESS v2 — rebuild of the broken predecessor
-(docs/harbor-research/wrong-turns/sheaf_verdict.py), per HANDOFF §3.3 (wave W8).
+Synthetic edge-residual and equal-information baseline harness.
 
-AUTOPSY OF THE PREDECESSOR (why v1 produced signal ≡ 0 / nonsense):
+The linear model uses coordinate-selection restrictions and three evidence
+tiers: compared, relayed (both endpoint claims reach the analyst), and severed
+(no edge report). The completion residual is the distance of visible edge
+differences from the coboundary image. Its one-edge visible-cycle criterion
+does not characterize arbitrary one-sender split views.
 
- D1 — restriction maps killed coker. Per-edge random orthonormal S×D
-      projections make the coboundary δ generically SURJECTIVE once edges are
-      plentiful ⇒ coker(δ)=0 ⇒ harmonic space empty ⇒ cohomology signal ≡ 0
-      regardless of the data. FIX: restrictions are COORDINATE-SUBSET
-      selections (shared-prefix coordinates per edge; coordinate 0 shared on
-      every edge). The complex then decomposes per coordinate and
-      coker(δ) ≅ ⊕_c H¹(G_c) — cycle space ⊗ shared coords — so it carries
-      the cocycle constraints. A structural self-check below computes
-      dim coker(δ) and REFUSES to run if it falls below β₁(G).
+The checked-edge-only comparator sees direct endpoint checks. The
+equal-information comparator groups every visible authenticated sender claim
+by coordinate in the same synthetic snapshot. It must find every residual
+alarm, because consistent sender claims define a vertex assignment whose
+edge differences are a coboundary. A triangle-with-leaf witness tests the
+converse failure. The harness also verifies the one-edge cycle/bridge law,
+visibility masking, structural cokernel dimensions, and mutation controls.
+It also constructs the exact midpoint ambiguity at the bounded-error
+separation threshold and checks the sender-wide singular margin.
 
- D2 — masking applied inconsistently. v1 computed signals from the FULL
-      disagreement cochain g, with "hidden" edges' values silently included.
-      FIX: the observed cochain contains only edges whose data the analyst
-      actually has; truly severed edges contribute NO data and enter the
-      algebra as free variables. A masking self-check (mutation Mb) verifies
-      that a lie across a severed edge is invisible.
-
- D3 — wrong detector under partition. FIX: the correct statistic is the
-      least-squares COMPLETION residual
-          r = min over (x, free blocks) ‖ g_known − (δx)|_known ‖
-      i.e. the norm of the projection of the known-edge vector onto the
-      orthogonal complement of {(δx)|_known}. r > 0 ⟺ a cocycle obstruction
-      is visible from the observed edges alone. On a cut edge the free block
-      absorbs everything ⇒ r = 0 always — the honest boundary now falls out
-      of the algebra instead of being asserted.
-
-VISIBILITY SEMANTICS (the distinction the wrong turn conflated):
- every edge is exactly one of
-   COMPARED — endpoints ran the direct check; the pairwise baseline sees it;
-              g_e is known.
-   RELAYED  — both endpoints' signed reports reached the analyst by gossip
-              around the graph, but the direct check never ran (partition):
-              pairwise is blind; g_e is known to the global detector.
-   SEVERED  — no data at all: a free block in the completion.
- sheaf_mechanism_proof.py's "uncompared" edge is RELAYED (its harmonic
- projection uses g on that edge); HANDOFF D3's free blocks are SEVERED edges.
- With no severed edges the completion residual reduces exactly to the
- harmonic-projection norm of the mechanism proof (C₆: 1.225, P₆: 0.000 —
- reproduced below by the SAME general detector, no special-casing). A lie
- across a SEVERED cycle edge is provably dark (g_known ≡ 0 ⇒ r = 0): the
- predecessor "detected" it only by reading data it claimed not to have (D2).
-
-PRE-REGISTERED GATES (falsification-first obligation 2 — file pass or CUT;
- operationalizations fixed BEFORE the run):
- COMMIT requires BOTH
-  (i)  cohomology-only detections at a nontrivial rate (≥ 10% of trials) in
-       partition-on-a-cycle: scenario a1 — split-view equivocator across a
-       RELAYED bridge that lies on a cycle; AND
-  (ii) residual ≈ 0 (max r < 1e-9) on cut edges (scenario b, severed AND
-       relayed arms), and full-visibility detections redundant with pairwise
-       (scenario c: cohomology-only = 0).
- CUT if every residual detection across all scenarios is also caught by
- pairwise on compared edges.
- Counting caveat (harbor-results lesson #2): topological β₁ is netted out —
- the detection statistic is the DATA residual (honest data ⇒ r ≡ 0 exactly),
- never dim H¹ of the abstract sheaf; the structural coker dimension is
- printed separately per scenario so no counting claim conflates the two.
-
-MUTATION SUITE (a green harness is unvalidated until seeded bugs turn it red):
- Ma — reintroduce D1 (random orthonormal restrictions): the structural
-      self-check must detect coker collapse and refuse.
- Mb — reintroduce D2 (severed edges' g included): the masking self-check must
-      flag (severed-arm detection fires where the contract requires silence,
-      and its numbers become bit-identical to full visibility).
- Mc — no-equivocator control: ~0 detections on both detectors.
-
-Deps: numpy, networkx. Program seed 20260816. 200 trials per scenario arm.
+All claims are about synthetic real-coordinate data. No signed receipt or
+production gossip protocol is implemented here. Deps: numpy, networkx.
+Seed 20260816; 200 trials per scenario arm.
 """
 import sys
 import numpy as np
@@ -198,8 +147,7 @@ def honest_states(nverts, rng, dim):
 def observed_cochain(edges, P, x, equivocator, offsets):
     """g_e computed from the endpoints' REPORTS on the edge's shared readout.
     The equivocator's report toward neighbor w carries its per-neighbor
-    offset o_{q,w} (offsets differ per neighbor -> they cannot cancel around
-    a cycle through q)."""
+    offset o_{q,w}. Such offsets may cancel in the visible cycle projection."""
     g = {}
     for e in edges:
         u, v = e
@@ -226,8 +174,12 @@ def completion_residual(delta, slices, edges, status, g):
     rows = np.concatenate([np.arange(*slices[e]) for e in known])
     A = delta[rows, :]
     b = np.concatenate([g[e] for e in known])
-    xhat, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
-    resid = b - A @ xhat
+    # The incidence operator has an exact nullspace. Use a fixed numerical
+    # cutoff so near-zero singular values from roundoff are not inverted.
+    xhat, _, _, _ = np.linalg.lstsq(A, b, rcond=1e-10)
+    resid = b - np.einsum("ij,j->i", A, xhat, optimize=False)
+    if not np.all(np.isfinite(resid)):
+        raise ArithmeticError("non-finite completion residual")
     r = float(np.linalg.norm(resid))
     per_edge, i0 = {}, 0
     for e in known:
@@ -239,6 +191,31 @@ def completion_residual(delta, slices, edges, status, g):
 def pairwise_detect(edges, status, g, tol=TOL_SILENT):
     """Baseline: fires iff some COMPARED edge shows a nonzero disagreement."""
     return any(status[e] == "C" and np.linalg.norm(g[e]) > tol for e in edges)
+
+def duplicate_claim_detect(edges, status, P, x, equivocator, offsets,
+                           tol=TOL_DETECT):
+    """Equal-information baseline: compare each sender's coordinate claims.
+
+    The relayed tier supplies both endpoint reports in the stated contract.
+    Only visible (compared or relayed) records are admitted; a severed report
+    cannot enter either this checker or the residual. The synthetic feature
+    values share one snapshot, so differences for one sender/coordinate are
+    directly comparable.
+    """
+    claims = {}
+    for e in edges:
+        if status[e] == "S":
+            continue
+        u, v = e
+        for sender, recipient in ((u, v), (v, u)):
+            report = x[sender].copy()
+            if sender == equivocator and recipient in offsets:
+                report += offsets[recipient]
+            visible = P[e] @ report
+            for coordinate, value in enumerate(visible):
+                claims.setdefault((sender, coordinate), []).append(float(value))
+    return any(max(values) - min(values) > tol
+               for values in claims.values() if len(values) > 1)
 
 def bucket(coh, pw):
     return ("both" if coh and pw else
@@ -259,6 +236,8 @@ def run_trial(nverts, edges, status, equivocator, offsets, rng,
     r, per_edge = completion_residual(delta, slices, edges, status, g)
     pw = pairwise_detect(edges, status, g)
     coh = r > TOL_DETECT
+    direct = duplicate_claim_detect(
+        edges, status, P, x, equivocator, offsets)
     loc = None
     if want_localization and coh and per_edge:
         top = max(per_edge, key=per_edge.get)
@@ -271,7 +250,8 @@ def run_trial(nverts, edges, status, equivocator, offsets, rng,
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             dist = -1
         loc = (top, on_cycle, dist)
-    return dict(r=r, coh=coh, pw=pw, bucket=bucket(coh, pw), loc=loc)
+    return dict(r=r, coh=coh, pw=pw, direct=direct,
+                bucket=bucket(coh, pw), loc=loc)
 
 def offsets_for(style, neighbors, targets, rng):
     """Per-neighbor offset vectors. 'split': lie only toward `targets`
@@ -341,7 +321,149 @@ def reproduce_mechanism():
     print("  -> mechanism reproduced by the general completion-residual "
           "detector: cycle-signal 1.225 > 0, bridge 0.000  [PASS]")
 
+def reproduce_split_view_kernel_counterexample():
+    """Triangle plus leaf: a one-sender split view on a visible cycle with r=0."""
+    n, edges = 4, [(0, 1), (0, 2), (0, 3), (1, 2)]
+    P = prefix_restrictions(edges, {e: 1 for e in edges}, 1)
+    delta, slices = coboundary(n, edges, P, 1)
+    reports = np.zeros((n, 1))
+    offsets = {1: np.array([1.0]), 2: np.array([1.0]),
+               3: np.array([0.0])}
+    status = {e: "R" for e in edges}
+    g = observed_cochain(edges, P, reports, 0, offsets)
+    r, _ = completion_residual(delta, slices, edges, status, g)
+    direct = duplicate_claim_detect(edges, status, P, reports, 0, offsets)
+    potential = np.array([1.0, 0.0, 0.0, 1.0])
+    observed = np.concatenate([g[e] for e in edges])
+    assert beta1(n, edges) == 1
+    assert np.allclose(
+        observed, np.einsum("ij,j->i", delta, potential, optimize=False))
+    assert r < TOL_SILENT and direct
+    print("  Triangle plus leaf split view: visible cycle, r=0, "
+          "direct duplicate-claim check=True  [PASS]")
+
+def check_blind_spot_dimension():
+    """Compare the graph-component score with an independent SVD nullity."""
+    checked = 0
+    for mask in range(1 << 6):
+        candidate_edges = [(u, v) for u in range(4) for v in range(u + 1, 4)]
+        edges = [e for i, e in enumerate(candidate_edges) if mask & (1 << i)]
+        if not edges:
+            continue
+        P = prefix_restrictions(edges, {e: 1 for e in edges}, 1)
+        B, _ = coboundary(4, edges, P, 1)
+        for q in range(4):
+            incident = [i for i, e in enumerate(edges) if q in e]
+            if not incident:
+                continue
+            rest = nx.Graph()
+            rest.add_nodes_from(v for v in range(4) if v != q)
+            rest.add_edges_from(e for e in edges if q not in e)
+            component_of = {
+                v: i for i, component in enumerate(nx.connected_components(rest))
+                for v in component
+            }
+            touched = {
+                component_of[edges[i][1] if edges[i][0] == q else edges[i][0]]
+                for i in incident
+            }
+            predicted = len(touched) - 1
+            A_q = np.zeros((len(edges), len(incident)))
+            for j, i in enumerate(incident):
+                A_q[i, j] = B[i, q]
+            projected = A_q - B @ np.linalg.lstsq(B, A_q, rcond=1e-10)[0]
+            nullity = len(incident) - np.linalg.matrix_rank(projected, tol=1e-9)
+            assert nullity - 1 == predicted, (mask, q, nullity, predicted)
+            checked += 1
+    print(f"  Blind-spot dimension: component score = sender-map "
+          f"nullity minus one on {checked} four-vertex graph/sender cases  [PASS]")
+
+def check_bounded_error_separation():
+    """Construct both sides of the exact error-ball boundary, independently by SVD."""
+    n, edges = cycle_edges(6)
+    restrictions = prefix_restrictions(edges, {e: 1 for e in edges}, 1)
+    B, _ = coboundary(n, edges, restrictions, 1)
+    cycle_basis = np.linalg.svd(B.T, full_matrices=True)[2][-1]
+    projector = np.outer(cycle_basis, cycle_basis)
+    signal = np.zeros(len(edges))
+    signal[0] = 3.0
+    v = projector @ signal
+    d = np.linalg.norm(v)
+    assert np.isclose(d, 3 / np.sqrt(6), atol=1e-10)
+
+    # At equality, the same projected observation has an honest and faulty
+    # explanation, with admissible errors v/2 and -v/2 respectively.
+    eps = d / 2
+    midpoint = v / 2
+    assert np.isclose(np.linalg.norm(midpoint), eps)
+    assert np.allclose(projector @ (signal - midpoint), midpoint)
+    assert np.isclose(np.linalg.norm(projector @ (signal - midpoint)), eps)
+
+    # Strict separation means even the fault's nearest projected observation
+    # lies beyond the honest alarm boundary.
+    eps_small = eps - 0.1
+    assert d - eps_small > eps_small
+
+    incident = [i for i, edge in enumerate(edges) if 0 in edge]
+    A = np.zeros((len(edges), len(incident)))
+    for col, row in enumerate(incident):
+        A[row, col] = B[row, 0]
+    nonuniform = np.array([1.0, -1.0]) / np.sqrt(2)
+    gamma = np.linalg.norm(projector @ A @ nonuniform)
+    assert np.isclose(gamma, np.sqrt(2 / 6), atol=1e-10)
+    assert np.linalg.norm(projector @ A @ np.ones(2)) < 1e-10
+
+    _, path = path_edges(6)
+    path_B, _ = coboundary(6, path,
+                           prefix_restrictions(path, {e: 1 for e in path}, 1), 1)
+    assert np.linalg.matrix_rank(path_B) == len(path)
+    path_signal = np.zeros(len(path))
+    path_signal[0] = 3.0
+    assert np.linalg.norm(path_signal - path_B @ np.linalg.lstsq(
+        path_B, path_signal, rcond=None)[0]) < 1e-10
+    print("  Bounded error: C6 midpoint at d/2, strict threshold, "
+          "sender margin sqrt(2/6), and path blindness  [PASS]")
+
 # --------------------------------------------------------------------------
+def check_marginal_receipt_value():
+    """Independent least-squares checks of the active-receipt identity."""
+    def squared_residual(B, g):
+        fit = np.linalg.lstsq(B, g, rcond=None)[0]
+        return float(np.linalg.norm(g - B @ fit) ** 2)
+
+    def check_case(B, g, b, y, expected, connected):
+        old = squared_residual(B, g)
+        new = squared_residual(np.vstack((B, b)), np.append(g, y))
+        assert np.isclose(new - old, expected, atol=1e-10)
+        if connected:
+            xhat = np.linalg.lstsq(B, g, rcond=None)[0]
+            resistance = float(b @ np.linalg.pinv(B.T @ B) @ b)
+            predicted = float((y - b @ xhat) ** 2 / (1 + resistance))
+            assert np.isclose(new - old, predicted, atol=1e-10)
+        return new - old
+
+    path = np.array([[1., -1., 0.], [0., 1., -1.]])
+    assert np.isclose(check_case(path, np.zeros(2),
+                                 np.array([1., 0., -1.]), 3., 3., True), 3.)
+
+    # The pseudoinverse expression must not be used across components.
+    bridge = np.array([[1., -1., 0., 0.]])
+    check_case(bridge, np.array([2.]),
+               np.array([0., 1., -1., 0.]), 9., 0., False)
+
+    # Already inconsistent data: agreement with one old row is not gain zero.
+    parallel = np.array([[1., -1.], [1., -1.]])
+    g = np.array([0., 2.])
+    b = np.array([1., -1.])
+    check_case(parallel, g, b, 1., 0., True)
+    check_case(parallel, g, b, 0., 2. / 3., True)
+
+    # A predeclared pair of signatures follows the same identity by linearity.
+    check_case(path, np.array([1., -2.]),
+               np.array([1., 0., -1.]), 4., 25. / 3., True)
+    print("  Marginal receipt: cycle closure, disconnected bridge, "
+          "inconsistent data, and signature separation  [PASS]")
+
 # scenarios
 # --------------------------------------------------------------------------
 def scenario_two_path():
@@ -543,9 +665,13 @@ def mutation_Mc():
 # --------------------------------------------------------------------------
 def main():
     np.set_printoptions(precision=3, suppress=True)
-    print("SHEAF STATISTICAL HARNESS v2   seed", SEED,
+    print("SHEAF EDGE-RESIDUAL HARNESS   seed", SEED,
           f"  stalk dim D={D}  trials/arm={TRIALS}")
     reproduce_mechanism()
+    reproduce_split_view_kernel_counterexample()
+    check_blind_spot_dimension()
+    check_bounded_error_separation()
+    check_marginal_receipt_value()
 
     print("\n" + "=" * 74)
     print("[1] STRUCTURAL SELF-CHECK (anti-D1) + beta1 netting")
@@ -584,21 +710,29 @@ def main():
 
     all_results = (a["a1"] + a["a2"] + a["a3"] + b["b1"] + b["b2"] + b["b3"]
                    + c["c"] + d["d1"] + d["d2"])
+    residual_only_vs_direct = [r for r in all_results
+                               if r["coh"] and not r["direct"]]
+    direct_only_vs_residual = [r for r in all_results
+                               if r["direct"] and not r["coh"]]
+    print(f"  Equal-information direct claim check: residual-only "
+          f"{len(residual_only_vs_direct)}/{len(all_results)}; direct-only "
+          f"{len(direct_only_vs_residual)}/{len(all_results)}")
+    assert not residual_only_vs_direct, (
+        "information dominance violated: residual fired without a "
+        "duplicate sender claim on the same visible evidence")
     coh_dets = [r for r in all_results if r["coh"]]
     cut_condition = all(r["pw"] for r in coh_dets) if coh_dets else True
     print(f"  CUT check: residual detections total {len(coh_dets)}, of which "
           f"pairwise-blind {sum(1 for r in coh_dets if not r['pw'])} "
           f"-> {'CUT condition holds' if cut_condition else 'CUT condition refuted'}")
 
-    verdict = "COMMIT" if (gate_i and gate_ii and not cut_condition) else "CUT"
-    print(f"\n  VERDICT: {verdict}")
-    if verdict == "COMMIT":
-        print("  Scope (exact, honest): the completion residual detects and")
-        print("  proves equivocation from RELAYED (reported-but-uncompared)")
-        print("  evidence around cycles, where pairwise is blind; on cut")
-        print("  edges it is silent by algebra; under full visibility it is")
-        print("  redundant with pairwise; across SEVERED edges (no data) it")
-        print("  is dark — detection requires the reports, not the check.")
+    visibility_gate = gate_i and gate_ii and not cut_condition
+    print(f"\n  VISIBLE-EDGE RESIDUAL GATE: "
+          f"{'PASS' if visibility_gate else 'FAIL'}")
+    print("  EQUAL-INFORMATION DETECTION ADVANTAGE: REFUTED")
+    print("  The checked-edge baseline withholds relayed endpoint claims")
+    print("  already present in the detector's input. Direct comparison")
+    print("  finds every residual alarm on these synthetic records.")
 
     print("\n" + "=" * 74)
     print("[4] MUTATION SUITE (the harness's certificate)")
