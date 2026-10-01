@@ -72,53 +72,53 @@
     \textbf{Event Firehose}%
   };
 
-  % Bulleted characteristics list (exact requested lowercase text, clean 2-line wraps)
-  \node[pd label,anchor=north west,align=left,text=pdink,text width=2.5cm] at (0.0, 8.85) {%
-    \textendash\ \ high-entropy,\\[1pt]\phantom{\textendash\ \ }raw logs\\[3.5pt]%
-    \textendash\ \ high-volume\\[1pt]\phantom{\textendash\ \ }signals\\[3.5pt]%
-    \textendash\ \ unfiltered,\\[1pt]\phantom{\textendash\ \ }irregular%
+  % Bulleted characteristics list
+  \node[pd label,anchor=north west,align=left,text=pdink,text width=2.8cm] at (0.0, 8.85) {%
+    \textendash\ \ high-entropy\\[3.5pt]%
+    \textendash\ \ high-volume\\[3.5pt]%
+    \textendash\ \ unfiltered%
   };
 
   % =========================================================================
-  % COLUMN A (LOWER): PACKET / STRUCT ZOOM-IN CALLOUTS (x in [0.0, 3.1])
+  % COLUMN A (LOWER): PACKET / STRUCT ZOOM-IN CALLOUTS (x in [0.0, 3.6])
   % Folded paper sheet style with doubled height; each key/value on its own line
   % =========================================================================
-  % Zoom-in Callout 1 (Telemetry struct: x in [0.0, 3.1], y in [2.7, 5.0], height 2.3 cm)
+  % Zoom-in Callout 1 (Telemetry struct: x in [0.0, 3.6], y in [2.7, 5.0], height 2.3 cm)
   % Frustum projection fill & hairlines to token on Stream 1 at (6.0, 4.6)
-  \fill[pdcobalt!8,opacity=0.35] (2.85, 5.0) -- (5.9, 4.7) -- (5.9, 4.5) -- (3.1, 2.7) -- cycle;
-  \draw[guideline,dashed,draw=pdcobalt!80] (2.85, 5.0) -- (5.9, 4.7);
-  \draw[guideline,dashed,draw=pdcobalt!80] (3.1, 2.7) -- (5.9, 4.5);
+  \fill[pdcobalt!8,opacity=0.35] (3.35, 5.0) -- (5.9, 4.7) -- (5.9, 4.5) -- (3.6, 2.7) -- cycle;
+  \draw[guideline,dashed,draw=pdcobalt!80] (3.35, 5.0) -- (5.9, 4.7);
+  \draw[guideline,dashed,draw=pdcobalt!80] (3.6, 2.7) -- (5.9, 4.5);
 
   % Folded sheet outline
   \filldraw[calloutbox]
-    (0.0, 2.7) -- (3.1, 2.7) -- (3.1, 4.75) -- (2.85, 5.0) -- (0.0, 5.0) -- cycle;
+    (0.0, 2.7) -- (3.6, 2.7) -- (3.6, 4.75) -- (3.35, 5.0) -- (0.0, 5.0) -- cycle;
   % Dog-ear folded corner
   \filldraw[fill=pdslate!25,draw=pdslate!70!black,line width=0.5pt]
-    (2.85, 5.0) -- (2.85, 4.75) -- (3.1, 4.75) -- cycle;
+    (3.35, 5.0) -- (3.35, 4.75) -- (3.6, 4.75) -- cycle;
   % Monospace packet fields: each key/value on its own line
   \node[anchor=north west,align=left,font=\pdfiglabel\ttfamily,text=pdink] at (0.10, 4.88) {%
-    \textbf{\color{pdcobalt}Packet: raw\_telemetry.json}\\[3pt]
+    \textbf{\color{pdcobalt}raw\_telemetry.json}\\[3pt]
     \{"src": "worker:4",\\[2pt]
     \ "rss": "418M",\\[2pt]
     \ "syscall": "recvmsg",\\[2pt]
     \ "tsc": "0x9a4f"\}%
   };
 
-  % Zoom-in Callout 2 (Ingress traffic struct: x in [0.0, 3.1], y in [0.2, 2.5], height 2.3 cm)
+  % Zoom-in Callout 2 (Ingress traffic struct: x in [0.0, 3.6], y in [-0.05, 2.5], height 2.55 cm)
   % Frustum projection fill & hairlines to token on Stream 4 at (7.2, 1.6)
-  \fill[pdrust!8,opacity=0.35] (2.85, 2.5) -- (7.1, 1.7) -- (7.1, 1.5) -- (3.1, 0.2) -- cycle;
-  \draw[guideline,dashed,draw=pdrust!80] (2.85, 2.5) -- (7.1, 1.7);
-  \draw[guideline,dashed,draw=pdrust!80] (3.1, 0.2) -- (7.1, 1.5);
+  \fill[pdrust!8,opacity=0.35] (3.35, 2.5) -- (7.1, 1.7) -- (7.1, 1.5) -- (3.6, -0.05) -- cycle;
+  \draw[guideline,dashed,draw=pdrust!80] (3.35, 2.5) -- (7.1, 1.7);
+  \draw[guideline,dashed,draw=pdrust!80] (3.6, -0.05) -- (7.1, 1.5);
 
   % Folded sheet outline
   \filldraw[calloutbox]
-    (0.0, 0.2) -- (3.1, 0.2) -- (3.1, 2.25) -- (2.85, 2.5) -- (0.0, 2.5) -- cycle;
+    (0.0, -0.05) -- (3.6, -0.05) -- (3.6, 2.25) -- (3.35, 2.5) -- (0.0, 2.5) -- cycle;
   % Dog-ear folded corner
   \filldraw[fill=pdslate!25,draw=pdslate!70!black,line width=0.5pt]
-    (2.85, 2.5) -- (2.85, 2.25) -- (3.1, 2.25) -- cycle;
+    (3.35, 2.5) -- (3.35, 2.25) -- (3.6, 2.25) -- cycle;
   % Monospace packet fields: each key/value on its own line
   \node[anchor=north west,align=left,font=\pdfiglabel\ttfamily,text=pdink] at (0.10, 2.38) {%
-    \textbf{\color{pdrust}Packet: ingress\_event.raw}\\[3pt]
+    \textbf{\color{pdrust}ingress\_event.raw}\\[3pt]
     \{"ip": "10.0.8.14",\\[2pt]
     \ "port": 9876,\\[2pt]
     \ "flags": "SYN|ACK",\\[2pt]

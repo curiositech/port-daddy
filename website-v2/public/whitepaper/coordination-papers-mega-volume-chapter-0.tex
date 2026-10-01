@@ -78,9 +78,21 @@
 \fi
 \makeatother
 
-\pdchapter{0}{Foundations and Prerequisites}{prereq}{pdslate}
+\pdpart{0}{Foundations and Prerequisites}{pdslate}{Before constructing an operating kernel for autonomous systems, we must establish the physical and theoretical ground upon which modern AI agents stand: classical intentional agency, the actor model, transformer KV-cache memory scaling, the closed-loop harness, and why generative models cannot act as their own operating system.}{%
+  \pdpartchapter{0}{prereq}{Foundations and Prerequisites}{Classical multi-agent theory, contemporary coding agent harnesses, transformer KV-cache limits, and the kernel gap.}}
+
+\clearpage
+
+\pdchapter{0}{Foundations and\\[2pt]Prerequisites}{prereq}{pdslate}
 
 \pdchapteropeningprereq
+
+\ifdefined\pdswisslandmarkplate
+\begin{figure}[p]
+  \centering
+  \pdswisslandmarkplate{01}{\linewidth}
+\end{figure}
+\fi
 
 \setlength{\emergencystretch}{2em}
 
@@ -227,7 +239,7 @@ Yet naive LLM-generated summaries are actively dangerous: they hallucinate away 
 \begin{figure}[htbp]
   \centering
   \input{figures/fig-spark-prop4-supervision.tex}%
-  \caption{\textbf{Proposition 4 Mechanics: Information Cost and Evidence Drilling.} Supervisory digests operate as reversible, low-entropy projections indexed into an immutable Merkle evidence log. An operator can drill down with zero friction from high-level fleet status down to exact execution receipts and byte-level syscall traces.}\label{fig:spark-prop4}
+  \pdwidecaption{\textbf{Proposition 4 Mechanics: Information Cost and Evidence Drilling.} Supervisory digests operate as reversible, low-entropy projections indexed into an immutable Merkle evidence log. An operator can drill down with zero friction from high-level fleet status down to exact execution receipts and byte-level syscall traces.}[fig:spark-prop4]
 \end{figure}
 
 Let $H(X)$ be the entropy of the agent's raw execution trajectory and let $D$ be a compressed supervisory digest. By the Data Processing Inequality, $I(X; Y) \le H(D) \ll H(X)$, meaning information is unavoidably lost in any summary. To prevent supervisory blindness, the kernel constructs digests not as narrative text, but as a directed acyclic graph of cryptographic content digests $\mathcal{H}(e_i)$. The operator inspects a bounded view of complexity $O(\log N)$, with mathematical guarantees that any contested claim links directly to its underlying execution receipt $\rho_i$.

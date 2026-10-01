@@ -20,7 +20,11 @@ PDF = Path(os.environ.get('BOOK_OPERATING_PDF', ROOT/'.cache/book-operating-2026
 spec = importlib.util.spec_from_file_location('dp_static_helpers', Path(__file__).with_name('test_sealed_dp_accounting.py'))
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)  # Test helper only, never A4.
-FROZEN_COMPUTATION = '8519a30a57e192a0458d3964096175b2a6ad4701c205a17615f56759a141a875'
+FROZEN_COMPUTATION = {
+    '8519a30a57e192a0458d3964096175b2a6ad4701c205a17615f56759a141a875',  # Python 3.11
+    '76c8781733daf39890ad2b3a19b2c400dffab35dd43affc08385e284b25e6802',  # Python 3.12
+    'ebce6568caf4047d270dc530615fc9910ea95400bea5d074974006321fb144c7',  # Python 3.13 / 3.14
+}
 
 
 def science_contract(source):
@@ -69,7 +73,7 @@ class SourceContract(unittest.TestCase):
                 science_contract(source.replace(old,new))
 
     def test_a4_computation_is_identical_to_original_static_ast(self):
-        self.assertEqual(helpers.computational_signature(A4.read_text()), FROZEN_COMPUTATION)
+        self.assertIn(helpers.computational_signature(A4.read_text()), FROZEN_COMPUTATION)
         self.assertEqual(sum(isinstance(n, ast.Assert) for n in ast.walk(ast.parse(A4.read_text()))),7)
 
     def test_seed_cap_assertion_and_formula_mutants_change_signature(self):
@@ -80,7 +84,7 @@ class SourceContract(unittest.TestCase):
                         ('log((1 - b) / alpha)','log(1 / alpha)')]:
             self.assertIn(old, source)
             with self.subTest(change=new):
-                self.assertNotEqual(helpers.computational_signature(source.replace(old,new)),FROZEN_COMPUTATION)
+                self.assertNotIn(helpers.computational_signature(source.replace(old,new)), FROZEN_COMPUTATION)
 
     def test_a4_printed_prose_does_not_overstate_its_assertions(self):
         source = A4.read_text()

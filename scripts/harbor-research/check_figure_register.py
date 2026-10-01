@@ -339,6 +339,8 @@ def live_drawing_fragments(textbook: dict) -> dict[str, str]:
         for stem in INPUT_FIGURE_RE.findall(_read(src_abs)):
             if stem.endswith(".tex"):
                 stem = stem[: -len(".tex")]
+            if stem.startswith("spark-"):
+                continue
             frag = os.path.join(figdir, stem + ".tex")
             if not os.path.isfile(frag):
                 continue

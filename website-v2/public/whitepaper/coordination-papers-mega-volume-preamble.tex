@@ -353,6 +353,24 @@
 % Shared presentation primitives, loaded without adopting the broader semantic
 % or margin-layout changes. Only protocols opt into the frame and glyph here.
 \input{figures/pd-semantic-blocks}
+
+% Fixed, restrained theorem skips keep theorem/prose transitions on the same
+% baseline cadence. A block heading is separate from its first body paragraph.
+% amsthm's class defaults carry highly stretchable vertical
+% glue, which produced visibly unrelated gaps at page breaks in chapter 7.
+\newtheoremstyle{pddefinition}% name
+  {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
+  {\normalfont}{}% body / indent
+  {\bfseries}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
+\newtheoremstyle{pdplain}% name
+  {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
+  {\itshape}{}% body / indent
+  {\bfseries}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
+\newtheoremstyle{pdremark}% name
+  {6pt plus 1pt minus 1pt}{6pt plus 1pt minus 1pt}% above / below
+  {\normalfont}{}% body / indent
+  {\itshape}{.}{0pt}{\pdblockglyph{#1}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}% head
+
 \newtheoremstyle{pdprotocol}
   {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}
   {\normalfont}{}{\bfseries}{.}{0pt}
@@ -388,6 +406,16 @@
 \newtheorem{conjecture}{Conjecture}[section]
 \theoremstyle{remark}
 \newtheorem*{remark}{Remark}
+% Flush amsthm's deferred label into its own paragraph before body tokens.
+% A head-separator newline alone leaves an opening list's marker on the head.
+\makeatletter
+\patchcmd{\@begintheorem}{\ignorespaces}{\leavevmode\pdblockheadingend}{}%
+  {\PackageError{pd-book}{Theorem heading paragraph patch failed}{Check the amsthm heading definition.}}
+\makeatother
+% Keep the usual proof/QED machinery, but separate the proof heading too.
+\expandafter\patchcmd\csname\string\proof\endcsname
+  {\ignorespaces}{\leavevmode\pdblockheadingend}{}%
+  {\PackageError{pd-book}{Proof heading paragraph patch failed}{Check the amsthm proof definition.}}
 \BeforeBeginEnvironment{protocol}{\pdblockbefore{Protocol}}
 \AfterEndEnvironment{protocol}{\pdblockafter{Protocol}}
 

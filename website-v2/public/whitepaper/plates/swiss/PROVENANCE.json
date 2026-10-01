@@ -367,11 +367,34 @@
     },
     "landmark-01": {
       "file": "landmark-01.jpg",
-      "concept": "Agentic Psychosis & Hallucination Cascade",
+      "concept": "Substrate Bedrock & The Operating Kernel Gap",
       "opposite": "coordination-papers-mega-volume-chapter-0.tex:94",
-      "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef M\u00fcller-Brockmann and Herbert Matter. Hard modular 4x4 grid of visible hairline rules on warm off-white paper #FBF7EF. In the upper-left 2x2 quadrant is a high-contrast black-and-white industrial scientific halftone photograph: looking down inside an optical kaleidoscope chamber where geometric mirror planes multiply an unlit tungsten bulb into an infinite receding tunnel of phantom reflections, cropped strictly square to the grid. Stepping across the grid to the right are three flat opaque Tonhalle Green #006B5F rectangular planes; each successive green plane is rotated by an unsettling 0.5-degree off-axis increment, breaking the grid. At the exact vanishing point of the reflections sits a tiny solitary signal red #DA291C square. Absolutely no text, no letters, no words, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
+      "prompt": "A Swiss International Typographic Style full-page plate in the strict constructivist manner of Josef Müller-Brockmann and Herbert Matter. Hard modular 4x4 grid of visible hairline rules on warm off-white paper #FBF7EF. In the left quadrants is a high-contrast black-and-white industrial scientific halftone photograph of architectural bedrock and concrete foundation footings under raking light, cropped strictly square to the grid. Stepping across the grid to the right are flat opaque Mineral Slate Gray #384856 monolithic rectangular planes anchored to a heavy continuous black #121212 datum line. At the datum origin sits a solitary signal red #DA291C square. Absolutely no text, no letters, no words, no numbers, no typography anywhere. Pure 2D flat ink on paper.",
       "final_aspect": "2:3",
       "model": "gemini-3-pro-image-preview"
+    },
+    "landmark-01-previous-green": {
+      "file": "landmark-01-previous-green.jpg",
+      "concept": "Archival prototype: uncalibrated green plate replaced during Swiss reconciliation audit",
+      "opposite": "website-v2/public/whitepaper/figures-side-by-side-comparison.tex",
+      "prompt": "Archival AI raster prototype demonstrating saturated green palette prior to mineral slate bedrock reconciliation.",
+      "final_aspect": "2:3",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "part-0": {
+      "file": "part-0.jpg",
+      "mechanism": "architectural bedrock and concrete foundation footing with stepped monolithic blocks of mineral slate gray rising across a continuous horizontal datum line from an origin marked by a solitary red square",
+      "generation_aspect": "3:2",
+      "final_aspect": "3:2",
+      "image_size": "2K",
+      "size": [
+        2100,
+        1400
+      ],
+      "chosen": "1",
+      "chosen_rationale": "Swiss International Typographic Style Part 0 plate with coarse halftone bedrock footing, stepped #384856 mineral slate monoliths, horizontal datum rule, and solitary #DA291C red origin square",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Müller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white coarse halftone photography montaged against those planes and cropped square to the grid, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. Full bleed edge-to-edge 3:2 composition. Dominant colour: flat #384856 mineral slate, with signal red #DA291C used once and small as the single origin accent square, and charcoal #121212 for the heavy datum line. Subject: architectural bedrock and concrete foundation footing as a high-contrast black and white halftone photograph filling the left third, with stepped monolith blocks of flat #384856 mineral slate rising on the grid across a continuous thick horizontal black datum line into open warm paper space. Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image.",
+      "pipeline_version": "4.0.0"
     },
     "landmark-02": {
       "file": "landmark-02.jpg",

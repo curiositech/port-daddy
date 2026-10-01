@@ -63,8 +63,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "6762f260214974f56ea472874cdd2fa2f4012fa7755d049278dbf3f961d92e60",
-      "bytes": 61866,
+      "sha256": "6266f6b72f2d205ea6612a6038c90bc38b16738011d7029a35751541211220a1",
+      "bytes": 63502,
       "change": "modified"
     },
     {
@@ -357,13 +357,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "6762f260214974f56ea472874cdd2fa2f4012fa7755d049278dbf3f961d92e60",
-      "bytes": 61866
+      "sha256": "6266f6b72f2d205ea6612a6038c90bc38b16738011d7029a35751541211220a1",
+      "bytes": 63502
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
-      "sha256": "3fb68c7cb787237da621385d2542daedf30025f66fe5af375dab39872f6c4da8",
-      "bytes": 14143
+      "sha256": "1eff893e2431f5a55132ac82b8bb83a59cff697dd3dcceea9a89daf9c056c413",
+      "bytes": 14165
     },
     {
       "path": "website-v2/public/whitepaper/figures/lucide/workflow.pdf",

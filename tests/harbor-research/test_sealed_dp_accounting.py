@@ -33,9 +33,16 @@ def computational_signature(source):
     return hashlib.sha256(ast.dump(tree, include_attributes=False).encode()).hexdigest()
 
 
+FROZEN_COMPUTATION = {
+    '3095ca6d2024f75a5d4d6c1976dbd9726501076c71a8f3e54c16f9a74a85ac20',  # Python 3.11
+    'a2c432d77502d184f615a37a1a264ecac2f8b012857f73ebb13f429dc74e4714',  # Python 3.12
+    '064460d7a81081d06c1d70e8b3df1faa11d4d585a8134adafce0758e83e407ce',  # Python 3.13 / 3.14
+}
+
+
 class SourceContract(unittest.TestCase):
     def test_a3_computation_is_unchanged(self):
-        self.assertEqual(computational_signature(A3.read_text()), '3095ca6d2024f75a5d4d6c1976dbd9726501076c71a8f3e54c16f9a74a85ac20')
+        self.assertIn(computational_signature(A3.read_text()), FROZEN_COMPUTATION)
 
     def test_computation_mutants_change_signature(self):
         source = A3.read_text()
