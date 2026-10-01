@@ -1,8 +1,7 @@
 name: Harbor Research PDF Build
 
 # Renders the harbor-research corpus (docs/harbor-research/tex/*.tex — the
-# seven arXiv-style papers, the execution reports, and the treatise/portfolio
-# drafts) from LaTeX source under the same pinned texlive digest the
+# eight research papers; supporting reports are consolidated in the Omni ledger) from LaTeX source under the same pinned texlive digest the
 # whitepaper build uses, so the two corpora never drift onto different TeX
 # Live dialects. No TeX toolchain exists in the interactive dev container;
 # this workflow is the only place these PDFs get rendered.
@@ -96,19 +95,19 @@ jobs:
           # The current renderer owns the `TEXS` output set. The committed
           # directory also retains historical research PDFs outside that set;
           # do not relabel them as fresh output or delete them here. Instead,
-          # require this clean render to produce precisely the 19 declared
+          # require this clean render to produce precisely the eight declared
           # names before it overwrites those current artifacts.
           find "$pdf_dir" -maxdepth 1 -type f -name '*.pdf' -printf '%f\n' | sort > "$RUNNER_TEMP/harbor-rendered-names.txt"
           make -s -C docs/harbor-research output-names | sort > "$RUNNER_TEMP/harbor-expected-names.txt"
           diff -u "$RUNNER_TEMP/harbor-expected-names.txt" "$RUNNER_TEMP/harbor-rendered-names.txt"
           cp "$pdf_dir"/*.pdf docs/harbor-research/pdf/
 
-      - name: Publish the eight papers + execution reports for the site
+      - name: Publish the eight papers for the site
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p website-v2/public/research
-          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 paper8 exec4 exec5; do
+          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 paper8; do
             cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
           done
 

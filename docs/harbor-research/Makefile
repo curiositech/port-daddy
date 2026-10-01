@@ -2,7 +2,7 @@
 # pdflatex (texlive; do NOT add microtype/lmodern — see HANDOFF §3.6).
 SK := $(CURDIR)/../../skills/harbor-results/scripts
 REPO_ROOT := $(abspath $(CURDIR)/../..)
-TEXS = doc1_treatise doc2_product doc3_research doc4_papers exec1 exec2 exec3 exec4 exec5 review portfolio paper1 paper2 paper3 paper4 paper5 paper6 paper7 paper8
+TEXS = paper1 paper2 paper3 paper4 paper5 paper6 paper7 paper8
 BUILD_DIR ?= build
 PDF_DIR ?= pdf
 # These are every repository input that can alter a Harbor PDF. Keep this list
@@ -39,7 +39,7 @@ source-epoch:
 docs:
 	mkdir -p "$(BUILD_DIR)" && cp tex/*.tex "$(BUILD_DIR)/" && cp figures/*.png "$(BUILD_DIR)/" && cp figures/*.tex "$(BUILD_DIR)/"
 	set -e; cd "$(BUILD_DIR)" && run_pdf() { doc="$$1"; pass="$$2"; if ! pdflatex -interaction=nonstopmode -halt-on-error -file-line-error "$$doc.tex" >/dev/null; then echo "pdflatex failed: document=$$doc pass=$$pass" >&2; test ! -f "$$doc.log" || tail -n 60 "$$doc.log" >&2; exit 1; fi; }; for d in $(TEXS); do run_pdf "$$d" 1; run_pdf "$$d" 2; done
-	mkdir -p "$(PDF_DIR)" && cp "$(BUILD_DIR)"/*.pdf "$(PDF_DIR)/"
+	mkdir -p "$(PDF_DIR)"; for d in $(TEXS); do cp "$(BUILD_DIR)/$$d.pdf" "$(PDF_DIR)/" || exit $$?; done
 	@ls "$(PDF_DIR)"/*.pdf 2>/dev/null || (echo "no PDFs produced -- check the pdflatex log in $(BUILD_DIR)/" && exit 1)
 clean:
 	rm -rf "$(BUILD_DIR)"

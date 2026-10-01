@@ -58,6 +58,8 @@ import re
 import sys
 from dataclasses import dataclass, field
 
+from omni_ledger import document_exists, document_glob, document_text
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 CORPUS_PATTERNS = [
@@ -301,10 +303,9 @@ def word_tokens(text: str) -> set[str]:
 
 
 def parse_bibliography_md(path: str) -> list[Candidate]:
-    if not os.path.isfile(path):
+    if not document_exists(path):
         return []
-    with open(path, encoding="utf-8") as fh:
-        text = fh.read()
+    text = document_text(path)
 
     lines = text.splitlines()
     candidates: list[Candidate] = []
@@ -374,11 +375,11 @@ def apply_findings_overrides(candidates: list[Candidate]) -> list[tuple[Candidat
     BIBLIOGRAPHY.md per the task's stated rule, so a 'verified' signal here
     downgrades the candidate out of the report."""
     findings_texts: dict[str, str] = {}
-    for fpath in sorted(glob.glob(os.path.join(REPO_ROOT, FINDINGS_GLOB))):
+    for source_path in document_glob(FINDINGS_GLOB):
+        fpath = os.path.join(REPO_ROOT, source_path)
         if is_excluded(fpath):
             continue
-        with open(fpath, encoding="utf-8", errors="replace") as fh:
-            findings_texts[rel(fpath)] = fh.read()
+        findings_texts[source_path] = document_text(source_path)
 
     resolved: list[tuple[Candidate, str]] = []
     for cand in candidates:

@@ -50,6 +50,7 @@ import json
 import re
 import sys
 from pathlib import Path
+import omni_ledger
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MD_PATH = REPO_ROOT / "docs" / "harbor-research" / "CRITIQUE-LEDGER.md"
@@ -175,14 +176,14 @@ def main() -> int:
     parser.add_argument("--verbose", action="store_true", help="print every id checked")
     args = parser.parse_args()
 
-    if not MD_PATH.exists():
+    if not omni_ledger.document_exists(MD_PATH):
         print(f"[MISSING FILE] {MD_PATH}")
         return 1
     if not JSON_PATH.exists():
         print(f"[MISSING FILE] {JSON_PATH}")
         return 1
 
-    md_rows = parse_markdown_rows(MD_PATH.read_text(encoding="utf-8"))
+    md_rows = parse_markdown_rows(omni_ledger.document_text(MD_PATH))
     try:
         json_data = json.loads(JSON_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
