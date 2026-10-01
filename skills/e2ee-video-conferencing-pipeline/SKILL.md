@@ -136,7 +136,7 @@ drives the MLS-vs-leader-fan-out choice at scale.
 
 ## The Mechanism: SFrame + Insertable Streams (How an SFU Relays What It Can't Read)
 
-The load-bearing architectural fact underneath every pattern above: an SFU
+The foundational architectural fact underneath every pattern above: an SFU
 only ever needs **RTP header** fields (sequence numbers, timestamps, SSRC,
 simulcast/SVC layer markers, the RFC 6464 audio-level extension) to forward,
 switch simulcast layers, and run congestion control. It never needs the RTP

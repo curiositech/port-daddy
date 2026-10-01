@@ -1,6 +1,6 @@
 # Premium Feature Implementation and E2EE Compatibility
 
-The single load-bearing fact underneath this whole file: **WebRTC Insertable
+The single foundational fact underneath this whole file: **WebRTC Insertable
 Streams places the E2EE encryption boundary after the codec encoder and
 before RTP packetization.** Any effect applied to raw camera/mic data
 *before* it reaches the encoder is automatically compatible with E2EE, at
