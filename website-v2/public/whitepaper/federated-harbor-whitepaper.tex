@@ -1,10 +1,11 @@
 % ─────────────────────────────────────────────────────────────────────
 % TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
 % results; edit every listed home or the drift checker fails.
-%   Standalone paper : docs/harbor-research/tex/paper7.tex (S4 mechanism)
+%   Standalone papers: docs/harbor-research/tex/paper7.tex (S4 mechanism)
+%                      docs/harbor-research/tex/paper8.tex (sec:categorical)
 %   Chapter          : website-v2/public/whitepaper/federated-harbor-
 %                       whitepaper.tex (this file; S(fh-sheaf))
-%   Index ids        : R6
+%   Index ids        : R6, CR, thm:categorical-certificate
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %                       python3 scripts/harbor-research/check_propagated_corrections.py
 %                       python3 scripts/harbor-research/check_citations.py
@@ -860,6 +861,82 @@ below which it reverts to ``consistent with noise.''
 \end{pdboundary}
 
 \paragraph{Sheaf Laplacian dynamics --- and what is \emph{not} claimed here.} On a cellular sheaf with real stalks, the \textbf{Hansen--Ghrist sheaf Laplacian}~\pdcite{hansengrist2019} is $\Delta_{\mathcal{F}} = \delta^* \delta$, and its harmonic space $\ker(\Delta_{\mathcal{F}}) \cong H^0(G; \mathcal{F})$ is precisely the subspace of globally synchronized ledger states. This object exists only over the vector-space sheaf constructed above; it is undefined over the semilattice of append-only logs, which has no adjoint and no spectrum. The spectral gap $\lambda_{\min}^{+}(\Delta_{\mathcal{F}})$ --- the smallest non-zero eigenvalue --- governs decay on the positive eigenspace of linear diffusion. It is not generally the second eigenvalue: a sheaf can have a multidimensional kernel. \textbf{We have not derived or checked such a bound, and this chapter claims none.} The Hansen--Ghrist rate governs continuous-time linear diffusion $\dot{x} = -\Delta_{\mathcal{F}}x$ over real stalks; anti-entropy gossip over signed append-only logs with a Byzantine equivocator is discrete, asynchronous, adversarial, and monotone-join rather than linear-averaging, and nothing here shows the bound transfers. The two convergence stories --- classical epidemic dissemination (Theorem~\ref{thm:fh-conv}, which is a real and separately argued result~\pdcite{demers1987epidemic}) and sheaf-Laplacian diffusion --- are not reconciled, and neither is a second proof of the other. No relaxation-time bound for the federation is established, in this section or anywhere in this chapter; that is consistent with Appendix~\ref{app:fh-mech}, whose dissemination rows record ``no partition deadline'' and ``no hard delivery bound.'' The reconciliation is open work (Appendix~\ref{app:fh-mech}, \Open\ band).
+
+\subsection{From observations to a checkable refusal}\label{sec:fh-evidence-decision}
+
+An auditor deciding whether to accept a work receipt needs to distinguish
+missing evidence, incompatible evidence, and evidence compatible with several
+possible worlds. An authentic packet identifies its issuer; its schema, fact,
+work item and snapshot determine which other packets it may be compared with.
+A digest alone does not discharge this admission step.
+A zero difference retains equality but erases the shared raw value. If the
+auditor holds authenticated endpoint claims, direct sender-claim comparison
+can therefore expose a split that even the exact categorical edge-only test
+does not retain enough information to see.
+
+\begin{pdclaim}{Theorem}{Exact categorical contradiction certificate}
+\label{thm:categorical-certificate}
+Fix a nonempty finite fact domain and admitted one-hot edge differences for
+one fact and snapshot. A zero edge requires equal endpoint values. A nonzero
+difference $e_b-e_a$ pins its tail to $a$ and its head to $b$. A categorical
+assignment exists exactly when every component of the zero-edge graph has
+pins of at most one value. Otherwise two incompatible pins, their source
+edges, and a zero-edge path form a checkable contradiction certificate.
+With nonnegative costs per distinct observation, the least-cost infeasible
+subset is obtained by minimizing shortest zero-path cost plus the cost of the
+set of its two pin-source edges over all conflicting pin pairs.
+\end{pdclaim}
+\begin{proof}
+Equality makes a component constant, and every nonzero one-hot difference
+uniquely fixes both endpoint values. Consistent pins therefore give a valid
+assignment by choosing a value for each unpinned component. Inconsistent pins
+give the stated witness. Every infeasible subset contains such a witness;
+replacing its zero path by a shortest one cannot increase cost. Conversely
+every candidate witness is an infeasible subset, so the minimum is attained.
+Source edges are nonzero and do not overlap the zero path; when both pins
+come from one source edge, charge that edge once.
+\end{proof}
+
+\begin{pdexample}{A contradiction with zero cycle residual}
+The path $0\to1\to2$ reports $e_B-e_A$ on each edge. Vertex $1$ must then be
+both $B$ and $A$, a contradiction. With edge costs $2$ and $3$, the two receipts
+give a certificate of cost $5$. Unrestricted real potentials can nevertheless
+fit this path exactly, so its cycle residual is zero. The finite-domain
+constraint, rather than an extra topological measurement, exposes the failure.
+The categorical assignment oracle and exhaustive subset oracle in
+\texttt{test\_claim\_audit.py} and
+\mbox{\texttt{test\_costed\_claim\_certificates.py}} check these two decisions
+independently of the production checker. Neither authenticates the producer.
+\end{pdexample}
+
+\paragraph{How much redundant observation is enough?}
+Paper~8 also gives a design rule for a typed linear observation model. Let
+$A$ map admissible vertex features to edge features, let $Q$ project
+orthogonally off $\operatorname{im}A$, and define $d_{\mathcal F}$ as the
+smallest number of edge groups supporting a nonzero vector in
+$\operatorname{im}A$, or infinity when $A=0$. Every nonzero error affecting at
+most $k$ edge groups is detected exactly when $d_{\mathcal F}>k$; all such
+errors are uniquely identifiable modulo compatible data exactly when
+$d_{\mathcal F}>2k$. Indeed, ambiguity between two $k$-group errors is a
+compatible difference on at most $2k$ groups, and every such difference can
+be split to construct an ambiguous pair. In the scalar connected-graph case
+$d_{\mathcal F}$ is the minimum cut size. A four-node complete graph has cut
+size three and identifies one arbitrary-amplitude edge-report error; a cycle
+has cut size two and cannot always identify which single edge erred.
+
+\begin{pdboundary}
+An edge-report error is not an agentic cause or a dishonest principal. The
+typed model must fix feature domains, restriction maps and independent
+observations before applying its distance rule. A drawn face contributes no
+new measurement by itself. A relative cohomology obstruction concerns extension
+of a visible compatible section; its vanishing proves that an extension exists,
+not that unseen receipts agree with it. Minimum-cost certificates select known
+observations. Unknown-answer acquisition needs a predictive or adversarial
+model, and complementary receipts can have zero individual gain but positive
+joint gain. These distinctions let the operator request evidence or refuse a
+decision without inventing either guilt or certainty.
+\end{pdboundary}
+
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Cross-Harbor Settlement}\label{sec:fh-settlement}

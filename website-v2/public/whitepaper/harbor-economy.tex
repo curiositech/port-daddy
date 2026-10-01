@@ -844,25 +844,23 @@ dimension that makes it checkable by interval overlap.
 \begin{pdclaim}{Theorem}{In-Fragment Conflict Detection Is Polynomial and Witness-Producing}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:deontic-detect}
-For a policy set in $\mathcal{L}_c$ with Horn program size $H$, $T$ fired
-deontic tokens, $X$ exclusive claims and deadline graph $(V,E)$, conflict
-detection (existence and one witness) is decidable in
-$O(H+T\log T+X\log X+V\cdot E)$ for the fragment's ground scope keys.
-
-
-Unit propagation computes the least Horn model in $O(H)$,
-which by monotonicity equals the intersection of all models, the statuses forced
-in every world~\pdcite{dg84}; a keyed sweep line over interval endpoints finds
-an obligation-prohibition clash or claim overlap, if one exists, in
-$O(T\log T+X\log X)$;
-Bellman-Ford returns a negative cycle iff the deadline system is infeasible, in
-$O(V\cdot E)$. The witnesses are, respectively, a derivation chain, the two
-fired rules with their overlap interval, the two claims, and the negative cycle.
-
-
-Enumerating all $Z$ conflicting pairs also costs at least $\Omega(Z)$;
-$Z$ can be quadratic. The decision bound is not an output-size bound for a
-complete conflict report, nor does it cover arbitrary semantic scope predicates.
+Let $H$ count ground facts, Horn and trigger-body occurrences, $I$ the fired
+(token, scope-atom) incidences, $X$ exclusive claims, and $(V,E)$ the deadline
+graph. An indexed existence check takes
+$O(H+I\log(I+1)+X\log(X+1)+V\cdot E)$ and returns one witness. If every
+distinct interval clash must be emitted, let $Q$ count overlapping
+opposite-polarity keyed incidence pairs plus overlapping same-resource claim
+pairs, including repeat sightings of one token pair at several scope atoms.
+A deterministic sort-and-deduplicate enumerator adds $O(Q\log(Q+1))$; $n$
+obligations and $n$ prohibitions on one scope and interval give $Q=n^2$.
+Unit propagation computes the least Horn model in $O(H)$, the statuses forced
+in every world~\pdcite{dg84}; keyed interval indexes find an overlap, while
+enumeration pays for all overlapping keyed pairs. Bellman--Ford returns a
+negative cycle iff the deadline system is infeasible in $O(V\cdot E)$.
+The witnesses are a derivation chain, the fired rules and overlap interval,
+the claims, or a negative cycle. The reference
+\texttt{b4\_deontic\_fragment.py} scans active pairs, including nonclashes;
+it does not implement the indexed bound and can be quadratic with $Q=0$.
 \end{pdclaim}
 
 \begin{pdclaim}{Theorem}{One Step Outside the Fragment Is NP-Complete}
@@ -1028,15 +1026,48 @@ joined by the interval they share.
 conflict detection needs no authority at all: it is an algorithm with a witness,
 and composed with the kernel's controllability theorem
 (\pdchapref{swk}{The Single-Writer Kernel}) it is a runtime guard, since the
-mediated acceptance write can refuse the commit and attach the witness. The
-authority no theorem removes sits exactly one step outside the fragment:
-choosing a discharge under a disjunctive obligation is a chartered resolver's
-job, an NP-complete check or a judge, and choosing the norms themselves
-(priority, waiver, amendment) is outside every checker. A harbor therefore
-spends judgment only where a theorem certifies that judgment is required, and
-the schema rule that follows is concrete: as long as proposals stay inside
-$\mathcal{L}_c$, the acceptance path needs no reviewer role, and the charter can
-delete the lookout it was about to appoint.
+mediated acceptance write can refuse a proposal that conflicts under the facts
+then supplied and attach the witness. A later fact can still activate an
+accepted dormant rule; the next result states what a future-fact guarantee
+requires. Disjunctive obligations make conflict-freedom NP-complete in the
+worst case, but do not themselves require a human or central judge: bounded
+search may return a checkable permitted discharge, or an unresolved timeout
+may stop admission. The charter decides permissible discharges, priorities,
+waivers and amendments; no consistency checker chooses their normative
+content. Inside $\mathcal{L}_c$, a fully mediated acceptance path can use the
+mechanical guard without appointing a standing reviewer for conflict detection.
+
+\paragraph{When tomorrow's facts fire today's rules.}\label{sec:he-reachable-admission}
+A policy may pass the batch checker now and conflict after a permitted event
+adds a fact. The admission guard therefore needs a declared future-fact
+contract, supplied by a separately checked scheduler or transition model.
+Let $F$ be today's facts and $\mathcal R$ a nonempty, finite, explicit family
+of fact sets that can actually be reached, each containing $F$. Hold positive
+Horn and deontic rules, scopes, intervals, resources and deadlines fixed.
+\begin{pdclaim}{Theorem}{Admission against reachable maximal fact sets}
+\label{thm:he-reachable-admission}
+The accepted policy is conflict-free at every fact set in $\mathcal R$ if and
+only if the batch checker finds no conflict at every inclusion-maximal member
+of $\mathcal R$. Every reachable set lies below such a member; positive Horn
+closure and fired rules are monotone, so a conflict below persists above.
+The converse holds because each maximal member is itself reachable.
+\end{pdclaim}
+For example, with rules $a\to\mathsf O(w,s,[0,1])$ and
+$b\to\mathsf F(w,s,[0,1])$, reachable futures
+$\{\varnothing,\{a\},\{b\}\}$ are safe: either branch fires only one rule.
+Their union $\{a,b\}$ is conflicting but unreachable. Conversely,
+$c\to a$ and $c\to b$ are dormant now and conflict as soon as reachable
+fact $c$ arrives. An exhaustive three-atom finite check covered 130{,}560
+explicit reachable families under 512 small Horn programs and used an
+independent truth-table oracle for 4096 program/fact cases; both current-only
+and unreachable-union mutants failed [internal,
+\texttt{research\_envelopes.py}]. The result is an elementary
+monotonicity/antichain specialization, not a reachability algorithm. The
+declared family must carry evidence that its alternatives and co-occurrences
+match the scheduler; a compact reachability model has no polynomial bound
+from this theorem. Rule withdrawal, fact retraction, negation or changing
+intervals need separate transition semantics. Sequential admissions must
+recheck the combined accepted rules and current reachable family.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
