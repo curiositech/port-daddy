@@ -189,7 +189,7 @@ An Agent Operating Kernel decouples ephemeral execution bodies from durable agen
 
 \begin{figure}[htbp]
   \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop5-identity.jpg}%
+    \input{figures/fig-spark-prop5-identity.tex}%
   }
   \pdwidecaption{\textbf{Proposition 5 Mechanics: Durable Persona vs. Ephemeral Process.} Ephemeral container processes (PIDs) can crash, abort, or be recycled, but the durable agent persona (Ed25519 keypair, capability history, and debt ledger) persists in the append-only kernel database, resuming state seamlessly across failures.}[fig:spark-prop5]
 \end{figure}
