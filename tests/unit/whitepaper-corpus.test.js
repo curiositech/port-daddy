@@ -127,9 +127,9 @@ describe('proof-estate corpus manifest', () => {
     expect(easycrypt.evidencePolicy).toMatch(/admit/);
   });
 
-  test('the 21 harbor-results R-scripts are one wired research-program entry', () => {
+  test('the 22 harbor-results R-scripts are one wired research-program entry', () => {
     const rScripts = corpus.researchProgramArtifacts.find((a) => a.id === 'harbor-results-r-scripts');
-    expect(rScripts.paths).toHaveLength(21);
+    expect(rScripts.paths).toHaveLength(22);
     expect(rScripts.paths).toContain('skills/harbor-results/scripts/sheaf_repair_and_2complex.py');
     expect(rScripts.paths).toContain('skills/harbor-results/scripts/paper7_failure_cases.py');
     expect(rScripts.ci).toEqual({ status: 'wired', job: ['harbor-results-estate'] });
