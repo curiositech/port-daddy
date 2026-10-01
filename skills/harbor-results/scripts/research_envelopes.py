@@ -102,6 +102,62 @@ def check_envelopes():
                                "assume_unreachable_union_is_exact"]}
 
 
+def maximal_reachable(family):
+    """Explicit finite reachable fact sets; no reachability inference here."""
+    family = frozenset(map(frozenset, family))
+    require(bool(family), "Reachable family must be nonempty")
+    return frozenset(facts for facts in family
+                     if not any(facts < later for later in family))
+
+
+def check_reachable_families():
+    """Exhaustive independent-oracle sweep before stating the finite-family lemma."""
+    atoms = ('a', 'b', 'c')
+    valuations = subsets(atoms)
+    pool = tuple((body, head)
+                 for body in ((), ('c',), ('a', 'b'))
+                 for head in ('a', 'b', BOTTOM))
+    programs = families = oracle_cases = 0
+    for bits in product((False, True), repeat=len(pool)):
+        rules = tuple(rule for rule, enabled in zip(pool, bits) if enabled)
+        verdict = {}
+        for facts in valuations:
+            verdict[facts] = conflict(facts, rules)
+            # The truth-table oracle ranges over all three factual atoms;
+            # unlike truth_table_conflict, it does not reuse the decision code.
+            models = [world for world in valuations
+                      if facts <= world and all(
+                          not set(body) <= world or head in world
+                          for body, head in rules)]
+            independent = not models or all({'a', 'b'} <= world for world in models)
+            require(verdict[facts] == independent,
+                    f"Three-atom oracle disagreement: {facts}, {rules}")
+            oracle_cases += 1
+        for mask in range(1, 1 << len(valuations)):
+            family = frozenset(valuations[i] for i in range(len(valuations))
+                               if mask & (1 << i))
+            maximal = maximal_reachable(family)
+            require(any(verdict[f] for f in family) ==
+                    any(verdict[f] for f in maximal),
+                    f"Maximal-family mismatch: {family}, {rules}")
+            families += 1
+        programs += 1
+
+    dormant_rules = ((('c',), 'a'), (('c',), 'b'))
+    current_only = (frozenset(), frozenset({'c'}))
+    require(not conflict(current_only[0], dormant_rules)
+            and conflict(current_only[1], dormant_rules),
+            "Current-only admission mutant survived")
+    exclusive = (frozenset(), frozenset({'a'}), frozenset({'b'}))
+    require(not any(conflict(f, ()) for f in exclusive)
+            and conflict(frozenset().union(*exclusive), ()),
+            "Unreachable-union shortcut mutant survived")
+    return {'horn_programs': programs, 'reachable_families': families,
+            'independent_oracle_cases': oracle_cases,
+            'universe_atoms': list(atoms),
+            'mutants_caught': ['current_facts_only', 'unreachable_union_shortcut']}
+
+
 def respects_parity(payload_map):
     return all(payload_map[x] % 2 == payload_map[y] % 2
                for x, y in product(range(4), repeat=2) if x % 2 == y % 2)
@@ -180,7 +236,9 @@ def check_weighted_buyout():
 
 def run_checks():
     return {"scope": "finite synthetic model checks; proofs in research note",
-            "envelopes": check_envelopes(), "payloads": check_payloads(),
+            "envelopes": check_envelopes(),
+            "reachable_families": check_reachable_families(),
+            "payloads": check_payloads(),
             "split_floors": check_split_floors(),
             "weighted_buyout": check_weighted_buyout()}
 

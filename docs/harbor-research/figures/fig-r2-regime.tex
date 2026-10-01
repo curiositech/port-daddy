@@ -6,24 +6,8 @@
 % Panel (b): the ratio Floor(2k)/(2 Floor(k)) vs k, for m=8 (k=1..4) and
 %   m=20 (k=1..10).
 %
-% PANEL (a) REPLOTTED (not transcribed): the script plots the joint floor and
-% the naive 2x curve as two lines on a 0-35 bit axis. The quantity the paper
-% claims is the GAP between them, which at the reference point k=2 is 0.80
-% bits on a 35-bit axis -- under one line width, and encoded as a difference
-% of positions (and as a shaded area) rather than on position itself. The
-% same data is replotted here as the difference directly, so the claimed
-% quantity is the quantity on the axis. No number changed; both curves'
-% values are recoverable from panel (b)'s ratio and this panel's difference.
-%
-% CROSS-CHECK RESOLVED: an earlier version of this fragment carried a note
-% that the caption's "super-additivity 1.05--1.08 across the swept regimes"
-% was contradicted by the fragment's own plotted data (m=8 reaches 1.122 at
-% k=3 and 1.224 at k=4; m=20 reaches 1.392 at k=10; only three of the 14
-% plotted points fall inside the stated band). The claim has now been
-% corrected in paper1.tex and in the caption below to the fact the data
-% actually supports -- the ratio exceeds 1 everywhere and grows without
-% bound in k -- so the flag is retired rather than carried forward.
-% [verified: script r2_figures.py]
+% The panels plot the exact shared-m union-selection floor comparison.
+% The finite plotted k range does not itself prove unbounded growth.
 \begin{figure}[t]
 \centering
 \textbf{\color{harborblue}R2 regime --- split floors are super-additive (12.77 vs 5.98 bits at $k{=}2$, not $2\times$)}\par\vspace{4pt}
@@ -60,7 +44,7 @@
   harbor curve,
   xlabel={items scored per reader ($k$)},
   ylabel={Floor($2k$) / ($2\cdot$Floor($k$))},
-  title={(b) the penalty exceeds $1$ everywhere\\and grows without bound in $k$},
+  title={(b) plotted shared-budget penalty $>1$},
   xmin=0.5,xmax=10.5,ymin=0.98,ymax=1.45,
   legend pos=north west,
 ]
@@ -80,6 +64,12 @@
 \end{axis}
 \end{tikzpicture}
 \end{minipage}
-\caption{Regime diagram for the split penalty. Panel (a): the bits a ``two summaries $=$ two $\times$ one summary'' budget is short, at $N{=}60,m{=}8$ --- $0.80$ bits at the reference $k{=}2$, $5.72$ bits by $k{=}4$. Panel (b): the same penalty as a ratio over double. The finding is not a band: $\mathrm{Floor}(2k)/(2\,\mathrm{Floor}(k))$ exceeds $1$ at every regime and grows without bound in $k$ --- $1.067$ at the reference regime, $1.224$ at $k{=}4$ ($m{=}8$), $1.392$ by $k{=}10$ ($m{=}20$) [verified]. Budgeting ``two summaries'' by doubling one summary's budget under-provisions, and under-provisions worse the more each reader must catch.}
+\caption{Split-floor comparison under one shared $m$-open budget.
+Panel (a): the excess bits for a union of disjoint critical sets over twice
+the single-set floor, at $N{=}60,m{=}8$ --- $0.80$ bits at $k{=}2$ and
+$5.72$ bits at $k{=}4$. Panel (b): the ratio over double across the
+plotted finite regimes. It exceeds $1$ at every plotted point, reaching
+$1.224$ at $m{=}8,k{=}4$ and $1.392$ at $m{=}20,k{=}10$ [verified].
+This does not require separate summary models or stores.}
 \label{fig:r2reg}
 \end{figure}

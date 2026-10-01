@@ -45,24 +45,26 @@ conflicts, a \emph{sole owner} for the roadmap, the test suite, the release tag.
 functions genuinely require a designated authority, and prices the ones that do. Two results. First, conflict \emph{detection} needs
 no authority at all --- inside a designed commitment fragment $\mathcal{L}_c$ (definite Horn rules plus $\bot$-headed integrity
 constraints, ground deontic obligation/prohibition rules over scopes and intervals, exclusive interval claims, difference
-constraints), detection is a polynomial, witness-producing algorithm --- $O(H + T\log T + X\log X + V\!\cdot\!E)$ in the Horn
-program size $H$, the $T$ fired deontic tokens, the $X$ exclusive claims and the deadline graph $(V,E)$ --- validated against a
+constraints), detection is a polynomial, witness-producing algorithm. An indexed existence check costs
+$O(H+I\log(I+1)+X\log(X+1)+V\!\cdot\!E)$ for $I$ fired token--scope incidences; emitting every clash also costs its keyed
+pair occurrences. The checker was validated against a
 brute-force oracle on 3000 random policy sets with zero disagreements; and composed with the supervisory-control theorem of Paper 2 it is not even a role, but
-a guard: acceptance is a mediated write, so in-fragment conflict-freedom is \emph{regimentable} --- the runtime refuses the commit.
-One expressive step outside the fragment (disjunctive obligations under discharge choice), conflict-freedom is NP-complete, and
-\emph{there} an authority becomes necessary: not to notice the conflict but to choose the discharge. Second, sole \emph{ownership}
+a guard: a fully mediated acceptance write can refuse a currently conflicting commit. Future facts need the separately declared
+reachable-family check below. One expressive step outside the fragment (disjunctive obligations under discharge choice),
+conflict-freedom is NP-complete; bounded search or abstention may still be automated, while the charter sets resolution authority. Second, sole \emph{ownership}
 of a role is not a principle but an inequality: a sole specialist beats a pooled swarm exactly when the skill premium clears the
 Erlang-C boundary $g_A(\rho,c)$ --- the whitepaper's proposed threshold is falsified in both directions, with the two thresholds
 crossing at $\rho=(3-\sqrt5)/2$ --- and a sole owner who can die and be succeeded can be rescued by \emph{some} skill premium only
 while the death-rate--times--succession-time product stays below $D^\star=\eta K/(1-\eta K)$, where $K$ is the pool's cost line (its
 mean wait plus the accountability credit) and the threshold exists only when $\eta K<1$: past that line, pooling wins even against an
-infinitely skilled specialist. The slogan the two theorems earn: an authority is needed exactly where the algorithm ends, and where
-it is needed, its price is a computable number, not a vibe.
+infinitely skilled specialist. The useful division is between mechanical conflict checks, chartered choices about norms and permissible resolutions,
+and the measurable price of sole ownership.
 \end{abstract}
 
 \vspace{0.5em} \noindent\textbf{Express lane.} \emph{Conflict detection inside the designed commitment fragment is polynomial and
 witness-producing (no judge consumed, and via Paper 2 the check is enforceable pre-commit by the runtime); one disjunctive
-obligation outside the fragment makes conflict-freedom NP-complete, which is where a chartered resolver must choose; and sole
+obligation outside the fragment makes conflict-freedom NP-complete, so a charter must specify whether bounded search,
+abstention, or discretionary resolution is allowed; and sole
 ownership of a role pays iff $\mu_s/\mu_g \ge g_A(\rho,c)$ --- exact Erlang-C form in the box of \S\ref{sec:thm-boundary} --- with
 sole-owner viability capped at $\xi/\eta < D^\star$ absent skill limits.} Experts: read the two boxes
 (\S\ref{sec:thm-detect}, \S\ref{sec:thm-boundary}), the succession box (\S\ref{sec:succession}), and the inventory table
@@ -85,11 +87,12 @@ run before they were believed: the first by a 3000-instance oracle sweep with ze
 directions} before replacing it [internal, \texttt{b8\_specialization.py}].
 
 \paragraph{The idea in one breath.}
-\onebreath{An authority is needed exactly where the algorithm ends --- and where it is needed, its price is a computable number,
-not a vibe.}
+\onebreath{Mechanical checks need no standing reviewer; a charter decides permissible resolution and norms, while the price
+of sole ownership is a computable number.}
 \noindent Three places, in this paper. Inside the fragment $\mathcal{L}_c$ the algorithm does not end, so no authority is consumed:
-conflict detection is a polynomial witness-producing decision the runtime can enforce pre-commit. One disjunction outside it the
-algorithm ends and a chartered resolver must choose the discharge, because conflict-freedom is NP-complete there. And sole
+conflict detection is a polynomial witness-producing decision the runtime can enforce at a fully mediated acceptance write.
+One disjunction outside it makes the decision NP-complete in the worst case; that alone does not require a human resolver.
+The charter specifies which discharges are permitted and what to do on a bounded solver timeout. And sole
 ownership of a role is not an ending but a purchase, priced by an exact Erlang-C threshold on skill and capped by the owner's
 death-rate--times--succession-time staying below $D^\star$.
 
@@ -101,10 +104,10 @@ harbor traffic control exercise chartered discretion. And the port's one genuine
 twenty years on these shoals, is hired against a pool of tug crews only when the water is hard enough to pay the premium ---
 and the port licenses a second pilot, because a port whose only pilot can fall ill has priced its channel's availability at one
 human body. The structural mapping: collision geometry $\to$ in-fragment conflict detection (mechanical, witness-producing);
-the rulebook's edge $\to$ the fragment's NP-complete frontier (where chartered resolution begins); the pilot's premium and the
+the rulebook's edge $\to$ the fragment's NP-complete frontier (where computation may exceed its budget); the pilot's premium and the
 second license $\to$ the $g_A(\rho,c)$ boundary and the succession price $D^\star$. The analogy maps relations, so it earns a
-prediction: making the rulebook \emph{richer} should eventually make rule-following itself intractable and reintroduce discretion
---- and that is exactly what the NP-completeness theorem says happens one disjunction past the fragment.
+prediction: making the rulebook \emph{richer} can defeat a uniform polynomial worst-case decision bound. That does not by
+itself require discretion: bounded search may succeed, or the system may abstain under its charter.
 
 The predictable misread, preempted: \emph{mechanical detection does not mean mechanical governance}. The checker certifies the
 norm \emph{system}, never the norms --- a bad policy consistently held is consistent --- and detection without a resolution charter
@@ -140,8 +143,8 @@ A problem is in \textbf{P} when some algorithm solves it in time polynomial in t
 ``tractable at scale.'' It is \textbf{NP-complete} when it is in \textbf{NP} --- a proposed solution can be \emph{checked} in
 polynomial time --- \emph{and} every problem in NP reduces to it in polynomial time, so a polynomial algorithm for it would put
 all of NP in P and settle the P versus NP question. The working
-consequence, which is all Theorem~1b needs: an NP-complete check cannot be run on every proposal at commit time as the
-policy set grows. \emph{3-SAT} is the canonical NP-complete problem (is a Boolean formula in three-literal clauses
+consequence for Theorem~1b is a worst-case scaling boundary, not a proof that every proposal is slow or that a human must
+judge it. A bounded solver can return a checkable discharge or an explicit unresolved timeout. \emph{3-SAT} is the canonical NP-complete problem (is a Boolean formula in three-literal clauses
 satisfiable?), and a \emph{reduction} from it is the standard way to prove a new problem at least as hard: encode any 3-SAT
 instance as an instance of yours, so that solving yours would solve 3-SAT.
 
@@ -170,14 +173,20 @@ left outside the door.
 
 \subsection*{The detection theorem and its frontier}
 \begin{thebox}
-\textbf{Theorem 1a (membership: detection is polynomial and witness-producing).} For a policy set in $\mathcal{L}_c$ with Horn
-program size $H$, $T$ fired deontic tokens, $X$ exclusive claims, and difference-constraint graph $(V,E)$, conflict detection is
-decidable in $O(H + T\log T + X\log X + V\!\cdot\!E)$, with a polynomial witness per conflict: Dowling--Gallier unit propagation
-computes the least Horn model in $O(H)$ --- which by monotonicity equals the intersection of all models, i.e.\ exactly the
-statuses forced in \emph{every} world [verified framework, Dowling--Gallier 1984]; a keyed sweep-line over interval endpoints
-finds every $\Ob$/$\Fb$ clash and claim overlap in $O(T\log T + X\log X)$; Bellman--Ford returns a negative cycle iff the deadline
-system is infeasible, in $O(V\!\cdot\!E)$. The witnesses are, respectively: a derivation chain, the two fired rules with their
-overlap interval, the two claims, and the negative cycle.
+\textbf{Theorem 1a (membership: detection is polynomial and witness-producing).} Let $H$ count ground facts, Horn and
+trigger-body occurrences; let $I$ count fired (token, scope-atom) incidences, $X$ exclusive claims, and $(V,E)$ the deadline
+graph. An indexed \emph{existence decision} takes $O(H+I\log(I+1)+X\log(X+1)+V\!\cdot\!E)$ and returns one witness. To
+emit every distinct interval clash, let $Q$ count overlapping opposite-polarity keyed incidence-pair occurrences plus
+overlapping same-resource claim-pair occurrences, including repeat sightings of a token pair at several scope atoms. A
+deterministic sort-and-deduplicate enumerator takes
+$O(H+I\log(I+1)+X\log(X+1)+V\!\cdot\!E+Q\log(Q+1))$ and emits at most $Q$ distinct pair witnesses. Thus the bound
+charges both scope expansion and explicit output: $n$ obligations and $n$ prohibitions sharing one scope and interval give
+$Q=n^2$. Dowling--Gallier unit propagation computes the least Horn model in $O(H)$, the statuses forced in every world
+[verified framework, Dowling--Gallier 1984]. Keyed interval indexes detect an opposite-polarity overlap or a same-resource
+claim overlap; enumerating all overlapping keyed pairs pays $Q$. Bellman--Ford returns a negative cycle iff the deadline
+system is infeasible in $O(V\!\cdot\!E)$. The witnesses are a derivation chain, the fired rules and overlap interval, the
+claims, or a negative cycle. The published \texttt{b4\_deontic\_fragment.py} reference scanner loops over active pairs,
+including nonclashes; it does not implement the indexed bound and may be quadratic even when $Q=0$.
 
 \textbf{Theorem 1b (frontier: one step outside is NP-complete).} Extend $\mathcal{L}_c$ with disjunctive obligations
 $\Ob(l_1\vee\dots\vee l_k)$ under discharge-choice semantics (the agent picks which disjunct to discharge). Conflict-freedom of a
@@ -239,19 +248,63 @@ uncontrollable events in a policy's \emph{condition} are free; only uncontrollab
 Now compose. In the harbor, \emph{acceptance of a commitment is a mediated write}: the accepted set lives in the single-writer
 store, and the acceptance event is a member of $\Sigma_c$, the controllable alphabet. The policy \emph{``never accept a proposal
 whose union with the accepted set conflicts in-fragment''} therefore gates a controllable event on a condition that Theorem~1a
-makes a total, polynomial-time-computable predicate of committed state. The policy is controllable, hence regimentable: the
-conflict never enters the accepted set, because the daemon refuses the write, with the theorem's witness attached to the refusal
+makes a total, polynomial-time-computable predicate of committed state. The admission policy is controllable, hence regimentable at that write: a proposal conflicting under the facts then supplied
+is refused with a witness. This composition alone does not prevent a later fact from activating dormant accepted rules;
+Theorem~1c adds a conditional future-safety test for an independently justified reachable family
 [verified: composition of Theorem 1a with Paper 2's boxed theorem; both components machine-checked separately, internal,
 \texttt{b4\_deontic\_fragment.py} $+$ \texttt{b3\_controllability.py}].
+
+\subsection*{Admission while facts may still arrive}\label{sec:reachable-admission}
+\onebreath{For fixed positive rules and an explicitly declared finite family of reachable future fact sets, an accepted policy
+remains conflict-free exactly when every inclusion-maximal member of that family passes the batch checker --- formal statement
+in the box below.}
+An operator accepts two dormant rules today. Tomorrow either an audit event or a deployment event may arrive. Checking today's
+facts only overlooks an activated clash; checking the union of mutually exclusive futures can reject a policy that is safe in
+every reachable branch. The input to the following result is the \emph{reachable family itself}, with provenance from an
+independently specified scheduler or transition model. The theorem does not construct that family.
+
+\begin{thebox}
+\textbf{Theorem 1c (finite reachable-family admission).} Fix the ground positive Horn program, positive deontic bodies, scopes,
+intervals, resources, and difference constraints of $\mathcal L_c$. Let $F$ be current facts and let
+$\mathcal R\ne\varnothing$ be a finite, explicitly declared family of reachable future fact sets, each containing $F$.
+Write $\max_\subseteq\mathcal R$ for its inclusion-maximal members and $C(S)$ for the batch conflict predicate after Horn
+closure of fact set $S$. Then
+\[
+  (\forall S\in\mathcal R,\ \neg C(S))
+  \quad\Longleftrightarrow\quad
+  (\forall M\in\max_\subseteq\mathcal R,\ \neg C(M)).
+\]
+Each reachable $S$ lies below a maximal reachable $M$ because $\mathcal R$ is finite. Positive Horn closure and firing are
+monotone; a derived $\bot$ or an overlapping fired opposite-polarity pair persists under added facts. Fixed resource and
+deadline conflicts also persist. Hence $C(S)$ implies $C(M)$; the reverse direction holds because every maximal member is
+itself reachable. Checking all maximal members costs one batch decision per \emph{explicitly supplied} maximal set plus the
+cost of validating and finding the maxima; this is no polynomial claim for a compactly encoded reachability system.
+\end{thebox}
+
+\noindent\textbf{Two hand witnesses.} With rules $a\to\Ob(w,s,[0,1])$ and
+$b\to\Fb(w,s,[0,1])$, the declared reachable family
+$\{\varnothing,\{a\},\{b\}\}$ is safe: its two maximal members each fire one token. Its union $\{a,b\}$ conflicts but is
+unreachable, so the union shortcut is conservative rather than exact. Conversely, with rules $c\to a$ and $c\to b$, current
+facts $\varnothing$ pass, while reachable $\{c\}$ activates both tokens. \emph{Now you try:} add reachable $\{a,b\}$ to the
+first family; its new maximal member conflicts, so admission must fail.
+
+\noindent\textbf{Bounded check and boundary.} A three-atom checker compared the batch predicate to an independent
+truth-table oracle on 4096 program/fact cases and checked the maximal-family equivalence on 130{,}560 nonempty explicit
+families from 512 nine-rule programs. Mutants that check current facts only or treat an unreachable union as reachable were
+caught by the two hand witnesses [internal, \texttt{research\_envelopes.py}]. This is the elementary monotonicity/antichain
+specialization of established maximal-element reasoning~\cite{doyenraskin2009}, not new antichain machinery. The declaration
+must identify which future facts can coexist and why; if the scheduler can reach an omitted set, the premise fails.
+Retractions, negation, changed rules or intervals, and unbounded or compactly represented reachability are outside this
+result. Every sequential rule admission must recheck the combined accepted policy against the then-current reachable family.
 
 This is the paper's first answer, and it is sharper than ``the lookout doesn't need judgment.'' Inside the fragment the lookout is
 not an authority at all --- it is a \emph{guard clause} at the mediation boundary, as impersonal as a type check, producing a
 four-line witness instead of a verdict. What the charter must still supply is everything the guard cannot: \emph{which} of two
-conflicting proposals yields (priority, negotiation, waiver), \emph{whether} a standing norm should be amended, and --- the moment
-anyone wants disjunctive obligations --- \emph{which discharge to choose}, because Theorem~1b says no proposal-time check scales
-there unless P$=$NP. The frontier is thus the exact line where authority re-enters: the schema designer reads Theorem~1 as a price
-list --- keep the language in $\mathcal{L}_c$ and detection is a regimentable subroutine; buy the expressive convenience of
-disjunction and you have hired a judge, with a queue.
+conflicting proposals yields (priority, negotiation, waiver), \emph{whether} a standing norm should be amended, and which
+discharges a policy permits. Theorem~1b changes the worst-case computational price of checking a disjunctive choice;
+it does not make human judgment necessary. A charter may authorize bounded search and a machine-checkable selected
+discharge, or require an unresolved timeout to stop admission. Inside $\mathcal{L}_c$, the current-fact decision is a
+regimentable subroutine; Theorem~1c states the additional premise for future-fact safety.
 
 \section{Part II. The sole owner: an inequality, not a principle}\label{sec:queue}\label{sec:thm-boundary}
 
@@ -272,8 +325,8 @@ Finally, a queue \emph{with breakdowns} is one whose server fails at some rate a
 relevance is that a sole owner is a server that can fail: sessions die, containers are reaped. Theorem~3's $W_\infty$ is the
 residual delay such a queue carries even with an infinitely fast server, which is why no amount of skill buys it back.
 
-Part I located the one place inside conflict management where a mind is genuinely required: not to notice a contradiction but to
-choose a discharge among disjuncts the fragment cannot rank on its own. Part II asks the harbor's other standing authority
+Part I separated a polynomial conflict check from the charter's decision about which norms and discharges are permitted.
+A solver may select a permitted discharge without a human mind; NP-completeness alone establishes no human-role requirement. Part II asks the harbor's other standing authority
 question, about a different kind of decision entirely --- not \emph{which} candidate resolution to pick, but \emph{whether one
 designated person should be doing the picking at all} --- and it gets the same kind of answer: not a principle to invoke but a
 number to compute. The whitepaper's sole-responsibility roles (roadmap owner, test-suite curator, release avatar) trade pooled
@@ -391,16 +444,16 @@ The two parts assemble into the answer to the title question, and Table~\ref{tab
 \begin{table}[t]\centering
 \caption{The authority inventory, priced. Rows 1--2 delete an authority the governance document assumed it needed --- in-fragment
 detection is an algorithm and, composed with Paper~2, a runtime guard. Rows 3--4 locate the authority no theorem removes:
-choosing a discharge, and choosing the norms. Rows 5--6 keep the authority and hand it an invoice, in quantities the daemon
+setting permissible discharges and norms. Rows 5--6 keep the authority and hand it an invoice, in quantities the daemon
 already meters.}
 \label{tab:inventory}
 \begin{tabular}{@{}p{0.36\textwidth}p{0.2\textwidth}p{0.36\textwidth}@{}}
 \toprule
 Coordination function & Authority needed? & What it costs, and to whom \\
 \midrule
-In-fragment conflict detection & none (algorithm) & $O(H+T\log T+X\log X+V\!\cdot\!E)$ per batch, witness included \\
+In-fragment conflict detection & none (algorithm) & indexed decision $O(H+I\log(I+1)+X\log(X+1)+V\!\cdot\!E)$; all witnesses add $Q\log(Q+1)$ \\
 In-fragment conflict enforcement & none (runtime guard) & mediated acceptance write; regimentable via Paper 2 \\
-Conflict-freedom with disjunctive obligations & chartered resolver & NP-complete check, or a judge who chooses the discharge \\
+Conflict-freedom with disjunctive obligations & policy-defined & NP-complete worst case; bounded solver, checkable choice, or abstention \\
 Priority, waiver, norm amendment & chartered, irreducibly & outside every checker; the charter's residual job \\
 Sole ownership of a role & conditional & justified iff $r \ge g_A(\rho,c)$; otherwise a priced latency purchase \\
 Sole ownership without succession & conditional, capped & viable only while $\xi/\eta < D^\star = \eta K/(1-\eta K)$, and only
@@ -505,6 +558,8 @@ diagrams carrying no plotted data --- every complexity term and interval in them
 \begin{thebibliography}{99}
 \bibitem{dg84} W.~F. Dowling and J.~H. Gallier. Linear-time algorithms for testing the satisfiability of propositional Horn
 formulae. \emph{Journal of Logic Programming}, 1(3):267--284, 1984.
+\bibitem{doyenraskin2009} L.~Doyen and J.-F.~Raskin. Antichains for the automata-based approach to model-checking.
+\emph{Logical Methods in Computer Science}, 5(1), 2009. \url{https://arxiv.org/abs/0902.3958}.
 \bibitem{cook71} S.~A. Cook. The complexity of theorem-proving procedures. In \emph{Proceedings of the 3rd Annual ACM Symposium
 on Theory of Computing (STOC)}, pages 151--158, 1971.
 \bibitem{karp72} R.~M. Karp. Reducibility among combinatorial problems. In \emph{Complexity of Computer Computations}, pages

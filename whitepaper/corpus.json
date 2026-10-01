@@ -695,7 +695,8 @@
         "skills/harbor-results/scripts/paper7_failure_cases.py",
         "skills/harbor-results/scripts/sheaf_consistency_radius.py",
         "skills/harbor-results/scripts/sheaf_repair_and_2complex.py",
-        "skills/harbor-results/scripts/zoom_bound_check.py"
+        "skills/harbor-results/scripts/zoom_bound_check.py",
+        "skills/harbor-results/scripts/test_legibility_corrections.py"
       ],
       "owner": ".github/workflows/proofs.yml",
       "ci": {

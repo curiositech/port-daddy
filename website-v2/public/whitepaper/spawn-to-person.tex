@@ -891,10 +891,11 @@ rather than \emph{inherit a summary} --- has a specified candidate mechanism,
 \textbf{Event-Sourced Neural Rehydration} (OP-4, shared with \pdchapref{swk}{The Single-Writer Kernel}): restore
 the Git SHA, truncate the durable message log to the exact crash point, and replay
 it under prompt-prefix caching. It is \DESIGNED, not \BUILT, and its
-\emph{completeness has not been formally established}. What replay demonstrably
-restores is \emph{lineage} --- which commit, which claim, which message sequence
-the successor is continuing --- and, \emph{within one provider, model, and version},
-a behaviorally equivalent continuation of the same prefix. What it does not
+\emph{completeness has not been formally established}. Replay is designed to
+restore \emph{lineage} --- which commit, which claim, which message sequence
+the successor is continuing. Even within one provider, model, and version,
+behavioral equivalence is an unmeasured hypothesis, not an observed property
+of this unbuilt mechanism. What it does not
 restore is the model's actual inference state: a KV cache, sampling state, and
 hidden activations are bound to a live inference session and are not exported
 artifacts, so across providers (or across a model version bump) the right
@@ -1632,11 +1633,38 @@ full. The harness checkpoints the plan, stores a cited packet of what the old
 body knew, and starts a new body that reads the plan and the packet first and
 continues the work. That is resurrection soundness with the provider held
 fixed: the three clauses collapse to one, that the successor body inherits
-the predecessor's open commitments and claims rather than a transcript. The
+the predecessor's open commitments and claims rather than a transcript. That
+is necessary for sanction continuity; the score-only model check does not
+prove equivalent inference or safe repetition of external effects. The
 front matter names the discipline under which such a claim is tested (a
 Genesis, a Voyage, a Receipt); this chapter supplies the property the Receipt
 has to show, and the night this book's product first ran end to end is the
 night that property was asked for and found not yet held.
+
+\paragraph{A timeout is an unknown outcome, not a retry receipt.}\label{sec:stp-unknown-effect}
+Suppose the old body sent a non-idempotent payment under stable operation ID
+$O$, then died before recording the result. The successor cannot infer from a
+missing local acknowledgment whether the payment occurred or the old request
+is still in flight. Its continuation decision depends on the external
+adapter's effect-boundary contract:
+\begin{description}[leftmargin=1.8em,itemsep=2pt]
+  \item[Atomic deduplication and result.] If the remote side atomically binds
+  a stable key $K$ to the effect and durable result, retry $O,K$ or fetch that
+  result. Retain the record while either old or successor calls can arrive.
+  \item[Ordered readback and fence.] If a durable remote epoch fence rejects
+  the old actor \emph{at the effect boundary}, install it first, then perform a
+  linearizable operation-specific read. Persist a present result; after an
+  authoritative absence, admit one successor attempt. A negative read without
+  that fence is insufficient: the old request may commit afterward.
+  \item[Neither contract.] Mark the outcome unresolved and stop automatic
+  retries pending authoritative reconciliation. This preserves at-most-once
+  safety without promising completion.
+\end{description}
+The one-operation, two-epoch finite checker exercised these contracts and
+found counterexample traces when the read lacked a fence, a retry changed
+$K$, or the dedup record was dropped while retries remained admissible
+[internal, \texttt{continuation\_observation\_model.py}]. This decision table
+is an adapter requirement, not a measured Harbor deployment guarantee.
 
 \begin{pdboundary}
 The engine-swap theorem is a two-period stylization: the strategic type has no
@@ -3140,8 +3168,9 @@ this chapter's own.
   Event-Sourced Neural Rehydration (OP-4 in the shared kernel namespace) is a
   \DESIGNED\ candidate answer --- restore the Git SHA, truncate the durable message
   log to the crash point, replay under prompt-prefix caching --- but it has not
-  shipped, and its completeness has not been established: replay restores lineage
-  and, within one provider/model/version, a behaviorally equivalent continuation;
+  shipped, and its completeness has not been established: replay aims to restore
+  lineage, while equivalent behavior even within one provider/model/version is
+  an unmeasured hypothesis;
   it does not export the inference state, so across providers the honest
   description is task continuity with actor succession. The taxonomy itself ---
   record vs.\ claims vs.\ execution state vs.\ latent ``intent'' --- stays open

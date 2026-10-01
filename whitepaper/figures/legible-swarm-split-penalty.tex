@@ -60,11 +60,10 @@
 \end{tikzpicture}
 \caption{The joint zero-miss digest's penalty over twice the single-reader
 floor, $\mathrm{Floor}(N,2k,m)/(2\,\mathrm{Floor}(N,k,m))$ at $N{=}60$, plotted
-over its whole domain rather than the four hand-worked points alone. Neither
-curve is close to the dashed $1.0$ line (no penalty) at any $k$, and both rise
-monotonically: splitting a shared digest into two disjoint-critical-set heads
-never costs exactly $2\times$ and, past a handful of critical facts, costs
-substantially more --- $1.392\times$ at $m{=}20,k{=}10$ against the $1.224\times$
-already visible at the chapter's own $m{=}8,k{=}4$. [internal; analytic]}
+over its whole domain rather than the four hand-worked points alone. Both plotted ratios exceed the dashed $1.0$ parity line and rise
+monotonically. For one union selection under a shared $m$-open budget, the
+joint floor exceeds twice the single-set floor: $1.392\times$ at
+$m{=}20,k{=}10$ and $1.224\times$ at $m{=}8,k{=}4$. This is a selection-budget
+comparison, not a requirement for separate models or stores. [internal; analytic]}
 \label{fig:split-penalty}
 \end{figure}

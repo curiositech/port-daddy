@@ -166,6 +166,25 @@ def render_text(data=None):
             if value:
                 if isinstance(value,list): value='; '.join(cell(x) for x in value)
                 out += [f'**{label}:** {value}', '']
+        if r.get('corrections'):
+            out += ['**Correction dispositions:**', '']
+            out += [f'- **{c["issue"]}:** {c["disposition"]}' for c in r['corrections']]
+            out.append('')
+        if r.get('next_protocol'):
+            out += ['**Next bounded research protocol:**', '']
+            for key, value in r['next_protocol'].items():
+                out += [f'- **{key.replace("_", " ").capitalize()}:** {cell(value)}']
+            out.append('')
+        if r.get('milestones'):
+            out += ['**Execution gates:**', '']
+            out += [f'- {m["id"]}: {m["status"]}' for m in r['milestones']]
+            out.append('')
+        if r.get('portfolio'):
+            out += ['**Candidate publication portfolio** (source numbers are locators, not a fixed paper count):', '']
+            for candidate in r['portfolio']:
+                out += [f'#### {candidate["candidate"]}', '']
+                for key, label in [('source_papers', 'Source material'), ('question', 'Decision question'), ('strongest_result', 'Strongest result'), ('baseline', 'Baseline'), ('utility_test', 'Utility test'), ('packaging_gate', 'Packaging gate')]:
+                    out += [f'**{label}:** {cell(candidate[key])}', '']
         refs=[]
         for s in r.get('sources',[]):
             source=source_for(s['path'],data)

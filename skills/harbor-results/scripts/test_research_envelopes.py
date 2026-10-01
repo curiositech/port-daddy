@@ -31,6 +31,17 @@ class ResearchEnvelopeTests(unittest.TestCase):
             self.assertFalse(self.checker.conflict(facts, ()))
         self.assertTrue(self.checker.conflict({'a', 'b'}, ()))
 
+    def test_maximal_reachable_sets_keep_exclusive_branches(self):
+        family = (set(), {'a'}, {'b'})
+        self.assertEqual(self.checker.maximal_reachable(family),
+                         frozenset((frozenset({'a'}), frozenset({'b'}))))
+        self.assertFalse(any(self.checker.conflict(f, ()) for f in family))
+        self.assertTrue(self.checker.conflict({'a', 'b'}, ()))
+
+    def test_maximal_reachable_rejects_empty_family(self):
+        with self.assertRaises(AssertionError):
+            self.checker.maximal_reachable(())
+
     def test_inconsistent_horn_constraints_are_not_vacuous_permission(self):
         rules = (((), self.checker.BOTTOM),)
         self.assertTrue(self.checker.conflict(set(), rules))
@@ -45,6 +56,10 @@ class ResearchEnvelopeTests(unittest.TestCase):
         result = self.checker.run_checks()
         self.assertEqual(result['envelopes']['independent_oracle_cases'], 2048)
         self.assertEqual(result['envelopes']['envelope_cases'], 8192)
+        self.assertEqual(result['reachable_families']['reachable_families'], 130560)
+        self.assertEqual(result['reachable_families']['independent_oracle_cases'], 4096)
+        self.assertEqual(result['reachable_families']['mutants_caught'],
+                         ['current_facts_only', 'unreachable_union_shortcut'])
         self.assertEqual(result['payloads']['leaking'], 192)
         self.assertEqual(result['split_floors']['exact_triples'], 17545)
         self.assertEqual(result['weighted_buyout']['payoffs']['0'], 88)

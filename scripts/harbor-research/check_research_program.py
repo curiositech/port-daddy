@@ -44,6 +44,12 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+# This script is loaded directly by focused tests as well as executed by path.
+# In both cases its sibling Omni helper must resolve without test-order imports.
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from omni_ledger import document_exists, document_glob, document_text, load as load_omni
 
 REPO = Path(__file__).resolve().parents[2]

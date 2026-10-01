@@ -926,19 +926,12 @@ if and only if the skill premium clears
 \end{equation}
 \end{pdclaim}
 
-\noindent\Verified\ --- \emph{corrected}. An earlier draft of this paper proposed
-the threshold $\tilde g = 1+(c-1)\lambda_F/(c\mu_{\mathrm{pool}}-\lambda_F)
-= 1+(c-1)\rho/(1-\rho)$, on the plausible-looking grounds that it is what a naive
-$M/M/1$-versus-$M/M/c$ response-time comparison appears to give. A sweep against
-simulation \emph{falsified} it in both directions before the belief hardened, and
-Eq.~\ref{eq:specboundary} is the replacement --- the companion formal paper's
-Theorem~2~\pdcite{paper6}, independently re-derived and checked numerically over two
-thousand $(\rho,c)$ points. We leave the wrong form on the
-page rather than quietly swapping it, because a paper that argues for
-falsification-first oversight should be legible about its own retractions: the two
-thresholds cross exactly once, so the superseded form was not merely conservative
---- it was wrong in \emph{both} directions, and Figure~\ref{fig:specialization}
-shades the two error regions.
+\noindent\Verified. The boundary in Eq.~\ref{eq:specboundary} is
+independently re-derived and checked numerically over two thousand $(\rho,c)$
+points (companion Paper 6~\pdcite{paper6}). The tempting proxy
+$\tilde g=1+(c-1)\rho/(1-\rho)$ disagrees in both directions; the two curves
+cross once, and Figure~\ref{fig:specialization} shows the regions where that
+proxy misclassifies the decision.
 
 At $A=0$ --- pure response time, accountability priced at nothing --- the boundary
 reduces to
@@ -975,7 +968,7 @@ $g = 3(0.556) + 3(0.444)/\bigl(3(0.444)+0.300\bigr) = 1.667 + 0.816 = 2.483$. Th
 premium $2.5$ clears it --- barely --- so the sole owner wins:
 $W_{\mathrm{solo}} = 1/(3-2) = 1.000$ hr against
 $W_{\mathrm{pool}} = \bigl(1+0.300/1.333\bigr)/1.2 = 1.021$ hr, a margin of about
-75 seconds per request. The superseded threshold would have returned
+75 seconds per request. The naive proxy would return
 $\tilde g = 1 + 2(2)/(3.6-2) = 3.5$ and sent the work to the pool. That is the
 right-hand error lens of Figure~\ref{fig:specialization}, met in the wild on the
 first realistic instance anyone tries.
@@ -986,8 +979,8 @@ $\mu_{\mathrm{spec}} = 2.8/\text{hr}$ still be worth it on response time alone?
 confirms it. The boundary is genuinely tight here; note that a positive
 accountability value $A$ lowers $g_A$ below $g$ and can buy the sole owner back.)
 
-\begin{pdexample}{Where the exact and superseded thresholds cross}
-At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] when a named script in the repository regenerates them, [internal] when only the chapter's own derivation does.} The superseded $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives $\tilde g(0.5,2)=2.00$ at the same point --- already a visible gap. Setting $g=\tilde g$ and clearing denominators leaves $\rho(\rho^2-3\rho+1)=0$, whose root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]: below it $\tilde g$ over-certifies specialization (false-certify), above it $\tilde g$ over-rejects (false-reject), which is exactly why the superseded form was wrong in \emph{both} directions rather than merely conservative. \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
+\begin{pdexample}{Where the exact boundary and naive proxy cross}
+At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] when a named script in the repository regenerates them, [internal] when only the chapter's own derivation does.} The naive proxy $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives $\tilde g(0.5,2)=2.00$ at the same point --- already a visible gap. Setting $g=\tilde g$ and clearing denominators leaves $\rho(\rho^2-3\rho+1)=0$, whose root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]: below it $\tilde g$ over-certifies specialization (false-certify), above it $\tilde g$ over-rejects (false-reject), which is exactly why the proxy misclassifies in \emph{both} directions. \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
 \end{pdexample}
 
 \input{figures/legible-swarm-specialization}
@@ -1185,41 +1178,44 @@ operator dismisses debits the agent's standing, so crying wolf has a price, and
 the price falls harder on the agent whose alarm was baseless than on the one
 whose alarm was right.
 
-\noindent\Verified. The costly-signal lane has a unique equilibrium, and the
-debit that makes it work is a fitted quantity with a feasible range.
+\noindent\Verified. Under explicit shape and crossing assumptions, the
+costly-signal payoff has a unique cutoff; the debit has a feasible range.
 
 \begin{pdclaim}{Theorem}{The escalation threshold and its tuning band}
 \label{thm:escalation-threshold}
-Let an agent holding validation signal $u\in[0,1]$ earn $b(u)$ from an escalation
-that is upheld and pay the dismissal debit $\delta w$ when it is not, with $V(u)$
-the probability the operator upholds it, $V$ monotone. The payoff
-$\Pi_\delta(u)=b(u)-\delta w\,(1-V(u))$ is strictly increasing in $u$, so agents
-separate at the unique $u^\star(\delta)$ solving
-$b(u^\star)=\delta w\,(1-V(u^\star))$, escalating iff $u\ge u^\star$. The set of
-debits under which the lane meets both an alarm-load wall and a miss-loss wall is an
-interval $[\delta_{\min},\delta_{\max}]$, and it can be empty.
+Let $b:[0,1]\to\mathbb R$ be continuous and strictly increasing, let the
+validation probability $V:[0,1]\to[0,1]$ be continuous and nondecreasing,
+and let $\delta\ge0$, $w>0$. The payoff
+$\Pi_\delta(u)=b(u)-\delta w\,(1-V(u))$ is strictly increasing. If
+$\Pi_\delta(0)<0<\Pi_\delta(1)$, it has a unique interior zero $u^\star$:
+escalate for $u\ge u^\star$ when ties escalate. If the payoff is already
+nonnegative at $0$, every type escalates; if it is negative at $1$, none does.
+At an endpoint equality, the tie rule determines that endpoint's action.
+The debits meeting both an upper alarm-load wall and an upper miss-loss wall
+form an interval, possibly empty; its endpoints need not be included.
 \end{pdclaim}
 \begin{proof}
-$b$ is nondecreasing and $1-V$ is nonincreasing in $u$, so $\Pi_\delta$ is strictly
-increasing and crosses zero at most once; a crossing exists whenever
-$\Pi_\delta(0)<0<\Pi_\delta(1)$, which the debit guarantees for $b(0)<\delta w$. The
+$b$ is strictly increasing and $-\delta w(1-V)$ is nondecreasing, so
+$\Pi_\delta$ is strictly increasing. Continuity and opposite endpoint signs
+give exactly one interior zero; neither crossing nor an interior zero follows
+from the debit alone. The
 alarm-load wall bounds the escalation mass from above and is monotone in $\delta$ in
 one direction; the miss-loss wall bounds the suppressed mass and is monotone in the
-other; the feasible set is the intersection of two half-lines, an interval, possibly
-empty.
+other; the feasible set is the intersection of two intervals, possibly
+empty. Endpoint inclusion follows the chosen tie rule and the signal law.
 \end{proof}
 This is Spence's separating equilibrium arriving through a different door. In
 the job market the signal costs the able type less by assumption; here nobody's
 debit is cheaper than anybody else's, but a true alarm is dismissed less often,
 so the \emph{expected} debit $\delta w\,(1-V(u))$ falls with $u$ and the
-single-crossing condition his separation needs comes out of the validator rather
-than being put in by hand. (Which is also why monotone $V$ is not a technicality
-below: it is the whole of the single-crossing.) The dismissal debit is money only
+single-crossing condition his separation needs follows from the benefit and
+validator assumptions. Monotone $V$ is sufficient alongside strictly
+increasing $b$; without it a threshold can fail. The dismissal debit is money only
 a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
 (\texttt{instrumentation.md}), and an empty band is a finding, not a tuning problem:
 a tight attention budget with high miss costs admits no good debit, and the fix is
-capacity or evidence quality. Monotone $V$ is required throughout; a non-monotone
-validator breaks the separating threshold (item R14 of the research ledger,
+capacity or evidence quality. A non-monotone validator can break the threshold
+(item R14 of the research ledger,
 \texttt{b7\_escalation\_band.py}).
 
 \begin{pdexample}{The threshold and the tuning band, by hand}
@@ -1233,7 +1229,7 @@ At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified
 \begin{pdrecitation}
 \item Without looking: what is the exact condition under which sole ownership weakly dominates the pool, and what does Eq.~\ref{eq:specboundary} reduce to when $A=0$?
 \item Name the two limiting properties that pin down $g(\rho,c)$'s shape as $\rho\to0$ and $\rho\to1$.
-\item Why does the superseded threshold $\tilde g$ fail in \emph{both} directions rather than merely being conservative?
+\item Why does the naive proxy $\tilde g$ fail in \emph{both} directions rather than merely being conservative?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1678,10 +1674,12 @@ a digest needs $B^\star$ bits to be useful. It prices the zero-miss guarantee on
 cheaper digests are fine the moment misses are tolerated, and the two-constraint
 rate below prices exactly that.
 
-\paragraph{The falsification experiment.} The theorem makes a sharp prediction: a
-$B$-bit digest's best zero-miss probability is
-$\min\bigl(1,\,2^B\binom{m}{k}/\binom{N}{k}\bigr)$, so any scheme dipping below the
-implied miss curve refutes the formalization. Three encoders were run against a
+\paragraph{The falsification experiment.} Under uniformly distributed critical
+placements, a $B$-bit digest's probability of opening all $k$ critical items is
+\emph{at most} $\min\bigl(1,\,2^B\binom{m}{k}/\binom{N}{k}\bigr)$: codewords can
+cover overlapping placements, so equality need not be attainable. Thus the miss
+probability is at least one minus that bound; a scheme below this miss floor
+would refute the formalization. Three encoders were run against a
 shared randomized-cover codebook: an \emph{oracle} that sees the true set and
 addresses the best codeword its $B$ bits can reach, a \emph{noisy} encoder (feature
 signal-to-noise ratio near $1$), and a \emph{random} one, with $4{,}000$ placements
@@ -1689,14 +1687,10 @@ per budget point, sweeping $B$ through the floor at $N{=}60$, $k{=}2$, $m{=}8$.
 Result: $0/16$ violations; the oracle hugs the floor from above and the others pay
 a premium [internal, \texttt{a7\_experiment.py}].
 
-\paragraph{A wrong turn, reported.} A first implementation handed the oracle a
-perfect per-item score vector and charged $B$ bits only for resolving rank ties:
-$8/14$ apparent violations. That was not a refutation but an unpriced side channel.
-The identity of the critical set leaked outside the metered message. Rebuilding
-the model so that $B$ is a literal message length gating an encoder and decoder pair
-restored agreement. The transferable rule: a simulation that appears to beat an
-information bound is leaking through an unpriced channel; audit the meter before
-doubting the theorem, and before trusting the refutation.
+\paragraph{Meter boundary.} The $B$ bits must identify a message in the
+encoder--decoder codebook. A perfect per-item score vector supplied outside that
+message leaks the critical-set identity through an unpriced side channel;
+charging only for rank ties is therefore an invalid test of the floor.
 
 \paragraph{Numbers by hand.} Take $N=1000$ artifacts with $k=3$ critical among
 them and a review budget of $m=10$ opens. The floor is
@@ -1816,7 +1810,7 @@ the guaranteed advantage is
 \mathrm{adv}(d)\;=\;\frac{F}{2k\lceil\log_2(F/k)\rceil+4k}
 \;=\;\frac{1}{d\bigl(2\lceil\log_2(1/d)\rceil+4\bigr)},
 \]
-which exceeds $1$ exactly on $d\le 1/12$.
+which exceeds $1$ exactly on $d<1/12$ and equals $1$ at $d=1/12$.
 \end{pdclaim}
 \begin{proof}
 Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
@@ -1853,7 +1847,7 @@ $2^{b+1}-1=2k-1$ nodes down to depth $b$ are queried; below depth $b$ exactly $k
 nodes per level are positive, each is split at levels $b,\dots,a-1$, and each split
 queries two children; the total is $(2k-1)+2k(a-b)=2k\log_2(F/k)+2k-1$. The
 density form follows by dividing $F$ by the bound, and the step function
-$d(2\lceil\log_2(1/d)\rceil+4)$ first touches $1$ at $d=1/12$.
+$d(2\lceil\log_2(1/d)\rceil+4)$ first touches $1$ at $d=1/12$; equality is break-even.
 \end{proof}
 
 \noindent\textbf{Positioning.} None of the group-testing machinery is new
@@ -1878,13 +1872,13 @@ $2k\log_2(F/k)+2k-1=511$ [internal, \texttt{zoom\_bound\_check.py}].
 they compose only inside a window that can be stated exactly. Stage one sets stage
 two's density: by Theorem~\ref{thm:pinned-joint} both constraints bind, so the
 flagged set holds $(p-\delta)N$ real criticals among $fN$ flags and
-$d=k/F=(p-\delta)/f$. Since $\mathrm{adv}(d)>1$ exactly on $d\le 1/12$, \emph{the
-two stages compose profitably iff the flag budget is at least twelve times the
-residual positive rate}, $f\ge 12(p-\delta)$ [verified from the two closed forms];
+$d=k/F=(p-\delta)/f$. Since $\mathrm{adv}(d)>1$ exactly on $d<1/12$, \emph{the
+bound guarantees a strict saving iff the flag budget exceeds twelve times the
+residual positive rate}, $f>12(p-\delta)$ [verified from the two closed forms];
 the measured mean crossover is about twice as forgiving, $d\approx0.165$
 [internal, \texttt{zoom\_bound\_check.py}]. At $p{=}0.05$, $\delta{=}0$ the window
-opens only at $f\ge0.60$: the digest must flag $60\%$ of the night's artifacts
-before the second stage is guaranteed to beat reading the flags. Inside the window
+is break-even at $f=0.60$: the digest must flag more than $60\%$ of the night's artifacts
+before the bound guarantees beating flat inspection. Inside the window
 the flags stage one adds are cheap in the second stage, because $k$ is fixed by the
 source and doubling $F$ costs only the logarithmic term, $2k$ further opens.
 Outside it the second-stage cost is linear in $F$, because reading all $F$ flags is
@@ -1912,14 +1906,13 @@ formalization at one swept regime ($N{=}60$, $k{=}2$, $m{=}8$); the noisy-encode
 curve in that experiment barely beats random at unit signal-to-noise ratio and is
 not evidence that noisy digests are near-optimal. The frontier $R(\delta,f)$ is an
 i.i.d.\ Bernoulli model of critical status, a modeling commitment rather than a
-law, and its pinned closed form holds only while $f<1-\delta/p$; an earlier plot
-that evaluated the formula past that line showed a spurious uptick near
-$\delta/p\to1$, a domain-of-validity error and not a feature of the frontier.
+law, and its pinned closed form holds only while $f<1-\delta/p$; applying that formula beyond the line would create a spurious uptick near
+$\delta/p\to1$ rather than the true zero-rate region.
 Theorem~\ref{thm:zoom-advantage} assumes a reliable group query at unit cost;
 correlated or noisy group checks, and group costs growing with $|S|$, change the
 accounting. Plain halving is a factor of about two from Hwang's optimum by design:
 the theorem bounds the deployed algorithm, not the best one. The two halves compose
-only for $f\ge 12(p-\delta)$, so at $p{=}0.05$ they are not jointly instantiated at
+with a strict guarantee only for $f>12(p-\delta)$, so at $p{=}0.05$ they are not jointly instantiated at
 the flag budgets the frontier tabulates.
 \end{pdboundary}
 
@@ -2144,43 +2137,47 @@ fact says when sharing \emph{is} safe, which is the statement a designer needs.
 \paragraph{The scene.}
 Two readers want two numbers from one thermometer. The successor wants the reading
 that predicts tomorrow's weather; the operator wants the reading that says whether
-to act now. One scalar can serve both only when the two orderings agree item by
-item, and decision theory has had a word for that agreement since the 1980s:
+to act now. For strict total orders, one scalar can serve both only when the two
+orderings agree item by item; ties may admit a common refinement. Decision
+theory has had a word for the no-crossing relation since the 1980s:
 the two readers' losses are \textbf{comonotone} --- they move together across
 the items, never one rising while the other falls --- the property Yaari and
 Schmeidler built rank-dependent and Choquet expected utility
 on~\pdcite{yaari1987,schmeidler1989}. Their theorems are about how a decision
 maker prices comonotone acts; the theorem below borrows only the concept, and
-once the concept is named the rest is elementary: two real-valued functions on
-a finite set are comonotone exactly when they induce the same ranking, which is
-exactly when one number can stand in for both. So the box says when a shared
+once the concept is named the rest is elementary for \emph{strict total orders}:
+one common scalar ranking serves both only when the orders coincide. If one
+reader ties two items and the other orders them strictly, a common refinement
+can serve both. So the box says when a shared
 head is safe, and the crossing pair after it says why, for these two readers,
 it isn't. (The super-additive price of serving both --- the $2.13\times$ of
-Theorem~\ref{thm:split-digest}, unbounded in $k$ --- is the part that is not
+Theorem~\ref{thm:split-digest}, unbounded along varying $N,m,k$ --- is the part that is not
 in Yaari or Schmeidler, and the part this chapter is actually claiming.)
 
 \begin{pdclaim}{Theorem}{Comonotone characterization}
 \label{thm:comonotone}
-A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
-$h$ realizes $r$'s optimal selection at every budget. A single head serves two
-readers iff their induced preference orders are comonotone (they agree on every
-pair). The successor and operator orders are not comonotone: a routine-but-essential
+Let $X$ be a finite set of candidate items.
+A scalar head $h:X\to\mathbb R$ with one shared deterministic tie rule
+\emph{serves} a reader with a strict total preference order if its top-$m$
+set is that reader's unique optimal selection for every budget $m$.
+A single head serves two such readers iff their strict
+orders agree on every pair. The successor and operator orders have a strict
+crossing pair: a routine-but-essential
 working state (high continuation value, negligible regret) and an anomalously
 abandoned dead end with irreversible side effects (zero continuation value, maximal
 regret) order oppositely. Hence no shared head serves both.
 \end{pdclaim}
 \begin{proof}
-($\Leftarrow$) Comonotone total preorders admit a common refinement, and any utility
-representing the refinement serves both. ($\Rightarrow$) A shared head induces one
-order; each reader's optimum at every budget is a top-$m$ set of that order, so
-both readers' orders equal the $h$-order and agree pairwise. The displayed pair,
+($\Leftarrow$) If strict orders agree, assign decreasing scalar values in
+their common order. ($\Rightarrow$) If both readers have a unique top-$m$ set
+at every budget, those nested sets determine the same pairwise order, namely
+the one selected by $h$. The displayed strict crossing pair,
 constructible in any real fleet, disagrees, so no shared head exists.
 \end{proof}
-The crossing pair constructed above is precisely the certificate that discovery-fit
-and operator-regret are not comonotone, and the misread to preempt is the
-converse: comonotone readers \emph{can} share a head. The theorem forbids sharing
-only when the crossing pair actually occurs in the domain, and in agent oversight
-it does.
+The crossing pair constructed above certifies incompatibility even if other
+items tie. For weak orders, a strict preference by one reader and a tie by
+the other are compatible: the shared head may refine the tie. The theorem's
+iff statement assumes strict orders; the crossing-pair impossibility does not.
 
 The consequence is a design rule: the operator wants the \emph{most dangerous} item
 surfaced, the agent wants the \emph{most capable} collaborator. Collapsing them into
@@ -2206,7 +2203,7 @@ the trade-off. A perfect sensor still needs the cost ratio to know where to trip
 For an unreviewed item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot
 \mathrm{irrev}(x)$ be the unrecoverable loss of passing a bad $x$, let
 $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior,
-$c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the
+$c_{\mathrm{att}}\ge0$ the marginal attention cost, and $C_{\mathrm{fa}}\ge0$ the
 non-attention cost of inspecting a good item. The expected unrecoverable loss of
 passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and, among all policies that
 decide inspect-or-pass per item from its evidence alone, the Bayes-optimal policy
@@ -2215,29 +2212,30 @@ inspects iff
 \begin{aligned}
 C_{\mathrm{miss}}(x)\,a(x)&\;\ge\;c_{\mathrm{att}}+C_{\mathrm{fa}}\bigl(1-a(x)\bigr),\\
 \text{equivalently}\qquad
-\frac{a(x)}{1-a(x)}&\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}(x)},
+a(x)&\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}(x)+C_{\mathrm{fa}}},
 \end{aligned}
 \end{equation}
-the classical likelihood-ratio criterion. The product form
-$\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$ of Eq.~\ref{eq:regret}
-is the exact ranking key iff $\mathrm{anomaly}=a$; any other anomaly scalar $s$
-requires the correction $C_{\mathrm{miss}}\cdot g(s)$ with $g$ the empirical
-calibration map fit from the audit log.
+when $C_{\mathrm{miss}}+C_{\mathrm{fa}}>0$. For $C_{\mathrm{miss}}>c_{\mathrm{att}}$
+and $a<1$, the equivalent odds rule is
+$a/(1-a)\ge(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}-c_{\mathrm{att}})$.
+At $a=1$, compare $C_{\mathrm{miss}}$ directly with $c_{\mathrm{att}}$; when
+$C_{\mathrm{miss}}=C_{\mathrm{fa}}=0$, inspection only ties if attention is free.
+The product $\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$ of
+Eq.~\ref{eq:regret} is the expected loss of \emph{passing} when anomaly is a
+calibrated posterior $a$. Inspection priority with item-dependent costs follows
+the net benefit $(C_{\mathrm{miss}}+C_{\mathrm{fa}})a-(c_{\mathrm{att}}+C_{\mathrm{fa}})$.
+An uncalibrated score $s$ first needs a measured map $g(s)=a$.
 \end{pdclaim}
 \begin{proof}
 The expected loss of passing is $C_{\mathrm{miss}}(x)a(x)$; the expected cost of
-inspecting is $c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a(x))$. Compare and rearrange into
-the odds form. Gating on the product with $\mathrm{anomaly}=a$ against the threshold
-$\tau=c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a)$ reproduces the inequality; with any
-other $s$ the same inequality holds only after $s$ is mapped back to $a$, which is
-what $g$ does.
+inspecting is $c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a(x))$. Collect the $a$ terms
+for the probability threshold. When $C_{\mathrm{miss}}>c_{\mathrm{att}}$ and
+$a<1$, dividing by $(C_{\mathrm{miss}}-c_{\mathrm{att}})(1-a)$ yields the odds rule.
 \end{proof}
 
 Note the direction the inequality runs: raising the miss-to-false-alarm cost ratio
 \emph{lowers} the bar to inspect, the formal version of ``when a mistake is
-unrecoverable, look at more things,'' and it is the direction an earlier draft of
-this program's signal-detection figure had reversed. The likelihood-ratio
-statement leaves no room for the error. The theorem is single-shot
+unrecoverable, look at more things,'' as the cost comparison shows directly. The theorem is single-shot
 (Neyman--Pearson); operator oversight is a stream of items, and the natural
 sequential extension --- optimal expected sample size under fixed error-rate
 constraints, time-varying thresholds included --- is Wald's Sequential
@@ -2427,13 +2425,23 @@ that keeps the bill down produces the very digest a human or successor agent rea
 
 \begin{pdclaim}{Theorem}{The Split-Digest Theorem}
 \label{thm:split-digest}
-Let $E = (e_1, e_2, \dots, e_N)$ be an agent's raw execution trace. A compaction policy $D: E \to \Sigma^{\le B}$ compresses $E$ into a token budget $B < |E|$. Let $R_1$ be the \textbf{successor agent} with continuation loss $L_{\mathrm{succ}}(D) = \mathrm{KL}\bigl(P_{\mathrm{next}}(\cdot \mid E) \,\|\, P_{\mathrm{next}}(\cdot \mid D)\bigr)$ (penalizing loss of AST trajectory and task state), and let $R_2$ be the \textbf{human operator} with oversight loss $L_{\mathrm{op}}(D) = \sum_{e \in E \setminus D} \mathrm{regret}(e)$ (penalizing unreviewed high-stakes anomalies and policy breaches).
-
-If the trace contains both benign working details (high continuation value, zero regret) and dead-end anomalous excursions (zero continuation value, maximal regret), then \textbf{no single compaction $D^*(E)$ minimizes both $L_{\mathrm{succ}}$ and $L_{\mathrm{op}}$}. A single-pipeline compaction necessarily starves either task continuation or human oversight.
+Let $E$ be a finite trace and let a \emph{head} rank its items for a reader
+who may inspect a prefix of any cardinality. If a successor's continuation
+value and an operator's regret-if-ignored value have a strict crossing pair
+$e,f$ (the successor requires $e$ before $f$, while the operator requires $f$
+before $e$), no single scalar ranking head gives both readers their preferred
+prefix at every budget. They require distinct \emph{decision rankings}. A
+shared vector-valued representation, durable source, or storage system may
+still supply both rankings.
 \end{pdclaim}
 
 \begin{proof}[Proof sketch]
-Construct a trace $E = E_{\mathrm{work}} \cup E_{\mathrm{breach}}$, where $E_{\mathrm{work}}$ consists of $k$ safe, valid AST transformations ($L_{\mathrm{succ}}$ increases by $\Theta(k)$ if omitted; $\mathrm{regret}(e) = 0$), and $E_{\mathrm{breach}}$ consists of an attempted irreversible socket connection that was blocked and rolled back ($L_{\mathrm{succ}}$ increases by $0$ if omitted since the branch is dead; $\mathrm{regret}(e) = \mathrm{stakes} \times \mathrm{anomaly} = \text{maximal}$). Under budget $B < |E_{\mathrm{work}}| + |E_{\mathrm{breach}}|$, any compaction prioritizing $E_{\mathrm{work}}$ has $L_{\mathrm{op}} = \text{maximal}$ (the operator is blind to the breach attempt), while any compaction prioritizing $E_{\mathrm{breach}}$ has $L_{\mathrm{succ}} \gg 0$ (the successor loses necessary variable bindings). Hence $R_1$ and $R_2$ have strictly non-comonotone preferences, requiring distinct compaction heads. \qed
+Take a valid working-state item $e$ with high continuation value and negligible
+oversight regret, and a blocked hazardous excursion $f$ with negligible
+continuation value and high regret. The one-item budget requires $e$ for the
+successor and $f$ for the operator. A scalar order cannot put both first.
+This proves the ranking incompatibility; it does not lower-bound arbitrary
+encodings with separate decoders. \qed
 \end{proof}
 
 \noindent\Proved\ --- and it is the applied instance of
@@ -2453,15 +2461,18 @@ $\mathrm{Floor}(N,2k,m)$ bits, and
 \frac{\mathrm{Floor}(N,2k,m)}{2\,\mathrm{Floor}(N,k,m)}\;>\;1
 \quad\text{for every } N,k,m \text{ with } 2k\le m<N,
 \]
-because $\log_2\binom{N}{2k}$ grows faster than $2\log_2\binom{N}{k}$. The penalty
-is not a fixed band: it is smallest where the critical sets are smallest and
-grows without bound in $k$. At $N{=}60$, $m{=}8$ it runs $1.029$ ($k{=}1$), $1.067$
+because $\mathrm{Floor}(N,t,m)=\sum_{i=0}^{t-1}\log_2((N-i)/(m-i))$ has
+strictly increasing summands when $N>m$. Its second block of $k$ terms
+therefore exceeds its first. The ratio can grow without bound along families
+with changing $N,m,k$; fixed $N,m$ allow only finitely many $k$.
+At $N{=}60$, $m{=}8$ it runs $1.029$ ($k{=}1$), $1.067$
 ($k{=}2$), $1.122$ ($k{=}3$), $1.224$ ($k{=}4$); at $N{=}60$, $m{=}20$ it reaches
 $1.392$ by $k{=}10$\pdprov{a7\_experiment.py}{20260816}{verified}.
 \end{pdclaim}
-One stored compaction under-provisions divergent readers by more than a factor of
-two, and by increasingly more as each reader's critical set grows; running two
-heads costs strictly more than twice one head. The worked instance is next.
+This is the price of one zero-miss \emph{selection} serving the union under a
+shared $m$-open budget, compared with two separate applications of the floor.
+It does not prove that two rankings require separate models or stores, nor
+that two independent $m$-open budgets have this floor. The worked instance is next.
 
 \begin{pdexample}{The split-floor arithmetic, at the sweep's own instance}
 Thm.~\ref{thm:lowerbound}'s floor at $N=60,k=2,m=8$ is $\log_2\binom{60}{2}-\log_2\binom{8}{2}=10.79-4.81=5.98$ bits [verified, closed form] --- the single-reader case, one compaction head serving one reader. Give the successor and the operator \emph{disjoint} critical sets of size $k=2$ each (the non-comonotone construction of the proof sketch above) and the joint zero-miss floor is the same formula at $2k=4$: $\log_2\binom{60}{4}-\log_2\binom{8}{4}=18.90-6.13=12.77$ bits [verified, closed form]. The ratio is $12.77/5.98=2.13$, not the $2\times$ that ``just run the floor formula twice'' would predict --- the super-additivity is the theorem's content, not a rounding artifact. \emph{Now you try:} run the falsification sweep behind these two numbers and confirm the split penalty (Exercise~\ref{ex:ls-a7-split-floor-run}).
@@ -2470,7 +2481,10 @@ Thm.~\ref{thm:lowerbound}'s floor at $N=60,k=2,m=8$ is $\log_2\binom{60}{2}-\log
 \input{figures/legible-swarm-split-penalty}
 
 \paragraph{Architectural corollary: the SLM sidecar.}
-Theorem~\ref{thm:split-digest} dictates that the system must never ask the worker agent to author its own operator-facing summary (which invites self-attestation bias and Potemkin digests~\S\ref{sec:verifiable}). Instead, the design calls for two separate pipelines:
+Theorem~\ref{thm:split-digest} motivates separate reader-specific decisions;
+the trust boundary independently motivates an oversight summary sourced from
+kernel evidence rather than worker self-report (\S\ref{sec:verifiable}).
+The design uses two reader-facing heads over evidence that may share a store:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Task-Continuation Head ($R_1$, \Designed):} Authored by the worker agent or structured state-checkpoints, optimized for continuation fidelity.
 \item \textbf{Oversight Head ($R_2$, \Vision):} An embedded, air-gapped \textbf{Small Language Model (SLM) Sidecar} (e.g., a local 8B model running via \texttt{llama.cpp}) that \emph{would} read raw kernel events and disk diffs as data, computing $\mathrm{regret}(x)$ and surfacing truthful digests without worker collusion.
@@ -2510,50 +2524,51 @@ resurrection & the successor & an ordered continuation chain & the branches the 
 
 Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
 
-\begin{pdclaim}{Theorem}{Context Paging Competitiveness}
+\begin{pdclaim}{Theorem}{Landlord paging competitiveness (imported)}
 \label{thm:paging}
-Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to critical spans verified by deterministic structural features), the online paging cost satisfies the resource-augmented competitive bound of Sleator--Tarjan~\pdcite{sleatortarjan1985}; for the weighted case (pages of nonuniform size and refetch cost, which context spans are), the same guarantee is carried by Young's \textsc{Landlord} algorithm~\pdcite{young2002landlord}:
+Let Young's exact \textsc{Landlord} algorithm~\pdcite{young2002landlord}
+serve a request sequence with online cache capacity $k$; let $\mathrm{OPT}_h$
+be the offline optimum with comparator capacity $h\le k$. For the weighted
+file-caching model (nonuniform span sizes and refetch costs),
 \begin{equation}
-\mathrm{Cost}_{\mathrm{online}} \;\le\; \frac{k}{k - h + 1} \cdot \mathrm{OPT} \;+\; \psi N c_{\mathrm{refetch}},
+\mathrm{Cost}_{\textsc{Landlord}} \;\le\; \frac{k}{k-h+1}\,\mathrm{OPT}_h.
 \end{equation}
-where $h \le k$ is the size of the verifiable pinned set, and $\psi \in [0, 1]$ represents the fraction of forgeable/unverified features subject to adversarial eviction. Under marking with randomized eviction, competitiveness against oblivious adversaries improves to $O(\log k)$.
+The variable $h$ is the \emph{comparator's capacity}, not the count of pinned
+pages. The unweighted ancestor is Sleator--Tarjan~\pdcite{sleatortarjan1985}.
+This theorem does not cover arbitrary recency-plus-pin replacement.
 \end{pdclaim}
 
-\noindent\Verified\ --- \emph{upgraded from proposed}. The unweighted bound is classical
-(Sleator--Tarjan); the weighted transfer imports Young's \textsc{Landlord} unchanged.
-The adversarial term is new: with the pin oracle corrupted on $C$ consultations
-($\mathbb{E}[C]=\psi N$, oblivious, repair-on-touch), pin-augmented Landlord pays
-$\le c(P) + \tfrac{k-p}{k-h+1}\cdot\mathrm{OPT}_{h-p} + \psi N c_{\mathrm{refetch}}$ for
-every $p\le h\le k$ --- the Landlord bound on the unpinned region plus an
-\emph{additive, linear} $\psi$ term, checked against exact OPT on 122 instances (0
-violations) and against 50 corruption instances up to $\psi=0.4$ (0 violations, slope
-$22.8$ against a ceiling of $N\cdot c_{\mathrm{refetch}}=1200$, $R^2=0.994$). The guard
-is necessary, not decorative: dropping repair-on-touch turns one corruption into
-$\Theta(N)$ stale-serves, confirmed by mutation (item R16 of the research ledger,
-\texttt{b9\_context\_paging.py}) --- \emph{the $\psi$ budget is shared with the digest
-floor's forgeable-feature budget --- one number, two mechanisms}.
+\noindent\textbf{Corrupted-pin hypothesis.} Let a true pinned set occupy $p$
+tokens; a pin-aware policy runs Landlord on the remaining $k-p$ tokens and
+repairs pin status on touch. A useful candidate bound for $p\le h\le k$ is
+$c(P)+(k-p)/(k-h+1)\,\mathrm{OPT}_{h-p}(\sigma_{\mathrm{unpinned}})
++C c_{\mathrm{refetch}}$, where $C$ is the \emph{actual number} of corrupted
+consultations. If a random corruption model has $\mathbb E[C]=\psi N$, the
+corresponding expected additive charge would be $\psi N c_{\mathrm{refetch}}$.
+Neither follows from Young's theorem: a corruption can change subsequent
+credits and evictions. The reference experiment checked 122 uncorrupted
+(instance,$h$) pairs against exact OPT and 50 corrupted fixtures, with zero
+violations in those fixtures; a repair-on-touch mutation made one corruption
+cause $\Theta(N)$ stale serves [internal, \texttt{b9\_context\_paging.py}].
 
 \begin{pdboundary}
-The adversarial term is a mechanized sweep at seed 20260816 across small-to-moderate
-instances, not a closed proof for every adversary class; a stronger-than-greedy
-adaptive adversary remains untested, and unit cost density is assumed (general
-refetch costs need $c_{\mathrm{refetch}}\ge$ max-density $\times$ max-size). The
-classical and weighted bounds themselves are Sleator--Tarjan and Young, imported
-unchanged. The field's name for the rest of it --- a classical competitive
-algorithm that consults an oracle it cannot trust and is asked to degrade
-gracefully as the oracle's error grows --- is \textbf{online algorithms with
-predictions}, and Lykouris and Vassilvitskii's competitive caching with
-machine-learned advice~\pdcite{lykouris2018} is the closest published shape to
-the corruption term above. We reached the additive term without that
-literature's vocabulary (they speak of consistency and robustness, and their
-degradation curves are multiplicative in the prediction error where ours is
-additive in the corruption rate), which is a reason to read them next, not a
-reason to distrust the sweep: two routes into the same neighborhood is what
-one hopes to see.
+The candidate corruption bound is a finite-test hypothesis, not a universal
+guarantee. The second-order credit-divergence step has no proof; a stronger
+adaptive schedule may violate it. The $\psi N$ expression is an expectation
+under a specified random corruption law, not a per-run bound. Unit cost density
+was assumed in the fixtures. Online algorithms with predictions, including
+Lykouris and Vassilvitskii~\pdcite{lykouris2018}, provide the relevant
+comparison for a proved robustness result.
 \end{pdboundary}
 
 \begin{pdexample}{The Landlord ratio, at a size an operator can hold in one head}
-Take $k=8$ active context pages against an offline optimum allowed $h=4$ of them pinned: $k/(k-h+1)=8/(8-4+1)=8/5=1.6$ [verified, Young 2002, closed form] --- the online recency-plus-pin policy never pays more than $1.6\times$ what an $h$-pinned offline optimum would have paid, for \emph{any} sequence, adversarial included. No script in this repository prints this exact $(k,h)$ pair; \texttt{b9\_context\_paging.py} instead verifies the general bound $\mathrm{Cost}_{\mathrm{online}}\le\frac{k}{k-h+1}\mathrm{OPT}$ itself, over 122 (instance,$h$) pairs including adversarial cyclic thrash, 0 violations, tightest observed cost/bound ratio $1.000$ (cycles sit at equality, confirming the bound is not slack) [internal, \texttt{b9\_context\_paging.py}]. \emph{Now you try:} compute the ratio at the two ends of the range, $h=k$ and $h=1$ (Exercise~\ref{ex:ls-paging-ratio-hand}).
+Take $k=8$ active context pages against an offline comparator of capacity $h=4$:
+$k/(k-h+1)=8/(8-4+1)=8/5=1.6$ [verified, Young 2002, closed form]. Exact
+Landlord pays at most $1.6\times\mathrm{OPT}_4$ for any request sequence in
+the theorem's model. This says nothing by itself about how many pages are
+pinned. The reference script checks 122 (instance,$h$) pairs against exact OPT,
+including cyclic thrash, with no violations [internal]. \emph{Now you try:}
+compute the ratio at $h=k$ and $h=1$ (Exercise~\ref{ex:ls-paging-ratio-hand}).
 \end{pdexample}
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
@@ -2639,7 +2654,7 @@ appears to precede.
 \pdexercisepointer*{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
 
 \begin{pdrecitation}
-\item Without looking: what is the one reason the digest and the compaction must be authored by the same provenance-preserving projection, rather than a separate summarizer reading the already-compacted story?
+\item Without looking: why should both reader-specific heads derive from durable evidence rather than one re-summarizing the other?
 \item Name the four rungs of the context-degradation cascade and the cure that stops each one from becoming the next round's source of truth.
 \item What is the classical, unaugmented paging bound $k/(k-h+1)$ equal to when $h=k$, and why is that the hardest comparator?
 \end{pdrecitation}
@@ -2726,9 +2741,9 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{Legibility-with-zoom.} A digest is a lens, never a replacement: every claim in it resolves to an artifact, and a digest whose claims resolve to nothing is a facade, however green.
 \item \textbf{The authority half.} The daemon gates or escalates on every act under a grant the operator gave once; the override is a single edge from operator to daemon, and the escalation threshold has a tuning band, not a point.
 \item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(0.556,\,2.5)$ is on the pool's side.
-\item \textbf{Read-poverty is the binding constraint.} With a review budget the operator can locate the write that mattered in about $5.98$ bits under the split digest, against $12.77$ bits under the flat one, at $N=60$; the floor is a theorem, and the zoom advantage is measured.
+\item \textbf{Read-poverty is the binding constraint.} At $N=60$ and one shared $m=8$ open budget, the zero-miss message floor is $5.98$ bits for one reader's $k=2$ critical set and $12.77$ bits for the union of two disjoint $k=2$ sets. These are lower bounds, not achieved encoding costs or a claim that either digest locates a write at the floor; zoom cost is priced separately.
 \item \textbf{Discovery has two heads.} Fit and regret rank candidates differently, no monotone score identifies both, and reputation enters only through the posterior.
-\item \textbf{Tokens are the cost of goods sold and the legibility engine at once.} The split-digest theorem prices the digest; the split penalty is super-additive; paging context is competitive within a constant.
+\item \textbf{Tokens are the cost of goods sold and the legibility engine at once.} The split-digest theorem prices the digest; the split penalty is super-additive; exact Landlord has an imported comparator-capacity bound, while corrupted pinning remains experimental.
 \end{enumerate}
 
 \section{Exercises}
@@ -2926,11 +2941,11 @@ matrix-geometric solution and a Gillespie simulation.)
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
 Run \texttt{python3 skills/harbor-results/scripts/b8\_specialization.py} and read off
 (a) the table entry for $g(\rho{=}0.5,c{=}2)$ and (b) the $\rho$ at which the exact
-boundary $g$ and the superseded $\tilde g$ cross. Reproduce both by hand from
+boundary $g$ and the naive proxy $\tilde g$ cross. Reproduce both by hand from
 Eq.~\ref{eq:specboundary0} before checking the script's line.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b8-specialization-run}
-By hand: $g(\rho,2)=1+2\rho-\rho^2$, so $g(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $g(\rho,2)=\tilde g(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and superseded values side by side [internal, \texttt{b8\_specialization.py}]. The two values disagree by design: the superseded $\tilde g$ over-prices the boundary here, which is why it sent the roadmap-owner example of Eq.~\ref{eq:specboundary0} to the wrong answer.
+By hand: $g(\rho,2)=1+2\rho-\rho^2$, so $g(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $g(\rho,2)=\tilde g(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and proxy values side by side [internal, \texttt{b8\_specialization.py}]. The two values disagree by design: the proxy $\tilde g$ over-prices the boundary here, which is why it sent the roadmap-owner example of Eq.~\ref{eq:specboundary0} to the wrong answer.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b7-escalation-run}
 Run \texttt{python3 skills/harbor-results/scripts/b7\_escalation\_band.py} and read
@@ -3031,7 +3046,7 @@ zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first an
 compare it to the row's flat-opens count.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is less sparse ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
 Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
@@ -3138,7 +3153,7 @@ slogan --- what concrete consequence does it have for how the operator's digest 
 produced?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-digest-is-compaction}
-The operator digest and the context compaction must be the same provenance-preserving projection from durable sources. If a separate model instead summarizes the already-compacted agent story, cost control and truth control diverge and recursive-summary error compounds --- exactly the failure Thm.~\ref{thm:split-digest} names two heads to avoid conflating.
+The operator digest and context compaction may use distinct reader-specific projections of durable sources. A summary of an already-compacted agent story can lose evidence through recursive omission; Theorem~\ref{thm:split-digest} requires distinct rankings for crossing reader preferences, while direct source provenance addresses this separate evidence risk.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-effective-context-budget}
 Explain why budgeting to effective context is simultaneously a cost
