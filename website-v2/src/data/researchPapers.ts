@@ -81,16 +81,16 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 451,
+    sizeKb: 427,
     claim:
-      'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
+      'A zero-miss digest has a combinatorial bit lower bound under a fixed inspection budget. Decision-specific rankings and adaptive group queries have separate, explicit assumptions.',
     pullQuote:
-      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k critical artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
+      'At least log₂C(N,k) − log₂C(m,k) bits are needed to cover every critical k-set using m opens. The counting bound alone does not construct an encoder that attains it.',
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
     tone: 'primary',
     icon: Binary,
     chapterRef: 'legible-swarm',
-    chapterWhy: 'prices the digest-with-zoom loop the flagship chapter only argues for in prose',
+    chapterWhy: 'develops the oversight bounds, decision thresholds and zoom procedure embodied in Chapter 4',
   },
   {
     id: 'regimented-or-enforced',
@@ -101,18 +101,18 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 363,
     claim:
-      'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
+      'In the declared full-observation event model, controllability determines which safety policies a mediator can enforce before an effect.',
     pullQuote:
-      'A safety policy is regimentable — preventable pre-effect — iff it is controllable in the Ramadge–Wonham sense. The design rule it proves: gate the channel, never the token.',
+      'Prevention requires control of the relevant effect channel. Observation, authentication and adapter semantics determine whether that model applies.',
     resultTags: ['R5'],
     tone: 'health',
     icon: Workflow,
     chapterRef: 'single-writer-kernel',
-    chapterWhy: 'mechanizes the kernel chapter’s own "detector vs. regimenter" distinction as a theorem',
+    chapterWhy: 'formalizes the kernel chapter’s mediation boundary and its observation assumptions',
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'The rumored same-year preprint is real but orthogonal; the actual prior problem is Basin et al. (TISSEC 2013) — two correctness bugs against Schneider’s original theorem were found and fixed.',
+        'The enforcement claim is scoped to its event model, controllable channels and observation assumptions. Partial observation and real adapter behavior require additional contracts.',
       findingsPath: 'flag-2-runtime-enforceability-priority/findings.md',
     },
   },
@@ -125,9 +125,9 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 12,
     sizeKb: 345,
     claim:
-      'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
+      'In the inspection game, deterrence requires audit probability times detection probability times penalty to cover the deviation gain. Hierarchy guarantees depend on bounded depth and the stated collusion model.',
     pullQuote:
-      'Lifetime audit spend falls from Θ(T) flat to Θ(log T) to O(1) as a track record grows. Reputation is not a soft layer bolted onto verification — it is the mechanism that amortizes its cost.',
+      'Audit savings depend on the assumed gain, detection and penalty schedules. They require calibration before they can guide a real verification budget.',
     resultTags: ['R7'],
     tone: 'rust',
     icon: Layers3,
@@ -136,7 +136,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one named competing result turned out to support the tower theorem, not contradict it — but the adversarial re-read caught and fixed a real arithmetic defect in the paper’s own C=1 counter-case.',
+        'The finite-depth hierarchy and collusion assumptions delimit the result. A bounded literature review is not a proof of priority or universal applicability.',
       findingsPath: 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md',
     },
   },
@@ -149,9 +149,9 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 17,
     sizeKb: 407,
     claim:
-      'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
+      'A declared release interface combines a finite noninterference model, mediated effects, atomic privacy accounting and a calibrated canary test.',
     pullQuote:
-      'Four independently verified pillars — exhaustive noninterference, the controllability boundary, ε-conservation of the release ledger, a canary detector with a quotable operating curve — priced honestly as q·b bits across q jobs, before timing channels, which are out of model.',
+      'A q·b output-bit cap bounds the declared output channel. It does not establish which information those bits reveal, and timing channels remain outside that model.',
     resultTags: ['R5', 'R9', 'R10', 'R11'],
     tone: 'accent',
     icon: ShieldCheck,
@@ -160,7 +160,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'Each pillar narrows to a known result (delimited release, a privacy filter) the paper mostly pre-concedes; one corollary applied an invalid composition bound and was rewritten to the model it actually holds for.',
+        'The assurance argument composes scoped information-flow, privacy-accounting and detection results. Each pillar retains its own assumptions and proof boundary.',
       findingsPath: 'paper4-sealed-harbor/findings.md',
     },
   },
@@ -170,12 +170,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Continuity Without Metaphysics',
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
-    pages: 14,
-    sizeKb: 327,
+    pages: 15,
+    sizeKb: 324,
     claim:
-      'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
+      'Ledger rules can conserve credit and inherited obligations across agent changes. Safe continuation of an unknown remote effect additionally requires an adapter-specific deduplication or fencing contract.',
     pullQuote:
-      'Unattested, swapping in a cheap engine always pays — Akerlof’s death spiral runs inside one identity. Attest the engine id and the incentive flips to the planner’s own efficiency rule, at zero audit stake.',
+      'An authenticated checkpoint does not prove behavioral equivalence. Negative readback cannot justify retry while a prior request can still commit.',
     resultTags: ['R12', 'R13'],
     tone: 'violet',
     icon: Fingerprint,
@@ -184,7 +184,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'No prior work proves the theorems, but Theorem 2a was misnamed — it’s Akerlof’s lemons result, not the unraveling theorem the paper originally called it — and a plotted crossing value the paper’s own figure contradicted was corrected.',
+        'The economic substitution result assumes the stated quality-pricing contract. Credit conservation, behavioral fidelity and safe external effects are distinct obligations.',
       findingsPath: 'paper5-continuity-without-metaphysics/findings.md',
     },
   },
@@ -194,21 +194,21 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'What Needs an Authority',
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
-    pages: 14,
-    sizeKb: 421,
+    pages: 15,
+    sizeKb: 422,
     claim:
-      'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
+      'A ground commitment language admits polynomial conflict checks. For a finite declared reachable family, future safety is decided on its inclusion-maximal fact sets.',
     pullQuote:
-      'One step outside the tractable fragment (disjunctive obligations), conflict-freedom is NP-complete — validated against a brute-force oracle on 3,000 random policy sets, zero disagreements. An authority is needed exactly where the algorithm ends.',
+      'Disjunctive discharge choices make the decision NP-complete. That changes worst-case computational cost; it does not prove that a human judge is necessary.',
     resultTags: ['R15', 'R17'],
     tone: 'warm',
     icon: SplitSquareVertical,
     chapterRef: 'harbor-economy',
-    chapterWhy: 'corrects the market chapter’s sole-owner-vs-pooled-swarm threshold with the actual Erlang-C crossing point',
+    chapterWhy: 'supplies scoped admission checks, future-fact conditions and specialization economics for Chapter 6',
     priorArtDive: {
       verdict: 'NARROW',
       summary:
-        'The tractable-then-NP-complete shape is already mapped by the Colombo Tosatto/Governatori compliance line; the paper’s specific fragment survives as novel, and a wrong-strictness "iff" in Theorem 3 — stated three different ways across four sites — was found and unified.',
+        'The fragment uses established Horn, interval and difference-constraint methods. Its reachable-family result specializes monotonicity reasoning and requires independent reachability evidence.',
       findingsPath: 'flag-3-deontic-tractability-frontier/findings.md',
     },
   },
@@ -216,23 +216,23 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     id: 'the-cohomology-of-equivocation',
     number: '7',
     title: 'The Cohomology of Equivocation',
-    subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
+    subtitle: 'What Cycle Residuals Certify in Federated Witness-Log Gossip',
     pdfPath: '/research/paper7.pdf',
-    pages: 12,
-    sizeKb: 424,
+    pages: 11,
+    sizeKb: 423,
     claim:
-      'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
+      'A nonzero cycle residual rules out a global real-valued completion of the admitted edge observations. It neither identifies a liar nor detects every inconsistent raw claim.',
     pullQuote:
-      'r = |s|·√(1 − R_eff(e)), closed form — the harness’s measured 1.2247 is exactly 3√(1 − 5/6). r > 0 proves no global history explains the data; a coalition on a cycle cancels to 0, measured at 6×10⁻¹⁵.',
-    resultTags: ['R6'],
+      'With the same visible endpoint claims, direct equality detects every cycle inconsistency and can detect more. Sparse visibility and privacy change the evidence contract.',
+    resultTags: ['R6', 'CR'],
     tone: 'indigo',
     icon: Radar,
     chapterRef: 'federated-harbor',
-    chapterWhy: 'gives the federation chapter’s witness-log gossip a detector for lies on links nobody directly compared',
+    chapterWhy: 'gives Chapter 8 a scoped consistency test, visibility limits and equal-information comparisons',
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one citation flagged as possibly fabricated turned out to be real but irrelevant — excluded on relevance, not fraud — and Herlihy–Shavit plus three more foundational citations were added to close a real omission.',
+        'Graph projection and effective resistance provide the mathematical baseline. The research question is which authenticated observations justify a useful decision.',
       findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
     },
   },
@@ -242,17 +242,17 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Cohomology of Agent Evidence',
     subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
-    pages: 13,
-    sizeKb: 273,
+    pages: 14,
+    sizeKb: 290,
     claim:
-      'A typed two-complex separates violated face relations, closed nonexact handoff classes, and relative extension obstructions. Its edge-group distance states exactly when sparse report errors are detectable or recoverable.',
+      'Typed maps specify which evidence can be compared. Exact categorical certificates, relative extension and report-error distance answer distinct compatibility questions.',
     pullQuote:
-      'A nonzero cohomology class certifies an obstruction in the declared evidence complex. It does not identify a dishonest role; that requires authenticated provenance and independent truth.',
-    resultTags: [],
+      'A contradictory categorical table can have zero real residual. Its least-cost retained witness consists of incompatible pins and a connecting zero-edge path.',
+    resultTags: ['thm:categorical-certificate', 'thm:sheaf-edge-distance'],
     tone: 'primary',
     icon: Layers3,
-    chapterRef: 'legible-swarm',
-    chapterWhy: 'models typed handoffs, joint contracts, and hidden coverage with exact cohomological obstruction certificates; field utility remains unproven',
+    chapterRef: 'federated-harbor',
+    chapterWhy: 'develops Chapter 8’s categorical certificates and typed observation limits; field utility and causal attribution remain open',
     priorArtDive: {
       verdict: 'NARROW',
       summary:

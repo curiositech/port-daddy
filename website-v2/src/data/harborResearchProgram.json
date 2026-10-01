@@ -342,7 +342,7 @@
       ],
       "numbers": {
         "verified": 1,
-        "internal": 2
+        "internal": 1
       },
       "mechanized": false
     },
@@ -350,7 +350,7 @@
       "id": "R2",
       "kind": "theorem",
       "title": "Split-digest theorem (comonotone characterization)",
-      "oneBreath": "A scalar head serves a reader iff ranking by it realizes that reader's optimal selection at every budget; one head serves two readers iff their preference orders are comonotone, and the successor and operator readers provably are not.",
+      "oneBreath": "One scalar ranking serves two strict reader orders at every selection budget exactly when they agree; crossing preferences require distinct decision heads, which may share a vector representation.",
       "status": "folded",
       "chapters": [
         4
@@ -579,7 +579,7 @@
       "id": "R14",
       "kind": "theorem",
       "title": "Costly-escalation threshold equilibrium and the debit tuning band",
-      "oneBreath": "A strictly increasing escalation payoff gives a unique separating threshold u*(delta); the feasible debit set between the alarm-fatigue wall and the distress-silencing wall is an interval that can be empty, in which case the honest fix is capacity or evidence quality, not tuning.",
+      "oneBreath": "Under continuous strictly increasing benefit, continuous nondecreasing validation and a crossing condition, escalation has a unique separating threshold; monotone alarm-load and miss-loss constraints define a possibly empty feasible debit interval.",
       "status": "chapter-only",
       "chapters": [
         4
@@ -616,9 +616,9 @@
     },
     {
       "id": "R16",
-      "kind": "theorem",
+      "kind": "result-family",
       "title": "Context paging with an untrusted pin oracle",
-      "oneBreath": "Landlord's k/(k-h+1) competitiveness against offline OPT imports to variable-size context spans; a pin oracle corrupted on a psi fraction of consultations costs only an additive, linear psi*N*c_refetch penalty under repair-on-touch, sharing its corruption budget with R1's forgeable-feature budget.",
+      "oneBreath": "Young's Landlord algorithm has k/(k-h+1) competitiveness against offline cache capacity h; the additional corrupted-pin surcharge is a separately stated experimental conjecture, conditional on its repair model.",
       "status": "chapter-only",
       "chapters": [
         4
@@ -629,7 +629,7 @@
       ],
       "numbers": {
         "verified": 0,
-        "internal": 1
+        "internal": 0
       },
       "mechanized": false
     },
@@ -637,18 +637,20 @@
       "id": "R17",
       "kind": "result-family",
       "title": "Tractable deontic-conflict fragment and its NP-complete frontier",
-      "oneBreath": "Inside a fragment of facts, definite Horn rules, ground deontic O/F rules, exclusive interval claims and difference constraints, conflict detection is polynomial and witness-producing; one expressive step out (disjunctive obligations under discharge choice) makes conflict-freedom NP-complete.",
-      "status": "standalone-only",
+      "oneBreath": "Inside the ground positive-Horn deontic fragment, an indexed conflict-existence check is polynomial and witness-producing; enumerating every clash pays for its scope incidences and output, while adding disjunctive discharge choice makes conflict-freedom NP-complete without requiring a human judge.",
+      "status": "folded",
       "chapters": [
         6
       ],
       "paper": 6,
       "scripts": [
-        "skills/harbor-results/scripts/b4_deontic_fragment.py"
+        "skills/harbor-results/scripts/b4_deontic_fragment.py",
+        "skills/harbor-results/scripts/research_envelopes.py",
+        "skills/harbor-results/scripts/test_research_envelopes.py"
       ],
       "numbers": {
         "verified": 0,
-        "internal": 4
+        "internal": 6
       },
       "mechanized": false
     },
@@ -657,7 +659,7 @@
       "kind": "result-family",
       "title": "Consistency radius of the completion residual (CR-1/2/3)",
       "oneBreath": "The completion residual r is the minimum unrestricted edge-data change restoring consistency; fixed-sender changes can require more or be infeasible. A single visible edge has sensitivity r = |s| * sqrt(1 - R_eff), and coordinate decomposition uses at most T = |union of visible edge coordinate sets| Laplacian systems.",
-      "status": "standalone-only",
+      "status": "folded",
       "chapters": [
         8
       ],
@@ -932,6 +934,28 @@
       "paper": 8,
       "scripts": [
         "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "thm:categorical-certificate",
+      "kind": "theorem",
+      "title": "Exact categorical feasibility and least-cost retained certificate",
+      "oneBreath": "A valid finite one-hot edge table is feasible exactly when no zero-edge component has conflicting pins; under nonnegative additive observation costs, the cheapest infeasible subset is a conflicting pin pair, its distinct source edges and a cheapest connecting zero path.",
+      "status": "folded",
+      "chapters": [
+        8
+      ],
+      "paper": 8,
+      "scripts": [
+        "skills/harbor-results/scripts/claim_audit.py",
+        "skills/harbor-results/scripts/test_claim_audit.py",
+        "skills/harbor-results/scripts/costed_claim_certificates.py",
+        "skills/harbor-results/scripts/test_costed_claim_certificates.py"
       ],
       "numbers": {
         "verified": 0,

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""render_critique_ledger.py -- regenerate CRITIQUE-LEDGER.md's table rows from
-critique-ledger.json.
+"""render_critique_ledger.py -- regenerate CRITIQUE-LEDGER.md from Omni rows.
 
 Background
 ----------
-docs/harbor-research/CRITIQUE-LEDGER.md and docs/harbor-research/
-critique-ledger.json hold the same 759 rows in two forms (see the Markdown
-file's own header for the id scheme and Status vocabulary). Everything in the
+The consolidated CRITIQUE-LEDGER.md and docs/harbor-research/
+critique-ledger.json are projections of the canonical ``critique_rows`` in
+omni-ledger.json. Everything in the
 Markdown file that is *not* a data row -- the intro, each source document's
 "## " heading and any prose under it, the seven table headers/separators, and
 the closing "Duplicates and overlaps across sources" section -- lives only in
@@ -17,11 +16,9 @@ substitutes a freshly rendered row built from that id's current JSON object,
 leaving every other line byte-identical. Row order therefore always matches
 the template's order, never the JSON array's order.
 
-This makes the script idempotent and safe to run after only touching `Status`
-and/or `Notes` in the JSON (the intended use), and also the reason it can be
-verified byte-for-byte against a checkout where nothing has changed yet: feed
-it a JSON exactly matching the current Markdown and the output must be
-identical to the input.
+The script checks that the JSON projection matches Omni before doing anything.
+If it differs, it stops without writing and tells the operator to edit the
+canonical Omni rows deliberately. It never imports edits from the projection.
 
 Usage:
     python3 scripts/harbor-research/render_critique_ledger.py [--check]
@@ -72,9 +69,19 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="diff instead of writing; exit 1 if stale")
     args = parser.parse_args()
 
-    data = json.loads(JSON_PATH.read_text(encoding="utf-8"))
+    projection = json.loads(JSON_PATH.read_text(encoding="utf-8"))
+    canonical = omni_ledger.load().get("critique_rows")
+    if not isinstance(canonical, list):
+        parser.error("Omni ledger has no canonical critique_rows list")
+    if projection != canonical:
+        parser.error(
+            f"{JSON_PATH} differs from Omni's canonical critique_rows; "
+            "no files were changed. Edit docs/harbor-research/omni-ledger.json "
+            "deliberately, then regenerate its projections."
+        )
+
     by_id = {}
-    for obj in data:
+    for obj in canonical:
         rid = obj["#"]
         if rid in by_id:
             raise SystemExit(f"Duplicate id in {JSON_PATH}: {rid}")

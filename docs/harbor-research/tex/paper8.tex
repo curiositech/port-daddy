@@ -1,3 +1,8 @@
+% TWIN-LOCATION NOTICE. Keep the categorical certificate statement aligned.
+% Standalone: docs/harbor-research/tex/paper8.tex
+% Chapter: website-v2/public/whitepaper/federated-harbor-whitepaper.tex
+% Index ids: thm:categorical-certificate
+% Check: python3 scripts/harbor-research/check_library_index.py
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
 \usepackage{graphicx}
@@ -14,7 +19,7 @@
 \maketitle
 
 \begin{abstract}
-A multi-agent workflow leaves local evidence on agents, handoffs, and joint review contracts. We model those observations as a typed cellular sheaf on a two-dimensional complex, with explicit vertex-to-edge and edge-to-face maps. The resulting degree-one cochains have two distinct algebraic obstructions: a violated face relation and a closed but nonexact class in $H^1$. A relative connecting class tests whether a partially visible section can extend through unobserved contracts. We compute all three channels exactly on a heterogeneous four-role complex, including a face attachment that destroys $H^1$ without changing total edge-compatibility detection. A sheaf edge-group distance characterizes when sparse erroneous handoff reports can be detected or uniquely recovered; a restricted projection gain quantifies stability. The graph-cycle case supplies a sharp baseline: when both endpoint claims are visible, direct equality catches every cycle inconsistency. These results specify what an audit can prove from selected evidence and what remains invisible, including coherent falsehood and copied observations. The prospective application is a provenance-bound audit of real agent workflows against independent ledger truth and equal-information contract checks; field utility and semantic fault attribution require that experiment.
+A multi-agent workflow leaves local evidence on agents, handoffs, and joint review contracts. We model those observations as a typed cellular sheaf on a two-dimensional complex, with explicit vertex-to-edge and edge-to-face maps. The resulting degree-one cochains have two distinct algebraic obstructions: a violated face relation and a closed but nonexact class in $H^1$. A relative connecting class tests whether a partially visible section can extend through unobserved contracts. We compute all three channels exactly on a heterogeneous four-role complex, including a face attachment that destroys $H^1$ without changing total edge-compatibility detection. A sheaf edge-group distance characterizes when sparse erroneous handoff reports can be detected or uniquely recovered; a restricted projection gain quantifies stability. The graph-cycle case supplies a sharp baseline: when both endpoint claims are visible, direct equality catches every cycle inconsistency. For finite registered facts, an exact categorical test can expose contradictions with zero real residual and returns a least-cost retained-evidence certificate. These results specify what an audit can prove from selected evidence and what remains invisible, including coherent falsehood and copied observations. The prospective application is a provenance-bound audit of real agent workflows against independent ledger truth and equal-information contract checks; field utility and semantic fault attribution require that experiment.
 \end{abstract}
 
 \section{Question and contribution}\label{sec:intro}
@@ -214,6 +219,78 @@ If $D=0$, choose $x_v$ to be the common endpoint claim for each non-isolated ver
 \end{proof}
 
 This dominance result is a practical cut condition. With visible endpoint claims, topology cannot improve \emph{detection recall} over the equality baseline under the same metadata and packet set. It may still help explain a pattern when raw endpoint claims are unavailable, when only edge differences can be disclosed, or when independent redundant paths have special provenance. Those are distinct privacy and acquisition contracts requiring their own tests. We claim no cost or utility advantage for the current setting.
+
+\section{Finite facts and exact contradiction certificates}\label{sec:categorical}
+A commit digest, approval identity, or discrete work status has a finite declared
+value domain. Replacing that domain by a real vector space can admit explanations
+that no valid fact assignment realizes. An auditor can keep the finite domain
+explicit and return a short contradiction certificate before using a projection
+to describe its geometry.
+
+Fix one fact, schema and snapshot, a nonempty finite domain $D$, and oriented
+edges $e=(u,v)$. Encode a value $a\in D$ by its one-hot vector $e_a$. An admitted
+edge observation is either zero or $e_b-e_a$ with $a\ne b$ in $D$; all other
+vectors are invalid inputs. Missing observations are omitted, not encoded as
+zero. Let $G_0$ contain the observed zero edges. A nonzero observation
+$e_b-e_a$ pins $u$ to $a$ and $v$ to $b$, with the observation's edge identifier
+attached to each pin. Write a pin as $p=(v_p,a_p,s_p)$.
+
+\begin{theorem}[Exact categorical feasibility and least-cost certificate]
+\label{thm:categorical-certificate}
+There exists a categorical assignment $x:V\to D$ with
+$y_{uv}=e_{x_v}-e_{x_u}$ on every observed edge if and only if each connected
+component of $G_0$ contains pins of at most one value. If it is infeasible,
+two differently valued pins in one component, their source observations, and
+a zero-edge path between them certify the contradiction.
+
+Give every observed edge a nonnegative cost $w_e$, charged once per retained
+observation. Among all infeasible retained subsets, the minimum cost is
+\[
+ \min_{\substack{p,q:\ a_p\ne a_q\\ v_p\leftrightarrow v_q\text{ in }G_0}}
+ \left(\operatorname{dist}_{G_0,w}(v_p,v_q)
+       +\sum_{e\in\{s_p,s_q\}}w_e\right).
+\]
+The source-edge sum uses a set: two pins from one observation pay for it once.
+This minimum is undefined when every retained subset is feasible.
+\end{theorem}
+\begin{proof}
+Zero differences force equality of categorical values, hence constancy on each
+component of $G_0$. A nonzero one-hot difference uniquely fixes its tail and
+head values. Therefore two different pins in one component are impossible.
+Conversely, assign each pinned component its common pin value and every
+unpinned component any value of $D$. This realizes every zero and nonzero
+observation, proving sufficiency.
+
+Every infeasible subset consequently contains two incompatible pins connected
+by its zero edges. A shortest zero-edge path in the full observation graph
+costs no more than those retained zero edges. The two nonzero source edges
+cannot also be zero-path edges, and charging their union once gives the
+displayed lower bound on any infeasible subset. Conversely each candidate
+path and its source-edge set is infeasible and realizes its stated cost.
+Nonnegative weights ensure a simple shortest path suffices.
+\end{proof}
+
+\paragraph{A tree that the real relaxation accepts.}
+On the path $0\to1\to2$, let both observations be $e_B-e_A$ for distinct
+$A,B\in D$. The first edge pins vertex $1$ to $B$ and the second pins it to
+$A$: the zero-length path at vertex $1$ is already a categorical contradiction.
+Yet real potentials $0$, $e_B-e_A$, and $2(e_B-e_A)$ explain both differences,
+so the real completion residual is zero. Costs $2$ and $3$ give an exact
+certificate cost of $5$. This does not contradict the forest limit for
+unrestricted real potentials; the domain supplies a stronger constraint.
+
+\paragraph{What the certificate buys.}
+The auditor can return the conflicting values and exact observation IDs rather
+than a scalar alarm. The implementation in \texttt{claim\_audit.py} checks
+categorical feasibility; \texttt{costed\_claim\_certificates.py} uses shortest
+zero-edge paths and pin pairs. Their independent exhaustive assignment and
+retained-subset tests check the two conclusions separately. A schema/hash check
+does not authenticate a producer, and algebraic infeasibility does not decide
+which observation is false. The optimizer selects among known answers;
+choosing an unknown receipt needs an answer model or adversarial objective.
+Two individually compatible additional receipts can jointly close a
+contradiction, so zero immediate residual gain is not a valid general stopping
+rule for acquisition.
 
 \section{Failure-separating feature maps and degeneracy}\label{sec:identifiability}
 A choice of stalks is an engineering hypothesis about what the evidence preserves. A useful feature map must be typed, versioned, and checked against the failure modes it is meant to identify. Let $t_{v,e}$ be the evidence visible at endpoint $v$ on edge $e$, and let $\varphi_{v,e}(t_{v,e})$ take values in a declared stalk $F(v)$. The restriction map $R_{v,e}:F(v)\to F(e)$ must land in a common edge feature space. When subtraction is meaningful, one can form an edge report

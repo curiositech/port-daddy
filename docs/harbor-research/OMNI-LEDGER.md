@@ -8,10 +8,11 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 
 | ID | Work | Papers | Status | Next action |
 |---|---|---|---|---|
-| [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | assessment complete; scientific and publication integration open | Correct the identified statements and publication mismatch, then integrate the bounded continuation, future-admission, categorical-certificate and topology-design examples. |
+| [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | twelve scoped source corrections and local publication reconciliation complete; hosted checks pending | Finish Paper1 visual gate and hosted publication validation; twelve scoped corrections resolved, remaining research imports stay open. |
 | [NEXT-P1](#work-next-p1) | Decision-preserving oversight and manuscript arithmetic | ["1"] | open | Propagate the proved arithmetic corrections to manuscript, chapter, figures and index; evaluate a witness-preserving digest against a structured index. |
 | [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | open | Integrate reachable-maximum admission, activation witnesses and corrected enumeration claims; handle mutually exclusive futures explicitly. |
 | [NEXT-P8](#work-next-p8) | Authenticated typed evidence auditor and topology design | ["8"] | open | Add authenticated packet admission and a framework adapter; design topology for declared detection/correction distance and cost. |
+| [PROGRAM-RECONCILIATION](#work-program-reconciliation) | Correct the scientific estate and develop evidence-safe decisions | ["Book", "research portfolio"] | local scientific and publication verification complete; publishing branch for hosted checks | Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol. |
 | [SOURCE-RETENTION](#work-source-retention) | Exact source preservation and paper retention | [] | implemented; local integrity checks passed | Keep the ledger and its projections current; observe hosted checks for publication. |
 | [EVIDENCE-CONTRACT](#work-evidence-contract) | Admitted evidence defines possible worlds | [] | specified | Bind packets to their source, fact domain and snapshot before deriving permissions. |
 | [LIBRARY-CONTRACT](#work-library-contract) | Result identity, twins and generated library checks | [] | active | Update the Omni records in the same change as a result; preserve library-index and proof-manifest checks. |
@@ -48,8 +49,8 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [BOOK-READING](#work-book-reading) | Eight-reader journey and visual pacing audit | ["Book"] | partial | Rerun on final editions and inspect representative spreads. |
 | [BRANCH-HARVEST](#work-branch-harvest) | Historic branch salvage without false not-in-main claims | ["Book"] | partial-source-reported | Revalidate each candidate against current main and preserve one provenance copy. |
 | [C2](#work-c2) | Minimum viable take-rate or trade subsidy | [] | source-asserted | Formalize budget balance, incentive compatibility and participant utility separately. |
-| [CLAIM-COST](#work-claim-cost) | Minimum-cost known-answer contradiction subset | ["7", "8"] | bounded result reported in source; no new validation from consolidation | Study uncertain-answer acquisition separately; clarify empty feasible digest is unbound. |
-| [CLAIM-EXACT](#work-claim-exact) | Exact categorical feasibility before linear residual | ["7", "8", "Chapter8"] | source-reported bounded result; current validation recorded separately | Retain direct sender check as equal-information comparator and source-authentication gap. |
+| [CLAIM-COST](#work-claim-cost) | Minimum-cost known-answer contradiction subset | ["7", "8"] | scoped manuscript result or correction checked; local publication verified | Integrate a replayable certificate with authenticated receipt admission; unknown-answer acquisition needs a separate uncertainty model. |
+| [CLAIM-EXACT](#work-claim-exact) | Exact categorical feasibility before linear residual | ["7", "8", "Chapter8"] | scoped manuscript result or correction checked; local publication verified | Admit authenticated schema-bound receipts and compare against raw sender-claim checking on identical inputs; zero differences can erase values. |
 | [CLAIM-HODGE](#work-claim-hodge) | Per-fact Hodge diagnostic boundary | ["8"] | bounded result reported in source; no new validation from consolidation | Use only where numeric witness locality changes an operator decision at equal information. |
 | [CR4](#work-cr4) | Residual-guided repair heuristic limitation | ["8"] | source-asserted | Separate sever, reconcile and authority contracts. |
 | [CR5](#work-cr5) | Two-complex legibility fixture limitation | ["8"] | source-asserted | Test independent incident labels or retain as illustrative mathematics. |
@@ -63,7 +64,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [FIG-SCALE](#work-fig-scale) | Draw at Book measure instead of shrink-wrap | ["Book"] | open-source-reported | Remove resizebox, draw to target measure and rerender three editions. |
 | [FIG-SWISS-EDGE](#work-fig-swiss-edge) | Restore Swiss region outlines | ["Book"] | open-source-reported | Repair style once, recompile representative pages and inspect contrast. |
 | [FIG-TRIAGE](#work-fig-triage) | Figure-on-page role and disposition | ["Book"] | completed-source-reported | Apply to current edition and reconcile against pixel judgment. |
-| [FUTURE-HORN](#work-future-horn) | Future facts can activate accepted conflicts | ["2", "6"] | source-reported bounded result; current validation recorded separately | Build transition-level harness and activating-fact witness for scheduler. |
+| [FUTURE-HORN](#work-future-horn) | Future facts can activate accepted conflicts | ["2", "6"] | scoped manuscript result or correction checked; local publication verified | Supply reachability independently; test a two-operation adapter state model and incremental antichain maintenance without assuming reachability is polynomial. |
 | [G1](#work-g1) | Grounded verifier before subjective audit | ["3"] | source-asserted | Build failure-class taxonomy and protected defect cases. |
 | [G2](#work-g2) | Omission audit requires candidate capture | ["1"] | source-asserted | Trace unseen candidates through intake and projection. |
 | [G3](#work-g3) | Causal skill-graft evaluation | [] | source-asserted | Pre-register equal-budget skill/no-skill assignment. |
@@ -82,12 +83,12 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [MARGINALIA](#work-marginalia) | Portrait licensing and placement | ["Book"] | partial-source-reported | Verify actual current files and source pages before publication. |
 | [OLD-HANDOFF-WAVES](#work-old-handoff-waves) | Historical W1-W13 wave plan | ["1", "2", "3", "4", "5", "6", "7"] | superseded-partly | Map undischarged wave deliverables to current evidence and discard stale schedule assumptions. |
 | [P1-C1](#work-p1-c1) | Digest quality as operator decision preservation | ["1"] | source-asserted | Compare deterministic two-projection index, flat inspect-all and learned digest on held-out tasks. |
-| [P1-SPLIT-CORRECTION](#work-p1-split-correction) | Correct split-floor superadditivity proof | ["1"] | bounded result reported in source; no new validation from consolidation | Correct Paper 1 prose and keep distinct shared representation versus scalar order claims. |
+| [P1-SPLIT-CORRECTION](#work-p1-split-correction) | Correct split-floor superadditivity proof | ["1"] | scoped manuscript result or correction checked; local publication verified | Compare decision-specific summaries against shared-vector, separate-head baselines with equal evidence and total inspection cost. |
 | [P2-C1](#work-p2-c1) | Belief-state safe effect controller | ["2"] | source-asserted | Synthesize least restrictive safe controller for adapter capability tiers. |
 | [P3-C1](#work-p3-c1) | Weighted audit exposure counters all-or-nothing buyout | ["3"] | source-asserted | Fit measured assignment weights and conditional detection. |
 | [P5-C1](#work-p5-c1) | Recovery capsule plus no-mint authority | ["5"] | source-asserted | Compose migration model with pending external effects. |
 | [P6-C1](#work-p6-c1) | Incremental conflict checker versus simple baselines | ["6"] | source-asserted | Benchmark indexed direct checks, bounded SMT and incremental algorithm. |
-| [P6-OUTPUT](#work-p6-output) | Output-sensitive conflict enumeration | ["6"] | bounded result reported in source; no new validation from consolidation | Correct source Theorem 1a wording and benchmark decision versus enumeration separately. |
+| [P6-OUTPUT](#work-p6-output) | Output-sensitive conflict enumeration | ["6"] | scoped manuscript result or correction checked; local publication verified | Benchmark existence versus full enumeration with declared scope expansion and emitted output; retain bounded solver/abstention alternatives. |
 | [P7-BUNDLES](#work-p7-bundles) | Complementary costed receipt acquisition | ["7", "8"] | source-reported bounded result; current validation recorded separately | Define uncertainty model and stopping objective before adaptive acquisition. |
 | [P7-C1](#work-p7-c1) | Observed certificate versus uncertain-answer acquisition | ["7", "8"] | source-asserted | Specify adaptive answer model and compare certificate search with active query choice. |
 | [P7-FAILURES](#work-p7-failures) | Twelve Paper 7 failure cases | ["7"] | bounded result reported in source; no new validation from consolidation | Feed realistic packet corpus to equal-information acquisition comparison. |
@@ -111,9 +112,9 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [R11-A4](#work-r11-a4) | Canary detection and sequential testing | ["4", "Chapter3"] | source-reported bounded result; current validation recorded separately | Measure beta and adapt to single-shot versus sustained leakage separately. |
 | [R12-A6](#work-r12-a6) | No-mint inherited credit | ["5", "Chapter5"] | source-reported bounded result; current validation recorded separately | Verify concurrency, source-ID deduplication and runtime conservation. |
 | [R13-B5](#work-r13-b5) | Engine substitution and migration sanctions | ["5", "Chapter5"] | source-reported bounded result; current validation recorded separately | Bind identity-scoped sanctions and engine-keyed pricing to deployed adapters. |
-| [R14-B7](#work-r14-b7) | Escalation signaling band | ["1", "3", "Chapter4"] | source-reported bounded result; current validation recorded separately | Measure validation curve and costs before setting debit. |
+| [R14-B7](#work-r14-b7) | Escalation signaling band | ["1", "3", "Chapter4"] | scoped manuscript result or correction checked; local publication verified | Calibrate benefit/validation/costs on held-out decisions; strictness and crossing cannot be inferred from monotonicity alone. |
 | [R15-B8](#work-r15-b8) | Specialist versus pool with succession | ["6", "Chapter4", "Chapter6"] | source-reported bounded result; current validation recorded separately | Measure service, failure and recovery rates; test tail SLA separately. |
-| [R16-B9](#work-r16-b9) | Context paging with corrupted pin oracle | ["1", "Chapter4"] | source-reported bounded result; current validation recorded separately | Prove remaining second-order step or narrow to tested cases; instrument actual paging cost. |
+| [R16-B9](#work-r16-b9) | Context paging with corrupted pin oracle | ["1", "Chapter4"] | scoped manuscript result or correction checked; local publication verified | Prove the global credit coupling or find an adaptive counterexample; do not certify a general pin policy from Landlord competitiveness. |
 | [R17-B4](#work-r17-b4) | Tractable conflict fragment | ["6", "Chapter7"] | source-reported bounded result; current validation recorded separately | Separate decision complexity, output enumeration and production performance. |
 | [R2](#work-r2) | Reader-specific scalar rankings and shared floor | ["1", "Chapter4"] | source-reported bounded result; current validation recorded separately | Compare against one structured packet with reader-specific projections. |
 | [R3](#work-r3) | Expected-loss attention threshold | ["1", "Chapter4"] | source-reported bounded result; current validation recorded separately | Measure calibration and downstream decisions before operational tuning. |
@@ -144,7 +145,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [SWISS-BRIEF](#work-swiss-brief) | Swiss Edition art direction | ["Book"] | proposed-source-reported | Choose an edition and inspect physical-scale cover/part opener proofs. |
 | [TREE-CONSOLIDATION](#work-tree-consolidation) | Consolidate whitepaper source trees | ["Book"] | open-source-reported | Sequence moves with source, build, citation, metadata and workflow checks. |
 | [TRIAL-BASIN](#work-trial-basin) | Shared falsification harness | ["Book", "Research"] | open | Specify smallest harness and one real-history scenario before broad buildout. |
-| [UNKNOWN-EFFECT](#work-unknown-effect) | Unknown-outcome external effect continuation | ["2", "5"] | source-reported bounded result; current validation recorded separately | Extend to multiple operations and real adapter failure injection. |
+| [UNKNOWN-EFFECT](#work-unknown-effect) | Unknown-outcome external effect continuation | ["2", "5"] | scoped manuscript result or correction checked; local publication verified | Extend the finite model to two concurrent operations and validate one real adapter with failure injection. |
 | [WEIGHTED-BUYOUT](#work-weighted-buyout) | Weighted sealed sampling permits partial bribery | ["3"] | bounded result reported in source; no new validation from consolidation | Measure exposure, conditional capture and costs before strategic claims. |
 | [WRONG-TURNS](#work-wrong-turns) | Falsification archive and correction types | ["Book", "Research"] | completed-source-reported | Annotate new corrections by mechanism and scan sibling claims for same error. |
 | [X1](#work-x1) | Correction: attention odds denominator | ["1"] | counterexample | Repair formula in any future manuscript or decision code. |
@@ -230,9 +231,11 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 <a id="work-book-research-uptake"></a>
 ### BOOK-RESEARCH-UPTAKE: Book uptake of the research: coverage, corrections and useful imports
 
-**Status:** assessment complete; scientific and publication integration open. **Kind:** source and publication assessment.
+**Status:** twelve scoped source corrections and local publication reconciliation complete; hosted checks pending. **Kind:** source and publication assessment.
 
-**Result or question:** The research already supplies much of the Book's formal backbone. The largest remaining value is to make evidence conditions operational, repair inconsistent statements, and carry source claims into the actual publication artifact.
+**Result or question:** Current reconciliation: the seven named mathematical/scope conflicts have source patches and bounded checks. Chapters 5, 6 and 8 now develop safe continuation, finite reachable-family admission and least-cost categorical certificates. The rebuilt 592-page Book has been inspected at the changed claims; the source/PDF hashes and exact text searches are recorded in PROGRAM-RECONCILIATION. Hosted checks remain pending. Remaining research imports retain their open status. The assessment below is the hash-bound audit snapshot; its findings are superseded only by explicit resolutions.
+
+The research already supplies much of the Book's formal backbone. The largest remaining value is to make evidence conditions operational, repair inconsistent statements, and carry source claims into the actual publication artifact.
 
 #### Scope and defensible coverage
 
@@ -284,7 +287,7 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 **Evidence:** Current source-section review and targeted comparison with the 589-page checked-in PDF; exact snapshots and 29 detailed findings retained in this record audit data.; Decision-odds counterexample independently recomputed using exact rational arithmetic. No claim of rerunning every cited proof or historical experiment.
 
-**Next action:** Correct the identified statements and publication mismatch, then integrate the bounded continuation, future-admission, categorical-certificate and topology-design examples.
+**Next action:** Finish Paper1 visual gate and hosted publication validation; twelve scoped corrections resolved, remaining research imports stay open.
 
 **Completion condition:** Every incorporated result names its observation model, assumptions, decision consequence and source witness.; Correct formulas, comparator roles and output complexity agree across paper, chapter, figure and index.; Every intended Book PDF is generated from the accepted sources and checked for the corrected statements.; Uncertain-answer acquisition, field detection, replay fidelity and reviewer efficacy remain open until their declared experiments or refinements pass.
 
@@ -342,6 +345,146 @@ The main text should teach these as a small set of worked decisions, with exact 
 **Dependencies:** CLAIM-EXACT; CLAIM-COST; P8-TYPED
 
 **Sources:** [docs/harbor-research/research/research-program-20260930.md](#source-src-142) — Exact categorical auditing
+
+<a id="work-program-reconciliation"></a>
+### PROGRAM-RECONCILIATION: Correct the scientific estate and develop evidence-safe decisions
+
+**Status:** local scientific and publication verification complete; publishing branch for hosted checks. **Kind:** program execution plan.
+
+**Result or question:** Work proceeds in four gates: (1) reconcile the seven named mathematical/scope disagreements across manuscripts, chapters, figures, scripts and index; (2) rebuild paper mirrors and the Book, checking the actual rendered claims; (3) extend future commitment admission from a jointly reachable maximum to the antichain of maximal reachable fact sets with independent finite oracles and mutations; (4) group publication material by decision problem and evidence strength, allowing papers to merge or split. The 8 file identifiers are inventory locators, not a scientific requirement.
+
+**Assumptions:** Local Port Daddy remains halted. Source changes, local mathematical checks, rendered publication proof, hosted CI, merge and deployment are separate states. Historical source bytes remain immutable evidence.
+
+**Evidence:** Operator authorization, 2026-09-30: rectify all known information disagreements, continue the research program, and change paper count/scope as justified.; New test_legibility_corrections.py: six exact-arithmetic boundary tests passed; odds-denominator, zoom equality, split-floor explanation, escalation hypotheses and deterministic-vs-expected corruption mutants covered.; Extended test_research_envelopes.py: seven tests passed; 130560 explicit reachable families and 4096 program/fact truth-table cases; current-only and unreachable-union mutants rejected.; Existing categorical suites rerun: 17 claim-audit tests and seven costed-certificate tests passed, including 12288 binary price cases and 512 ternary cases. These are reruns, not new test counts.; Independent Paper8/Chapter8 proof review accepted the zero-component and minimum-cost arguments, conditional on the declared observation model.; Primary source boundaries: Young https://arxiv.org/abs/cs/0205033 ; Doyen and Raskin https://arxiv.org/abs/0902.3958 . Imported competitive analysis and antichain reasoning are not claimed as new.; Second adversarial pass found three additional source overclaims: cover-counting upper bound called an optimum (N=4,k=2,m=3,B=1 gives optimum5/6 versus bound1); compatible tied orders treated as identical; one-reader/joint lower bounds treated as achieved representation costs. Repairs and explicit counterexamples are required before publication freeze.; Native editor compilation cannot load sibling preamble.tex; repository multi-file TeX build is the verification path. Papers5/6/8 built locally; Paper8 has14pages and zero overfull h/v boxes. Book build needed its output directory in TEXINPUTS for generated solutions; final build awaits source freeze.; PR10321 head1a85fdc7e hosted checks completed successfully. Current scientific changes are not yet on that head. Four issue-comment findings rechecked: archive manifest and external fixture reads resolved; silent critique projection overwrite and isolated import failure require fixes.; All three additional review findings corrected; eight new exact boundary tests passed. The scalar-order theorem additionally states finite X and one shared deterministic tie rule, avoiding arbitrary-order embedding and reader-specific tie-break loopholes.; All four prior PR issue-comment findings now addressed: retired-source hash validation, external fixture reads, fail-before-write critique projection check, and isolated importlib loading. New no-mutation and clean-process regressions added; no source import is silently treated as current truth.; Public research cards reconciled with manuscripts: remove authority-from-NP-hardness and peer-conviction claims, scope audit/privacy/identity assumptions, and link Paper8 to Chapter8. Website result mapping tests: six passed. Paper8 standalone arXiv source/preamble match and extracted PDF text matches current mirror; archive has deterministic zero timestamps.; Rendered inspection found overlapping Paper1 relation diagrams despite successful TeX compilation. R1 was redrawn as a complete six-item covering example; R4 relation repair and final page inspection are required before PDF publication. This is a publication gate, not a mathematical test result.; Final diagram review found the calibration-direction error in R3 regime. Nine new legibility-boundary tests now pass, including overconfident early inspection and underconfident late inspection; the corresponding plot labels/caption are corrected as part of Paper1 visual repair.; Final local publication receipt verified against every listed SHA-256: Paper1 16 pages and Paper8 14 pages, both zero overfull boxes; Book592pages. All Paper1 pages/ten figure pages inspected. Public paper mirrors are byte-identical; metadata and archive/source checks pass.
+
+**Next action:** Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol.
+
+**Completion condition:** All seven named audit disagreements have an explicit corrected statement and check or a clearly delimited unresolved proof obligation.; Source/PDF and index discrepancies have current file-bound receipts.; New admission result states reachability provenance and does not treat incompatible futures as jointly reachable.; Every proposed paper has a central question, strongest result, nearest baseline, utility test and a merge/split condition.
+
+**Dependencies:** BOOK-RESEARCH-UPTAKE
+
+**Correction dispositions:**
+
+- **Decision odds:** Correct attention-adjusted denominator; handle degenerate costs without invalid division.
+- **Strict zoom savings:** Strict d<1/12, equality break-even for displayed bound.
+- **Split-floor proof:** Increasing log-ratio summands; varying-parameter growth, no model/store necessity.
+- **Escalation threshold:** Continuity, strictness, crossing and tie policy; possibly empty feasible interval.
+- **Paging claim:** Imported exact Landlord theorem separated from corrupted-pin conjecture.
+- **Conflict complexity and authority:** Scope incidences and output cost; NP-hardness does not mandate a human judge.
+- **Recovery equivalence:** Preservation of score/obligations separated from behavior and remote-effect safety.
+- **Counting-bound achievability:** Upper bound only; explicit N4/k2/m3/B1 unattainability witness.
+- **Ranking ties:** Strict total-order theorem, compatible weak ties explained.
+- **Lower bound versus achieved cost:** Single-reader and joint-union floors do not establish an encoder or a locate-write capability.
+- **Scalar embedding scope:** Finite candidate set and shared deterministic tie rule explicitly required.
+- **Miscalibration direction:** With g(s)=s², a naive posterior threshold acts too early; calibration raises the score threshold. With g(s)=sqrt(s), the naive rule acts too late. Direct expected-loss witnesses verify both directions.
+
+**Next bounded research protocol:**
+
+- **Name:** Two-operation continuation with delayed outcomes
+- **Scope:** A finite model and adapter contract test; no live agent execution or spend.
+- **State:** Two stable operation IDs, two authority epochs, a durable request/result ledger, in-flight/committed/acknowledged state per operation, and a replayed local checkpoint.
+- **Faults:** ["crash before dispatch", "crash after commit before receipt", "late prior-epoch commit after negative readback", "duplicate reply", "reordered replies for distinct operations", "operation-ID aliasing"]
+- **Baselines:** ["unconditional retry after timeout", "current-epoch check without remote fencing", "atomic adapter deduplication and stored result", "fenced authoritative readback"]
+- **Safety:** ["at most one external effect per logical operation", "receipt binds operation ID, payload digest and epoch", "no stale actor effect after completed fence"]
+- **Progress:** State the fairness and adapter-availability assumptions; report unresolved outcomes separately from violations.
+- **Oracle:** Enumerate finite transition traces and compare admitted actions with the set safe in every observationally equivalent remote state.
+- **Mutants:** ["remove atomic dedup/result coupling", "drop payload binding", "allow a late commit after the fence", "treat negative unfenced readback as final absence"]
+- **Stop rule:** A counterexample narrows or rejects the contract; a finite pass does not certify an unbounded distributed implementation.
+
+**Execution gates:**
+
+- scientific-corrections: twelve scoped corrections complete; nine exact boundary tests pass
+- publication-parity: local PDF/source parity and visual checks pass; hosted pinned renderer pending
+- reachable-antichain-result: proof and finite oracle complete; reachability provider and field validation open
+- publication-portfolio: six candidate decision problems defined; physical manuscript regrouping gated
+
+**Candidate publication portfolio** (source numbers are locators, not a fixed paper count):
+
+#### Oversight under an inspection budget
+
+**Source material:** ["1"]
+
+**Decision question:** Which evidence must a human open to meet a declared miss/loss budget?
+
+**Strongest result:** Covering floor, scalar-order incompatibility and explicit zoom bound under group-oracle assumptions.
+
+**Baseline:** Shared-vector separate-head summaries; flat/direct inspection; established group testing.
+
+**Utility test:** Held-out incidents, equal evidence, calibration and total operator time; count false silence.
+
+**Packaging gate:** Keep one paper if all claims serve the same oversight decision; move paging conjecture to an appendix until proved.
+
+#### Safe continuation across lost outcomes
+
+**Source material:** ["2", "5"]
+
+**Decision question:** When may a successor safely continue an external effect?
+
+**Strongest result:** Observation ambiguity plus adapter-specific deduplication/fencing conditions; mediated prevention boundary.
+
+**Baseline:** Durable outbox, atomic idempotency ledger and fenced readback under the identical fault model.
+
+**Utility test:** Two operations, crashes and late effects; prove no duplicate/stale effect and report unresolved liveness separately.
+
+**Packaging gate:** Combine control and recovery material around one adapter contract; leave economic identity in the incentives paper.
+
+#### Verification, identity and delegated labor
+
+**Source material:** ["3", "5", "6"]
+
+**Decision question:** When do inspection and liability make delegation incentive-compatible?
+
+**Strongest result:** Scoped no-mint, engine-substitution and inspection threshold results; specialization only under its queueing model.
+
+**Baseline:** Fixed audit rates, direct verification and established principal-agent models.
+
+**Utility test:** Calibrated detection/penalty/cost estimates with sensitivity and adversarial selection tests.
+
+**Packaging gate:** Split queueing economics only if it independently changes a staffing decision and earns empirical support.
+
+#### Controlled release from a sealed workspace
+
+**Source material:** ["4"]
+
+**Decision question:** What information may a workspace release while honoring its privacy contract?
+
+**Strongest result:** Noninterference and atomic budget accounting under an explicit release map.
+
+**Baseline:** Standard DP composition and information-flow release mechanisms.
+
+**Utility test:** Payload factorization and concurrent release failures; verify both content and budget, not alphabet size alone.
+
+**Packaging gate:** Keep privacy separate because its security assumptions and evaluation differ from coordination incentives.
+
+#### Admission under changing facts
+
+**Source material:** ["6"]
+
+**Decision question:** When can a commitment be accepted safely across declared future states?
+
+**Strongest result:** Tractable fragment with output accounting and maximal-reachable-family safety test.
+
+**Baseline:** Batch Horn closure and SAT/SMT with explicit timeout/abstention.
+
+**Utility test:** Reachability provenance, incompatible futures, incremental workload and output-sensitive performance.
+
+**Packaging gate:** Extract as a focused systems/logic paper if reachability-provider integration works; otherwise a rigorous admission chapter.
+
+#### Evidence sufficient for diagnosis
+
+**Source material:** ["7", "8"]
+
+**Decision question:** Which retained or acquired observations justify contradiction, attribution or safe refusal?
+
+**Strongest result:** Exact categorical certificates, least-cost retained witnesses and typed report-error distance; Hodge decomposition is a diagnostic representation.
+
+**Baseline:** Equal-information raw claim checks, categorical feasibility, graph coding distance and established sheaf theory.
+
+**Utility test:** Authenticated telemetry, held-out fault classes, topology versus direct-claim/anchor acquisition at equal cost.
+
+**Packaging gate:** Develop Papers7/8 as one candidate with typed/relative topology extensions only where they change a decision; split only if the topology result has independent utility beyond the categorical baseline.
+
+**Sources:** [whitepaper/textbook.json](../../whitepaper/textbook.json) — chapter authority; [docs/harbor-research/library-index.json](library-index.json) — result identity and paper/chapter homes
 
 <a id="work-source-retention"></a>
 ### SOURCE-RETENTION: Exact source preservation and paper retention
@@ -1006,15 +1149,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-claim-cost"></a>
 ### CLAIM-COST: Minimum-cost known-answer contradiction subset
 
-**Status:** bounded result reported in source; no new validation from consolidation. **Kind:** exact-optimization.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** exact-optimization.
 
-**Result or question:** Cheapest contradictory retained subset is minimum over differing pin pairs of shortest zero-path cost plus distinct source-edge costs.
+**Result or question:** Among already observed valid categorical edges with nonnegative additive costs, the minimum infeasible subset is a conflicting pin pair, its distinct source edges charged once, and a cheapest connecting zero path.
 
 **Assumptions:** Already observed answers; finite additive nonnegative edge prices; one fact and snapshot.
 
 **Evidence:** Source reports 7 tests and exhaustive K4/ternary subset comparison; verifier checks witness cost but not global optimality.
 
-**Next action:** Study uncertain-answer acquisition separately; clarify empty feasible digest is unbound.
+**Next action:** Integrate a replayable certificate with authenticated receipt admission; unknown-answer acquisition needs a separate uncertainty model.
 
 **Completion condition:** Match exhaustive small subset optimum and declare receipt cost model.
 
@@ -1025,15 +1168,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-claim-exact"></a>
 ### CLAIM-EXACT: Exact categorical feasibility before linear residual
 
-**Status:** source-reported bounded result; current validation recorded separately. **Kind:** proposed checker.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** proposed checker.
 
-**Result or question:** Union zero-difference edges; incompatible value pins in a component are necessary and sufficient for no categorical potential.
+**Result or question:** For one finite categorical fact and snapshot, a valid zero/one-hot-difference edge table has a categorical potential iff every zero-edge component has at most one distinct pin. Missing reports are omitted; the linear residual can vanish on an impossible categorical table.
 
 **Assumptions:** One fact, finite domain, reciprocal same-snapshot messages, signed one-hot differences.
 
 **Evidence:** Research note gives path eB-eA repeated on two edges as witness.; 2026-09-30 source reports 17 named audit tests including exhaustive K3 tables and new dependent-triangle regression; path3 defeats zero real residual.
 
-**Next action:** Retain direct sender check as equal-information comparator and source-authentication gap.
+**Next action:** Admit authenticated schema-bound receipts and compare against raw sender-claim checking on identical inputs; zero differences can erase values.
 
 **Completion condition:** Every finding has two pins plus zero path verified against admitted rows.
 
@@ -1289,15 +1432,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-future-horn"></a>
 ### FUTURE-HORN: Future facts can activate accepted conflicts
 
-**Status:** source-reported bounded result; current validation recorded separately. **Kind:** proposed theorem.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** proposed theorem.
 
-**Result or question:** For fixed positive Horn rules and monotone conflict, all reachable futures are safe iff reachable maximum F union U is conflict-free.
+**Result or question:** For fixed positive Horn rules and monotone conflict on a finite nonempty explicitly supplied reachable family containing current facts, universal future safety is equivalent to safety of every inclusion-maximal reachable set. Mutually exclusive futures remain separate.
 
 **Assumptions:** Rules/intervals/resources fixed, only positive facts grow, maximum jointly reachable.
 
 **Evidence:** Research note records three-transition witness and bounded enumeration.; 2026-09-30 note proves lemma and reports 2,048 Horn-oracle and 8,192 envelope checks.
 
-**Next action:** Build transition-level harness and activating-fact witness for scheduler.
+**Next action:** Supply reachability independently; test a two-operation adapter state model and incremental antichain maintenance without assuming reachability is polynomial.
 
 **Completion condition:** Reject union-envelope exactness when future facts are mutually exclusive.
 
@@ -1632,15 +1775,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-p1-split-correction"></a>
 ### P1-SPLIT-CORRECTION: Correct split-floor superadditivity proof
 
-**Status:** bounded result reported in source; no new validation from consolidation. **Kind:** algebraic-correction.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** algebraic-correction.
 
-**Result or question:** F(2k)>2F(k) for 2k<=m<N because later log terms rise; numerator binomial inequality alone goes the opposite way.
+**Result or question:** For disjoint critical sets and one shared open budget, F(2k)>2F(k) follows from strictly increasing log-ratio summands. Incompatible scalar rankings do not prohibit a shared vector representation or shared store.
 
 **Assumptions:** Shared open budget m and disjoint critical sets.
 
 **Evidence:** 17,545 exact triples checked; old numerator-superadditivity explanation refuted.
 
-**Next action:** Correct Paper 1 prose and keep distinct shared representation versus scalar order claims.
+**Next action:** Compare decision-specific summaries against shared-vector, separate-head baselines with equal evidence and total inspection cost.
 
 **Completion condition:** No lower bound claimed for arbitrary separate reader budgets.
 
@@ -1727,15 +1870,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-p6-output"></a>
 ### P6-OUTPUT: Output-sensitive conflict enumeration
 
-**Status:** bounded result reported in source; no new validation from consolidation. **Kind:** complexity-correction.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** complexity-correction.
 
-**Result or question:** Enumerating all clashes costs Omega(X) output work; n obligations and n prohibitions can yield n² clashes even if decision stops early.
+**Result or question:** Indexed conflict existence uses scope-incidence input size; enumerating all keyed clashes additionally pays for output and deduplication. The reference pair scanner can be quadratic. NP-completeness does not imply a human or centralized authority is necessary.
 
 **Assumptions:** Explicit witness enumeration rather than existence decision.
 
 **Evidence:** Research note gives same-scope same-interval n² construction and distinguishes quadratic reference scanner.
 
-**Next action:** Correct source Theorem 1a wording and benchmark decision versus enumeration separately.
+**Next action:** Benchmark existence versus full enumeration with declared scope expansion and emitted output; retain bounded solver/abstention alternatives.
 
 **Completion condition:** Complexity bound includes emitted witnesses and repeated scope incidences.
 
@@ -2183,15 +2326,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-r14-b7"></a>
 ### R14-B7: Escalation signaling band
 
-**Status:** source-reported bounded result; current validation recorded separately. **Kind:** stylized game result.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** stylized game result.
 
-**Result or question:** Monotone benefit and validation yield a threshold and possibly empty feasible debit interval between alarm fatigue and miss loss.
+**Result or question:** With continuous strictly increasing benefit, continuous nondecreasing validation and endpoint crossing, the escalation payoff has a unique threshold; ties follow an explicit policy and the feasible debit interval can be empty.
 
 **Assumptions:** Static one-shot model, calibrated validation V and named attention budget.
 
 **Evidence:** Source reports finite sweep and empty-band example.; Compendium gives feasible [.035,.072] at A=3.3 and empty band at A=2.0; non-monotone mutants break threshold.
 
-**Next action:** Measure validation curve and costs before setting debit.
+**Next action:** Calibrate benefit/validation/costs on held-out decisions; strictness and crossing cannot be inferred from monotonicity alone.
 
 **Completion condition:** If band empty improve capacity or evidence; do not tune outside both constraints.
 
@@ -2221,15 +2364,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-r16-b9"></a>
 ### R16-B9: Context paging with corrupted pin oracle
 
-**Status:** source-reported bounded result; current validation recorded separately. **Kind:** imported bound with local fixture.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** imported bound with local fixture.
 
-**Result or question:** Landlord bound imports; repair-on-touch adds a linear charge for pin-oracle corruptions under unit cost density.
+**Result or question:** Young's exact Landlord guarantee is imported with offline comparator capacity h. The repair-on-touch corrupted-pin additive extension remains a conjecture: finite experiments do not prove its missing credit-coupling step.
 
 **Assumptions:** Cache and span model, consultation corruption count, repair-on-touch, cost density.
 
 **Evidence:** Source reports synthetic paging sweep.; Compendium reports 122 exact-OPT cases and one-corruption blind-trust mutant with 317 stale serves.
 
-**Next action:** Prove remaining second-order step or narrow to tested cases; instrument actual paging cost.
+**Next action:** Prove the global credit coupling or find an adaptive counterexample; do not certify a general pin policy from Landlord competitiveness.
 
 **Completion condition:** Retain multiplicative versus additive bound distinction and adaptive-adversary limit.
 
@@ -2806,15 +2949,15 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-unknown-effect"></a>
 ### UNKNOWN-EFFECT: Unknown-outcome external effect continuation
 
-**Status:** source-reported bounded result; current validation recorded separately. **Kind:** proposed study.
+**Status:** scoped manuscript result or correction checked; local publication verified. **Kind:** proposed study.
 
-**Result or question:** Exactly-once outcome depends on adapter status and idempotency support; timeout alone cannot license blind retry.
+**Result or question:** Unknown remote outcomes permit retry only under the declared adapter contract: atomic dedup/result or fenced authoritative readback. Negative readback without a fence can precede a late effect. Score/obligation continuity does not prove behavioral equivalence.
 
 **Assumptions:** Stable operation IDs, declared adapter semantics and durable observation.
 
 **Evidence:** Corpus note proposes finite one-operation two-epoch model.; Finite transition checks and counterexamples in continuation note.
 
-**Next action:** Extend to multiple operations and real adapter failure injection.
+**Next action:** Extend the finite model to two concurrent operations and validate one real adapter with failure injection.
 
 **Completion condition:** Separate safety from progress, unsupported from unresolved.
 

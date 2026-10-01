@@ -48,12 +48,6 @@
           "value": "0/16",
           "tag": "internal",
           "regex": "0/16"
-        },
-        {
-          "name": "wrong_turn_spurious_violations",
-          "value": "8/14",
-          "tag": "internal",
-          "regex": "8/14"
         }
       ],
       "mechanization": [],
@@ -66,7 +60,7 @@
       "id": "R2",
       "kind": "theorem",
       "title": "Split-digest theorem (comonotone characterization)",
-      "one_breath": "A scalar head serves a reader iff ranking by it realizes that reader's optimal selection at every budget; one head serves two readers iff their preference orders are comonotone, and the successor and operator readers provably are not.",
+      "one_breath": "One scalar ranking serves two strict reader orders at every selection budget exactly when they agree; crossing preferences require distinct decision heads, which may share a vector representation.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper1.tex",
         "labels": [
@@ -185,7 +179,8 @@
         "labels": [
           "sec:frontier",
           "sec:rdf",
-          "sec:zoom"
+          "sec:zoom",
+          "cor:zoom-advantage"
         ],
         "sections": [
           "S5 (sec:frontier): S5.1 the pinned-joint proposition, S5.2 Theorem 4 (zoom advantage)"
@@ -231,9 +226,9 @@
         },
         {
           "name": "composition_window",
-          "value": "f >= 12(p - delta)",
+          "value": "f > 12(p - delta)",
           "tag": "verified",
-          "regex": "f\\\\ge ?12\\(p-\\\\delta\\)"
+          "regex": "f\\s*>\\s*12\\(p-\\\\delta\\)"
         },
         {
           "name": "tightness_instance",
@@ -692,7 +687,7 @@
       "id": "R14",
       "kind": "theorem",
       "title": "Costly-escalation threshold equilibrium and the debit tuning band",
-      "one_breath": "A strictly increasing escalation payoff gives a unique separating threshold u*(delta); the feasible debit set between the alarm-fatigue wall and the distress-silencing wall is an interval that can be empty, in which case the honest fix is capacity or evidence quality, not tuning.",
+      "one_breath": "Under continuous strictly increasing benefit, continuous nondecreasing validation and a crossing condition, escalation has a unique separating threshold; monotone alarm-load and miss-loss constraints define a possibly empty feasible debit interval.",
       "standalone": null,
       "chapters": [
         {
@@ -767,9 +762,9 @@
     },
     {
       "id": "R16",
-      "kind": "theorem",
+      "kind": "result-family",
       "title": "Context paging with an untrusted pin oracle",
-      "one_breath": "Landlord's k/(k-h+1) competitiveness against offline OPT imports to variable-size context spans; a pin oracle corrupted on a psi fraction of consultations costs only an additive, linear psi*N*c_refetch penalty under repair-on-touch, sharing its corruption budget with R1's forgeable-feature budget.",
+      "one_breath": "Young's Landlord algorithm has k/(k-h+1) competitiveness against offline cache capacity h; the additional corrupted-pin surcharge is a separately stated experimental conjecture, conditional on its repair model.",
       "standalone": null,
       "chapters": [
         {
@@ -780,7 +775,7 @@
             "thm:paging"
           ],
           "sections": [
-            "S8.3 Context paging (sec:context-paging), \"Context Paging Competitiveness\" -- annotated \\Verified--upgraded from proposed, with the b9_context_paging.py sweep numbers"
+            "sec:context-paging, thm:paging: imported Landlord comparator-capacity bound; corrupted-pin extension separately qualified as a conjecture with finite checks."
           ]
         }
       ],
@@ -788,14 +783,7 @@
       "scripts": [
         "skills/harbor-results/scripts/b9_context_paging.py"
       ],
-      "numbers": [
-        {
-          "name": "corruption_slope",
-          "value": "22.8",
-          "tag": "internal",
-          "regex": "22\\.8"
-        }
-      ],
+      "numbers": [],
       "mechanization": [],
       "site": [],
       "status": "chapter-only"
@@ -804,12 +792,15 @@
       "id": "R17",
       "kind": "result-family",
       "title": "Tractable deontic-conflict fragment and its NP-complete frontier",
-      "one_breath": "Inside a fragment of facts, definite Horn rules, ground deontic O/F rules, exclusive interval claims and difference constraints, conflict detection is polynomial and witness-producing; one expressive step out (disjunctive obligations under discharge choice) makes conflict-freedom NP-complete.",
+      "one_breath": "Inside the ground positive-Horn deontic fragment, an indexed conflict-existence check is polynomial and witness-producing; enumerating every clash pays for its scope incidences and output, while adding disjunctive discharge choice makes conflict-freedom NP-complete without requiring a human judge.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper6.tex",
-        "labels": [],
+        "labels": [
+          "sec:reachable-admission"
+        ],
         "sections": [
-          "S(sec:lang / sec:thm-detect), boxed \"Theorem 1a (membership)\" and \"Theorem 1b (frontier: one step outside is NP-complete)\""
+          "S(sec:lang / sec:thm-detect), boxed Theorem 1a separates indexed existence from output-sensitive enumeration (scope incidences I and keyed pair occurrences Q); Theorem 1b gives the NP-complete frontier without deriving a human-role requirement",
+          "sec:reachable-admission, Theorem 1c: fixed positive rules and a nonempty explicit finite reachable fact family are safe iff all inclusion-maximal reachable members pass the batch check; reachability itself is an independent input"
         ]
       },
       "chapters": [
@@ -819,10 +810,13 @@
           "prefix": "he",
           "labels": [
             "thm:deontic-detect",
-            "thm:deontic-frontier"
+            "thm:deontic-frontier",
+            "sec:he-reachable-admission",
+            "thm:he-reachable-admission"
           ],
           "sections": [
-            "sec:three-on-one, paragraph \"The deontic layer's decision procedure\": Theorem 1a as thm:deontic-detect and Theorem 1b as thm:deontic-frontier (both Theorem kind, the reduction as proof), the dichotomy reading, the 3000-set oracle sweep and the propagation mutant, the worked witness, the authority inventory as what it buys, and a boundary box"
+            "sec:three-on-one: thm:deontic-detect charges scope incidences and output separately; thm:deontic-frontier states NP-completeness; the 3000-set oracle sweep, propagation mutant and worked witness support the finite check. Policy authority specifies permitted discharge and timeout handling; admission-time refusal does not alone prove future-fact safety",
+            "sec:he-reachable-admission and thm:he-reachable-admission: elementary maximal reachable-fact criterion, exclusive-futures counterexample, and finite oracle with current-only and unreachable-union mutants"
           ]
         }
       ],
@@ -832,7 +826,9 @@
         "docs/harbor-research/figures/fig-paper6-witness.tex"
       ],
       "scripts": [
-        "skills/harbor-results/scripts/b4_deontic_fragment.py"
+        "skills/harbor-results/scripts/b4_deontic_fragment.py",
+        "skills/harbor-results/scripts/research_envelopes.py",
+        "skills/harbor-results/scripts/test_research_envelopes.py"
       ],
       "numbers": [
         {
@@ -858,13 +854,25 @@
           "value": "100 of 149",
           "tag": "internal",
           "regex": "100 of\\s"
+        },
+        {
+          "name": "finite_reachable_family_sweep",
+          "value": "130560",
+          "tag": "internal",
+          "regex": "130\\{,\\}560"
+        },
+        {
+          "name": "finite_independent_oracle_cases",
+          "value": "4096",
+          "tag": "internal",
+          "regex": "4096"
         }
       ],
       "mechanization": [],
       "site": [
         "/research/paper6.pdf"
       ],
-      "status": "standalone-only"
+      "status": "folded"
     },
     {
       "id": "CR",
@@ -911,7 +919,7 @@
       "site": [
         "/research/paper7.pdf"
       ],
-      "status": "standalone-only"
+      "status": "folded"
     },
     {
       "id": "B6",
@@ -1359,6 +1367,47 @@
         "/research/paper8.pdf"
       ],
       "status": "standalone-only"
+    },
+    {
+      "id": "thm:categorical-certificate",
+      "kind": "theorem",
+      "title": "Exact categorical feasibility and least-cost retained certificate",
+      "one_breath": "A valid finite one-hot edge table is feasible exactly when no zero-edge component has conflicting pins; under nonnegative additive observation costs, the cheapest infeasible subset is a conflicting pin pair, its distinct source edges and a cheapest connecting zero path.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:categorical-certificate"
+        ],
+        "sections": [
+          "sec:categorical"
+        ]
+      },
+      "chapters": [
+        {
+          "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+          "chapter": 8,
+          "prefix": "fh",
+          "labels": [
+            "thm:categorical-certificate"
+          ],
+          "sections": [
+            "sec:fh-evidence-decision"
+          ]
+        }
+      ],
+      "figures": [],
+      "scripts": [
+        "skills/harbor-results/scripts/claim_audit.py",
+        "skills/harbor-results/scripts/test_claim_audit.py",
+        "skills/harbor-results/scripts/costed_claim_certificates.py",
+        "skills/harbor-results/scripts/test_costed_claim_certificates.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "folded"
     }
   ],
   "unindexed_allow": [

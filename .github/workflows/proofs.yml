@@ -421,6 +421,7 @@ jobs:
           python3 -B skills/harbor-results/scripts/claim_audit.py docs/harbor-research/research/claim-audit-example.json --hodge
           python3 -B skills/harbor-results/scripts/research_envelopes.py
           python3 -B skills/harbor-results/scripts/test_research_envelopes.py
+          python3 -B skills/harbor-results/scripts/test_legibility_corrections.py
 
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
   # 25 .pv models under analyses/ and proofs/** previously had
