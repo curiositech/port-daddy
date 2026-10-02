@@ -62,7 +62,7 @@
     }
   }
 
-  \begin{scope}[scale=0.540, every node/.append style={transform shape}]
+  \begin{scope}[scale=0.650, every node/.append style={transform shape}]
 
   % =========================================================================
   % COLUMN A: TITLE & CHARACTERISTICS (x in [0.0, 2.4], y in [7.7, 9.4])
@@ -154,15 +154,15 @@
   % Doubled event stream firehose with dense, disparate arrival tokens
   % =========================================================================
   % Stream 1 (Cobalt: Telemetry)
-  \draw[streamline,draw=pdcobalt] (6.0, 8.9) -- (6.0, 1.3);
+  \draw[streamline,draw=pdcobalt] (6.0, 8.9) -- (6.0, 1.5);
   % Stream 2 (Slate: Worker stderr)
-  \draw[streamline,draw=pdslate!90!black] (6.4, 8.9) -- (6.4, 1.3);
+  \draw[streamline,draw=pdslate!90!black] (6.4, 8.9) -- (6.4, 1.5);
   % Stream 3 (Slate!70: Syscall trace)
-  \draw[streamline,draw=pdslate!70!black] (6.8, 8.9) -- (6.8, 1.3);
+  \draw[streamline,draw=pdslate!70!black] (6.8, 8.9) -- (6.8, 1.5);
   % Stream 4 (Rust: Ingress traffic)
-  \draw[streamline,draw=pdrust] (7.2, 8.9) -- (7.2, 1.3);
+  \draw[streamline,draw=pdrust] (7.2, 8.9) -- (7.2, 1.5);
   % Stream 5 (Slate!80: WAL commits)
-  \draw[streamline,draw=pdslate!80!black] (7.6, 8.9) -- (7.6, 1.3);
+  \draw[streamline,draw=pdslate!80!black] (7.6, 8.9) -- (7.6, 1.5);
 
   % Stream 1 Tokens (Cobalt, x=6.0)
   \foreach \y in {8.1, 7.3, 6.5, 5.8, 4.6, 3.4, 2.2} {
@@ -200,9 +200,10 @@
   % =========================================================================
   % CENTER REGION: ATTENTION FILTER CRYSTAL (x in [8.8, 10.8], center = 9.8)
   % =========================================================================
-  % Supervisory attention layer placed strictly ABOVE the hexagon
-  \node[pd title,anchor=south,align=center,text=pdink] at (9.8, 7.0) {%
-    \textbf{Supervisory attention layer}%
+  % Supervisory attention layer placed strictly ABOVE the hexagon (2 clean lines)
+  \node[pd title,anchor=south,align=center,text=pdink] at (9.8, 6.4) {%
+    \textbf{Supervisory}\\%
+    \textbf{attention layer}%
   };
 
   % Outer Hexagonal Crystal (centered at x=9.8, y=4.6, width 2.0cm, height 3.2cm)
@@ -225,9 +226,10 @@
     (9.8, 4.95) -- (10.15, 4.6) -- (9.8, 4.25) -- (9.45, 4.6) -- cycle;
   \fill[pdcobalt] (9.8, 4.6) circle (0.08cm);
 
-  % Information compression placed strictly BELOW the hexagon
-  \node[pd title,anchor=north,align=center,text=pdink] at (9.8, 2.2) {%
-    \textbf{Information compression}%
+  % Information compression placed strictly BELOW the hexagon (2 clean lines)
+  \node[pd title,anchor=north,align=center,text=pdink] at (9.8, 2.7) {%
+    \textbf{Information}\\%
+    \textbf{compression}%
   };
 
   % =========================================================================
@@ -322,16 +324,16 @@
 
   % =========================================================================
   % BOTTOM: EVIDENCE RETURN POINTERS
-  % (Routing cleanly under Information compression at y <= 1.2, returning to streams)
+  % (Routing cleanly under Information compression at y <= 1.0, returning to streams)
   % =========================================================================
-  \draw[evidencepointer] (12.6, 5.5) -- (12.1, 5.5) -- (12.1, 1.1) -- (7.2, 1.1) -- (7.2, 1.3);
-  \draw[evidencepointer] (12.6, 4.4) -- (11.9, 4.4) -- (11.9, 0.8) -- (6.8, 0.8) -- (6.8, 1.3);
-  \draw[evidencepointer] (12.6, 3.3) -- (11.7, 3.3) -- (11.7, 0.5) -- (6.4, 0.5) -- (6.4, 1.3);
-  \draw[evidencepointer] (12.6, 2.2) -- (11.5, 2.2) -- (11.5, 0.2) -- (6.0, 0.2) -- (6.0, 1.3);
+  \draw[evidencepointer] (12.6, 5.5) -- (12.1, 5.5) -- (12.1, 1.0) -- (7.2, 1.0) -- (7.2, 1.3);
+  \draw[evidencepointer] (12.6, 4.4) -- (11.9, 4.4) -- (11.9, 0.7) -- (6.8, 0.7) -- (6.8, 1.3);
+  \draw[evidencepointer] (12.6, 3.3) -- (11.7, 3.3) -- (11.7, 0.4) -- (6.4, 0.4) -- (6.4, 1.3);
+  \draw[evidencepointer] (12.6, 2.2) -- (11.5, 2.2) -- (11.5, 0.1) -- (6.0, 0.1) -- (6.0, 1.3);
 
-  % Evidence Pointers Callout (Centered at x=9.8, y=0.65, cleanly below Information compression)
-  \node[pd label,anchor=center,fill=pdpage,inner sep=2pt,text=pdrust] at (9.8, 0.65) {%
-    \textbf{Evidence pointers}%
+  % Evidence Pointers Callout (Centered at x=9.5, y=-0.15, cleanly below the lowest pointer line at y=0.1)
+  \node[pd label,anchor=north,text=pdrust] at (9.5, -0.1) {%
+    \textbf{Evidence drill-down pointers}%
   };
 
   \end{scope}

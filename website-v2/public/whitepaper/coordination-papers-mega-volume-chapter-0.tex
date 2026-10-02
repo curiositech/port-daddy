@@ -237,8 +237,9 @@ Human oversight is constrained by fundamental cognitive and information-theoreti
 Yet naive LLM-generated summaries are actively dangerous: they hallucinate away subtle test failures, sanitize errors, and declare false victories. A digest cannot guarantee that a supervisor will notice any one of many relevant events unless it expends sufficient bits and attention to distinguish them. In an accountable architecture, a summary is therefore an index into evidence, not a substitute for it. The supervisory dashboard presents low-entropy summaries backed by cryptographic pointers directly into the underlying Merkle event log, allowing instant drilling down from high-level status to raw syscall traces.
 
 \begin{figure}[htbp]
-  \centering
-  \input{figures/fig-spark-prop4-supervision.tex}%
+  \pdpagecentered[\pdfullwidth]{%
+    \input{figures/fig-spark-prop4-supervision.tex}%
+  }
   \pdwidecaption{\textbf{Proposition 4 Mechanics: Information Cost and Evidence Drilling.} Supervisory digests operate as reversible, low-entropy projections indexed into an immutable Merkle evidence log. An operator can drill down with zero friction from high-level fleet status down to exact execution receipts and byte-level syscall traces.}[fig:spark-prop4]
 \end{figure}
 

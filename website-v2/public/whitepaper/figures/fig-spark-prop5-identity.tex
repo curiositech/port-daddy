@@ -80,29 +80,29 @@
   % =========================================================================
   % TOP TIMELINE: EPHEMERAL PROCESS EXECUTION (y = 6.8)
   % =========================================================================
-  % Timeline axis
-  \draw[axisline] (2.1, 6.8) -- (14.4, 6.8);
+  % Timeline axis (extended to 14.8 for clean arrowhead clearance)
+  \draw[axisline] (2.0, 6.8) -- (14.8, 6.8);
 
   % T1 tick and marker
-  \filldraw[fill=pdink] (2.5, 6.8) circle (2.2pt);
-  \node[pd title,anchor=north,text=pdink] at (2.5, 6.6) {T1};
+  \filldraw[fill=pdink] (2.2, 6.8) circle (2.2pt);
+  \node[pd title,anchor=north,text=pdink] at (2.2, 6.55) {T1};
 
-  % Agent Process Instance 1
-  \filldraw[processblock] (2.5, 6.8) rectangle (5.8, 7.6);
+  % Agent Process Instance 1 (widened to 3.9cm so text has generous internal padding)
+  \filldraw[processblock] (2.2, 6.8) rectangle (6.1, 7.6);
   \node[pd title,anchor=center,text=pdcobalt!90!black] at (4.15, 7.2) {%
     Agent process instance 1%
   };
 
-  % T_crash tick and marker
+  % T_crash tick and marker (clean white background box prevents line strike-through)
   \filldraw[fill=pdrust] (6.6, 6.8) circle (2.2pt);
-  \node[pd title,anchor=north,text=pdrust] at (6.6, 6.55) {$T_{\text{crash}}$};
+  \node[pd title,anchor=north,fill=pdpage,inner sep=1.5pt,text=pdrust] at (6.6, 6.55) {$T_{\text{crash}}$};
 
   % Lightning crash glyph at (6.6, 7.25)
   \draw[line width=1.6pt,pdrust]
     (6.65, 7.55) -- (6.45, 7.22) -- (6.75, 7.22) -- (6.55, 6.9);
 
-  % Process crash and termination header
-  \node[pd title,anchor=south,align=center,text=pdrust] at (6.6, 7.8) {%
+  % Process crash and termination header (raised to 8.0 for generous clearance above glyph)
+  \node[pd title,anchor=south,align=center,text=pdrust] at (6.6, 8.0) {%
     Process crash\\and termination%
   };
 
@@ -111,20 +111,20 @@
     (6.6, 6.8) -- (7.8, 6.8) -- (7.95, 7.05) -- (8.15, 6.55) -- (8.3, 6.8) -- (10.4, 6.8);
 
   % Time of downtime label
-  \node[pd label,anchor=south,align=center,text=pdink!80!black] at (8.5, 7.2) {%
+  \node[pd label,anchor=south,align=center,text=pdink!80!black] at (8.5, 7.25) {%
     Time of\\downtime%
   };
 
   % T2 tick and marker (Process restart)
   \filldraw[fill=pdink] (10.4, 6.8) circle (2.2pt);
-  \node[pd title,anchor=north,text=pdink] at (10.4, 6.6) {T2};
+  \node[pd title,anchor=north,text=pdink] at (10.4, 6.55) {T2};
 
-  % Process restart header
-  \node[pd title,anchor=south,align=center,text=pdink] at (10.4, 7.8) {%
+  % Process restart header (raised to 8.0 to align with crash header and clear instance 2)
+  \node[pd title,anchor=south,align=center,text=pdink] at (10.4, 8.0) {%
     Process\\restart%
   };
 
-  % Agent Process Instance 2 (widen box from 10.4 to 14.1 for clean text padding)
+  % Agent Process Instance 2 (box from 10.4 to 14.2; axis arrow extends to 14.8)
   \filldraw[processblock] (10.4, 6.8) rectangle (14.2, 7.6);
   \node[pd title,anchor=center,text=pdcobalt!90!black] at (12.3, 7.2) {%
     Agent process instance 2%
@@ -133,10 +133,10 @@
   % =========================================================================
   % BOTTOM TIMELINE: DURABLE MERKLE CHAIN (y = 2.4)
   % =========================================================================
-  % Timeline axis
-  \draw[axisline] (2.1, 2.3) -- (14.4, 2.3);
+  % Timeline axis (extended to 14.8 for clean arrowhead clearance)
+  \draw[axisline] (2.0, 2.3) -- (14.8, 2.3);
 
-  % 8 Merkle Blocks along the ledger
+  % 9 Merkle Blocks along the ledger
   \drawisoblock[pdrust]{2.35}{2.1}{0.9}
   \drawisoblock[pdrust]{3.75}{2.1}{0.9}
   \drawisoblock[pdrust]{4.95}{2.1}{0.9}
@@ -164,21 +164,19 @@
   \draw[chainlink] (11.2, 2.3) -- (11.8, 2.3);
   \draw[chainlink] (12.5, 2.3) -- (13.1, 2.3);
 
-  % T2 marker on ledger (above the axis, clean)
-  \node[pd title,anchor=south,text=pdink] at (10.85, 2.8) {T2};
 
-  % Small suspended persistence block and lock icon during downtime
-  \drawisoblock[pdrust]{6.65}{3.3}{0.55}
-  \node[pd label,anchor=west,align=left,text=pdink] at (8.0, 3.45) {%
-    \textbf{Continuous persistence}%
-  };
+  % Small suspended persistence block and lock icon during downtime (x=6.65 to 9.2)
+  \drawisoblock[pdrust]{6.65}{3.4}{0.55}
   % Lock icon next to persistent block
-  \begin{scope}[shift={(7.65, 3.4)},scale=0.5]
+  \begin{scope}[shift={(7.15, 3.4)},scale=0.45]
     \filldraw[fill=pdgold!30,draw=pdgold!90!black,line width=0.6pt,rounded corners=1pt]
       (-0.25, -0.3) rectangle (0.25, 0.1);
     \draw[draw=pdgold!90!black,line width=0.6pt]
       (-0.16, 0.1) -- (-0.16, 0.3) arc (180:0:0.16) -- (0.16, 0.1);
   \end{scope}
+  \node[pd label,anchor=west,align=left,text=pdink] at (7.45, 3.4) {%
+    \textbf{Continuous persistence}%
+  };
 
   % =========================================================================
   % VERTICAL CROSS-PLANE EVIDENCE PROJECTIONS & RECOVERY
@@ -189,8 +187,8 @@
     Agent identity\\persistence%
   };
 
-  % Downlink from Crash state to checkpoint
-  \draw[downlink] (6.6, 6.5) -- (6.6, 3.8);
+  % Downlink from Crash state to checkpoint (starts below T_crash label to prevent strike-through)
+  \draw[downlink] (6.6, 6.0) -- (6.6, 3.8);
 
   % Downlink from Process 2 to Ledger
   \draw[downlink] (12.2, 6.8) -- (12.2, 2.7);
