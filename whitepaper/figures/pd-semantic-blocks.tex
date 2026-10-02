@@ -9,6 +9,7 @@
 \definecolor{pdblockChecked}{HTML}{006EA0}
 \definecolor{pdblockProtocol}{HTML}{007D73}
 \definecolor{pdblockNeutral}{HTML}{363B40}
+\ifdefined\pdblockfamily\else
 \newcommand{\pdblockfamily}[1]{%
   \def\pdblock@family{#1}%
   \ifdefstring{\pdblock@family}{Conjecture}{\def\pdblock@family{Empirical hypothesis}}{}%
@@ -25,11 +26,12 @@
   \ifdefstring{\pdblock@family}{Model-checked property}{\def\pdblock@color{pdblockChecked}\def\pdblock@icon{list-checks}}{}%
   \ifdefstring{\pdblock@family}{Protocol}{\def\pdblock@color{pdblockProtocol}\def\pdblock@icon{workflow}}{}%
 }
-\newcommand{\pdblock@inlinebegin}{%
+\fi
+\providecommand{\pdblock@inlinebegin}{%
   \ifcsname pd@typesetpicturebox\endcsname
     \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
   \fi}
-\newcommand{\pdblockglyph}[1]{\begingroup
+\providecommand{\pdblockglyph}[1]{\begingroup
   \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
   \raisebox{-2.2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/\pdblock@icon.pdf}}%
   \endgroup\hspace{.45em}}
@@ -37,7 +39,7 @@
 % The retained 2% field and corner geometry are specific to this protocol slice.
 % The colored upper-left cap
 % is longer than its upright; the lower-right upright is longer than its cap.
-\newcommand{\pdblock@frame}{%
+\providecommand{\pdblock@frame}{%
   \draw[draw=\pdblock@color,line width=.5pt]
     (frame.south west) rectangle (frame.north east);
   \fill[\pdblock@color] (frame.north west) rectangle
@@ -48,7 +50,7 @@
     ([xshift=-16pt,yshift=3pt]frame.south east);
   \fill[\pdblock@color] (frame.south east) rectangle
     ([xshift=-3pt,yshift=28pt]frame.south east);}
-\newcommand{\pdblockbefore}[1]{%
+\providecommand{\pdblockbefore}[1]{%
   \par\if@nobreak\else\Needspace{5\baselineskip}\fi
   \begingroup
   \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
@@ -63,5 +65,5 @@
     \clubpenalty=9000 \widowpenalty=9000
     \displaywidowpenalty=9000 \brokenpenalty=9000
 }
-\newcommand{\pdblockafter}[1]{\par\end{tcolorbox}\endgroup}
+\providecommand{\pdblockafter}[1]{\par\end{tcolorbox}\endgroup}
 \makeatother

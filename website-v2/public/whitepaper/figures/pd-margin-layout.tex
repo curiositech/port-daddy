@@ -1,0 +1,268 @@
+% Book margins are a separate column, not extra height on a figure.
+% Record anchors in the shipped PDF; lay out measured notes at shipout on the
+% next pass. This also works inside floats, frames and paragraphs. Never use
+% source-time \pagetotal to guess the page of an image or a delayed float.
+\usepackage{zref-savepos}
+\usepackage{zref-abspage}
+\makeatletter
+% Saved positions are a multi-pass layout input. During a clean build, new
+% contents/labels can move a paragraph before its old anchor catches up.
+% Check capacity against converged geometry, not a mixture of two passes.
+% afteraux runs after the new auxiliary file has been closed and reread:
+% https://mirrors.ibiblio.org/CTAN/macros/latex/base/lthooks-doc.pdf
+\edef\pd@margin@auxbefore{\pdf@filemdfivesum{\jobname.aux}}
+\let\pd@margin@overfullpages\@empty
+\AddToHook{enddocument/afteraux}{%
+  \edef\pd@margin@auxafter{\pdf@filemdfivesum{\jobname.aux}}%
+  \ifx\pd@margin@auxbefore\pd@margin@auxafter
+    \typeout{PD-MARGIN-CONVERGENCE: complete}%
+    \ifx\pd@margin@overfullpages\@empty\else
+      \PackageError{pd-margin-layout}
+        {Margin content exceeds pages\pd@margin@overfullpages}%
+        {Geometry is converged. Shorten or redistribute the notes; never clip them.}%
+    \fi
+  \else
+    \typeout{PD-MARGIN-CONVERGENCE: pending}%
+    \PackageWarningNoLine{pd-margin-layout}
+      {Margin positions changed. Rerun before accepting this PDF}%
+  \fi}
+\zref@addprop{savepos}{abspage}
+\newcounter{pdmarginpage}
+\newcommand{\pdmarginanchorpage}[1]{\zref@extractdefault{pdm-#1}{abspage}{0}}
+\newcommand{\pdmarginanchory}[1]{\zposy{pdm-#1}}
+% Evidence is a first-class margin object, not a raster portrait or caption.
+% Native-size content and its caption are measured and placed as one unit.
+\newif\ifpdmarginevidence
+\newsavebox{\pd@marginexhibitbox}
+\NewDocumentCommand\pdmarginexhibit{m m +m +m}{%
+  \ifpdmargincolumn
+    \begingroup\pdmarginevidencetrue
+    \sbox{\pd@marginexhibitbox}{\begin{minipage}{\marginparwidth}
+      \marginfont\raggedright\setlength{\parindent}{0pt}%
+      % An empty heading means one caption, not a blank title row.
+      \if\relax\detokenize{#2}\relax\else{\bfseries #2\par}\smallskip\fi
+      #3\par\smallskip #4\par
+    \end{minipage}}%
+    \ifdim\dimexpr\ht\pd@marginexhibitbox+\dp\pd@marginexhibitbox\relax>0.45\textheight
+      \PackageError{pd-margin-layout}{Margin exhibit #1 is too tall}%
+        {Edit or split the exhibit; never shrink its type.}%
+    \fi
+    \pdmarginregister{evidence}{\usebox{\pd@marginexhibitbox}}%
+    \protected@write\@auxout{}{\string\pdmarginexhibitrecord{#1}{\pdmarginlastid}}%
+    \endgroup
+  \fi}
+\providecommand{\pdmarginexhibitrecord}[2]{}
+\providecommand{\pdmarginplacement}[4]{%
+  \expandafter\gdef\csname pdm-top-#1\endcsname{#3}}
+\ExplSyntaxOn
+\int_new:N \g_pd_margin_id_int
+\seq_new:N \g_pd_margin_ids_seq
+\seq_new:N \l_pd_margin_page_seq
+\prop_new:N \g_pd_margin_kind_prop
+\prop_new:N \g_pd_margin_baseline_prop
+\prop_new:N \l_pd_margin_top_prop
+\dim_new:N \l_pd_margin_top_dim
+\dim_new:N \l_pd_margin_bottom_dim
+\dim_new:N \l_pd_margin_cursor_dim
+\dim_new:N \l_pd_margin_y_dim
+\dim_new:N \l_pd_margin_x_dim
+\dim_new:N \l_pd_margin_height_dim
+\dim_new:N \l_pd_margin_total_dim
+\cs_new_protected:Npn \pd_margin_register:nn #1#2
+  {
+    \int_gincr:N \g_pd_margin_id_int
+    \xdef\pdmarginlastid{\int_use:N\g_pd_margin_id_int}
+    \box_new:c {g_pd_margin_\int_use:N\g_pd_margin_id_int _box}
+    \vbox_gset:cn {g_pd_margin_\int_use:N\g_pd_margin_id_int _box}
+      {\@parboxrestore\hsize=\marginparwidth \linewidth=\marginparwidth
+       \parindent=0pt \marginfont
+       \clist_if_in:nnT {citation,aside}{#1}
+         {\exp_args:Nnx \AddToHookNext {para/begin}
+           {\exp_not:N\zsavepos {pdm-first-\int_use:N\g_pd_margin_id_int}}}
+       #2\par}
+    \seq_gput_right:Nx \g_pd_margin_ids_seq {\int_use:N\g_pd_margin_id_int}
+    \prop_gput:Nxx \g_pd_margin_kind_prop {\int_use:N\g_pd_margin_id_int}{#1}
+    % Prose sidenotes align their FIRST BASELINE, not an estimated box top.
+    % Use a shipped first-paragraph marker: vtop's height can be zero when
+    % a color/link whatsit precedes its first line. No content is re-executed.
+    % The 7pt fallback is first-pass-only; convergence includes these markers.
+    \clist_if_in:nnT {citation,aside}{#1}
+      {\dim_set:Nn \l_pd_margin_height_dim {7pt}
+       \cs_if_exist:cT {pdm-top-\int_use:N\g_pd_margin_id_int}
+         {\int_compare:nNnT
+           {\zposy{pdm-first-\int_use:N\g_pd_margin_id_int}}>{0}
+           {\dim_set:Nn \l_pd_margin_height_dim
+             {\paperheight
+              -\zposy{pdm-first-\int_use:N\g_pd_margin_id_int}sp
+              -\use:c{pdm-top-\int_use:N\g_pd_margin_id_int}}}}
+       \prop_gput:Nxx \g_pd_margin_baseline_prop
+         {\int_use:N\g_pd_margin_id_int}{\dim_use:N\l_pd_margin_height_dim}}
+    \iow_log:x {PD-MARGIN-REGISTER:~id=\int_use:N\g_pd_margin_id_int,
+      ~kind=#1,~line=\the\inputlineno,~height=\dim_eval:n{
+        \box_ht:c{g_pd_margin_\int_use:N\g_pd_margin_id_int _box}+
+        \box_dp:c{g_pd_margin_\int_use:N\g_pd_margin_id_int _box}}}
+    % An anchor has neither width nor height; its owning text/figure keeps
+    % its normal dimensions. The caption number and hyperlinks stay at source.
+    \hbox_to_zero:n {\exp_args:Nx \zsavepos {pdm-\int_use:N\g_pd_margin_id_int}\hss}
+  }
+\NewDocumentCommand\pdmarginregister{m +m}{\pd_margin_register:nn{#1}{#2}}
+% A repeated citation may share another note only after its physical page is
+% known. Still consume its slot: otherwise every later object's numeric anchor
+% changes between passes and unrelated notes inherit the wrong page positions.
+% This reserves identity, not height or ink; it is not a registered object.
+\NewDocumentCommand\pdmarginreserveslot{}{
+  \int_gincr:N \g_pd_margin_id_int
+  \iow_log:x {PD-MARGIN-RESERVED:~id=\int_use:N\g_pd_margin_id_int}}
+% The active longtable renderer must also feed the next pass's reservation.
+% Measure the registered box itself, not an obsolete parallel caption box.
+\cs_new_protected:Npn \pdmarginpersisttableheight
+  {
+    \dim_set:Nn \l_pd_margin_height_dim
+      {\box_ht:c{g_pd_margin_\pdmarginlastid _box}
+       +\box_dp:c{g_pd_margin_\pdmarginlastid _box}}
+    \dim_compare:nNnT {\l_pd_margin_height_dim+24pt}>{\textheight}
+      {\PackageError{pd-margin-layout}{Table~caption~exceeds~available~Book~height}
+         {Shorten~the~caption;~never~shrink~its~type.}}
+    \iow_now:Nx \@auxout
+      {\token_to_str:N\pdtablecaptionheight
+        {\pd@tablecaptionkey}{\dim_use:N\l_pd_margin_height_dim}}
+    \iow_log:x {PD-TABLE-CAPTION:~key=\pd@tablecaptionkey,
+      ~id=\pdmarginlastid,~height=\dim_use:N\l_pd_margin_height_dim}
+  }
+\cs_new_protected:Npn \pd_margin_shipout:
+  {
+    \seq_clear:N \l_pd_margin_page_seq
+    \prop_clear:N \l_pd_margin_top_prop
+    \dim_set:Nn \l_pd_margin_top_dim
+      {1in+\voffset+\topmargin+\headheight+\headsep}
+    \dim_set:Nn \l_pd_margin_bottom_dim {\l_pd_margin_top_dim+\textheight}
+    \dim_zero:N \l_pd_margin_total_dim
+    \seq_map_inline:Nn \g_pd_margin_ids_seq
+      {
+        \int_compare:nNnT {\pdmarginanchorpage{##1}}={\value{pdmarginpage}}
+          {
+            \seq_put_right:Nn \l_pd_margin_page_seq {##1}
+            \dim_set:Nn \l_pd_margin_height_dim
+              {\box_ht:c{g_pd_margin_##1_box}+\box_dp:c{g_pd_margin_##1_box}}
+            \dim_add:Nn \l_pd_margin_total_dim {\l_pd_margin_height_dim+7pt}
+            \dim_set:Nn \l_pd_margin_y_dim {\paperheight-\pdmarginanchory{##1}sp}
+            \prop_if_in:NnTF \g_pd_margin_baseline_prop {##1}
+              {\dim_sub:Nn \l_pd_margin_y_dim
+                {\prop_item:Nn\g_pd_margin_baseline_prop{##1}}}
+              {\str_if_eq:eeF {\prop_item:Nn\g_pd_margin_kind_prop{##1}}{caption}
+                {\dim_sub:Nn \l_pd_margin_y_dim {7pt}}}
+            \dim_set:Nn \l_pd_margin_y_dim
+              {\dim_max:nn{\l_pd_margin_top_dim}{\l_pd_margin_y_dim}}
+            \prop_put:Nnx \l_pd_margin_top_prop {##1}{\dim_use:N\l_pd_margin_y_dim}
+          }
+      }
+    \seq_if_empty:NF \l_pd_margin_page_seq
+      {
+        \dim_sub:Nn \l_pd_margin_total_dim {7pt}
+        \dim_compare:nNnT {\l_pd_margin_total_dim}>{\textheight}
+          {\iow_term:x{PD-MARGIN-OVERFULL:~ids=\seq_use:Nn\l_pd_margin_page_seq{,},
+             ~height=\dim_use:N\l_pd_margin_total_dim}
+           \xdef\pd@margin@overfullpages{\pd@margin@overfullpages\space\thepage}}
+        \seq_sort:Nn \l_pd_margin_page_seq
+          {\dim_compare:nNnTF{\prop_item:Nn\l_pd_margin_top_prop{##1}}
+             >{\prop_item:Nn\l_pd_margin_top_prop{##2}}
+             {\sort_return_swapped:}{\sort_return_same:}}
+        % Forward pass clears preceding notes. Backward pass lifts the whole
+        % stack when the last portrait/note would otherwise cross the footer.
+        \dim_set_eq:NN \l_pd_margin_cursor_dim \l_pd_margin_top_dim
+        \seq_map_inline:Nn \l_pd_margin_page_seq
+          {
+            \dim_set:Nn \l_pd_margin_y_dim {\dim_max:nn
+              {\prop_item:Nn\l_pd_margin_top_prop{##1}}{\l_pd_margin_cursor_dim}}
+            \prop_put:Nnx \l_pd_margin_top_prop{##1}{\dim_use:N\l_pd_margin_y_dim}
+            \dim_set:Nn \l_pd_margin_cursor_dim {\l_pd_margin_y_dim+
+              \box_ht:c{g_pd_margin_##1_box}+\box_dp:c{g_pd_margin_##1_box}+7pt}
+          }
+        \seq_reverse:N \l_pd_margin_page_seq
+        \dim_set_eq:NN \l_pd_margin_cursor_dim \l_pd_margin_bottom_dim
+        \seq_map_inline:Nn \l_pd_margin_page_seq
+          {
+            \dim_set:Nn \l_pd_margin_height_dim
+              {\box_ht:c{g_pd_margin_##1_box}+\box_dp:c{g_pd_margin_##1_box}}
+            \dim_set:Nn \l_pd_margin_y_dim {\dim_min:nn
+              {\prop_item:Nn\l_pd_margin_top_prop{##1}}
+              {\l_pd_margin_cursor_dim-\l_pd_margin_height_dim}}
+            \dim_set:Nn \l_pd_margin_cursor_dim {\l_pd_margin_y_dim-7pt}
+            \int_if_odd:nTF{\value{page}}
+              {\dim_set:Nn\l_pd_margin_x_dim{1in+\hoffset+\oddsidemargin+\textwidth+\marginparsep}}
+              {\dim_set:Nn\l_pd_margin_x_dim{1in+\hoffset+\evensidemargin-\marginparsep-\marginparwidth}}
+            \put(0,0){\hbox_to_zero:n{\kern\l_pd_margin_x_dim
+              \raisebox{-\l_pd_margin_y_dim}[0pt][0pt]
+                {\vtop{\kern0pt\box_use:c{g_pd_margin_##1_box}}}\hss}}
+            \iow_log:x {PD-MARGIN-PLACED:~id=##1,~page=\thepage,
+              ~top=\dim_use:N\l_pd_margin_y_dim,~height=\dim_use:N\l_pd_margin_height_dim}
+            % Page capacity is not owner adjacency. Expose every displacement
+            % caused by stacking/clamping so editorial QA can reject it.
+            \prop_if_in:NnT \g_pd_margin_baseline_prop {##1}
+              {\iow_log:x {PD-MARGIN-BASELINE:~id=##1,~page=\thepage,
+                ~offset=\dim_eval:n{\l_pd_margin_y_dim
+                  +\prop_item:Nn\g_pd_margin_baseline_prop{##1}
+                  -\paperheight+\pdmarginanchory{##1}sp}}}
+            % Exact registered bounds, not a PDF text block that can merge
+            % with a neighbouring Recall or exercise note during extraction.
+            \iow_now:Nx \@auxout {\token_to_str:N\pdmarginplacement
+              {##1}{\int_eval:n{\value{pdmarginpage}}}
+              {\dim_use:N\l_pd_margin_y_dim}{\dim_use:N\l_pd_margin_height_dim}}
+          }
+      }
+  }
+\AddToHook{shipout/before}{\stepcounter{pdmarginpage}}
+\AddToHook{shipout/foreground}{\ifpdmargincolumn\pd_margin_shipout:\fi}
+\ExplSyntaxOff
+
+% Retire the source-time placement guesses and their main-column spacers.
+\renewcommand{\pd@clearcaptionband}{}
+\renewcommand{\pd@marginhead}[1]{%
+  \ifpdmargincolumn\pdmarginregister{note}{#1}%
+  \else{\bfseries #1.}\enspace\fi}
+\renewcommand{\pd@placemargintop}[1]{\pdmarginregister{note}{\usebox#1}}
+\renewcommand{\pd@placemargin}[1]{\pdmarginregister{note}{\usebox#1}}
+\renewcommand{\pd@placemarginopt}[1]{\pdmarginregister{note}{\usebox#1}}
+\renewcommand{\pd@floatcaptionedge}{%
+  \pdmarginregister{caption}{\unvcopy\pd@floatcaptions}}
+% Persist the *owning exhibit*, not just the caption's page. The PDF audit
+% checks their vertical relationship after the margin allocator has run.
+\providecommand{\pdexhibitrecord}[5]{}
+\newdimen\pd@exhibitinkwidth
+\let\pd@ownerbegincaptionfloat\pd@begincaptionfloat
+\renewcommand{\pd@begincaptionfloat}{%
+  \global\pd@exhibitinkwidth=0pt
+  \global\let\pd@exhibitnumber\@empty\pd@ownerbegincaptionfloat}
+\newcommand{\pd@recordfloatowner}{%
+  \ifdim\wd\@currbox>\pd@exhibitinkwidth
+    \global\pd@exhibitinkwidth=\wd\@currbox\fi
+  \expandafter\zsavepos\expandafter{pde-\pdmarginlastid}%
+  \ifx\pd@exhibitnumber\@empty\else
+    \protected@write\@auxout{}{\string\pdexhibitrecord
+      {\pd@exhibitkind}{\pd@exhibitnumber}{\pdmarginlastid}%
+      {\the\dimexpr\ht\@currbox+\dp\@currbox\relax}{\the\pd@exhibitinkwidth}}%
+  \fi}
+\renewcommand{\pd@attachfloatcaption}{%
+  \ifpdmargincolumn\ifpd@captionfloat\ifvoid\pd@floatcaptions\else
+    \ifdim\dimexpr\ht\@currbox+\dp\@currbox\relax>\textheight
+      \PackageError{pd-margin-layout}{Exhibit exceeds the Book text height}%
+        {Split the exhibit; never clip it or shrink its labels.}%
+    \fi
+    \global\setbox\@currbox=\vbox{%
+      \hbox to\textwidth{\pd@floatcaptionedge\pd@recordfloatowner
+        \vtop{\vskip0pt\unvbox\@currbox}\hss}\vskip0pt}%
+  \fi\fi\fi}
+\renewcommand{\pd@makelistingcaption}[2]{%
+  \nointerlineskip\hbox{\pdmarginregister{caption}{{\bfseries#1.}\par #2}}\nobreak}
+\AtBeginDocument{%
+  \let\pd@originalmarginnote\marginnote
+  \RenewDocumentCommand\marginnote{o +m O{0pt}}{%
+    \ifpdmargincolumn\pdmarginregister{note}{#2}%
+    \else\pd@originalmarginnote{#2}[#3]\fi}%
+  \long\def\LT@makecaption#1#2#3{%
+    \ifpdmargincolumn
+      \LT@mcol\LT@cols{@{}l@{}}{%
+        \pdmarginregister{caption}{#1{{\bfseries#2.}\par}#3}%
+        \pdmarginpersisttableheight}%
+    \else\pd@LTmakecaption#1{#2}{#3}\fi}}
+\makeatother

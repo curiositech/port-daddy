@@ -1,0 +1,45 @@
+% Arithmetic illustration of the declared laundering residual, not a C1 run.
+% Brief: exposition/figures/fig-sealed-laundering-fork.md.
+% Every displayed pair is ordered world A, world B. No elapsed-time encoding.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{sealed-laundering-fork}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \def\gateX{175}\def\outX{278}
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Gate input $(A,B)$};
+  \node[anchor=north,font=\SGType\bfseries] at (\gateX,0)
+    {Same gate};
+  \node[anchor=north,font=\SGType\bfseries] at (\outX,0)
+    {Erin sees $(A,B)$};
+
+  \node[anchor=north west] at (0,28) {Committed input};
+  \SGDocument{original}{(0,45)}{104}{42}{sgBlue!6}{$s$\\$(0,2)$}
+  \node[sg/check,minimum width=61pt,minimum height=34pt]
+    (directGate) at (\gateX,66) {$g(x)$\\$x\bmod2$};
+  \SGDocument{directOut}{(246,45)}{64}{42}{sgTeal!7}{$(0,0)$}
+  \draw[sg/arrow] (original.east)--(directGate.west);
+  \draw[sg/arrow,draw=sgTeal] (directGate.east)--(directOut.west);
+  \node[anchor=north,text=sgTeal] at (\outX,94) {$0=0$};
+
+  \draw[sg/grid] (0,123)--(310,123);
+  \node[anchor=north west] at (0,140) {Worker computes};
+  \node[anchor=north west,text=sgViolet] at (0,155)
+    {$t=f(s)=\lfloor s/2\rfloor$};
+  \SGDocument{transformed}{(0,178)}{104}{42}{sgViolet!7}{$t$\\$(0,1)$}
+  \node[sg/check,minimum width=61pt,minimum height=34pt]
+    (changedGate) at (\gateX,199) {$g(x)$\\$x\bmod2$};
+  \SGDocument{changedOut}{(246,178)}{64}{42}{sgRed!6}{$(0,1)$}
+  \draw[sg/arrow,draw=sgViolet] (transformed.east)--(changedGate.west);
+  \draw[sg/arrow,draw=sgRed] (changedGate.east)--(changedOut.west);
+  \node[anchor=north,text=sgRed] at (\outX,227) {$0\ne1$};
+
+  \fill[sgGrid!23] (0,259) rectangle (310,299);
+  \node[anchor=north west,text width=294pt,align=left] at (8,267)
+    {Current C1: \texttt{submit} has no payload;\\the gate reads committed $s$, not worker register $t$.};
+\end{tikzpicture}}
+\caption{The gate is unchanged; the worker changes its argument and reveals
+a distinction the original parity release hid. This arithmetic example is
+outside C1's committed-input model. [internal; Exercise~\ref{ex:sealed-launder}]}
+\label{fig:sealed-laundering-fork}
+\end{figure}

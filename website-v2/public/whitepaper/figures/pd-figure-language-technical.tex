@@ -1,53 +1,78 @@
-% Technical edition overrides: the Seventies manual. Monoline ink, halftone
-% dots and hatching for regions, one warm accent (amber) and one caution
-% (rust), open arrowheads, square corners, grotesk labels. Loaded by
-% pd-figure-language.tex.
+% Technical edition overrides (v2 role names): the Seventies manual.  Monoline
+% ink, halftone dots and hatching for regions, one warm accent (amber) for the
+% figure's subject and one caution (rust) for breach, open arrowheads, square
+% corners, grotesk labels.  Concept hues survive only as thin strokes and
+% dotted screens, so meaning crosses editions without breaking the monoline.
+% Loaded by pd-figure-language.tex before its concept map expands.
+\renewcommand{\pdsetfocushue}{\colorlet{pdfocus}{pdamber}}
 %
-% An edition changes the FAMILY and the character of the marks. It does not
-% change the size: \pdfiglabelsize is the law, set once in pd-figure-language.tex
-% and measured there.
+% Typographic law (#10191): an edition changes the FAMILY, in one command, and
+% the character of the marks; it never changes the size, and it never restates
+% a guide's width without the dash derived from it.
 \renewcommand{\pdfiglabelfamily}{\pdgrotesk}
 \renewcommand{\pdfigbasesize}{\footnotesize}
 \tikzset{
-  pd figure/.append style={text=hhink},
-  pd hairline/.append style={draw=hhink,line width=.35pt},
-  pd rule/.append style={draw=hhink,line width=.5pt},
-  pd focus rule/.append style={draw=pdamber,line width=1pt},
-  pd caution rule/.append style={draw=pdrust,line width=1pt,dash pattern=on 3pt off 1.5pt},
-  % The manual's guide is full ink rather than a tint -- that is this edition's
-  % character and it stays. The geometry does not: `line width=.3pt,dash
-  % pattern=on .6pt off 1.2pt` is 0.63px of stroke carrying a 1.25px dot at
-  % 150dpi, which is the same sub-pixel failure the Swiss guide had, arrived at
-  % independently. Width and dash come from the three shared macros, so this
-  % edition cannot drift off the floor again.
-  pd guide/.append style={draw=hhink,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
-  pd lattice/.append style={draw=hhink!45,line width=.35pt},
-  pd arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm,open]},draw=hhink,line width=.5pt},
-  pd focus arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdamber,line width=.8pt},
-  pd caution arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdrust,line width=.8pt,dash pattern=on 3pt off 1.5pt},
-  % The manual sets row labels in the same weight as everything else; that is
-  % this edition's character, and it is a WEIGHT choice, not a size one.
-  pd row label/.append style={font=\pdfiglabel,text=hhink,anchor=east},
-  pd panel title/.append style={text=hhink,align=left},
-  pd axis label/.append style={text=hhink},
-  pd direct label/.append style={text=hhink,align=left,fill=hhpaper},
-  pd note/.append style={text=hhink,align=left},
-  pd tick/.append style={draw=hhink,line width=.4pt},
-  pd datum/.append style={circle,fill=hhpaper,draw=hhink,line width=.5pt,inner sep=1.8pt},
-  pd focus datum/.append style={circle,fill=pdamber,draw=hhink,line width=.4pt,inner sep=2.2pt},
-  pd caution datum/.append style={diamond,fill=pdrust,draw=hhink,line width=.4pt,inner sep=2.2pt},
-  pd state/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
-  pd terminal/.append style={pd state,double,double distance=1pt},
-  pd actor/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
-  pd artifact/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
-  pd boundary/.append style={draw=hhink,line width=.5pt,dash pattern=on 4pt off 2pt,rounded corners=0pt},
-  pd focus fill/.append style={pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=pdamber,draw=hhink,line width=.4pt},
-  pd caution fill/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=pdrust,draw=hhink,line width=.4pt},
-  pd neutral fill/.append style={pattern={Dots[distance=2.4pt,radius=.3pt]},pattern color=hhgray,draw=hhink,line width=.4pt},
-  pd ink fill/.append style={fill=hhink,draw=hhink,line width=.4pt,text=hhpaper},
-  pd hatch/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=hhink},
-  % pd decision, pd mono label, pd verdict, pd reverse label, pd reverse row
-  % label and pd legend compose the roles above and inherit this edition's
-  % character; only the contradictions are listed.
+  pd figure/.append style={font=\pdfiglabel,
+    >={Stealth[length=2.4pt 3,width=2.0pt 2.4,open]}},
+  pd title/.append style={font=\pdfiglabelbold},
+  pd label/.append style={font=\pdfiglabel},
+  pd note/.append style={font=\pdfiglabelitalic,text=pdink},
+  pd kind/.append style={font=\pdfiglabel,text=pdink},
+  pd hairline/.append style={draw=pdink,line width=.35pt},
+  pd guide/.append style={draw=pdink,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  pd lattice/.append style={draw=pdink!45,line width=.35pt},
+  pd tick/.append style={draw=pdink,line width=.4pt},
+  pd rule/.append style={line width=.5pt},
+  pd spine/.append style={line width=1pt},
+  pd thin arrow/.append style={draw=pdink,line width=.4pt},
+  pd state/.append style={draw=pdink,line width=.5pt,rounded corners=0pt,
+    inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
+  pd terminal/.append style={double,double distance=1pt,line width=.5pt},
+  pd artifact/.append style={draw=pdink,line width=.35pt,rounded corners=0pt},
+  pd panel/.append style={draw=pdink,line width=.5pt,dash pattern=on 4pt off 2pt,rounded corners=0pt},
+  pd neutral fill/.append style={fill=none,pattern={Dots[distance=2.4pt,radius=.3pt]},
+    pattern color=pdinkmuted,draw=pdink,line width=.4pt},
+  pd ink fill/.append style={fill=pdink,draw=pdink,line width=.4pt,text=pdpage},
   pd decision/.append style={rounded corners=0pt},
+  pd hatch/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=pdink},
+  pd focus rule/.append style={line width=1pt},
+  pd focus state/.append style={draw=pdink,line width=.8pt,fill=none,
+    pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=pdamber},
+  pd focus fill/.append style={fill=none,pattern={Dots[distance=2.4pt,radius=.35pt]},
+    pattern color=pdamber,draw=pdink,line width=.4pt},
+  pd focus datum/.append style={draw=pdink,line width=.4pt,inner sep=2.2pt},
+  pd datum/.append style={fill=pdpage,draw=pdink,line width=.5pt,inner sep=1.8pt},
+  pd badge/.append style={rectangle,rounded corners=0pt,line width=.5pt,minimum size=5.2mm},
+  pd focus badge/.append style={fill=pdpage,draw=pdink,line width=.8pt},
+}
+% A concept keeps its hue on the stroke and on a dotted screen; breach is
+% carried by rust, the edition's one caution ink.
+\makeatletter
+\renewcommand{\pdconcept}[2]{%
+  \def\pd@hue{#2}\def\pd@err{pderror}%
+  \ifx\pd@hue\pd@err\def\pd@hue{pdrust}\fi
+  \edef\pd@set{\noexpand\tikzset{%
+    #1/.style={draw=\pd@hue,text=pdink},
+    #1 rule/.style={draw=\pd@hue,line width=1pt},
+    #1 arrow/.style={draw=\pd@hue,line width=.8pt,->},
+    #1 state/.style={pd state,draw=\pd@hue,line width=.8pt,fill=none,
+      pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=\pd@hue},
+    #1 fill/.style={fill=none,pattern={Dots[distance=2.4pt,radius=.35pt]},
+      pattern color=\pd@hue,draw=pdink,line width=.4pt},
+    #1 datum/.style={circle,fill=\pd@hue,draw=pdink,line width=.4pt,inner sep=2.2pt},
+    #1 label/.style={pd label,text=pdink},
+  }}\pd@set}
+\makeatother
+% Plots: monoline, open marks, the subject in amber.
+\pgfplotsset{
+  pd axis/.append style={axis line style={line width=.5pt},tick style={line width=.4pt}},
+  every axis plot/.append style={line width=.8pt},
+  pd series/.append style={mark options={fill=pdpage,draw=pdink}},
+  pd focus series/.append style={line width=1pt},
+}
+\tikzset{
+  pd automaton state/.append style={line width=.5pt},
+  pd automaton focus/.append style={draw=pdink,line width=.8pt,fill=none,
+    pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=pdamber},
+  pd trust boundary/.append style={line width=.5pt},
 }

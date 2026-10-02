@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Photographic plate holder with lead darkslide partially withdrawn by cobalt blue pull tab. Analogy for controlled zero-knowledge revelation.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "88ee3c8ce740e5cb64177698a1c75c263eb1ef1cd4f9876cffe0b8de15f5b57e",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

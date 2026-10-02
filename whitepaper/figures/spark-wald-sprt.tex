@@ -1,0 +1,27 @@
+% Analytical sparkline: Wald sequential probability ratio test (SPRT).
+% Shows upper threshold A (alarm), lower threshold B (clear), and sample trajectory.
+% Fits inside the 93.95pt book margin column.
+% Source: thm:sealed-latency (Wald sequential test).
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=4.8pt,y=6.5pt,font=\fontsize{7}{8}\selectfont]
+  % Upper boundary A (Alarm)
+  \draw[red!80!black,line width=.65pt] (0,3) -- (14,3);
+  \node[anchor=east,inner sep=1.5pt,text=red!80!black] at (0,3) {$A$};
+  % Lower boundary B (Clear)
+  \draw[pdinkmuted!65,line width=.65pt] (0,-3) -- (14,-3);
+  \node[anchor=east,inner sep=1.5pt,text=pdinkmuted] at (0,-3) {$B$};
+  % Zero line
+  \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,0) -- (14,0);
+  % Sample cumulative log-likelihood walk reaching threshold A at step 12
+  \draw[pdteal,line width=.85pt]
+    (0,0) -- (1,-0.5) -- (2,0.4) -- (3,-0.1) -- (4,0.8) -- (5,0.3)
+    -- (6,1.2) -- (7,1.0) -- (8,1.8) -- (9,1.5) -- (10,2.3) -- (11,2.0) -- (12,3.0);
+  \fill[red!80!black] (12,3.0) circle[radius=1.2pt];
+  % Labels
+  \node[anchor=south,inner sep=1pt] at (7,3.2) {SPRT threshold};
+  \node[anchor=north,inner sep=1.5pt] at (7,-3.2) {steps $\longrightarrow N$};
+\end{tikzpicture}
+\makeatother\endgroup

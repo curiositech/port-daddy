@@ -1,0 +1,519 @@
+{
+  "run_id": "run-01",
+  "started_utc": "2026-09-20T13:49:39.606941+00:00",
+  "python_version": "3.9.6 (default, Oct 17 2025, 17:15:53) \n[Clang 17.0.0 (clang-1700.4.4.1)]",
+  "python_executable": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+  "sqlite_version": "3.51.0",
+  "sqlite_module_version": "2.6.0",
+  "runner_sha256": "b4aa8fddcab47b83713de31a0718d858537b57b17fd02cf6e799d490ac4e7363",
+  "launch_argv": [
+    "checkpoint_busy.py",
+    "--run",
+    "run-01"
+  ],
+  "cwd": "/Users/erichowens/coding/tmp/book-human-review-20260920/checkpoint-busy",
+  "database": "/Users/erichowens/coding/tmp/book-human-review-20260920/checkpoint-busy/run-01/synthetic.sqlite3",
+  "database_uri": "file:///Users/erichowens/coding/tmp/book-human-review-20260920/checkpoint-busy/run-01/synthetic.sqlite3?mode=rw",
+  "connection_count": 2,
+  "connect_arguments": {
+    "uri": true,
+    "timeout": 0,
+    "isolation_level": null
+  },
+  "execution": "One process; serial calls; two explicit connections; no threads",
+  "settings": {
+    "writer": {
+      "journal_mode": "wal",
+      "synchronous": 1,
+      "busy_timeout": 0,
+      "wal_autocheckpoint": 0
+    },
+    "reader": {
+      "journal_mode": "wal",
+      "synchronous": 1,
+      "busy_timeout": 0,
+      "wal_autocheckpoint": 0
+    }
+  },
+  "commands": [
+    {
+      "sequence": 1,
+      "connection": "writer",
+      "sql": "PRAGMA main.journal_mode=WAL;",
+      "rows": [
+        [
+          "wal"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 2,
+      "connection": "writer",
+      "sql": "PRAGMA main.synchronous=NORMAL;",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 3,
+      "connection": "writer",
+      "sql": "PRAGMA busy_timeout=0;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 4,
+      "connection": "writer",
+      "sql": "PRAGMA wal_autocheckpoint=0;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 5,
+      "connection": "writer",
+      "sql": "PRAGMA main.journal_mode;",
+      "rows": [
+        [
+          "wal"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 6,
+      "connection": "writer",
+      "sql": "PRAGMA main.synchronous;",
+      "rows": [
+        [
+          1
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 7,
+      "connection": "writer",
+      "sql": "PRAGMA busy_timeout;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 8,
+      "connection": "writer",
+      "sql": "PRAGMA wal_autocheckpoint;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 9,
+      "connection": "reader",
+      "sql": "PRAGMA main.journal_mode=WAL;",
+      "rows": [
+        [
+          "wal"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 10,
+      "connection": "reader",
+      "sql": "PRAGMA main.synchronous=NORMAL;",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 11,
+      "connection": "reader",
+      "sql": "PRAGMA busy_timeout=0;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 12,
+      "connection": "reader",
+      "sql": "PRAGMA wal_autocheckpoint=0;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 13,
+      "connection": "reader",
+      "sql": "PRAGMA main.journal_mode;",
+      "rows": [
+        [
+          "wal"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 14,
+      "connection": "reader",
+      "sql": "PRAGMA main.synchronous;",
+      "rows": [
+        [
+          1
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 15,
+      "connection": "reader",
+      "sql": "PRAGMA busy_timeout;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 16,
+      "connection": "reader",
+      "sql": "PRAGMA wal_autocheckpoint;",
+      "rows": [
+        [
+          0
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 17,
+      "connection": "writer",
+      "sql": "SELECT sqlite_source_id();",
+      "rows": [
+        [
+          "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 18,
+      "connection": "writer",
+      "sql": "CREATE TABLE synthetic_rows (id INTEGER PRIMARY KEY, payload TEXT NOT NULL);",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 19,
+      "connection": "writer",
+      "sql": "BEGIN IMMEDIATE;",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": true
+    },
+    {
+      "sequence": 20,
+      "connection": "writer",
+      "sql": "INSERT INTO synthetic_rows VALUES (1, 'synthetic baseline');",
+      "rows": [],
+      "transaction_before": true,
+      "transaction_after": true
+    },
+    {
+      "sequence": 21,
+      "connection": "writer",
+      "sql": "COMMIT;",
+      "rows": [],
+      "transaction_before": true,
+      "transaction_after": false
+    },
+    {
+      "sequence": 22,
+      "connection": "reader",
+      "sql": "BEGIN;",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": true
+    },
+    {
+      "sequence": 23,
+      "connection": "reader",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ]
+      ],
+      "transaction_before": true,
+      "transaction_after": true
+    },
+    {
+      "sequence": 24,
+      "connection": "writer",
+      "sql": "BEGIN IMMEDIATE;",
+      "rows": [],
+      "transaction_before": false,
+      "transaction_after": true
+    },
+    {
+      "sequence": 25,
+      "connection": "writer",
+      "sql": "INSERT INTO synthetic_rows VALUES (2, 'synthetic later commit');",
+      "rows": [],
+      "transaction_before": true,
+      "transaction_after": true
+    },
+    {
+      "sequence": 26,
+      "connection": "writer",
+      "sql": "COMMIT;",
+      "rows": [],
+      "transaction_before": true,
+      "transaction_after": false
+    },
+    {
+      "sequence": 27,
+      "connection": "writer",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ],
+        [
+          2,
+          "synthetic later commit"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 28,
+      "connection": "reader",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ]
+      ],
+      "transaction_before": true,
+      "transaction_after": true
+    },
+    {
+      "sequence": 29,
+      "connection": "writer",
+      "sql": "PRAGMA main.wal_checkpoint(FULL);",
+      "rows": [
+        [
+          1,
+          4,
+          3
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 30,
+      "connection": "reader",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ]
+      ],
+      "transaction_before": true,
+      "transaction_after": true
+    },
+    {
+      "sequence": 31,
+      "connection": "writer",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ],
+        [
+          2,
+          "synthetic later commit"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 32,
+      "connection": "reader",
+      "sql": "ROLLBACK;",
+      "rows": [],
+      "transaction_before": true,
+      "transaction_after": false
+    },
+    {
+      "sequence": 33,
+      "connection": "writer",
+      "sql": "PRAGMA main.wal_checkpoint(FULL);",
+      "rows": [
+        [
+          0,
+          4,
+          4
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    },
+    {
+      "sequence": 34,
+      "connection": "reader",
+      "sql": "SELECT id, payload FROM synthetic_rows ORDER BY id;",
+      "rows": [
+        [
+          1,
+          "synthetic baseline"
+        ],
+        [
+          2,
+          "synthetic later commit"
+        ]
+      ],
+      "transaction_before": false,
+      "transaction_after": false
+    }
+  ],
+  "observations": {
+    "reader_initial": [
+      [
+        1,
+        "synthetic baseline"
+      ]
+    ],
+    "writer_after_commit": [
+      [
+        1,
+        "synthetic baseline"
+      ],
+      [
+        2,
+        "synthetic later commit"
+      ]
+    ],
+    "reader_after_writer_commit": [
+      [
+        1,
+        "synthetic baseline"
+      ]
+    ],
+    "reader_after_busy": [
+      [
+        1,
+        "synthetic baseline"
+      ]
+    ],
+    "writer_after_busy": [
+      [
+        1,
+        "synthetic baseline"
+      ],
+      [
+        2,
+        "synthetic later commit"
+      ]
+    ],
+    "reader_after_release_and_retry": [
+      [
+        1,
+        "synthetic baseline"
+      ],
+      [
+        2,
+        "synthetic later commit"
+      ]
+    ]
+  },
+  "checkpoint_attempts": [
+    {
+      "command_issued": true,
+      "reader_transaction_active": true,
+      "triple": [
+        1,
+        4,
+        3
+      ],
+      "completion_verified": false
+    },
+    {
+      "command_issued": true,
+      "reader_transaction_active": false,
+      "triple": [
+        0,
+        4,
+        4
+      ],
+      "completion_verified": true
+    }
+  ],
+  "durability_verified": false,
+  "process_crash_tested": false,
+  "power_loss_tested": false,
+  "sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+  "pre_close_file_witnesses": {
+    "pre-close-files/synthetic.sqlite3": {
+      "bytes": 8192,
+      "sha256": "c783aac58a74ba88777fc148aefec96b6243d4371e7b7c93e551510d0befd8ae"
+    },
+    "pre-close-files/synthetic.sqlite3-wal": {
+      "bytes": 16512,
+      "sha256": "70874ebdda60b862fe0d0aa38ac508975c3313af3dcd9229998dbb9ed8624e5b"
+    },
+    "pre-close-files/synthetic.sqlite3-shm": {
+      "bytes": 32768,
+      "sha256": "cfa7b8d277dd73f2bc440b76082b9867e4f90964f8da29c4d02073fe5d9e2db4"
+    }
+  },
+  "finite_assertions": "pass",
+  "normal_close": "Connections closed normally; no explicit cleanup or deletion",
+  "database_after_close_sha256": "c783aac58a74ba88777fc148aefec96b6243d4371e7b7c93e551510d0befd8ae"
+}

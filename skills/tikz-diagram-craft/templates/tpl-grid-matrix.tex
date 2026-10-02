@@ -1,0 +1,34 @@
+% TEMPLATE: grid / matrix (n slots x m holders, membership read off position).
+% Cells are equal, edged, and addressed by index; a filled cell means one
+% definite thing, named in the caption. Row and column heads are the TITLE
+% voice; nothing inside a cell is prose.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\c{1.18}   % cell pitch
+  \def\s{0.86}   % cell side
+  \def\x0{2.85}
+  \foreach \r/\name/\hits in {0/{peer A}/{1,4}, 1/{peer B}/{2,5}, 2/{union}/{1,2,4,5}}{
+    \node[pd title,anchor=east,text width=1.9cm,align=right] at ({\x0-.30},{-\r*\c}) {\name};
+    \foreach \k in {1,...,6}{
+      \draw[pd neutral fill] ({\x0+(\k-1)*\c},{-\r*\c-\s/2})
+        rectangle ({\x0+(\k-1)*\c+\s},{-\r*\c+\s/2});}
+    \foreach \k in \hits{
+      \draw[pd focus fill] ({\x0+(\k-1)*\c},{-\r*\c-\s/2})
+        rectangle ({\x0+(\k-1)*\c+\s},{-\r*\c+\s/2});
+      \node[pd label] at ({\x0+(\k-1)*\c+\s/2},{-\r*\c}) {\texttt{c1}};}}
+  \foreach \k in {1,...,6}{
+    \node[pd label,anchor=north] at ({\x0+(\k-1)*\c+\s/2},-2.90) {\k};}
+  \node[pd title,anchor=north] at ({\x0+2.5*\c+\s/2},-3.35) {bucket};
+  \node[pd note,anchor=north west,text width=10.2cm] at (0.05,-3.85)
+    {two placements of one id: the union is the set of buckets, not a bit array};
+\end{tikzpicture}
+\caption{Two peers insert the same id \texttt{c1} into a six-bucket filter and
+land it in different buckets, an artefact of each peer's own insertion and
+eviction history. The bottom row is what merging must produce: the union of the
+placements. OR-ing the two bit arrays would instead claim four independent
+memberships, which is why daemons gossip the id set rather than the array.
+[internal]}
+\label{fig:tpl-grid-matrix}
+\end{figure}

@@ -1,40 +1,79 @@
-% Figure IV.15 --- reviewer count traces one purchasable risk-cost frontier.
+% Stable atlas ID: IV/fig:he-assurance. Native Book integration, 2026-09-20.
+% Source mapping: harbor-economy.tex around the Adversarial Test Market,
+% Purchased Assurance Bound, and the shared-error boundary. Inputs are analytic:
+% d=.6, independent per-reviewer detection, one perfectly shared error draw,
+% and C_k=k*(b+c_B). No observations or fitted measurements are plotted.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
+\SGMeasuredFigure{he-assurance}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.2,3.25)
-    {each independent reviewer buys another multiplicative reduction in residual risk};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.35,-1.60)--(6.00,-1.60);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.35,-1.60)--(-5.35,2.85);
-  \node[pd axis label,anchor=west] at (6.10,-1.60)
-    {cumulative cost $k(b+c_B)$};
-  \node[pd axis label,rotate=90,anchor=south] at (-5.70,.55)
-    {residual defect risk (log scale)};
+  % The upper and lower axes share the same reviewer-count domain. This is an
+  % aligned comparison, not one curve with two incompatible y scales.
+  \begin{axis}[
+    pd evidence axis,
+    width=263pt,height=126pt,
+    xmin=.8,xmax=6.25,
+    xtick={1,2,3,4,5,6},xticklabels=\empty,
+    ymode=log,log basis y=10,
+    ymin=.3,ymax=60,
+    ytick={1,10,40},yticklabels={1\%,10\%,40\%},
+    ylabel={conditional miss probability (log scale)},
+    clip=false,
+  ]
+    % Compact assumption rail: no formula/caption duplication, but d's meaning
+    % remains visible in plain language.
+    \node[pd label,anchor=south west,inner sep=0pt,yshift=13pt,
+      text width=263pt,align=left]
+      at (rel axis cs:0,1.24)
+      {$d=.6$ = per-reviewer detection conditional on a flaw};
 
-  \draw[pd focus rule,line width=1.45pt]
-    (-3.50,2.15)--(-1.75,1.50)--(0,.85)--(1.75,.20)--(3.50,-.45);
-  \foreach \x/\y/\k/\p in {-3.50/2.15/1/40\%,-1.75/1.50/2/16\%,0/.85/3/6.4\%,1.75/.20/4/2.6\%,3.50/-.45/5/1.0\%}
-    {\node[pd focus datum,inner sep=2.4pt] at (\x,\y) {};
-     \node[pd direct label,text=hhteal,anchor=south] at (\x,\y+.18) {$k=\k$};
-     \node[pd note,anchor=north] at (\x,\y-.18) {\p};}
-  \node[pd direct label,text=hhteal,anchor=west] at (3.75,-.45)
-    {$P_k=(1-d)^k$};
+    % Series labels live in a reserved band above the data, with leaders to
+    % exact curve points. They do not sit on the dashed comparator or decay.
+    \node[pd label,text=pdteal,anchor=south west,inner sep=0pt]
+      at (rel axis cs:0.02,1.08) {independent draws};
+    \node[pd label,anchor=south west,inner sep=0pt]
+      at (rel axis cs:0.60,1.08) {one shared error};
+    \draw[pd guide]
+      (axis cs:2,16) -- (rel axis cs:0.16,1.02);
+    \draw[pd guide]
+      (axis cs:4.4,40) -- (rel axis cs:0.68,1.02);
 
-  \draw[pd caution rule,dashed,line width=1.25pt] (-3.50,2.15)--(3.50,2.15);
-  \node[pd caution datum,inner sep=2.6pt] at (3.50,2.15) {};
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (3.80,2.15)
-    {five correlated reviewers\\effective $k\approx1$};
+    % The 1% line is a decision reference from the worked example.
+    \draw[draw=pdinkmuted,densely dashed,line width=.7pt]
+      (axis cs:.8,1) -- (axis cs:6.25,1);
+    \node[pd label,anchor=east,inner sep=0pt,xshift=-3pt]
+      at (axis cs:6.22,1.7) {1\% target};
 
-  \node[pd note,text=hhamber,anchor=west] at (-5.05,-2.25)
-    {frontier is valid only with independent blind spots and deterrence $\rho dB\geq G$};
-\end{tikzpicture}}
-\caption{\textbf{Purchased assurance is one risk--cost trajectory.} Each gold
-point adds one independently bonded reviewer: cumulative cost rises linearly while
-residual defect risk falls geometrically. At $d=.6$, three reviewers leave $6.4\%$
-residual risk and five leave about $1\%$. The dashed red counterfactual charges
-for five correlated reviewers but delivers roughly one reviewer's protection.
-Independence and Becker deterrence $\rho dB\geq G$ are therefore conditions of the
-frontier, not footnotes to headcount.}
+    % Risk: independent reviewers decay geometrically; a perfectly shared
+    % outcome has one effective draw and therefore remains at 1-d=.4.
+    \addplot[pd legible series,domain=1:6,samples=6]
+      {100*(1-.6)^x};
+    \addplot[pd evidence comparison,domain=1:6,samples=6]
+      {40};
+  \end{axis}
+
+  \begin{axis}[
+    pd evidence axis,
+    anchor=south west,at={(0pt,-96pt)},
+    width=263pt,height=70pt,
+    xmin=.8,xmax=6.25,
+    xtick={1,2,3,4,5,6},
+    ymin=0,ymax=6.5,
+    ytick={0,1,2,3,4,5,6},
+    ylabel={budget units},
+    xlabel={reviewer count $k$},
+    clip=false,
+  ]
+    % C_k=k*(b+c_B), normalized so the unknown bond carry is not fabricated.
+    \addplot[pd series,domain=1:6,samples=6] {x};
+  \end{axis}
+  % Reserved between-panel rail: this is provisioning, not payout accounting.
+  \node[pd label,anchor=center,inner sep=0pt,text width=263pt,align=center]
+    at (131.5pt,-13pt)
+    {One budget unit: bounty $b$ + bond carry $c_B$};
+\end{tikzpicture}
+}
+\caption{In this analytic model, more independent reviewers reduce miss probability; perfectly shared outcomes do not.
+The lower panel is reserved budget, not realized payout.}
 \label{fig:he-assurance}
 \end{figure}

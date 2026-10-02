@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. Two keys laid vertically side by side, their bows at the same height. The left key has a wide working blade with three teeth. The right has the same bow and shaft, but only the lowest tooth remains; the upper two tooth positions are neatly cut away and shown as two small detached metal chips beside it. Black keys, cobalt cut edges. A deliberately simplified physical analogy for removing permissions.",
+  "aspect": "3:4",
+  "image_size": "545x905",
+  "sha256": "3f8022c83ade0139af9b3e5fada2c3bd83ff2cffa40dfb69741f023604c0e663",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

@@ -2,7 +2,7 @@
 """run_pdf_checks.py -- the one command for every check that needs a
 rendered PDF.
 
-Two checks read the freshly built editions today: page_overflow.py (margin
+Registered checks read the freshly built editions: page_overflow.py (margin
 collisions, ink off the paper, text over the running foot) and
 check_cover_title_band.py's page half (type set illegibly over a plate).
 Before this script they were named one at a time in whitepaper-build.yml's
@@ -14,12 +14,11 @@ this script instead of naming scripts runs whatever is registered below,
 so the next page-reading check gets picked up by adding one line here, not
 by remembering to also edit the CI step.
 
-page_spills.py is deliberately NOT registered below. It is a real,
-finished checker, but it is red on the Book as committed (two stranded
-headings, pp. 165 and 246 of the maritime edition) -- wiring a red check
-into a required gate is the opposite of this script's purpose. Fix those
-two headings, confirm page_spills.py is green on all three editions, then
-add it to PER_PDF_CHECKS.
+page_spills.py checks stranded headings and page endings.
+check_book_caption_margins.py checks every numbered figure, table and code
+caption against the matching converged .aux inventory. That sidecar must be
+beside the PDF; a missing inventory fails rather than silently checking a
+hand-selected subset. These are placement checks, never design acceptance.
 
 Usage:
     python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR
@@ -59,6 +58,10 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 # Every check that takes ONE pdf path as its argument. Add a new one here,
 # not as a new step in whitepaper-build.yml.
 PER_PDF_CHECKS = [
+    # Needs the matching converged .aux beside each PDF. The workflow ships
+    # it as a separate inventory artifact; missing evidence is a failure.
+    (os.path.join(REPO_ROOT, "scripts", "harbor-research", "check_book_caption_margins.py"), []),
+    (os.path.join(REPO_ROOT, "scripts", "harbor-research", "audit_book_layout.py"), []),
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "page_overflow.py"), []),
     # Joined 2026-09-08, which is what the docstring below was waiting for: the
     # two stranded headings are fixed at the source (a \needspace before each,

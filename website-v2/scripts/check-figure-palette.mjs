@@ -62,6 +62,7 @@ const ALLOWED_HEX = new Set([
   '933FA5', // pdviolet  — identity / continuity    --story-violet
   '7A4514', // pdrust    — reputation               --story-rust
   '666A00', // pdgold    — economy / value          --story-gold
+  '384856', // pdslate   — foundation / bedrock     --story-slate
   '403B34', // pdinkmuted — links, secondary text   --text-secondary
   'BF2F2F', // pderror   — breach / correction      --status-error
   'A66F00', // pdamber   — warning, display only    --status-warning
@@ -86,6 +87,7 @@ const PD_TOKEN_LOCKSTEP = {
   pdviolet: '--story-violet',
   pdrust: '--story-rust',
   pdgold: '--story-gold',
+  pdslate: '--story-slate',
   pderror: '--status-error',
   pdamber: '--status-warning',
   pdlime: '--chart-yellow',
@@ -151,6 +153,7 @@ const INK_ROLE = {
   '--story-violet': 'text',
   '--story-rust': 'text',
   '--story-gold': 'text',
+  '--story-slate': 'text',
   '--status-error': 'text',
   '--text-primary': 'text',
   '--text-secondary': 'text',

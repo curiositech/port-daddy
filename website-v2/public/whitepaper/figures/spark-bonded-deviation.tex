@@ -1,0 +1,18 @@
+% Analytical sparkline, not observations. U(delta)=1-2(delta+delta^2+delta^3).
+% Domain [0,1]; stage-payoff units; no missing values or fitted parameters.
+% Endpoints U(0)=1, U(1)=-5; root .342508031368. See canary/anchor QA ledger.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=60pt,y=5pt,font=\fontsize{8}{9}\selectfont]
+  \draw[pdinkmuted!55,line width=.35pt] (0,0)--(1,0);
+  \draw[pdteal,line width=.8pt] plot[domain=0:1,samples=61]
+    (\x,{1-2*(\x+\x*\x+\x*\x*\x)});
+  \fill[pdteal] (.342508,0) circle[radius=1.4pt];
+  \node[anchor=east,inner sep=2pt] at (0,1) {$1$};
+  \node[anchor=west,inner sep=2pt] at (1,-5) {$-5$};
+  \node[anchor=south,inner sep=3pt] at (.40,.7) {$\delta^*\!=.343$};
+  \node[anchor=north west,inner sep=0pt] at (0,-6.1) {$\delta:0\ \longrightarrow\ 1$};
+\end{tikzpicture}
+\makeatother\endgroup

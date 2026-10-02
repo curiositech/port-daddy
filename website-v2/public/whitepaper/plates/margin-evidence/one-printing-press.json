@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Editorial specimen drawing for the margin of a serious technical book. Crisp black pen linework with sparse crosshatching, one cobalt blue accent, plain pure white background. Large readable silhouette, composed for a 1.3-inch-wide printed image. No framing border. Surfaces are plain, unlettered material. The drawing is an explanatory analogy, not a product. A small hand-operated printing press in three-quarter cutaway view: one solid metal platen poised immediately above one blank sheet on a flat bed. Several blank sheets wait together beside the press. The platen is cobalt; the mechanism black. This single press makes one impression at a time. Isolated instrument, all of it visible.",
+  "aspect": "3:4",
+  "image_size": "750x686",
+  "sha256": "98633d2f170541ff1444d730960ac6094c110f0e41e07da7b0fb8ecefa51ca75",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

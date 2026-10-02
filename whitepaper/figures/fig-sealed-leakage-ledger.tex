@@ -1,0 +1,78 @@
+% Book redraw: VIII/fig:sealed-leakage-ledger.
+% Source-derived conceptual capacity accounting; no fresh experiment, proof, model,
+% provider, runtime, or deployment evidence is claimed.
+% Owner boundary: website-v2/public/whitepaper/sealed-harbor.tex,
+% sec:sealed-budget. Two-row accounting flow feeding a single visible capacity
+% ledger account, distinguishing fixed status capacity from discrete timing capacity.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{VIII/fig:sealed-leakage-ledger}{%
+\begin{tikzpicture}[sg/base]
+  % Native canvas: 316pt wide x 146pt tall. Strictly bounded within Book column (325.2pt).
+  % Subtle horizontal divider rail between accounting tiers
+  \path[draw=sgGrid,line width=.35pt] (0,75)--(172,75);
+
+  % --- Lane 1: Fixed status channel (top) --------------------------------
+  % Architectural badge card representing fixed payload agreement
+  \draw[draw=sgBlue,fill=sgBlue!6,line width=.75pt,rounded corners=1.5pt]
+    (0,86) rectangle (56,136);
+  \node[font=\SGType\bfseries,text=sgBlue] at (28,119)
+    {STATUS};
+  \node[font=\SGType,text=sgInk,align=center] at (28,102)
+    {200 jobs\\[1pt]$\times$ 64 bits};
+
+  \draw[sgBlue,line width=1.35pt] (64,134)--(172,134);
+  \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (64,124)
+    {fixed status channel};
+  \node[anchor=west,font=\SGType] at (64,107)
+    {$200 \times 64 = \mathbf{12{,}800\text{ bits}}$};
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (64,93)
+    {declared payload bits};
+  \draw[sg/arrow] (176,107) to[out=0,in=180] (212,94);
+
+  % --- Lane 2: Discrete timing channel (bottom) --------------------------
+  % Architectural badge card representing scheduled timing agreement
+  \draw[draw=sgAmber,fill=sgAmber!8,line width=.75pt,rounded corners=1.5pt]
+    (0,16) rectangle (56,66);
+  \node[font=\SGType\bfseries,text=sgAmber] at (28,49)
+    {TIMING};
+  \node[font=\SGType,text=sgInk,align=center] at (28,32)
+    {200 returns\\[1pt]$\times \log_2(3)$};
+
+  \draw[sgAmber,line width=1.35pt] (64,64)--(172,64);
+  \node[anchor=west,font=\SGType\bfseries,text=sgAmber] at (64,54)
+    {scheduled timing slots};
+  \node[anchor=west,font=\SGType] at (64,37)
+    {$200 \times 1.585 \approx \mathbf{+317\text{ bits}}$};
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (64,23)
+    {3 return horizons};
+  \draw[sg/arrow] (176,37) to[out=0,in=180] (212,68);
+
+  % --- Destination: Swiss capacity ledger balance -----------------------
+  % Wide, uncrowded accounting card matching Figure 3.13's envelope grammar
+  \draw[draw=sgInk,fill=sgTeal!6,line width=.85pt,rounded corners=1pt]
+    (212,8) rectangle (316,142);
+  \draw[sgTeal,line width=1.8pt] (212,142)--(316,142);
+  \node[font=\SGType\bfseries,text=sgTeal,align=center] at (264,130)
+    {capacity ledger};
+  \node[font=\SGType,text=sgInk!70,align=center] at (264,118)
+    {one contract balance};
+  \draw[sgGrid,line width=.45pt] (220,110)--(308,110);
+
+  \node[anchor=west,font=\SGType,text=sgInk] at (222,94) {status:};
+  \node[anchor=east,font=\SGType\bfseries,text=sgBlue] at (306,94) {12{,}800};
+  \node[anchor=west,font=\SGType,text=sgInk] at (222,68) {timing:};
+  \node[anchor=east,font=\SGType\bfseries,text=sgAmber] at (306,68) {$+317$};
+
+  % Accounting rule and balanced sum
+  \draw[sgInk,line width=.65pt] (220,54)--(308,54);
+  \node[anchor=west,font=\SGType\bfseries,text=sgInk] at (222,41) {total:};
+  \node[anchor=east,font=\SGType\bfseries,text=sgTeal] at (306,41) {\textbf{13{,}117}};
+  \draw[sgTeal,line width=.85pt] (220,30)--(308,30);
+  \draw[sgTeal,line width=.85pt] (220,27)--(308,27);
+  \node[font=\SGType,text=sgInk!70,align=center] at (264,16)
+    {bits of capacity};
+\end{tikzpicture}}
+\caption{For 200 jobs, fixed status plus three return slots yields about 13,117 bits of adversarial capacity. The capacity ledger accounts for both explicit payloads and discrete timing horizons without conflating their channels. [hand-derived; Exercise~\ref{ex:sealed-budget}]}
+\label{fig:sealed-leakage-ledger}
+\end{figure}

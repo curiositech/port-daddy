@@ -1,0 +1,163 @@
+% fig-ch0-cnp-protocol.tex
+% Contract Net Protocol (CNP) Task Allocation Lifecycle
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    msgcard/.style={draw=pdslate!35,line width=0.55pt,fill=white,rounded corners=2.5pt,inner sep=3pt},
+    phaseheader/.style={font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink}},
+    agentlabel/.style={font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink},align=center}
+  }
+
+  % Vertical divider between Phase 1 and Phase 2
+  \draw[line width=0.5pt,pdslate!25,dashed] (6.75, 0.2) -- (6.75, 5.15);
+
+  % =========================================================================
+  % LEFT: PHASE 1: CALL & BID (x in [0.1, 6.6])
+  % =========================================================================
+  \node[phaseheader] at (3.35, 5.0) {PHASE 1: CALL \& BID};
+
+  % Manager Agent (Left)
+  \pdrobotbase[0.65]{(0.8, 3.65)}{pdcobalt}
+  \node[agentlabel] at (0.8, 2.95) {MANAGER\\AGENT};
+
+  % Broadcast CFP Card
+  \begin{scope}[shift={(3.0, 4.25)}]
+    \draw[msgcard] (-1.35, -0.42) rectangle (1.35, 0.42);
+    % CFP Blue Badge
+    \draw[fill=pdcobalt!90!black,draw=none,rounded corners=1.5pt] (0.65, 0.22) rectangle (1.25, 0.38);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{white}] at (0.95, 0.30) {CFP};
+    % Text
+    \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}] at (-1.25, 0.22) {Call for Proposals (CFP)};
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\color{hhgray!90!black}] at (-1.25, -0.02) {$\bullet$ TASK SPEC};
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\color{hhgray!90!black}] at (-1.25, -0.22) {$\bullet$ SPEND CAP};
+  \end{scope}
+
+  % Broadcast arrow: Manager -> CFP -> Contractor 1
+  \draw[pd arrow,line width=0.8pt,pdcobalt] (1.35, 3.95) to[out=40,in=180] (1.65, 4.25);
+  \node[font=\fontsize{4.2}{5.0}\selectfont\color{hhgray!80!black}] at (1.35, 4.25) {Broadcast};
+  \draw[pd arrow,line width=0.8pt,pdcobalt] (4.35, 4.25) -- (5.25, 4.25);
+
+  % Contractor 1 (Top Right)
+  \pdrobotbase[0.65]{(5.8, 3.85)}{pdteal}
+  \node[agentlabel] at (5.8, 3.15) {CONTRACTOR 1};
+
+  % Capability Bid Card
+  \begin{scope}[shift={(3.0, 3.15)}]
+    \draw[msgcard] (-1.35, -0.42) rectangle (1.35, 0.42);
+    % CFP Badge
+    \draw[fill=pdcobalt!90!black,draw=none,rounded corners=1.5pt] (0.65, 0.22) rectangle (1.25, 0.38);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{white}] at (0.95, 0.30) {BID};
+    % Text
+    \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}] at (-1.25, 0.22) {CAPABILITY BID};
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\color{hhgray!90!black}] at (-1.25, -0.02) {ETA: 15 min};
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\color{hhgray!90!black}] at (-1.25, -0.22) {COST: \$0.00};
+  \end{scope}
+
+  % Arrow: Contractor 1 -> Capability Bid -> Manager
+  \draw[pd ready arrow,line width=0.8pt] (5.25, 3.5) to[out=180,in=0] (4.35, 3.15);
+  \draw[pd ready arrow,line width=0.8pt] (1.65, 3.15) to[out=180,in=-20] (1.35, 3.55);
+
+  % Contractor 2 (Bottom Right)
+  \pdrobotbase[0.65]{(5.8, 1.45)}{pdslate}
+  \node[agentlabel] at (5.8, 0.75) {CONTRACTOR 2};
+
+  % Explicit Refusal Card
+  \begin{scope}[shift={(3.0, 1.65)}]
+    \draw[draw=pderror!70,line width=0.55pt,fill=pderror!4,rounded corners=2.5pt] (-1.35, -0.42) rectangle (1.35, 0.42);
+    % Status Badge
+    \draw[fill=pderror!90!black,draw=none,rounded corners=1.5pt] (0.55, 0.22) rectangle (1.25, 0.38);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{white}] at (0.90, 0.30) {STATUS};
+    % Text
+    \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pderror!90!black}] at (-1.25, 0.22) {EXPLICIT REFUSAL};
+    \begin{scope}[shift={(-1.1, -0.12)}]
+      \pdiconcrash[0.45]{(0, 0)}
+    \end{scope}
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-0.85, -0.12) {RESOURCE CONTENTION};
+  \end{scope}
+
+  % Arrow: Contractor 2 -> Refusal -> Manager
+  \draw[pd breach arrow,line width=0.8pt,dashed] (5.25, 1.45) -- (4.35, 1.65);
+  \draw[pd breach arrow,line width=0.8pt,dashed] (1.65, 1.65) to[out=180,in=-60] (0.9, 2.75);
+
+  % =========================================================================
+  % RIGHT: PHASE 2: AWARD & EXECUTION (x in [6.9, 13.5])
+  % =========================================================================
+  \node[phaseheader] at (10.2, 5.0) {PHASE 2: AWARD \& EXECUTION};
+
+  % Manager Agent (Left of Phase 2)
+  \pdrobotbase[0.65]{(7.55, 3.65)}{pdcobalt}
+  \node[agentlabel] at (7.55, 2.95) {MANAGER\\AGENT};
+
+  % Award Card
+  \begin{scope}[shift={(9.85, 4.25)}]
+    \draw[msgcard] (-1.35, -0.42) rectangle (1.35, 0.42);
+    % Swiss Red Badge
+    \draw[fill=pdrust!90!black,draw=none,rounded corners=1.5pt] (0.55, 0.22) rectangle (1.25, 0.38);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{white}] at (0.90, 0.30) {LEASE};
+    % Text
+    \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}] at (-1.25, 0.22) {AWARD};
+    \node[anchor=west,font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{pdcobalt}] at (-1.25, -0.10) {EXCLUSIVE WORKTREE LEASE};
+  \end{scope}
+
+  % Arrow: Manager -> Award -> Contractor 1
+  \draw[pd arrow,line width=0.8pt,pdcobalt] (8.1, 3.95) to[out=40,in=180] (8.5, 4.25);
+  \draw[pd arrow,line width=0.8pt,pdcobalt] (11.2, 4.25) -- (12.0, 4.25);
+
+  % Contractor 1 (Executing)
+  \pdrobotbase[0.65]{(12.55, 3.85)}{pdteal}
+  \node[agentlabel] at (12.55, 3.15) {CONTRACTOR 1};
+
+  % Execution Sandbox Card
+  \begin{scope}[shift={(12.55, 2.0)}]
+    \draw[fill=pdteal!8,draw=pdteal,line width=0.6pt,rounded corners=2.5pt] (-1.05, -0.55) rectangle (1.05, 0.55);
+    \node[font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{hhink},align=center] at (0, 0.22) {%
+      EXECUTING IN A\\SEATBELT SANDBOX%
+    };
+    \draw[fill=pdhealth!90!black,draw=none,rounded corners=1.5pt] (-0.95, -0.45) rectangle (0.95, -0.1);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{white}] at (0, -0.275) {ZERO SPEND CAP};
+  \end{scope}
+
+  % Arrow: Contractor down to Execution Sandbox
+  \draw[pd arrow,line width=0.8pt,pdteal] (12.55, 3.0) -- (12.55, 2.55);
+
+  % Diff Receipts (3 stacked cards)
+  \begin{scope}[shift={(10.05, 2.0)}]
+    \draw[fill=hhpaper,draw=pdslate!50,rounded corners=1.5pt] (-0.65, -0.2) rectangle (-0.25, 0.35);
+    \draw[fill=hhpaper,draw=pdslate!50,rounded corners=1.5pt] (-0.2, -0.2) rectangle (0.2, 0.35);
+    \draw[fill=hhpaper,draw=pdslate!50,rounded corners=1.5pt] (0.25, -0.2) rectangle (0.65, 0.35);
+    \node[font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (0, -0.4) {DIFF RECEIPTS};
+  \end{scope}
+
+  % Arrow: Sandbox -> Diff Receipts
+  \draw[pd arrow,line width=0.8pt,pdslate] (11.5, 2.0) -- (10.7, 2.0);
+
+  % Release Escrow Payment Card
+  \begin{scope}[shift={(10.05, 0.8)}]
+    \draw[msgcard] (-1.1, -0.45) rectangle (1.1, 0.45);
+    \node[font=\fontsize{4.5}{5.5}\selectfont\bfseries\color{hhink},align=center] at (0, 0.18) {%
+      RELEASE ESCROW\\PAYMENT%
+    };
+    \draw[fill=pdhealth!90!black,draw=none,rounded corners=1.5pt] (-0.75, -0.38) rectangle (0.75, -0.10);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{white}] at (0, -0.24) {ACTIVATE};
+  \end{scope}
+
+  % Arrow: Diff Receipts down to Escrow
+  \draw[pd arrow,line width=0.8pt,pdslate] (10.05, 1.45) -- (10.05, 1.25);
+
+  % Verified Test Run Receipt Card
+  \begin{scope}[shift={(7.55, 1.2)}]
+    \draw[fill=pdhealth!8,draw=pdhealth,line width=0.6pt,rounded corners=2.5pt] (-0.95, -0.38) rectangle (0.95, 0.38);
+    \pdiconshieldcheck[0.55]{(-0.65, 0)}
+    \node[anchor=west,font=\fontsize{4.5}{5.5}\selectfont\bfseries\color{pdhealth!90!black},align=left] at (-0.38, 0) {%
+      VERIFIED TEST\\RUN RECEIPT%
+    };
+  \end{scope}
+
+  % Arrow: Escrow Release left to Verified Receipt -> Manager
+  \draw[pd ready arrow,line width=0.8pt] (8.95, 0.8) to[out=180,in=0] (8.5, 1.2);
+  \draw[pd ready arrow,line width=0.8pt] (7.55, 1.58) -- (7.55, 2.75);
+
+\end{tikzpicture}

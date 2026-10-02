@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "evidence_status": "derived projection of measured historical run-02; not a fresh run",
+  "source": "experiment-results.json",
+  "source_sha256": "e93863430b6b09d7845aa637304e719114e60c9444529deb3fc1ed6cadbc7a38",
+  "unit": "synthetic units; each effect appends 10 units",
+  "rows": [
+    {
+      "cut": "none",
+      "policies": {
+        "journal_retry": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        },
+        "journal_hold": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        },
+        "receiver_dedup": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        }
+      }
+    },
+    {
+      "cut": "before_effect",
+      "policies": {
+        "journal_retry": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        },
+        "journal_hold": {
+          "effects": 0,
+          "units": 0,
+          "sender_state": "pending",
+          "receipt": null
+        },
+        "receiver_dedup": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        }
+      }
+    },
+    {
+      "cut": "after_effect",
+      "policies": {
+        "journal_retry": {
+          "effects": 2,
+          "units": 20,
+          "sender_state": "done",
+          "receipt": 2
+        },
+        "journal_hold": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "pending",
+          "receipt": null
+        },
+        "receiver_dedup": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        }
+      }
+    },
+    {
+      "cut": "after_receipt",
+      "policies": {
+        "journal_retry": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        },
+        "journal_hold": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        },
+        "receiver_dedup": {
+          "effects": 1,
+          "units": 10,
+          "sender_state": "done",
+          "receipt": 1
+        }
+      }
+    }
+  ],
+  "interpretation": "Hold avoids duplicate effects in this finite matrix but can leave the operation unresolved; at-most-once alone does not imply useful recovery."
+}
