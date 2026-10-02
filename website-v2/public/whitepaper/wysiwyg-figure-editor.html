@@ -737,6 +737,15 @@
                   <input type="checkbox" id="inp-show-box" style="width:15px; height:15px;"> Show Outer Box
                 </label>
               </div>
+              <div class="input-field">
+                <label>Corner Geometry</label>
+                <select id="inp-corner-style">
+                  <option value="squircle">Squircled (Continuous Curvature)</option>
+                  <option value="sharp">Sharp Corners (90° Technical)</option>
+                  <option value="rounded">Soft Rounded (Standard rx=0.08)</option>
+                  <option value="pill">Pill / Capsule (rx=h/2)</option>
+                </select>
+              </div>
             </div>
           </div>
           <!-- Text Editing -->
@@ -869,9 +878,10 @@
               <div class="input-field">
                 <label>Routing / Spline</label>
                 <select id="inp-arrow-routing">
-                  <option value="spline">Smooth Spline Curve</option>
-                  <option value="straight">Straight Line</option>
-                  <option value="orthogonal">Orthogonal Step (L-Turn)</option>
+                  <option value="spline">Smooth Spline Curve (Curved Lines)</option>
+                  <option value="straight">Straight Line (Euclidean)</option>
+                  <option value="orthogonal">Orthogonal Step (Sharp 90° Corners)</option>
+                  <option value="smoothstep">Squircled Step (Filleted Rounded Corners)</option>
                 </select>
               </div>
               <div class="input-field">
@@ -886,21 +896,21 @@
               <div class="input-field">
                 <label>Arrow Color</label>
                 <select id="inp-arrow-color">
-                  <option value="#10b981">Emerald Green (#10b981)</option>
-                  <option value="#ef4444">Crimson Red (#ef4444)</option>
-                  <option value="#003fb8">Cobalt Blue (#003fb8)</option>
-                  <option value="#0d9488">Teal (#0d9488)</option>
-                  <option value="#64748b">Slate Gray (#64748b)</option>
-                  <option value="#f59e0b">Amber Gold (#f59e0b)</option>
-                  <option value="#1e293b">Dark Navy (#1e293b)</option>
+                  <option value="#64748b">Slate Gray (#64748b - Transition)</option>
+                  <option value="#003fb8">Cobalt Blue (#003fb8 - Primary Flow)</option>
+                  <option value="#10b981">Emerald Green (#10b981 - Success/Exit 0)</option>
+                  <option value="#ef4444">Crimson Red (#ef4444 - Veto/Exit 2)</option>
+                  <option value="#0d9488">Teal (#0d9488 - Hygiene)</option>
+                  <option value="#f59e0b">Amber Gold (#f59e0b - Repair/Gate)</option>
+                  <option value="#1e293b">Dark Navy (#1e293b - Input Anchor)</option>
                 </select>
               </div>
               <div class="input-field">
-                <label>Line Style</label>
+                <label>Line Style (Dashes)</label>
                 <select id="inp-arrow-style">
-                  <option value="solid">Solid Line</option>
-                  <option value="dashed">Dashed Line</option>
-                  <option value="dotted">Dotted Line</option>
+                  <option value="solid">Solid Line (Direct Transition)</option>
+                  <option value="dashed">Dashed Line (Veto / Conditional)</option>
+                  <option value="dotted">Dotted Line (Heartbeat / Speculative)</option>
                 </select>
               </div>
             </div>
@@ -1360,8 +1370,19 @@
       renderSidebarLists();
     }
 
+    // Helper: Compute Corner Radius from cornerStyle
+    function getNodeCornerRadius(part, defaultRx = 0.15) {
+      if (part.cornerStyle === "sharp") return 0;
+      if (part.cornerStyle === "rounded") return 0.08;
+      if (part.cornerStyle === "squircle") return 0.22;
+      if (part.cornerStyle === "pill" || part.type === "pill") return Math.min(part.w, part.h) / 2;
+      if (part.type === "boundary") return part.cornerStyle === "sharp" ? 0 : 0.25;
+      if (part.type === "casecard") return part.cornerStyle === "sharp" ? 0 : 0.18;
+      return defaultRx;
+    }
+
     // Render Boundaries and Nodes
-        function renderBoundariesAndNodes() {
+    function renderBoundariesAndNodes() {
       boundariesLayer.innerHTML = "";
       nodesLayer.innerHTML = "";
       const data = FIGURES[currentFig];
@@ -1379,7 +1400,7 @@
           rect.setAttribute("y", part.y);
           rect.setAttribute("width", part.w);
           rect.setAttribute("height", part.h);
-          rect.setAttribute("rx", "0.25");
+          rect.setAttribute("rx", getNodeCornerRadius(part, 0.25));
           rect.setAttribute("fill", part.fill || "none");
           rect.setAttribute("stroke", part.color);
           rect.setAttribute("stroke-width", "0.035");
@@ -1404,7 +1425,7 @@
           rect.setAttribute("y", part.y);
           rect.setAttribute("width", part.w);
           rect.setAttribute("height", part.h);
-          rect.setAttribute("rx", "0.18");
+          rect.setAttribute("rx", getNodeCornerRadius(part, 0.18));
           rect.setAttribute("fill", "#ffffff");
           rect.setAttribute("stroke", "#cbd5e1");
           rect.setAttribute("stroke-width", "0.025");
@@ -1442,7 +1463,7 @@
             bgCard.setAttribute("y", -part.h/2);
             bgCard.setAttribute("width", part.w);
             bgCard.setAttribute("height", part.h);
-            bgCard.setAttribute("rx", "0.15");
+            bgCard.setAttribute("rx", getNodeCornerRadius(part, 0.15));
             bgCard.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
             bgCard.setAttribute("stroke", part.color || "#003fb8");
             bgCard.setAttribute("stroke-width", "0.025");
@@ -1638,7 +1659,7 @@
           rect.setAttribute("y", -part.h/2);
           rect.setAttribute("width", part.w);
           rect.setAttribute("height", part.h);
-          rect.setAttribute("rx", "0.15");
+          rect.setAttribute("rx", getNodeCornerRadius(part, 0.15));
           rect.setAttribute("fill", "#ffffff");
           rect.setAttribute("stroke", part.color || "#0d9488");
           rect.setAttribute("stroke-width", "0.025");
@@ -1692,7 +1713,7 @@
           rect.setAttribute("y", -part.h/2);
           rect.setAttribute("width", part.w);
           rect.setAttribute("height", part.h);
-          rect.setAttribute("rx", "0.15");
+          rect.setAttribute("rx", getNodeCornerRadius(part, 0.15));
           rect.setAttribute("fill", "#ffffff");
           rect.setAttribute("stroke", part.color || "#0f172a");
           rect.setAttribute("stroke-width", "0.025");
@@ -1756,7 +1777,7 @@
           rect.setAttribute("y", part.y - part.h/2);
           rect.setAttribute("width", part.w);
           rect.setAttribute("height", part.h);
-          rect.setAttribute("rx", part.type === "pill" ? part.h/2 : "0.15");
+          rect.setAttribute("rx", getNodeCornerRadius(part, part.type === "pill" ? part.h/2 : 0.15));
           rect.setAttribute("fill", part.type === "pill" ? part.color : "#ffffff");
           rect.setAttribute("stroke", part.color);
           rect.setAttribute("stroke-width", "0.025");
@@ -1981,14 +2002,36 @@
           const t = 0.5;
           const omt = 1 - t;
           midX = omt*omt*omt*x1 + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*x2;
-          midY = omt*omt*omt*y1 + 3*omt*omt*t*cy1 + 3*omt*t*t*cx2 + t*t*t*y2;
-        } else if (routing === "orthogonal") {
+          midY = omt*omt*omt*y1 + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*y2;
+        } else if (routing === "orthogonal" || routing === "smoothstep") {
+          const isSmooth = routing === "smoothstep";
+          const maxR = 0.35;
+          const sx = Math.sign(dx) || 1;
+          const sy = Math.sign(dy) || 1;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          const r = isSmooth ? Math.min(maxR, absDx / 2, absDy / 2) : 0;
+
           if (Math.abs(nx1) > 0) {
-            d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            // Horizontal exit
+            if (r > 0.02) {
+              const xTurnBefore = x2 - sx * r;
+              const yTurnAfter = y1 + sy * r;
+              d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${xTurnBefore.toFixed(3)} ${y1.toFixed(3)} Q ${x2.toFixed(3)} ${y1.toFixed(3)}, ${x2.toFixed(3)} ${yTurnAfter.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            } else {
+              d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            }
             midX = x2;
             midY = (y1 + y2) / 2;
           } else {
-            d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            // Vertical exit
+            if (r > 0.02) {
+              const yTurnBefore = y2 - sy * r;
+              const xTurnAfter = x1 + sx * r;
+              d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x1.toFixed(3)} ${yTurnBefore.toFixed(3)} Q ${x1.toFixed(3)} ${y2.toFixed(3)}, ${xTurnAfter.toFixed(3)} ${y2.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            } else {
+              d = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+            }
             midX = (x1 + x2) / 2;
             midY = y2;
           }
@@ -2010,6 +2053,7 @@
 
         const gArr = document.createElementNS("http://www.w3.org/2000/svg", "g");
         gArr.setAttribute("class", "arrow-group");
+        gArr.setAttribute("data-id", arr.id);
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
@@ -2020,7 +2064,7 @@
         path.setAttribute("stroke-width", arr.thickness || "0.045");
 
         if (arr.style === "dashed" || arr.strokeDash) {
-          path.setAttribute("stroke-dasharray", arr.strokeDash || "0.1, 0.06");
+          path.setAttribute("stroke-dasharray", arr.strokeDash || "0.12, 0.08");
         } else if (arr.style === "dotted") {
           path.setAttribute("stroke-dasharray", "0.04, 0.04");
         }
@@ -2243,8 +2287,10 @@
 
       const inpNodeType = document.getElementById("inp-node-type");
       const inpShowBox = document.getElementById("inp-show-box");
+      const inpCornerStyle = document.getElementById("inp-corner-style");
       if (inpNodeType) inpNodeType.value = part.type || "node";
       if (inpShowBox) inpShowBox.checked = part.showBox !== false && part.type !== "text";
+      if (inpCornerStyle) inpCornerStyle.value = part.cornerStyle || (part.type === "pill" ? "pill" : "squircle");
 
       switchSidebarTab("part");
       renderAll();
@@ -2743,11 +2789,14 @@
         data.parts.forEach(p => {
           exportObj.parts[p.id] = {
             label: p.label,
+            type: p.type,
             x: +p.x.toFixed(2),
             y: +p.y.toFixed(2),
             w: +p.w.toFixed(2),
             h: +p.h.toFixed(2),
-            color: p.color
+            color: p.color,
+            cornerStyle: p.cornerStyle || (p.type === "pill" ? "pill" : "squircle"),
+            showBox: p.showBox
           };
         });
         outputText.textContent = JSON.stringify(exportObj, null, 2);
@@ -2787,7 +2836,9 @@
               multilineLabel = ` node[fill=white, inner sep=1.5pt, align=center] {${escaped}}`;
             }
 
-            if (a.routing === "orthogonal") {
+            if (a.routing === "smoothstep") {
+              tikzStr += `\\draw[${arrowStyle}, rounded corners=3pt] ${fromStr} -|${multilineLabel} ${toStr};\n`;
+            } else if (a.routing === "orthogonal") {
               tikzStr += `\\draw[${arrowStyle}] ${fromStr} -|${multilineLabel} ${toStr};\n`;
             } else if (bendOption) {
               tikzStr += `\\draw[${arrowStyle}${bendOption}] ${fromStr} to${multilineLabel} ${toStr};\n`;
@@ -3023,6 +3074,18 @@
         const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
         if (!part) return;
         part.showBox = inpShowBox.checked;
+        renderAll();
+        updateOutput();
+      });
+    }
+
+    const inpCornerStyle = document.getElementById("inp-corner-style");
+    if (inpCornerStyle) {
+      inpCornerStyle.addEventListener("change", () => {
+        if (!activePartId) return;
+        const part = FIGURES[currentFig].parts.find(p => p.id === activePartId);
+        if (!part) return;
+        part.cornerStyle = inpCornerStyle.value;
         renderAll();
         updateOutput();
       });
