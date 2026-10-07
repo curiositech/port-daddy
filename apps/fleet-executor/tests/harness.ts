@@ -72,7 +72,7 @@ export interface GitHubState {
   /** Override the raw-diff endpoint status to exercise unavailable-source handling. */
   prDiffStatus?: number;
   /** Override the first (and currently only) GitHub changed-files page. */
-  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
+  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number; patch?: string }>;
   /** Raw changed-files response, used to exercise malformed/incomplete inventory handling. */
   prFilesBody?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
@@ -103,6 +103,8 @@ export interface GitHubState {
   failConfig401: number;
   /** if set, the first N check-run CREATE (POST) calls return 500 (no id). */
   failCreateCheckRun: number;
+  /** if set, the first N check-run completion (PATCH) calls return 500. */
+  failCompleteCheckRun: number;
 
   // --- Git Data API + stacked-PR surface (purser) --------------------------
   /** branch name → commit sha, as maintained by the git refs endpoints. */
@@ -154,6 +156,18 @@ export interface GitHubState {
   prMerged: boolean | undefined;
 }
 
+export const DEFAULT_PR_DIFF = [
+  'diff --git a/src/x.ts b/src/x.ts',
+  '--- a/src/x.ts',
+  '+++ b/src/x.ts',
+  '@@ -1,4 +1,4 @@',
+  ' context one',
+  ' context two',
+  ' context three',
+  '-old',
+  '+changed',
+].join('\n');
+
 /**
  * Default jest config seeded at `BASESHA:jest.config.js` — a broad, realistic
  * single-project testMatch covering the default authored-test fixture path
@@ -203,6 +217,7 @@ export function freshState(): GitHubState {
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
+    failCompleteCheckRun: 0,
     gitRefs: new Map(),
     blobsCreated: 0,
     treesCreated: 0,
@@ -381,7 +396,13 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- PR files ---
     if (/\/pulls\/\d+\/files/.test(url)) {
       if (state.prFilesBody !== undefined) return text(state.prFilesBody);
-      return json(state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
+      return json(state.prFiles ?? [{
+        filename: 'src/x.ts',
+        status: 'modified',
+        additions: 1,
+        deletions: 1,
+        patch: '@@ -1,4 +1,4 @@\n context one\n context two\n context three\n-old\n+changed',
+      }]);
     }
     // --- create review (inline comments) ---
     if (/\/pulls\/\d+\/reviews$/.test(url) && method === 'POST') {
@@ -402,7 +423,7 @@ export function installGitHubFetch(state: GitHubState): void {
       const headers = new Headers(init?.headers);
       if (headers.get('Accept')?.includes('diff')) {
         return text(
-          state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed',
+          state.prDiff ?? DEFAULT_PR_DIFF,
           state.prDiffStatus ?? 200,
         );
       }
@@ -512,6 +533,10 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- complete check run ---
     const completeMatch = url.match(/\/check-runs\/(\d+)$/);
     if (completeMatch && method === 'PATCH') {
+      if (state.failCompleteCheckRun > 0) {
+        state.failCompleteCheckRun -= 1;
+        return text('check-run completion failed', 500);
+      }
       // Mirror GitHub: completing a check run makes it `completed` for every
       // later lookup. The executor's redelivery guard reads exactly this.
       const completedId = Number(completeMatch[1]);
@@ -645,6 +670,8 @@ export interface D1Capture {
   failTranscriptWrites: boolean;
   /** Set true to make the next fleet_run_steps insert throw, then reset. */
   failNextStepInsert: boolean;
+  /** Set true to fail only the next ship-checkpoint insert, then reset. */
+  failNextShipCheckpointInsert: boolean;
   /**
    * When true, the NEXT logical-run upsert into `fleet_runs`
    * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
@@ -686,6 +713,7 @@ export function memoryD1(): D1Capture {
     failAll: false,
     failTranscriptWrites: false,
     failNextStepInsert: false,
+    failNextShipCheckpointInsert: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
@@ -701,6 +729,14 @@ export function memoryD1(): D1Capture {
         if (cap.failNextStepInsert && /INTO fleet_run_steps/i.test(sql)) {
           cap.failNextStepInsert = false;
           throw new Error('D1 unavailable (simulated transcript step failure)');
+        }
+        if (
+          cap.failNextShipCheckpointInsert
+          && /INTO fleet_run_steps/i.test(sql)
+          && args[2] === 'ship-checkpoint'
+        ) {
+          cap.failNextShipCheckpointInsert = false;
+          throw new Error('D1 unavailable (simulated ship checkpoint failure)');
         }
         if (
           cap.failNextRecordRunStartInsert
