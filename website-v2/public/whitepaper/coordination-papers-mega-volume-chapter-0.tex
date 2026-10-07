@@ -5,8 +5,10 @@
 \makeatletter
 \def\pdchapterpartlabel{Prerequisites \textperiodcentered\ Foundations}
 \def\pdchapterpartindex{0}
-\def\pdchapterepigraph{The hard problems are ancient; the easy problems are new.}
-\def\pdchapterepigraphsource{Hans Moravec, \emph{Mind Children} (1988), Moravec's Paradox}
+\expandafter\def\csname pdchapterepigraphofprereq\endcsname{There are two ways of constructing a software design: One way is to make it so simple that there are obviously no deficiencies, and the other way is to make it so complicated that there are no obvious deficiencies. The first method is far more difficult.}
+\expandafter\def\csname pdchapterepigraphsourceofprereq\endcsname{C.\,A.\,R. Hoare, \emph{The Emperor's Old Clothes} (1980 Turing Award Lecture)}
+\expandafter\def\csname pdchapterquestionofprereq\endcsname{What physical and theoretical ground must an agent operating kernel stand on?}
+\expandafter\def\csname pdchapteronelineofprereq\endcsname{Classical multi-agent theory, contemporary coding agent harnesses, transformer KV-cache limits, and the kernel gap.}
 \def\pdchapterquestion{What physical and theoretical ground must an agent operating kernel stand on?}
 \def\pdchapteroneline{Classical multi-agent theory, contemporary coding agent harnesses, transformer KV-cache limits, and the kernel gap.}
 
