@@ -24,7 +24,7 @@
   \draw[pd warn rule] (-5.75,1.45) rectangle (5.75,4.0);
   \node[pd label,anchor=south west] at (-5.7,4.2) {adversary-visible};
   \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
-    \node[pd focus outline,circle,minimum size=9mm,inner sep=0pt] (id\id) at (\x,2.1) {id\id};
+    \node[pd focus outline,circle,minimum size=9mm,inner sep=0pt,font=\pdfiglabelbold,text=pdink] (id\id) at (\x,2.1) {id\id};
   }
 
   % ---- crossing 1: id1 -> id2, ordinary hop --------------------------------
