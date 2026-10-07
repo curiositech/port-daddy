@@ -9,8 +9,9 @@ let package = Package(
         .executable(name: "PortholeStageCapture", targets: ["PortholeStageCapture"]),
         .executable(name: "PortholeStageFixture", targets: ["PortholeStageFixture"]),
     ],
+    dependencies: [.package(path: "../PortholeMediaKit")],
     targets: [
-        .target(name: "PortholeStageCore"),
+        .target(name: "PortholeStageCore", dependencies: ["PortholeMediaKit"]),
         .executableTarget(
             name: "PortholeStageCapture",
             dependencies: ["PortholeStageCore"]

@@ -13,6 +13,27 @@ management, and any editing are deferred by the ADR — deferred, not denied.
 Each returns through its own surface-authority decision rather than by
 accretion.
 
+## Credential transport boundary
+
+The caller must explicitly trust the configured Relay origin before constructing
+`RelayClient`; HTTPS syntax validation is not endpoint enrollment or certificate
+pinning. Self-hosted HTTPS origins and explicit ports are supported. The client
+rejects HTTP, URL user information, non-root base paths, query/fragment suffixes,
+and invalid ports before reading credentials. Device tokens must match the
+Relay's `pdu_` plus 64 hexadecimal character grammar before transport.
+
+Every task refuses redirects, including same-origin redirects and test-injected
+transports. Public construction always uses an ephemeral session without cookie,
+credential, or cache stores, with 15-second request and 30-second resource
+timeouts. Tests use URLProtocol stubs and a simulated redirect-delegate handoff,
+not a live Relay or wire-level TLS/redirect proof. The redirect handoff regression
+fails when its delegate is removed. Response-body accumulation is not yet
+byte-bounded; that is a release blocker before reusing this client for large or
+untrusted media payloads, not a guarantee provided by the timeouts.
+These checks do not implement pairing, Keychain storage, issuer-bound credentials,
+Porthole media encryption, or control authorization. The UI remains fixture-backed.
+See the [cooperative native loop delivery checklist](../../docs/design/porthole-cooperative-native-loop.md).
+
 ## Layout
 
 ```
