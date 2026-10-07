@@ -14,6 +14,7 @@ import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
   findAuthorityArtifacts,
+  isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
@@ -27,8 +28,17 @@ const matrixPath = join(repoRoot, 'tests', 'e2e', 'release-candidate.matrix.json
 const evidencePath = join(repoRoot, 'tests', 'e2e', 'evidence', 'installed-runtime-baseline-2026-09-05.json');
 const runnerPath = join(repoRoot, 'scripts', 'e2e-release-candidate.mjs');
 const singleBinaryBuilderPath = join(repoRoot, 'scripts', 'build-single-binary.mjs');
+const compiledCliSurfacePath = join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh');
+const binarySoakPath = join(repoRoot, 'scripts', 'soak-binary.sh');
 
 describe('release-candidate E2E contract', () => {
+  test('the collision fixture classifies only peer-termination socket errors as expected', () => {
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('reset'), { code: 'ECONNRESET' }))).toBe(true);
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('pipe'), { code: 'EPIPE' }))).toBe(true);
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }))).toBe(false);
+    expect(isExpectedCollisionSocketError(null)).toBe(false);
+  });
+
   test('the normative matrix is valid and every Phase-1 runner is registered', () => {
     const matrix = loadReleaseCandidateMatrix(matrixPath);
     expect(matrix.cases.length).toBeGreaterThanOrEqual(10);
@@ -204,8 +214,26 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
+    expect(runner).toContain("mkdirSync(path, { recursive: true, mode: 0o700 });");
+    expect(runner).toContain('chmodSync(path, 0o700);');
+    expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
+    expect(runner).toContain("['sitrep', '--template']");
+    expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
+    expect(runner).toContain("claimPath: 'ALPHA-CLAIM.md'");
+    expect(runner).toContain("claimPath: 'BETA-CLAIM.md'");
+    expect(runner).toContain("['rev-parse', '--git-common-dir']");
+    expect(runner).toContain('alpha linked session recorded the wrong worktree root');
+    expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
+    const sugarCli = readFileSync(join(repoRoot, 'cli', 'commands', 'sugar.ts'), 'utf8');
+    const doneCall = sugarCli.slice(sugarCli.indexOf('const data = await pd.done('), sugarCli.indexOf("if (!data?.success)", sugarCli.indexOf('const data = await pd.done(')));
+    expect(doneCall).toContain('sessionId:');
+    expect(doneCall).not.toMatch(/^\s*agentId:/m);
+    expect(runner).toContain('const blockerSockets = new Set();');
+    expect(runner).toContain("socket.on('error', (error) => blockerSocketErrors.push(error));");
+    expect(runner).toContain('!isExpectedCollisionSocketError(error)');
+    expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
     for (const id of [
       'runtime.transport-parity',
@@ -216,6 +244,16 @@ describe('release-candidate E2E contract', () => {
       'existing.bounded-packaged-soak',
     ]) {
       expect(matrix.cases.find((testCase) => testCase.id === id)?.timeoutSeconds).toBeGreaterThanOrEqual(150);
+    }
+  });
+
+  test('reused packaged-binary smokes own private test state', () => {
+    for (const scriptPath of [compiledCliSurfacePath, binarySoakPath]) {
+      const script = readFileSync(scriptPath, 'utf8');
+      expect(script).toContain('chmod 700');
+      expect(script).toContain('PD_HOME=');
+      expect(script).toContain('PORT_DADDY_TEST_DB=');
+      expect(script).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
     }
   });
 

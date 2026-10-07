@@ -1,3 +1,4 @@
 # Examples
 
-- `01_worked_example.md`: worked example — security audit DAG with a TENTATIVE remediation wave.
+- checkpoint-valid.json: constructed successful supplied checkpoint.
+- 01_worked_example.md: constructed hold/revision trace.

@@ -1,150 +1,74 @@
 ---
 name: sheaf-cohomology-multiagent-debug
-version: 0.1.0
-description: >
-  Diagnose multi-agent coordination failures using sheaf cohomology as a structural
-  telemetry primitive. When agents cannot reach consensus despite diffusion, the cause
-  is often topological: restriction maps on one or more edges are mutually inconsistent,
-  creating a cycle-level obstruction that no amount of additional messaging can dissolve.
-  H¹(G,F) ≠ 0 is the formal certificate of this obstruction — it identifies which cycles
-  contain irreconcilable disagreements, letting you debug the sheaf (the communication
-  structure) rather than the swarm (the agents). This skill provides the conceptual
-  framework, a concrete implementation pattern, and decision criteria for when cohomology
-  is the right diagnostic vs. when simpler tools suffice.
-author: soma-jury_rig-graft
-tags: [sheaf-cohomology, multi-agent, coordination, consensus, topology, diagnostics, active-inference, soma]
-pairs-with: []
-license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
+description: Build a declared finite cellular-sheaf or scalar cochain model and evaluate algebraic compatibility of independently observed local data. Use for scoped residual, rank, and Hodge calculations; not for effect authorization or cause attribution. NOT for inferring agent intent, proving underlying truth, or authorizing an effect.
 metadata:
-  provenance:
-    kind: imported
-    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
+  category: Research & Academic
+  tags: [cellular-sheaves, cohomology, cochains, multi-agent, topology]
 ---
 
-# Sheaf Cohomology as Multi-Agent Coordination Telemetry
+# Sheaf cohomology for modeled compatibility checks
 
-## When to Use
+State the finite base complex, orientations, stalk dimensions, restriction maps, coefficient field, metric, observation coverage, and objective before computing a residual. A calculation can report compatibility with that representation. It cannot establish safety, authenticity, freshness, capacity, settlement, intent, a responsible agent, or permission for an external effect.
 
-- Agents have been running diffusion / gossip / opinion-update dynamics for many steps and residual disagreement persists despite apparent convergence — you suspect the disagreement is structural, not transient.
-- You have a cycle in the agent communication graph and at least one edge where two agents project their private state through **different** restriction maps into a shared discourse space (i.e., they literally interpret the shared variable differently).
-- A new agent or communication channel was added and coordination degraded; you need to know whether the topology change introduced a cohomological obstruction.
-
-NOT for:
-- Debugging transient disagreement that resolves if you wait longer — that is a convergence-rate problem, diagnosed by the sheaf Fiedler value λ₂(L_F), not by cohomology.
-- Keyword-based or heuristic detection of "conflict" in agent messages — this skill requires algebraically specified stalks and restriction maps, not free-text analysis.
-- Systems where agents do not share an explicit algebraic state space (e.g., purely language-model ensembles with no vector stalks) — cohomology is not applicable without a defined linear structure.
-
-## Core Concepts
-
-**Cellular sheaf F on graph G = (V, E)**: An assignment of a finite-dimensional real vector space F(v) (the *stalk*) to each vertex, a space F(e) to each edge, and a linear *restriction map* F_{v ▹ e}: F(v) → F(e) for each incidence pair. Stalks encode private agent state; restriction maps encode how each agent projects state into the shared discourse on that edge.
-
-**Coboundary operator δ: C⁰(G;F) → C¹(G;F)**: The fundamental disagreement measurement. For edge e = (u, v):
-```
-(δx)_e = F_{v ▹ e}(x_v) - F_{u ▹ e}(x_u)
-```
-δx = 0 on every edge iff x is a *global section* — all agents are perfectly consistent after projection. The coboundary operator encodes the difference in what each agent contributes to the shared discourse on each link.
-
-**H⁰(G;F) = ker(δ)**: The space of global sections — assignments where every adjacent pair is consistent after restriction. dim(H⁰) counts the number of independent consensus modes. H⁰ = {0} means no consensus is topologically reachable from any initial condition. H⁰ is what sheaf diffusion converges toward; ker(L_F) = H⁰.
-
-**H¹(G;F) = Z¹ / im(δ)**: The obstruction group. Z¹ = ker(d₁: C¹ → C²); for graphs with no 2-simplices, Z¹ = C¹ = all of edge-stalk space. im(δ) is the set of edge discrepancies that *can* be explained by some choice of vertex data. H¹ is the quotient — edge discrepancy patterns that cannot be explained by any vertex assignment. **dim(H¹) > 0 means there exist cycles where the restriction maps are mutually inconsistent: settlement is topologically impossible for those configurations regardless of how agents update.**
-
-**Sheaf Laplacian and Dirichlet energy**: L_F = δᵀδ (PSD matrix on C⁰). Dirichlet energy:
-```
-E(x) = xᵀ L_F x = ||δx||² = Σ_{e=(u,v)} || F_{u▹e}(x_u) - F_{v▹e}(x_v) ||²
-```
-E(x) = 0 iff x ∈ H⁰. Sheaf diffusion dx/dt = -α L_F x minimizes E(x) and converges to the projection onto H⁰. If E(x) > 0 at equilibrium, the nonzero-energy edges are the diagnostic outputs.
-
-## Implementation Pattern
-
-```python
-import numpy as np
-from scipy.linalg import null_space
-
-# --- 1. Specify the sheaf ---
-# For a graph with V vertices (stalk dim d_v each) and E edges (stalk dim d_e each):
-# Vertex state: x ∈ R^(V * d_v)   (concatenated stalk vectors)
-# Edge state:   C1 ∈ R^(E * d_e)
-
-# For each edge e = (u, v), define:
-#   R_u: (d_e x d_v) restriction map from u's stalk to e's stalk
-#   R_v: (d_e x d_v) restriction map from v's stalk to e's stalk
-
-# --- 2. Build coboundary matrix delta ---
-# Shape: (E * d_e) x (V * d_v)
-# One block-row per edge. For edge e = (u, v):
-#   delta[e_block, u_block] = +R_u
-#   delta[e_block, v_block] = -R_v
-#   all other blocks = 0
-
-def build_delta(edges, restriction_maps, n_verts, d_v, d_e):
-    n_edges = len(edges)
-    delta = np.zeros((n_edges * d_e, n_verts * d_v))
-    for i, (u, v) in enumerate(edges):
-        R_u, R_v = restriction_maps[(u, v)]
-        delta[i*d_e:(i+1)*d_e, u*d_v:(u+1)*d_v] =  R_u
-        delta[i*d_e:(i+1)*d_e, v*d_v:(v+1)*d_v] = -R_v
-    return delta
-
-# --- 3. Compute sheaf Laplacian ---
-def sheaf_laplacian(delta):
-    return delta.T @ delta   # (V*d_v) x (V*d_v), PSD
-
-# --- 4. Cohomology dimensions ---
-def cohomology_dims(delta):
-    n_vertex_dims = delta.shape[1]
-    n_edge_dims   = delta.shape[0]
-    rank = np.linalg.matrix_rank(delta, tol=1e-9)
-    h0_dim = n_vertex_dims - rank   # dim ker(delta)
-    h1_dim = n_edge_dims - rank     # for graphs: dim Z1 - dim im(delta) = E*d_e - rank
-    return h0_dim, h1_dim
-
-# --- 5. Diagnose current agent state ---
-def diagnose(delta, edges, d_e, x_current):
-    edge_discrepancies = delta @ x_current    # (E*d_e,)
-    per_edge_energy = []
-    for i in range(len(edges)):
-        d = edge_discrepancies[i*d_e:(i+1)*d_e]
-        per_edge_energy.append(float(d @ d))
-    dirichlet_energy = sum(per_edge_energy)
-    worst_edge_idx   = int(np.argmax(per_edge_energy))
-    return {
-        "dirichlet_energy": dirichlet_energy,
-        "per_edge_energy":  per_edge_energy,
-        "worst_edge":       edges[worst_edge_idx],
-        "worst_energy":     per_edge_energy[worst_edge_idx],
-    }
-
-# --- 6. Decision tree ---
-# h0_dim == 0  →  No consensus is topologically reachable. Redesign stalks or restriction maps.
-# h1_dim == 0  →  Consensus is reachable; slow convergence is a rate problem (check λ₂).
-# h1_dim > 0   →  Structural obstruction. Identify the cycle(s): find null_space(delta.T)
-#                  to get the H¹ cocycles. Each basis vector localizes to a cycle.
-# dirichlet_energy plateaus > 0 at equilibrium  →  Same as h1_dim > 0 in practice.
-# worst_edge has high energy at equilibrium  →  That edge's restriction maps are the conflict locus.
-
-# --- 7. Localize the obstruction ---
-def obstruction_cycles(delta, edges):
-    # Rows of null_space(delta.T) are H1 cocycles — they identify conflicting edge sets
-    ns = null_space(delta.T, rcond=1e-9)   # columns are basis for H1
-    return ns   # nonzero rows indicate which edges participate in obstructions
+```mermaid
+flowchart LR
+  A[Independently observed local reports] --> B[Declare visibility and finite complex]
+  B --> C[Declare stalks maps orientations and norm]
+  C --> D[Build delta and validate dimensions]
+  D --> E[Solve min over x of norm g minus delta x]
+  E --> F{Residual within stated tolerance?}
+  F -->|yes| G[Compatible with declared linear model]
+  F -->|no| H[Report model data or timing mismatch]
+  G --> I[Separate domain validation still required]
+  H --> I
 ```
 
-**Operator interpretation of outputs:**
-- `h0_dim`: number of independent consensus modes. If 0, no consensus is possible.
-- `h1_dim`: number of topological obstructions. If > 0, some cycles have irreconcilable restriction maps.
-- `dirichlet_energy` at equilibrium: if nonzero, disagreement is structural, not transient.
-- `per_edge_energy` at equilibrium: large values pinpoint the conflicted edges.
-- `obstruction_cycles`: H¹ basis vectors localize which cycles contain each obstruction.
+```mermaid
+flowchart TD
+  A[Scalar triangle: observed g equals 1,1,1] --> B[Signed cycle sum 1 plus 1 minus 1 equals 1]
+  B --> C[Not a vertex-potential difference]
+  D[Scalar path: any observed edge vector] --> E[Choose root then accumulate potential]
+  E --> F[Residual is zero in this graph model]
+  C --> G[Neither result attributes a cause]
+  F --> G
+```
 
-**Fix the sheaf, not the swarm:** When h1_dim > 0, the remedy is not more agents, faster diffusion, or longer runtime. The remedy is to modify a restriction map on the conflicted cycle — change what one agent projects into the shared discourse space on that edge — until the cycle becomes consistent (H¹ drops to 0).
+## Reproducible setup
 
-## Key References
+For a linear cochain model `delta:C0 -> C1` and independently observed `g in C1`, report
 
-1. **Hansen, J. & Ghrist, R. (2021).** "Opinion Dynamics on Discourse Sheaves." *SIAM Journal on Applied Mathematics*, 81(5), 2033–2060. arXiv:2005.12798. Foundational paper: defines discourse sheaves, proves convergence of sheaf diffusion to ker(L_F) = H⁰, introduces H¹ as the formal obstruction to consensus. The proof that non-trivial H¹ implies residual disagreement is unavoidable regardless of initial conditions.
+$$r=\min_x \|g-\delta x\|=\|g-\delta\hat{x}\|.$$
 
-2. **Riess, H. & Hale, M. (2025).** "Distributed Multi-agent Coordination over Cellular Sheaves." arXiv:2504.02049. Extends to nonlinear sheaf diffusion with delay bounds; provides Algorithm 1 (ADMM-based distributed solve); frames Dirichlet energy as the coordination cost metric. Convergence proofs include explicit λ₂(L_F) rate bounds.
+The norm and tolerance are part of the result. If `g` is first defined as `delta x`, then `r=0` by construction; it is not an empirical test. A residual can result from measurement noise, stale versions, missing observations, different units, orientation errors, restriction-map errors, or an inadequate model.
 
-3. **Ayzenberg, A. et al. (2026).** "Selective Adaptation of Beliefs and Communication on Cellular Sheaves." arXiv:2601.22431. Most precise formulation of H¹ obstruction classes for bounded consensus; introduces selective rigidity and the boundary map ∂: H⁰(stubborn subgraph) → H¹(remaining sheaf) as a diagnostic tool for locating the failure to specific agent subpopulations.
+For a finite cochain complex with maps `delta0` from `C0` to `C1` and `delta1` from `C1` to `C2`, the selected sheaf has
 
-4. **kb1dds/pysheaf** (github.com/kb1dds/pysheaf). The primary open-source Python library for cellular sheaf cohomology. `Sheaf.cohomology()`, `Sheaf.cobetti()`, `Sheaf.consistencyRadius()`. Takes stalks as numpy arrays and restriction maps as functions. Use when you want algebraically exact cohomology computations rather than the rank-based approximation above.
+$$H^1=\ker(\delta_1)/\operatorname{im}(\delta_0),\qquad \dim H^1=\dim C^1-\operatorname{rank}(\delta_1)-\operatorname{rank}(\delta_0),$$
+
+provided `delta1 delta0=0`. A constant scalar connected graph without faces has `dim H1=beta1`; this does not extend to arbitrary stalk dimensions or restriction maps.
+
+## Predeclare fault signatures
+
+For one versioned feature and one observation watermark, specify which independently sourced edge packets the auditor receives. In a constant scalar graph with incidence matrix `B`, let `Q = I - B B^+`. Project each predeclared fault signature `s_j` to `z_j = Q s_j`, group labels with equal `z_j`, and compute their minimum pairwise separation. Equal signatures are observationally indistinguishable; a positive separation supports classification only within that library and a stated noise bound. The full residual vector carries this information, while its norm alone may not.
+
+For known signed unit single-edge errors in a connected loopless graph, distinct signatures for every edge and sign require three-edge connectivity. For arbitrary errors on at most `k` edge packets, the minimum cut must exceed `2k` for unique recovery modulo compatible reports. These are conditional graph results, not causal diagnoses or general sheaf theorems. Use `scripts/sheaf_observability_study.py` for exact fixture calculations, compare an equal-information direct contract checker, and obtain independent artifact truth before naming a workflow failure.
+
+## Bounded follow-up, not automatic repair
+
+A residual support can suggest which observed coordinates to inspect. Ranking coordinates by residual energy/cost is a **local heuristic**; it is neither an optimal min-cut theorem nor a guarantee that one action reduces `beta1` or drives a residual to zero. Any data correction, schedule change, fence, payment, or other effect requires its own authority and independently verified domain rules.
+
+## Navigation
+
+- [Cellular sheaf model and dimensions](references/cellular-sheaves-for-engineers.md)
+- [Observed residual and settlement boundary](references/h1-as-settlement-obstruction.md)
+- [Energy and numerical monitoring limits](references/dirichlet-energy-implementation.md)
+- [Hansen–Ghrist source scope](references/hansen-ghrist-2021.md)
+- [Finite triangle and path walkthrough](references/practical-walkthrough.md)
+- [Repair-ranking hypotheses](references/active-repair-and-triadic-cohomology.md)
+- [Source access and fixture limits](references/source-access-and-fixtures.md)
+
+The included [finite helper](examples/finite_sheaf_checks.py) and receipt fixture validate matrix identities only. They do not connect to a runtime or authorize a response.
+
+## Bundle navigation
+
+[memory index](memory/INDEX.md).

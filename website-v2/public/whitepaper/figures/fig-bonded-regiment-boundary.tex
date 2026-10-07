@@ -44,14 +44,8 @@
   \node[cell] at (6.83,2.9) {violation occurs, then caught};
   \node[cell] at (6.83,1.5) {Arbiter-detected violations $\to$ salvage protocol};
 \end{tikzpicture}
-\caption{Regimentation versus enforcement, in the sense of Jones and
-Sergot's normative-systems distinction: a rule falls on one side or the
-other of Synchronous State Decidability, never both. The three compiled
-invariants (left, shaded, marked $\bigstar$) are checked against
-deterministic local state and the transaction payload alone, so their
-violation cannot occur at all. Every other invariant needs an async check,
-external I/O, or a non-deterministic oracle, so the Arbiter (right) can
-only detect a violation after the fact and route it to the salvage
-protocol. [internal]}
+\caption{The transaction can prevent violations of its three local
+invariants. Checks requiring outside information belong to later detection
+and recovery. [internal]}
 \label{fig:bonded-regiment-boundary}
 \end{figure}

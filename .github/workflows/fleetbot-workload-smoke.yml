@@ -1,0 +1,61 @@
+name: Fleetbot workload identity smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Enroll the workload first; inspect only after an administrator creates its grant.
+        required: true
+        type: choice
+        options:
+          - enroll
+          - inspect
+      pull_request:
+        description: Pull request number for the read-only inspect mode.
+        required: false
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+
+concurrency:
+  group: fleetbot-workload-smoke
+  cancel-in-progress: false
+
+jobs:
+  main-ref-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require the reviewed main branch
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "This workload may only run from refs/heads/main." >&2
+            exit 1
+          fi
+
+  publisher-grant:
+    needs: main-ref-gate
+    runs-on: ubuntu-latest
+    environment: fleetbot-workload
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Enroll or inspect through the standing publisher grant
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
+          FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
+          FLEETBOT_OIDC_AUDIENCE: https://github.com/curiositech
+          FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
+          FLEETBOT_PUBLISHER_GRANT_ID: ${{ secrets.FLEETBOT_PUBLISHER_GRANT_ID }}
+          FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
+        run: node scripts/fleetbot-workload.mjs "${{ inputs.mode }}"

@@ -1,0 +1,91 @@
+[
+  {
+    "skill": "nau-au-kuter-2003-shop2",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_flowchart_htn_planning_decision_framewor.md",
+      "02_mindmap_htn_planning_core_mental_model.md",
+      "03_stateDiagram-v2_agent_task_decomposition_state.md"
+    ]
+  },
+  {
+    "skill": "park-2023-generative-agents",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_flowchart_agent_coherence_decision_tree.md",
+      "02_stateDiagram-v2_agent_behavior_loop:_memory-re.md",
+      "03_timeline_multi-timescale_planning_decom.md"
+    ]
+  },
+  {
+    "skill": "provable-action-adjudicator",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01-claim-ladder.md",
+      "02-pre-effect-sequence.md"
+    ]
+  },
+  {
+    "skill": "provable-action-adjudicator",
+    "path": "references/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "benchmark-protocol.md",
+      "claim-ladder-and-threat-model.md",
+      "repository-status.md",
+      "source-ledger.md"
+    ]
+  },
+  {
+    "skill": "rao-georgeff-1991-modeling-rational-agents-bdi",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_stateDiagram-v2_bdi_mental_state_transitions_&.md",
+      "02_flowchart_goal_decomposition_&_side-effe.md",
+      "03_mindmap_bdi_conceptual_hierarchy_&_mod.md"
+    ]
+  },
+  {
+    "skill": "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_stateDiagram-v2_bdi_agent_decision_cycle:_beli.md",
+      "02_flowchart_plan_selection_pipeline:_from_.md",
+      "03_sequenceDiagram_resource-bounded_rationality:_.md"
+    ]
+  },
+  {
+    "skill": "shoham-leyton-brown-2009-mas-foundations",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_flowchart_multiagent_system_design_decis.md",
+      "02_stateDiagram-v2_information_structure_&_equili.md",
+      "03_quadrantChart_mechanism_design_tradeoff_spac.md"
+    ]
+  },
+  {
+    "skill": "smith-1980-contract-net-protocol",
+    "path": "diagrams/INDEX.md",
+    "kind": "completed-imported-index",
+    "files": [
+      "01_flowchart_knowledge_state_decision_tree.md",
+      "01_flowchart_knowledge_state_decision_tree:.md",
+      "02_sequenceDiagram_knowledge_propagation:_public_.md",
+      "02_sequenceDiagram_knowledge_propagation_public.md",
+      "03_stateDiagram-v2_agent_knowledge_state_evolutio.md",
+      "03_stateDiagram-v2_agent_knowledge_state_evolution.md"
+    ]
+  },
+  {
+    "skill": "windags-curator",
+    "path": "SKILL.md",
+    "kind": "quoted-mermaid-node-label",
+    "files": []
+  }
+]

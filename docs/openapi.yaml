@@ -4248,8 +4248,22 @@ paths:
   /spawn:
     post:
       tags: [spawn]
-      summary: Launch an AI agent
+      summary: Execute a single-body WorkIntent
+      description: >-
+        Captures a canonical intent and single-node plan before Conductor admission.
+        Returns the synchronous backend result plus a durable execution receipt.
+        A receipt is an observation, not a sealed WorkReceipt or deployment proof.
+        Retries with an unchanged Idempotency-Key and body read the original outcome;
+        they never launch another body, including after restart uncertainty.
       operationId: spawnAgent
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Stable key for one logical request, at most 400 UTF-8 bytes.
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -4296,7 +4310,7 @@ paths:
                   description: Timeout in milliseconds
       responses:
         '200':
-          description: Agent spawned
+          description: Terminal backend result or terminal receipt replay (replays omit backend output)
           content:
             application/json:
               schema:
@@ -4304,6 +4318,10 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  duplicate:
+                    type: boolean
+                  runReceipt:
+                    $ref: '#/components/schemas/AgentRunReceipt'
                   agentId:
                     type: string
                   backend:
@@ -4335,8 +4353,18 @@ paths:
                     type: string
                     enum: [running, completed, failed, killed, over_budget]
                     description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
+        '202':
+          description: Replay is accepted, starting, live, or unknown; inspect runReceipt without relaunching.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpawnReceiptResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Idempotency key conflicts with a different body, or Conductor refused execution (receipt included for refusal).
+        '503':
+          description: Canonical WorkIntent runtime is unavailable; no direct-spawn fallback.
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -4362,10 +4390,33 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /spawn/receipts/{id}:
+    get:
+      tags: [spawn]
+      summary: Read the durable single-body execution receipt
+      operationId: getSpawnReceipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exact stored receipt; unknown does not establish liveness or completion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpawnReceiptResponse'
+        '404':
+          description: Receipt not found
+        '503':
+          description: Canonical WorkIntent runtime unavailable
+
   /spawn/{id}:
     delete:
       tags: [spawn]
-      summary: Kill a spawned agent
+      summary: Request a spawned agent to stop
       operationId: killSpawnedAgent
       parameters:
         - name: id
@@ -4375,7 +4426,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Agent killed
+          description: Stop requested; the terminal receipt establishes the observed outcome.
           content:
             application/json:
               schema:
@@ -4385,6 +4436,9 @@ paths:
                     type: boolean
                   agentId:
                     type: string
+                  status:
+                    type: string
+                    enum: [requested]
                   message:
                     type: string
         '500':
@@ -6008,6 +6062,60 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    SpawnReceiptResponse:
+      type: object
+      required: [success, runReceipt]
+      properties:
+        success:
+          type: boolean
+        duplicate:
+          type: boolean
+        code:
+          type: string
+        error:
+          type: [string, 'null']
+        runReceipt:
+          $ref: '#/components/schemas/AgentRunReceipt'
+
+    AgentRunReceipt:
+      type: object
+      description: >-
+        Durable execution observation joined to intent, plan, admitted launch,
+        exact managed session and transcript where established. A missing join is
+        null, never inferred. Terminal outcomes are sticky; interrupted runs become
+        unknown on recovery. This is not the sealed WorkReceipt contract.
+      required: [schema, id, kind, requestHash, intentId, planId, launchId, status,
+        predecessorSessionId, predecessor, successorSessionId, successorAgentId,
+        transcriptId, createdAt, updatedAt, startedAt, completedAt, budgetUsd, telemetry, error]
+      properties:
+        schema: { type: string, const: pd.agent-run-receipt.v1 }
+        id: { type: string }
+        kind: { type: string, enum: [spawn, session-continuation] }
+        requestHash: { type: string }
+        intentId: { type: [string, 'null'] }
+        planId: { type: [string, 'null'] }
+        launchId: { type: [string, 'null'] }
+        predecessorSessionId: { type: [string, 'null'] }
+        predecessor:
+          type: [object, 'null']
+          properties:
+            sessionId: { type: string }
+            purpose: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+        successorSessionId: { type: [string, 'null'] }
+        successorAgentId: { type: [string, 'null'] }
+        transcriptId: { type: [string, 'null'] }
+        status:
+          type: string
+          enum: [accepted, starting, live, completed, failed, cancelled, over_budget, no_runtime, unknown]
+        createdAt: { type: integer, description: Unix milliseconds }
+        updatedAt: { type: integer, description: Unix milliseconds }
+        startedAt: { type: [integer, 'null'], description: Unix milliseconds }
+        completedAt: { type: [integer, 'null'], description: Unix milliseconds }
+        budgetUsd: { type: [number, 'null'] }
+        telemetry: { type: [object, 'null'], additionalProperties: true }
+        error: { type: [string, 'null'] }
+
     SessionCandidate:
       type: object
       additionalProperties: false

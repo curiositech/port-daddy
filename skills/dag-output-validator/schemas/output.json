@@ -1,29 +1,209 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["isValid", "checks"],
+  "required": [
+    "isValid",
+    "status",
+    "checks"
+  ],
   "properties": {
     "isValid": {
       "type": "boolean",
-      "description": "Whether output meets all validation criteria"
+      "description": "True only when all required checks establish acceptance under the named policy. False includes rejection or unresolved evidence; status distinguishes them."
     },
     "checks": {
       "type": "object",
-      "description": "Results of individual validation checks",
+      "required": [
+        "schemaCompliance",
+        "contentQuality",
+        "completeness",
+        "provenanceFreshness",
+        "authority",
+        "acceptance"
+      ],
       "properties": {
         "schemaCompliance": {
-          "type": "boolean",
-          "description": "Output matches expected schema"
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         "contentQuality": {
-          "type": "boolean",
-          "description": "Content meets quality standards"
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         "completeness": {
-          "type": "boolean",
-          "description": "All required fields present"
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "provenanceFreshness": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "authority": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "acceptance": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "not_evaluated",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            },
+            "validatorVersion": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "errors": {
       "type": "array",
@@ -31,15 +211,132 @@
       "items": {
         "type": "object",
         "properties": {
-          "field": { "type": "string" },
-          "error": { "type": "string" },
+          "field": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
           "severity": {
             "type": "string",
-            "enum": ["error", "warning"]
+            "enum": [
+              "error",
+              "warning"
+            ]
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "rejected",
+        "indeterminate"
+      ]
+    },
+    "policy": {
+      "type": "string",
+      "description": "Stable identity/version of the acceptance policy, not an authorization grant."
+    },
+    "artifactDigest": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "accepted"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "isValid": {
+            "const": true
+          },
+          "checks": {
+            "properties": {
+              "schemaCompliance": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              },
+              "contentQuality": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              },
+              "completeness": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              },
+              "provenanceFreshness": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              },
+              "authority": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              },
+              "acceptance": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "policy"
+        ]
+      },
+      "else": {
+        "properties": {
+          "isValid": {
+            "const": false
           }
         }
       }
     }
-  },
-  "additionalProperties": false
+  ]
 }

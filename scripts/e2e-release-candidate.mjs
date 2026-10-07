@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   statSync,
@@ -21,8 +22,8 @@ import { fileURLToPath } from 'node:url';
 import {
   assertOwnedSyntheticTree,
   assertExecutableArtifact,
-  canonicalRecordedCommonDir,
   findAuthorityArtifacts,
+  isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
@@ -113,12 +114,25 @@ function processExited(child, timeoutMs) {
   }
   return new Promise((resolveExit) => {
     let timer;
+    let settled = false;
     const done = (code, signal) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      child.off('exit', done);
       resolveExit({ code, signal });
     };
     child.once('exit', done);
+    // The child can exit between the observation above and listener
+    // registration. Re-observe after subscribing so an already-delivered
+    // `exit` event cannot leave the suite's top-level await unsettled.
+    if (child.exitCode !== null || child.signalCode !== null) {
+      done(child.exitCode, child.signalCode);
+      return;
+    }
     timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
       child.off('exit', done);
       resolveExit(null);
     }, timeoutMs);
@@ -386,8 +400,14 @@ class ReleaseCandidateSuite {
     const contextDir = join(caseRoot, 'x');
     const tmp = join(caseRoot, 't');
     const db = join(runtimeRoot, 'registry.db');
-    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
-    chmodSync(pdHome, 0o700);
+    // Every runtime-owned directory may hold credentials, encryption keys, or
+    // authority-bearing state. Create each leaf as private before the staged
+    // daemon imports shared/paths and inspects PD_HOME; a default 0755 leaf
+    // makes mandatory note encryption fail closed before readiness.
+    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) {
+      mkdirSync(path, { recursive: true, mode: 0o700 });
+      chmodSync(path, 0o700);
+    }
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
@@ -399,7 +419,10 @@ class ReleaseCandidateSuite {
       PORT_DADDY_ISOLATED_TEST: '1',
       PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: pdHome,
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
-      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
+      // `pd __daemon` hands off to the staged companion executable. Drift
+      // detection must compare that running companion with itself, not with
+      // the intentionally different launcher binary.
+      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
       PORT_DADDY_DB: db,
       PORT_DADDY_DISABLE_KEYCHAIN: '1',
@@ -714,9 +737,22 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    await this.runCommand('git', ['add', 'README.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    const claimFile = `${name.toUpperCase()}-CLAIM.md`;
+    writeFileSync(join(repo, claimFile), `# ${name} claim fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', claimFile], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
+  }
+
+  async canonicalFixtureCommonDir(cwd, label) {
+    const result = await this.runCommand('git', ['rev-parse', '--git-common-dir'], {
+      cwd,
+      env: secretFreeBaseEnv(),
+      label: `git-common-dir-${label}`,
+      stream: false,
+    });
+    const candidate = resolve(cwd, result.stdout.trim());
+    return existsSync(candidate) ? realpathSync(candidate) : candidate;
   }
 
   async coordinationRestartRepositoryFamily(caseRoot) {
@@ -743,9 +779,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true },
+      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'ALPHA-CLAIM.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'BETA-CLAIM.md' },
     ];
     try {
       for (const spec of specs) {
@@ -769,9 +805,9 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-        if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
-        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep'], { slot: spec.slot });
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
+        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep', '--template'], { slot: spec.slot });
         if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
         sessions.push({ ...spec, sessionId });
       }
@@ -818,7 +854,7 @@ class ReleaseCandidateSuite {
         const noteBodies = (detail.body.notes || []).map((note) => note.content);
         const filePaths = (detail.body.files || []).map((file) => file.filePath || file.file_path || file.path);
         if (!noteBodies.includes(`RC evidence ${spec.label}`)) throw new Error(`note did not survive restart for ${spec.label}`);
-        if (!filePaths.includes('README.md')) throw new Error(`claim did not survive restart for ${spec.label}`);
+        if (!filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
@@ -844,9 +880,14 @@ class ReleaseCandidateSuite {
       const alphaWorktree = details.find((entry) => entry.label === 'alpha-linked');
       const betaMain = details.find((entry) => entry.label === 'beta-main');
       if (alphaMain.worktree.id === alphaWorktree.worktree.id) throw new Error('linked worktree did not receive a distinct worktree id');
-      const alphaFamily = canonicalRecordedCommonDir(alphaMain.worktree);
-      if (canonicalRecordedCommonDir(alphaWorktree.worktree) !== alphaFamily) throw new Error('linked worktree split from its repository family');
-      if (canonicalRecordedCommonDir(betaMain.worktree) === alphaFamily) throw new Error('arbitrary fixture repositories collapsed into one family');
+      if (resolve(alphaMain.worktree.root) !== resolve(alpha)) throw new Error('alpha main session recorded the wrong worktree root');
+      if (resolve(alphaWorktree.worktree.root) !== resolve(alphaLinked)) throw new Error('alpha linked session recorded the wrong worktree root');
+      if (resolve(betaMain.worktree.root) !== resolve(beta)) throw new Error('beta main session recorded the wrong worktree root');
+      const alphaFamily = await this.canonicalFixtureCommonDir(alphaMain.worktree.root, 'alpha-main');
+      const alphaLinkedFamily = await this.canonicalFixtureCommonDir(alphaWorktree.worktree.root, 'alpha-linked');
+      const betaFamily = await this.canonicalFixtureCommonDir(betaMain.worktree.root, 'beta-main');
+      if (alphaLinkedFamily !== alphaFamily) throw new Error('linked worktree split from its repository family');
+      if (betaFamily === alphaFamily) throw new Error('arbitrary fixture repositories collapsed into one family');
       if (matrixEnvFindings().length > 0) {
         throw new Error('compiled coordination created or required matrix.env for durable identity readback');
       }
@@ -974,7 +1015,14 @@ class ReleaseCandidateSuite {
   }
 
   async portCollisionRecovery(caseRoot) {
-    const blocker = createServer((socket) => socket.end('occupied\n'));
+    const blockerSockets = new Set();
+    const blockerSocketErrors = [];
+    const blocker = createServer((socket) => {
+      blockerSockets.add(socket);
+      socket.once('close', () => blockerSockets.delete(socket));
+      socket.on('error', (error) => blockerSocketErrors.push(error));
+      socket.end('occupied\n');
+    });
     await new Promise((resolveListen, reject) => {
       blocker.once('error', reject);
       blocker.listen(0, '127.0.0.1', resolveListen);
@@ -1018,7 +1066,23 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      await new Promise((resolveClose) => blocker.close(resolveClose));
+      for (const socket of blockerSockets) socket.destroy();
+      await new Promise((resolveClose, rejectClose) => {
+        const timer = setTimeout(() => rejectClose(new Error('collision fixture listener did not close within 3 seconds')), 3_000);
+        blocker.close((error) => {
+          clearTimeout(timer);
+          if (error) rejectClose(error);
+          else resolveClose();
+        });
+      });
+      const unexpectedBlockerSocketErrors = blockerSocketErrors.filter(
+        (error) => !isExpectedCollisionSocketError(error),
+      );
+      if (unexpectedBlockerSocketErrors.length > 0) {
+        throw new Error(
+          `collision fixture socket failed unexpectedly: ${unexpectedBlockerSocketErrors.map((error) => error?.code || error?.message || String(error)).join(', ')}`,
+        );
+      }
       if (cleanupError) throw cleanupError;
     }
 

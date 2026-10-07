@@ -1,72 +1,44 @@
-% Reader question: When two consumers race to redeem one account-bound
-%   token at nearly the same time, how many of them actually succeed?
-% Claim: exactly one of the two overlapping requests reaches a durable state
-%   change; the other observes the drained token and creates no second
-%   transition.
-% Evidence: the serialized SQL update (consumed_at IS NULL RETURNING) and the
-%   token/audit rows from this chapter section on magic-link redemption
-%   [internal].
-% Must distinguish: the two requests overlapping in time from the one atomic
-%   instant that actually decides the winner.
-% Grammar chosen: two-lane race timeline over a token and audit rail.
-%   Rejected: two arrows converging on an icon, because it would not show
-%   that the decision is a single serialized database instant, not a race
-%   between the two requests themselves.
-% Five-second test: a reader says both requests overlap, but only one state
-%   change happens, at the atomic drain.
+% Two request lifetimes overlap; successful consumption is at most once.
+% A wins in this example, not in every possible schedule. SQL is simplified.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdgold}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\x0{1.55}  \def\xe{8.95}
-  \def\ta{1.95}  \def\tb{5.20}  \def\tc{5.85}  \def\td{8.60}
-  \def\yA{2.75}  \def\yB{1.85}  \def\yT{0.95}  \def\yU{0.05}  \def\yax{-1.10}
-  \node[pd title,anchor=west,text width=8.5cm] at (\x0,3.75)
-    {two overlapping requests, one durable state edge};
-  % ---- lane labels and base hairlines ---------------------------------------
-  \node[pd label,anchor=east] at ({\x0-.12},\yA) {consumer A};
-  \node[pd label,anchor=east] at ({\x0-.12},\yB) {consumer B};
-  \node[pd label,anchor=east] at ({\x0-.12},\yT) {token row};
-  \node[pd label,anchor=east] at ({\x0-.12},\yU) {audit row};
-  \foreach \y in {\yA,\yB,\yT,\yU} {\draw[pd hairline] (\x0,\y)--(\tc,\y);}
-  % ---- the atomic drain interval, bounded by guides, no fill ---------------
-  \draw[pd guide] (\tb,3.05)--(\tb,{\yU-.15});
-  \draw[pd guide] (\tc,3.05)--(\tc,{\yU-.15});
-  \node[pd tag,anchor=south] at ({(\tb+\tc)/2},3.05) {atomic drain};
-  % ---- consumer A: overlapping request, then the sole success -------------
-  \draw[pd rule,line width=1.05pt] (\ta,\yA)--({\tb-.05},\yA);
-  \node[pd label,anchor=south] at ({(\ta+\tb)/2},{\yA+.14}) {present $tk$};
-  \draw[pd focus arrow] (\tc,\yA)--(\td,\yA);
-  \node[pd focus datum] at (\td,\yA) {};
-  \node[pd ready label,anchor=west] at ({\td+.12},\yA) {success};
-  % ---- consumer B: overlapping request, then the rejected duplicate --------
-  \draw[pd rule,line width=1.05pt] ({\ta+.35},\yB)--({\tb-.05},\yB);
-  \node[pd label,anchor=south] at ({(\ta+.35+\tb)/2},{\yB+.14}) {present same $tk$};
-  \draw[pd breach arrow] (\tc,\yB)--(\td,\yB);
-  \node[pd breach datum] at (\td,\yB) {};
-  \node[pd label,anchor=west] at ({\td+.12},\yB) {reject};
-  % ---- the token row has one falling edge, never rising again --------------
-  \draw[pd rule,line width=1.15pt] ({\ta-.15},\yT)--(\tb,\yT);
-  \node[pd label,anchor=north] at ({(\ta+\tb)/2-.15},{\yT-.14}) {available: NULL};
-  \draw[pd focus rule] (\tc,\yT)--(\td,\yT);
-  \node[pd ready label,anchor=north] at ({(\tc+\td)/2},{\yT-.14}) {consumed by A};
-  % ---- the audit row records the winner only --------------------------------
-  \draw[pd focus rule] (\tc,\yU)--({\td-.65},\yU);
-  \node[pd focus datum] at ({\td-.65},\yU) {};
-  \node[pd ready label,anchor=west] at ({\td-.51},\yU) {receipt $tk\mapsto A$};
-  % ---- time axis --------------------------------------------------------------
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\x0,\yax)--({\xe+.15},\yax);
-  \node[pd label,anchor=west] at ({\xe+.20},\yax) {time};
-  \foreach \x/\lab in {\ta/{$t_0$},\tb/{$t_1$},\tc/{$t_2$},\td/{$t_3$}} {
-    \draw[pd tick] (\x,{\yax-.07})--(\x,{\yax+.07});
-    \node[pd label,anchor=north] at (\x,{\yax-.12}) {\lab};}
-\end{tikzpicture}
-\caption{Single-use redemption is a concurrency property, not a two-arrow
-icon. Two consumers present the same account-bound token during one overlap
-window. Both requests reach the same serialized SQL update, but the token
-row has only one falling edge: the first transaction changes
-\texttt{consumed\_at} from \texttt{NULL} and returns a row; the second
-observes the durable state and returns none. The audit row records the
-winning consumer without creating a second success path. [internal]}
+\SGMeasuredFigure{fig-magic-link-inline}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \foreach \x/\who in {36/{consumer A},160/{one writer},282/{consumer B}}{
+    \node[anchor=south,font=\SGType\bfseries] at (\x,0) {\who};
+  }
+  \draw[sgGrid,dashed,line width=.8pt] (36,12)--(36,150);
+  \draw[sgGrid,dashed,line width=.8pt] (160,12)--(160,230);
+  \draw[sgGrid,dashed,line width=.8pt] (282,12)--(282,230);
+  \draw[sg/arrow,draw=sgBlue] (36,42)--(160,42);
+  \node[anchor=south,text=sgBlue] at (98,37) {redeem $tk$};
+  \draw[sg/arrow,draw=sgAmber] (282,74)--(160,74);
+  \node[anchor=south,text=sgAmber] at (221,69) {redeem same $tk$};
+  \node[sg/check,draw=sgBlue,fill=sgBlue!6,minimum width=110pt,
+    minimum height=33pt] (first) at (160,107)
+    {A: $\mathtt{NULL}\to t_1$\\commit consumption};
+  \draw[sg/arrow,draw=sgTeal,dashed] (160,140)--(36,140);
+  \node[anchor=south,text=sgTeal] at (95,135) {1 row: success};
+  \SGDocument{receipt}{(186,136)}{88}{33}{sgTeal!7}{audit receipt\\$tk\mapsto A$}
+  \draw[sg/arrow,draw=sgTeal] (160,152)--(receipt.west);
+  \node[sg/check,draw=sgRed,fill=sgRed!4,minimum width=110pt,
+    minimum height=33pt] (second) at (160,194)
+    {B: $t_1\to t_1$\\no unused row};
+  \draw[sg/arrow,draw=sgRed,dashed] (160,227)--(282,227);
+  \node[anchor=south,text=sgRed] at (221,222) {0 rows: reject};
+  % This strip is a statement specimen, not a third simultaneous operation.
+  \node[anchor=north west,font=\SGType\bfseries] at (0,254) {Conditional update};
+  \node[draw=sgInk,fill=sgInk!2,line width=.8pt,anchor=north west,
+    text width=304pt,inner sep=6pt,align=left] at (0,273)
+    {\texttt{UPDATE token SET consumed\_at = :now}\\
+     \texttt{WHERE token = :tk}\\
+     \texttt{AND consumed\_at IS NULL}\\
+     \texttt{RETURNING token;}};
+  \draw[sg/arrow] (309,18)--(309,230);
+  \node[anchor=south,rotate=90] at (306,124) {action order};
+\end{tikzpicture}}
+\caption{Overlapping requests still produce one consumption. A wins this
+illustrated schedule; either caller can win. SQL is simplified: authentication
+and expiry checks are omitted.}
 \label{fig:magic-link-inline}
 \end{figure}

@@ -7,7 +7,7 @@ recent revision. Regenerate it after any change to the chapter or the script:
 
 ```bash
 python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
-  whitepaper/single-writer-kernel.tex \
+  --apparatus whitepaper/chapter-apparatus.json whitepaper/single-writer-kernel.tex \
   > skills/textbook-craft/examples/chapter1-lint-report.txt
 ```
 
@@ -30,6 +30,7 @@ arguments at all so it reads its own chapter list from
 
 ```bash
 python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
+  --apparatus whitepaper/chapter-apparatus.json \
   > skills/textbook-craft/examples/consolidated-lint-report.txt
 ```
 
@@ -50,3 +51,11 @@ needs fixing.
 Both files are regenerated with `--repo-root .` from the repository root, so
 the chapter column holds repo-relative paths rather than whichever absolute
 path the generating checkout happened to live at.
+
+Current capture: main `cf07690b03a3f6082092fc9760155f36c7d47256`, using
+`whitepaper/chapter-apparatus.json`: **117 body sections, 77 without a counted
+worked example, 15 blocking failures, 6 advisory failures and 8 REVIEW rows**.
+Only 16 authored recaps/exercise collections are excluded. Literature summaries,
+teaching/proof/status appendices and substantive boundaries remain body. CI uses
+this explicit map with `--max-blocking 15`; the old #10202 budget of 17 is not
+reused. The budget keeps debt visible and does not certify chapter quality.

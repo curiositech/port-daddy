@@ -170,9 +170,8 @@ If gain is weak:
 ```
 
 Use override frequency as a calibration signal:
-- Above 30% usually means thrashing.
-- Below 5% usually means brittleness.
-- Around 10-20% is a healthy starting range.
+- There is no universal healthy percentage. Establish a task-specific baseline, then compare override frequency with quality, delay, rework, and harmful outcomes.
+- Treat any initial range as an unvalidated local calibration hypothesis, not a transferred default.
 
 ### 3. Structural Partiality Level
 
@@ -289,3 +288,7 @@ The companion Mermaid flowchart is the fast artifact for commitment and override
 - [ ] Override frequency has a target range.
 - [ ] Multi-agent consistency checks are proportional to coordination criticality.
 - [ ] The plan supports action before full specification.
+
+## Team-budget gate
+
+For multi-agent work, calculate total attempt-tree cost before the first action. Include retries, review, reconciliation, and operator time; use `references/team-budget-accounting.md` for the worked reservation rule.

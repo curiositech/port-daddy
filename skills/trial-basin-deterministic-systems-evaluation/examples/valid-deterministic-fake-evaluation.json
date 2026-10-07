@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0.0",
+  "evaluationId": "trial-1",
+  "proposition": "The modeled admission reducer creates no lease without a consumed reservation.",
+  "subject": "admission-reducer-v1",
+  "repositoryAnchor": "git:example-anchor",
+  "policyDigest": "sha256:evaluation-policy",
+  "truthState": "T1_MODEL",
+  "environment": "DETERMINISTIC_FAKE",
+  "haltObserved": true,
+  "roles": {
+    "scheduler": {"id": "scheduler-1", "controlDomain": "domain-schedule"},
+    "subject": {"id": "subject-1", "controlDomain": "domain-subject"},
+    "recorder": {"id": "recorder-1", "controlDomain": "domain-evidence"},
+    "oracle": {"id": "oracle-1", "controlDomain": "domain-oracle"},
+    "adjudicator": {"id": "adjudicator-1", "controlDomain": "domain-decision"}
+  },
+  "model": {
+    "modelId": "admission-fake-v1",
+    "revision": "1",
+    "correspondence": [
+      {
+        "realMechanism": "transactional admission store",
+        "modeledSubstitute": "pure state reducer",
+        "contractRef": "contract:admission-v1",
+        "knownMismatch": "The reducer does not model filesystem, process, or database implementation faults beyond declared transitions.",
+        "falsifier": "An implementation trace reaches a lease state absent from the reducer under the same semantic events."
+      }
+    ],
+    "exclusions": ["OS containment", "provider behavior", "network mediation", "spend enforcement", "human comprehension"]
+  },
+  "schedule": {
+    "digest": "sha256:schedule",
+    "virtualClock": "clock:logical-v1",
+    "seed": "seed:17",
+    "interleaving": "interleaving:all-two-message-orders"
+  },
+  "faults": {
+    "envelopeDigest": "sha256:faults",
+    "faultIds": ["crash-before", "crash-after", "duplicate", "reorder", "delay", "drop", "lost-ack", "permanent-unavailable"]
+  },
+  "evidence": {
+    "rawManifestDigest": "sha256:raw-manifest",
+    "rawTraceDigest": "sha256:raw-trace",
+    "committedBeforeMinimization": true,
+    "guestSoleWitness": false
+  },
+  "oracle": {
+    "oracleId": "oracle:admission-invariants",
+    "revision": "1",
+    "predicateIds": ["no-lease-without-consumed-reservation", "at-most-one-live-lease"],
+    "mutationTotal": 4,
+    "mutationKilled": 4
+  },
+  "negativeControls": [
+    {
+      "controlId": "control:missing-reservation",
+      "manifestDeclared": true,
+      "expectedPredicate": "no-lease-without-consumed-reservation:violated",
+      "observedPredicate": "no-lease-without-consumed-reservation:violated"
+    }
+  ],
+  "resultVector": [
+    {
+      "axis": "modeled-admission-invariants",
+      "evidenceClass": "MODEL",
+      "status": "PASS",
+      "evidenceRefs": ["sha256:raw-trace", "oracle:admission-invariants"],
+      "limitation": "Pass is exact only to the sealed reducer model, schedule, and fault envelope."
+    },
+    {
+      "axis": "runtime-containment",
+      "evidenceClass": "RUNTIME",
+      "status": "BLOCKED_BY_HALT",
+      "evidenceRefs": [],
+      "limitation": "No live runtime, VM, process, or provider was started."
+    },
+    {
+      "axis": "operator-accessibility",
+      "evidenceClass": "HUMAN",
+      "status": "BLOCKED_BY_HALT",
+      "evidenceRefs": [],
+      "limitation": "No human or assistive-technology session was run."
+    }
+  ],
+  "replay": {
+    "semanticProjectionRef": "projection:admission-events-v1",
+    "rawPredicate": "no-lease-without-consumed-reservation:holds",
+    "minimizedTraceDigest": "sha256:minimized-trace",
+    "minimizedPredicate": "no-lease-without-consumed-reservation:holds",
+    "samePredicate": true
+  },
+  "promotion": "CANDIDATE_FIXTURE",
+  "runtimeAuthority": "NONE",
+  "truthEffect": "NONE"
+}

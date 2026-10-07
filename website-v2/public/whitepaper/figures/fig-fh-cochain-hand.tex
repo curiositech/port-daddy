@@ -29,6 +29,7 @@
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{pd automaton state/.append style={minimum size=6.4mm,inner sep=0pt}}
   \def\pw{4.85}   \def\s{2.00}   \def\topY{2.30}   \def\botY{0.30}
   % ---- panel A: full ring, lie on 3-0 -----------------------------------
   \def\oA{0.00}
@@ -59,7 +60,9 @@
   \node[pd focus label,anchor=north,text width=\pw cm,align=center] at ({\oB+\pw/2},{\midY-0.85}) {$r=0$};
 
   % ---- panel C: ring, same lie on 3-0, but 1-2 severed (unobserved) ------
-  \def\oC{10.30}
+  % Keep the third comparison below, not in the caption margin.
+  \begin{scope}[yshift=-5cm]
+  \def\oC{0.00}
   \node[pd title,anchor=south,text width=\pw cm,align=center] at ({\oC+\pw/2},{\topY+0.85}) {C. ring, 1--2 severed};
   \node[pd automaton state] (c0) at ({\oC+1.10},\topY) {0};
   \node[pd automaton state] (c1) at ({\oC+1.10+\s},\topY) {1};
@@ -72,19 +75,12 @@
   \draw[pd breach arrow] (c3) -- (c0);
   \node[pd breach label,anchor=east] at ({\oC+0.95},{(\topY+\botY)/2}) {$s{=}3$};
   \node[pd focus label,anchor=north,text width=\pw cm,align=center] at ({\oC+\pw/2},{\botY-0.55}) {$r=0$};
+  \end{scope}
 \end{tikzpicture}
 
-\caption{\textbf{Same lie, three topologies, two different verdicts.} A
-relay 0 equivocates by $s=3$ on one link in every panel. On the full ring
-(A) the loop cannot absorb the lie without leaving a residual on every
-link, giving $r=1.5$. Breaking the loop makes the lie invisible
-two different ways: as a chain (B), the assignment $x=(0,0,0,-3)$
-reproduces the visible disagreement exactly, so $r=0$; as a ring with a
-\emph{different} link (1--2, not the lied-about 3--0) severed (C), the
-three still-visible links admit the same free completion, so $r=0$ again.
-The severed link in panel C is not the lying link -- visibility of the
-\emph{loop through the equivocator}, not of the lie itself, is what the
-theorem's clause turns on. [verified, closed form; matches
-\texttt{sheaf\_consistency\_radius.py}]}
+\caption{A visible loop exposes the lie ($r=1.5$). Breaking even a different
+link lets the same lie pass with zero residual. Seeing the lying link alone
+is not enough. [verified, closed form; matches
+\protect\path{sheaf_consistency_radius.py}]}
 \label{fig:fh-cochain-hand}
 \end{figure*}

@@ -122,12 +122,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[195-1].get_pixmap(dpi=150)
 
 ---
 
-## Artifact 1 — `defect-1-equation-over-measure.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png`
 
 Defect 1 / Eq. 4.4 ran off the measure
 
-- File: `docs/pr-assets/pr-10192/defect-1-equation-over-measure.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/defect-1-equation-over-measure.png`
+- File: `https://media.portdaddy.dev/sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png`
+  - raw: `https://media.portdaddy.dev/sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png`
 - Shows: before = p.195 · after = p.195 (a tectonic 0.15.0 build of this branch's head source, with the fix reverted on the BEFORE half only)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 606 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -139,12 +139,12 @@ Defect 1 / Eq. 4.4 ran off the measure
 - Source: `real` — `real` in the sense that matters here: both halves are real renders of real source. They are **not** the committed artifact -- tectonic paginates differently from the official toolchain -- and the BEFORE half is this branch's head source with exactly one fix reverted, because the defect was introduced and fixed inside this branch and no committed PDF ever contained it. Same engine on both sides, so the pair is comparable
 - Note: Both halves are tectonic 0.15.0 builds of the SAME head source, differing only by reverting the split in whitepaper/legible-swarm.tex. Same engine on both sides, so the pair is comparable; neither half is the committed artifact.
 
-## Artifact 2 — `defect-2-ownership-table-columns.png`
+## Artifact 2 — `https://media.portdaddy.dev/sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png`
 
 Defect 2 / Table A.11 gave its narrowest content the widest column
 
-- File: `docs/pr-assets/pr-10192/defect-2-ownership-table-columns.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/defect-2-ownership-table-columns.png`
+- File: `https://media.portdaddy.dev/sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png`
+  - raw: `https://media.portdaddy.dev/sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png`
 - Shows: before = p.536 · after = p.536 (a tectonic 0.15.0 build of this branch's head source, with the fix reverted on the BEFORE half only)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 364 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -156,12 +156,12 @@ Defect 2 / Table A.11 gave its narrowest content the widest column
 - Source: `real` — `real` in the sense that matters here: both halves are real renders of real source. They are **not** the committed artifact -- tectonic paginates differently from the official toolchain -- and the BEFORE half is this branch's head source with exactly one fix reverted, because the defect was introduced and fixed inside this branch and no committed PDF ever contained it. Same engine on both sides, so the pair is comparable
 - Note: Reverting one tabularx column spec in coordination-papers-mega-volume-appendices.tex is the only difference between these two builds.
 
-## Artifact 3 — `defect-3-chapref-dead-link.png`
+## Artifact 3 — `https://media.portdaddy.dev/sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png`
 
 Defect 3 / A chapter reference that renders but does not link
 
-- File: `docs/pr-assets/pr-10192/defect-3-chapref-dead-link.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/defect-3-chapref-dead-link.png`
+- File: `https://media.portdaddy.dev/sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png`
+  - raw: `https://media.portdaddy.dev/sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png`
 - Shows: before = p.374 · after = p.374 (a tectonic 0.15.0 build of this branch's head source, with the fix reverted on the BEFORE half only)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1728 px; 484 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -173,12 +173,12 @@ Defect 3 / A chapter reference that renders but does not link
 - Source: `real` — `real` in the sense that matters here: both halves are real renders of real source. They are **not** the committed artifact -- tectonic paginates differently from the official toolchain -- and the BEFORE half is this branch's head source with exactly one fix reverted, because the defect was introduced and fixed inside this branch and no committed PDF ever contained it. Same engine on both sides, so the pair is comparable
 - Note: This defect is very nearly invisible: the ink differs on four words only (1,153 of 2.3M pixels). 'The Federated Harbor' sets in body black #000000 before and in the house link colour #403A34 after, and only the AFTER page carries the link annotation to the chapter opener.
 
-## Artifact 4 — `defect-4-margin-plate-off-paper.png`
+## Artifact 4 — `https://media.portdaddy.dev/sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png`
 
 Defect 4 / a margin plate the trimmer would have cut
 
-- File: `docs/pr-assets/pr-10192/defect-4-margin-plate-off-paper.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/defect-4-margin-plate-off-paper.png`
+- File: `https://media.portdaddy.dev/sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png`
+  - raw: `https://media.portdaddy.dev/sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png`
 - Shows: before = p.192 · after = p.193 (tectonic builds of this branch at two of its own commits)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 926 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -190,12 +190,12 @@ Defect 4 / a margin plate the trimmer would have cut
 - Source: `real` — `real` in the sense that matters here: both halves are real renders of real source. They are **not** the committed artifact -- tectonic paginates differently from the official toolchain -- and the BEFORE half is this branch's head source with exactly one fix reverted, because the defect was introduced and fixed inside this branch and no committed PDF ever contained it. Same engine on both sides, so the pair is comparable
 - Note: Measured, not asserted: scanning every page for text blocks whose bbox leaves the 504x720 pt paper, the eec37eb96 build has 1 (this one, 2.0 pt past the bottom) and the 9e47633b0 build has 0. The commit that fixed it reports 1.4 pt for Leviathan and 11.7 pt for Shannon on CI's xelatex render; tectonic paginates differently, so the amount differs while the defect and its removal do not.
 
-## Artifact 5 — `ch2-withdrawn-section-title.png`
+## Artifact 5 — `https://media.portdaddy.dev/sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png`
 
 Chapter 2 / a section title withdrawn rather than hedged
 
-- File: `docs/pr-assets/pr-10192/ch2-withdrawn-section-title.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/ch2-withdrawn-section-title.png`
+- File: `https://media.portdaddy.dev/sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png`
+  - raw: `https://media.portdaddy.dev/sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png`
 - Shows: before = p.107 · after = p.110 (the committed Book PDF (blob 08f18f7b0, identical at eec37eb96 and at the tip))
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 624 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -206,12 +206,12 @@ Chapter 2 / a section title withdrawn rather than hedged
   half is necessarily an earlier commit (2f2969af959189917cff4a8ae48b1d52cc6e1db9), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 6 — `ch7-perfect-public-monitoring.png`
+## Artifact 6 — `https://media.portdaddy.dev/sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png`
 
 Chapter 7 / the assumption that was being made silently
 
-- File: `docs/pr-assets/pr-10192/ch7-perfect-public-monitoring.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/ch7-perfect-public-monitoring.png`
+- File: `https://media.portdaddy.dev/sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png`
+  - raw: `https://media.portdaddy.dev/sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png`
 - Shows: before = p.366 · after = p.374 (the committed Book PDF (blob 08f18f7b0, identical at eec37eb96 and at the tip))
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 731 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -222,12 +222,12 @@ Chapter 7 / the assumption that was being made silently
   half is necessarily an earlier commit (2f2969af959189917cff4a8ae48b1d52cc6e1db9), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 7 — `ch5-why-not-stake.png`
+## Artifact 7 — `https://media.portdaddy.dev/sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png`
 
 Chapter 5 / the objection answered rather than ignored
 
-- File: `docs/pr-assets/pr-10192/ch5-why-not-stake.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/96277b558a2406ad32ace239b912d24161bad6a9/docs/pr-assets/pr-10192/ch5-why-not-stake.png`
+- File: `https://media.portdaddy.dev/sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png`
+  - raw: `https://media.portdaddy.dev/sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png`
 - Shows: before = p.241 · after = p.246 (the committed Book PDF (blob 08f18f7b0, identical at eec37eb96 and at the tip))
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 522 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

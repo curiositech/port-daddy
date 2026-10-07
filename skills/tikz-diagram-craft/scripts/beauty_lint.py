@@ -8,7 +8,7 @@ those and still look careless: a word jammed against its box, a label
 hugging a rule, two labels a hair apart, five stroke weights where the
 ladder has three, six hues, a label 1 pt off the column it should share.
 This script measures those on the compiled fragment PDF (page 1, the
-picture above its caption) and reports each with the number.
+picture beside or above its caption) and reports each with the number.
 
   B1  moat         text inside a stroked box with < 2.5 pt to an edge    warn (< 1 pt: fail)
   B2  crowding     a word within 1.5 pt of a stroke it does not sit in    warn
@@ -33,7 +33,49 @@ PT_IN = 72.0
 
 
 def _pic_region(page):
-    """The picture: everything above the caption ("Figure N:"), or the page."""
+    """Keep the picture beside a margin caption, or above a bottom caption.
+
+    Book fragments have a narrow outside column. A caption there cannot be
+    used as a vertical crop: doing so quietly excludes most of the drawing.
+    Work with individual lines so the PDF reader's column merging cannot
+    append a figure label to the caption's provenance text.
+    """
+    lines = []
+    for block in page.get_text('dict')['blocks']:
+        for line in block.get('lines', []):
+            text = ''.join(span['text'] for span in line['spans']).strip()
+            if text:
+                lines.append((*line['bbox'], text))
+    heads = [line for line in lines
+             if re.match(r'^(?:Figure|Table)\s+[\dA-Z.]+[:.]', line[4])]
+    if heads:
+        head = min(heads, key=lambda line: line[1])
+        left_edge = page.rect.x0 + .25 * page.rect.width
+        right_edge = page.rect.x0 + .75 * page.rect.width
+        side = 'left' if head[2] < left_edge else 'right' if head[0] > right_edge else None
+        if side:
+            # Confirm there is picture text beside the caption, not simply
+            # a short caption near the bottom of an otherwise normal page.
+            caption_lines = [line for line in lines if line[1] >= head[1] - 1
+                             and (line[2] < left_edge if side == 'left'
+                                  else line[0] > right_edge)]
+            bottom = max(line[3] for line in caption_lines)
+            beside = [line for line in lines if line[3] >= head[1]
+                      and line[1] <= bottom
+                      and (line[0] >= left_edge if side == 'left'
+                           else line[2] <= right_edge)]
+            beside += [drawing for drawing in page.get_drawings()
+                       if drawing['rect'].y1 >= head[1]
+                       and drawing['rect'].y0 <= bottom
+                       and (drawing['rect'].x0 >= left_edge if side == 'left'
+                            else drawing['rect'].x1 <= right_edge)]
+            if beside:
+                region = pymupdf.Rect(page.rect)
+                if side == 'left':
+                    region.x0 = max(line[2] for line in caption_lines) + 1
+                else:
+                    region.x1 = min(line[0] for line in caption_lines) - 1
+                return region, ' '.join(line[4] for line in sorted(caption_lines, key=lambda line: line[1]))
     cap_top = None
     cap_text = ''
     for b in page.get_text('blocks'):

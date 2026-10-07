@@ -51,17 +51,6 @@
     {$F{=}4096,k{=}32$: $7.1\times$};
 \end{axis}
 \end{tikzpicture}
-\caption{The zoom-advantage theorem's guaranteed worst-case advantage
-against flagged-set density $d=k/F$ (log scale), a genuine step function
-from the ceiling: $\mathrm{adv}(d)=1/(d(2\lceil\log_2(1/d)\rceil+4))$. The
-guarantee crosses $1$ at $d=1/12$: at any sparser density, adaptive halving
-is guaranteed to beat flat inspection, and at any denser one the worst case
-can lose. At the chapter's own $F{=}2500,k{=}10$ point ($d{=}0.004$) the
-guarantee is $12.5\times$, comfortably left of the crossing, and the
-harness's realized mean of $162.6$ opens is a better-than-guaranteed
-$15.3\times$; the $F{=}4096,k{=}32$ tightness configuration ($d{=}1/128$)
-guarantees $7.1\times$ and lands exactly on its own tight closed form, $511$
-queries measured against $511$ predicted. [internal,
-\texttt{zoom\_bound\_check.py}]}
+\caption{Adaptive halving guarantees an advantage when $d<1/12$. At $F=2500,k=10$, its guarantee is $12.5\times$; the harness mean is $15.3\times$, distinct from that worst-case bound. [internal, \protect\path{zoom_bound_check.py}]}
 \label{fig:zoom-advantage}
 \end{figure}

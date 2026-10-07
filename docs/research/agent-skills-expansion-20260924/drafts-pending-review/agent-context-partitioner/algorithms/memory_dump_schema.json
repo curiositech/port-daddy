@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://portdaddy.dev/schemas/agent-knowledge-dump/v1",
+  "title": "AgentKnowledgeDump",
+  "description": "Structured knowledge dump written by an agent before context handoff or compaction. Posted to Port Daddy as a note of type 'knowledge_dump'.",
+  "type": "object",
+  "required": ["schema_version", "session_id", "agent_id", "trigger", "token_state", "task_state", "handoff_instructions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Version of this schema for forward-compat."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Port Daddy session ID of the dumping agent."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Port Daddy agent identity (project:stack:context format)."
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["compaction_imminent", "task_boundary", "spawn_requested", "explicit", "emergency"],
+      "description": "What caused this dump."
+    },
+    "token_state": {
+      "type": "object",
+      "required": ["used", "window", "pressure_fraction"],
+      "additionalProperties": false,
+      "properties": {
+        "used": { "type": "integer", "minimum": 0 },
+        "window": { "type": "integer", "minimum": 1 },
+        "pressure_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "velocity_tok_per_min": { "type": "number", "minimum": 0 },
+        "compaction_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "task_state": {
+      "type": "object",
+      "required": ["current_task", "completed", "in_progress", "remaining"],
+      "additionalProperties": false,
+      "properties": {
+        "current_task": {
+          "type": "string",
+          "description": "One-sentence description of what this agent is doing right now."
+        },
+        "completed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Task IDs or short descriptions of completed work."
+        },
+        "in_progress": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tasks started but not finished. Most important to hand off."
+        },
+        "blocked": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["task", "reason"],
+            "properties": {
+              "task": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "remaining": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Known future tasks not yet started."
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Questions this agent could not answer and the next agent should investigate."
+    },
+    "key_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decision", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "decision": { "type": "string" },
+          "rationale": { "type": "string" },
+          "alternatives_rejected": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "description": "Decisions made during this session that are NOT captured in code or commits. The next agent must know these to avoid relitigating them."
+    },
+    "files_touched": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths of files modified or created by this agent."
+    },
+    "files_read_for_context": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files read as background context. Successor agent should re-read these."
+    },
+    "semantic_context": {
+      "type": "string",
+      "description": "Free-form: what this agent understands about the codebase, domain, or task that is NOT derivable from reading the files or git log. Write this for a peer engineer joining mid-task."
+    },
+    "handoff_instructions": {
+      "type": "string",
+      "description": "Imperative instructions for the next agent. What must it do first? What must it NOT do? What will trip it up?"
+    },
+    "successor_context_seeds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value"],
+        "properties": {
+          "type": { "type": "string", "enum": ["skill", "memory", "note_id", "file", "pr_number"] },
+          "value": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "description": "Specific skills, memories, notes, or files the successor agent should load first."
+    },
+    "constraints_discovered": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Constraints discovered during this session that surprised the agent (not in the original spec). The successor must not violate these."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Optional structured metrics for the Port Daddy fleet ledger.",
+      "properties": {
+        "tasks_completed": { "type": "integer" },
+        "tests_written": { "type": "integer" },
+        "lines_changed": { "type": "integer" },
+        "pr_numbers": { "type": "array", "items": { "type": "integer" } }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "1.0",
+      "session_id": "sess-abc123",
+      "agent_id": "port-daddy:relay:auth",
+      "trigger": "compaction_imminent",
+      "token_state": {
+        "used": 168000,
+        "window": 200000,
+        "pressure_fraction": 0.84,
+        "velocity_tok_per_min": 1800,
+        "compaction_count": 1
+      },
+      "task_state": {
+        "current_task": "Implementing JWT refresh rotation in relay/auth.ts",
+        "completed": ["relay/session.ts IDOR fix", "bulk-revoke pagination"],
+        "in_progress": ["JWT refresh rotation — wrote the token store, need to wire the rotation handler"],
+        "blocked": [],
+        "remaining": ["rate limiting on /relay/connect", "e2e tests for auth flow"]
+      },
+      "open_questions": [
+        "Should refresh tokens be stored in the daemon DB or in CF KV? CF KV is faster but adds a dependency.",
+        "The existing session TTL is 4h — is that correct for the relay use case?"
+      ],
+      "key_decisions": [
+        {
+          "decision": "Use HMAC-SHA256 for token signing, not RS256",
+          "rationale": "No key distribution needed for single-node daemon. RS256 adds complexity for no current benefit.",
+          "alternatives_rejected": ["RS256 (asymmetric)", "Opaque tokens with DB lookup"]
+        }
+      ],
+      "files_touched": [
+        "relay/auth.ts",
+        "relay/token-store.ts",
+        "tests/relay/auth.test.ts"
+      ],
+      "files_read_for_context": [
+        "relay/session.ts",
+        "lib/db.ts",
+        "docs/adr/0048-relay-auth.md"
+      ],
+      "semantic_context": "The relay is a Cloudflare Worker that acts as a zero-trust proxy. Authentication is separate from the main daemon's session system — relay sessions are short-lived and tied to a CF KV namespace, not the SQLite DB. The daemon validates relay sessions via a shared HMAC secret injected at Worker deploy time.",
+      "handoff_instructions": "Resume from relay/auth.ts line ~180 where rotateRefreshToken() is defined but not wired. Wire it into the POST /relay/connect handler in relay/routes.ts. Run `npm test -- relay` and fix any failures before moving to rate limiting.",
+      "successor_context_seeds": [
+        { "type": "file", "value": "relay/auth.ts", "reason": "Primary work file, partially implemented" },
+        { "type": "file", "value": "docs/adr/0048-relay-auth.md", "reason": "Design decisions for relay auth" },
+        { "type": "skill", "value": "pd-relay-zero-trust", "reason": "Domain expertise for relay architecture" }
+      ],
+      "constraints_discovered": [
+        "CF KV has 512 byte value limit in the free tier — don't store full JWT payloads there, store only token IDs.",
+        "The relay Worker must stay under 1MB compressed — don't add crypto libraries."
+      ],
+      "metrics": {
+        "tasks_completed": 2,
+        "tests_written": 8,
+        "lines_changed": 340,
+        "pr_numbers": [365, 366]
+      }
+    }
+  ]
+}

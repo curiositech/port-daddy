@@ -1,0 +1,74 @@
+\begin{figure}[H]
+\centering
+\begingroup
+% Source-bound fixture: native Book typography; no scale or private-font assets.
+% Data: docs/harbor-research/experiments/handoff-coverage-20260920/
+% run-03/results.json, old fixture, SHA256
+% 4650de5b6236e2f883b3de102b3626471b0074fbbd131963131122b57dc3b7c3.
+% Folded-record geometry adapted from the author's approved SGDocument style.
+% Paper shapes identify records; aligned positions carry the subset relation.
+\newcommand{\HGCRecord}[6]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \path[draw=#5,fill=#5!5,line width=.75pt]
+      (0,0)--({#3-6},0)--(#3,6)--(#3,#4)--(0,#4)--cycle;
+    \draw[draw=#5,line width=.6pt] ({#3-6},0)--({#3-6},6)--(#3,6);
+    \node[pd mono label,text=pdink,align=center,text width=\dimexpr#3pt-14pt\relax,
+      inner sep=0pt] at ({#3/2},{#4/2}) {#6};
+  \end{scope}}
+\newcommand{\HGCOriginal}[2]{%
+  \HGCRecord{#2}{22}{54}{42}{pdinkmuted}{turn-#1}}
+\newcommand{\HGCRetained}[2]{%
+  \HGCRecord{#2}{111}{54}{42}{pdviolet}{turn-#1}}
+\newcommand{\HGCAssistant}[2]{%
+  \HGCRecord{#2}{199}{34}{27}{pdinkmuted}{#1}}
+\newcommand{\HandoffCoverageFigure}{%
+\begin{tikzpicture}[x=1pt,y=-1pt,line cap=butt,line join=miter,
+  every node/.style={pd label,inner sep=0pt}]
+  % Five columns share the same x datum in both strips. A gap is not renumbered.
+  \node[pd row label,anchor=north west] at (0,0) {Original operator turns: 5};
+  \HGCRecord{0}{22}{54}{42}{pdrust}{turn-0\\OBL-01}
+  \HGCOriginal{1}{66}
+  \HGCOriginal{2}{132}
+  \HGCOriginal{3}{198}
+  \HGCOriginal{4}{264}
+  \node[pd label,anchor=north,text=pdrust] at (27,71) {required};
+  \node[pd row label,anchor=north west] at (0,91) {Successor brief: last 4 operator turns};
+  \draw[pdrust,dash pattern=on 3pt off 2pt,line width=.8pt] (0,111) rectangle (54,153);
+  \node[pd label,text=pdrust,align=center,text width=40pt] at (27,132) {OBL-01\\absent};
+  \HGCRetained{1}{66}
+  \HGCRetained{2}{132}
+  \HGCRetained{3}{198}
+  \HGCRetained{4}{264}
+
+  % All eight later assistant messages survive; they are not operator turns.
+  \node[pd row label,anchor=north west] at (0,178) {Assistant tail: all 8 later messages retained};
+  \HGCAssistant{0}{0}
+  \HGCAssistant{1}{40}
+  \HGCAssistant{2}{80}
+  \HGCAssistant{3}{120}
+  \HGCAssistant{4}{160}
+  \HGCAssistant{5}{200}
+  \HGCAssistant{6}{240}
+  \HGCAssistant{7}{280}
+
+  % Two different questions, not two steps in an authentication ceremony.
+  \node[pd row label,anchor=north west] at (0,248) {Capsule hash consistency};
+  \node[pd label,anchor=north west] at (0,265) {recomputed = recorded};
+  \node[pd row label,anchor=north west] at (177,248) {Obligation coverage};
+  \node[pd label,text=pdrust,anchor=north west] at (177,265) {required record absent};
+
+  % A retained reference is not a lookup, retrieved transcript, or recovery.
+  \node[pd row label,anchor=north west] at (0,300) {Full-capsule reference};
+  \HGCRecord{0}{320}{108}{32}{pdinkmuted}{transcript-old}
+  \node[pd label,anchor=north west,align=left] at (130,302)
+    {Possible source lookup\\not performed};
+  \node[pd label,anchor=north west] at (130,338) {Reference absent from brief};
+\end{tikzpicture}}
+\SGMeasuredFigure{stp-handoff-coverage}{\HandoffCoverageFigure}
+\endgroup
+\caption{An intact selection can omit a required instruction. Synthetic \emph{old}
+fixture, handoff-coverage experiment of 20 September 2026, run~03;
+source functions tested with scanners stubbed. No provider behaviour or
+source recovery was tested.}
+\label{fig:stp-handoff-coverage}
+\end{figure}

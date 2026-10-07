@@ -1,82 +1,329 @@
 {
+  "workload": {
+    "id": "constructed-code-review-preflight",
+    "summary": "Produce source-linked review suggestions from a repository change; human owns external publication and merge.",
+    "dataClasses": [
+      "repository-source",
+      "review-comments"
+    ],
+    "effectClasses": [
+      "read-only",
+      "reversible-write",
+      "externally-visible-effect"
+    ],
+    "deploymentStage": "pilot"
+  },
   "framework": {
-    "selected": "LangGraph",
-    "decisionCriteria": [
-      "Workflow has conditional branching (security scan only if diff touches auth/secrets)",
-      "Need explicit state persistence across a multi-step review pipeline",
-      "Team already runs LangSmith for observability"
-    ]
-  },
-  "mcp": {
-    "used": true,
-    "contextOverheadPct": 32,
-    "lazyLoading": true
-  },
-  "observability": {
-    "wired": true,
-    "platform": "LangSmith",
-    "instrumentedLevels": ["request", "trace", "quality", "drift"]
+    "selectionStatus": "selected",
+    "rationale": "Constructed example: conditional checks and restart evidence are the hypotheses to test; selection is not a comparative result.",
+    "criteria": [
+      "branch only into checks relevant to the diff",
+      "recover after process interruption without repeating writes",
+      "keep external comment and merge authority human-owned"
+    ],
+    "candidates": [
+      {
+        "name": "current-human-plus-static-checks",
+        "layer": "custom",
+        "evidenceType": "unknown",
+        "evidenceRef": "constructed baseline placeholder"
+      },
+      {
+        "name": "workflow-graph-candidate",
+        "layer": "runtime",
+        "evidenceType": "documentation",
+        "evidenceRef": "candidate documentation to record and version before evaluation"
+      }
+    ],
+    "selectedCandidate": "workflow-graph-candidate"
   },
   "evaluation": {
-    "suiteExists": true,
-    "coverage": ["unit", "trajectory", "end-to-end"]
-  },
-  "costControls": {
-    "perTaskCapUsd": 5,
-    "dailyQuotaUsd": 200,
-    "killSwitch": true
-  },
-  "memoryArchitecture": {
-    "documented": true,
-    "layers": ["working", "short-term"]
-  },
-  "pilot": {
-    "scope": "single-team",
-    "teams": ["platform-eng"],
-    "workflow": "pre-review-code-check"
-  },
-  "roiFramework": {
-    "defined": true,
-    "baselineMetrics": ["avg-review-time-min", "avg-review-cost-usd"]
-  },
-  "stakeholderComms": {
-    "audiences": ["engineering", "security", "executive"]
-  },
-  "hitl": {
-    "approvalGatesDocumented": true,
-    "gates": ["Human reviewer must approve before merge; agent suggestions are advisory only."]
-  },
-  "successCriteria": {
-    "defined": true,
-    "binaryPassFail": [
-      "Agent suggestion acceptance rate >= 70%",
-      "Review cycle time reduced by >= 40%"
-    ]
-  },
-  "adoptionPlan": {
-    "documented": true,
-    "pathway": ["single-repo pilot", "team-wide rollout", "org-wide self-service via AI Studio"]
+    "status": "planned",
+    "rationale": "This sample describes a planned comparison; no candidate was run.",
+    "baseline": "current human reviewer plus deterministic repository checks",
+    "taskSet": [
+      {
+        "taskId": "CR-01",
+        "class": "read-only",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-02",
+        "class": "read-only",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-03",
+        "class": "read-only",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-04",
+        "class": "read-only",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-05",
+        "class": "reversible-write",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-06",
+        "class": "reversible-write",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-07",
+        "class": "reversible-write",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-08",
+        "class": "reversible-write",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-09",
+        "class": "externally-visible-effect",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-10",
+        "class": "externally-visible-effect",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-11",
+        "class": "externally-visible-effect",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      },
+      {
+        "taskId": "CR-12",
+        "class": "externally-visible-effect",
+        "rubricRef": "constructed rubric v1; define exact task-specific checks before evaluation"
+      }
+    ],
+    "heldOutSetRef": "construct and hash a distinct held-out set before evaluation",
+    "repetitions": 3,
+    "controlledConditions": [
+      "same model/provider revision",
+      "same diff snapshots and repository rules",
+      "same tool scopes and credentials",
+      "same effect policy and human approval boundary",
+      "same deadlines and retry limits",
+      "same rubric version"
+    ],
+    "metrics": [
+      {
+        "name": "task-success",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Apply the fixed review-rubric pass/fail per task."
+      },
+      {
+        "name": "unauthorized-effects",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Compare effect receipts with the declared authority policy."
+      },
+      {
+        "name": "duplicate-effects",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Count repeated writes by stable effect/task ID."
+      },
+      {
+        "name": "latency",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Record end-to-end task duration and per-call spans."
+      },
+      {
+        "name": "provider-cost",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Reconcile provider usage receipts per task."
+      },
+      {
+        "name": "infrastructure-cost",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Allocate measured compute, storage, and observability costs."
+      },
+      {
+        "name": "human-review-time",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Time review and rework separately from task execution."
+      },
+      {
+        "name": "restart-recovery",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Inject controlled restart and read back state/effect IDs."
+      },
+      {
+        "name": "maintenance-cost",
+        "applicability": "applicable",
+        "rationale": "This constructed code-review pilot uses this measure.",
+        "measurement": "Record integration and ongoing support hours/cost."
+      }
+    ],
+    "releaseCriteria": [
+      "external publication remains human-authorized",
+      "zero unauthorized or duplicate effects in the tested set",
+      "all task-level failures are reviewed before scope expansion"
+    ],
+    "resultRef": "not-run"
   },
   "security": {
-    "reviewCompleted": true,
-    "piiFiltering": true,
-    "auditTrails": true,
-    "accessControls": true
-  },
-  "errorHandling": {
-    "documented": true,
-    "retryLogic": true,
-    "circuitBreakers": true,
-    "escalationPath": true
-  },
-  "performance": {
-    "benchmarksEstablished": true,
-    "latencySlaMs": 8000,
-    "throughputTarget": "50 reviews/hour"
+    "applicability": "required",
+    "rationale": "Repository content and tool credentials require explicit boundary review even in this constructed pilot.",
+    "status": "planned",
+    "owner": "security reviewer (assign locally)",
+    "threats": [
+      "untrusted prompt-like content in diffs",
+      "overbroad repository credentials",
+      "sensitive source or comments entering provider traces"
+    ],
+    "controls": [
+      "read-only repository access for analysis",
+      "treat repository text as untrusted data",
+      "document provider data and trace retention before use"
+    ],
+    "evidenceRefs": []
   },
   "incidentResponse": {
-    "documented": true,
-    "pagerAssigned": true,
-    "rollbackPlan": true
-  }
+    "applicability": "required",
+    "rationale": "A pilot that can call tools needs a named pause and recovery route.",
+    "status": "planned",
+    "owner": "pilot operator (assign locally)",
+    "failureScenarios": [
+      "tool timeout",
+      "worker restart during task",
+      "partial result before attempted write"
+    ],
+    "containment": [
+      "disable new task admission",
+      "revoke or narrow tool credential",
+      "keep externally visible actions human-owned"
+    ],
+    "recovery": [
+      "reconcile task/effect IDs before retry",
+      "record unresolved state and route to operator"
+    ],
+    "evidenceRefs": []
+  },
+  "cost": {
+    "applicability": "provider-spend",
+    "rationale": "Constructed sample assumes provider and runtime charges.",
+    "budgetOwner": "pilot owner (assign locally)",
+    "budgetWindow": "per task plus monthly reconciliation",
+    "perTaskCapUsd": 8,
+    "maxRetries": 1,
+    "taskDeadlineSeconds": 600,
+    "estimateMethod": "provider usage receipts plus measured runtime/tool charges; sum all attempts and allocate fixed costs separately",
+    "abortAction": "stop admitting tasks when the local cap or deadline is reached; preserve partial-state and reconcile effect before retry",
+    "pricingEvidence": "record provider/model rate source and date before running"
+  },
+  "observability": {
+    "applicability": "required",
+    "rationale": "Need to relate task outcomes to tool events and costs.",
+    "owner": "pilot operator (assign locally)",
+    "levels": [
+      "request",
+      "trace",
+      "quality",
+      "drift"
+    ],
+    "retention": "choose locally after data-class review; this sample is not a retention policy",
+    "evidenceRefs": []
+  },
+  "effectPolicy": {
+    "effects": [
+      {
+        "effectClass": "read-only",
+        "authority": "service account limited to selected repository",
+        "approval": "scoped-service-policy",
+        "idempotency": "not-applicable",
+        "receipt": "task trace and source links",
+        "rationale": "read-only analysis"
+      },
+      {
+        "effectClass": "reversible-write",
+        "authority": "human reviewer owns draft publication",
+        "approval": "human-before-effect",
+        "idempotency": "idempotency-key",
+        "receipt": "effect ID and read-back",
+        "rationale": "draft writes remain reviewable"
+      },
+      {
+        "effectClass": "externally-visible-effect",
+        "authority": "repository maintainer",
+        "approval": "human-before-effect",
+        "idempotency": "idempotency-key",
+        "receipt": "provider receipt and read-back",
+        "rationale": "never merge or publish automatically in this constructed pilot"
+      }
+    ],
+    "defaultRule": "deny any effect not explicitly declared; model suggestions alone do not authorize effects",
+    "owner": "application owner",
+    "evidenceRefs": []
+  },
+  "adoption": {
+    "pilotScope": "one repository and one pre-review workflow; constructed scope only",
+    "stakeholders": [
+      "reviewers",
+      "repository maintainers",
+      "security",
+      "operations"
+    ],
+    "communicationPlan": "show task scope, data handling, known limits, human control, pause path, and unresolved evidence",
+    "baselineMethod": "compare the same versioned task set and rubric against the current human-plus-static-check process",
+    "expansionGates": [
+      "review task-level rubric outcomes",
+      "resolve any unauthorized/duplicate effect",
+      "exercise restart/reconciliation path",
+      "account for total and support cost",
+      "collect user feedback and opt-out reasons"
+    ],
+    "supportOwner": "assign before any real pilot",
+    "retirementPlan": "revoke tool scope, stop admission, retain only records required by a locally reviewed retention policy"
+  },
+  "mcp": {
+    "used": false,
+    "rationale": "MCP is not required by this constructed workload; a protocol is not a framework choice."
+  },
+  "memory": {
+    "used": false,
+    "rationale": "No user-memory requirement is assumed; retain task evidence separately only under a defined policy."
+  },
+  "performance": {
+    "applicability": "required",
+    "rationale": "Set an end-to-end latency objective locally from reviewer workflow evidence before measurement.",
+    "latencyObjectiveMs": 10000,
+    "throughputObjective": "measure only if workload volume requires it",
+    "measurementRef": "planned: record per-task end-to-end distribution"
+  },
+  "returnModel": {
+    "applicability": "planned",
+    "rationale": "Compare full attributable cost with matched accepted-task output before making any return claim.",
+    "baselineMetrics": [
+      "human review minutes per rubric-passing task",
+      "task quality and unsafe-effect count"
+    ],
+    "timeWindow": "define before pilot",
+    "includedCosts": [
+      "provider",
+      "runtime/tools",
+      "storage/observability",
+      "human review/rework",
+      "integration/maintenance",
+      "training/support"
+    ],
+    "excludedCosts": [
+      "none yet; document any exclusion before reporting"
+    ]
+  },
+  "reviewedAt": "2026-09-24"
 }

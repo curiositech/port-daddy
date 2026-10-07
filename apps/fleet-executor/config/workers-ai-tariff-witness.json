@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "sourceArtifact": "apps/shared/model-registry.generated.ts",
+  "registrySha256": "fb67257c5675d70f0bbaeef99f4c89a42e5ebb8723689281947cc62c25a5f33f",
+  "verifiedAt": "2026-09-14",
+  "evidence": "The digest is mechanically checked against the generated artifact. verifiedAt records a human vendor-doc review; it is not machine-attested. Human production approval remains protected by the fleet-production GitHub environment."
+}

@@ -1,75 +1,78 @@
-% Redraw of fig-sealed-pillar-pipeline to the tikz-diagram-craft v2 standard.
-%
-% Reader question: which fences and gates does one work order pass, and which
-% script checks each resulting property?
-% Claim: one work order is mediated by two fences, which alone make
-% enforceability possible, and released only through two gates, which alone
-% produce the other three properties.
-% Evidence: the "two fences" / "whole-worker taint and two gates" paragraphs
-% and the four-links table, Sec.~sealed-design, in
-% website-v2/public/whitepaper/sealed-harbor.tex.
-% Must distinguish: produces (solid arrow) from is-checked-by (now a keyed
-% legend table, not a second arrow family); which property is produced by the
-% fences directly (Enforceability) versus by the gates (the other three).
-% Grammar chosen: tree/DAG, time top to bottom, two columns (mechanism |
-% properties) -- the pipeline is a lineage, not a state machine (nothing
-% re-enters an earlier stage). A two-column layout (rather than one column per
-% stage) leaves the property column room for its un-hyphenatable single-word
-% names at column width; panel titles sit inside the panel's top edge, clear
-% of the vertical arrow that only reaches the edge, never past it.
-% Grammar rejected: a four-row table alone would lose the fences/gates
-% structure that explains *why* enforceability comes from the fences and the
-% other three from the gates; the table survives only as the checker legend.
-% Five-second test: which stage makes each property possible, and what
-% checks it once made.
+% Proposed component/control-flow candidate; source contract in BRIEF.md.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\ax{1.15}   % mechanism column (work order, fences, gates)
-  \def\px{4.85}   % property column
-  % --- the two fences and the two gates, each a subordinate panel ----------
-  \begin{scope}[on background layer]
-    \node[pd panel,fit={(\ax-1.30,9.00) (\ax+1.30,6.00)}] (fences) {};
-    \node[pd panel,fit={(\ax-1.30,5.15) (\ax+1.30,1.95)}] (gates) {};
-  \end{scope}
-  \node[pd title,anchor=north] at (fences.north) {two fences};
-  \node[pd title,anchor=north] at (gates.north) {two gates};
-  \node[pd artifact,text width=1.9cm] (WO) at (\ax,10.05) {work order $C$};
-  \node[pd focus outline,text width=1.9cm] (F1) at (\ax,8.00) {in-guest monitor};
-  \node[pd focus outline,text width=1.9cm] (F2) at (\ax,6.60) {outer gateway};
-  \node[pd focus outline,text width=1.9cm] (G1) at (\ax,4.15) {Derek's gate};
-  \node[pd focus outline,text width=1.9cm] (G2) at (\ax,2.60) {Erin's gate};
-  \draw[pd focus arrow] (WO) -- (fences.north);
-  \draw[pd focus arrow] (fences.south) -- (gates.north);
-  % --- the four properties, in the order they compose at run time ---------
-  \node[pd ready state,text width=2.6cm] (PE) at (\px,7.30)
-    {\bfseries Enforceability\\[2pt]\itshape the channel, never the token};
-  \node[pd ready state,text width=2.75cm] (PN) at (\px,4.55)
-    {\bfseries Noninterference\\[2pt]\itshape silence except through the slot};
-  \node[pd ready state,text width=2.6cm] (PC) at (\px,2.35)
-    {\bfseries Conservation\\[2pt]\itshape the ledger conserves};
-  \node[pd ready state,text width=2.6cm] (PD) at (\px,0.15)
-    {\bfseries Detection\\[2pt]\itshape power curve and alarm clock};
-  % --- produces: solid, chapter-hue arrows ---------------------------------
-  \draw[pd focus arrow] (fences.east) -- (PE.west);
-  \draw[pd focus arrow] (gates.east) -- (PN.west);
-  \draw[pd focus arrow] (gates.east) -- (PC.west);
-  \draw[pd focus arrow] (gates.east) -- (PD.west);
-\end{tikzpicture}
+\SGMeasuredFigure{VIII/fig:sealed-pillar-pipeline}{%
+\begin{tikzpicture}[sg/base,y=-1pt,
+  sp label/.style={anchor=center,inner sep=0pt,outer sep=0pt,align=center},
+  sp flow/.style={sg/arrow},
+  sp binding/.style={draw=sgViolet,line width=.8pt,dash pattern=on 3pt off 2pt}]
+  % Folded work-order record. Configuration links are not output paths.
+  \draw[draw=sgInk,fill=sgViolet!6,line width=.85pt]
+    (90,0)--(217,0)--(224,7)--(224,64)--(90,64)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (217,0)--(217,7)--(224,7);
+  \node[sp label,font=\SGType\bfseries] (contract) at (157,16) {Signed work order $C$};
+  \node[sp label] (pins) at (157,33) {runtime + policy};
+  \node[sp label] (signers) at (157,50) {Derek + Erin sign};
+  \draw[sp binding] (138,72)--(138,115);
+  \draw[sp binding] (232,32)--(266,32)--(266,111);
 
-\vspace{4pt}
-\footnotesize
-\begin{tabular}{@{}ll@{}}
-\toprule
-property & is checked by \\
-\midrule
-Enforceability & \texttt{b3\_controllability.py} \\
-Noninterference & \texttt{c1\_noninterference.py} \\
-Conservation & \texttt{a3\_epsilon\_ledger.py} \\
-Detection & \texttt{a4\_canary\_sprt.py} \\
-\bottomrule
-\end{tabular}
-\caption{One work order entering the room, mediated by two fences (the in-guest monitor, the outer gateway) and released only through two gates (Derek's, Erin's); solid arrows read ``produces''. The fences alone are what make the channel enforceable at all; the gates, once installed on that channel, are what produce the other three properties -- silence except through the slot, a conserving ledger, and a watched detector. The table keys each property to the script that checks it.}
+  % Worker and first control are inside the guest; the gateway is outside.
+  \node[sp label,anchor=west,font=\SGType\bfseries] (guest) at (0,87) {In guest};
+  \draw[draw=sgInk,line width=.7pt] (0,101) rectangle (190,214);
+  \draw[draw=sgInk,line width=.85pt] (10,124) rectangle (67,164);
+  \draw[draw=sgInk,line width=.65pt] (10,133)--(67,133);
+  \node[sp label,font=\SGType\bfseries] (worker) at (38.5,148) {Worker};
+  \node[sp label] (handles) at (38.5,182) {handles only};
+  \draw[sp flow] (75,145)--(90,145);
+  \draw[draw=sgInk,fill=sgBlue!5,line width=.85pt] (98,123) rectangle (178,166);
+  \node[sp label,font=\SGType\bfseries] (monitor) at (138,135) {In-guest};
+  \node[sp label,font=\SGType\bfseries] (monitorname) at (138,153) {monitor};
+  \node[sp label] (labels) at (138,182) {labels, handles};
+  \node[sp label] (content) at (138,200) {encrypted content};
+  \draw[sp flow] (186,145)--(215,145);
+  \draw[draw=sgInk,fill=sgAmber!6,line width=.85pt] (223,119) rectangle (309,177);
+  \node[sp label] (controller) at (266,134) {Derek-controlled};
+  \node[sp label,font=\SGType\bfseries] (gateway) at (266,154) {Outer gateway};
+  \node[sp label] (netstore) at (266,195) {network, storage};
+  \node[sp label] (timedest) at (266,213) {timing, destination};
+  \node[sp label] (volume) at (266,231) {volume};
+
+  % Candidate leaves the controls via a reserved right-hand gutter.
+  \draw[sp flow] (317,145)--(321,145)--(321,251)--(160,251)--(160,263);
+  \draw[draw=sgInk,fill=white,line width=.85pt]
+    (103,271)--(210,271)--(217,278)--(217,301)--(103,301)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (210,271)--(210,278)--(217,278);
+  \node[sp label] (candidate) at (160,286) {Candidate $\{D,E\}$};
+
+  % Parallel authorization paths; no edge joins the two owners' gates.
+  \draw[draw=sgInk,line width=.85pt] (160,309)--(160,322);
+  \draw[sp flow,draw=sgViolet] (160,322)--(77,322)--(77,336);
+  \draw[sp flow,draw=sgTeal] (160,322)--(243,322)--(243,336);
+  \draw[draw=sgViolet,fill=sgViolet!5,line width=.85pt] (12,344) rectangle (142,392);
+  \draw[draw=sgTeal,fill=sgTeal!5,line width=.85pt] (178,344) rectangle (308,392);
+  \node[sp label,font=\SGType\bfseries] (derek) at (77,358) {Derek authorizes};
+  \node[sp label] (dropd) at (77,378) {$\{D,E\}\to\{E\}$};
+  \node[sp label,font=\SGType\bfseries] (erin) at (243,358) {Erin authorizes};
+  \node[sp label] (drope) at (243,378) {$\{D,E\}\to\{D\}$};
+  \draw[sp flow,draw=sgViolet] (77,400)--(77,416);
+  \draw[sp flow,draw=sgTeal] (243,400)--(243,416);
+  \draw[draw=sgInk,fill=sgViolet!4,line width=.85pt]
+    (13,424)--(134,424)--(141,431)--(141,474)--(13,474)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (134,424)--(134,431)--(141,431);
+  \draw[draw=sgInk,fill=sgTeal!4,line width=.85pt]
+    (179,424)--(300,424)--(307,431)--(307,474)--(179,474)--cycle;
+  \draw[draw=sgInk,line width=.65pt] (300,424)--(300,431)--(307,431);
+  \node[sp label,font=\SGType\bfseries] (feedback) at (77,440) {Feedback to Erin};
+  \node[sp label] (feedbacklabel) at (77,458) {$\{E\}$};
+  \node[sp label,font=\SGType\bfseries] (result) at (243,440) {Rich result to Derek};
+  \node[sp label] (resultlabel) at (243,458) {$\{D\}$};
+
+  \foreach \name in {contract,pins,signers,guest,worker,handles,monitor,monitorname,
+    labels,content,controller,gateway,netstore,timedest,volume,candidate,
+    derek,dropd,erin,drope,feedback,feedbacklabel,result,resultlabel}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{SP-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}}
+\caption{Each owner authorizes removal of their own restriction. Dashed links bind controls to the signed work order; solid arrows carry outputs. Proposed control flow; public receipt omitted.}
 \label{fig:sealed-pillar-pipeline}
 \end{figure}

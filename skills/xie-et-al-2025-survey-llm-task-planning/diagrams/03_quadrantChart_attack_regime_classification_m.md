@@ -2,6 +2,7 @@
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
     title Attack Regime Classification Matrix
     x-axis Bounded --> Exponentially Unbounded
     y-axis Easy Detection --> Impossible Detection
@@ -10,11 +11,11 @@ quadrantChart
     quadrant-3 Traditional Disturbance Rejection
     quadrant-4 Symptom-Based Adaptive Defense
     
-    Classical PID Control: 0.15, 0.25
-    Robust H∞ Control: 0.25, 0.30
-    Kalman Filtering: 0.20, 0.35
+    Classical PID Control: [0.15, 0.25]
+    Robust H∞ Control: [0.25, 0.3]
+    Kalman Filtering: [0.2, 0.35]
     
-    Lyapunov Resilient Control: 0.85, 0.15
-    Distributed Consensus Defense: 0.80, 0.20
-    Adaptive Exponential Compensation: 0.82, 0.18
+    Lyapunov Resilient Control: [0.85, 0.15]
+    Distributed Consensus Defense: [0.8, 0.2]
+    Adaptive Exponential Compensation: [0.82, 0.18]
 ```

@@ -739,6 +739,74 @@ export async function deleteWebSession(db: D1Database, tokenHash: string): Promi
   await db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(tokenHash).run();
 }
 
+// ── Explicit per-account GitHub publisher credential ────────────────────────
+
+export interface GitHubPublisherCredentialRow {
+  account_user_id: string;
+  generation: number;
+  credential_enc: string;
+  credential_iv: string;
+  credential_key_version: number;
+  updated_at: number;
+}
+
+export async function getGitHubPublisherCredential(
+  db: D1Database,
+  accountUserId: string,
+): Promise<GitHubPublisherCredentialRow | null> {
+  return (await db.prepare(
+    `SELECT account_user_id, generation, credential_enc, credential_iv,
+            credential_key_version, updated_at
+       FROM github_publisher_credentials
+      WHERE account_user_id = ?`,
+  ).bind(accountUserId).first<GitHubPublisherCredentialRow>()) ?? null;
+}
+
+/** Replace exactly the generation the caller opened. */
+export async function replaceGitHubPublisherCredential(
+  db: D1Database,
+  row: Omit<GitHubPublisherCredentialRow, 'account_user_id'> & { accountUserId: string },
+  expectedGeneration: number,
+): Promise<boolean> {
+  if (expectedGeneration === 0) {
+    try {
+      const inserted = await db.prepare(
+        `INSERT INTO github_publisher_credentials
+           (account_user_id, generation, credential_enc, credential_iv,
+            credential_key_version, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        row.accountUserId,
+        row.generation,
+        row.credential_enc,
+        row.credential_iv,
+        row.credential_key_version,
+        row.updated_at,
+      ).run();
+      return Number(inserted.meta?.changes ?? 0) === 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('UNIQUE constraint failed') || message.includes('SQLITE_CONSTRAINT')) return false;
+      throw error;
+    }
+  }
+  const updated = await db.prepare(
+    `UPDATE github_publisher_credentials SET
+       generation = ?, credential_enc = ?, credential_iv = ?,
+       credential_key_version = ?, updated_at = ?
+     WHERE account_user_id = ? AND generation = ?`,
+  ).bind(
+    row.generation,
+    row.credential_enc,
+    row.credential_iv,
+    row.credential_key_version,
+    row.updated_at,
+    row.accountUserId,
+    expectedGeneration,
+  ).run();
+  return Number(updated.meta?.changes ?? 0) === 1;
+}
+
 // ── user_tokens: pdu_ personal access tokens (ADR-0101 Phase 1 device flow) ───
 
 export interface UserTokenRow {
@@ -975,7 +1043,27 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   // row is about to be scrubbed.
   const who = await db.prepare('SELECT login FROM users WHERE id = ?').bind(userId).first<{ login: string }>();
   const login = who?.login ?? null;
+  // This is the erasure linearization point. Publisher admission and intent
+  // reservation both require deleted_at IS NULL, so work that has not already
+  // crossed its durable reservation boundary cannot race cleanup and reappear.
+  await db
+    .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ? AND deleted_at IS NULL')
+    .bind(now, userId)
+    .run();
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
+  // Publisher authority dies synchronously with the account. Delete children
+  // before parents so foreign-key enforcement cannot defer erasure. Session
+  // bindings are workload-owned namespaces rather than tenant authority; they
+  // survive so erasing one account cannot destroy another account's replay
+  // evidence or permit the same session id to be rebound.
+  await db.prepare(
+    `DELETE FROM github_publisher_capability_uses_v2
+      WHERE grant_id IN (SELECT grant_id FROM publisher_grants WHERE account_user_id = ?)`,
+  ).bind(userId).run();
+  await db.prepare('DELETE FROM publisher_grants WHERE account_user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM github_publisher_capability_uses WHERE account_user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM github_publisher_intents WHERE account_user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM github_publisher_credentials WHERE account_user_id = ?').bind(userId).run();
   // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
   // Roles are account metadata and must not survive erasure or block the later
@@ -1013,10 +1101,6 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   await db.prepare('DELETE FROM roadmap_mirror_edges WHERE user_id = ?').bind(userId).run();
   await db.prepare('DELETE FROM roadmap_mirror_activity WHERE user_id = ?').bind(userId).run();
   await db.prepare('DELETE FROM roadmap_mirrors WHERE user_id = ?').bind(userId).run();
-  await db
-    .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
-    .bind(now, userId)
-    .run();
   return sessions.meta?.changes ?? 0;
 }
 

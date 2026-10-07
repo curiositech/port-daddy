@@ -57,13 +57,6 @@
   \draw[pd hairline,-{Stealth[length=1.65mm,width=1.05mm]}] (\x0,-0.35) -- (\xe,-0.35);
   \node[pd label,anchor=west] at (\xe+.05,-0.35) {time};
 \end{tikzpicture}
-\caption{The reference-monitor test as a causal counterfactual, both traces
-drawn on the same time axis. A true mediator (top) decides before the commit
-point, so a forbidden state never exists. The present policy monitor (bottom)
-instead subscribes after commit: the breach segment is the exposure interval
-in which the effect has already happened, before the monitor can observe,
-halt subsequent work, and compensate -- the past effect stays in the history.
-Only uniqueness constraints and fail-closed boot gates belong to the upper
-trace; subscriber rules belong to the lower one. [internal]}
+\caption{Pre-commit mediation prevents the forbidden state. A subscriber observes it afterward and can only halt or compensate. Uniqueness constraints and boot gates mediate; the current policy monitor subscribes. [internal]}
 \label{fig:swk-reference-monitor}
 \end{figure}

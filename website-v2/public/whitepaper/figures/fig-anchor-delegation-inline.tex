@@ -21,10 +21,10 @@
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
-  \draw[pd warn rule] (-5.75,1.45) rectangle (5.75,3.35);
-  \node[pd label,anchor=south west] at (-5.7,3.9) {adversary-visible};
+  \draw[pd warn rule] (-5.75,1.45) rectangle (5.75,4.0);
+  \node[pd label,anchor=south west] at (-5.7,4.2) {adversary-visible};
   \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
-    \node[pd focus outline,circle,minimum size=9mm,inner sep=0pt] (id\id) at (\x,2.1) {id\id};
+    \node[pd focus outline,circle,minimum size=9mm,inner sep=0pt,font=\pdfiglabelbold,text=pdink] (id\id) at (\x,2.1) {id\id};
   }
 
   % ---- crossing 1: id1 -> id2, ordinary hop --------------------------------
@@ -59,14 +59,6 @@
      task hash h; the breach crossing reuses sig3 (bound to n3) where n2 was
      expected, so verification fails at that crossing only};
 \end{tikzpicture}
-\caption{The delegation chain as a signed provenance braid across four
-identities id1--id4, drawn inside the network the Dolev-Yao adversary
-observes. Ordinary hops 1 and 3 bind parent, child, a fresh nonce (n1, n3),
-and the shared task hash h below. Hop 2 shows a splice attack: an attacker
-moves the legitimate signature sig3 (computed over id3, id4, and n3) into
-the id2--id3 position, where the verifier expects a signature over n2; the
-check fails at exactly that crossing, so the discontinuity is visible at one
-adjacent-identity boundary rather than anywhere else in the chain.
-[internal]}
+\caption{Each signature binds adjacent identities, a nonce, and the task hash. Moving a legitimate signature to another hop fails because its signed identities and nonce no longer match. [internal]}
 \label{fig:anchor-delegation-inline}
 \end{figure}

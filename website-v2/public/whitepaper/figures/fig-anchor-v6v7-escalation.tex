@@ -72,16 +72,6 @@
     {same chain, same forged escalation; only the comparison target moves
      from root to immediate parent};
 \end{tikzpicture}
-\caption{The multi-hop attenuation check, before and after: the identical
-chain $A$:\texttt{write} $\to$ $B$:\texttt{read} $\to$ $C$:\texttt{write}
-under two verifiers. v6 (top) runs one check, the final capability against
-the root (badge 1); \texttt{write} $\subseteq$ \texttt{write} holds
-trivially, so the re-escalating middle hop at $B$ is never compared, and
-ProVerif finds the escalation reachable in
-\texttt{harbor\_card\_v6\_multihop\_attack.pv}. v7 (bottom) runs one check
-per hop against its own immediate parent (badges 2, 3); the first passes but
-\texttt{write} $\not\subseteq$ \texttt{read} fails the second, and
-\texttt{harbor\_card\_v7\_multihop\_fixed.pv} proves the same chain
-rejected. [internal]}
+\caption{Checking only against the root misses re-escalation after an intermediate restriction. v7 checks each immediate parent and rejects the same chain that v6 admits. [internal; ProVerif multihop models]}
 \label{fig:anchor-v6v7-escalation}
 \end{figure}

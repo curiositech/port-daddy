@@ -1,0 +1,68 @@
+% TEMPLATE: Directed Acyclic Graph (DAG) & Causal Tree
+% Standard: Harbor Figure Language v2 (Swiss typography, standard weight ladder)
+% Clearance Invariants: Discrete rank strides, orthogonal bus routing for multi-hop edges.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 8.6);
+
+  % 1. Ranks (Rank 0 at x=1.5, Rank 1 at x=5.7, Rank 2 at x=9.9)
+  % Rank 0: Root Genesis / Task Parent
+  \node[pd focus state, text width=2.4cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (root) at (1.5, 5.4) {
+    \textbf{\color{pdcobalt}Task Genesis}\\[1pt]
+    \texttt{id: "task\_001"}
+  };
+
+  % Rank 1: Parallel Subtasks (Top: Dev, Bottom: Verification)
+  \node[pd state, draw=pdviolet, fill=pdviolet!8, text width=2.5cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (sub1) at (5.7, 6.7) {
+    \textbf{\color{pdviolet}Subtask A (Dev)}\\[1pt]
+    {\pdfigsub claude:auth}
+  };
+
+  \node[pd state, draw=pdteal, fill=pdteal!8, text width=2.5cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (sub2) at (5.7, 4.1) {
+    \textbf{\color{pdteal}Subtask B (Test)}\\[1pt]
+    {\pdfigsub codex:bench}
+  };
+
+  % Rank 2: Merge / Invariant Verification
+  \node[pd state, draw=pdcobalt, fill=pdcobalt!8, text width=2.5cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (merge) at (9.9, 5.4) {
+    \textbf{\color{pdcobalt}Merge Gate}\\[1pt]
+    {\pdfigsub verified commit}
+  };
+
+  % Failure Branch (Fork / Attenuation Reject)
+  \node[pd state, draw=pderror, fill=pderror!6, text width=2.4cm, minimum height=0.9cm, align=center, inner xsep=4pt, inner ysep=4pt] (fork_fail) at (5.7, 2.1) {
+    \textbf{\color{pderror}Stale Fork}\\[1pt]
+    {\pdfigsub rejected: invalid parent}
+  };
+
+  % 2. Directed Edges (Dependencies)
+  % Root -> Subtask A
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdviolet] (root.east) -- (sub1.west)
+    node[pos=0.5, above=2pt, font=\pdfiglabelsize, text=pdviolet, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {spawn};
+
+  % Root -> Subtask B
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (root.east) -- (sub2.west)
+    node[pos=0.5, below=2pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {spawn};
+
+  % Subtask A -> Merge
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdcobalt] (sub1.east) -- (merge.west)
+    node[pos=0.5, above=2pt, font=\pdfiglabelsize, text=pdcobalt, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {proof};
+
+  % Subtask B -> Merge
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdcobalt] (sub2.east) -- (merge.west)
+    node[pos=0.5, below=2pt, font=\pdfiglabelsize, text=pdcobalt, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {pass};
+
+  % Root -> Stale Fork (Rejected Edge)
+  \draw[pd breach rule, dashed, -{Stealth[length=3.5pt,width=2.5pt]}] (root.south) |- (fork_fail.west)
+    node[pos=0.7, below=2pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {drift};
+
+  % 3. Invariant Banner at Bottom
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.45) {
+    \textbf{DAG Lineage Invariant:} Every commit in a causal task DAG must cite verified cryptographic parent hashes. Unanchored branches fail admission at the merge gate.
+  };
+\end{tikzpicture}
+\caption{Task execution DAG with verified causal convergence. Parallel worker branches converge on a cryptographic merge gate. Divergent branches with stale parent pointers are isolated and pruned. [template, Causal DAG]}
+\label{fig:template-dag-causal-tree}
+\end{figure}

@@ -2,25 +2,54 @@ import SwiftUI
 
 @MainActor
 final class LocalOffStore: ObservableObject {
-    @Published private(set) var blockedReason = LocalRuntimeControl.shared.blockedReason
+    @Published private(set) var controlState: LocalRuntimeControl.State
+    @Published private(set) var blockedReason: String?
     @Published private(set) var isStopping = false
     @Published private(set) var persistenceFailures: [String] = []
     @Published private(set) var receipts: [LocalRuntimeShutdown.Receipt] = []
     @Published private(set) var hasRequestedOff = false
+    private let control: LocalRuntimeControl
+    private let shutdown: @Sendable () async -> [LocalRuntimeShutdown.Receipt]
 
-    func refresh() { blockedReason = LocalRuntimeControl.shared.blockedReason }
+    init(
+        control: LocalRuntimeControl = .shared,
+        shutdown: @escaping @Sendable () async -> [LocalRuntimeShutdown.Receipt] = {
+            await Task.detached(priority: .userInitiated) { LocalRuntimeShutdown.stop() }.value
+        }
+    ) {
+        self.control = control
+        self.shutdown = shutdown
+        let observation = control.observation
+        controlState = observation.state
+        blockedReason = observation.reason
+    }
+
+    nonisolated static func statusTitle(for state: LocalRuntimeControl.State) -> String {
+        switch state {
+        case .open:
+            return "Local start gate is open"
+        case .off:
+            return "Local starts are off"
+        case .unknown:
+            return "Start state unknown — blocked"
+        }
+    }
+
+    func refresh() {
+        let observation = control.observation
+        controlState = observation.state
+        blockedReason = observation.reason
+    }
 
     func turnOff() {
         guard !isStopping else { return }
         isStopping = true
         hasRequestedOff = true
         // No suspension or daemon request before the persistent stop attempt.
-        persistenceFailures = LocalRuntimeControl.shared.persistOff()
+        persistenceFailures = control.persistOff()
         refresh()
         Task {
-            receipts = await Task.detached(priority: .userInitiated) {
-                LocalRuntimeShutdown.stop()
-            }.value
+            receipts = await shutdown()
             isStopping = false
         }
     }
@@ -30,17 +59,26 @@ final class LocalOffStore: ObservableObject {
 /// A destructive stop does not need confirmation; reactivation is never a toggle
 /// inferred from reconnect/readiness. Existing operator ALL-CLEAR stays separate.
 struct LocalOffSection: View {
-    var compact = false
-    @StateObject private var store = LocalOffStore()
+    let compact: Bool
+    @StateObject private var store: LocalOffStore
     @State private var showReceipts = false
+
+    init(compact: Bool = false, control: LocalRuntimeControl = .shared) {
+        self.compact = compact
+        _store = StateObject(wrappedValue: LocalOffStore(control: control))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
             Label("Port Daddy on this Mac", systemImage: "power")
                 .font(.headline)
-            Text(store.blockedReason == nil ? "Local runtime is permitted" : "Local starts blocked")
+            Text(LocalOffStore.statusTitle(for: store.controlState))
                 .font(.body.weight(.semibold))
-            if !compact, let reason = store.blockedReason {
+            if !compact, store.controlState == .open {
+                Text("This confirms only the stop boundary. Harness, sandbox, coordination, provider, receipt, and cost readiness are separate.")
+                    .foregroundStyle(.secondary)
+            }
+            if let reason = store.blockedReason {
                 Text(reason).foregroundStyle(.secondary)
             }
             Button(role: .destructive) { store.turnOff() } label: {

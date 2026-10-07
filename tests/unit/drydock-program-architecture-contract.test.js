@@ -49,7 +49,7 @@ function resealExecution(value) {
 }
 
 describe('Drydock program architecture skill', () => {
-  test('the integrated bundle audit resolves its corpus, links, routing, and 17 proof views', () => {
+  test('the integrated bundle audit resolves its corpus, links, routing, and 20 proof views', () => {
     const audit = spawnSync(process.execPath, [
       join(skill, 'scripts/audit-drydock-program-skill.mjs'),
     ], { cwd: repo, encoding: 'utf8' });
@@ -58,7 +58,22 @@ describe('Drydock program architecture skill', () => {
     expect(JSON.parse(audit.stdout)).toMatchObject({
       valid: true,
       errors: [],
-      counts: { requiredFiles: 24, diagrams: 17 },
+      counts: { requiredFiles: 24, diagrams: 20 },
+    });
+  });
+
+  test('the committed convention seal matches the exact packet and skill bytes', () => {
+    const check = spawnSync(process.execPath, [
+      join(repo, 'docs/research/drydock-anchor-convention/seal-packet.mjs'),
+      'v2',
+      '--check',
+    ], { cwd: repo, encoding: 'utf8' });
+
+    expect(check.status).toBe(0);
+    expect(JSON.parse(check.stdout)).toMatchObject({
+      valid: true,
+      profile: 'v2',
+      errors: [],
     });
   });
 

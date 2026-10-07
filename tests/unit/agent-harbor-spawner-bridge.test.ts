@@ -28,7 +28,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { initDatabase, closeDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
-import { verifySessionChain } from '../../lib/agent-harbor/event-ledger.js';
+import { verifySessionChain, ensureEventLedgerSchema } from '../../lib/agent-harbor/event-ledger.js';
 import { projectPending, getRoster } from '../../lib/agent-harbor/projections.js';
 import { createSpawnerHarborBridge } from '../../lib/agent-harbor/spawner-bridge.js';
 import { authorizeControl } from '../../lib/agent-harbor/control-gate.js';
@@ -62,10 +62,17 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
     closeDatabase(db);
   });
 
+  it('does not manufacture a transcript session for an unbound agent', () => {
+    const bridge = createSpawnerHarborBridge(db);
+    ensureEventLedgerSchema(db);
+    expect(bridge.appendTranscriptEvent('unbound-agent', 'session_started', Date.now())).toBeNull();
+    expect(db.prepare("SELECT * FROM harbor_events WHERE session_id = 'unbound-agent'").all()).toHaveLength(0);
+  });
+
   it('registerNode creates a non-placeholder roster row, honestly at C0', () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-c0';
-    bridge.registerNode(agentId, 'port-daddy:test:c0', Date.now());
+    bridge.registerNode(agentId, 'port-daddy:test:c0', Date.now(), { sessionId: agentId, runId: 'fixture-run' });
 
     const row = rosterRow(db, agentId);
     expect(row).toBeDefined();
@@ -79,12 +86,12 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-chain';
     const t0 = Date.now();
-    bridge.registerNode(agentId, null, t0);
+    bridge.registerNode(agentId, null, t0, { sessionId: agentId, runId: 'fixture-run' });
     bridge.appendTranscriptEvent(agentId, 'spawn-start', t0);
     bridge.appendTranscriptEvent(agentId, 'assistant-message', t0 + 1);
     bridge.appendTranscriptEvent(agentId, 'finalize:completed', t0 + 2);
 
-    // sessionId === agentId per the bridge's design (one spawn = one session).
+    // This fixture explicitly binds both identifiers to the same test string.
     expect(verifySessionChain(db, agentId)).toBeNull();
 
     const row = db
@@ -103,7 +110,7 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
   it('the chain is structurally tamper-proof — the ledger rejects UPDATE outright (proves this is a real chain, not a fixture)', () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-tamper';
-    bridge.registerNode(agentId, null, Date.now());
+    bridge.registerNode(agentId, null, Date.now(), { sessionId: agentId, runId: 'fixture-run' });
     bridge.appendTranscriptEvent(agentId, 'spawn-start', Date.now());
     bridge.appendTranscriptEvent(agentId, 'assistant-message', Date.now());
 
@@ -127,7 +134,7 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
   it('runProbeAndRecord grants exactly C1 — not C0, not beyond — and the result is witness-valid', async () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-probe';
-    bridge.registerNode(agentId, null, Date.now());
+    bridge.registerNode(agentId, null, Date.now(), { sessionId: agentId, runId: 'fixture-run' });
     bridge.appendTranscriptEvent(agentId, 'spawn-start', Date.now());
     bridge.appendTranscriptEvent(agentId, 'assistant-message', Date.now());
     bridge.appendTranscriptEvent(agentId, 'finalize:completed', Date.now());
@@ -153,7 +160,7 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
   it('runProbeAndRecord with ZERO transcript events grants only C0 (no free C1)', async () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-no-transcript';
-    bridge.registerNode(agentId, null, Date.now());
+    bridge.registerNode(agentId, null, Date.now(), { sessionId: agentId, runId: 'fixture-run' });
     // No appendTranscriptEvent calls at all — emitVerifiedTranscript must
     // honestly report events:0, which the engine cannot witness C1 from.
     await bridge.runProbeAndRecord(agentId);
@@ -202,7 +209,7 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
   it('authorizeControl correctly DENIES kill for a real C1-witnessed spawner node — the actual point of this slice', async () => {
     const bridge = createSpawnerHarborBridge(db);
     const agentId = 'spawned-test-kill-denied';
-    bridge.registerNode(agentId, null, Date.now());
+    bridge.registerNode(agentId, null, Date.now(), { sessionId: agentId, runId: 'fixture-run' });
     bridge.appendTranscriptEvent(agentId, 'spawn-start', Date.now());
     bridge.appendTranscriptEvent(agentId, 'assistant-message', Date.now());
     await bridge.runProbeAndRecord(agentId);
@@ -225,7 +232,7 @@ describe('spawner-bridge (slice 1: honest C1 transcript witnessing)', () => {
   it('every public method is best-effort: a broken db never throws', async () => {
     const brokenDb = { prepare: () => { throw new Error('boom'); } } as unknown as DatabaseInstance;
     const bridge = createSpawnerHarborBridge(brokenDb);
-    expect(() => bridge.registerNode('a', null, Date.now())).not.toThrow();
+    expect(() => bridge.registerNode('a', null, Date.now(), { sessionId: 's', runId: 'r' })).not.toThrow();
     expect(() => bridge.appendTranscriptEvent('a', 'x', Date.now())).not.toThrow();
     await expect(bridge.runProbeAndRecord('a')).resolves.toBeUndefined();
   });

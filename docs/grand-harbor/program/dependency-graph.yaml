@@ -41,3 +41,37 @@ funded_cuts:
   - id: GH-CUT-001
     document: CUT-001-first-vertical-proof.md
     crosses: [identity, chartroom, action_kernel, confinement, evidence, coordination]
+
+# Cooperative Harbor is a scoped projection, not a new canonical roadmap.
+# Status here is evidence as of the cited PR head, not live registry state.
+cooperative_harbor_projection:
+  source: docs/strategy/cooperative-harbor-implementation.md
+  evidence_head: 44915bcbb54ccb8d6c9e5acebc2d99345a8a7938
+  nodes:
+    - id: CH1-contracts
+      depends_on: [identity, chartroom]
+      state: source_present_runtime_readback_pending
+    - id: CH2-editor-foundation
+      depends_on: [CH1-contracts]
+      state: merged_tested_native_proof_pending
+    - id: CH2-local-save
+      depends_on: [CH2-editor-foundation]
+      state: draft_pr_headless_tested_native_proof_pending
+    - id: CH2-private-drafts
+      depends_on: [CH2-local-save, identity]
+      state: key_custody_review_pending
+    - id: CH3-governed-recovery
+      depends_on: [CH2-editor-foundation, identity, coordination, evidence]
+      state: typed_receipts_replay_transfer_missing
+    - id: CH4-shared-project
+      depends_on: [CH1-contracts, identity, chartroom, CH3-governed-recovery]
+      state: admission_participation_decision_authority_missing
+    - id: CH5-managed-harbor
+      depends_on: [CH4-shared-project, relay]
+      state: durable_journal_checked_head_reconstruction_missing
+    - id: CH6-intersections
+      depends_on: [CH4-shared-project, evidence]
+      state: scoped_analysis_and_held_out_evaluation_missing
+    - id: CH7-delivery
+      depends_on: [CH2-local-save, CH3-governed-recovery, CH4-shared-project, CH5-managed-harbor, CH6-intersections]
+      state: native_companion_human_release_proof_missing

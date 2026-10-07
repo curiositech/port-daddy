@@ -1,0 +1,7 @@
+flowchart LR
+    A["A · cost 4 · R1, R2"] -->|admissible| P["Pack A + C · cost 6 / budget 6"]
+    C["C · cost 2 · R4"] -->|admissible| P
+    B["B · cost 3 · R3"] -.->|disclosure denied| X["R3 BLOCKED"]
+    P --> Y["Receipt<br/>R1=A · R2=A<br/>R3=BLOCKED · R4=C"]
+    X --> Y
+    Y --> L["Declared coverage only · no effect authority"]

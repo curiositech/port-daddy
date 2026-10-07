@@ -1,350 +1,158 @@
-# Failure Modes and Robustness Patterns in Multi-Agent Coordination
+# Diagnose refusal, failure, and non-understanding in FIPA CAL
 
-## The Explicit Failure Vocabulary
+XC00037H gives three different ways to communicate a coordination problem. Use their distinct semantic content before applying an application retry, replan, or escalation rule. This is a source-bounded reading of the archived experimental **H** specification, fully read on 2026-09-24; the later J endpoint was unavailable.
 
-Unlike traditional distributed systems that often treat failure as exceptional (exceptions, errors, timeouts), the FIPA specification makes **failure a first-class communicative act**. This reflects a profound recognition: in multi-agent systems, failure to achieve coordination is *normal*, not exceptional.
+## Operator glossary
 
-The specification defines three primary failure-related acts:
+| Form | Meaning in this source model | Do not infer |
+| --- | --- | --- |
+| `Feasible(a)` | The action expression `a` is feasible under the model. | An observed capability, authorization, or available resource. |
+| `Done(a)` | The action predicate used by the formal semantics. | A target-system receipt or irreversible external effect. |
+| `Single(e)` | `e` is a single event in the attempted-action account. | A durable trace identifier. |
+| `Agent(e,i)` | Event-first notation printed in §3.11; §5.2.1 instead defines actor-first `Agent(i,a)`. Preserve the section-specific ordering. | Authenticated network identity. |
+| `φ` | A proposition used as a refusal/failure/understanding reason. | A machine-readable or independently verified cause. |
+| `;` | Sequence: the right component follows the left. | Transactional atomicity. |
 
-1. **REFUSE**: "I cannot or will not do what you asked"
-2. **FAILURE**: "I tried but failed"
-3. **NOT-UNDERSTOOD**: "I didn't understand what you said"
+## Diagnose the observed act before choosing a local policy
 
-Each has precise semantics and addresses a different coordination breakdown mode.
-
-## REFUSE: Capability Boundaries and Autonomy
-
-### Formal Definition
-
-```
-<i, refuse(j, <i, act>, φ)> ≡
-  <i, disconfirm(j, Feasible(<i, act>))>;
-  <i, inform(j, φ ∧ ¬Done(<i, act>) ∧ ¬Iᵢ Done(<i, act>))>
-  
-FP: Bᵢ ¬Feasible(<i, act>) ∧ Bᵢ(Bⱼ Feasible(<i, act>) ∨ Uⱼ Feasible(<i, act>)) ∧
-    Bᵢ α ∧ ¬Bᵢ(Bᵢfⱼ α ∨ Uᵢfⱼ α)
-  
-RE: Bⱼ ¬Feasible(<i, act>) ∧ Bⱼ α
-
-Where: α = φ ∧ ¬Done(<i, act>) ∧ ¬Iᵢ Done(<i, act>)
-```
-
-### Translation
-
-**Refuse means**: 
-1. i informs j that the requested action is not feasible (from i's perspective)
-2. i informs j why (the reason φ)
-3. i informs j that the action hasn't been done and i has no intention to do it
-
-**When to refuse**:
-- Agent lacks capability: "I don't have database access"
-- Resource constraints: "I'm at full capacity"
-- Policy violation: "I don't have permission for that operation"
-- Semantic impossibility: "That action is logically impossible given current state"
-
-### Practical Example
-
-```python
-class Worker:
-    def handle_request(self, sender, action):
-        # Check feasibility
-        if not self.can_perform(action):
-            reason = self.diagnose_infeasibility(action)
-            return Refuse(
-                sender=self,
-                receiver=sender,
-                action=action,
-                reason=reason
-            )
-        
-        # If feasible, proceed with agree/execute
-        return self.execute(action)
-    
-    def diagnose_infeasibility(self, action):
-        """Return structured reason for infeasibility."""
-        if not self.has_capability(action):
-            return Reason(
-                type="missing_capability",
-                details=f"I don't have skill: {action.required_skill}"
-            )
-        elif not self.has_resources(action):
-            return Reason(
-                type="resource_constraint",
-                details=f"Insufficient resources: {action.resource_requirement}"
-            )
-        elif not self.is_permitted(action):
-            return Reason(
-                type="policy_violation",
-                details=f"Not authorized: {action} requires {action.required_permission}"
-            )
-        else:
-            return Reason(
-                type="unknown",
-                details="Action not feasible for unknown reason"
-            )
+```mermaid
+flowchart TD
+    M[Observed message or missing response] --> K{Which act was actually observed?}
+    K -->|refuse| R[Record declined action, stated reason, and correlation]
+    K -->|failure| F[Record attempted action, stated reason, and no-completion claim]
+    K -->|not-understood| N[Record quoted action and reason language or ontology]
+    K -->|none by local deadline| T[Record local timeout only]
+    R --> P[Apply separately declared replan policy]
+    F --> P
+    N --> P
+    T --> P
+    P --> E[Independently check any consequential external effect]
 ```
 
-### Why Refuse is Critical for Orchestration
+The diagram deliberately keeps silence out of the three CAL acts. A deadline is a local policy; it does not turn an absent message into a refusal, an attempted failure, or a parsing result.
 
-In a WinDAG orchestration system, refuse enables:
+## `refuse`: declined before the requested action is done
 
-1. **Graceful degradation**: Orchestrator can try alternative agents or plans
-2. **Root cause analysis**: The reason φ provides actionable diagnostic information
-3. **Capability discovery**: Patterns of refusals reveal actual vs. claimed capabilities
-4. **Workload management**: Agents can refuse when overloaded, enabling load balancing
+XC00037H defines refusal as a sequence of a disconfirmation of feasibility and an informative reason:
 
-**Anti-pattern**: Silently accepting requests you can't fulfill
+\[
+\begin{aligned}
+\langle i,\operatorname{refuse}(j,\langle i,act\rangle,\varphi)\rangle
+\equiv {}&\langle i,\operatorname{disconfirm}(j,\operatorname{Feasible}(\langle i,act\rangle))\rangle;\\
+&\langle i,\operatorname{inform}(j,\varphi\land\neg\operatorname{Done}(\langle i,act\rangle)
+\land\neg I_i\operatorname{Done}(\langle i,act\rangle))\rangle.
+\end{aligned}
+\]
 
-```python
-# Bad: Accept but never execute
-def handle_request(self, sender, action):
-    return Agree(action)  # Lying—will never actually do it
-```
+Its FP and RE are:
 
-**Correct pattern**: Honest refusal with reason
+\[
+\begin{aligned}
+FP={}&B_i\neg\operatorname{Feasible}(\langle i,act\rangle)
+\land B_i(B_j\operatorname{Feasible}(\langle i,act\rangle)
+\lor U_j\operatorname{Feasible}(\langle i,act\rangle))\\
+&\land B_i\alpha\land\neg B_i(Bif_j\alpha\lor Uif_j\alpha),\\
+RE={}&B_j\neg\operatorname{Feasible}(\langle i,act\rangle)\land B_j\alpha,\\
+\alpha={}&\varphi\land\neg\operatorname{Done}(\langle i,act\rangle)
+\land\neg I_i\operatorname{Done}(\langle i,act\rangle).
+\end{aligned}
+\]
 
-```python
-# Good: Refuse if infeasible
-def handle_request(self, sender, action):
-    if not self.can_perform(action):
-        return Refuse(action, reason="Insufficient memory")
-    return Agree(action)
-```
+### Procedure and hand checks
 
-## FAILURE: Attempting vs. Succeeding
+1. Quote the requested action expression, including its actor. Do not substitute a broad task label.
+2. Preserve the stated reason `φ` as message content and record the content language/ontology needed to interpret it.
+3. Record that the sender represented the action as infeasible and not done, with no present intention to do it. These are source-model claims, not proof that a real capability or permission is absent.
+4. If selecting another recipient is a local policy, re-evaluate the new recipient and create a new request record. Do not reuse a refusal as a universal capability classification.
 
-### Formal Definition
+**Positive constructed case.** Let `a = ⟨r,reserve(ticket_7)⟩` and let `φ = insufficient-funds(account_3)`. A received refusal from `r` whose content quotes `a` and `φ` is correctly classified as a decline before completion. A separate account check may corroborate the reason only if it is authorized and bound to account 3.
 
-```
-<i, failure(j, a, φ)> ≡
-  <i, inform(j, (∃e) Single(e) ∧ Done(e) ∧ Agent(e, i) ∧ 
-            Bᵢ(Done(e) ∧ Agent(e, i) ∧ (a = e)) ∧ φ ∧ 
-            ¬Done(a) ∧ ¬Iᵢ Done(a))>
-  
-FP: Bᵢ α ∧ ¬Bᵢ(Bᵢfⱼ α ∨ Uᵢfⱼ α)
-RE: Bⱼ α
+**Negative case.** A worker sends `failure(r,a,φ)` after starting the action. Do not relabel it `refuse`: the failure model contains an attempted event. Conversely, a missing response by the caller's deadline does not satisfy the refusal formula.
 
-Where: α = (∃e) Single(e) ∧ Done(e, Feasible(a) ∧ Iᵢ Done(a)) ∧ φ ∧ 
-              ¬Done(a) ∧ ¬Iᵢ Done(a)
-```
+## `failure`: an attempted action whose requested completion is reported absent
 
-### Translation
+The source defines:
 
-**Failure means**:
-1. i had the intention to do action a
-2. i believed a was feasible
-3. i attempted to do a (there exists an event e where i tried)
-4. The action a was not completed
-5. i no longer intends to do a
-6. The reason for failure is φ
+\[
+\begin{aligned}
+\langle i,\operatorname{failure}(j,a,\varphi)\rangle\equiv
+\langle i,\operatorname{inform}(j,\alpha)\rangle,\\
+\alpha=(\exists e)\operatorname{Single}(e)\land
+\operatorname{Done}(e,\operatorname{Feasible}(a)\land I_i\operatorname{Done}(a))
+\land\varphi\land\neg\operatorname{Done}(a)\land\neg I_i\operatorname{Done}(a).
+\end{aligned}
+\]
 
-**Key distinction from refuse**: 
-- Refuse: "I can't do this" (before attempting)
-- Failure: "I tried but it didn't work" (after attempting)
+Thus the source model says an attempt event occurred while the action was feasible and intended, that `a` is now not done, and that the sender no longer intends `a`. XC00037H calls `φ` the causal reason informally, while explicitly noting that the formal semantics do not express that causality.
 
-### Practical Example
+### Procedure and hand checks
 
-```python
-class Worker:
-    def execute_task(self, sender, task):
-        # Already agreed—now attempting execution
-        try:
-            # Attempt the task
-            result = self.perform(task)
-            
-            # Success
-            return Inform(
-                self, sender,
-                Done(task, result=result)
-            )
-        
-        except ResourceExhausted as e:
-            # Attempted but failed due to resource issue
-            return Failure(
-                self, sender,
-                action=task,
-                reason=f"Resource exhausted: {e}"
-            )
-        
-        except NetworkTimeout as e:
-            # Attempted but failed due to external dependency
-            return Failure(
-                self, sender,
-                action=task,
-                reason=f"Network timeout communicating with external service: {e}"
-            )
-        
-        except Exception as e:
-            # Attempted but failed for unknown reason
-            return Failure(
-                self, sender,
-                action=task,
-                reason=f"Unexpected error: {e}"
-            )
-```
+1. Bind `a` to the exact requested action, and keep any attempt record separate from the CAL formula.
+2. Record `φ` verbatim/as structured content according to the content language; label it a *reported reason* unless a causal investigation proves more.
+3. Treat partial side effects as unknown until the named target state is independently checked. `¬Done(a)` does not prove that no subevent occurred.
+4. Select retry, alternate action, compensation, or escalation only through an explicit application policy keyed to independently gathered evidence.
 
-### Why Failure is Critical
+**Positive constructed case.** Let `a = open(file_7)` and `φ = missing(file_7)`. A failure message whose content identifies `a` and `φ` is an informative report that an attempt occurred and the requested action was not completed in the model. An authorized filesystem readback could establish whether `file_7` exists at its observation time; it cannot retroactively prove the exact attempt event from the CAL message alone.
 
-Failure enables:
+**Negative case.** A sender says “I cannot open file 7” before attempting it. That may be an appropriate reason for `refuse`; it is not enough to assert the existential attempt event required by `failure`.
 
-1. **Distinguishing attempt from success**: Orchestrator knows the agent tried (vs. refused)
-2. **Retry strategies**: Different failures warrant different retry approaches
-3. **Debugging**: The reason φ provides exception-like diagnostic information
-4. **Partial completion tracking**: Agent may have completed substeps before failing
+## `not-understood`: report an interpretation failure without promising shared understanding
 
-**Orchestration pattern**: Differentiated failure handling
+The source defines:
 
-```python
-class Orchestrator:
-    def handle_response(self, worker, response):
-        if isinstance(response, Agree):
-            # Worker committed—wait for completion
-            self.wait_for_completion(worker)
-        
-        elif isinstance(response, Refuse):
-            # Worker can't do it—try alternative
-            reason = response.reason
-            if reason.type == "missing_capability":
-                # Need different worker
-                alternative = self.find_capable_worker(response.action)
-                self.request(alternative, response.action)
-            elif reason.type == "resource_constraint":
-                # Worker might become available later—retry or queue
-                self.schedule_retry(worker, response.action, delay=60)
-        
-        elif isinstance(response, Failure):
-            # Worker tried but failed—analyze failure mode
-            reason = response.reason
-            if "timeout" in reason.details:
-                # Transient failure—immediate retry might work
-                self.request(worker, response.action)  # Retry same worker
-            elif "resource" in reason.details:
-                # Need more resources or different worker
-                self.scale_up_resources() or self.delegate_to_another()
-            else:
-                # Unknown failure—escalate
-                self.escalate_to_human(response)
-```
+\[
+\langle i,\operatorname{not\hbox{-}understood}(j,a,\varphi)\rangle
+\equiv\langle i,\operatorname{inform}(j,\alpha)\rangle,
+\]
 
-## NOT-UNDERSTOOD: Communication Breakdowns
+with the ordinary informative FP/RE and
 
-### Formal Definition
+\[
+\alpha=\varphi\land(\exists x)B_i\bigl((\iota e\ \operatorname{Done}(e)
+\land\operatorname{Agent}(e,j)\land B_j(\operatorname{Done}(e)
+\land\operatorname{Agent}(e,j)\land(a=e)))=x\bigr).
+\]
 
-```
-<i, not-understood(j, a, φ)> ≡
-  <i, inform(j, α)>
-  
-FP: Bᵢ α ∧ ¬Bᵢ(Bᵢfⱼ α ∨ Uᵢfⱼ α)
-RE: Bⱼ α
+The printed `Agent(e,j)` ordering here differs from the actor-first `Agent(j,a)` definition in §5.2.1. This transcription preserves §3.11 rather than silently repairing the source.
 
-Where: α = φ ∧ (∃x) Bᵢ((ιe Done(e) ∧ Agent(e, j) ∧ 
-              Bⱼ(Done(e) ∧ Agent(e, j) ∧ (a = e))) = x)
-```
+The H text says the model cannot fully capture the intended semantics of an action not being understood. It also warns that the reason `φ` is not guaranteed to be represented in a way the original sender will understand.
 
-### Translation
+### Procedure and hand checks
 
-**Not-understood means**:
-1. i observed agent j perform action a
-2. i doesn't understand what a was (semantic failure)
-3. The reason i doesn't understand is φ
+1. Preserve the received/quoted action `a` rather than replacing it with an exception class.
+2. Identify whether the stated reason is about the content language, ontology, or another interpretation condition. The source example uses an unknown ontology.
+3. State the language in which `φ` is expressed. A bare text reason still must be a propositional assertive statement that its sender can understand and evaluate.
+4. If an application tries a different representation, record that as a new local communication policy. It is not a CAL-mandated fallback ladder.
 
-**Common reasons for not-understood**:
-- Unknown ontology: "I don't recognize that domain vocabulary"
-- Unknown content language: "I can't parse that syntax"
-- Unknown act type: "I don't know what 'flobberate' means"
-- Protocol violation: "That message doesn't make sense in this conversation"
+**Positive constructed case.** `j` sends a `query-if` carrying ontology `weather-v3`; `i` recognizes the message event but cannot interpret that ontology. A `not-understood` that quotes the action and uses `unknown(ontology,weather-v3)` as its reason matches the source's form.
 
-### Practical Example
+**Negative case.** A response arrived late but was interpreted normally. Lateness alone does not establish non-understanding. Section 3.11 does, however, explicitly allow an unexpected message in a predefined protocol as a reason for not understanding; distinguish that case from an understood message that merely missed a deadline.
 
-```python
-class Agent:
-    def receive_message(self, message):
-        try:
-            # Try to parse message
-            parsed = self.parse(message)
-        except UnknownLanguage as e:
-            # Can't parse content language
-            return NotUnderstood(
-                self, message.sender,
-                action=message,
-                reason=f"Unknown content language: {message.language}"
-            )
-        except UnknownOntology as e:
-            # Can't interpret domain terms
-            return NotUnderstood(
-                self, message.sender,
-                action=message,
-                reason=f"Unknown ontology: {message.ontology}"
-            )
-        
-        try:
-            # Try to understand act type
-            act_type = parsed.act
-            if act_type not in self.known_acts:
-                return NotUnderstood(
-                    self, message.sender,
-                    action=message,
-                    reason=f"Unknown communicative act: {act_type}"
-                )
-        except Exception as e:
-            return NotUnderstood(
-                self, message.sender,
-                action=message,
-                reason=f"Cannot interpret message: {e}"
-            )
-        
-        # Successfully understood—process normally
-        return self.handle_message(parsed)
-```
+## Cancellation boundary
 
-### Why Not-Understood is Critical
+`cancel` communicates that the sender no longer intends another agent's action:
 
-Not-understood enables:
+\[
+\langle i,\operatorname{cancel}(j,a)\rangle
+\equiv\langle i,\operatorname{disconfirm}(j,I_i\operatorname{Done}(a))\rangle.
+\]
 
-1. **Protocol negotiation**: Sender learns receiver's limitations and can adapt
-2. **Graceful interoperability failure**: Better than silent misinterpretation
-3. **Debugging multi-vendor systems**: Reveals incompatibilities explicitly
-4. **Learning**: Agents can request clarification or negotiate common languages
+It is not a request to stop and does not guarantee that the recipient stops an ongoing action. If a system needs a stop effect, it needs a separately observed request/response/effect procedure.
 
-**Pattern**: Falling back to simpler communication
+## Original-heading disposition ledger
 
-```python
-class Orchestrator:
-    def send_request(self, worker, action):
-        # Try sending with full semantic richness
-        response = self.send(
-            Request(
-                self, worker, action,
-                language="FIPA-SL",
-                ontology="domain-specific-v2"
-            )
-        )
-        
-        if isinstance(response, NotUnderstood):
-            reason = response.reason
-            if "Unknown ontology" in reason:
-                # Fall back to simpler ontology
-                response = self.send(
-                    Request(
-                        self, worker, action,
-                        language="FIPA-SL",
-                        ontology="domain-specific-v1"  # Older version
-                    )
-                )
-            
-            if isinstance(response, NotUnderstood) and "Unknown language" in reason:
-                # Fall back to string-based content
-                response = self.send(
-                    Request(
-                        self, worker, action,
-                        language="string",  # Minimal semantics
-                        content=str(action)
-                    )
-                )
-        
-        return response
-```
+| Original substantive heading | Retained, corrected, or removed | Destination and source-backed reason |
+| --- | --- | --- |
+| The Explicit Failure Vocabulary | Retained | diagnosis diagram and three act sections. |
+| REFUSE / Formal Definition / Translation | Corrected and retained | `refuse` section restores sequential formal definition and sender-scoped feasibility. |
+| Practical Example / Why Refuse is Critical | Corrected and retained | procedure and positive/negative checks replace invented Python policy and product claims. |
+| FAILURE / Formal Definition / Translation | Corrected and retained | `failure` section restores attempt-event content and formal causality boundary. |
+| Practical Example / Why Failure is Critical | Corrected and retained | hand checks and effect check replace retry taxonomy claims. |
+| NOT-UNDERSTOOD / Formal Definition / Translation | Corrected and retained | `not-understood` section restores the source limitation and reason-language condition. |
+| Practical Example / Why Not-Understood is Critical | Corrected and retained | ontology case and local-policy boundary replace an invented fallback implementation. |
+| Compositional Failure Handling / Cancel: Retracting Intentions | Corrected and retained | cancellation boundary restores the source's limited disconfirmation semantics. |
 
-## Compositional Failure Handling
+## Source and access boundary
 
-### Cancel: Retracting Intentions
+- FIPA, *Communicative Act Library Specification*, **XC00037H**, experimental, 2001-08-10, archived full 44-page [PDF](https://jmvidal.cse.sc.edu/library/XC00037H.pdf), accessed 2026-09-24. Relevant §§3.3, 3.7, 3.11, 3.17 and annex §§5.2–5.4.
+- No current FIPA implementation, transport, identity layer, retry policy, or effect store was inspected.

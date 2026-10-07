@@ -1,40 +1,8 @@
-% Brief (tikz-diagram-craft). Register row ch1-09 [could].
-% Reader question: what actually runs, in what order, when the daemon
-%   restarts after a crash?
-% Claim: three separate mechanisms run in sequence on boot -- WAL replay,
-%   integrity check, audit-chain verification -- and they should be one
-%   named invariant, but today they are three, which is why the whole is
-%   closer to BuiltWeak than Built.
-% Evidence: whitepaper/single-writer-kernel.tex sec:recovery-story: "boot-
-%   time WAL recovery plus integrity check plus chain verification should
-%   be a single named invariant, and today it is closer to BuiltWeak than
-%   Built"; the boot-admission gate (sec:attest) that refuses to serve on
-%   a failed critical self-check.
-% Must distinguish: the three mechanisms run, in order, today; that they
-%   are not yet unified under one name or one failure semantics.
-% Grammar: a three-step pipeline inside a dashed "not yet unified" panel
-%   (S8: the panel is the claim). Rejected: a booktabs table (this is a
-%   temporal sequence, not a classification -- craft-rules S3 reserves the
-%   table for n items x m properties, not "what runs, in what order").
-% Five-second test: "three boxes in a row, one dashed panel around all
-%   three saying they are not one invariant yet".
+% Swiss object-based redraw; geometry lives in shared reusable functions.
+% Evidence: corresponding single-writer-kernel.tex section; schematic, not a runtime trace.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd focus outline,minimum width=2.7cm,text width=2.4cm,align=center] (s1) at (1.65,0) {WAL replay};
-  \node[pd focus outline,minimum width=2.7cm,text width=2.4cm,align=center] (s2) at (4.95,0) {integrity check};
-  \node[pd focus outline,minimum width=2.7cm,text width=2.4cm,align=center] (s3) at (8.25,0) {audit-chain verification};
-  \foreach \a/\b in {s1/s2,s2/s3}{\draw[pd focus arrow] (\a)--(\b);}
-  \draw[pd panel] (0.05,-1.05) rectangle (9.85,1.05);
-  \node[pd label,anchor=north,text width=8.6cm,align=center] at (4.95,-1.30)
-    {not yet one named invariant: three mechanisms, closer to \textsc{builtweak} than \textsc{built}};
-\end{tikzpicture}
-\caption{Boot recovery today: WAL replay, an integrity check, and
-audit-chain verification run in that order, gated by the boot-admission
-check that refuses to serve on a failed critical self-check. The three
-should be one named invariant with one failure semantics; today they are
-three separate mechanisms, which is why the whole is closer to
-\textsc{builtweak} than \textsc{built}. [internal]}
+\SGMeasuredFigure{fig-swk-recovery-pipeline}{\SGRecoveryAdmission}
+\caption{Three recovery mechanisms precede admission. A failed critical check blocks service. The dashed group marks separate mechanisms, not a completed shared recovery invariant.}
 \label{fig:swk-recovery-pipeline}
 \end{figure}

@@ -20,6 +20,7 @@
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
+import { parse as parseYaml } from 'yaml';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
@@ -66,7 +67,7 @@ beforeEach(() => {
     const url = String(input);
     if (url.endsWith('/repos/octo/widgets/installation')) return Response.json({ id: INSTALLATION_ID });
     if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
-      return Response.json({ total_count: 1, repositories: [{ full_name: REPO }] });
+      return Response.json({ total_count: 1, repositories: [{ id: 777, full_name: REPO, owner: { id: 888 } }] });
     }
     return new Response('not found', { status: 404 });
   }));
@@ -120,6 +121,12 @@ function makeDb(opts: {
           id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
           repo_full_name: REPO, created_at: 1, updated_at: 1,
         } as T;
+        if (sql.includes('FROM fleet_tenant_repositories r')) return {
+          tenant_account_id: bound[2], github_account_id: 888, user_id: 'u_1',
+          repository_full_name: REPO,
+          config_status: 'proposed', execution_status: 'blocked_pending_executor',
+          proposal_status: 'proposed',
+        } as T;
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
@@ -147,7 +154,10 @@ function makeDb(opts: {
     };
     return s as unknown as D1PreparedStatement;
   };
-  return { db: { prepare: stmt } as unknown as D1Database, calls };
+  return { db: {
+    prepare: stmt,
+    batch: async (statements: D1PreparedStatement[]) => Promise.all(statements.map((statement) => statement.run())),
+  } as unknown as D1Database, calls };
 }
 
 function makeEnv(
@@ -337,6 +347,21 @@ describe('shipwright — history is scoped to the session user', () => {
     const verdict = validateEmittedYaml(`\`\`\`yaml\n${yaml}\`\`\``)[0]!;
     expect(verdict.valid).toBe(true);
     expect(verdict.ships.map((ship) => ship.name)).toEqual(['code-reviewer', 'qa', 'purser']);
+    const agents = (parseYaml(yaml) as {
+      fleet: { agents: Record<string, Record<string, unknown>> };
+    }).fleet.agents;
+    expect(agents.qa).toMatchObject({
+      trigger: 'pull_request:*',
+      cloud_only: true,
+      backend: 'cloudflare',
+      blocking: false,
+    });
+    expect(agents.qa?.model).toBe(verdict.ships.find((ship) => ship.name === 'qa')?.cfModel);
+    expect(agents.qa).not.toHaveProperty('fallbacks');
+    expect(agents['code-reviewer']).toMatchObject({
+      backend: 'cli:claude-code',
+      fallbacks: [{ backend: 'cloudflare', capability: 'cheap' }],
+    });
     expect(yaml).toContain('apps/relay/**');
     const hostile = buildShipwrightDraftProposal(REPO, {
       ...onboardingProfile,
@@ -898,6 +923,9 @@ describe('GET /account/shipwright — page', () => {
     expect(p).toContain('goals');
     expect(p).toContain('purser');
     expect(p).toContain('graft');
+    expect(p).toContain('QA is the hosted-diff exception');
+    expect(p).toContain('cloud_only: true');
+    expect(p).toContain('never emit local QA');
     expect(p).toContain('pd-fleet.yml');
     // The tied-hands claim is gone; the prompt states the click-gated truth.
     expect(p).not.toContain('cannot open PRs');

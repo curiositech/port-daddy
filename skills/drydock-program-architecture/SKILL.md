@@ -27,6 +27,12 @@ metadata:
     owners:
       - port-daddy
   pairs-with:
+    - skill: conserved-capacity-admission-and-settlement
+      reason: Owns native-unit reservation, attempt admission, ambiguity holds, and settlement handoff.
+    - skill: trust-typed-context-compiler
+      reason: Owns authority-filtered Context IR, obligation coverage, and backend translation receipts.
+    - skill: trial-basin-deterministic-systems-evaluation
+      reason: Owns sealed schedules, disjoint witnesses, negative controls, replay, and typed result vectors.
     - skill: sandboxed-adversarial-test-harness
       reason: Owns containment, typed effects, adversarial scenarios, and promotion verdicts.
     - skill: agent-resurrection-and-body-continuity
@@ -90,9 +96,13 @@ boundaries below.
 
 | Decision | Normative skill | Required artifact |
 |---|---|---|
+| Attempt admission, reservation, ambiguity, settlement handoff | `conserved-capacity-admission-and-settlement` | Conserved attempt record with terminal holds |
+| Authority-filtered context and backend translation | `trust-typed-context-compiler` | Trust-typed Context IR and continuation capsule |
+| Deterministic fake-system evaluation and replay | `trial-basin-deterministic-systems-evaluation` | Sealed evaluation envelope and typed result vector |
 | Host/guest containment, brokered I/O, hostile tests | `sandboxed-adversarial-test-harness` | Drydock review and tier verdict |
 | Missing, dead, resumed, or cross-backend body | `agent-resurrection-and-body-continuity` | Schema-valid resurrection plan |
 | Subscription allowance, context pressure, compaction | `context-economics-for-agent-swarms` | Schema-valid capacity evidence |
+| Bonds, bounties, slashing, custody, or payment | `cryptoeconomic-protocol-security` | Open threat assessment with legal and evidence holds |
 | Operator-visible proof | `agent-visual-evidence-manifest` | Evidence manifest with zoom paths |
 
 ## Stable Vocabulary
@@ -177,14 +187,22 @@ tools, skills, prompts, and output quarantine. The host controller must reject:
 - unsealed setup scripts, package hooks, test configs, or transforms;
 - output that attempts to overwrite input or bypass review worktrees.
 
-### 4. Compose the three focused contracts
+### 4. Compose the focused contracts
 
 Run the contracts in this order:
 
-1. **Capacity:** prove there is one bounded reservation or deny launch.
+1. **Admission and conserved capacity:** prove there is one bounded reservation
+   for this attempt or deny launch. Unknown provider allowance stays scarce.
 2. **Resurrection:** establish AgentNode, predecessor generation, fence, capsule,
    and allowed successor shape.
-3. **Containment:** prove the exact body can execute only at the approved tier.
+3. **Context:** compile authority-filtered evidence, obligations, omissions, and
+   backend translations without admitting a successor.
+4. **Containment:** prove the exact body can execute only at the approved tier.
+5. **Evaluation:** seal schedule, faults, witnesses, oracles, and negative
+   controls before interpreting a deterministic fake or replay.
+6. **Mechanism security:** when settlement is enabled, analyze custody,
+   liquidity, collusion, Sybil, oracle, ordering, dispute, and externality risk.
+   A no-settlement profile skips economic effects; it does not make usage free.
 
 If any focused contract returns `UNKNOWN`, `BLOCKED`, `QUARANTINED`,
 `INCOMPLETE`, or `UNCERTAIN`, the integrated packet cannot say ready. Preserve
@@ -341,6 +359,8 @@ Before calling the packet complete:
 8. Confirm every PASS claim names an exact tier, digest, and external witness.
 9. Have a skeptical reviewer argue safety, liveness, economics, usability, and
    evidence independently.
+10. Run the focused skill mutation suites before trusting their examples; a
+    composition packet cannot upgrade a failed subordinate validator.
 
 ## Bundle Index
 

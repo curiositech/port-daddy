@@ -1,0 +1,59 @@
+{
+  "reason": "Semantic replacements required by the repository banned-phrase gate; raw drafts retain their source content except prohibited phrase substitutions.",
+  "rawDraftsChanged": [
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/_book_identity.json",
+      "originalGitBlob": "affcca90d6ff5f5af40d2dc861cf9681342c9516",
+      "originalSha256": "f625f23a5ec7b237828e65525fce8457c955223e3ec7b8be3218d52015ec3102",
+      "updatedSha256": "b07a52cc0130aa0780fcbd703d43d66610f7d9282301151b89f7fcf488d7a646"
+    },
+    {
+      "path": "skills/a-task-analysis-of-pier-side-ship-handli/_raw_response.md",
+      "originalGitBlob": "115f4abcd2f78bcf5d8894b2a5c490e209dbfd11",
+      "originalSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "updatedSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f"
+    },
+    {
+      "path": "skills/helm-liang-2022/_raw_response.md",
+      "originalGitBlob": "9f69726cc0b03cccc4a87d29f3567bb02664424e",
+      "originalSha256": "54a435729589c51c0145c99f2434bebde659a754431cb539b54a9ff2b4d0937f",
+      "updatedSha256": "96132a7fcf6267b8ccf859fb4ea4ef947b04a274835385d3e3e99ca6a7d6f506"
+    },
+    {
+      "path": "skills/khattab-2023-dspy/_raw_response.md",
+      "originalGitBlob": "e7fc51b3c96c7bb7886ca14bef348acf533553e9",
+      "originalSha256": "ce5e224cfa0f029c0fe0b3352bafb2ecef2974cfd12837999d18f73c7dce3cad",
+      "updatedSha256": "74b88598c56c45e2801eb80b5eeeb7da21ecacbb2914ef90365622827b7ba9f8"
+    },
+    {
+      "path": "skills/revisiting-interview-data-analysing-turn/_raw_response.md",
+      "originalGitBlob": "802e8e5d04dbe52bf6cadda30cb0cd8eae838d53",
+      "originalSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "updatedSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081"
+    },
+    {
+      "path": "skills/revisiting-interview-data-turn-taking/_raw_response.md",
+      "originalGitBlob": "802e8e5d04dbe52bf6cadda30cb0cd8eae838d53",
+      "originalSha256": "8baf0b5b0926c430e06d5cfb600b929a4f96709b8feccc0e7b8d6268caa5abe4",
+      "updatedSha256": "c40639d4e2e6a3c15d45bc0e33dcee8c581d17b99dec87e1c7897c75a0f9d081"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/_book_identity.json",
+      "originalGitBlob": "affcca90d6ff5f5af40d2dc861cf9681342c9516",
+      "originalSha256": "f625f23a5ec7b237828e65525fce8457c955223e3ec7b8be3218d52015ec3102",
+      "updatedSha256": "b07a52cc0130aa0780fcbd703d43d66610f7d9282301151b89f7fcf488d7a646"
+    },
+    {
+      "path": "skills/task-analysis-of-pier-side-ship-handling/_raw_response.md",
+      "originalGitBlob": "115f4abcd2f78bcf5d8894b2a5c490e209dbfd11",
+      "originalSha256": "076fea729dd1982b577b468f1d4d7ebcd03283694b8a89c0eced229c58e33b32",
+      "updatedSha256": "d6195002052600e9edcf383aba01f264a52ed73bd986555d02f2329f919e1a6f"
+    },
+    {
+      "path": "skills/wei-2022-chain-of-thought/_raw_response.md",
+      "originalGitBlob": "6be9e525b18765550b3b6efc1df100fee1aa9d35",
+      "originalSha256": "b632a11f854c68a984b47ae4346e9d1043421ad4da46ec9bd809254c7aa36069",
+      "updatedSha256": "acb688261ed2dc55f9f67b2565fb4368de6cacc5afde38147a2ce54e8f66e270"
+    }
+  ]
+}

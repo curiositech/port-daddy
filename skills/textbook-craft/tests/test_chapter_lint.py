@@ -187,7 +187,7 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
     def test_find_pd_pedagogy_file_walks_upward_from_the_chapter(self):
         chapter = self.fixture.chapter("\\section{One}\n")
         found = chapter_lint.find_pd_pedagogy_file(chapter)
-        self.assertEqual(found, self.fixture.root / "whitepaper" / "figures" / "pd-pedagogy.tex")
+        self.assertEqual(found, (self.fixture.root / "whitepaper" / "figures" / "pd-pedagogy.tex").resolve())
 
     def test_find_pd_pedagogy_file_returns_none_when_absent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -474,6 +474,27 @@ class TestLabelledInterludeFloor(RepoFixtureTestCase):
         self.assertEqual(n_bib, 4)
         self.assertEqual(n_cited, 3)          # k4 is never cited in the body
         self.assertEqual(n_single, 2)         # k2, k3 in one section; k1 in two
+
+    def test_citation_sites_use_section_identity_not_repeated_heading_text(self):
+        text = (
+            "\\section{Same}\\label{sec:first}\n\\pdcite{shared,local}.\n"
+            "\\subsection{A detail}\n\\pdcite{local}.\n"
+            "\\section{Same}\\label{sec:second}\n\\pdcite{shared}.\n"
+            "\\begin{thebibliography}{99}\n"
+            "\\bibitem{shared}Shared.\n\\bibitem{local}Local.\n"
+            "\\end{thebibliography}\n"
+        )
+        # shared occurs in two different Same sections; local occurs twice
+        # inside one top-level span. Only local is a single-section key.
+        self.assertEqual(chapter_lint.citation_spread(text, chapter_lint.parse_sections(text)), (2, 2, 1))
+
+    def test_preamble_citation_site_cannot_collide_with_a_heading(self):
+        text = (
+            "\\pdcite{shared}.\n"
+            "\\section{(preamble/front matter)}\n\\pdcite{shared}.\n"
+            "\\begin{thebibliography}{99}\n\\bibitem{shared}One.\n\\end{thebibliography}\n"
+        )
+        self.assertEqual(chapter_lint.citation_spread(text, chapter_lint.parse_sections(text)), (1, 1, 0))
 
     def test_review_rows_are_counted_separately_in_the_consolidated_report(self):
         chapter = self._chapter("\\section{One}\nProse.\n")

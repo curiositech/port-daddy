@@ -49,24 +49,22 @@
 \hfill
 \begin{minipage}{0.56\textwidth}
 \centering
-{\small\bfseries what each tier lets the completion residual prove}\\[6pt]
+{\small\bfseries what each tier supplies to the analyst}\\[6pt]
 \begin{tabular}{@{}cp{0.78\linewidth}@{}}
 \tikz[baseline=-0.5ex]{\draw[harborblue,thick] (0,0) -- (0.6,0);} \textbf{\textcolor{harborblue}{compared}}
-  & analyst cross-checks both endpoint reports on the edge; disagreement observed directly (pairwise detection). \\[8pt]
+  & analyst holds a direct endpoint cross-check for the edge and can inspect its authenticated claims. \\[8pt]
 \tikz[baseline=-0.5ex]{\draw[seagreen,thick,dashed] (0,0) -- (0.6,0);} \textbf{\textcolor{seagreen}{relayed}}
-  & endpoints' reports reach the analyst by gossip; the edge itself is never checked. On a cycle of the visible subgraph $K_c$: $r>0$, detectable ($200/200$). On a cut edge of $K_c$: $r=0$ by algebra, provably silent (max $1.5\times10^{-13}$). \\[8pt]
+  & both endpoint claims reach the analyst without an endpoint cross-check. A direct sender-claim check uses them. For a \emph{single-edge} fault, the residual fires on a visible cycle and vanishes on a bridge. \\[8pt]
 \tikz[baseline=-0.5ex]{\draw[gray,thick,dotted] (0,0) -- (0.6,0);} \textbf{\textcolor{gray}{severed}}
-  & no report crosses; the block is a free variable of the completion, so its row drops out of $K_c$ altogether; equivocation there is provably dark ($0/200$) --- and so is any cycle that ran through it. \\
+  & no edge report reaches the analyst; its row drops out of $K_c$. A fault confined to that row cannot affect the edge-data residual. \\
 \end{tabular}
 \end{minipage}
 \caption{The three-tier observability contract --- the tiers are properties of the \emph{analyst's evidence}, not of the
 federation, and all three coexist on one topology. Left: one gossip graph wearing all three tiers --- harborblue solid
 compared, seagreen dashed relayed, gray dotted severed; the compared-plus-relayed links are the visible subgraph $K_c$ that
-every theorem in this paper quantifies over. (The severed link $1$--$3$ is drawn as a chord, so this graph carries two
-independent loops; the running example of \S\ref{sec:problem} is the plain ring, $\beta_1=1$.) Right: what each tier lets
-the completion residual prove. The relayed tier splits by topology: on a cycle of $K_c$, $r>0$ detects ($200/200$); on a cut
-edge of $K_c$, $r=0$ by algebra (max residual $1.5\times10^{-13}$ over 400 trials); severed blocks are free variables and
-provably dark ($0/200$). Figure~\ref{fig:r6reg} uses this same legend
-[internal, \texttt{sheaf\_harness\_v2.py}].}
+the one-edge residual criterion uses. The severed link $1$--$3$ is drawn as a chord. Right: the evidence supplied
+by each tier. The relayed tier already supplies both claims to an equal-information checker. The visible-cycle
+criterion describes the residual for one edge fault; it does not cover every one-sender split view.
+Figure~\ref{fig:r6reg} uses this same legend [internal, \texttt{sheaf\_harness\_v2.py}].}
 \label{fig:vis}
 \end{figure}

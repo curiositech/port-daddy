@@ -97,7 +97,7 @@ export function matchesAny(relPath, globs) {
 }
 
 function trackedFiles() {
-  const out = execFileSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8' })
+  const out = execFileSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
   return out.split('\n').filter(Boolean)
 }
 

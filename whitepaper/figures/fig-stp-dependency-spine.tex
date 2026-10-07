@@ -1,0 +1,113 @@
+% Atlas: III/fig:stp-dependency-spine.
+% Question: what must persist before an agent's reputation can be traded?
+% Claim: every lower capability needs the capabilities above it.
+% Evidence: sec:intro, sec:organs and sec:keystone; this chapter's status claims.
+% Distinguish: dependency from sufficiency; partial mechanisms from proposed trade.
+% Grammar: Swiss Graphic architectural ladder with maritime structural metaphor.
+% Shows exactly where the daemon's implemented reality stops on the path to a market.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{III/fig:stp-dependency-spine}{%
+\begin{tikzpicture}[sg/base]
+  \def\cardW{310}
+  \def\cardH{34}
+
+  % Column headers
+  \node[anchor=west,font=\SGType\bfseries,text=sgInk!70] at (0,194)
+    {STRUCTURAL TIER \& CAPABILITY};
+  \node[anchor=east,font=\SGType\bfseries,text=sgInk!70] at (\cardW,194)
+    {REFERENCE SYSTEM STATUS};
+  \draw[sgInk!30,line width=.5pt] (0,186) -- (\cardW,186);
+
+  % =========================================================================
+  % 5 TIERS: (4=Tradable, 3=Reputation, 2=Participant, 1=Continuity, 0=Memory)
+  % =========================================================================
+
+  % --- TIER 4: TRADABLE ASSET (Top of Ladder / Proposed) -------------------
+  \draw[draw=sgInk!35,fill=white,line width=.65pt,dash pattern=on 3pt off 2pt]
+    (0,144) rectangle (\cardW,144+\cardH);
+  \node[anchor=west,font=\SGType\bfseries,text=sgViolet] at (8,166)
+    {L4\quad CHARTER \& COMMERCE};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont\bfseries,text=sgInk!50] at (\cardW-8,166)
+    {\fboxsep=2pt\colorbox{sgInk!8}{\textcolor{sgInk!70}{PROPOSED}}};
+  \node[anchor=west,font=\SGType,text=sgInk] at (8,152)
+    {\textbf{Tradable asset}\quad\textcolor{sgInk!60}{Transferable equity market}};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont,text=sgInk!60] at (\cardW-8,152)
+    {Market proposed};
+
+  % Downward dependency connector
+  \draw[sg/arrow,draw=sgInk!40] (28,144) -- (28,134);
+  \node[anchor=west,font=\fontsize{6.5}{7.5}\selectfont\itshape,text=sgInk!50] at (34,139) {requires};
+
+  % --- TIER 3: REPUTATION (Specified) --------------------------------------
+  \draw[draw=sgInk!45,fill=white,line width=.65pt]
+    (0,100) rectangle (\cardW,100+\cardH);
+  \node[anchor=west,font=\SGType\bfseries,text=sgViolet] at (8,122)
+    {L3\quad CLASSIFICATION RATING};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont\bfseries,text=sgViolet] at (\cardW-8,122)
+    {\fboxsep=2pt\colorbox{sgViolet!10}{\textcolor{sgViolet}{SPECIFIED}}};
+  \node[anchor=west,font=\SGType,text=sgInk] at (8,108)
+    {\textbf{Reputation}\quad\textcolor{sgInk!60}{Multi-voyage track record}};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont,text=sgInk!60] at (\cardW-8,108)
+    {Scorer specified};
+
+  % Downward dependency connector to boundary
+  \draw[sg/arrow,draw=sgInk!40] (28,100) -- (28,90);
+  \node[anchor=west,font=\fontsize{6.5}{7.5}\selectfont\itshape,text=sgInk!50] at (34,95) {requires};
+
+  % --- REALITY BOUNDARY CALLOUT (Dedicated band) --------------------------
+  \draw[draw=sgAmber!70,line width=.75pt,dash pattern=on 2pt off 1.5pt] (0,84) -- (\cardW,84);
+  \node[anchor=center,font=\fontsize{6.5}{7.5}\selectfont\bfseries,text=sgAmber!90,fill=white,inner sep=2pt]
+    at ({\cardW/2},84) {$\blacktriangledown$\quad IMPLEMENTATION BOUNDARY: WHERE REALITY STOPS TODAY\quad$\blacktriangledown$};
+
+  % Downward dependency connector from boundary
+  \draw[sg/arrow,draw=sgInk!55] (28,78) -- (28,68);
+
+  % --- TIER 2: PERSISTENT PARTICIPANT (Ledger Required) --------------------
+  \draw[draw=sgInk!65,fill=white,line width=.75pt]
+    (0,34) rectangle (\cardW,34+\cardH);
+  \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (8,56)
+    {L2\quad VESSEL CALL SIGN \& REGISTRY};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont\bfseries,text=sgAmber] at (\cardW-8,56)
+    {\fboxsep=2pt\colorbox{sgAmber!12}{\textcolor{sgAmber!90!black}{OUTCOME LEDGER REQ.}}};
+  \node[anchor=west,font=\SGType,text=sgInk] at (8,42)
+    {\textbf{Participant}\quad\textcolor{sgInk!60}{Witnessed identity soul}};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont,text=sgInk!60] at (\cardW-8,42)
+    {Witness substrate partial};
+
+  % Downward dependency connector
+  \draw[sg/arrow,draw=sgInk!60] (28,34) -- (28,24);
+  \node[anchor=west,font=\fontsize{6.5}{7.5}\selectfont\itshape,text=sgInk!50] at (34,29) {requires};
+
+  % --- TIER 1: CONTINUITY (Surviving Crashes) ------------------------------
+  \draw[draw=sgInk!85,fill=white,line width=.85pt]
+    (0,-10) rectangle (\cardW,-10+\cardH);
+  \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (8,12)
+    {L1\quad BULKHEADS \& RIGGING SPLICE};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont\bfseries,text=sgTeal] at (\cardW-8,12)
+    {\fboxsep=2pt\colorbox{sgTeal!12}{\textcolor{sgTeal}{PARTIAL}}};
+  \node[anchor=west,font=\SGType,text=sgInk] at (8,-2)
+    {\textbf{Continuity}\quad\textcolor{sgInk!60}{Session crash survival (Parfit)}};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont,text=sgInk!60] at (\cardW-8,-2)
+    {Resurrection partial};
+
+  % Downward dependency connector
+  \draw[sg/arrow,draw=sgInk!75] (28,-10) -- (28,-20);
+  \node[anchor=west,font=\fontsize{6.5}{7.5}\selectfont\itshape,text=sgInk!50] at (34,-15) {requires};
+
+  % --- TIER 0: MEMORY & CHECKPOINT (The Keel / Foundation) -----------------
+  \draw[draw=sgInk,fill=sgTeal!6,line width=1.1pt]
+    (0,-54) rectangle (\cardW,-54+\cardH);
+  \draw[sgTeal,line width=1.8pt] (0,-54)--(\cardW,-54);
+  \node[anchor=west,font=\SGType\bfseries,text=sgTeal] at (8,-32)
+    {L0\quad CAST KEEL \& BEDPLATE FOUNDATION};
+  \node[anchor=east,font=\SGType\bfseries,text=sgTeal] at (\cardW-8,-32)
+    {\fboxsep=2pt\colorbox{sgTeal!15}{\textcolor{sgTeal}{BUILT}}};
+  \node[anchor=west,font=\SGType,text=sgInk] at (8,-46)
+    {\textbf{Memory \& checkpoint}\quad\textcolor{sgInk!70}{Append-only write log}};
+  \node[anchor=east,font=\fontsize{7.5}{8.5}\selectfont,text=sgInk!70] at (\cardW-8,-46)
+    {Log implemented};
+\end{tikzpicture}}
+\caption{Each lower capability requires the structural foundation beneath it; none follows from them alone. The ladder exposes the sharp boundary where the reference system's implemented reality stops today on the path to an operational market. [internal]}
+\label{fig:stp-dependency-spine}
+\end{figure}

@@ -117,7 +117,12 @@
   A figcheck or ink_audit table, a compile log, a list of page numbers, or a
   paragraph saying you looked at the pixels is NOT a render, and neither is
   "N/A", a bare checkbox, or an empty bullet. The reviewer has to be able to open
-  the thing and see it. A printed page is never asked for a GIF or a recording.
+  the thing and see it. A printed page is never asked for a GIF or a recording. The Book palette
+  guard, its test and BRAND documentation are static support and need the same
+  render. Shared tokens.semantic.css qualifies only when committed before/after
+  snapshots preserve the other CSS and selectors while changing explicit Book
+  edge declarations or comments. Web token, selector or app-component changes
+  still need screenshot plus motion proof, including mixed print/app PRs.
 
   Not a visual change and not figure/print work? Delete this guidance and add an
   HTML comment whose FIRST token is  visual-exempt:  followed by a one-line

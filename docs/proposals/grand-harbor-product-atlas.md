@@ -306,7 +306,7 @@ A prompt-level budget, an environment variable containing a limit, or a daemon-m
 - **Trial Basin** is the scenario runner inside that boundary. It supplies deterministic providers, recorded traces, adversarial workloads, evaluation rubrics, and promotion evidence.
 
 Trial Basin is also the execution harness for the proof and empirical work in the
-[Coordination Papers Research and Implementation Program](../roadmap/whitepaper-research-program.md),
+[Coordination Papers Research and Implementation Program](../harbor-research/OMNI-LEDGER.md#source-src-147),
 not a second research program or registry. That program owns the questions and
 claim-to-artifact discipline; Trial Basin executes admitted scenarios and returns
 result cards that may support, narrow, or falsify a claim.
@@ -1106,8 +1106,8 @@ This synthesis should be maintained against, at minimum:
 - ADR-0014 and its FloatPlan lineage
 - `docs/research/north-star/README.md`
 - `docs/research/north-star/agent-economy-anchor.md`
-- `docs/harbor-research/LIBRARY-INDEX.md`
-- `docs/harbor-research/exposition/literature/README.md`
+- [Omni source SRC-003](../harbor-research/OMNI-LEDGER.md#source-src-003)
+- [Omni source SRC-091](../harbor-research/OMNI-LEDGER.md#source-src-091)
 - the seven canonical whitepapers and their source/PDF artifacts
 
 ### Product synthesis inputs

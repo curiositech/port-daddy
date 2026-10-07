@@ -275,6 +275,35 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
   // R3 — complete erasure: hard-delete users soft-deleted > 30 days ago, and
   // any sessions still attached to them (defensive; erase already purged them).
   const erasureHorizon = now - ERASURE_HARD_DELETE_DAYS * DAY_SECONDS;
+  // Publisher rows form an explicit FK chain. Revoke/delete it child-first so
+  // a crash before eraseUser completed cannot leave authority alive or make
+  // the final users delete fail under foreign-key enforcement.
+  for (const [sql, label] of [
+    [`DELETE FROM github_publisher_capability_uses_v2
+       WHERE grant_id IN (SELECT grant_id FROM publisher_grants
+                           WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?))`,
+     'github_publisher_capability_uses_v2(erased)'],
+    [`DELETE FROM publisher_grants
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'publisher_grants(erased)'],
+    [`DELETE FROM github_publisher_capability_uses
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_capability_uses_v1(erased)'],
+    [`DELETE FROM github_publisher_intents
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_intents(erased)'],
+    [`DELETE FROM github_publisher_credentials
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_credentials(erased)'],
+  ] as const) {
+    await deleteWhere(
+      env.DB,
+      sql,
+      sql.includes(' OR session_id IN') ? [erasureHorizon, erasureHorizon] : [erasureHorizon],
+      errors,
+      label,
+    );
+  }
   await deleteOlderThan(
     env.DB,
     'DELETE FROM web_sessions WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',

@@ -45,10 +45,8 @@
   \node[pd note,anchor=north,text width=10.4cm,align=center] at (5.2,.75)
     {$A.claim \prec B.claim\text{ (loses)} \prec A.release \prec C.claim$};
 \end{tikzpicture}
-\caption{A real-time history and its extracted linearization. Operations
-overlap in caller time, but each receives one commit point on the single
-writer's rail, and the linearization reads: A claims, B loses, A releases,
-C claims. The claim is conditional on one writer, no uncommitted reads, and
-replies after commit [internal, thm:consistency].}
+\caption{Overlapping requests receive one commit order: A claims, B loses,
+A releases, C claims. Theorem~\ref{thm:consistency} states the five
+assumptions this ordering requires. [internal]}
 \label{fig:swk-consistency-model}
 \end{figure}

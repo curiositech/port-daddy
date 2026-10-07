@@ -198,6 +198,17 @@ interface ProjectionMeta {
 
 /** One restart-safe mission projection for operator surfaces. */
 function projectMissionExecution(snapshot: WorkIntentSnapshot, queue?: DispatchQueue) {
+  if (snapshot.intent.constraints?.executionKind === 'single-body') {
+    const receipt = snapshot.runReceipt;
+    return {
+      projection: 'governed-single-body', dispatchId: null, runReceiptId: receipt?.id ?? null,
+      state: receipt?.status ?? 'unknown', launchId: receipt?.launchId ?? null,
+      agentId: receipt?.successorAgentId ?? null, transcriptId: receipt?.transcriptId ?? null,
+      sessionId: receipt?.successorSessionId ?? null, resultArtifact: null,
+      errorMessage: receipt?.error ?? (receipt ? null : 'Run receipt is unavailable'),
+      startedAt: receipt?.startedAt ?? null, settledAt: receipt?.completedAt ?? null,
+    };
+  }
   if (!queue) return null;
   const dispatchId = snapshot.intent.compat?.dispatchId
     ?? dispatchIdForWorkIntent(snapshot.intent.intentId);

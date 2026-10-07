@@ -301,5 +301,13 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
     expect(state.completed).toHaveLength(0);
     expect(state.reviews).toHaveLength(0);
     expect(d1.steps.some((step) => step.kind === 'check-completed')).toBe(false);
+
+    const callsAfterSettlement = ai.calls.length;
+    expect(d1.reservations[0].state).toBe('settled');
+    vi.stubGlobal('fetch', realFetch);
+    await expect(executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db })))
+      .resolves.toBeUndefined();
+    expect(ai.calls).toHaveLength(callsAfterSettlement);
+    expect(state.completed).toHaveLength(1);
   });
 });

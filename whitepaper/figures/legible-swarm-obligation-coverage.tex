@@ -1,0 +1,49 @@
+% Reader question: can a full context budget still miss a mandatory item?
+% Claim: source authorization precedes packing; A+C fills budget 6 but leaves
+% declared requirement R3 blocked because its only source B is denied.
+% Evidence: constructed four-requirement, three-source instance from campaign.
+% Grammar: coverage matrix and budget bar; a ranking diagram hides the miss.
+% Counter-reading: declared coverage is neither semantic completeness nor
+% authority to execute an effect.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \path[use as bounding box] (0,-.4) rectangle (11.2,6.6);
+  \node[pd panel title,anchor=west] at (.1,6.28) {Requirement};
+  \node[pd panel title,anchor=center] at (3.2,6.28) {A: 4};
+  \node[pd panel title,anchor=center] at (5.1,6.28) {B: 3};
+  \node[pd panel title,anchor=center] at (7.05,6.28) {C: 2};
+  \node[pd panel title,anchor=west] at (8.45,6.28) {Receipt};
+  \draw[pd rule] (0,5.9)--(11.2,5.9);
+  \path[pd caution fill] (4.35,5.87) rectangle (5.86,2.15);
+  \draw[pd caution rule,dashed] (4.35,5.87) rectangle (5.86,2.15);
+  \foreach \req/\yy in {1/5.37,2/4.47,3/3.57,4/2.67} {
+    \node[pd panel title,anchor=west] at (.1,\yy) {R\req};
+    \draw[pd hairline] (0,{\yy-.4})--(11.2,{\yy-.4});
+  }
+  \node[pd focus datum] at (3.2,5.37) {};
+  \node[pd focus datum] at (3.2,4.47) {};
+  \node[pd direct label,anchor=center] at (5.1,3.57) {$\times$};
+  \node[pd focus datum] at (7.05,2.67) {};
+  \node[pd direct label,anchor=west] at (8.45,5.37) {A included};
+  \node[pd direct label,anchor=west] at (8.45,4.47) {A included};
+  \node[pd panel title,anchor=west] at (8.45,3.57) {BLOCKED};
+  \node[pd direct label,anchor=west] at (8.45,2.67) {C included};
+  \draw[pd rule] (0,2.03)--(11.2,2.03);
+  \node[pd panel title,anchor=west] at (.1,1.48) {Budget 6};
+  \draw[pd rule] (2.3,1.23) rectangle (8.3,1.68);
+  \path[pd focus fill] (2.33,1.26) rectangle (6.29,1.65);
+  \path[pd neutral fill] (6.31,1.26) rectangle (8.27,1.65);
+  \draw[pd hairline] (6.3,1.23)--(6.3,1.68);
+  \node[pd direct label,anchor=west] at (8.5,1.48) {A 4 + C 2 = 6};
+  \node[pd panel title,anchor=west] at (.1,.52) {3 / 4 declared requirements covered};
+  \node[pd direct label,anchor=west] at (.1,-.02)
+    {B is outside disclosure scope; no pack may use it.};
+\end{tikzpicture}
+\caption{A six-unit context pack selects A (four units) and C (two units),
+covering R1, R2, and R4. R3 remains blocked because its sole source B is outside
+the reader's disclosure scope. The receipt reports declared coverage and the
+missing requirement; it proves neither semantic completeness nor effect
+authority [constructed example].}
+\label{fig:ls-obligation-coverage}
+\end{figure}

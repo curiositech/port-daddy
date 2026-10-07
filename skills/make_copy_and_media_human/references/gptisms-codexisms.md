@@ -2,7 +2,7 @@
 
 ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 
-_35 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_34 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -50,7 +50,6 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`docstring-restates-signature`](#docstring-restates-signature) | med | code | yes |
 | [`email-pleasantry-boilerplate`](#email-pleasantry-boilerplate) | med | form | n/a |
 | [`hedged-disclaimer-ending`](#hedged-disclaimer-ending) | med | form | n/a |
-| [`invisible-unicode-artifacts`](#invisible-unicode-artifacts) | med | residue | yes |
 | [`markdown-bold-title-case-scaffold`](#markdown-bold-title-case-scaffold) | med | shape | **no** |
 | [`over-apologetic-error-explanation`](#over-apologetic-error-explanation) | med | form | n/a |
 | [`problem-agitate-solve-by-template`](#problem-agitate-solve-by-template) | med | shape | n/a |
@@ -627,35 +626,6 @@ Closes with a defensive caveat hedging that the answer might not fit: 'Note that
 **After**
 
 > This assumes Redis on the default port; if yours is TLS-only, add rediss:// and the CA path — nothing else changes.
-
-<a id="invisible-unicode-artifacts"></a>
-### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
-
-**Automated here:** yes, these scripts implement it.
-
-**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
-
-Invisible or near-invisible codepoints in the text: U+202F narrow no-break space, zero-width space, word joiner, byte-order mark, soft hyphen. Treat this as evidence the text was PASTED from somewhere, which is not the same as evidence about who wrote it.
-
-**Why it reads AI:** It often doesn't any more. U+202F appeared in o3 and o4-mini output in April 2025 and OpenAI removed it within days, calling it a quirk of large-scale reinforcement learning. As of 2026 no mainstream assistant is known to embed hidden characters deliberately.
-
-**Detect:** Count the codepoints. Useful as a normalization step and as a provenance hint, not as an authorship signal.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
-
-**Fix:** Normalize whitespace before judging anything else, then forget about it. The prose problems are the real work.
-
-**False positive when:** Constantly. Microsoft Word emits U+202F and U+00A0 routinely, LaTeX does, French typography requires U+202F before high punctuation by convention, and every web copy-paste carries non-breaking spaces. This was a genuine tell for roughly a week. Treat a hit as 'this was pasted', never as 'a model wrote this'.
-
-**Evidence:** OpenAI removed the U+202F behavior days after it was noticed in April 2025; contemporaneous reporting notes Word as a routine source of the same character.
-
-**Before**
-
-> A sentence — with residue in it.
-
-**After**
-
-> A sentence — with the residue removed.
 
 <a id="markdown-bold-title-case-scaffold"></a>
 ### `markdown-bold-title-case-scaffold`  ·  medium · chatgpt · structure · structural · family: shape

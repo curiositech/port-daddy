@@ -38,6 +38,7 @@ import type { Severity, ShipResult } from './verdict.js';
 import { extractAiText } from './ai-response.js';
 import { FleetAiCircuit, FleetAiDependencyError } from './ai-resilience.js';
 import { requireContextAdmission } from './context-admission.js';
+import { MODEL_CONTEXT_TOKENS } from './spend.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -449,7 +450,7 @@ export async function runXoEditorPass(opts: {
       request,
       xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
-    const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
+    const res = opts.aiCircuit ? await opts.aiCircuit.run(call, { ship: 'xo', model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - XO_MAX_OUTPUT_TOKENS, maxOutputTokens: XO_MAX_OUTPUT_TOKENS }) : await call();
     const { text } = extractAiText(res);
     const edits = parseXoEditList(text);
     if (edits === null) {
@@ -705,7 +706,7 @@ export async function xoOrdersSection(opts: {
       request,
       xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
-    const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
+    const res = opts.aiCircuit ? await opts.aiCircuit.run(call, { ship: 'xo', model: opts.model, maxInputTokens: MODEL_CONTEXT_TOKENS[opts.model] - XO_MAX_OUTPUT_TOKENS, maxOutputTokens: XO_MAX_OUTPUT_TOKENS }) : await call();
     const { text } = extractAiText(res);
     const orders = parseXoOrders(text, advisories.length);
     if (orders === null) return '';

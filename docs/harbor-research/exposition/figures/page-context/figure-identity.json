@@ -371,6 +371,96 @@
       "fragment_id": "fig-fh-settlement",
       "pixel_judgment_id": "fig-fh-settlement",
       "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex"
+    },
+    "2716ceff1efc674f": {
+      "id": "fig-swk-stack-map",
+      "fragment_id": "fig-swk-stack-map",
+      "pixel_judgment_id": "fig-swk-stack-map",
+      "fragment": "whitepaper/figures/fig-swk-stack-map.tex"
+    },
+    "4b94a4a6befa80aa": {
+      "id": "fig-swk-controllability-quadrant",
+      "fragment_id": "fig-swk-controllability-quadrant",
+      "pixel_judgment_id": "fig-swk-controllability-quadrant",
+      "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex"
+    },
+    "b54834a54772b2f9": {
+      "id": "swk-unknown-effect",
+      "fragment_id": "swk-unknown-effect",
+      "pixel_judgment_id": null,
+      "fragment": "whitepaper/figures/swk-unknown-effect.tex"
+    },
+    "fea9787e69ca2e30": {
+      "id": "legible-swarm-plan-revision",
+      "fragment_id": "legible-swarm-plan-revision",
+      "pixel_judgment_id": null,
+      "fragment": "whitepaper/figures/legible-swarm-plan-revision.tex"
+    },
+    "ff4ab3f922e4ba46": {
+      "id": "legible-swarm-judge-dependence",
+      "fragment_id": "legible-swarm-judge-dependence",
+      "pixel_judgment_id": null,
+      "fragment": "whitepaper/figures/legible-swarm-judge-dependence.tex"
+    },
+    "78d88b956c32dac0": {
+      "id": "legible-swarm-escalation-band",
+      "fragment_id": "legible-swarm-escalation-band",
+      "pixel_judgment_id": null,
+      "fragment": "whitepaper/figures/legible-swarm-escalation-band.tex"
+    },
+    "65f78239b55f3cfe": {
+      "id": "legible-swarm-readpoverty",
+      "fragment_id": "legible-swarm-readpoverty",
+      "pixel_judgment_id": "legible-swarm-readpoverty",
+      "fragment": "whitepaper/figures/legible-swarm-readpoverty.tex"
+    },
+    "9de7bf8f211f5be1": {
+      "id": "legible-swarm-obligation-coverage",
+      "fragment_id": "legible-swarm-obligation-coverage",
+      "pixel_judgment_id": null,
+      "fragment": "whitepaper/figures/legible-swarm-obligation-coverage.tex"
+    },
+    "dedb9447c654e07f": {
+      "id": "fig-stp-rate-the-raters",
+      "fragment_id": "fig-stp-rate-the-raters",
+      "pixel_judgment_id": "fig-stp-rate-the-raters",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex"
+    },
+    "7389ed995a0bc920": {
+      "id": "fig-he-assurance",
+      "fragment_id": "fig-he-assurance",
+      "pixel_judgment_id": "fig-he-assurance",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-assurance.tex"
+    },
+    "dbe971c9d9be87b3": {
+      "id": "fig-sybil-inline",
+      "fragment_id": "fig-sybil-inline",
+      "pixel_judgment_id": "fig-sybil-inline",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex"
+    },
+    "fa2118100a62d1c9": {
+      "id": "fig-bonded-key-custody",
+      "fragment_id": "fig-bonded-key-custody",
+      "pixel_judgment_id": "fig-bonded-key-custody",
+      "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex"
+    },
+    "26ce087a122c725d": {
+      "id": "fig-worked-example",
+      "fragment_id": "fig-worked-example",
+      "pixel_judgment_id": "fig-worked-example",
+      "fragment": "website-v2/public/whitepaper/figures/fig-worked-example.tex"
+    },
+    "97bc9c5032530443": {
+      "id": "fig-fh-revocation-gossip",
+      "fragment_id": "fig-fh-revocation-gossip",
+      "pixel_judgment_id": "fig-fh-revocation-gossip",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex"
+    },
+    "7d4db3fc008373ad": {
+      "id": "fig-fh-revocation-regime",
+      "fragment_id": "fig-fh-revocation-regime",
+      "pixel_judgment_id": "fig-fh-revocation-regime",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-revocation-regime.tex"
     }
   }
 }

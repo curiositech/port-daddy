@@ -2,14 +2,16 @@
 
 - **Status:** Accepted, and provisioned. The bucket, the custom domain and the
   upload path now exist and were exercised against the real account; §11.1
-  records what was created and what was measured doing it. Phase 2 has begun
-  for two roots (§9.1) — 108 files, 67.0 MiB, removed from git and served from
-  `media.portdaddy.dev`. The rest of §2's population remains Phase 1 (mirrored,
-  still in git).
-- **Date:** 2026-09-14
-- **Measured, not assumed:** the numbers below were taken on
-  `origin/main` at `c92efaa5c`. Every claim in this ADR that has a number
-  attached was produced by a command, and the command is named beside it.
+  records what was created and what was measured doing it. Phase 2 now covers
+  selected evidence across all eight declared roots (§9.1): 503 files,
+  256,663,265 bytes (244.8 MiB), are recorded as offloaded and served from
+  `media.portdaddy.dev`. Another 399 assets remain tracked. Root membership is
+  not deletion authority; consumer holds remain in force.
+- **Date:** 2026-09-14; Phase 2 expansion updated 2026-09-20.
+- **Measured, not assumed:** the original inventory below was taken on
+  `origin/main` at `c92efaa5c`. Current Phase 2 counts come from the two media
+  manifests and the [2026-09-20 retention receipt](../reports/r2-archive-retention-20260920.md).
+  Historical measurements retain their original dates and scope.
 - **Builds on:** ADR-0115 (database distribution and sync — already puts
   encrypted snapshots in R2, so the account and the S3 idiom are not new here),
   ADR-0123 (cloud vault — establishes that portdaddy.dev routes ciphertext and
@@ -285,14 +287,14 @@ still links, and the storage it would reclaim is not worth that.
 
 Stated plainly, because this is the question the design is organised around.
 
-**Phase 1 — this PR. Nothing breaks.** Files stay in git. The manifest and the
+**Phase 1 — files still mirrored and tracked.** Files stay in git. The manifest and the
 sync tool establish the mirror and prove it correct; no file is deleted from the
 repository, so R2 is at this point a write-only destination that nothing reads.
 If R2 is down, the only thing that fails is the sync job.
 
 **Phase 2 — the offloaded files are removed from git and referenced by URL.**
-Begun for two roots; see §9.1 for which, and for what "reclaimed" honestly
-means. Once it happens:
+Expanded to selected assets across all eight declared roots; see §9.1 for
+current counts, retained consumers, and what "reclaimed" honestly means:
 
 - **Breaks:** images and recordings in PR bodies, in the markdown under
   `docs/reports/`, `docs/artifacts/`, `docs/pr-assets/`, `docs/pr-media/`, and
@@ -315,31 +317,34 @@ fetches depth 1). That is a real benefit on a machine running a dozen
 worktrees, and it is a much narrower claim than "46% of the repository", which
 is why §12's framing is corrected here rather than repeated.
 
-Because the benefit is narrower, the population is chosen conservatively rather
-than by sweeping §2's whole rule:
+The initial Phase 2 slice moved 108 files (70,217,987 bytes) from
+`docs/pr-assets/` and `docs/pr-media/`. That dated slice held back five direct
+non-prose consumers and left the other roots pending their own reference scan.
 
-- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 108 files, 67.0 MiB. Review
-  evidence for merged PRs — §1.2's "a human clicking a link in a PR" case
-  exactly. A scan of every tracked text file found no consumer outside prose for
-  any of them, and the 5 prose files that did cite them were rewritten to
-  `media.portdaddy.dev` URLs in the same commit. (Three more files matching
-  the same rule landed on `main` under `docs/pr-assets/pr-10178/` after this
-  move ran; they stay in git as ordinary Phase 1 mirrored assets rather than
-  being moved here too, since moving them would need their bytes uploaded to
-  the real bucket first and this environment holds no R2 credentials to do
-  that — see §11 on what still needs provisioning.)
-- **Refused by the tool, inside those same roots: 5 files.**
-  `docs/pr-assets/pr-729/wedge-editor-face.{png,webm}` are read by
-  `docs/pr-assets/pr-729/proof.tape`, and three under
-  `docs/pr-media/squid-hook-debug/` are read by a Swift snapshot test. The move
-  tool refuses any file with a non-prose referrer; these are why that rule is
-  not a formality.
-- **Deliberately left in git, mirrored only:** `docs/artifacts/` (contains the
-  digest-pinned `whitepaper-figure-semantics/**` fixtures — see Difference 3),
-  `.github/assets/`, `docs/reports/`, `fleet-config-ui/docs/`,
-  `website-v2/docs/`, `website-v2/screenshots/`. Each has readers in code or
-  tests, or is large enough to deserve its own reference scan. Per §2.1, moving
-  a further root is an amendment with its own scan, not a flag.
+**2026-09-20 expansion ([PR #10300](https://github.com/curiositech/port-daddy/pull/10300)).**
+The archive-only successor adds 395 historical captures (186,445,278 bytes,
+177.8 MiB) across the already declared roots. The offloaded ledger therefore
+contains 503 entries, totaling 256,663,265 bytes (244.8 MiB). It rewrites 24
+archival prose files to the verified content-addressed URLs. This is a scoped
+expansion, not removal of every media asset in those directories.
+
+- **304 original planner holds remain:** files with non-prose basename
+  references were excluded from the 490 candidates in the older archive PR.
+- **95 additional candidates remain:** directory-level references or the
+  authority-owned recovery ledger require separate reconciliation. These
+  conservative holds do not claim every directory reference reads every image.
+- **399 assets remain tracked:** 122,981,399 bytes (117.3 MiB), represented by
+  `media/r2-manifest.json`. Digest-pinned figure fixtures, fonts, Book sources,
+  PDFs and product-public assets are not deleted by the expansion.
+- **Evidence:** the [retention receipt](../reports/r2-archive-retention-20260920.md)
+  lists every selected and retained path. Anonymous public reads verified the
+  archived content type, byte count and SHA256. Selected deletion blobs match
+  their base Git objects. Both the original direct-reference holds and the
+  added directory/recovery holds remain in Git; no active consumer was rewritten.
+- **LFS checkout boundary:** CI hydrates only declared review-media roots before
+  generating or validating the tracked manifest and before upload. An
+  unhydrated pointer is not image-byte evidence. Missing objects or tooling fail
+  the hydration step; Book and product-public LFS roots are outside its selection.
 
 **The manifest cannot speak for a moved file.** `media/r2-manifest.json` is a
 projection of the git tree, so a file leaving git leaves the manifest, and the
@@ -500,18 +505,18 @@ than by consulting a list.
 
 ## 12. Consequences
 
-- **261.5 MiB across 583 files is mirrored and eligible to leave git**, and
-  67.0 MiB across 108 files has left (§9.1). The earlier "411.4 MiB (46%) of the
-  repository" figure is superseded twice over: main's `a94120c32` deleted 133 of
-  those assets outright as unreferenced, and — more importantly — leaving git
-  shrinks the *tip*, not the repository, because history keeps every blob.
-- **A new required check.** `check-r2-media-manifest.mjs` fails any PR that adds,
-  removes or edits media under an offload root without regenerating the
-  manifest. The fix it prints is one command. Regeneration hashes 411 MiB in
-  about two seconds, so this is cheap enough to run in a pre-commit hook.
-- **`media/r2-manifest.json` is 274 KB of generated JSON in the repo.** That is
-  the price of the cache being committed rather than computed in CI, and it buys
-  a checker that needs no network and no credentials.
+- **503 entries (244.8 MiB) are offloaded; 399 assets (117.3 MiB) remain
+  tracked.** These 2026-09-20 manifest counts supersede the historical 108-file
+  Phase 2 summary. Remaining assets are not automatically eligible for removal;
+  the consumer holds in §9.1 still apply. Removing a file shrinks the *tip*, not
+  the repository's retained history.
+- **Manifest drift remains a failing check.** `check-r2-media-manifest.mjs`
+  rejects additions, removals and byte changes under an offload root until the
+  manifest is regenerated from the complete media checkout. LFS-backed review
+  images must be hydrated before hashing; pointer text cannot stand in for them.
+- **The tracked manifest is generated JSON.** Its committed bytes permit a
+  deterministic comparison. Once LFS objects are available, the checker itself
+  requires no network or credentials; initial LFS hydration may require network.
 - **A merge conflict in the manifest is never resolved by hand.** Regenerate.
   ADR-0130 is the authority; the file's own `$comment` says so.
 - **Adding an offload root is an ADR amendment.** With its own reference scan

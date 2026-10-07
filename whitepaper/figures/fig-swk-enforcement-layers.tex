@@ -1,47 +1,75 @@
-% Brief (tikz-diagram-craft). Register row ch1-42 [should], desert
-% Sec. 13.2 "The enforcement gate proves; it does not yet compel".
-% Reader question: which layer of enforcement actually stops a
-%   non-cooperating same-user agent, and which merely proves what happened?
-% Claim: only the top layer -- a separate-user (or separate-VM) kernel
-%   process -- is a real wall; the three layers below it are proofs and
-%   tripwires a determined same-user agent can still step around.
-% Evidence: whitepaper/single-writer-kernel.tex sec:enforcement-gap: the
-%   Coordination Guard, shim and hook harness (Built, in-band, advisory);
-%   a server-side branch-protection-plus-push-broker (Designed); a
-%   credential broker (Vision); a separate-user kernel (Vision, the only
-%   layer that removes the capability rather than refusing the verb).
-% Must distinguish: what each layer stops, in one clause, so a reader
-%   cannot mistake "verified" for "compulsory"; that only the top band is
-%   built from a different primitive (removes capability, not verb).
-% Grammar: maturity stack, full-width bands, the one real wall highlighted
-%   at the top. Rejected: a 2x2 (proves x compels), which would flatten
-%   four distinct layers into one boolean and lose the "only the top layer"
-%   claim.
-% Five-second test: "four bands stacked by maturity; only the top one, still
-%   Vision, is shaded as the real wall".
+% One source-contract candidate; see BRIEF.md and REPORT.md for limits.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\w{9.95}  \def\h{2.20}
-  \foreach \i/\name/\grade/\stops/\s in {%
-    3/{separate-user (or separate-VM) kernel, forced egress}/{Vision}/{removes the capability itself: the only real wall}/{pd focus fill},
-    2/{credential broker: meters and injects credentials per request}/{Vision}/{narrows the ambient-token surface}/{pd neutral fill},
-    1/{server-side branch-protection-plus-push-broker}/{Designed}/{most direct-push incidents, not same-user tricks}/{pd neutral fill},
-    0/{advisory guard, shim, hook harness -- in-band, same user}/{Built}/{nothing from an agent that declines them: advisory only}/{pd neutral fill}}{
-      \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
-      \node[pd title,anchor=west,text width=5.5cm,align=left] at (0.22,{\i*\h+\h/2}) {\name};
-      \node[pd kind,anchor=west] at (6.15,{\i*\h+\h/2+.68}) {\grade};
-      \node[pd label,anchor=west,text width=3.55cm,align=left] at (6.15,{\i*\h+\h/2-.28}) {\stops};}
-  \node[pd note,anchor=south west] at (0.00,{4*\h+.15}) {only the shaded layer removes the capability rather than refusing the verb};
-\end{tikzpicture}
-\caption{Enforcement closes as a layered program, and only the top layer is
-a real wall. Today's advisory guard, shim, and hook harness (\textsc{built})
-run in-band as the same user: a same-user agent has documented escapes that
-defeat no cryptography. A server-side broker (\textsc{designed}) and a
-credential broker (\textsc{vision}) each narrow the surface further, but
-only a separate-user or separate-VM kernel process (\textsc{vision}, the
-shaded band) confines a malicious same-user holder, because it is the first
-layer that removes the capability rather than refusing the verb. [internal]}
+\SGMeasuredFigure{II/fig:swk-enforcement-layers}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=-1pt,
+  el text/.style={pd label,anchor=west,inner sep=0pt,outer sep=0pt,align=left},
+  el edge/.style={pd label,anchor=center,inner sep=0pt,outer sep=0pt},
+  el flow/.style={pd arrow,line width=.8pt}]
+  % An unchecked effect route remains outside the optional pre-effect check.
+  \node[el edge] (bypasslabel) at (156,7) {Unchecked same-user bypass};
+  \draw[el flow,draw=pdamber,dash pattern=on 3pt off 2pt]
+    (28,40)--(28,28)--(281,28)--(281,44);
+  \node[el text,text width=60pt] (agent) at (0,65) {Same-user\\process};
+  \draw[el flow,draw=pdteal] (70,65)--(102,65);
+  \node[el edge] (invoke) at (87,48) {invoke};
+  \draw[draw=pdteal,line width=.8pt,fill=pdteal!5] (110,44) rectangle (192,87);
+  \node[el text,font=\pdfiglabelbold] (check) at (122,57) {Guard / shim};
+  \node[el text] (optional) at (122,74) {if invoked};
+  \draw[el flow,draw=pdteal] (200,65)--(252,65);
+  \node[el edge] (allow) at (226,48) {allow};
+  \node[el text,font=\pdfiglabelbold] (effect) at (264,65) {Effect};
+  \node[el text] (example) at (264,82) {e.g. push};
+  % Conditional refusal ends this checked request, before its effect.
+  \draw[el flow] (151,95)--(151,113);
+  \draw[pd rule] (144,119)--(158,119);
+  \node[el text] (refuse) at (164,107) {refuse};
+  \node[el text] (preeffect) at (111,137) {before effect};
+
+  % Observation is a separate, conditional relation, not universal coverage.
+  \draw[el flow,draw=pdinkmuted,dash pattern=on 1pt off 2pt]
+    (282,96)--(282,158)--(37,158)--(37,170);
+  \node[el text] (witnessed) at (202,141) {if witnessed};
+  \draw[draw=pdinkmuted,line width=.7pt] (0,178) rectangle (102,222);
+  \node[el text,font=\pdfiglabelbold] (monitor) at (12,192) {Policy monitor};
+  \node[el text] (posteffect) at (12,209) {after effect};
+  \draw[el flow,draw=pdinkmuted] (110,200)--(151,200);
+  \node[el edge] (respond) at (132,183) {on violation};
+  \node[el text] (response) at (163,191) {Flag / halt / compensate};
+  \node[el text] (notprevent) at (163,210) {cannot prevent that effect};
+  \node[el text] (coverage) at (0,234)
+    {No promise that every bypass is witnessed.};
+
+  % Mechanism grades do not imply this machine is running these mechanisms.
+  \node[el text,font=\pdfiglabelbold] (mechanismhead) at (0,251) {Mechanism};
+  \node[el text,font=\pdfiglabelbold] (statushead) at (245,251) {Source grade};
+  \draw[pd hairline] (0,264)--(320,264);
+  \node[el text] (guardrow) at (0,279) {Guard / git shim};
+  \node[el text] (guardgrade) at (245,279) {\Built};
+  \node[el text] (hookrow) at (0,298) {Hook harness};
+  \node[el text] (hookgrade) at (245,298) {\Designed};
+  \node[el text] (pushrow) at (0,317) {Branch protection + push broker};
+  \node[el text] (pushgrade) at (245,317) {\Designed};
+  \node[el text] (credentialrow) at (0,336) {Credential broker};
+  \node[el text] (credentialgrade) at (245,336) {\Vision};
+  \node[el text] (isolationrow) at (0,360) {OS/VM isolation + protected state};
+  \node[el text] (mediation) at (0,377) {\textbf{and} forced mediation};
+  \node[el text] (isolationgrade) at (245,368) {\Vision};
+  \node[el text] (cryptorow) at (0,401) {Macaroon cryptography};
+  \node[el text] (cryptograde) at (245,401) {\Built};
+  \node[el text] (notcompulsory) at (0,418)
+    {Authorization proof, not compulsory use.};
+
+  \foreach \name in {bypasslabel,agent,invoke,check,optional,allow,effect,
+    example,refuse,preeffect,witnessed,monitor,posteffect,respond,response,
+    notprevent,coverage,mechanismhead,statushead,guardrow,guardgrade,
+    hookrow,hookgrade,pushrow,pushgrade,credentialrow,credentialgrade,
+    isolationrow,mediation,isolationgrade,cryptorow,cryptograde,notcompulsory}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{EL-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}%
+}
+\caption{Refusal is not compulsory mediation. Grades are source-reported, not an independent runtime audit.}
 \label{fig:swk-enforcement-layers}
 \end{figure}

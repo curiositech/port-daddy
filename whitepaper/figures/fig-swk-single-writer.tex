@@ -1,66 +1,8 @@
-% Brief (tikz-diagram-craft).
-% Reader question: how do concurrent callers end up with one total order?
-% Claim: four overlapping requests from four different callers still commit
-%   in a single serial order on the writer's rail, because the reply to each
-%   caller is sent only after its own commit.
-% Evidence: whitepaper/single-writer-kernel.tex sec:single-writer-discipline,
-%   def:single-writer; a second daemon on the same file is outside the model
-%   (the file lock is the backstop, not the primary mechanism).
-% Must distinguish: overlap in caller time vs. the single commit order; that a
-%   reply follows its commit, never precedes it; that a second daemon is out
-%   of scope, not a fifth lane.
-% Grammar: swimlane bands over a shared commit rail, guides dropping each
-%   band's right edge to its order number. Rejected: a sequence diagram with
-%   one lifeline per caller, which would need four parallel lifelines plus a
-%   fifth for the daemon and bury the one fact (one order) in cross-traffic.
-% Five-second test: "four overlapping bars, one rail, four numbers in order".
+% Swiss object-based redraw; geometry lives in shared reusable functions.
+% Evidence: corresponding single-writer-kernel.tex section; schematic, not a runtime trace.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.72cm,y=.72cm]
-  % row hairlines and labels
-  \foreach \y/\lbl in {7.4/{CLI},6.4/{tool bridge},5.4/{binary IPC},4.4/{worker}} {
-    \node[pd title,anchor=east] at (-.25,\y) {\lbl};
-    \draw[pd hairline] (0,\y)--(9.4,\y);
-  }
-  \node[pd title,anchor=east,text width=1.7cm,align=right] at (-.25,2.2) {one writer};
-
-  % bands: same neutral fill for every caller, no special tint for the commit
-  \fill[pd neutral fill] (.5,7.2) rectangle (4.2,7.6);
-  \fill[pd neutral fill] (1.4,6.2) rectangle (6.0,6.6);
-  \fill[pd neutral fill] (2.4,5.2) rectangle (7.4,5.6);
-  \fill[pd neutral fill] (3.6,4.2) rectangle (8.4,4.6);
-
-  % rail: the heaviest line in the figure -- this is the one order that exists
-  \draw[pd focus rule] (.5,2.2)--(9.0,2.2);
-
-  % guides down to the rail, commit marks, order numbers
-  \foreach \x/\rowtop/\n in {4.2/7.2/1,6.0/6.2/2,7.4/5.2/3,8.4/4.2/4} {
-    \draw[pd guide] (\x,\rowtop)--(\x,2.2);
-    \node[pd focus datum] at (\x,2.2) {};
-    \node[pd label,anchor=north] at (\x,1.55) {\n};
-  }
-
-  % replies: one short arrow from each commit back into its caller's row
-  \draw[pd arrow] (4.2,2.32)--(4.35,7.2);
-  \node[pd note,anchor=south west,text width=4.4cm,align=left] at (4.55,7.65) {reply after commit};
-  \draw[pd arrow] (6.0,2.32)--(6.15,6.2);
-  \draw[pd arrow] (7.4,2.32)--(7.55,5.2);
-  \draw[pd arrow] (8.4,2.32)--(8.55,4.2);
-
-  % time axis, hairline
-  \draw[pd hairline,-{Stealth[length=1.65mm,width=1.05mm]}] (.3,0.75)--(9.05,0.75);
-  \node[pd label,anchor=west] at (9.1,0.75) {time};
-
-  % model boundary
-  \draw[pd panel] (9.15,2.75) rectangle (13.05,6.65);
-  \node[pd note,align=center,text width=2.5cm] at (11.10,4.7)
-    {second daemon on the same file: outside this model};
-\end{tikzpicture}
-\caption{Four concurrent callers and one writer. Each band is a request in
-flight; its right edge is where the daemon commits it, and the rail shows
-the resulting order 1--4. A reply is sent only after the commit. A second
-daemon opening the same file is outside the model, not another lane.
-[internal]}
+\SGMeasuredFigure{fig-swk-single-writer}{\SGWriterSequence}
+\caption{Both requests arrive before the first commit. The writer orders their records and replies after each commit. This sequence assumes one writer; it does not establish power-loss durability.}
 \label{fig:swk-single-writer}
 \end{figure}

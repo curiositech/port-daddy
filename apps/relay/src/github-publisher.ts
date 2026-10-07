@@ -1,9 +1,10 @@
 /**
  * General, account-scoped GitHub App publisher.
  *
- * The local daemon proves the active Port Daddy session and repository before
- * it sends this request. Relay independently authenticates the operator's pdu_
- * account token, rechecks that the same GitHub App installation grants the
+ * The caller binds its signed capability to one session, repository, and exact
+ * request before sending it. Relay independently authenticates the workload and
+ * standing grant, opens the account's dedicated GitHub credential, and
+ * rechecks that the same GitHub App installation grants the
  * exact repository, reserves a durable D1 intent, and mints one short-lived
  * installation token for that repository only. No App token crosses Relay.
  *
@@ -17,16 +18,19 @@ import { sha1 } from '@noble/hashes/sha1';
 import {
   FLEETBOT_ACTION_SCHEMA,
   FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
+  FLEETBOT_RECEIPT_READ_SCHEMA,
+  FLEETBOT_RECEIPT_RECOVERY_PATH,
   FLEETBOT_RECEIPT_SCHEMA,
   fleetbotIdempotencyPreimage,
-  fleetbotPublisherCapabilityPreimage,
   fleetbotMutationMarker,
   fleetbotReceiptId,
   fleetbotReceiptPreimage,
   isGitSha,
+  isFleetbotConversationalOperation,
   isRepository,
   isSafePublisherIdentifier,
   safeRepositoryPath,
+  stableJson,
   stampFleetbotMessage,
   stampPullRequestBody,
   validateRoadmapTrailer,
@@ -35,9 +39,12 @@ import {
   type FleetbotOperation,
   type FleetbotPublisherCapability,
   type FleetbotReceipt,
+  type FleetbotReceiptReadProof,
+  type FleetbotReceiptRecoveryBinding,
+  type FleetbotReceiptRecoveryEnvelope,
   type FleetbotTreeChange,
 } from '../../../lib/github-publisher-contract.js';
-import { fromHex, hashBytes, hashHex, pubKeyFromPrivKey, signEd25519, toHex, verifyEd25519 } from './crypto.js';
+import { hashHex, pubKeyFromPrivKey, signEd25519, toHex, verifyEd25519 } from './crypto.js';
 import {
   getGitHubAppIdentity,
   getRepoInstallationId,
@@ -46,21 +53,15 @@ import {
   type GitHubAppIdentity,
   type InstallationPermission,
 } from './github-app.js';
+import type { UserRow } from './db.js';
+import { resolveAccountPublisherCredential } from './auth-github.js';
 import {
-  replaceUserTokenGitHubCredential,
-  resolveUserTokenReadOnly,
-  resolveUserTokenWithGitHubCredential,
-  type UserRow,
-} from './db.js';
-import {
-  githubCredentialNeedsRefresh,
-  githubTokenKeyring,
-  openGitHubUserCredential,
-  refreshGitHubUserCredential,
-  sealGitHubUserCredential,
-  type GitHubTokenWrappingEnvironment,
-  type GitHubUserCredential,
-} from './github-user-token.js';
+  authorizePublisherGrant,
+  authorizePublisherReceiptRead,
+  PublisherGrantFailure,
+  readPublisherGrant,
+  type PublisherGrant,
+} from './publisher-grants.js';
 
 const GH_API = 'https://api.github.com';
 const GH_GRAPHQL = 'https://api.github.com/graphql';
@@ -71,15 +72,16 @@ const MAX_MESSAGE_BYTES = 8_000;
 const MAX_CHANGE_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_CHANGE_BYTES = 8 * 1024 * 1024;
 const MAX_OUTER_REQUEST_BYTES = Math.ceil(MAX_TOTAL_CHANGE_BYTES * 4 / 3) + MAX_BODY_BYTES + 256_000;
+const MAX_RECOVERY_REQUEST_BYTES = 16 * 1024;
 const MAX_CHANGES = 100;
 const MAX_REPOSITORY_PAGES = 50;
 const MAX_GITHUB_LIST_PAGES = 100;
 const CAPABILITY_MAX_TTL_SECONDS = 5 * 60;
 const CAPABILITY_CLOCK_SKEW_SECONDS = 30;
+const RECEIPT_READ_CLOCK_SKEW_SECONDS = 5 * 60;
 const REF_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
-const PDU_RE = /^pdu_[0-9a-f]{64}$/i;
 
-type PublisherEnv = Env & GitHubTokenWrappingEnvironment;
+type PublisherEnv = Env;
 
 class PublisherFailure extends Error {
   constructor(
@@ -149,6 +151,9 @@ interface IntentKey {
   requestHash: string;
   operation: FleetbotOperation;
   authorship: FleetbotAuthorship;
+  grantId: string;
+  grantEpoch: number;
+  recoveryBinding: FleetbotReceiptRecoveryBinding;
 }
 
 interface IntentRow {
@@ -157,20 +162,27 @@ interface IntentRow {
   receipt_json: string | null;
   updated_at: number;
   lease_fence: number;
+  recovery_binding_json: string | null;
 }
 
-interface IdentityAuthorityRow {
-  pub_key: string;
-  expires_at: number | null;
-  revoked: number;
-  key_generation: number;
-}
-
-interface CapabilityUseRow {
+interface RecoveryIntentRow extends IntentRow {
   account_user_id: string;
-  account_token_hash: string;
-  request_hash: string;
+  account_github_user_id: number;
+  installation_id: number;
+  repository: string;
+  scope_sha: string;
   idempotency_key: string;
+  operation: FleetbotOperation;
+  actor_id: string;
+  agent_id: string;
+  session_id: string;
+  identity_project: string;
+  roadmap_item: string | null;
+  resource_number: number | null;
+  resource_url: string | null;
+  published_branch: string | null;
+  github_head_sha: string | null;
+  error_code: string | null;
 }
 
 interface PullRequestWitness {
@@ -374,7 +386,7 @@ function parsePayload(operation: FleetbotOperation, value: unknown, authorship: 
       if (!Array.isArray(input) || input.length > 20 || input.some((item) => !isSafePublisherIdentifier(item))) {
         failure('INVALID_REQUEST', 400, `${field} is invalid`);
       }
-      return [...new Set(input as string[])].sort();
+      return [...new Set((input as string[]).map((name) => name.toLowerCase()))].sort();
     };
     const reviewers = parseNames(payload.reviewers, 'reviewers');
     const teamReviewers = parseNames(payload.teamReviewers, 'teamReviewers');
@@ -403,13 +415,14 @@ function parseCapability(value: unknown, signature: unknown): {
   const row = record(value);
   const keys = row ? Object.keys(row).sort() : [];
   const expected = [
-    'accountTokenHash', 'baseBranch', 'baseSha', 'daemonFingerprint', 'expiresAt',
-    'headSha', 'issuedAt', 'nonce', 'operation', 'repository', 'requestHash',
-    'schema', 'sessionId', 'signingKeyGeneration',
+    'baseBranch', 'baseSha', 'daemonFingerprint', 'expiresAt', 'grantEpoch',
+    'grantId', 'headSha', 'issuedAt', 'nonce', 'operation', 'repository',
+    'requestHash', 'schema', 'sessionId', 'signingKeyGeneration',
   ].sort();
   if (!row || JSON.stringify(keys) !== JSON.stringify(expected)
       || row.schema !== FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA
-      || !/^[0-9a-f]{64}$/i.test(String(row.accountTokenHash))
+      || !/^pdg_[0-9a-f]{32}$/.test(String(row.grantId))
+      || !Number.isSafeInteger(row.grantEpoch) || (row.grantEpoch as number) < 1
       || !/^[0-9a-f]{64}$/i.test(String(row.daemonFingerprint))
       || !Number.isSafeInteger(row.signingKeyGeneration) || (row.signingKeyGeneration as number) < 1
       || !isSafePublisherIdentifier(row.sessionId)
@@ -504,10 +517,79 @@ async function readBoundedJson(request: Request): Promise<unknown> {
   }
 }
 
-function bearer(request: Request): string {
-  const match = request.headers.get('Authorization')?.match(/^Bearer\s+(pdu_[0-9a-f]{64})$/i);
-  if (!match || !PDU_RE.test(match[1]!)) failure('UNAUTHENTICATED', 401, 'a Port Daddy account login is required');
-  return match[1]!;
+async function readBoundedRecoveryJson(request: Request): Promise<unknown> {
+  const declared = request.headers.get('Content-Length');
+  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > MAX_RECOVERY_REQUEST_BYTES)) {
+    failure('REQUEST_TOO_LARGE', 413, `receipt recovery request exceeds ${MAX_RECOVERY_REQUEST_BYTES} bytes`);
+  }
+  if (!request.body) failure('INVALID_JSON', 400, 'request body must be JSON');
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false });
+  let total = 0;
+  let text = '';
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      total += chunk.value.byteLength;
+      if (total > MAX_RECOVERY_REQUEST_BYTES) {
+        await reader.cancel();
+        failure('REQUEST_TOO_LARGE', 413, `receipt recovery request exceeds ${MAX_RECOVERY_REQUEST_BYTES} bytes`);
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text);
+  } catch (error) {
+    if (error instanceof PublisherFailure) throw error;
+    failure('INVALID_JSON', 400, 'request body must be JSON');
+  }
+}
+
+function parseReceiptRecoveryEnvelope(value: unknown, now: number): FleetbotReceiptRecoveryEnvelope {
+  const envelope = record(value);
+  const proof = record(envelope?.proof);
+  const binding = record(proof?.binding);
+  const envelopeKeys = envelope ? Object.keys(envelope).sort() : [];
+  const proofKeys = proof ? Object.keys(proof).sort() : [];
+  const bindingKeys = binding ? Object.keys(binding).sort() : [];
+  const operations: FleetbotOperation[] = [
+    'pull-request.publish', 'pull-request.update', 'pull-request.ready',
+    'pull-request.request-reviewers', 'pull-request.comment',
+    'pull-request.review-reply', 'pull-request.enqueue', 'pull-request.inspect',
+  ];
+  if (!envelope || JSON.stringify(envelopeKeys) !== JSON.stringify(['proof', 'proofSignature'])
+      || typeof envelope.proofSignature !== 'string' || !/^[0-9a-f]{128}$/i.test(envelope.proofSignature)
+      || !proof || JSON.stringify(proofKeys) !== JSON.stringify([
+        'binding', 'daemonFingerprint', 'issuedAt', 'method', 'nonce', 'path',
+        'schema', 'signingKeyGeneration',
+      ].sort())
+      || proof.schema !== FLEETBOT_RECEIPT_READ_SCHEMA
+      || proof.method !== 'POST' || proof.path !== FLEETBOT_RECEIPT_RECOVERY_PATH
+      || !/^[0-9a-f]{64}$/i.test(String(proof.daemonFingerprint))
+      || !Number.isSafeInteger(proof.signingKeyGeneration) || (proof.signingKeyGeneration as number) < 1
+      || !Number.isSafeInteger(proof.issuedAt)
+      || Math.abs(now - (proof.issuedAt as number)) > RECEIPT_READ_CLOCK_SKEW_SECONDS
+      || !/^[0-9a-f]{64}$/i.test(String(proof.nonce))
+      || !binding || JSON.stringify(bindingKeys) !== JSON.stringify([
+        'baseBranch', 'baseSha', 'grantEpoch', 'grantId', 'headSha', 'idempotencyKey',
+        'operation', 'repository', 'requestHash', 'sessionId',
+      ].sort())
+      || !/^pdg_[0-9a-f]{32}$/.test(String(binding.grantId))
+      || !Number.isSafeInteger(binding.grantEpoch) || (binding.grantEpoch as number) < 1
+      || !isRepository(binding.repository) || binding.repository !== String(binding.repository).toLowerCase()
+      || !operations.includes(binding.operation as FleetbotOperation)
+      || typeof binding.baseBranch !== 'string' || !REF_RE.test(binding.baseBranch)
+      || !isGitSha(binding.baseSha) || !isGitSha(binding.headSha)
+      || !isSafePublisherIdentifier(binding.sessionId)
+      || !/^[0-9a-f]{64}$/i.test(String(binding.requestHash))
+      || binding.idempotencyKey !== `pd-gh-${binding.requestHash}`) {
+    failure('WORKLOAD_PROOF_INVALID', 401, 'a valid exact-scope receipt read proof is required');
+  }
+  return {
+    proof: proof as unknown as FleetbotReceiptReadProof,
+    proofSignature: envelope.proofSignature.toLowerCase(),
+  };
 }
 
 function configured(env: PublisherEnv): { appId: string; privateKey: string } {
@@ -519,69 +601,20 @@ function configured(env: PublisherEnv): { appId: string; privateKey: string } {
   return { appId, privateKey };
 }
 
-async function credentialForAccount(
-  env: PublisherEnv,
-  tokenHash: string,
-  now: number,
-): Promise<{ user: UserRow; credential: GitHubUserCredential }> {
-  const row = await resolveUserTokenWithGitHubCredential(env.DB, tokenHash, now);
-  if (!row) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-  const keyring = githubTokenKeyring(env);
-  const binding = { kind: 'device-token' as const, rowId: tokenHash, userId: row.user.id };
-  const opened = await openGitHubUserCredential(keyring, binding, {
-    enc: row.ghCredentialEnc,
-    iv: row.ghCredentialIv,
-    keyVersion: row.ghCredentialKeyVersion,
-  });
-  if (!opened) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-  let credential = opened.credential;
-  let needsReseal = opened.needsReseal;
-  if (githubCredentialNeedsRefresh(credential, now)) {
-    try {
-      credential = await refreshGitHubUserCredential(credential, {
-        clientId: env.GITHUB_OAUTH_CLIENT_ID ?? '',
-        clientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
-        now,
-      });
-      needsReseal = true;
-    } catch {
-      failure('PUBLISHER_REAUTH_REQUIRED', 401, 'GitHub authorization expired; sign in again');
-    }
-  }
-  if (needsReseal) {
-    const sealed = await sealGitHubUserCredential(keyring, binding, credential);
-    const replaced = await replaceUserTokenGitHubCredential(env.DB, {
-      tokenHash,
-      userId: row.user.id,
-      expectedEnc: row.ghCredentialEnc,
-      ghCredentialEnc: sealed.enc,
-      ghCredentialIv: sealed.iv,
-      ghCredentialKeyVersion: sealed.keyVersion,
-    });
-    if (!replaced) failure('CREDENTIAL_RACE', 409, 'GitHub authorization changed concurrently; retry from current account state');
-  }
-  return { user: row.user, credential };
-}
-
 function capabilityHead(operation: FleetbotOperation, payload: ParsedPayload): string {
   return operation === 'pull-request.publish'
     ? (payload as PublishPayload).sourceHeadSha
     : (payload as ExistingPayload).expectedGithubHeadSha;
 }
 
-async function verifyAndConsumeCapability(
-  env: PublisherEnv,
+function validateCapabilityScope(
   capability: FleetbotPublisherCapability,
-  signature: string,
   request: FleetbotActionRequest,
   payload: ParsedPayload,
   requestHash: string,
-  tokenHash: string,
-  accountUserId: string,
   now: number,
-): Promise<void> {
-  if (capability.accountTokenHash.toLowerCase() !== tokenHash
-      || capability.sessionId !== request.sessionId
+): void {
+  if (capability.sessionId !== request.sessionId
       || capability.sessionId !== request.authorship!.sessionId
       || capability.repository !== request.repository
       || capability.operation !== request.operation
@@ -596,53 +629,6 @@ async function verifyAndConsumeCapability(
       || capability.expiresAt <= capability.issuedAt
       || capability.expiresAt - capability.issuedAt > CAPABILITY_MAX_TTL_SECONDS) {
     failure('CAPABILITY_EXPIRED', 401, 'publisher capability is expired or outside its bounded lifetime');
-  }
-  const identity = await env.DB.prepare(
-    `SELECT pub_key, expires_at, revoked, key_generation
-       FROM identities WHERE daemon_fingerprint = ?`,
-  ).bind(capability.daemonFingerprint).first<IdentityAuthorityRow>();
-  const registeredFingerprint = identity && /^[0-9a-f]{64}$/i.test(identity.pub_key)
-    ? toHex(hashBytes(fromHex(identity.pub_key)))
-    : null;
-  if (!identity || identity.revoked !== 0
-      || (identity.expires_at !== null && identity.expires_at <= now)
-      || identity.key_generation !== capability.signingKeyGeneration
-      || registeredFingerprint !== capability.daemonFingerprint.toLowerCase()
-      || !(await verifyEd25519(
-        identity.pub_key,
-        hashHex(fleetbotPublisherCapabilityPreimage(capability)),
-        signature,
-      ))) {
-    failure('CAPABILITY_SIGNATURE_INVALID', 401, 'publisher capability is not signed by the live daemon identity');
-  }
-
-  await env.DB.prepare(
-    `INSERT OR IGNORE INTO github_publisher_capability_uses
-       (daemon_fingerprint, signing_key_generation, nonce, account_user_id,
-        account_token_hash, request_hash, idempotency_key, consumed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(
-    capability.daemonFingerprint,
-    capability.signingKeyGeneration,
-    capability.nonce,
-    accountUserId,
-    tokenHash,
-    requestHash,
-    request.idempotencyKey,
-    now,
-  ).run();
-  const use = await env.DB.prepare(
-    `SELECT account_user_id, account_token_hash, request_hash, idempotency_key
-       FROM github_publisher_capability_uses
-      WHERE daemon_fingerprint = ? AND signing_key_generation = ? AND nonce = ?`,
-  ).bind(
-    capability.daemonFingerprint,
-    capability.signingKeyGeneration,
-    capability.nonce,
-  ).first<CapabilityUseRow>();
-  if (!use || use.account_user_id !== accountUserId || use.account_token_hash !== tokenHash
-      || use.request_hash !== requestHash || use.idempotency_key !== request.idempotencyKey) {
-    failure('CAPABILITY_REPLAY', 409, 'publisher capability nonce was already consumed by another action');
   }
 }
 
@@ -701,6 +687,138 @@ async function listAllPages<T>(url: string, token: string): Promise<T[]> {
   failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub list exceeds the bounded pagination scan');
 }
 
+interface RequestedReviewerNode {
+  requestedReviewer?: {
+    __typename?: string;
+    login?: string;
+    slug?: string;
+    combinedSlug?: string;
+  } | null;
+}
+
+interface RequestedReviewerConnection {
+  nodes?: Array<RequestedReviewerNode | null>;
+  pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+}
+
+interface RequestedReviewersQuery {
+  repository?: {
+    pullRequest?: { reviewRequests?: RequestedReviewerConnection | null } | null;
+  } | null;
+}
+
+async function listRequestedReviewers(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<{ users: Array<{ login?: string }>; teams: Array<{ slug?: string }> }> {
+  const users: Array<{ login?: string }> = [];
+  const teams: Array<{ slug?: string }> = [];
+  let after: string | null = null;
+  const seenCursors = new Set<string>();
+  for (let page = 1; page <= MAX_GITHUB_LIST_PAGES; page += 1) {
+    // PullRequest.reviewRequests is a documented cursor connection; the REST
+    // requested_reviewers response is an object and does not document paging.
+    // https://docs.github.com/en/graphql/reference/objects#pullrequest
+    const result: RequestedReviewersQuery = await graphql<RequestedReviewersQuery>(token, `query($owner:String!,$repo:String!,$number:Int!,$after:String){
+      repository(owner:$owner,name:$repo){
+        pullRequest(number:$number){
+          reviewRequests(first:100,after:$after){
+            nodes{requestedReviewer{
+              __typename
+              ... on User{login}
+              ... on Bot{login}
+              ... on Mannequin{login}
+              ... on Team{slug}
+              ... on EnterpriseTeam{combinedSlug}
+            }}
+            pageInfo{hasNextPage endCursor}
+          }
+        }
+      }
+    }`, { owner, repo, number, after });
+    const connection: RequestedReviewerConnection | null | undefined = result.repository?.pullRequest?.reviewRequests;
+    if (!connection || !Array.isArray(connection.nodes)
+        || typeof connection.pageInfo?.hasNextPage !== 'boolean') {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid requested-reviewers connection');
+    }
+    for (const node of connection.nodes) {
+      const reviewer = node?.requestedReviewer;
+      if ((reviewer?.__typename === 'User' || reviewer?.__typename === 'Bot' || reviewer?.__typename === 'Mannequin')
+          && typeof reviewer.login === 'string') {
+        users.push({ login: reviewer.login });
+      } else if (reviewer?.__typename === 'Team' && typeof reviewer.slug === 'string') {
+        teams.push({ slug: reviewer.slug });
+      } else if (reviewer?.__typename === 'EnterpriseTeam' && typeof reviewer.combinedSlug === 'string') {
+        teams.push({ slug: reviewer.combinedSlug });
+      } else {
+        failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid requested reviewer');
+      }
+    }
+    if (!connection.pageInfo.hasNextPage) return { users, teams };
+    const nextCursor: string | null | undefined = connection.pageInfo.endCursor;
+    if (typeof nextCursor !== 'string' || nextCursor.length === 0 || nextCursor === after
+        || seenCursors.has(nextCursor)) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub requested-reviewers cursor did not advance');
+    }
+    seenCursors.add(nextCursor);
+    after = nextCursor;
+  }
+  failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub requested-reviewers list exceeds the bounded pagination scan');
+}
+
+interface ReviewThreadsQuery {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: {
+        nodes?: Array<{ isResolved?: boolean } | null>;
+        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+      } | null;
+    } | null;
+  } | null;
+}
+
+async function assertNoUnresolvedReviewThreads(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  let after: string | null = null;
+  const seenCursors = new Set<string>();
+  for (let page = 1; page <= MAX_GITHUB_LIST_PAGES; page += 1) {
+    const result: ReviewThreadsQuery = await graphql<ReviewThreadsQuery>(token, `query($owner:String!,$repo:String!,$number:Int!,$after:String){
+      repository(owner:$owner,name:$repo){
+        pullRequest(number:$number){
+          reviewThreads(first:100,after:$after){
+            nodes{isResolved}
+            pageInfo{hasNextPage endCursor}
+          }
+        }
+      }
+    }`, { owner, repo, number, after });
+    const connection = result.repository?.pullRequest?.reviewThreads;
+    if (!connection || !Array.isArray(connection.nodes)
+        || typeof connection.pageInfo?.hasNextPage !== 'boolean'
+        || connection.nodes.some((node) => typeof node?.isResolved !== 'boolean')) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid review-threads connection');
+    }
+    if (connection.nodes.some((node) => node?.isResolved === false)) {
+      failure('PULL_REQUEST_REVIEWS_UNRESOLVED', 409, 'pull request has unresolved review threads');
+    }
+    if (!connection.pageInfo.hasNextPage) return;
+    const nextCursor = connection.pageInfo.endCursor;
+    if (typeof nextCursor !== 'string' || nextCursor.length === 0 || nextCursor === after
+        || seenCursors.has(nextCursor)) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub review-threads cursor did not advance');
+    }
+    seenCursors.add(nextCursor);
+    after = nextCursor;
+  }
+  failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub review-threads list exceeds the bounded pagination scan');
+}
+
 async function graphql<T>(
   token: string,
   query: string,
@@ -718,17 +836,25 @@ async function graphql<T>(
   return response.body.data;
 }
 
+export interface AuthorizedRepositoryIdentity {
+  repositoryId: number | null;
+  githubAccountId: number | null;
+  fullName: string;
+}
+
 export async function authorizeExactRepository(
   installationId: number,
   repository: string,
   userToken: string,
   requiredAccess: 'read' | 'write' = 'read',
-): Promise<void> {
+): Promise<AuthorizedRepositoryIdentity> {
   for (let page = 1; page <= MAX_REPOSITORY_PAGES; page += 1) {
     const result = await fetchJson<{
       total_count?: number;
       repositories?: Array<{
+        id?: number;
         full_name?: string;
+        owner?: { id?: number };
         permissions?: { admin?: boolean; maintain?: boolean; push?: boolean; pull?: boolean };
       }>;
     }>(`${GH_API}/user/installations/${installationId}/repositories?per_page=100&page=${page}`, userToken);
@@ -736,10 +862,18 @@ export async function authorizeExactRepository(
     if (!Array.isArray(repositories)) failure('GITHUB_GRANT_INVALID', 502, 'GitHub installation repository response is invalid');
     const exact = repositories.find((entry) => entry.full_name?.toLowerCase() === repository);
     if (exact) {
-      if (requiredAccess === 'read') return;
+      if (typeof exact.full_name !== 'string') {
+        failure('GITHUB_GRANT_INVALID', 502, 'GitHub repository identity response is invalid');
+      }
       const permission = exact.permissions;
-      if (permission?.push || permission?.maintain || permission?.admin) return;
-      failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+      if (requiredAccess === 'write' && !(permission?.push || permission?.maintain || permission?.admin)) {
+        failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+      }
+      return {
+        repositoryId: Number.isSafeInteger(exact.id) && (exact.id ?? 0) > 0 ? exact.id! : null,
+        githubAccountId: Number.isSafeInteger(exact.owner?.id) && (exact.owner?.id ?? 0) > 0 ? exact.owner!.id! : null,
+        fullName: exact.full_name.toLowerCase(),
+      };
     }
     if (repositories.length < 100 || (Number.isSafeInteger(result.body?.total_count)
       && page * 100 >= (result.body?.total_count ?? 0))) {
@@ -756,10 +890,18 @@ function intentBinds(key: IntentKey): unknown[] {
 async function parseStoredReceipt(env: PublisherEnv, raw: string | null, key: IntentKey): Promise<FleetbotReceipt> {
   let receipt: FleetbotReceipt;
   try { receipt = JSON.parse(raw ?? '') as FleetbotReceipt; } catch { failure('INTENT_CORRUPT', 500, 'stored publisher receipt is corrupt'); }
-  if (receipt.schema !== FLEETBOT_RECEIPT_SCHEMA || receipt.idempotencyKey !== key.idempotencyKey
+  if (receipt.schema !== FLEETBOT_RECEIPT_SCHEMA
+      || receipt.receiptId !== fleetbotReceiptId(key.idempotencyKey)
+      || receipt.idempotencyKey !== key.idempotencyKey
       || receipt.repository !== key.repository || receipt.accountUserId !== key.accountUserId
       || receipt.accountGithubUserId !== key.accountGithubUserId
       || receipt.operation !== key.operation || receipt.sessionId !== key.authorship.sessionId
+      || receipt.actorId !== key.authorship.actorId || receipt.agentId !== key.authorship.agentId
+      || receipt.roadmapItem !== key.authorship.roadmapItem
+      || receipt.authorizedBy?.grantId !== key.grantId
+      || receipt.authorizedBy?.grantEpoch !== key.grantEpoch
+      || receipt.authorizedBy?.surface !== 'publisher'
+      || receipt.admission !== 'standing-publisher-grant'
       || receipt.tokenCleanup !== 'confirmed'
       || receipt.relayPublicKey !== pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX)
       || !/^[0-9a-f]{128}$/i.test(receipt.signature)
@@ -783,8 +925,10 @@ async function reserveIntent(
        (account_user_id, account_github_user_id, installation_id, repository,
         scope_sha, idempotency_key, request_hash, operation, state,
         actor_id, agent_id, session_id, identity_project, roadmap_item,
-        created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?)`,
+        recovery_binding_json, created_at, updated_at)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?, ?
+       FROM users owner
+      WHERE owner.id = ? AND owner.deleted_at IS NULL`,
   ).bind(
     key.accountUserId,
     key.accountGithubUserId,
@@ -799,18 +943,32 @@ async function reserveIntent(
     key.authorship.sessionId,
     key.authorship.identityProject,
     key.authorship.roadmapItem,
+    stableJson(key.recoveryBinding),
     now,
     now,
+    key.accountUserId,
   ).run();
   const row = await env.DB.prepare(
-    `SELECT request_hash, state, receipt_json, updated_at, lease_fence
-       FROM github_publisher_intents
-      WHERE account_user_id = ? AND installation_id = ? AND repository = ?
-        AND scope_sha = ? AND idempotency_key = ?`,
+    `SELECT i.request_hash, i.state, i.receipt_json, i.updated_at, i.lease_fence,
+            i.recovery_binding_json
+       FROM github_publisher_intents i
+       JOIN users owner ON owner.id = i.account_user_id AND owner.deleted_at IS NULL
+      WHERE i.account_user_id = ? AND i.installation_id = ? AND i.repository = ?
+        AND i.scope_sha = ? AND i.idempotency_key = ?`,
   ).bind(...intentBinds(key)).first<IntentRow>();
   if (!row) failure('INTENT_RESERVATION_FAILED', 500, 'publisher intent was not durably reserved');
   if (row.request_hash !== key.requestHash) failure('IDEMPOTENCY_REPLAY_MISMATCH', 409, 'idempotency key was already used for different content');
+  // Preserve exact idempotent reuse for pre-migration successful intents. The
+  // new recovery endpoint still refuses those rows because they lack an exact
+  // signed recovery binding; ordinary /publish reuse already has the full
+  // original request and validates the stored signed receipt against it.
   if (row.state === 'succeeded') return { reused: await parseStoredReceipt(env, row.receipt_json, key) };
+  if (row.recovery_binding_json === null) {
+    failure('RECOVERY_BINDING_UNAVAILABLE', 409, 'publisher intent predates exact receipt recovery binding');
+  }
+  if (row.recovery_binding_json !== stableJson(key.recoveryBinding)) {
+    failure('IDEMPOTENCY_REPLAY_MISMATCH', 409, 'idempotency key was already used for a different recovery scope');
+  }
   const leased = await env.DB.prepare(
     `UPDATE github_publisher_intents
         SET state = 'running', updated_at = ?, error_code = NULL,
@@ -819,6 +977,8 @@ async function reserveIntent(
         AND scope_sha = ? AND idempotency_key = ?
         AND (state IN ('reserved', 'ambiguous', 'failed')
           OR (state = 'running' AND updated_at < ?))
+        AND EXISTS (SELECT 1 FROM users owner
+                     WHERE owner.id = account_user_id AND owner.deleted_at IS NULL)
       RETURNING lease_fence`,
   ).bind(now, ...intentBinds(key), now - INTENT_LEASE_SECONDS).first<{ lease_fence: number }>();
   if (!leased || !Number.isSafeInteger(leased.lease_fence) || leased.lease_fence < 1) {
@@ -864,12 +1024,20 @@ async function finishIntent(
   }
 }
 
-function permissionsFor(operation: FleetbotOperation): Readonly<Record<string, InstallationPermission>> {
-  return operation === 'pull-request.publish' || operation === 'pull-request.update'
-    ? { contents: 'write', pull_requests: 'write' }
-    : operation === 'pull-request.inspect'
-      ? { pull_requests: 'read' }
-      : { pull_requests: 'write' };
+function permissionsFor(
+  operation: FleetbotOperation,
+  payload: ParsedPayload,
+): Readonly<Record<string, InstallationPermission>> {
+  if (operation === 'pull-request.publish' || operation === 'pull-request.update') {
+    const changes = (payload as PublishPayload | UpdatePayload).changes;
+    const modifiesWorkflow = changes.some((change) => change.path.startsWith('.github/workflows/'));
+    return modifiesWorkflow
+      ? { contents: 'write', pull_requests: 'write', workflows: 'write' }
+      : { contents: 'write', pull_requests: 'write' };
+  }
+  return operation === 'pull-request.inspect'
+    ? { pull_requests: 'read' }
+    : { pull_requests: 'write' };
 }
 
 function repositoryAccessFor(operation: FleetbotOperation): 'read' | 'write' {
@@ -979,10 +1147,13 @@ function verifyPull(
     draft?: boolean;
     title?: string;
     body?: string;
+    requirePublisherOwnership?: boolean;
   },
 ): void {
   if ((input.number !== undefined && pull.number !== input.number)
-      || pull.state !== 'open' || pull.author.toLowerCase() !== input.app.botName.toLowerCase()
+      || pull.state !== 'open'
+      || (input.requirePublisherOwnership !== false
+        && pull.author.toLowerCase() !== input.app.botName.toLowerCase())
       || pull.headRepository !== input.repository || pull.baseRepository !== input.repository
       || pull.baseRef !== input.baseBranch || pull.baseSha !== input.baseSha || pull.headSha !== input.headSha
       || (input.headRef !== undefined && pull.headRef !== input.headRef)
@@ -1264,6 +1435,27 @@ async function exactExistingPull(
   return pull;
 }
 
+async function exactInspectablePull(
+  request: FleetbotActionRequest,
+  payload: ExistingPayload,
+  owner: string,
+  repo: string,
+  token: string,
+  app: GitHubAppIdentity,
+): Promise<PullRequestWitness> {
+  const pull = await getPull(owner, repo, payload.pullRequestNumber, token);
+  verifyPull(pull, {
+    repository: request.repository,
+    app,
+    baseBranch: payload.baseBranch,
+    baseSha: payload.baseSha,
+    headSha: payload.expectedGithubHeadSha,
+    number: payload.pullRequestNumber,
+    requirePublisherOwnership: false,
+  });
+  return pull;
+}
+
 async function updatePull(
   request: FleetbotActionRequest,
   payload: UpdatePayload,
@@ -1336,8 +1528,11 @@ async function executeExisting(
   app: GitHubAppIdentity,
   mutated: () => void,
 ): Promise<ExecutionResult> {
-  let pull = await exactExistingPull(request, payload, owner, repo, token, app);
+  let pull = request.operation === 'pull-request.inspect' || isFleetbotConversationalOperation(request.operation)
+    ? await exactInspectablePull(request, payload, owner, repo, token, app)
+    : await exactExistingPull(request, payload, owner, repo, token, app);
   let result: FleetbotReceipt['result'] = 'observed';
+  let resourceUrl = pull.htmlUrl;
   const receiptId = fleetbotReceiptId(request.idempotencyKey!);
   const marker = fleetbotMutationMarker(receiptId);
   if (request.operation === 'pull-request.ready') {
@@ -1355,12 +1550,9 @@ async function executeExisting(
     } else result = 'reused';
   } else if (request.operation === 'pull-request.request-reviewers') {
     const reviewers = payload as ReviewersPayload;
-    const requested = await fetchJson<{
-      users?: Array<{ login?: string }>;
-      teams?: Array<{ slug?: string }>;
-    }>(`${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/requested_reviewers`, token);
-    const currentUsers = new Set((requested.body?.users ?? []).map((entry) => entry.login?.toLowerCase()));
-    const currentTeams = new Set((requested.body?.teams ?? []).map((entry) => entry.slug?.toLowerCase()));
+    const requested = await listRequestedReviewers(owner, repo, pull.number, token);
+    const currentUsers = new Set(requested.users.map((entry) => entry.login?.toLowerCase()));
+    const currentTeams = new Set(requested.teams.map((entry) => entry.slug?.toLowerCase()));
     const missingUsers = reviewers.reviewers.filter((name) => !currentUsers.has(name.toLowerCase()));
     const missingTeams = reviewers.teamReviewers.filter((name) => !currentTeams.has(name.toLowerCase()));
     if (missingUsers.length || missingTeams.length) {
@@ -1372,11 +1564,9 @@ async function executeExisting(
         if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
       }
       result = 'updated';
-      const observed = await fetchJson<{ users?: Array<{ login?: string }>; teams?: Array<{ slug?: string }> }>(
-        `${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/requested_reviewers`, token,
-      );
-      const users = new Set((observed.body?.users ?? []).map((entry) => entry.login?.toLowerCase()));
-      const teams = new Set((observed.body?.teams ?? []).map((entry) => entry.slug?.toLowerCase()));
+      const observed = await listRequestedReviewers(owner, repo, pull.number, token);
+      const users = new Set(observed.users.map((entry) => entry.login?.toLowerCase()));
+      const teams = new Set(observed.teams.map((entry) => entry.slug?.toLowerCase()));
       if (reviewers.reviewers.some((name) => !users.has(name.toLowerCase()))
           || reviewers.teamReviewers.some((name) => !teams.has(name.toLowerCase()))) {
         failure('REVIEWER_REQUEST_AMBIGUOUS', 409, 'reviewer request did not read back exactly', true);
@@ -1402,14 +1592,19 @@ async function executeExisting(
       if (!comment) failure('COMMENT_CREATE_AMBIGUOUS', 409, 'comment did not read back exactly', true);
       result = 'created';
     } else result = 'reused';
+    if (typeof comment.html_url !== 'string') {
+      failure('GITHUB_RESPONSE_INVALID', 502, 'comment readback has no resource URL');
+    }
+    resourceUrl = comment.html_url;
   } else if (request.operation === 'pull-request.review-reply') {
     const message = payload as MessagePayload;
     const body = stampFleetbotMessage({ body: message.body, authorship: request.authorship!, receiptId });
     const commentsUrl = `${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/comments`;
-    const existing = await listAllPages<{ body?: string; in_reply_to_id?: number; user?: { login?: string } }>(commentsUrl, token);
-    let found = existing.some((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
+    type ReviewReply = { body?: string; html_url?: string; in_reply_to_id?: number; user?: { login?: string } };
+    const existing = await listAllPages<ReviewReply>(commentsUrl, token);
+    let reply = existing.find((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
       && entry.user?.login?.toLowerCase() === app.botName.toLowerCase());
-    if (!found) {
+    if (!reply) {
       try {
         await fetchJson(`${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/comments/${message.commentId}/replies`, token, {
           method: 'POST', body: { body }, mutation: mutated,
@@ -1417,14 +1612,19 @@ async function executeExisting(
       } catch (error) {
         if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
       }
-      const observed = await listAllPages<{ body?: string; in_reply_to_id?: number; user?: { login?: string } }>(commentsUrl, token);
-      found = observed.some((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
+      const observed = await listAllPages<ReviewReply>(commentsUrl, token);
+      reply = observed.find((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
         && entry.user?.login?.toLowerCase() === app.botName.toLowerCase());
-      if (!found) failure('REVIEW_REPLY_AMBIGUOUS', 409, 'review reply did not read back exactly', true);
+      if (!reply) failure('REVIEW_REPLY_AMBIGUOUS', 409, 'review reply did not read back exactly', true);
       result = 'created';
     } else result = 'reused';
+    if (typeof reply.html_url !== 'string') {
+      failure('GITHUB_RESPONSE_INVALID', 502, 'review reply readback has no resource URL');
+    }
+    resourceUrl = reply.html_url;
   } else if (request.operation === 'pull-request.enqueue') {
     if (pull.draft) failure('PULL_REQUEST_NOT_READY', 409, 'draft pull request cannot enter the merge queue');
+    await assertNoUnresolvedReviewThreads(owner, repo, pull.number, token);
     const queueQuery = 'query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id headRefOid mergeQueueEntry{id}}}}';
     type QueueData = { repository?: { pullRequest?: { id?: string; headRefOid?: string; mergeQueueEntry?: { id?: string } | null } | null } };
     let state = await graphql<QueueData>(token, queueQuery, { owner, repo, number: pull.number });
@@ -1448,9 +1648,38 @@ async function executeExisting(
       }
       result = 'updated';
     } else result = 'reused';
+    await assertNoUnresolvedReviewThreads(owner, repo, pull.number, token);
+    const observedPull = await getPull(owner, repo, pull.number, token);
+    verifyPull(observedPull, {
+      repository: request.repository,
+      app,
+      baseBranch: payload.baseBranch,
+      baseSha: payload.baseSha,
+      headSha: payload.expectedGithubHeadSha,
+      number: payload.pullRequestNumber,
+      headRef: pull.headRef,
+      draft: false,
+    });
+    pull = observedPull;
+  }
+  if (request.operation === 'pull-request.request-reviewers'
+      || request.operation === 'pull-request.comment'
+      || request.operation === 'pull-request.review-reply') {
+    const observedPull = await getPull(owner, repo, pull.number, token);
+    verifyPull(observedPull, {
+      repository: request.repository,
+      app,
+      baseBranch: payload.baseBranch,
+      baseSha: payload.baseSha,
+      headSha: payload.expectedGithubHeadSha,
+      number: payload.pullRequestNumber,
+      headRef: pull.headRef,
+      requirePublisherOwnership: !isFleetbotConversationalOperation(request.operation),
+    });
+    pull = observedPull;
   }
   return {
-    resourceUrl: pull.htmlUrl,
+    resourceUrl,
     resourceNumber: pull.number,
     publishedBranch: pull.headRef,
     githubHeadSha: pull.headSha,
@@ -1489,17 +1718,35 @@ async function requireOwnedPullRequest(
   accountUserId: string,
   repository: string,
   pullRequestNumber: number,
-): Promise<void> {
+): Promise<string> {
   const rows = await env.DB.prepare(
-    `SELECT account_user_id
+    `SELECT account_user_id, published_branch
        FROM github_publisher_intents
       WHERE repository = ? AND resource_number = ? AND state = 'succeeded'
         AND operation = 'pull-request.publish'
       ORDER BY updated_at ASC LIMIT 2`,
-  ).bind(repository, pullRequestNumber).all<{ account_user_id: string }>();
-  if (rows.results.length !== 1 || rows.results[0]?.account_user_id !== accountUserId) {
+  ).bind(repository, pullRequestNumber).all<{ account_user_id: string; published_branch: string | null }>();
+  if (rows.results.length !== 1 || rows.results[0]?.account_user_id !== accountUserId
+      || !rows.results[0]?.published_branch) {
     failure('PULL_REQUEST_NOT_OWNED', 403, 'this account has no unique governed publication receipt for the pull request');
   }
+  return rows.results[0].published_branch;
+}
+
+async function publisherHeadBranch(
+  env: PublisherEnv,
+  action: FleetbotActionRequest,
+  payload: ParsedPayload,
+  accountUserId: string,
+): Promise<string | null> {
+  if (action.operation === 'pull-request.publish') return expectedBranch(action, accountUserId);
+  if (action.operation === 'pull-request.inspect' || isFleetbotConversationalOperation(action.operation)) return null;
+  return requireOwnedPullRequest(
+    env,
+    accountUserId,
+    action.repository,
+    (payload as ExistingPayload).pullRequestNumber,
+  );
 }
 
 async function signedReceipt(
@@ -1510,6 +1757,7 @@ async function signedReceipt(
   cleanup: FleetbotReceipt['tokenCleanup'],
   now: number,
   app: GitHubAppIdentity,
+  grant: PublisherGrant,
 ): Promise<FleetbotReceipt> {
   const unsigned: Omit<FleetbotReceipt, 'signature'> = {
     schema: FLEETBOT_RECEIPT_SCHEMA,
@@ -1521,6 +1769,8 @@ async function signedReceipt(
     idempotencyKey: request.idempotencyKey!,
     accountUserId: user.id,
     accountGithubUserId: user.github_user_id,
+    authorizedBy: { grantId: grant.grantId, grantEpoch: grant.epoch, surface: 'publisher' },
+    admission: 'standing-publisher-grant',
     actorId: request.authorship!.actorId,
     agentId: request.authorship!.agentId,
     sessionId: request.authorship!.sessionId,
@@ -1544,6 +1794,149 @@ async function signedReceipt(
   return { ...unsigned, signature };
 }
 
+interface RecoveryCapabilityUseRow {
+  daemon_fingerprint: string;
+  signing_key_generation: number;
+  grant_id: string;
+  grant_epoch: number;
+  session_id: string;
+  request_hash: string;
+  idempotency_key: string;
+  is_mutation: number;
+}
+
+function recoveryIntentKey(row: RecoveryIntentRow, binding: FleetbotReceiptRecoveryBinding): IntentKey {
+  return {
+    accountUserId: row.account_user_id,
+    accountGithubUserId: row.account_github_user_id,
+    installationId: row.installation_id,
+    repository: row.repository,
+    scopeSha: row.scope_sha,
+    idempotencyKey: row.idempotency_key,
+    requestHash: row.request_hash,
+    operation: row.operation,
+    authorship: {
+      actorId: row.actor_id,
+      agentId: row.agent_id,
+      sessionId: row.session_id,
+      purpose: 'stored-receipt-recovery',
+      identityProject: row.identity_project,
+      roadmapItem: row.roadmap_item,
+      sidequestReason: null,
+      worktreeId: null,
+      sourceBranch: null,
+    },
+    grantId: binding.grantId,
+    grantEpoch: binding.grantEpoch,
+    recoveryBinding: binding,
+  };
+}
+
+function verifyRecoveredEffect(
+  row: RecoveryIntentRow,
+  receipt: FleetbotReceipt,
+  binding: FleetbotReceiptRecoveryBinding,
+): void {
+  if (receipt.resourceNumber !== row.resource_number
+      || receipt.resourceUrl !== row.resource_url
+      || receipt.publishedBranch !== row.published_branch
+      || receipt.githubHeadSha !== row.github_head_sha
+      || ((binding.operation === 'pull-request.publish' || binding.operation === 'pull-request.update')
+        ? receipt.sourceHeadSha !== binding.headSha
+        : receipt.githubHeadSha !== binding.headSha)) {
+    failure('INTENT_CORRUPT', 500, 'stored publisher receipt does not match its finalized effect');
+  }
+}
+
+/**
+ * Recover one already-finalized Relay receipt. This path is deliberately
+ * incapable of reaching GitHub or altering an intent; non-success states are
+ * terminal answers for this request, never invitations to redispatch.
+ */
+export async function handleFleetbotPublisherReceiptRecovery(
+  request: Request,
+  env: PublisherEnv,
+): Promise<Response> {
+  try {
+    if (request.method !== 'POST') failure('METHOD_NOT_ALLOWED', 405, 'publisher receipt recovery accepts POST only');
+    if (!env.RELAY_ED25519_PRIVATE_KEY_HEX) failure('PUBLISHER_UNCONFIGURED', 503, 'Relay receipt signing is not configured');
+    const now = Math.floor(Date.now() / 1000);
+    const envelope = parseReceiptRecoveryEnvelope(await readBoundedRecoveryJson(request), now);
+    const binding = envelope.proof.binding;
+    const grant = await authorizePublisherReceiptRead(
+      env.DB,
+      envelope.proof,
+      envelope.proofSignature,
+      now,
+    );
+    const use = await env.DB.prepare(
+      `SELECT daemon_fingerprint, signing_key_generation, grant_id, grant_epoch,
+              session_id, request_hash, idempotency_key, is_mutation
+         FROM github_publisher_capability_uses_v2
+        WHERE grant_id = ? AND idempotency_key = ?`,
+    ).bind(binding.grantId, binding.idempotencyKey).first<RecoveryCapabilityUseRow>();
+    const expectedMutation = binding.operation === 'pull-request.inspect' ? 0 : 1;
+    if (!use
+        || use.daemon_fingerprint !== grant.subjectFingerprint
+        || use.signing_key_generation !== envelope.proof.signingKeyGeneration
+        || use.grant_id !== binding.grantId || use.grant_epoch !== binding.grantEpoch
+        || use.session_id !== binding.sessionId || use.request_hash !== binding.requestHash
+        || use.idempotency_key !== binding.idempotencyKey || use.is_mutation !== expectedMutation) {
+      failure('RECOVERY_AUTHORITY_MISMATCH', 403, 'no exact admitted publisher capability use matches this receipt proof');
+    }
+    const row = await env.DB.prepare(
+      `SELECT i.account_user_id, i.account_github_user_id, i.installation_id,
+              i.repository, i.scope_sha, i.idempotency_key, i.request_hash,
+              i.operation, i.state, i.actor_id, i.agent_id, i.session_id,
+              i.identity_project, i.roadmap_item, i.resource_number,
+              i.resource_url, i.published_branch, i.github_head_sha,
+              i.receipt_json, i.error_code, i.updated_at, i.lease_fence,
+              i.recovery_binding_json
+         FROM github_publisher_intents i
+         JOIN users owner ON owner.id = i.account_user_id AND owner.deleted_at IS NULL
+        WHERE i.account_user_id = ? AND i.installation_id = ? AND i.repository = ?
+          AND i.scope_sha = ? AND i.idempotency_key = ?`,
+    ).bind(
+      grant.accountUserId,
+      grant.installationId,
+      binding.repository,
+      binding.baseSha,
+      binding.idempotencyKey,
+    ).first<RecoveryIntentRow>();
+    if (!row) failure('INTENT_NOT_FOUND', 404, 'publisher intent does not exist for this exact recovery scope');
+    if (row.recovery_binding_json === null) {
+      failure('RECOVERY_BINDING_UNAVAILABLE', 409, 'publisher intent predates exact receipt recovery binding');
+    }
+    if (row.recovery_binding_json !== stableJson(binding)) {
+      failure('RECOVERY_BINDING_MISMATCH', 403, 'stored publisher intent does not match the signed recovery scope');
+    }
+    if (row.request_hash !== binding.requestHash || row.operation !== binding.operation
+        || row.session_id !== binding.sessionId || row.scope_sha !== binding.baseSha) {
+      failure('INTENT_CORRUPT', 500, 'stored publisher intent contradicts its recovery binding');
+    }
+    if (row.state === 'reserved' || row.state === 'running') {
+      failure('INTENT_IN_PROGRESS', 409, 'publisher intent has not finalized');
+    }
+    if (row.state === 'ambiguous') {
+      failure('INTENT_AMBIGUOUS', 409, 'publisher intent is ambiguous and cannot be redispatched automatically');
+    }
+    if (row.state === 'failed') {
+      failure('INTENT_FAILED', 409, 'publisher intent failed and cannot be redispatched automatically');
+    }
+    if (row.state !== 'succeeded') failure('INTENT_CORRUPT', 500, 'publisher intent has an unknown state');
+    const receipt = await parseStoredReceipt(env, row.receipt_json, recoveryIntentKey(row, binding));
+    verifyRecoveredEffect(row, receipt, binding);
+    return json(200, { code: 'OK', recovered: true, receipt });
+  } catch (error) {
+    const known = error instanceof PublisherFailure
+      ? error
+      : error instanceof PublisherGrantFailure
+        ? new PublisherFailure(error.code, error.status, error.message)
+        : new PublisherFailure('RECEIPT_RECOVERY_FAILED', 500, 'publisher receipt recovery failed closed');
+    return json(known.status, { code: known.code, error: known.message });
+  }
+}
+
 /** Relay route handler for governed GitHub App publication operations. */
 export async function handleFleetbotPublisher(request: Request, env: PublisherEnv): Promise<Response> {
   let key: IntentKey | null = null;
@@ -1551,9 +1944,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
   let appToken: string | null = null;
   let mutationAttempted = false;
   let executionResult: ExecutionResult | undefined;
+  let admittedGrant: PublisherGrant | null = null;
   try {
     if (request.method !== 'POST') failure('METHOD_NOT_ALLOWED', 405, 'publisher accepts POST only');
-    const rawToken = bearer(request);
     const parsedBody = await readBoundedJson(request);
     const {
       request: action,
@@ -1564,32 +1957,33 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     } = parseRequest(parsedBody);
     const config = configured(env);
     const now = Math.floor(Date.now() / 1000);
-    const tokenHash = hashHex(rawToken);
-    const accountAuthority = await resolveUserTokenReadOnly(env.DB, tokenHash, now);
-    if (!accountAuthority) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-    await verifyAndConsumeCapability(
-      env,
-      capability,
-      capabilitySignature,
-      action,
-      payload,
-      requestHash,
-      tokenHash,
-      accountAuthority.id,
-      now,
-    );
-    const account = await credentialForAccount(env, tokenHash, now);
-    if (account.user.id !== accountAuthority.id) {
-      failure('CREDENTIAL_RACE', 409, 'account authority changed during publisher admission');
-    }
+    validateCapabilityScope(capability, action, payload, requestHash, now);
+    const grantSnapshot = await readPublisherGrant(env.DB, capability.grantId, now);
+    const account = await resolveAccountPublisherCredential(env, grantSnapshot.accountUserId, now);
+    if (!account) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'the granting account must reconnect GitHub');
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
     await authorizeExactRepository(
       installationId,
       action.repository,
-      account.credential.accessToken,
+      account.accessToken,
       repositoryAccessFor(action.operation),
     );
+    const headBranch = await publisherHeadBranch(env, action, payload, account.user.id);
+    admittedGrant = await authorizePublisherGrant(env.DB, {
+      capability,
+      capabilitySignature,
+      requestHash,
+      idempotencyKey: action.idempotencyKey!,
+      repository: action.repository,
+      operation: action.operation,
+      baseBranch: (payload as CommonPayload).baseBranch,
+      headBranch,
+      sessionId: action.sessionId,
+      installationId,
+      isMutation: action.operation !== 'pull-request.inspect',
+      now,
+    });
     key = {
       accountUserId: account.user.id,
       accountGithubUserId: account.user.github_user_id,
@@ -1600,15 +1994,21 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       requestHash,
       operation: action.operation,
       authorship: action.authorship!,
+      grantId: admittedGrant.grantId,
+      grantEpoch: admittedGrant.epoch,
+      recoveryBinding: {
+        grantId: admittedGrant.grantId,
+        grantEpoch: admittedGrant.epoch,
+        repository: action.repository,
+        operation: action.operation,
+        baseBranch: (payload as CommonPayload).baseBranch,
+        baseSha: (payload as CommonPayload).baseSha,
+        headSha: capabilityHead(action.operation, payload),
+        sessionId: action.sessionId,
+        requestHash,
+        idempotencyKey: action.idempotencyKey!,
+      },
     };
-    if (action.operation !== 'pull-request.publish') {
-      await requireOwnedPullRequest(
-        env,
-        account.user.id,
-        action.repository,
-        (payload as ExistingPayload).pullRequestNumber,
-      );
-    }
     const reservation = await reserveIntent(env, key, now);
     if ('reused' in reservation) return json(200, { code: 'OK', receipt: reservation.reused });
     leaseFence = reservation.fence;
@@ -1620,13 +2020,15 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       installationId,
       owner,
       repo,
-      permissionsFor(action.operation),
+      permissionsFor(action.operation, payload),
     );
     appToken = minted.token;
     executionResult = await execute(action, payload, appToken, app, account.user.id, () => { mutationAttempted = true; });
     const cleanup = await revokeInstallationToken(appToken);
     appToken = null;
-    const receipt = await signedReceipt(env, action, account.user, executionResult, cleanup ? 'confirmed' : 'unconfirmed', now, app);
+    const receipt = await signedReceipt(
+      env, action, account.user, executionResult, cleanup ? 'confirmed' : 'unconfirmed', now, app, admittedGrant,
+    );
     if (!cleanup) {
       await finishIntent(env, key, leaseFence, 'ambiguous', now, {
         result: executionResult,
@@ -1645,7 +2047,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     const cleanupConfirmed = appToken ? await revokeInstallationToken(appToken) : true;
     const known = error instanceof PublisherFailure
       ? error
-      : new PublisherFailure('PUBLISHER_FAILED', 500, 'publisher failed without exposing credential or transport details');
+      : error instanceof PublisherGrantFailure
+        ? new PublisherFailure(error.code, error.status, error.message)
+        : new PublisherFailure('PUBLISHER_FAILED', 500, 'publisher failed without exposing credential or transport details');
     if (key && leaseFence !== null) {
       try {
         await finishIntent(
@@ -1666,13 +2070,17 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
 export const __fleetbotPublisherTest = {
   parseRequest,
   readBoundedJson,
-  verifyAndConsumeCapability,
+  validateCapabilityScope,
+  publisherHeadBranch,
   reserveIntent,
   finishIntent,
   listAllPages,
+  listRequestedReviewers,
+  assertNoUnresolvedReviewThreads,
   executeExisting,
   gitObjectSha,
   expectedCommitSha,
   repositoryAccessFor,
+  permissionsFor,
   maxOuterRequestBytes: MAX_OUTER_REQUEST_BYTES,
 };

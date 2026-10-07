@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: park-2023-generative-agents
-description: Simulation of believable human behavior using LLM-powered generative agents with memory and social interaction
+description: Analyze Park et al. (2023) simulation agents with memory, retrieval, reflection, and planning. Use for source-bound agent-simulation design and diagnostic traces. NOT for claims about real human cognition, factual truth, safe autonomy, or general social-coordination guarantees.
 metadata:
   category: Research & Academic
   tags:
@@ -35,57 +35,51 @@ allowed-tools: Read,Write,Edit,Glob,Grep
 
 ## When to Use This Skill
 
-Activate when designing AI agents that maintain coherent behavior over extended periods (hours/days/weeks) with accumulated experience. Essential for multi-agent simulations, long-running assistants, and believable AI characters.
+Use for simulation architectures with a memory stream, retrieval, reflection, and planning. Park et al.'s pinned arXiv v2 (2023-08-06) and paper mirror were read at methods/evaluation/ablation depth on 2026-09-24: the reported system used a 25-agent Smallville sandbox and interview/believability evaluation. It is not evidence of human cognition, factual truth, safe autonomy, or a general social-coordination result.
 
 **NOT for**: Single-turn responses, prompt engineering, task-specific tools, or centrally coordinated systems.
 
 ## Decision Points
 
 ### Memory System Design Decision Tree
-```
-Is agent behavior incoherent with past actions?
-├─ YES: Audit retrieval function
-│   ├─ Agent seems amnesic about important events?
-│   │   └─ → Increase importance weight (0.1→0.3) or lower threshold (5→3)
-│   ├─ Agent retrieves irrelevant memories?
-│   │   └─ → Increase relevance weight (0.5→0.7) or improve embeddings
-│   └─ Agent over-focuses on recent trivial events?
-│       └─ → Decrease recency weight (0.99→0.95 decay factor)
-└─ NO: Memory system functioning, check other components
+```mermaid
+flowchart TD
+  A[Incoherent behavior trace] --> B[Inspect memory IDs and retrieved scores]
+  B --> C{Observed retrieval failure?}
+  C -->|Relevant record absent| D[Measure recall on held-out trace]
+  C -->|Irrelevant record selected| E[Measure ranking/embedding inputs]
+  C -->|Trivial recent record dominates| F[Measure recency/importance calibration]
+  C -->|No| G[Inspect reflection/plan lineage]
+  D --> H[Change declared local parameter; rerun fixture]
+  E --> H
+  F --> H
 ```
 
 ### Reflection Triggering Decision Matrix
-| Importance Sum | Time Since Last | Action |
-|---------------|-----------------|--------|
-| >150 points  | Any            | Trigger reflection immediately |
-| 100-150      | >2 hours       | Trigger reflection |
-| 50-100       | >6 hours       | Trigger reflection |
-| <50          | Any            | Wait for more observations |
+| Source condition | Action |
+| --- | --- |
+| Crosses a fixture-defined signal/window | Generate a reflection citing memory IDs |
+| Does not cross it | Preserve observations and recheck on the next fixture step |
 
 ### Planning Replan Threshold
-```
-Observation conflicts with current plan?
-├─ Minor conflict (efficiency impact only)
-│   └─ → Continue with plan
-├─ Moderate conflict (plan becomes suboptimal)
-│   ├─ High commitment context (public promises, deadlines)?
-│   │   └─ → Continue plan, note conflict for future planning
-│   └─ Low commitment context?
-│       └─ → Replan affected time blocks only
-└─ Major conflict (plan becomes impossible/harmful)
-    └─ → Full replan from current moment
+```mermaid
+flowchart TD
+  A[Observation with source/time] --> B{Conflicts with plan precondition or goal?}
+  B -->|No| C[Continue and retain observation]
+  B -->|Yes| D[Compare affected steps under declared policy]
+  D --> E{Infeasible or policy requires stop?}
+  E -->|Yes| F[Replan; record superseded step IDs]
+  E -->|No| G[Continue with recorded uncertainty]
 ```
 
 ### Multi-Agent Information Diffusion
-```
-Agent receives socially significant information?
-├─ Information affects other known agents?
-│   ├─ Strong relationship exists?
-│   │   └─ → High probability (0.8+) to share in next interaction
-│   └─ Weak relationship?
-│       └─ → Moderate probability (0.4) if contextually relevant
-└─ Information is private/personal?
-    └─ → Share only if directly asked or high trust relationship
+```mermaid
+flowchart TD
+  A[Social observation] --> B[Classify provenance and disclosure scope]
+  B --> C{Permitted and contextually relevant?}
+  C -->|No or unknown| D[Do not disclose; retain scope record]
+  C -->|Yes| E[Offer through authorized interaction]
+  E --> F[Record recipient and outcome]
 ```
 
 ## Failure Modes
@@ -94,19 +88,19 @@ Agent receives socially significant information?
 **Detection**: Agent denies knowledge of information they previously demonstrated knowing
 **Symptom**: "I don't know about X" when agent stored observations about X
 **Diagnosis**: Retrieval function weights are mistuned, causing relevant memories to score below threshold
-**Fix**: Increase importance scoring for similar event types OR lower retrieval threshold temporarily OR retune relevance embeddings
+**Fix**: inspect memory IDs and retrieval scores, then compare a declared local change on held-out traces.
 
 ### 2. **Reflection Vacuum**
 **Detection**: Agent repeats same mistakes despite having multiple similar experiences
 **Symptom**: No behavioral learning from patterns (e.g., always late to meetings despite noting lateness)
 **Diagnosis**: Reflection not triggering on significant patterns OR reflections not being stored with sufficient importance
-**Fix**: Lower reflection threshold (150→100 importance points) OR increase importance scoring for reflection outputs (auto-score reflections as 8+ importance)
+**Fix**: require reflections to cite their memory IDs; calibrate a declared trigger on held-out traces.
 
 ### 3. **Plan Rigidity Lock**
 **Detection**: Agent continues obviously suboptimal plans when context changes
 **Symptom**: Walking to closed locations, pursuing obsolete goals, ignoring environmental changes
 **Diagnosis**: Replanning thresholds too high OR commitment override too strong
-**Fix**: Lower conflict threshold for replanning OR add forced replan checks at major time boundaries (hourly)
+**Fix**: compare plan preconditions with sourced observations under a declared reconsideration policy.
 
 ### 4. **Social Isolation Spiral**
 **Detection**: Agents stop interacting despite being in proximity and having social motivations
@@ -122,32 +116,16 @@ Agent receives socially significant information?
 
 ## Worked Examples
 
-### Example 1: Multi-Day Party Planning Coordination
+### Example 1: Source Party Demonstration (reported, not a production fixture)
 
-**Scenario**: Isabella (artist) wants to throw Valentine's Day party, needs to coordinate with multiple agents over 3 days.
+Park et al. report two simulated game days in Smallville. Isabella Rodriguez is the café owner. The reported party demonstration traces information spread and attendance; it should not be rephrased as a three-day scripted scenario or as evidence that every stored claim is true.
 
-**Day 1 - Initial Planning**:
-- Isabella reflects on recent loneliness observations → forms goal to host party
-- Retrieval surfaces memories of past parties, friend relationships
-- Plans: "Ask Maria and Tom about Valentine's party this week"
-- Memory stores: [Observation: "Decided to host Valentine's party", Importance: 9]
+1. Keep an observed social statement with speaker/time/provenance and disclosure scope.
+2. A source-style retrieval can condition a language-model prompt on ranked records; it does not establish the statement’s truth.
+3. If a reflection cites records, preserve those identifiers and mark it **derived**. On later contradiction, retrieve the competing records, correct or supersede dependent reflections, and leave the source claim visible.
+4. Treat reported counts (for example, agents who heard of or attended the party) as a study observation with its stated interview/evaluation conditions, not a reliability or authorization guarantee.
 
-**Day 2 - Information Spreading**:
-- Isabella tells Maria about party → Maria stores [Observation: "Isabella planning Valentine's party, invited me", Importance: 7]
-- Maria's next reflection synthesizes: "Isabella values our friendship, I should help with party"
-- Maria plans: "Offer to help Isabella with decorations"
-- Tom overhears Isabella-Maria conversation → stores social observation, plans to ask about invitation
-
-**Day 3 - Emergent Coordination**:
-- Multiple agents now have party-related memories with high importance scores
-- Retrieval surfaces party context in multiple conversations
-- Klaus (who wasn't directly invited) learns through Tom, plans to create artwork for party
-- Coordination emerges: no central planner, but multiple agents converge on party preparation
-
-**Memory Retrieval Trade-offs Demonstrated**:
-- High relevance weight ensures party-related memories surface in social contexts
-- Importance decay prevents Day 1 memories from dominating Day 3 conversations
-- Recency bias helps coordinate immediate actions while importance preserves long-term goals
+A production system may add authority filters, an immutable compatible `spaceId`, and hybrid lexical+dense retrieval only as an explicit local policy; those are not claims about the paper’s cosine-based implementation.
 
 ### Example 2: Conflicting Plans Resolution
 
@@ -173,21 +151,22 @@ Agent receives socially significant information?
 - `references/failure-modes-and-boundary-conditions.md` — Documented failure modes and erratic behavior patterns from original research. **Read when** diagnosing unexpected agent behavior or planning robustness improvements.
 - `references/prompt-engineering-as-cognitive-architecture.md` — Prompt design as reasoning architecture component. **Read when** tuning agent decision-making or reflection triggers.
 - `diagrams/01_flowchart_agent_coherence_decision_tree.md` — Decision tree for diagnosing incoherent behavior and selecting remediation. **Read when** troubleshooting agent failures.
-- `diagrams/02_stateDiagram-v2_agent_behavior_loop:_memory-re.md` — State machine of memory-reflection-planning cycle. **Read when** understanding agent execution flow or timing.
+- `diagrams/02_stateDiagram-v2_agent_behavior_loop-_memory-re.md` — State machine of memory-reflection-planning cycle. **Read when** understanding agent execution flow or timing.
 - `diagrams/03_timeline_multi-timescale_planning_decom.md` — Timeline visualization of hierarchical planning across timescales. **Read when** designing multi-level intention structures.
+- `references/source-boundary-memory-lineage.md` — Source depth, memory-ID lineage, false-event correction, and believability versus factual grounding. **Read when** evaluating a Park-style simulation.
 
 ## Quality Gates
 
-- [ ] Memory retrieval returns 3-8 relevant memories for typical queries (not 0, not 50+)
+- [ ] Retrieval quality is evaluated on a declared corpus with memory IDs, recall/ranking results, and an abstention path.
 - [ ] Agent behavior remains consistent with established personality traits across >24 hour periods
 - [ ] Reflection triggers produce insights that influence future behavior (testable through repeated scenarios)
 - [ ] Plans adapt appropriately to environmental changes without complete goal abandonment
 - [ ] Multi-agent information spreads through social networks without telepathic coordination
 - [ ] Agent can reference specific past events when asked, not just general patterns
 - [ ] Social relationships strengthen/weaken based on interaction history and outcomes
-- [ ] Importance scoring distinguishes between routine and significant events (10:1+ ratio difference)
+- [ ] Importance calibration is evaluated against labeled fixture cases; values are local parameters, not paper defaults.
 - [ ] Temporal coherence maintained: actions reference appropriate past context for current situation
-- [ ] Performance scales: 100+ stored memories don't degrade response quality or speed significantly
+- [ ] Scale behavior is measured on the target memory corpus with declared latency and quality criteria.
 
 ## NOT-FOR Boundaries
 

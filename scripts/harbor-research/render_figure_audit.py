@@ -52,6 +52,8 @@ import os
 import re
 import subprocess
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import omni_ledger
 from datetime import date
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -175,10 +177,14 @@ def load_triage_dispositions() -> dict[str, set[str]]:
     not become unable to render because the triage doc broke."""
     path = abspath(TRIAGE_REL)
     out: dict[str, set[str]] = {}
-    if not os.path.isfile(path):
+    canonical = os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT)
+    if not (omni_ledger.document_exists(TRIAGE_REL) if canonical else os.path.isfile(path)):
         return out
-    with open(path, encoding="utf-8") as fh:
-        text = fh.read()
+    if canonical:
+        text = omni_ledger.document_text(TRIAGE_REL)
+    else:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
     for line in text.split("\n"):
         if not TRIAGE_ROW_RE.match(line):
             continue
@@ -404,7 +410,10 @@ def main() -> int:
         for rel_path, content in outputs:
             p = abspath(rel_path)
             on_disk = None
-            if os.path.isfile(p):
+            if rel_path in (DIGEST_REL, FAILURES_REL) and os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT):
+                if omni_ledger.document_exists(rel_path):
+                    on_disk = omni_ledger.document_text(rel_path)
+            elif os.path.isfile(p):
                 with open(p, encoding="utf-8") as fh:
                     on_disk = fh.read()
             if on_disk != content:
@@ -419,6 +428,10 @@ def main() -> int:
 
     if args.write:
         for rel_path, content in outputs:
+            if rel_path in (DIGEST_REL, FAILURES_REL) and os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT):
+                omni_ledger.update_document(rel_path, content)
+                print(f"updated ledger source {rel_path} ({len(content)} bytes)")
+                continue
             p = abspath(rel_path)
             os.makedirs(os.path.dirname(p), exist_ok=True)
             with open(p, "w", encoding="utf-8") as fh:

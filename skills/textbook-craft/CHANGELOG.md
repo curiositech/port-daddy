@@ -1,5 +1,27 @@
 # Textbook Craft — Changelog
 
+## v1.4.0 (2026-09-20)
+
+- Retain the body/apparatus measurement and bounded-gate intent of #10202
+  without its proposed title-keyword exemptions. Author-declared metadata
+  selects exact heading labels or unique exact titles; undeclared sections
+  stay body. No chapter/PDF blobs from that older PR are restored.
+- Citation-spread hints identify section spans, so repeated titles no longer
+  collapse distinct citation sites. Pedagogy-file discovery assertions compare
+  canonical paths across macOS aliases.
+- Body-only example coverage and opener selection; duplicate headings count
+  independently, all-apparatus chapters fail, and apparatus claims remain
+  subject to honesty checks. Reports expose the exclusions.
+- Stale or ambiguous metadata fails closed, including declarations for
+  unselected chapters. `--max-blocking N` permits a measured aggregate debt
+  budget without hiding failures or ignoring invalid input.
+- Activate only the 16 authored recap/exercise declarations in
+  `whitepaper/chapter-apparatus.json`; literature and teaching appendices stay
+  body. Replace the advisory CI step with a freshly measured ceiling of 15
+  blocking floors. The historical budget of 17 is not reused. Three actual
+  CLI-process tests witness breached-budget, stale-selector and apparatus-claim
+  failures. No manuscript or PDF changes are included.
+
 ## v1.3.0 (2026-09-15)
 
 `scripts/readers_eye.py` and `references/readers-eye-lexicon.json` landed in

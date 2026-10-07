@@ -1,0 +1,57 @@
+% 16:9 beamer skeleton — latexmk -pdf -outdir=build beamer.tex
+\documentclass[aspectratio=169, 11pt]{beamer}
+\usetheme{metropolis}                      % swap for Madrid if metropolis unavailable
+\setbeamertemplate{navigation symbols}{}
+\usepackage{booktabs}
+
+\title{Talk Title}
+\subtitle{Optional subtitle}
+\author{Author}
+\institute{Institution}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+\section{First Section}
+
+\begin{frame}{Incremental Bullets}
+  \begin{itemize}[<+->]
+    \item First point
+    \item Second point
+    \item Third point
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Two Columns}
+  \begin{columns}[T]
+    \begin{column}{.55\textwidth}
+      Text next to a figure. \onslide<2->{More appears on click without reflow.}
+    \end{column}
+    \begin{column}{.4\textwidth}
+      \centering
+      % \includegraphics[width=\linewidth]{fig/plot.pdf}
+      \rule{\linewidth}{3cm} % placeholder
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Code Needs Fragile}
+\begin{semiverbatim}
+latexmk -pdf main.tex
+\end{semiverbatim}
+\end{frame}
+
+\appendix
+\begin{frame}{Backup}
+  Backup slides live after \texttt{\string\appendix}.
+\end{frame}
+
+\end{document}

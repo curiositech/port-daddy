@@ -4,6 +4,7 @@
  *   npx tsx scripts/check-roadmap-link.ts            # CI: reads $GITHUB_EVENT_PATH
  *   npx tsx scripts/check-roadmap-link.ts 512        # local: inspect PR #512 via gh
  *   npx tsx scripts/check-roadmap-link.ts 512 --dry-run   # classify, mutate nothing
+ *   npx tsx scripts/check-roadmap-link.ts --body-file pr.md  # fully offline
  *
  * Decides whether a PR declares the roadmap item it advances. On a pull_request
  * event this is a required declaration check: a missing trailer blocks, while
@@ -17,7 +18,7 @@
  * GitHub mutations go through the `gh` CLI so this needs no extra deps and runs
  * the same locally as in Actions.
  */
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
   classifyDeclaration,
@@ -26,7 +27,16 @@ import {
 
 const LABEL = 'needs-roadmap-link';
 const COMMENT_MARKER = '<!-- roadmap-link-gate -->';
-const DRY_RUN = process.argv.includes('--dry-run');
+const BODY_FILE = argument('--body-file');
+const DRY_RUN = Boolean(BODY_FILE) || process.argv.includes('--dry-run');
+
+function argument(flag: string): string | undefined {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return undefined;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`${flag} requires a file path`);
+  return value;
+}
 
 interface PrInfo {
   number: number;
@@ -40,6 +50,10 @@ function gh(args: string[]): string {
 
 /** Resolve the PR under test: from a CLI arg (+gh) or from the Actions event JSON. */
 function resolvePr(): PrInfo | null {
+  // Explicit local input wins over inherited event state and numeric PR args.
+  if (BODY_FILE) {
+    return { number: 0, body: readFileSync(BODY_FILE, 'utf8'), labels: [] };
+  }
   const argNum = process.argv.find((a) => /^\d+$/.test(a));
   if (argNum) {
     const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels']));
@@ -63,17 +77,11 @@ function resolvePr(): PrInfo | null {
 
 function buildComment(r: LinkResult): string {
   const lines: string[] = [COMMENT_MARKER, '### 🗺️ Roadmap link gate', ''];
-  const linkCmd = (slug?: string) =>
-    [
-      '```bash',
-      `# create the item if needed, then stamp the PR (run locally, daemon required):`,
-      `npx tsx scripts/roadmap-link.ts ${r.slug ?? slug ?? '<pr-number>'}`,
-      '```',
-    ].join('\n');
+  const offlineHelp = 'Add a Roadmap-Item slug or a reasoned opt-out to this PR body. This records intent only; it does not create or dispatch a daemon item. Keep an operator-halted daemon stopped.';
 
   switch (r.reason) {
     case 'linked':
-      lines.push(`✅ Linked to roadmap item **\`${r.slug}\`**. Good to land.`);
+      lines.push(`✅ Linked to roadmap item **\`${r.slug}\`**. Declaration accepted; overall readiness is checked separately.`);
       break;
     case 'self-spawned':
       lines.push(
@@ -89,7 +97,7 @@ function buildComment(r: LinkResult): string {
       lines.push('⚠️ **This PR does not link a roadmap item.**', '');
       lines.push('Add one of these to the PR description:', '');
       lines.push('```', 'Roadmap-Item: <slug>', '# or, for a chore/docs/hotfix:', 'Roadmap-Item: none — <reason>', '```');
-      lines.push('', "Don't know the slug? Create the item and stamp the PR in one step:", '', linkCmd());
+      lines.push('', offlineHelp);
       lines.push('', `Until then this PR carries \`${LABEL}\` and **needs a human to approve the land.**`);
       break;
     default:
@@ -117,7 +125,7 @@ function writeStepSummary(r: LinkResult, pr: PrInfo): void {
     r.headline,
   ].join('\n');
   try {
-    execFileSync('bash', ['-c', `cat >> "${summaryFile}"`], { input: `${rows}\n` });
+    appendFileSync(summaryFile, `${rows}\n`);
   } catch {
     /* summary is best-effort */
   }

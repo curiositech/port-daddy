@@ -74,6 +74,10 @@ export interface Env {
   GITHUB_OWNER?: string;                  // repo owner (e.g. 'port-daddy-dev')
   GITHUB_REPO?: string;                   // repo name (e.g. 'port-daddy')
   DEFAULT_BRANCH?: string;                // trusted ref the executor reads from
+  // Fail-closed GitHub Actions OIDC admission policy. This is a public,
+  // bounded allowlist, not a credential; missing or malformed JSON rejects
+  // every GitHub Actions exchange.
+  OIDC_GITHUB_TRUST_POLICY_JSON?: string;
   // Stripe billing + prepaid credits (ADR-0116). The relay is the billing
   // authority. Billing endpoints return 503 (BILLING_UNCONFIGURED) unless both
   // secrets are set, so the relay still deploys before Stripe is provisioned.
@@ -152,11 +156,15 @@ export interface Env {
  * Shape MUST match apps/fleet-executor/src/env.ts FleetRunJob.
  */
 export interface FleetRunJob {
+  schemaVersion: 2;
+  tenantAccountId: string;
   deliveryId: string;
   eventType: string;
   action: string | null;
   repoFullName: string | null;
-  installationId: number | null;
+  installationId: number;
+  repositoryId: number;
+  githubAccountId: number;
   prNumber: number | null;
   payloadMinimal: {
     sender?: Record<string, unknown>;

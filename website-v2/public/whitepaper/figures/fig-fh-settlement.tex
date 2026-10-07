@@ -70,14 +70,6 @@
     {the custody assumption: whitelist, fee cap, one terminal transition are
     the theorem's hypothesis, not decoration};
 \end{tikzpicture}
-\caption{\textbf{The custody bound is the absence of an extra transition.}
-Panel A permits exactly one terminal move from funded custody to \textbf{Clear}
-or \textbf{Refuse}: pay the whitelisted beneficiary or return the bond. With a
-recipient whitelist and fee cap, worst-case loss is bounded by the agreed fee
-$\varphi$. Panel B holds the same ceremony but drops the non-bypassability
-hypothesis: one operator-controlled edge reaches redirect or a second close,
-and the worst case becomes the full custody balance. Threshold signing
-(\S\ref{sec:fh-escrow}) is only one candidate way to make panel A's absence of
-that edge structural; the bound holds only when it actually is. [internal]}
+\caption{With a non-bypassable gate, recipient whitelist, and fee cap, custody closes only by payment or refund. Adding an operator-controlled escape exposes the entire balance, not merely the fee. [internal]}
 \label{fig:fh-settlement}
 \end{figure}

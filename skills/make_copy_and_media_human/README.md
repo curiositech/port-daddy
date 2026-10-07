@@ -1,23 +1,23 @@
 # Make Copy and Media Human
 
 Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs,
-marketing pages, and generated imagery before anything outward-facing ships.
+marketing pages, lessons, academic books, notebooks, and generated media before anything outward-facing ships.
 
 Reach for this skill when text or design reads like AI, before you publish
 anything customer-facing, or when you're auditing a property for machine tells:
 Claudeisms, GPT-isms, Codexisms, Gemini caveat stacks, engineering-artifact slop,
 and the v0/Lovable design look.
 
-What it won't tell you whether a person used AI. That question has bad answers and
+It will not tell you whether a person used AI. That question has bad answers and
 worse consequences, and `references/fairness-and-false-positives.md` lays out
-why: detectors miss most machine text while falsely flagging around 61% of
-essays by non-native English speakers. So this is an editing tool. Every fix in
+why: a study of seven detectors found high false-positive rates on one corpus
+of non-native English essays; those rates do not transfer to every detector or author. So this is an editing tool. Every fix in
 the catalog improves writing regardless of who or what produced it, which is what
 lets you skip the authorship question entirely.
 
 ## Quick start
 
-Read `SKILL.md` first for the three laws, the five finding families, and the
+Read `SKILL.md` first for the three laws, the six finding families, and the
 process. Then collect two or three pieces of the author's own earlier writing,
 because comparing against their baseline is what turns the weakest half of the
 catalog into the strongest.
@@ -70,9 +70,9 @@ should make impossible rather than merely unlikely.
 
 | Path | Purpose |
 | --- | --- |
-| `SKILL.md` | Three laws, five families, decision tree, process, shibboleths, failure modes |
+| `SKILL.md` | Three laws, six families, decision tree, process, shibboleths, failure modes |
 | `references/fairness-and-false-positives.md` | Why findings are cues and not evidence; read before your first review |
-| `references/catalog.json` | Source of truth: 174 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/catalog.json` | Source of truth: the complete rule set with thresholds, false-positive notes, currency, and evidence |
 | `references/web-build-defects.md` | Web pages that are broken rather than merely generic; act on these first |
 | `references/fiction-and-narrative-tells.md` | Story-level tells; the strongest in the catalog |
 | `references/*.md` | Generated per-dialect and per-medium views of the catalog |
@@ -83,3 +83,24 @@ should make impossible rather than merely unlikely.
 | `templates/output-template.md` | Shape of a judge-pass finding and the delivery summary |
 | `examples/` | Before and after pairs for prose and a landing page, plus a rendered report |
 | `agents/openai.yaml` | Subagent descriptor for a delegated review |
+
+## Educational and title-structure review
+
+Read `references/review-decisions.md` for concept progression and title-layer
+triage, and `references/education-and-chrome-research.md` for evidence boundaries.
+The dated source audit distinguishes a review of the existing source notes from
+live verification; it does not certify every inherited claim.
+
+```bash
+python3 scripts/review_learning_structure.py chapter.md page.html chapter.tex --out candidates.json
+python3 scripts/humanize_review.py chapter.md --findings candidates.json --out report.html
+python3 scripts/test_learning_structure.py
+python3 scripts/test_review_regressions.py
+```
+
+A title-stack finding is a low-severity candidate. Read the layers and inspect
+rendered output before deciding whether they repeat meaning. HTML scanning includes
+ordinary `div` wrappers as separate scopes; sibling wrappers do not combine into
+one title stack. Optional learning
+maps record reviewer annotations, not automatically inferred mastery. See
+`templates/learning-map.json` and the scanner's `--help`.

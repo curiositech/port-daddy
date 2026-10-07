@@ -711,8 +711,11 @@ async function smokeSelfHostedDaemon(
     env: {
       ...process.env,
       PD_HOME: runtimeDir,
-      PORT_DADDY_DB: testDb,
+      PORT_DADDY_DISABLE_KEYCHAIN: '1',
       PORT_DADDY_PREFIX: runtimeDir,
+      // The self-hosted daemon is a bounded release test. When its caller
+      // supplies NODE_ENV=test, name the exact throwaway database explicitly
+      // so the production-database guard can prove this path is test-owned.
       PORT_DADDY_TEST_DB: testDb,
       PORT_DADDY_PORT: String(port),
       PORT_DADDY_NO_FLEET: '1',

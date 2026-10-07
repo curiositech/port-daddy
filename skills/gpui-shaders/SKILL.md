@@ -1,6 +1,6 @@
 ---
 name: gpui-shaders
-description: 'Metal/wgpu/WGSL shader surfaces for native Rust gpui apps (Zed-family, pd-console), stockpiled with beautiful copy-pasteable shader-toy examples. Use for custom GPU fragment passes behind/around gpui panes: ocean/water shaders, pixelated waves and boats, a living harbor, dithered chrome borders, sonar sweeps, aurora/starfields, CRT/scanline post. Trigger on: wgsl, wgpu, metal shader, gpui shader, shadertoy, fragment shader, SDF, noise/fbm, ordered dithering, pixelation, render-to-texture, "pixelated waves and boats", living harbor water. NOT for: web/GLSL/three.js shaders (use a web tool), non-shader gpui motion (use rust-gpui-motion), general GUI layout/color (use beautiful-gui-design), CLI/TUI (use beautiful-cli-design).'
+description: 'Implement per-pixel WGSL/wgpu shader effects for a native GPUI surface, including render-to-texture or a separate GPU window. Use when an effect truly needs fragment work such as noise, SDFs, water, full-resolution dithering, or scanlines. NOT for GPUI pane/layout contracts (gpui-rust-console), element-tree animation and transitions (rust-gpui-motion), cooperative-editor architecture (build-coop-ide-gpui), or web shaders.'
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
@@ -33,6 +33,8 @@ metadata:
 
 # gpui Shaders
 
+**Activation boundary:** own WGSL code, GPU budget, and texture/window integration only when a pixel shader is required. Route ordinary GPUI `div`/`canvas` composition to `gpui-rust-console` and `with_animation` state transitions to `rust-gpui-motion`. The effect list below is illustrative, not an automatic reason to allocate a GPU pass.
+
 Run your own WGSL fragment shaders on Metal (via wgpu) and get their pixels onto a native gpui window — for the per-pixel effects the element tree can't do (water, noise fields, dither, glints). The aesthetic house style is **pixelated + dithered retro-futurism** on the maritime palette; the engineering rule is **earn the GPU pass** — most "shader" ideas are better done with a gpui primitive or a Vello vector pass.
 
 ## When to Use
@@ -52,7 +54,7 @@ Run your own WGSL fragment shaders on Metal (via wgpu) and get their pixels onto
 
 ```mermaid
 flowchart TD
-  A[Want a visual effect on a gpui surface] --> B{Does it need TRUE per-pixel work?\n(noise, SDF field, water, raymarch, full-res dither)}
+  A[Want a visual effect on a gpui surface] --> B{"Does it need TRUE per-pixel work?<br/>(noise, SDF field, water, raymarch, full-res dither)"}
   B -->|No, it's shapes/quads/text| C[gpui element tree or paint/canvas]
   B -->|No, but vector + crisp text| D[Vello vector pass]
   B -->|Yes| E{Must it sit INSIDE the pane tree,\nreflowing with splits?}

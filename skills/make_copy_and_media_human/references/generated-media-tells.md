@@ -29,10 +29,8 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
-| [`breathless-uniform-prosody`](#breathless-uniform-prosody) | HIGH | visual | n/a |
 | [`identical-face-different-people`](#identical-face-different-people) | HIGH | visual | n/a |
 | [`mockup-of-nothing`](#mockup-of-nothing) | HIGH | form | n/a |
-| [`no-idle-micro-behavior`](#no-idle-micro-behavior) | HIGH | visual | n/a |
 | [`plausibly-wrong-chart`](#plausibly-wrong-chart) | HIGH | visual | n/a |
 | [`uniform-detail-no-focus-falloff`](#uniform-detail-no-focus-falloff) | HIGH | visual | n/a |
 | [`amber-white-balance-cast`](#amber-white-balance-cast) | med | visual | **no** |
@@ -40,6 +38,8 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`provenance-absent-or-stripped`](#provenance-absent-or-stripped) | med | residue | **no** |
 | [`stock-collaboration-photography`](#stock-collaboration-photography) | med | form | n/a |
 | [`ai-image-waxy-skin-mangled-hands`](#ai-image-waxy-skin-mangled-hands) | low | visual | n/a |
+| [`breathless-uniform-prosody`](#breathless-uniform-prosody) | low | visual | n/a |
+| [`no-idle-micro-behavior`](#no-idle-micro-behavior) | low | visual | n/a |
 
 <!-- humanize:ignore-end -->
 
@@ -47,27 +47,6 @@ Severity is how loudly the tell announces itself, never how sure you should be a
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
-
-<a id="breathless-uniform-prosody"></a>
-### `breathless-uniform-prosody`  ·  high · generic-llm · audio · llm-judge · family: visual
-
-Synthetic narration with even stress, no breath, and emphasis landing on function words. Sentences all start at the same pitch and fall the same way.
-
-**Why it reads AI:** Prosody encodes what the speaker means, and a system that has not understood the sentence stresses it by rule. Breath is the other giveaway, because a voice that never needs air has no body.
-
-**Detect:** Listen for a breath. Then listen for where the emphasis lands: 'the RESULTS were surprising' rather than 'the results were SURPRISING'.
-
-**Fix:** Record a person, or at minimum hand-mark emphasis and insert breaths. Proper nouns need a pronunciation pass regardless.
-
-**False positive when:** Trained broadcast narrators are extremely even, and heavy compression removes audible breath. Radio and audiobook professionals get flagged by this constantly.
-
-**Before**
-
-> Ninety seconds of even, breathless narration over stock footage.
-
-**After**
-
-> A take with a person in it, including the place they stumble.
 
 <a id="identical-face-different-people"></a>
 ### `identical-face-different-people`  ·  high · generic-llm · web-ui · llm-judge · family: visual
@@ -110,27 +89,6 @@ A hero visual that is chrome without a product: a browser frame or device bezel 
 **After**
 
 > A screenshot of the real queue with three real table names in it.
-
-<a id="no-idle-micro-behavior"></a>
-### `no-idle-micro-behavior`  ·  high · generic-llm · video · llm-judge · family: visual
-
-People in generated video do the thing they were asked to do and nothing else. No blinking at the wrong moment, no weight shift, no glance off-camera, no hand doing something absent-minded.
-
-**Why it reads AI:** The model animates the prompt. Idle behavior is what a body does when nobody is directing it, and there is no instruction for it.
-
-**Detect:** Watch a person who is not the focus of the shot. Real people are never doing only one thing.
-
-**Fix:** Cut to the background actor and see whether the shot survives. Usually it does not, which tells you what to keep.
-
-**False positive when:** Direction, and staged corporate footage, both produce unnaturally still extras. This is an underrated tell precisely because people look at the main subject.
-
-**Before**
-
-> A conference room where everyone not speaking is perfectly still.
-
-**After**
-
-> Real footage, or a tighter shot that does not show the room.
 
 <a id="plausibly-wrong-chart"></a>
 ### `plausibly-wrong-chart`  ·  high · generic-llm · chart · llm-judge · family: visual
@@ -292,5 +250,51 @@ OBSOLETE AS A PRIMARY TEST. The 2022-2024 image giveaways — six-fingered hands
 **After**
 
 > Checking Content Credentials, running a reverse image search, and asking the designer where the file came from.
+
+<a id="breathless-uniform-prosody"></a>
+### `breathless-uniform-prosody`  ·  low · generic-llm · audio · llm-judge · family: visual
+
+Synthetic narration with even stress, no breath, and emphasis landing on function words. Sentences all start at the same pitch and fall the same way.
+
+**Why it reads AI:** Prosody encodes what the speaker means, and a system that has not understood the sentence stresses it by rule. Breath is the other giveaway, because a voice that never needs air has no body.
+
+**Detect:** Listen for a breath. Then listen for where the emphasis lands: 'the RESULTS were surprising' rather than 'the results were SURPRISING'.
+
+**Fix:** Record a person, or at minimum hand-mark emphasis and insert breaths. Proper nouns need a pronunciation pass regardless.
+
+**False positive when:** Trained broadcast narrators are extremely even, and heavy compression removes audible breath. Radio and audiobook professionals get flagged by this constantly.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> Ninety seconds of even, breathless narration over stock footage.
+
+**After**
+
+> A take with a person in it, including the place they stumble.
+
+<a id="no-idle-micro-behavior"></a>
+### `no-idle-micro-behavior`  ·  low · generic-llm · video · llm-judge · family: visual
+
+People in generated video do the thing they were asked to do and nothing else. No blinking at the wrong moment, no weight shift, no glance off-camera, no hand doing something absent-minded.
+
+**Why it reads AI:** The model animates the prompt. Idle behavior is what a body does when nobody is directing it, and there is no instruction for it.
+
+**Detect:** Watch a person who is not the focus of the shot. Real people are never doing only one thing.
+
+**Fix:** Cut to the background actor and see whether the shot survives. Usually it does not, which tells you what to keep.
+
+**False positive when:** Direction, and staged corporate footage, both produce unnaturally still extras. This is an underrated tell precisely because people look at the main subject.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> A conference room where everyone not speaking is perfectly still.
+
+**After**
+
+> Real footage, or a tighter shot that does not show the room.
 
 <!-- humanize:ignore-end -->

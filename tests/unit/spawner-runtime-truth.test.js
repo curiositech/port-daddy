@@ -63,11 +63,23 @@ async function buildRouteApp({ transcripts, spawner, costTracker }) {
     metrics: { errors: 0 },
     logger: { info: jest.fn(), error: jest.fn() },
   };
+  // Route-only fixture: the real WorkIntent admission and receipts are covered
+  // by work-intent-spawn.test.ts. Keep this adapter inert while exercising the
+  // route's effective-runtime spec and the spawner's transcript persistence.
+  const workIntentSpawn = {
+    run: async (spec) => {
+      const result = await spawner.spawn(spec);
+      return { result, runReceipt: { status: result.status }, duplicate: false };
+    },
+    replay: async () => null,
+    get: () => null,
+  };
 
   await app.register(spawnPlugin, {
     deps: {
       ...deps,
       spawner,
+      workIntentSpawn,
       costTracker,
     },
   });
@@ -118,6 +130,7 @@ describe('spawner effective runtime truth', () => {
     process.env.PD_USE_CLI_BACKEND = 'codex';
     const costTracker = makeCostTracker();
     const spawner = createSpawner({
+      runtimeAllowed: () => true,
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,
@@ -177,6 +190,7 @@ describe('spawner effective runtime truth', () => {
     process.env.PD_USE_CLI_BACKEND = 'codex';
     const costTracker = makeCostTracker();
     const spawner = createSpawner({
+      runtimeAllowed: () => true,
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,
@@ -221,6 +235,7 @@ describe('spawner effective runtime truth', () => {
     process.env.PD_USE_CLI_BACKEND = 'none';
     const costTracker = makeCostTracker();
     const spawner = createSpawner({
+      runtimeAllowed: () => true,
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,
@@ -297,6 +312,7 @@ describe('spawner effective runtime truth', () => {
 
     const costTracker = makeCostTracker();
     const spawner = createSpawner({
+      runtimeAllowed: () => true,
       transcripts,
       costTracker,
       enforceTelemetryPolicy: true,

@@ -476,17 +476,17 @@ Everything is a div. No main, nav, header, footer, section or article anywhere.
 
 Escape handling, a focus trap or focus restoration written in source and not working at runtime.
 
-**Why it reads AI:** The canonical model signature, with the cleanest numbers anywhere in this catalog. Escape handlers were present in 79% of generated modals and worked in 59%, and 1,031 of 1,032 failures threw no console error, so the failure is invisible to every non-interactive check. Focus containment was worse: only 12% held focus on a bare prompt.
+**Why it reads AI:** A high-value interaction-risk signal: visible handlers and attributes do not prove keyboard behavior. Generated and human-written interfaces can both fail these checks; the pattern does not establish authorship.
 
 **Detect:** Static detection can only find the DECLARATION and say so. Settling it needs a browser: open by keyboard, press Escape, assert closed; reopen, Tab past the last control, assert focus never leaves the dialog; close, assert focus returned to the trigger.
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
 
-**Fix:** Stop hand-writing it: native <dialog> with showModal(), or Radix or React Aria with their defaults left alone. If custom code must stay, the required set is focus in on open, Tab and Shift+Tab contained, Escape closes, focus restored to the trigger, background scroll locked and background content inert. Then drive it in a browser, because this is the one entry where source review provably does not suffice. Note that asking a model for accessibility can reduce basic function: 'make it accessible using <dialog>' scored 80% working opens against 98% for the plainer instruction.
+**Fix:** Use an appropriate maintained dialog implementation, then test focus on open, Tab and Shift+Tab containment, Escape dismissal, focus restoration and background inertness in a browser. Respect the different contracts of modal dialogs, non-modal dialogs and popovers. The rendered behavior, not the presence of an event handler, settles the finding.
 
 **False positive when:** Non-modal dialogs and popovers have a different keyboard contract, and stacked dialogs move focus to the topmost layer on purpose. Crucially: with native <dialog> you do not need to hand-trap focus, so ABSENCE of trap code there is correct. Only ever flag on driven behaviour, never on missing trap code.
 
-**Evidence:** Featherstone operability study: handlers present 79% / working 59%; 1,031 of 1,032 failures silent; focus fully held 12% bare, 64% guided.
+**Evidence:** Existing source leads: https://feather.ca/experiments/ai-ui-accessibility-operability/ and https://feather.ca/experiments/ai-ui-accessibility-baseline/ . Their numerical claims were inherited from catalog notes and were not live-verified in the 2026-09-19 research pass. Do not use those figures as calibrated thresholds or authorship evidence; reproduce the behavior for the reviewed artifact.
 
 **Before**
 

@@ -13,17 +13,6 @@ description: >
   linting or formatting (use static analysis tools), runtime verification of
   invariants (use runtime-verification-for-agents), or general multi-agent
   orchestration (use multi-agent-coordination).
-category: Formal Methods & Verification
-tags:
-  - tree-sitter
-  - AST
-  - conflict-prediction
-  - semantic-analysis
-  - multi-agent
-  - dependency-graph
-  - symbol-claims
-  - static-analysis
-  - coordination
 metadata:
   category: AI & Agents
   tags:
@@ -33,6 +22,9 @@ metadata:
     - semantic-analysis
     - multi-agent
     - static-analysis
+    - dependency-graph
+    - symbol-claims
+    - coordination
   pairs-with:
     - skill: multi-agent-coordination
       reason: Conflict prediction is the intelligence layer above coordination primitives
@@ -1206,6 +1198,17 @@ Agent says "I will modify createRoutes in server.ts"
 **They do not understand:** "Our static analysis catches everything." (It provably cannot, by Rice's theorem.)
 
 ---
+
+## Candidate evidence and calibration boundary
+
+Structural analysis creates conflict candidates, not semantic verdicts. Bind each
+candidate to a source snapshot, parser and grammar version, parse coverage, and
+unknown/dynamic features. A missing edge is `UNKNOWN` unless analysis establishes
+coverage. Candidate rankings become probabilities only after calibration against
+held-out integration outcomes from the target repositories and languages; stale or
+partial parses stay advisory. See [parse and trace a claim](diagrams/02_parse-and-trace-claim.md),
+[candidate classification](diagrams/03_conflict-candidate-boundary.md), and
+[`references/evidence-and-calibration.md`](references/evidence-and-calibration.md).
 
 ## References and Further Reading
 

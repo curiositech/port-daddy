@@ -22,7 +22,7 @@
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdgold}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.95cm,y=1cm]
   % ---- the grid ---------------------------------------------------------
   \def\lx{-0.40}   % row-label column (anchor east)
   \def\x0{0}       % lane start
@@ -36,7 +36,7 @@
   \draw[pd spine] (\tcommit,-1.55) -- (\tcommit,4.30);
   \node[pd tag,anchor=south] at (\tcommit,4.35) {atomic commit boundary};
   % ---- wallet: steps down at commit, neutral ------------------------------
-  \node[pd title,anchor=east] at (\lx,3.60) {wallet};
+  \node[pd title,anchor=east] at (\lx,3.60) {wallets};
   \draw[pd rule] (\x0,3.85) -- (\tcommit,3.85) -- (\tcommit,3.35) -- (\xe,3.35);
   \node[pd label,anchor=south west] at ({\tcommit+.15},{3.35+.14}) {debited};
   % ---- escrow row: steps up at commit, the settlement concept -------------
@@ -65,14 +65,10 @@
   \foreach \x/\lab in {\tzero/{signed plan},\tone/{transaction begins},
                        \tcommit/{commit},\tclear/{clearance}}{
     \draw[pd tick] (\x,-2.07) -- (\x,-2.23);
-    \node[pd label,anchor=north] at (\x,-2.30) {\lab};}
+    \node[pd label,anchor=north,text width=1.5cm,align=center] at (\x,-2.30) {\lab};}
 \end{tikzpicture}
-\caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
-The wallet debit and the escrow-row write happen at the same commit (the gold
-spine): both traces jump on the same serialized transaction. Only after that
-committed row is observable, once the worker verifies the signed row check,
-does worker state move from nonexistent to running (green) -- strictly later,
-never earlier. In the abort window before the commit, no trace moves: the
-invariant lives at the transition, not at a component or a message label. [internal]}
+\caption{Proposed admission order: requester bounty and provider bond are
+reserved together. The worker waits for the reservation receipt.
+The signed ceremony and enforced gate are not yet complete. [internal]}
 \label{fig:he-float-plan}
 \end{figure}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trust-typed-context-ir-v1.schema.json",
+  "title": "Trust-typed Context IR v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "capsuleId", "subject", "compiler", "inputManifestDigest", "policyDigest", "items", "retrievalJoins", "obligations", "translations", "omissions", "unknowns", "proposalNonce", "outputDigest", "admissionAuthority", "capabilityAuthority", "truthEffect"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "capsuleId": {"type": "string", "minLength": 1},
+    "subject": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actorId", "predecessorBodyId", "proposedBodyId", "authorityEpoch", "repository", "taskId", "audience"],
+      "properties": {"actorId": {"type": "string", "minLength": 1}, "predecessorBodyId": {"type": "string", "minLength": 1}, "proposedBodyId": {"type": "string", "minLength": 1}, "authorityEpoch": {"type": "integer", "minimum": 1}, "repository": {"type": "string", "minLength": 1}, "taskId": {"type": "string", "minLength": 1}, "audience": {"type": "string", "minLength": 1}}
+    },
+    "compiler": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compilerId", "policyVersion", "sourceManifestRef"],
+      "properties": {"compilerId": {"type": "string", "minLength": 1}, "policyVersion": {"type": "string", "minLength": 1}, "sourceManifestRef": {"type": "string", "minLength": 1}}
+    },
+    "inputManifestDigest": {"type": "string", "minLength": 1},
+    "policyDigest": {"type": "string", "minLength": 1},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["itemId", "contentRef", "contentDigest", "trustClass", "instructionUse", "authorityRef", "provenanceRefs", "disclosureScope", "audience", "freshness", "revocationChecked", "integrityRef", "spaceId", "redaction", "obligationIds"],
+        "properties": {
+          "itemId": {"type": "string", "minLength": 1}, "contentRef": {"type": "string", "minLength": 1}, "contentDigest": {"type": "string", "minLength": 1},
+          "trustClass": {"enum": ["VERIFIED_FACT", "CURRENT_OPERATOR_DIRECTIVE", "HISTORICAL_INTENT", "PROPOSAL", "MODEL_INFERENCE", "THIRD_PARTY_CONTENT", "SECRET_HANDLE"]},
+          "instructionUse": {"enum": ["DIRECTIVE_ELIGIBLE", "DATA_ONLY", "FORBIDDEN"]}, "authorityRef": {"type": ["string", "null"]},
+          "provenanceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}, "disclosureScope": {"type": "string", "minLength": 1},
+          "audience": {"type": "string", "minLength": 1}, "freshness": {"enum": ["CURRENT", "STALE", "UNKNOWN"]}, "revocationChecked": {"type": "boolean"},
+          "integrityRef": {"type": ["string", "null"]}, "spaceId": {"type": ["string", "null"]}, "redaction": {"enum": ["NONE", "REDACTED", "OPAQUE_HANDLE"]},
+          "obligationIds": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "retrievalJoins": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["joinId", "querySpaceId", "candidateSpaceId", "policyRef", "status"],
+        "properties": {"joinId": {"type": "string", "minLength": 1}, "querySpaceId": {"type": "string", "minLength": 1}, "candidateSpaceId": {"type": "string", "minLength": 1}, "policyRef": {"type": "string", "minLength": 1}, "status": {"enum": ["MATCHED", "REJECTED_SPACE_MISMATCH"]}}
+      }
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["obligationId", "statement", "status", "sourceRefs", "reason"],
+        "properties": {"obligationId": {"type": "string", "minLength": 1}, "statement": {"type": "string", "minLength": 1}, "status": {"enum": ["COVERED", "OMITTED", "UNKNOWN"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}, "reason": {"type": ["string", "null"]}}
+      }
+    },
+    "translations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "sourceName", "targetName", "status", "authorityRef", "rationale"],
+        "properties": {"kind": {"enum": ["MODEL", "SKILL", "TOOL", "MCP", "HOOK", "PERMISSION", "PROMPT", "SETTING"]}, "sourceName": {"type": "string", "minLength": 1}, "targetName": {"type": ["string", "null"]}, "status": {"enum": ["EXACT", "NARROWED", "SUBSTITUTED", "OMITTED", "UNKNOWN"]}, "authorityRef": {"type": ["string", "null"]}, "rationale": {"type": "string", "minLength": 1}}
+      }
+    },
+    "omissions": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["omissionId", "category", "reason", "policyRef"], "properties": {"omissionId": {"type": "string", "minLength": 1}, "category": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}, "policyRef": {"type": "string", "minLength": 1}}}
+    },
+    "unknowns": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "proposalNonce": {"type": "string", "minLength": 1},
+    "outputDigest": {"type": "string", "minLength": 1},
+    "admissionAuthority": {"const": "NONE"},
+    "capabilityAuthority": {"const": "NONE"},
+    "truthEffect": {"const": "NONE"}
+  }
+}

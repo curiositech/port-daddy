@@ -11,8 +11,8 @@ Provenance manifest for the web-surface artifacts, per the
 
 ## Why these replace the pair already on the branch
 
-`docs/pr-assets/retire-chapter-pdfs/before-single-writer-kernel.png` and
-`docs/pr-assets/retire-chapter-pdfs/after-single-writer-kernel.png` are one
+`https://media.portdaddy.dev/sha256/c5/c521572bc53e953f541b50b17a66918ba79e3ac9736d249e9b0673f5a0239b27.png` and
+`https://media.portdaddy.dev/sha256/d0/d02e296c9c594210f5affa5fc31fe6ff7f3a0104c6c395dbf58f072472b80096.png` are one
 route, one theme, one viewport, and the PR body links to them rather than
 embedding them. These 24 cover every surface the diff re-renders, in both themes
 and at both widths, and are embedded as images.

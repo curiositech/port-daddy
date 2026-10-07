@@ -57,6 +57,12 @@ function makeMockD1(cap: Captured): D1Database {
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
+        if (query.includes('FROM fleet_tenant_repositories r')) {
+          return { results: [{
+            tenant_account_id: 'fta_test', installation_id: 777,
+            repository_id: 42, github_account_id: 9001,
+          }] as T[] };
+        }
         return { results: [] };
       },
       async run() {
@@ -148,7 +154,8 @@ function webhookReq(opts: {
 
 const PR_BODY = JSON.stringify({
   action: 'opened',
-  repository: { full_name: 'curiositech/port-daddy', id: 42 },
+  repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
+  installation: { id: 777 },
   sender: { login: 'octocat', id: 1 },
 });
 
@@ -277,7 +284,7 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
   // persist gate must reject it on event-type alone.
   const WORKFLOW_RUN_BODY = JSON.stringify({
     workflow_run: { id: 99, conclusion: 'success' },
-    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
     sender: { login: 'octocat', id: 1 },
   });
 
@@ -333,7 +340,7 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     const env = makeEnv(cap, published);
     const body = JSON.stringify({
       action: 'assigned', // not in PERSIST_EVENT_TYPES
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
     });
     const sig = sign(SECRET, body);
@@ -357,7 +364,7 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     const env = makeEnv(cap, published);
     const body = JSON.stringify({
       action: 'labeled',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
     });
     const sig = sign(SECRET, body);
@@ -401,7 +408,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
 
   const MERGE_GROUP_BODY = JSON.stringify({
     action: 'checks_requested',
-    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
     sender: { login: 'octocat', id: 1 },
     installation: { id: 777 },
     merge_group: {
@@ -438,6 +445,12 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     // executor can hang a check run on, so losing it loses the whole fix.
     expect(job.prNumber).toBeNull();
     expect(job.installationId).toBe(777);
+    expect(job).toMatchObject({
+      schemaVersion: 2,
+      tenantAccountId: 'fta_test',
+      repositoryId: 42,
+      githubAccountId: 9001,
+    });
     expect(job.payloadMinimal.merge_group?.head_sha).toBe(
       'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1'
     );
@@ -466,7 +479,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     const sent: unknown[] = [];
     const body = JSON.stringify({
       action: 'destroyed',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       merge_group: { head_sha: 'deadbeef' },
@@ -503,7 +516,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     const reviewSent: unknown[] = [];
     const editedBody = JSON.stringify({
       action: 'edited',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       pull_request: { number: 7, head: { sha: 'same-head' } },
@@ -520,6 +533,45 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect(res.status).toBe(204);
     expect(reviewSent).toHaveLength(1);
     expect(reviewSent[0]).toMatchObject({ action: 'edited', deliveryId: 'pr-edited-1' });
+  });
+
+  it('returns retryable 503 before persistence when tenant storage is unavailable', async () => {
+    const sent: unknown[] = [];
+    const { env, cap } = envWithQueues(sent);
+    const base = env.DB;
+    env.DB = {
+      ...base,
+      prepare(sql: string) {
+        if (sql.includes('FROM fleet_tenant_repositories r')) throw new Error('D1 unavailable');
+        return base.prepare(sql);
+      },
+    } as D1Database;
+    const res = await handleGithubWebhook(webhookReq({
+      body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'store-down',
+    }), env);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: 'FLEET_TENANT_LOOKUP_FAILED' });
+    expect(sent).toHaveLength(0);
+    expect(cap.events).toHaveLength(0);
+  });
+
+  it('acknowledges an unbound immutable repository as permanent non-work', async () => {
+    const sent: unknown[] = [];
+    const { env, cap } = envWithQueues(sent);
+    const base = env.DB;
+    env.DB = {
+      ...base,
+      prepare(sql: string) {
+        if (!sql.includes('FROM fleet_tenant_repositories r')) return base.prepare(sql);
+        return { bind() { return this; }, async all() { return { success: true, results: [] }; } } as unknown as D1PreparedStatement;
+      },
+    } as D1Database;
+    const res = await handleGithubWebhook(webhookReq({
+      body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'unbound',
+    }), env);
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+    expect(cap.audits).toContainEqual({ action: 'fleet_run_not_admitted', target: 'curiositech/port-daddy' });
   });
 });
 
@@ -618,7 +670,7 @@ describe('fleet enqueue — durable PR generation admission', () => {
   function prBody(sha: string): string {
     return JSON.stringify({
       action: 'synchronize',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       pull_request: {

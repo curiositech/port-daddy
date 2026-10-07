@@ -1,0 +1,70 @@
+[
+  {
+    "text_bounds_pt": [
+      90,
+      74.659259,
+      409.284538,
+      433.175525
+    ],
+    "text_width_in": 4.434507472222222,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nPTLEFV+TeXGyrePagella-Bold           Type 1            Custom           yes yes yes      7  0\nKECXDA+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:44 2026 PDT\nModDate:         Thu Sep 24 09:27:44 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       504 x 720 pts\nPage rot:        0\nFile size:       127645 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  },
+  {
+    "text_bounds_pt": [
+      4.184,
+      6.645259,
+      313.834291,
+      264.859525
+    ],
+    "text_width_in": 4.300698486111111,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nPTLEFV+TeXGyrePagella-Bold           Type 1            Custom           yes yes yes      7  0\nWWIPKI+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:46 2026 PDT\nModDate:         Thu Sep 24 09:27:46 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       331.119 x 282.931 pts\nPage rot:        0\nFile size:       119354 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  },
+  {
+    "pdf": "chain-vs-path-swiss-page.pdf",
+    "text_bounds_pt": [
+      90,
+      74.852427,
+      409.284538,
+      433.175525
+    ],
+    "text_width_in": 4.434507472222222,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nKFTHBM+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0\nJWMTWX+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\nOVDODO+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes     11  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:47 2026 PDT\nModDate:         Thu Sep 24 09:27:47 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       504 x 720 pts\nPage rot:        0\nFile size:       121012 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  },
+  {
+    "pdf": "chain-vs-path-swiss.pdf",
+    "text_bounds_pt": [
+      4.184,
+      6.837427,
+      314.587469,
+      264.375675
+    ],
+    "text_width_in": 4.311159291666666,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nKFTHBM+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0\nJWMTWX+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:49 2026 PDT\nModDate:         Thu Sep 24 09:27:49 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       331.119 x 282.931 pts\nPage rot:        0\nFile size:       66089 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  },
+  {
+    "text_bounds_pt": [
+      90,
+      74.852427,
+      409.284538,
+      433.175525
+    ],
+    "text_width_in": 4.434507472222222,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nKFTHBM+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0\nJWMTWX+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\nOVDODO+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes     11  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:50 2026 PDT\nModDate:         Thu Sep 24 09:27:50 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       504 x 720 pts\nPage rot:        0\nFile size:       121013 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  },
+  {
+    "text_bounds_pt": [
+      4.184,
+      6.837427,
+      314.587469,
+      264.375675
+    ],
+    "text_width_in": 4.311159291666666,
+    "fonts": "name                                 type              encoding         emb sub uni object ID\n------------------------------------ ----------------- ---------------- --- --- --- ---------\nKFTHBM+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0\nJWMTWX+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0\nIBSVAE+CMMI9                         Type 1            Builtin          yes yes yes      9  0\nOWQBLA+CMSY9                         Type 1            Builtin          yes yes yes     10  0\n",
+    "pdfinfo": "Creator:         TeX\nProducer:        pdfTeX-1.40.29\nCreationDate:    Thu Sep 24 09:27:52 2026 PDT\nModDate:         Thu Sep 24 09:27:52 2026 PDT\nCustom Metadata: yes\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       331.119 x 282.931 pts\nPage rot:        0\nFile size:       66100 bytes\nOptimized:       no\nPDF version:     1.7\n"
+  }
+]

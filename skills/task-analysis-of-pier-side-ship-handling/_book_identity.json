@@ -1,0 +1,12 @@
+{
+  "status": "corrected active source identity; the historical generated identity is preserved verbatim in provenance/original-book-identity.json",
+  "source": {
+    "title": "A Task Analysis of Pier Side Ship-Handling for Virtual Environment Ship-Handling Simulator Scenario Development",
+    "author": "Charles R. Grassi, Lieutenant USN",
+    "type": "M.S. thesis, Naval Postgraduate School, September 2000",
+    "advisors": ["Rudolph P. Darken", "Barry Peterson"]
+  },
+  "source_bounded_contribution": "The thesis develops GOMS-like models and Critical Cue Inventories for two generic/simple pier-side simulator evolutions, then amends them through CDM interviews with five qualified SWOs. It does not prove universal expert cognition, cue independence, or operational sufficiency.",
+  "active_scope": "Historical simulator-analysis method only; any other simulator or agent application is a constructed adaptation with its own evidence and review.",
+  "preimage": "provenance/original-book-identity.json"
+}

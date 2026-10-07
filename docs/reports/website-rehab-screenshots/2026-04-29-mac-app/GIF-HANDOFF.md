@@ -12,7 +12,7 @@ routes were verified after the no-clipping fix for Agent Radio command examples.
 
 Suggested stills already captured:
 
-- `01-home-hero-agent-radio.png`
+- `https://media.portdaddy.dev/sha256/1f/1f5ef371c698df004a803a76611cea9ee2551db76ab30645c20e2a3d035ece9d.png`
 - `02-agent-radio-section.png`
 - `06-download-section.png`
 - `14-mobile-agent-radio-section.png`

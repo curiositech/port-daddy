@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant Agent
+  participant Service as External service
+  participant Authority as Authoritative status source
+  Agent->>Service: Submit action with operation key
+  Note over Agent,Service: Timeout. Effect unknown
+  Agent->>Authority: Query status for that operation key
+  alt Committed
+    Authority-->>Agent: Receipt or state confirms effect
+    Note right of Agent: Record effect. Do not retry
+  else Confirmed absent and fenced
+    Authority-->>Agent: Current absence and stable key or fence blocks late commit
+    Note right of Agent: Retry only when authorized
+  else Still ambiguous
+    Authority-->>Agent: Stale, incomplete, or inconclusive result
+    Note right of Agent: Stop and escalate
+  end

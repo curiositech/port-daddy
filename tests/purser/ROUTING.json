@@ -30,6 +30,9 @@
     "test-concurrency.js": {
       "runner": "node-test"
     },
+    "test-contents-chapter-plates.mjs": {
+      "runner": "node-test"
+    },
     "test-cyclic-imports.js": {
       "runner": "node-test"
     },

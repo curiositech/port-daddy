@@ -1,0 +1,1001 @@
+{
+  "schemaVersion": 2,
+  "profile": "v2",
+  "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
+  "fileCount": 248,
+  "packetSha256": "2933d58ba921d495bb65eb877a2db81010a2ee54a5c5e035cd0385960619dc14",
+  "files": [
+    {
+      "path": "docs/research/drydock-anchor-convention/convention.json",
+      "sha256": "852cb3e68980019538c570f749430c14c9c47b70398c07449d0348b1c253c01b"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/convention.schema.json",
+      "sha256": "0cacf12a810af6c87fc83519e7a4736b965d0a0ed24e43fb89c06df587e71f72"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P1.md",
+      "sha256": "ab3228ce4a703c11ff2c69db48621479651320b050202729444b353c2515aad8"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P10.md",
+      "sha256": "82c990542eb1d1e0c9e3ecf55862da2450bef1d3b9bf07f2803a0f68cf22372d"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P2.md",
+      "sha256": "3441cc817546614c614569c91c714db7bdcbc3dead90e64569d2ff9850671b9e"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P3.md",
+      "sha256": "578d6ca6f0062d4846e9768c64bba3f2727468292c003b1983be7a8efecb0bc3"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P4.md",
+      "sha256": "1e13474526532217a71d29ee5fa4bc4486cf1a6124addbeccfa8183c73b3ab55"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P5.md",
+      "sha256": "ec893146e312fe228fdbeb17f681475fc799c243900171fe39cda0699f4f882d"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P6.md",
+      "sha256": "893ae969165220f619331f09212400d84ed3dbdb0b47e957f332902071bf7383"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P7.md",
+      "sha256": "cf46700795966b34efde99d865bb08f1eded8ec4ff48944a4512db44996fd1f4"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P8.md",
+      "sha256": "11e959669484642f9a392700ef36cd9c0f691d2f2428b9e5e34b57c6f6f015f8"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/corrections/C-P9.md",
+      "sha256": "75860e2ab7c7102732c907fd001ab415a3f7da2c7e29d1d94c6215ee654ac2dc"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/functional-beats/cross-reviews/design-reviews-em-pm.md",
+      "sha256": "ceda563051cc70bf1432034ab61a5d11bf3f1b5915795ad82752bfca86a87e6a"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/functional-beats/cross-reviews/em-reviews-pm-design.md",
+      "sha256": "5a61e22bb7e1360013b117e861d1f95498be34be5a5bc72b9b643a0fc1f10c97"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/functional-beats/cross-reviews/pm-reviews-em-design.md",
+      "sha256": "067b6df859337d5cf4f8da9b6397330ba778fdfd04c2745d737d2fd3300b67f4"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/operator-prototype/index.html",
+      "sha256": "890c7d60a3e281a7341c6671b6def9799c70e0123347b015cbb653048f39239c"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/operator-prototype/README.md",
+      "sha256": "251047d98dd73bc533860b17d1e0d19c9f7a90ad130286a83cf9303e865bbd57"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/operator-prototype/validate-static-prototype.mjs",
+      "sha256": "03e044e525401a10ba39209ba86050905210348af0c1c9b0a2a504eadb5c35d2"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P1-containment-and-tcb.md",
+      "sha256": "b43c2182dd675847f25223d69d9e291f0f257fecb362aaaa0fde658be5b7d754"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P10-human-factors-and-operator-sovereignty.md",
+      "sha256": "c1e9997f7ae10a385a08507e7cc7894aaea8d755d7dce7b01db965725407e4f3"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P2-anchor-evidence-and-verification.md",
+      "sha256": "8914e750ec8c62d422f30077d5cfccc77216138d28d7cc0d13268860c8b3666b"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P3-identity-resurrection-and-effects.md",
+      "sha256": "53ce93ec0813e90304327b7a2cb95db73610e63f48fb7238b93118175e6d5754"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P4-hypertree-execution-and-coordination.md",
+      "sha256": "508b9ba112a3068d8a8a224af637f6016bfd0268998800777d1c5e2c119d8861"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P5-capability-and-consequential-effects.md",
+      "sha256": "388b285a18cb2927e7f5a23585e818640760a0ca42a6619bf6546716970983f1"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P6-capacity-economics-and-conservation.md",
+      "sha256": "a8faf248864c00199ba0f338929b18ee0497f98c15f6accb2a619aefc7372c46"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P7-context-integrity-memory-and-cognition.md",
+      "sha256": "034874f1558b96779bec8e3b2bf0dade596a03db6fa9d2013d7db38653f24160"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P8-deterministic-evaluation-and-formal-limits.md",
+      "sha256": "03d6088211ae94b73f48e6ab794e420eccbee7f79a7f83dbd98917c0f7be70da"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/positions/P9-governance-labor-and-mechanism-design.md",
+      "sha256": "8bc1811a64080ea1175afe65a6a8f0606e47550611e992edfcc613297bc763c0"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/README.md",
+      "sha256": "08f3e2c03f165a98fe52da869263358afa132108fc124270fa582a78df8a19a5"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reality-checks/design.md",
+      "sha256": "e05b508560729beda8bec10162128215249c3b2a6a3e885852af8cf4bdd5ae27"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reality-checks/engineering.md",
+      "sha256": "7b25f258074dd6ec815448a2d4a5e6f83302b121759bc3f01485388f63c02f30"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reality-checks/product.md",
+      "sha256": "fbe581a35d9ccdff23f908748ceeafdb366d00fef5f0eeb881b1729f39b201f6"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reality-checks/source-truth.md",
+      "sha256": "db4fdae5cadccc2bc958724d09a76363f2c57c1f2af6f3c7011a0ee4eeecb1a5"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/research-basis.md",
+      "sha256": "6f0f1a32e27576a285af2d0cad54976875c05255dc7646c9457175d43024ece0"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P1-reviews-P9.md",
+      "sha256": "d6dd04ce33a3db55068490d9e5fe8bd4fbfd4ffdd51ff2b92f3721d0ace6b966"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P10-reviews-P5.md",
+      "sha256": "e7d9682dd46efc043d9e580d1d214e519d341af2a0b9f5fcdd01421623e49446"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P2-reviews-P8.md",
+      "sha256": "985d77fbc9c90d4235c74f831c49bf7217903c86b913efc67ce832c8a7f7b65b"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P3-reviews-P7.md",
+      "sha256": "ce5dc7ee783b49909f09d67571f28e952e857cf9242dc992f373de18cacdfa3c"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P4-reviews-P6.md",
+      "sha256": "fb5c31eee041d86a47d77d973faba0e59e590fe3aee415d07fa8c97f8334f586"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P5-reviews-P10.md",
+      "sha256": "71e632be8e21a54af9739e1654faf5ecb737c6ac5c97a728739db80539aef2c7"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P6-reviews-P4.md",
+      "sha256": "4630d65939e06ee2fa4ffcfee88c2751282af216567b877225927b8bc6624939"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P7-reviews-P3.md",
+      "sha256": "f9e5af6d65167bb7c3fdc8b9a08ee28767373c9769196234290758bdbfa20c7e"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P8-reviews-P2.md",
+      "sha256": "31cee06385b94f90d6b29ecfeb203abfb9ea648a3e36567d5384783474000a3d"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/reviews/P9-reviews-P1.md",
+      "sha256": "b4edb8b214b6e5433d82e2e1881612a2d7d7fd8330fa84d71dd3bd862e7222b4"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audit-baseline.md",
+      "sha256": "3931bc1d601a9704de09629837d12fcf1c9f433b77cda889e0e361996d53c62c"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/agent-context-partitioner.md",
+      "sha256": "0dd9af07dc84b48c8ee083b79157561f5fa0bd162e7bce41a37ccca880b314a9"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/agent-conversation-protocols.md",
+      "sha256": "02c39cd86c291214bb5d887d6272ee22f7e62fa48882e5251f243bccd1f1c3a1"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/conserved-capacity-admission-and-settlement.md",
+      "sha256": "dffe1dd59eb670c31aa329fd9fdedc3fc8696651945115c8bb0342e9a0b60706"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/cryptoeconomic-protocol-security.md",
+      "sha256": "5b3dc3d02edf7092af2c6a3cfc396050f22c07c2eeedf62a02d52a43aa73c3bb"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/drydock-program-architecture.md",
+      "sha256": "b254428b20bcde725c806eea16bd7fe9f87d49ee33c320277929000eba3c8650"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/manager-driven-team-orchestrator.md",
+      "sha256": "ef1fa9ca48d53c8266c8750c3d356b9f454142d121288b7ff1f06fc262ba40c4"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/productive-discourse-facilitator.md",
+      "sha256": "1bd6ec366411ef73b3a5fc79ca8a41a2e9709dd06a5f0d65a2b35b951f390eb5"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/provable-action-adjudicator.md",
+      "sha256": "d110b872f1e163c86f15895566af3246eb389b7d73c29e4b48807fc01ed1c70e"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/steel-man-argument.md",
+      "sha256": "a34db6d0b9308a94ebc649ce0779ab96b53b13ae5ce077e49afe2c1aa1c4eb2b"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/swarm-invocation-designer.md",
+      "sha256": "072623493a34e77c3fa620bc12b0b012605e7fd9b47a79cab356fc6c9e76c21e"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/trial-basin-deterministic-systems-evaluation.md",
+      "sha256": "3392eb85346604c281af685f336253730c522deede7345009130849ba685d88d"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-audits/trust-typed-context-compiler.md",
+      "sha256": "e9aba5de5229227ff9d3ebcf038125eacb45fd5fb2f55d50090f955c70fd90b7"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/skill-graft-matrix.md",
+      "sha256": "421571ba36bd6b054e9fa63621bab1ead43a900c11797e4a4c0531259081609e"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/synthesis/final-product-roadmap.md",
+      "sha256": "e03a741b3dfb7b13037577fab49d42794820a599dec8f9a909a400885f864ce9"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/synthesis/manager-extraction-r1.md",
+      "sha256": "d72273a4408de26012bf7c6c95a5db8a242a3b154ff99b2be9120438a7bf3f48"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/synthesis/packet-lineage.md",
+      "sha256": "d1d065fc9916bc9d6067ee9757f2b6328e8cf98f6ca00c392c98829b7d5b5196"
+    },
+    {
+      "path": "docs/research/drydock-anchor-convention/validate-convention.mjs",
+      "sha256": "9412a986c6525c061742c3831e02a6d199d89d95cdaee6d77db116bb7a4e126d"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/context_pressure_estimator.py",
+      "sha256": "b0b9cec4bc46d55af04a976b2e53c49735ab11ec409c3cb8a140420db705fa2b"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/dag_partitioner.py",
+      "sha256": "eb82b0d7a37ef327bc456481baeacd4e6ae8e33497b976d4a99aefd1067ea5f2"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/INDEX.md",
+      "sha256": "2b5c16ca09d1c8da78a88b8c56322bd2406781044caa92813d03132d617819c8"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/memory_dump_schema.json",
+      "sha256": "8352d73e16a88f40dded2d1574e16ebfa894ca4aa56a07b74162cd114d47afd2"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/online_k_selector.py",
+      "sha256": "f85904d41f67648451a7d2cc469d6acd454ad47c828a88a92f0c5b3acaf0f65b"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/partition_feasibility.py",
+      "sha256": "0cc7dbf3e7d09dc38c6bee738b32451c8b3b5431f9717d2685f2ebeea3c5b184"
+    },
+    {
+      "path": "skills/agent-context-partitioner/algorithms/test_partition_feasibility.py",
+      "sha256": "27af83236598f19d3b773838f158ea24e0b7a478b01a28a8bd35dced26fb54b4"
+    },
+    {
+      "path": "skills/agent-context-partitioner/CHANGELOG.md",
+      "sha256": "5fbeba2a9bdad13513d19ef0de5445e38618f401fd75373a57b65aa9a9ad4249"
+    },
+    {
+      "path": "skills/agent-context-partitioner/diagrams/01_feasibility-gate.md",
+      "sha256": "fbeded17cf5dc509025d0b01888f10ad25510d291d901bc1d7c305e801a8e74f"
+    },
+    {
+      "path": "skills/agent-context-partitioner/diagrams/02_cross-target-transfer.md",
+      "sha256": "fcde2b96f5fb98805bb1683d31809a9bbe4d8eea6701254926a8318fbc47e6f8"
+    },
+    {
+      "path": "skills/agent-context-partitioner/examples/example_dag.json",
+      "sha256": "3c159fd3a570182ea59e408d935d1d244d12aaa53a9cd306e90beef36b9808ed"
+    },
+    {
+      "path": "skills/agent-context-partitioner/examples/example_session_trace.jsonl",
+      "sha256": "42e510960951db9e141186be49f5cf0a96b5a9b985e9743c027e141ea01a8168"
+    },
+    {
+      "path": "skills/agent-context-partitioner/examples/INDEX.md",
+      "sha256": "ea3715859e3cecbd8267fd31af335e2d9a5ac0f931343b55508c207ccd1cc9fc"
+    },
+    {
+      "path": "skills/agent-context-partitioner/examples/valid-proposal.json",
+      "sha256": "339b5f0c4adba436c9693f5bd1f4ab853e72311e56cadb266604a804541f0f30"
+    },
+    {
+      "path": "skills/agent-context-partitioner/references/context-ir-and-continuation.md",
+      "sha256": "b1f4de05f0fc1f3da19f7977b15ff57108c9b6f00b24dd138f5f7d1b9d936586"
+    },
+    {
+      "path": "skills/agent-context-partitioner/references/INDEX.md",
+      "sha256": "bce5b10167775fd5d274f767989e1965b15fda8555b28be0a00819c7a06dfc61"
+    },
+    {
+      "path": "skills/agent-context-partitioner/references/papers.md",
+      "sha256": "e73dba371b9939d9ffe8c621a7268daaceacf4666b046ef792ddbf6ed5ae0029"
+    },
+    {
+      "path": "skills/agent-context-partitioner/references/partition-procedure.md",
+      "sha256": "798e48866604d978bc56b1325dbe3cd687aa9a00e87ebbee3f2f7f49c166b224"
+    },
+    {
+      "path": "skills/agent-context-partitioner/references/retrieval-space-identity.md",
+      "sha256": "bf5b3cb42114f6806d66cf17b4a0d23b0a37fc75c862e12b4b95fa8dcb96dd39"
+    },
+    {
+      "path": "skills/agent-context-partitioner/schemas/context-partition-proposal-v2.schema.json",
+      "sha256": "cb94c64d2ecc9d909dbcad3738bc738382c8ffd0fa35ad536346bbbb0b0d2976"
+    },
+    {
+      "path": "skills/agent-context-partitioner/scripts/INDEX.md",
+      "sha256": "1d6a7830f53d03f2203af949403e3b477aaeb3ae3e96c9e7b8740e6ede668847"
+    },
+    {
+      "path": "skills/agent-context-partitioner/scripts/test-bundle.mjs",
+      "sha256": "285f9b26a2307881641314f5723d935e9512331898162bbdf9b8a950027e5683"
+    },
+    {
+      "path": "skills/agent-context-partitioner/scripts/validate-context-partition.mjs",
+      "sha256": "22f80f87966f4aeeea01a0542e849b6bee097ed4f135ab1260df8a6ca1c025ae"
+    },
+    {
+      "path": "skills/agent-context-partitioner/SKILL.md",
+      "sha256": "bfb4aef0158bb4fe495500e06e5aa5c0eac50164a2304d5748d1450de6c61653"
+    },
+    {
+      "path": "skills/agent-context-partitioner/templates/INDEX.md",
+      "sha256": "d4c29cb2f56e101496ee256a952617e516496706ee0c800229b8574e79a5277f"
+    },
+    {
+      "path": "skills/agent-context-partitioner/templates/knowledge_dump_template.md",
+      "sha256": "91f36b60a727d544c6e1c8b2f3422ffc14b69eecddf606eeed74e819423f3622"
+    },
+    {
+      "path": "skills/agent-context-partitioner/templates/pd_brief_me_template.md",
+      "sha256": "a34fde9a3e630de0191d6081832f4841c1ef5c5dc3b7cb35761be4f39fdf557f"
+    },
+    {
+      "path": "skills/agent-context-partitioner/tests/activation.md",
+      "sha256": "15dc1c43442276289c4e9898f49fc8f74a8c175f9ec00d846f29cf3576efc21e"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/CHANGELOG.md",
+      "sha256": "9e16e91d3713685c9846e8ecb91e9ed6401131e35e1e2e58e7f75c704a749499"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/diagrams/01_terminal-fence.md",
+      "sha256": "d7e3362f999014fe2c91b2b93d67123757048fab44cf811eaaf49a1c292c1282"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/diagrams/02_replay-order.md",
+      "sha256": "64a8d0fcbeb3f9b982971edeb74bd72ecddb0b522e75bb7287e82f68ccecf52c"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/diagrams/INDEX.md",
+      "sha256": "50173c3a69d18597dc352fb9a84887a23327b9039a0a93c3c8b1ee2c3ce01884"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/examples/valid-trace.json",
+      "sha256": "a75811206cb1429f2594a64e14faf4ffbf4cfe78382dd739237c28532b9377a7"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/references/envelope-and-ordering.md",
+      "sha256": "1ae1e1de1d0255be78b814753dcb7ddfc1d12fe09fb7cd07886324b98623b2e2"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/references/fipa-a2a-mcp-boundary.md",
+      "sha256": "58f4a387c687eab025d71c99b59496b4d50338745e926d4231c46ab449aa6f90"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/references/gathers-and-terminals.md",
+      "sha256": "58c8d7248d370eb214f976b2c4aa5d7c1352e14005bc6d7f4cf25a6d200cef85"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/references/INDEX.md",
+      "sha256": "60abe44581744cba360271d169af6b4b37996f60eecd32f1d92bd019a7c62d5a"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/references/pattern-selection-boundary.md",
+      "sha256": "e0033d104ec3005209b8caeb6ad61eb53aed24b0de1d46ffdfd5adcfda9fe97f"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/schemas/conversation-trace-v2.schema.json",
+      "sha256": "a1be4a5d23eef1f28fee9b5522627f81f4ae7965bd7e2be0ee5d97fc5d92fa4a"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/scripts/test-bundle.mjs",
+      "sha256": "1dc8279d0f428f09979045922e4ed59b77ab9cefc3ffa5fd5e63f4734006962f"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/scripts/validate-conversation-trace.mjs",
+      "sha256": "6ae5fa953c275b45520d895b5357509d562bd70da635291478ecdebade7acc13"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/SKILL.md",
+      "sha256": "5748071abff385e1e91cf20f8369fc010d9105d5b07d8275feb521f6dd1a97ce"
+    },
+    {
+      "path": "skills/agent-conversation-protocols/tests/activation.md",
+      "sha256": "875dfc95440a9055bd06c3f8d09067a40283b62786a9f3e849d234ee795ad486"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/CHANGELOG.md",
+      "sha256": "9a37011d0a28764f9387e60b725addb4ce99c3a5a60d94209d1afa738797d7e0"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/examples/valid-no-settlement-attempt.json",
+      "sha256": "3fbd6292cc9fc3539383d0f07f9f752035be3ae40ee5a19c8072432c92ffc917"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/references/authority-and-conservation.md",
+      "sha256": "cf2e6422e68ca064b4394976c78244b30a72cfe0ef7a6fcc506a04ac3a2aeed6"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/schemas/conserved-attempt-v1.schema.json",
+      "sha256": "1cd188b4b1787d22dc60c9b29e387f1a1dc25a3c9d2067ff705b8fe27d3531dd"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/scripts/test-bundle.mjs",
+      "sha256": "eefb42f6f73e7f4a7d0ddd486f136bd00266cf1fd86dbc25b136da89dfbe45ca"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/scripts/validate-conserved-attempt.mjs",
+      "sha256": "f619dd712e162325c438d384182ce82f02c7ea243fe9aeef6b95b8003ac91ebe"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/SKILL.md",
+      "sha256": "bcc15abd4839803dd5ead97c27ab045e0bb94de645799e100807708af8e5e881"
+    },
+    {
+      "path": "skills/conserved-capacity-admission-and-settlement/tests/activation.md",
+      "sha256": "3bb9c4306cf44ff6ab5aabecc9f4723059a82e1da9334cb2067c7ee9c0b6919f"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/affordance-scorecard.json",
+      "sha256": "4b6268af5ddb2de93a383cf032477de6fa85064cfe386087159f688523e5e117"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/CHANGELOG.md",
+      "sha256": "6ac42dbeb0c11b7dd1307e8a19dc45a45a3ca37cc3f49b2be9744b7fab777e07"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/diagrams/01_flowchart_decision-points.md",
+      "sha256": "dbd6e24215329529ecea9dab332d781d5ed59f3c7bc9b0ea2c4da64e0b4aa4af"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/diagrams/INDEX.md",
+      "sha256": "2a2cb0c10a92449e05c01a875697959da3e729ff3f0fdcc9558f1d581b9ef428"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/evals/evals.json",
+      "sha256": "d1c560cd7dae7f30cdcb6f339f259723e75ac84640a117bf5d8adc0d3d7df8b4"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/evals/INDEX.md",
+      "sha256": "7540750af51c8a637e15be000743eec5232ccc6b7bfb8529d6dc1ece6a6eb41d"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/examples/valid-no-settlement-assessment.json",
+      "sha256": "c9472e05f96a876c008ba77608cf7dbefde0f5cf43df4e0c05a3e661271c48cd"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/references/float-plan-escrow-analysis.md",
+      "sha256": "114be236fdd10b665fed64c0157b1143681958909483c0c1724211d65eaa8006"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/references/INDEX.md",
+      "sha256": "1c4fb5dff911e6187d4089e759d80b0c80f26813690fb86253e944e4d8360909"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/references/threat-model-and-source-ledger.md",
+      "sha256": "dc45ad46c744996a9b3a0411f334ff3a906aa61ceaa3c885f6c27838bbe9a7d4"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/schemas/mechanism-security-assessment-v2.schema.json",
+      "sha256": "f3943049a5b4af48a413123f17cbce53a2536a95161c0621363b4bd283a1b5bf"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/scripts/INDEX.md",
+      "sha256": "425ba143b4c0f5a5754de7ee41240eb7dfbc46ac9d02ef754e61999c13053723"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/scripts/test-bundle.mjs",
+      "sha256": "103934091f66233d40f071ed5697c25510b74f46b49f03917bac7166e28e63c7"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/scripts/validate-mechanism-assessment.mjs",
+      "sha256": "1d927bf7f41057fda754151c53bbcf2fef8f7ff735250874ebbf6f9dfa13babc"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/SKILL.md",
+      "sha256": "39e9213adda5c4962c357a4abb335ba169c4b25a11ef6fb8bf89765873fee3ce"
+    },
+    {
+      "path": "skills/cryptoeconomic-protocol-security/tests/activation.md",
+      "sha256": "1f1b296c44e433be6a10c2bc3af9863d11eb972c29c2a4b91591c3c4b7b62d39"
+    },
+    {
+      "path": "skills/drydock-program-architecture/agents/openai.yaml",
+      "sha256": "33341ddbbef903af6114fa32e489df4cb06f06500aa98317c9ab716d5689b770"
+    },
+    {
+      "path": "skills/drydock-program-architecture/CHANGELOG.md",
+      "sha256": "c8242ee03b7da8b85296581a9a17fffba8633f445bfc1c4bc35e3711fa12c5fc"
+    },
+    {
+      "path": "skills/drydock-program-architecture/examples/drydock-resurrection-hypertree.json",
+      "sha256": "02bed74febfd8d249bdffa23752cee7f3ba5a36e80bf7d2cec3075f03f4caa30"
+    },
+    {
+      "path": "skills/drydock-program-architecture/examples/expected-output.md",
+      "sha256": "7c917ccbda56efb58e4a1d1dc4508bb34f9bd5a572bc49d674921c69c74b663e"
+    },
+    {
+      "path": "skills/drydock-program-architecture/examples/hypertree-execution.review-loop.json",
+      "sha256": "13fa84c0212f0d4edb1b6c364a7c28c8762643623d11658fbfa700438803e267"
+    },
+    {
+      "path": "skills/drydock-program-architecture/examples/INDEX.md",
+      "sha256": "be5b2647baf55fdc2040e8f4def1a7e9d67d2d2890162baa6d06f4e711562ce5"
+    },
+    {
+      "path": "skills/drydock-program-architecture/README.md",
+      "sha256": "e5ddec7f822e163b66887b35d7ccd7727050ad3bf99068b49badc81ae6067a16"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/agent-lifecycle-and-operator-control.md",
+      "sha256": "bd6dee6536937ba3196d4e998425351f877f62f8f7bad86f39ed246fe470d904"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/architecture-decisions.md",
+      "sha256": "b475ef75a6e6da4e8291e2392e63bcb16a7b4ac8bf8c32eb210766a975976e1b"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/controlled-agent-simulation.md",
+      "sha256": "4a8bd30da6e1bf94eefb9f7761d3205a093ce47a1f1720f3376912054fc9ecdd"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/delivery-and-proof.md",
+      "sha256": "a6ddaf5a86cf997fb66c1c877a232eaa139a86430bfa73809208db8f35477ad1"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/diagram-atlas.md",
+      "sha256": "34c71d24aeb69c5f8ced586d5901ffe5bdbb6d827b87381a8e6c4d1d5f58efcf"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/hypertree-execution-observatory.md",
+      "sha256": "edebff9966f0cb748f0b678cc163d52f6ba14fb3f05ca85b8da407f27cbc6d5d"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/INDEX.md",
+      "sha256": "1eac5dfd494a17fd00089233ad68a602cd9c1e03b36f1b37786ca05c1fb6f126"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/knowledge-map.md",
+      "sha256": "14db62280ee66b3d85cccb445986d26538101ac7a5c74e40e2057c060df7b2f4"
+    },
+    {
+      "path": "skills/drydock-program-architecture/references/resurrection-capacity-and-context-control.md",
+      "sha256": "d2ceb99d5a4b592a6a8162603be12311c2167863dc483053065867ade445a61e"
+    },
+    {
+      "path": "skills/drydock-program-architecture/schemas/drydock-resurrection-hypertree.schema.json",
+      "sha256": "6dac030cee38c25b65fea4a54d5435ef6633131d75b0a7c0ac26baf672052146"
+    },
+    {
+      "path": "skills/drydock-program-architecture/schemas/hypertree-execution.schema.json",
+      "sha256": "31f63b6821d8fa7fe166c4ca1b0c2f3861ddc535d01a019dc80777dfc28a851c"
+    },
+    {
+      "path": "skills/drydock-program-architecture/scripts/audit-drydock-program-skill.mjs",
+      "sha256": "acd78215ec9fbb17ac873fc0fbe0b5c868890835146631654695de2d3dd923dc"
+    },
+    {
+      "path": "skills/drydock-program-architecture/scripts/INDEX.md",
+      "sha256": "6744faeb5aa3575a623ca1953fecf5cc6269be24bb2b58fb5d5309407ea5db95"
+    },
+    {
+      "path": "skills/drydock-program-architecture/scripts/validate-drydock-resurrection-hypertree.mjs",
+      "sha256": "a729e106fe04ac1ccaa026d5fe641ad9534080989eccad91f2d2f50627586a05"
+    },
+    {
+      "path": "skills/drydock-program-architecture/scripts/validate-hypertree-execution.mjs",
+      "sha256": "cbf2b786b6d72e4b8baf00cf3dc62074e9e846f21b9131fd88f7c0d608a49f6a"
+    },
+    {
+      "path": "skills/drydock-program-architecture/SKILL.md",
+      "sha256": "edd6ae6e1d36b50c4d02d1c68385545edf1122ee8efb9ee4d4d750475987e65c"
+    },
+    {
+      "path": "skills/drydock-program-architecture/templates/architecture-packet.md",
+      "sha256": "28443a4a9da22dc3ff37de107f5a48d143cb9618b43efcac353b51e281801672"
+    },
+    {
+      "path": "skills/drydock-program-architecture/tests/activation.md",
+      "sha256": "982608caeb366f8d305265fd13e5cd058db8d85fb3500cf4e8d636eb94cfa3eb"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/affordance-scorecard.json",
+      "sha256": "6092688cae298427918cb892f724c185ab2f920754a53afc4bd265157cbd541e"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/CHANGELOG.md",
+      "sha256": "faacc4846ba7c11b98c633df180a329d503821247060ada2f0b1fff50fd3a9fd"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/examples/valid-static-cycle.json",
+      "sha256": "c78adc2e0b1bf9e2adb11837ddae0f485f643cc58e33950281cfe69d77ce39b7"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/references/independent-review-boundary.md",
+      "sha256": "49aa6bc037daea4509230b440a0c9c91adf55895c1425ecd62cdf55e6e7d3021"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/references/protocol-and-authority.md",
+      "sha256": "41bc9ecf36d28a1d835769047d39da0787c0afc524818f3bf40eddad2ebffc44"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/schemas/bounded-synthesis-v2.schema.json",
+      "sha256": "351a89c71ca12ea18c2c5d6d30d90e0043a223d04141c8c11670b8836a2b5ba2"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/scripts/audit-bounded-synthesis.mjs",
+      "sha256": "9cc957295206057fd7d03a949c87c6dfbf1090e5b045ed5a3bec4c23002cf1d4"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/scripts/test-bundle.mjs",
+      "sha256": "3bb7f7ad17f9b0b2412217e876d353e2f35003944842fb6076f0acfe23a51633"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/SKILL.md",
+      "sha256": "0db214fefaf8bc975012da93b6c8c59d1148d7b103cc6aa3f05499deebad7b05"
+    },
+    {
+      "path": "skills/manager-driven-team-orchestrator/tests/activation.md",
+      "sha256": "c2403c0a85b50b6584cd9ffa44e125ee2490e29563ae1274ddf20369d1330c6c"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/CHANGELOG.md",
+      "sha256": "099ea08c14e9eb2eebd21d4e9b17e41e30a384e494c70377d012be4663718eb4"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/examples/valid-peer-session.json",
+      "sha256": "1a0fbab7db42cdf528afb40185801f26d446bd1310f3b1a315b4a91e8c251665"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/references/claims-steelmans-and-closure.md",
+      "sha256": "395dd00c5bfca21183170a3214fcc2c2abbbf0fbf64b2e503174257ffe475da4"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/references/playbooks/couples-early-recovery.md",
+      "sha256": "25b2a6e0232c98df979b5577916f4681a8474a9c11d552bb2a2864f88e517601"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/references/playbooks/sac.md",
+      "sha256": "610f9eca96fc14d11d8cbca784e109a31f02d80cc351348cbdff7bfd2dc73c3b"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/references/theory/dialog-vs-debate.md",
+      "sha256": "2383b21912b653815eb06cc7331e94f66b5f5c0b1a9a519cd9d6f78dd33e6d30"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/schemas/discourse-session-v2.schema.json",
+      "sha256": "33a55b4c761b3d35343b5caaa566a738944a93d5796cc092f0d5c0abd47eced0"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/scripts/test-bundle.mjs",
+      "sha256": "dd5b3a665074c6f28b34a56e43321a5bb570f9c42f80a491fbf72540ebcc93b1"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/scripts/validate-discourse-session.mjs",
+      "sha256": "4332dfc41d7437293258a1f446465f1c66c14b959a11a54b3e590dd8ba38a977"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/SKILL.md",
+      "sha256": "a8d21ed1be6aba93d4292dd5c335c414eceb0262047374c656a7597218e25e7f"
+    },
+    {
+      "path": "skills/productive-discourse-facilitator/tests/activation.md",
+      "sha256": "d872bd214a49a69b8286359304b01e1793e80d8c005e32a5021552682070e942"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/affordance-scorecard.json",
+      "sha256": "4ba9f7bf2cc2e382bd433f1a558cda12090f83ed4fe8045ece5fa1986f5b2419"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/CHANGELOG.md",
+      "sha256": "0775144a8d7b7d4d95dced87b6091185ae7953358854d4923a672a3415c6db9b"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/01_flowchart_decision-points.md",
+      "sha256": "86fb58f3cb2c1c55561de252c4b6944dc2743246d79fa651aa8158fabeaa0aa3"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/01-claim-ladder.md",
+      "sha256": "a56dc942bf67915d77f274b30c218043018937a1a5bfeeceac3f2e9b0d32cc08"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/02-pre-effect-sequence.md",
+      "sha256": "5de16735c4633a35c20048d1a843d1b75f9627fd1a1447df40516d122d14a7ac"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/INDEX.md",
+      "sha256": "3080f717aa1208d70f8a5d281496b8cda35364657a791ec61265c2dc5d4ffba5"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p01-policy-verdict-is-separate-from-external-effect-truth.md",
+      "sha256": "09f49bf5e198b88417940de028e4be58a9083cec51678ac502f425fa0132ee28"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p02-one-use-admission-does-not-guarantee-exactly-once-effect.md",
+      "sha256": "7e3578da0f422a31dc3bdaf90e4ba792fb6e4e4667a881ea3b3860e39beda529"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/diagrams/research-p03-evidence-classes-have-separate-scopes-they-are-not-an-automatic-ladder.md",
+      "sha256": "eb17a82932063e285d150b73f3bac24d987b8047eadcdf61b54eda4416714511"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/examples/static-verifier-audit.json",
+      "sha256": "6aac67c7b37ea5007b005f6873b9369d2d58568f30ce1f178feb02ae04521069"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/benchmark-protocol.md",
+      "sha256": "afe1c9f802776985528c1cd8640181a7eefb028bcc9b4b621130f561154b99df"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/claim-ladder-and-threat-model.md",
+      "sha256": "c276a026f52edcd4926b9e234c5d1a4d24301322c06182635cb12c8e50acb41b"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/deontic-logic-for-agents.md",
+      "sha256": "66eba8a0d80f6b7a4c254805dd6332d2ee22ac3de856939dd59abdaef4d41cfe"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/evidence-classes-and-uncertain-effects.md",
+      "sha256": "146ec8adc6f5dc4ce33e95eee2070a18673bcebddba24ba56ae82b27a04acfb2"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/formaljudge-zhou-2026.md",
+      "sha256": "04b0679a2428bf40ef6f50368160726e19d2673f3871b6fd908083dc19349917"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/INDEX.md",
+      "sha256": "d212b400250d010c376556a76eb54534f74dbc3867cc7b180105782530c6c2e8"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/lean-agent-pattern.md",
+      "sha256": "928a00d23543121cdb4929dac0dadfcf20c414a85ecd332f0a6cab8559d022be"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/repository-status.md",
+      "sha256": "f501af16d9c5a29c54b13fd056feed1b2411366372a24efd26f8c27ca57aebbc"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/runtime-vs-offline-verification.md",
+      "sha256": "c53b031999f8f210d820a1c367fb4be98744a89a19122cd3609dcf582c560481"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/source-correction-ledger.md",
+      "sha256": "96b8cd3208ec73370f8610142c9bc611fad4a397d9ab84121a6dcbc41fbbcd33"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/references/source-ledger.md",
+      "sha256": "f27665f215ddcba4e50d4351189bf6e9281828a2418f50f4622019d941d5b2b3"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/schemas/adjudication-audit.schema.json",
+      "sha256": "4df9632ca40ff97542ba158c278d9fabc155b9568d91f9f03a281be2d7687a0a"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/scripts/test-bundle.mjs",
+      "sha256": "b75a3354917db21844ee9008509c218032f6d965ceec66a357821a1faa1bc681"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/scripts/validate-adjudication-audit.mjs",
+      "sha256": "32ac28c4d7b6e1f3046dccd988513c619b005271885f591a7da05439f58a9bd3"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/SKILL.md",
+      "sha256": "d730e011e2c1612f997621c9eb77dabb20d74cf4520e52ec000de99b9d18355b"
+    },
+    {
+      "path": "skills/provable-action-adjudicator/tests/activation.md",
+      "sha256": "117830fb18e88565e108c5c247c48c9493aaa422b69b6af99e14f3d6d062ac26"
+    },
+    {
+      "path": "skills/steel-man-argument/CHANGELOG.md",
+      "sha256": "be21dd6598accabeaa2186edcb4417cfac983ebcdaa67cbef4bb4f2664e38804"
+    },
+    {
+      "path": "skills/steel-man-argument/diagrams/01-fidelity-gate.md",
+      "sha256": "18a998c62cf5d9c6af7c4f3b55e7e30bad15cd212852778c9621ae8da89fcdbb"
+    },
+    {
+      "path": "skills/steel-man-argument/examples/source-bound-review.json",
+      "sha256": "ed9decc846c110235135128b403575370721005cea289a4c9557197fbd17e056"
+    },
+    {
+      "path": "skills/steel-man-argument/references/fidelity-method.md",
+      "sha256": "5355ff37140684e1639f74d1b54d101db5f4516f5ca2ef088b321b7e43749072"
+    },
+    {
+      "path": "skills/steel-man-argument/references/harm-and-power-boundary.md",
+      "sha256": "dace1713168e5dbd3127d48ec44000094c9eb9c091e9e158a194c0efe3a7fdd0"
+    },
+    {
+      "path": "skills/steel-man-argument/references/patterns/relational-usage.md",
+      "sha256": "ef87168f7c7031daeaa4d9e6c8b5e2eb16a00a9deb967b270d92c0feeb4451d9"
+    },
+    {
+      "path": "skills/steel-man-argument/references/theory/steelman-vs-strawman.md",
+      "sha256": "e30e1e0b5ad0e237bb4b884b2c4f53d48fff5033ffaa5b65c4698fa167217c8b"
+    },
+    {
+      "path": "skills/steel-man-argument/schemas/fidelity-ledger.schema.json",
+      "sha256": "251d94c806ecb0e6648183f13146e1a82674c2cedc3bdd95cb4bfdb2fbd7d4b4"
+    },
+    {
+      "path": "skills/steel-man-argument/scripts/test-bundle.mjs",
+      "sha256": "8ee0babb56e4fb25d94fce39448d1414c5e134e6c430c6c36ff4c7cca891898d"
+    },
+    {
+      "path": "skills/steel-man-argument/scripts/validate-fidelity-ledger.mjs",
+      "sha256": "dec6633a5cc9aee27664d78293bb5fa1969c73688d8bb8cb70f7375be04b46c9"
+    },
+    {
+      "path": "skills/steel-man-argument/SKILL.md",
+      "sha256": "3072bdfde69c7e4c9d4e2a9d3d831b46b64694d0f1c19463adab1a571fad8225"
+    },
+    {
+      "path": "skills/steel-man-argument/tests/activation.md",
+      "sha256": "940736bbf793c2a29db4f293f144f5df8309710008864496c717693b9bd0e767"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/agents/openai.yaml",
+      "sha256": "b4389fc721d42d60385a67395fb87e28e54f023ac3130d9d6299452441fbe96b"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/CHANGELOG.md",
+      "sha256": "2c2c392db7a75ffe9b94edcb93865473f54d66558e9993c131a1e7c57597c236"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/examples/expected-output.md",
+      "sha256": "239a3e3242b7aab6fef5a16c9e9dc9c7f00058df4ee158607365f6d4fdd21c75"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/examples/valid-static-contract.json",
+      "sha256": "c56216ae4de2aeb12f6643750737d98ffe9cb7b879f52e948efe847d5a1dcf36"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/README.md",
+      "sha256": "dcae782289fea0f227457f2f3ea65d6734df3696413d70a73b6ab578cace612a"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/references/authority-admission-lifecycle.md",
+      "sha256": "bebc2c2b1422b7ba9bf72485cd6b5b55d7d6144b923f04560926344b98d2b430"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/references/exactly-once-decomposition.md",
+      "sha256": "e1fc44bc0f889490ddc0d389985e07cd5e9caf5b606a273a204956e9fd1f0072"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/references/fast-agent-bus.md",
+      "sha256": "ba0215a590a91b0bedd86510d311091ad0ef62f8a0b319ff0540066225f0797b"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/references/gathers-reducers-and-replay.md",
+      "sha256": "08c5d985e9517ce1e1e6d81699f262a2796ba3baa10c544ce7bec36d3004cf9b"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/references/invocation-patterns.md",
+      "sha256": "91aa5f8bf10b8c81166fda52dda37b5530b04f3a23a9eaad5101631128a410e8"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/schemas/latency-budget.schema.json",
+      "sha256": "93f9a904b264fd581debc303faa51769432e3720fabfeb180091bd3a65748334"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/schemas/swarm-invocation-trace.schema.json",
+      "sha256": "d10ba2dd5af5c3570752cd2edc0279f539ab3676ada1716b4e3610fd78f6a579"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/schemas/swarm-invocation.schema.json",
+      "sha256": "f41641bd5826e8b4cbf753e747189d0cfe1040b290d6039d1fc04ba538e8efd7"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/scripts/latency_budget.mjs",
+      "sha256": "d6048283744c2605589490468d53de860c796ade0ec8988640476d6d291bf76d"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/scripts/test-bundle.mjs",
+      "sha256": "e11be6dc6aa17cde40050351146ba60652acede815a4993e7d8bda0efbafd8fd"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/scripts/validate-swarm-invocation.mjs",
+      "sha256": "1ea783fc6842dec93ff1c0d7d8c5ef4edf8557eee251b455c3fb274d02851e03"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/SKILL.md",
+      "sha256": "3b8269e73686059208559ab913274db9041cf7b1a036be271ac1cee74c3dfd13"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/templates/output-template.md",
+      "sha256": "baf88587f75338048d713d7873f73e5704c9e3a1ccf36f91ed5511196e3e5676"
+    },
+    {
+      "path": "skills/swarm-invocation-designer/tests/activation.md",
+      "sha256": "1a16e225221aee6d099a2f0870335f016d2717b8f968c31b6c5f7537b8e4396c"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/CHANGELOG.md",
+      "sha256": "ac615a4efc8a80e5d893f252712d9fa668b593e36fcbc9f337ded45c4b0dd552"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/examples/valid-deterministic-fake-evaluation.json",
+      "sha256": "a9e215d1a65a8ff48a0fd170ee991f880ede0362e6201c686e91f65b326ef471"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/references/evidence-model-and-replay.md",
+      "sha256": "1593d586e739d276838fcb608744f0015afca571ec35da22759c9ab6349a69c2"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/schemas/trial-basin-evaluation-v1.schema.json",
+      "sha256": "e98acca53ea3b7473a8e629d5d98da69b5c6078cff4c03487f233c25a56cbb14"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/scripts/test-bundle.mjs",
+      "sha256": "ab190c9d2378201761e19b8b6c0453a810587c6e4011f7c455ed467e01b93b1d"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/scripts/validate-trial-basin-evaluation.mjs",
+      "sha256": "1a7215bb09a684cf5f8bc18f65fa117cd927b345e5b6e0b061c381f7a6e5278e"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/SKILL.md",
+      "sha256": "27d600ba35f559e0506a1a9b9b4668181288395454991d2d57e3617e0e5c3e15"
+    },
+    {
+      "path": "skills/trial-basin-deterministic-systems-evaluation/tests/activation.md",
+      "sha256": "c6669e3e87132277fe77ace55855fed5e4c17197b6adab09b1a72ce0dfd46aa3"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/CHANGELOG.md",
+      "sha256": "44b744297311fad8fd952d80ea43fb575c590bb13ea08d6d1358d994cb1f1a9f"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/examples/valid-continuation-capsule.json",
+      "sha256": "025c192094e72deb75ed0f997a73eea5c43b79f1a4922dccf95c3a31a98d03eb"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/references/authority-retrieval-and-continuity.md",
+      "sha256": "17bb90c56654a6eb4f938b1e3b23a91fc969438d1b4bc5c0d961a5b1821267cb"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/schemas/trust-typed-context-ir-v1.schema.json",
+      "sha256": "b2d8190bed39fa722eb46af39dc5e653ca056f5574ecc4c16ad4f9a5c9bee4fb"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/scripts/test-bundle.mjs",
+      "sha256": "8edc33c06bd85412c71b0f5b19c5fb103f15356a70b91b524f26c092666d8d03"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/scripts/validate-context-ir.mjs",
+      "sha256": "c09339e8f784c7c20363a2c217aff2de9b3512f6ea161d01af528d48486f1ad4"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/SKILL.md",
+      "sha256": "629fb78f6dab29370405927b38bf903bd1d9f4d157dccedc08a96398c2d4002c"
+    },
+    {
+      "path": "skills/trust-typed-context-compiler/tests/activation.md",
+      "sha256": "36b7edb0f2b77761885132cbc38a926aa385f8a4da1dec7a6eb624d14462cd3d"
+    }
+  ]
+}

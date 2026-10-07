@@ -57,6 +57,7 @@ import json
 import os
 import re
 import sys
+import omni_ledger
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -92,7 +93,7 @@ LST_LABEL_RE = re.compile(r"\blabel=\{?([A-Za-z][A-Za-z0-9:._-]*)\}?")
 # What an `existing figure` cell can name: a LaTeX-style id, or a bare
 # fragment stem (`session-bc-delta30`, and the one legacy `fig-...` spelling).
 CELL_ID_RE = re.compile(r"\b(?:fig|tab|alg|lst|thm|def):[A-Za-z0-9:._-]+")
-CELL_STEM_RE = re.compile(r"\b(?:fig|diag|session|legible-swarm|tab)-[A-Za-z0-9][A-Za-z0-9-]*")
+CELL_STEM_RE = re.compile(r"\b(?:fig|diag|session|legible-swarm|tab|spark)-[A-Za-z0-9][A-Za-z0-9-]*")
 INPUT_FIGURE_RE = re.compile(r"\\input\{figures/([A-Za-z0-9._-]+)\}")
 # A cell that declares "no figure covers this row yet" -- the explicit status
 # an aspirational row carries, as opposed to naming something absent.
@@ -114,6 +115,10 @@ def abspath(rel_path: str) -> str:
 
 
 def read_lines(rel_path: str) -> list[str] | None:
+    if os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT):
+        if not omni_ledger.document_exists(rel_path):
+            return None
+        return omni_ledger.document_text(rel_path).split("\n")
     p = abspath(rel_path)
     if not os.path.isfile(p):
         return None
@@ -334,6 +339,8 @@ def live_drawing_fragments(textbook: dict) -> dict[str, str]:
         for stem in INPUT_FIGURE_RE.findall(_read(src_abs)):
             if stem.endswith(".tex"):
                 stem = stem[: -len(".tex")]
+            if stem.startswith("spark-"):
+                continue
             frag = os.path.join(figdir, stem + ".tex")
             if not os.path.isfile(frag):
                 continue

@@ -1,56 +1,14 @@
-# Agentic App Architecture Decision
-
-[One-sentence description of the app being architected, and whether it is a coding agent or non-coding agent.]
+# Agentic app architecture declaration
 
 ```json
 {
-  "appName": "[app name]",
-  "transparency": {
-    "thinkingVisible": true,
-    "toolUseVisible": true,
-    "planBeforeAct": true,
-    "interruptible": true
-  },
-  "stateModel": {
-    "durableHistory": true,
-    "forking": true,
-    "rename": true,
-    "episodicMemory": true
-  },
-  "contextStrategy": {
-    "caching": true,
-    "eviction": true,
-    "memoryPromotion": true
-  },
-  "capabilities": {
-    "tools": true,
-    "skills": true,
-    "mcp": {
-      "coreSize": 0,
-      "perProjectSpecialists": true
-    },
-    "secretCustody": {
-      "mode": "hidden-stdin"
-    }
-  },
-  "execution": {
-    "agentType": "coding",
-    "isolation": true,
-    "sideEffectHumanGate": true,
-    "artifactReceipts": true
-  }
+  "appName":"[name]",
+  "transparency":{"actionDisclosure":"summary","evidenceDisclosure":"summary","uncertaintyDisclosure":"summary","privateReasoningPolicy":"not-requested","interruptMode":"[not-applicable|before-dispatch|between-steps|mid-run]","rationale":"[scope]"},
+  "stateModel":{"conversationTranscript":"[used|not-applicable]","durableTaskState":"[used|not-applicable]","userMemory":"[used|not-applicable]","provenanceEvidence":"[used|not-applicable]","retention":"[retention/deletion]","restoreForkPolicy":"[restore/fork/replay boundary]","rationale":"[scope]"},
+  "contextStrategy":{"strategies":["bounded-input"],"rationale":"[workload basis]"},
+  "capabilities":{"tools":"[used|not-applicable]","skills":"[used|not-applicable]","mcp":{"status":"not-applicable","rationale":"[scope]"},"secretCustody":{"required":false,"mode":"not-applicable","scope":"no secret reaches this app","rationale":"[scope]"},"rationale":"[capability boundary]"},
+  "execution":{"agentType":"non-coding","effectClass":"none","isolation":"not-applicable","control":{"kind":"not-applicable","rationale":"no effect is declared"},"authority":"no effect authority","receiptPolicy":"record static audit only","rationale":"[effect scope]"}
 }
 ```
 
-## Rationale by axis
-
-- **Transparency**: [what the human sees, and how they interrupt/steer.]
-- **State/memory**: [what persists, how forking works, what gets promoted to episodic memory and with what TTL.]
-- **Context/caching**: [caching strategy, eviction trigger, what gets promoted out of the window.]
-- **Capabilities**: [tools/skills/MCP topology, and exactly how secrets reach tool calls.]
-- **Execution substrate**: [isolation model, human-gate points, and what the receipt looks like.]
-
-Validate with `node scripts/agentic_app_audit.mjs --input <this-file-as-json>.json`
-before treating the architecture as sound — the auditor will catch a hidden
-thinking/tool-use surface, transcript-only state, an unbounded context
-strategy, unsafe secret custody, or ungated side effects.
+Record implementation evidence separately from this declaration. A static pass is not an enforcement or deployment result.

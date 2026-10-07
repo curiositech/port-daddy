@@ -1,269 +1,110 @@
 ---
 license: BSL-1.1
 name: dag-execution-tracer
-description: Traces complete execution paths through DAG workflows. Records timing, inputs, outputs, and state transitions for all nodes. Activate on 'execution trace', 'trace execution', 'execution path', 'debug execution', 'execution log'. NOT for performance analysis (use dag-performance-profiler) or failure investigation (use dag-failure-analyzer).
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-category: Agent & Orchestration
-tags:
-  - dag
-  - observability
-  - tracing
-  - debugging
-  - logging
-pairs-with:
-  - skill: dag-performance-profiler
-    reason: Provides timing data
-  - skill: dag-failure-analyzer
-    reason: Provides failure context
-  - skill: dag-pattern-learner
-    reason: Provides execution patterns
-  - skill: dag-task-scheduler
-    reason: Traces scheduled tasks
+description: Designs or reviews provenance-bound DAG attempt traces, coverage gaps, cancellation, and unknown-effect reconciliation. NOT for claiming execution completeness, deployment monitoring, or root-cause proof.
+allowed-tools: [Read, Write, Edit, Glob, Grep]
+metadata:
+  category: Agent & Orchestration
+  tags: [dag, tracing, attempts, provenance, reconciliation]
 ---
 
-You are a DAG Execution Tracer. You instrument, record, and query execution traces through DAG workflows. You make broken pipelines debuggable.
+# DAG Execution Tracer
 
-## Decision Points
+A trace is an instrumentation record, not proof that every node ran, an external
+effect occurred, or a missing span implies success. Sampling and export loss
+must be recorded as coverage limits.
 
-### When to enable trace granularity:
+## Method 1 — model run, node, and attempt separately
 
-```
-Purpose of tracing request?
-├── Quick diagnosis (default)
-│   └── Node-level only: start/end/status/duration (~2KB per DAG)
-├── Deep debugging (specific failure)
-│   ├── Single node failing → Node + tool calls for that node only
-│   └── Data flow corruption → Node + input/output hashes + state snapshots (~50KB per DAG)
-├── Production monitoring
-│   ├── <1000 DAGs/day → Sample 10%, node-level only
-│   └── >1000 DAGs/day → Sample 5%, node-level only (~200B per DAG amortized)
-└── Performance regression hunting
-    └── Node + timing + input/output hashes (no payloads) (~5KB per DAG)
-```
+Create immutable run ID and graph revision; node ID; attempt ID; trace/span ID;
+parent or span links; lifecycle state (`scheduled`, `started`, `yielded`,
+`retry`, `success`, `failed`, `cancel-requested`, `cancellation-confirmed`, or
+`unknown`). Attach input/output digest plus schema, a redacted evidence pointer,
+actor/tool/model/config version, clock source, and sampling/export/drop counters.
+Use parent spans for nested work and links for fan-in, scatter/gather, and
+cross-trace causes. Attempt to end spans in `finally` for handled exits; this is best-effort and cannot record a terminal event after process loss. Preserve failed attempts and expose missing coverage.
 
-### What to capture based on execution context:
+## Method 2 — gate timeout and cancellation recovery
 
-```
-DAG execution state?
-├── Normal execution
-│   ├── <10 nodes → Full tracing (minimal overhead)
-│   └── ≥10 nodes → Sample instrumentation every 3rd node unless debugging specific failure
-├── Parallel execution detected
-│   ├── Independent parallel waves → Trace each wave separately with wave-id
-│   └── Interdependent parallel nodes → Full tracing required for race condition detection
-├── Retry scenario active
-│   ├── First retry → Add retry-attempt=1 to all spans, keep previous attempt trace
-│   └── Multiple retries → Archive previous attempts, trace only current attempt
-└── Abort signal received
-    └── Emergency flush: end all active spans immediately, mark as 'cancelled', preserve partial trace
-```
+On a timeout, capture the last known state and query the receipt or target for
+the exact operation identity. If effect state is unknown, hold a repeat unless either (a) an authoritative
+terminal-absence receipt is bound to the exact operation and a fence excludes a
+late first commit, with current retry authority, or (b) a validated
+idempotency/deduplication contract covers the same operation and context, with
+current retry authority. Compensation requires a confirmed effect, applicable
+postconditions, and its own authority; afterward, separately authorize any
+retry under a fence or same-operation deduplication rule. A cancellation request without acknowledgement
+remains `unknown`, not cancelled. Trace absence is a query gap, not success or
+a skipped node.
 
-### When to filter vs full instrumentation:
-
-```
-Is trace overhead acceptable?
-├── Trace overhead <2% of execution time → Continue full instrumentation
-├── Trace overhead 2-5% → Switch to sampling mode (every 3rd span)
-├── Trace overhead 5-10% → Hash-only mode (no payloads, just metadata)
-└── Trace overhead >10% → Minimal mode (start/end times only)
-
-Check overhead: if (traceTimeMs / totalExecutionMs) > 0.02 → reduce granularity
-```
-
-## Failure Modes
-
-### 1. Trace Loss
-**Symptom**: Gaps in execution timeline where nodes show no trace entries or spans end abruptly mid-execution.
-**Root cause**: Node executor fails to propagate trace context through async boundaries, or abort signals flush incomplete spans.
-**Detection rule**: If `trace.spans.length < dag.nodes.length` and execution status is 'completed'
-**Fix procedure**:
-1. Verify SkillNodeExecutor.execute() passes traceId in ExecutionRequest
-2. Add try/finally block that calls tracer.endSpan() even on exceptions
-3. Register abort handler: `signal.addEventListener('abort', () => tracer.flushPending())`
-4. Test: abort 3-node DAG mid-execution, verify all started nodes have trace entries
-
-### 2. Memory Overflow from Unbounded Trace Storage
-**Symptom**: Process memory grows linearly with trace count, eventual OOM on long-running systems.
-**Root cause**: Trace store Map<traceId, ExecutionTrace> never evicts completed traces.
-**Detection rule**: If `tracer.getActiveTraceCount() > 50` or heap usage from traces exceeds 10MB
-**Fix procedure**:
-1. Set MAX_TRACES = 50, evict oldest completed trace when adding new one
-2. Archive traces >100 spans to disk (~/.skill-runtime-archive/traces/{traceId}.json)
-3. Implement tracer.gc() called after each DAG completion
-4. Monitor: trace memory should never exceed 10MB total
-
-### 3. Circular Reference Serialization Failure
-**Symptom**: JSON.stringify() throws "Converting circular structure" when exporting traces or logging.
-**Root cause**: Node outputs contain objects that reference the node/DAG itself, creating cycles.
-**Detection rule**: If JSON.stringify(span.attributes) throws TypeError about circular structure
-**Fix procedure**:
-1. Replace direct serialization with safeSerialize() using WeakSet cycle detection
-2. Limit serialization depth to 3 levels, replace cycles with "[Circular]" markers
-3. Test: create trace where node output references DAG context, export must succeed
-4. Never store raw node output in attributes, always serialize through boundary
-
-### 4. Clock Skew in Parallel Execution
-**Symptom**: Child node startTime appears before parent node endTime in trace timeline.
-**Root cause**: Using Date.now() wall clock across processes/threads that can jump backwards.
-**Detection rule**: If any span.startTime < parent.endTime for sequential dependencies
-**Fix procedure**:
-1. Use performance.now() for all durations (monotonic, process-local)
-2. Store wall clock only once at trace start for display
-3. All span times as offsets: span.offsetMs = performance.now() - trace.startMark
-4. For distributed traces: implement Lamport logical clocks for ordering
-
-### 5. Trace Overhead Performance Regression
-**Symptom**: DAG execution time increases significantly (>5%) when tracing is enabled.
-**Root cause**: Capturing too much data (full payloads) or inefficient serialization in hot path.
-**Detection rule**: If (totalTraceTime / totalExecutionTime) > 0.05
-**Fix procedure**:
-1. Profile tracer itself - capture timing for each tracer operation
-2. Switch to hash-only mode: store content hashes instead of full payloads
-3. Reduce attribute capture frequency: sample every 3rd tool call instead of all
-4. Benchmark: 20-node DAG should have <5% trace overhead
-
-## Worked Examples
-
-### Example 1: Debugging Missing Output in Parallel DAG
-
-**Scenario**: 4-node DAG where nodes B and C run in parallel after A, then D combines their outputs. D receives input from B but C's output is missing/null.
-
-**Step 1: Identify the trace**
-```typescript
-const trace = tracer.getTrace('exec-2024-0324-parallel-fail');
-// Check wave structure
-console.log(trace.waves); // Should show: Wave 0: [A], Wave 1: [B,C], Wave 2: [D]
+```mermaid
+sequenceDiagram
+  participant R as Run r7
+  participant C as Node C
+  participant A1 as Attempt 1
+  participant X as Target or receipt
+  participant A2 as Attempt 2
+  R->>C: start with graph revision and node identity
+  C->>A1: create distinct attempt ID
+  A1-->>C: timeout witness
+  C->>X: reconcile operation identity and target state
+  alt effect confirmed already applied
+    X-->>C: preserve receipt and do not replay
+  else authoritative terminal absence fenced and retry authorized
+    X-->>C: record reconciliation and authority
+    C->>A2: new attempt ID and retry reason
+    A2-->>C: output digest and terminal receipt
+  else validated same-operation dedup and retry authority
+    X-->>C: record key, context, and authority
+    C->>A2: new attempt ID with same operation key
+    A2-->>C: output digest and terminal receipt
+  else unresolved or retry gate missing
+    X-->>C: hold and do not retry
+  end
 ```
 
-**Step 2: Examine parallel execution timing**
-```typescript
-const spanB = trace.spans.find(s => s.nodeId === 'B');
-const spanC = trace.spans.find(s => s.nodeId === 'C');
-// Check if they actually ran in parallel
-if (Math.abs(spanB.startTime - spanC.startTime) > 100) {
-  // Not truly parallel - scheduler issue, not trace issue
-}
+## Method 3 — query causality honestly
+
+A wall-clock order across machines is not causal order. Use parent IDs, links,
+event sequencing, and clock uncertainty. Query an expected dependency path and
+report complete, partial, sampled, dropped, or unknown coverage. Measure capture
+overhead on representative workloads; retention and sampling are local policy,
+not universal byte, node-count, or percentage thresholds.
+
+```mermaid
+flowchart LR
+  I[Run node attempt identity] --> S[Started span and clock source]
+  S --> T[Tool child or linked fan-in span]
+  T --> E{Terminal evidence present?}
+  E -->|success or failure| P[Preserve digest and evidence pointer]
+  E -->|cancel requested only| U[Unknown terminal state]
+  E -->|sampled or dropped| G[Trace gap; query receipt]
+  P --> Q[Trace query with coverage label]
+  U --> Q
+  G --> Q
 ```
 
-**Step 3: Inspect node C's execution**
-```typescript
-const spanC = trace.spans.find(s => s.nodeId === 'C');
-if (spanC.status === 'ERROR') {
-  // C failed but error was swallowed
-  console.log(spanC.attributes['error.message']); // "Timeout after 30s"
-  console.log(spanC.attributes['error.type']); // "TimeoutError"
-  // Root cause: C hit timeout, DAG continued without its output
-}
-```
+## Hand check
 
-**Step 4: Verify data flow**
-```typescript
-// Check what D received
-const spanD = trace.spans.find(s => s.nodeId === 'D');
-console.log(spanD.attributes['dag.input.hash']); // Hash of {B: "result", C: null}
-// C's output was null because of timeout, but D continued execution
-```
+`r7/C/attempt-1` times out at 12:04Z. Reconciliation remains unknown, so it is
+held. `attempt-2` may start at 12:06Z only if an authoritative absence receipt
+binds to this operation and a fence excludes a late first commit, with current
+retry authority, or a validated idempotency/deduplication key covers the same
+operation and context with current retry authority. The aggregator links the accepted
+digest to attempt 2 and retains attempt 1. A sampled missing span does not prove
+C was skipped.
 
-**Decision point navigated**: This trace revealed the real issue wasn't missing data - it was timeout handling. Node C timed out but the DAG continued. The fix is in timeout configuration or retry policy, not data flow.
+## Sources and limits
 
-### Example 2: Investigating Trace Overhead in Large DAG
+[OpenTelemetry Trace API](https://opentelemetry.io/docs/specs/otel/trace/api/)
+supports context, spans and links; its [overview](https://opentelemetry.io/docs/specs/otel/overview/)
+covers scatter/gather links. [CloudEvents v1.0.2](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
+defines event identity using source plus ID. They define representation
+conventions, not execution receipts or completeness guarantees. See
+[reference note](references/source-and-hand-checks.md).
 
-**Scenario**: 50-node code analysis DAG that normally runs in 30 seconds now takes 45 seconds with tracing enabled.
+## Related skills
 
-**Step 1: Measure trace overhead per operation**
-```typescript
-// Check trace timing breakdown
-const trace = tracer.getTrace('exec-large-dag-slow');
-const traceTime = trace.spans.reduce((sum, span) => sum + span.traceOverheadMs, 0);
-const totalTime = trace.endTime - trace.startTime;
-console.log(`Trace overhead: ${traceTime}ms / ${totalTime}ms = ${(traceTime/totalTime*100).toFixed(1)}%`);
-// Output: "Trace overhead: 18000ms / 45000ms = 40.0%"
-```
-
-**Step 2: Identify expensive trace operations**
-```typescript
-// Find spans with highest trace overhead
-const expensive = trace.spans
-  .filter(s => s.traceOverheadMs > 200)
-  .sort((a, b) => b.traceOverheadMs - a.traceOverheadMs);
-// Output shows: file analysis nodes with large outputs are being fully serialized
-```
-
-**Step 3: Apply decision tree for overhead reduction**
-Since overhead is 40% (much > 10%), switch to minimal mode:
-```typescript
-// Reconfigure tracer for this DAG type
-tracer.setConfig({
-  granularity: 'minimal', // start/end times only
-  captureOutput: 'hash-only', // no full payloads
-  sampleRate: 0.2 // trace only 20% of tool calls
-});
-```
-
-**Step 4: Verify fix with re-run**
-New trace shows 2% overhead (acceptable), but still captures enough data to debug flow issues.
-
-## Quality Gates
-
-Trace system is complete when:
-- [ ] Every node execution produces a span with start time, end time, final status, and unique span ID
-- [ ] Failed nodes include error.message, error.type, and first 5 lines of stack trace in attributes
-- [ ] Trace storage respects size limits: max 50 active traces OR 10MB memory usage, whichever comes first
-- [ ] Traces survive process crashes through either write-ahead logging or immediate flush-to-disk
-- [ ] Abort/cancellation produces valid partial trace with all active spans marked 'cancelled', not corrupted data
-- [ ] Circular reference handling: JSON.stringify() never throws on any trace export operation
-- [ ] Performance impact measured: trace overhead <5% for DAGs up to 20 nodes with default settings
-- [ ] Clock consistency: no child span shows startTime before parent endTime in sequential dependencies
-- [ ] Data integrity: input hash of child node matches output hash of parent node for every edge
-- [ ] Query performance: findTrace(executionId), findTraces(nodeId), findTraces(skillId) all return in <100ms
-
-## NOT-FOR Boundaries
-
-This skill should NOT be used for:
-- **Performance analysis**: Use `dag-performance-profiler` instead for bottleneck identification, resource usage, or optimization recommendations
-- **Failure root cause analysis**: Use `dag-failure-analyzer` instead for error correlation, failure pattern detection, or recovery recommendations  
-- **Production monitoring**: Use `dag-health-monitor` instead for real-time alerting, SLA tracking, or uptime monitoring
-- **Cost analysis**: Use `dag-resource-analyzer` instead for compute cost, memory usage, or efficiency metrics
-- **Pattern recognition**: Use `dag-pattern-learner` instead for execution pattern analysis or optimization suggestions
-
-## Core Implementation
-
-```typescript
-class ExecutionTracer {
-  private traces = new Map<string, ExecutionTrace>();
-  private config: TraceConfig = { granularity: 'node-level', maxTraces: 50 };
-
-  startSpan(traceId: string, nodeId: string, operation: string): TraceSpan {
-    const span: TraceSpan = {
-      spanId: crypto.randomUUID(),
-      nodeId,
-      operation,
-      startTime: performance.now(),
-      attributes: {},
-      events: []
-    };
-    
-    this.getOrCreateTrace(traceId).spans.push(span);
-    return span;
-  }
-
-  endSpan(traceId: string, spanId: string, status: SpanStatus, errorAttrs?: Record<string, any>): void {
-    const trace = this.traces.get(traceId);
-    const span = trace?.spans.find(s => s.spanId === spanId);
-    if (span) {
-      span.endTime = performance.now();
-      span.status = status;
-      if (errorAttrs) Object.assign(span.attributes, errorAttrs);
-    }
-    
-    if (this.traces.size > this.config.maxTraces) {
-      this.evictOldestCompletedTrace();
-    }
-  }
-}
-```
+- `dag-failure-analyzer` investigates incidents using trace and other evidence.
+- `dag-performance-profiler` measures performance; this skill supplies trace observations only.
+- `dag-task-scheduler` provides execution context, and `dag-pattern-learner` analyzes repeated patterns.

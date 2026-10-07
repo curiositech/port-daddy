@@ -67,6 +67,23 @@ not roadmap authority: a missing or stale daemon-pushed mirror means unknown
 work and `proposed` claims, never permission for the Relay to become a second
 roadmap writer.
 
+## Validate a roadmap declaration offline
+
+Before publishing a PR, save its body to an owned file under `~/coding/tmp/`
+and run `node node_modules/tsx/dist/cli.mjs scripts/check-roadmap-link.ts
+--body-file <absolute-pr-body-path>` from the contributor checkout (one command).
+This path needs the existing development dependencies but no GitHub credentials,
+GitHub event, roadmap snapshot, or local Port Daddy runtime. It takes precedence
+over inherited event state and numeric PR arguments; label and comment paths
+remain dry-run. A nonzero exit means the declaration is missing or invalid.
+
+This validates the current declaration-only contract: a slug or a reasoned
+`Roadmap-Item: none` opt-out. It does not prove that a slug exists, that its
+roadmap state is fresh, that a planning declaration was reconciled, or that the
+PR is ready to merge. Preserve that distinction and keep an operator-halted
+runtime stopped; do not restore snapshot-age or planning-file merge gates as
+part of using this command.
+
 ## How to work a slice (operating expectations)
 
 The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
@@ -107,9 +124,11 @@ repo-specific mechanics:
   whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
-- **Skill matching.** If you're missing a matching skill, pause and run
-  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
-  reference loader; no external skill runtime is required.
+- **Skill matching.** If you're missing a matching skill, use Jury-rig when the
+  local runtime is explicitly enabled. When it is halted, do not invoke `pd`, its
+  MCP server, hooks, daemon, or any substitute runtime; read the applicable
+  checked-in `SKILL.md` and needed references directly. That is offline
+  preparation, not a native graft or proof of current catalog state.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -123,14 +142,14 @@ repo-specific mechanics:
   that summarize operator preferences or cross-repo tactics must carry
   provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
-- **A daemon/CLI-surface change ships atomically with its release.** If your slice
-  alters the shipped `pd` — a new/renamed/removed verb, what the single binary
-  registers, anything an operator sees after `brew upgrade` — the version bump,
-  the embedded-version sync, and the Homebrew formula roll are part of the SAME
-  change, not a follow-up. A landed binary that disagrees with the formula is the
-  drift `version-drift-guard` and `tests/unit/embedded-version-sync.test.js` are
-  there to catch; do not let them be what discovers it. Full rule and the
-  "did the surface actually change?" test: `AGENTS.md` § *Release*.
+- **Feature PRs and releases are separate.** For daemon/CLI changes, run the
+  local binary smoke test only when local runtime execution is authorized;
+  during the operator halt, use compile-only and authorized hosted evidence,
+  and mark local runtime proof unverified. Add the required changelog fragment
+  and take the review PR through its authorized finish line. The release train opens the
+  separate version PR and publishes the tag/Release; the tap's workflow rolls
+  the formula from the stable feed. See `docs/RELEASING.md` §§1, 3. Do not bump
+  versions or publish a release merely because a feature PR changed `pd`.
 - **Prove Squid from release cargo.** Adding a hook to source is not enough.
   Declare every required tentacle/identity/steering asset in
   `release-artifacts.json`, stage it in `release.yml`, then run
@@ -348,6 +367,34 @@ message naming the gaps and link the follow-up issue. Lookout is the role
 that watches for release-surface drift; making the drift visible is your
 job, fixing it is theirs (or future-yours).
 
+## One-body WorkIntent reliability
+
+The `/spawn` intake uses `lib/agent-harbor/work-intent-spawn.ts`; never restore a
+route-to-spawner fallback. Capture intent, executable single-node plan and run
+admission atomically; the Conductor remains the actuator. Bind AgentNode and
+AgentRun to the exact managed session and transcript after admission and before
+the backend turn. The earlier `onStarted` callback has no managed session yet.
+Keep body options on the explicit Conductor allowlist, and keep environment
+values out of durable intent/plan payloads.
+
+`executionKind: single-body` owns one receipt and cannot also become a Dispatch.
+Receipt-store recovery belongs at daemon composition, never per request. Replay
+before dynamic preflight; test changed requests, concurrency and restart-unknown
+without relaunch. Query the result through canonical WorkIntent projections and
+`/spawn/receipts/:id`, including missing/failed/canceled evidence. The run receipt
+is not a sealed WorkReceipt and cannot manufacture live PID evidence.
+
+Test stop during backend execution and delayed success/failure, transcript
+open/append/finalize errors, canonical binding refusal, and managed completion
+refusal. When a known agent is halted, its reservation is already released;
+the continuation must preserve halted state without releasing another lineage's
+reserved budget. Inert adapters and in-memory SQLite suffice under a runtime halt.
+
+Bind the Harbor transcript timeline to the admitted session and canonical run
+before copying its first prompt; an agent ID is not a session receipt. Exercise
+halt during delayed harbor admission as well as during the backend turn. A late
+start witness must preserve halt and refuse the backend immediately.
+
 ## PR Finish Line Discipline
 
 For Port Daddy repo PRs, local validation is not the finish line. Before
@@ -368,10 +415,11 @@ calling a branch ready, inspect and close the full PR surface:
 - Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
   Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
   it external after proving the branch is not the cause, and record that proof
-  in both the PR and a `pd note`.
+  in the PR and, when local Port Daddy is authorized, a `pd note`.
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
-  exact next action to an active Port Daddy session.
+  exact next action to an accepting tool-native task or PR owner while local
+  Port Daddy is halted.
 - **UI diffs ship visual artifacts — forever (now `[M]`).** A PR touching a GPUI
   surface (`core/pd-console` window), the console (any pane/renderer), or the
   website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
@@ -413,6 +461,14 @@ invent a command, switch identities or replay an uncertain write.
 permitted inspection path. Respond graciously, incorporating actionable
 feedback unless clearly wrong or harmful; explain disagreements with evidence.
 Add regression tests and land high-confidence findings as named fixup commits.
+Inspect the exact current head immediately after PR creation and after every
+push, then follow pending reviews and all GitHub/external CI/CD statuses to a
+verdict. Delegate routine polling and log triage, plus bounded repairs, to a
+tool-native non-Astra lower-cost agent by default; Astra coordinates and reviews
+the evidence. Fix branch-caused failures, reply to and resolve review threads,
+and record proven external blockers with an owner and next action. Keep an
+active follow-up or accepting handoff while checks are pending; an open PR is
+not completion. A request for a review PR does not authorize merge.
 Get every status context configured as required by the live ruleset green.
 Advisory repo jobs and external checks are evidence, not merge blockers; inspect
 material failures, record their disposition, and do not wait merely for visual
@@ -461,6 +517,14 @@ work; never reset or clobber the main checkout.
   argv argument.
 
 ### Test + session gotchas (dev-loop shibboleths)
+
+- **Editor undo is a local operation, not rollback.** Use the existing buffer's
+  per-incarnation Loro UndoManager; exclude disk seeds and imported history, and
+  send its exact authored delta through the foreground/mirror pipeline. Check
+  claims before mutation. Loro can skip obsolete history items, so the caret or
+  last replacement's old range is not a safe preview. Pending canonical affected-op
+  validation, another replica's claim holds undo/redo. Do not broaden that hold
+  to ordinary adjacent typing or treat headless tests as native interaction proof.
 
 - **Off is checked before invoking Port Daddy, not inside its CLI.** Git
   guards, publishers and wrappers embed `lib/hook-runtime-gate.ts`; canonical
@@ -724,15 +788,21 @@ pd jury-rig query "<the thing you're about to do>"
 pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
-**Before every contributor slice**, one search. Examples that have paid off:
+When the runtime is enabled, run one query before every contributor slice. While
+it is halted, do not run these commands: inspect the matching in-repo skill and
+its required references directly, record that source in the PR or handoff, and
+do not describe the offline read as a Jury-rig graft.
+
+Examples for an enabled runtime:
 
 - Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
 - Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
 - Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
 - Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
 
-If the catalog is wrong or stale for our domain, that's a Cartographer
-issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
+If the catalog is wrong or stale for our domain, capture the concrete gap in the
+PR or handoff while the runtime is halted. When it is enabled, route that gap to
+Cartographer through the normal Port Daddy workflow.
 
 ## Maintain These Skills (port-daddy-internal-dev edition)
 
@@ -1050,7 +1120,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
+- [ ] You used a native Jury-rig query when the runtime was enabled, or read the matching checked-in skill during a halt.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 

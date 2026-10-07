@@ -202,12 +202,16 @@ pub enum ControlMsg {
     OpenEditor {
         path: String,
         region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef,
+        snapshot: Vec<u8>,
+        viewer_peer: crate::buffer::PeerId,
     },
     /// One accepted foreground keystroke as the exact incremental Loro delta,
     /// plus its resulting caret/selection. The producer imports this frame into
     /// its live-lane mirror and broadcasts it; it never recreates the edit.
     EditorLocalChange {
         path: String,
+        document: crate::editor_sync::DocumentRef,
         frame: Option<String>,
         presence: PresenceState,
     },
@@ -219,6 +223,7 @@ pub enum ControlMsg {
 #[derive(Debug, Clone)]
 pub struct EditorUpdate {
     pub path: String,
+    pub document: crate::editor_sync::DocumentRef,
     pub blocks: Vec<Block>,
     pub remote_frames: Vec<String>,
 }
@@ -2206,7 +2211,7 @@ pub struct ConsoleView {
     /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
     /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
     /// static file re-read that never saw the collaboration lanes.
-    editor_blocks: Option<(String, Vec<Block>)>,
+    editor_blocks: Option<(crate::editor_sync::DocumentRef, Vec<Block>)>,
     daemon_url: String,
     local_control: crate::local_control::State,
     local_off_receipt: Option<String>,
@@ -2350,6 +2355,7 @@ struct EditorSurfaceState {
     show_blame: bool,
     blame: EditorBlameState,
     blame_rx: Option<mpsc::Receiver<std::result::Result<Vec<crate::git_blame::BlameLine>, String>>>,
+    save_rx: Option<mpsc::Receiver<crate::editor_pane::SaveCompletion>>,
 }
 
 #[derive(Clone)]
@@ -2368,6 +2374,7 @@ struct EditorRenderOptions {
     blame: Option<std::sync::Arc<[crate::git_blame::BlameLine]>>,
     blame_status: String,
     syntax_label: String,
+    save_status: String,
     viewport_width: Option<f32>,
 }
 
@@ -2447,6 +2454,7 @@ fn editor_surface_state(
         show_blame: false,
         blame: EditorBlameState::Off,
         blame_rx: None,
+        save_rx: None,
     }
 }
 
@@ -2736,6 +2744,45 @@ impl ConsoleView {
         }
     }
 
+    /// The 500ms foreground consumer calls this even when no unrelated pane
+    /// update arrives; a completed disk write must leave the SAVING state.
+    pub fn poll_editor_saves(&mut self) -> bool {
+        let mut changed = false;
+        let mut save_error = None;
+        for state in self.editors.values_mut() {
+            let received = state.save_rx.as_ref().map(mpsc::Receiver::try_recv);
+            match received {
+                Some(Ok(completion)) => {
+                    let verified_only = completion.is_verification();
+                    match state.pane.complete_save(completion) {
+                        Ok(()) if verified_only => {
+                            self.control_flash = Some("Local file matched at check".into());
+                        }
+                        Ok(()) if state.pane.save_status() == "UNSAVED LOCAL" => {
+                            self.control_flash = Some("Earlier revision saved; newer edits remain".into());
+                        }
+                        Ok(()) => self.control_flash = Some("Saved local file".into()),
+                        Err(reason) => save_error = Some(reason),
+                    }
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Disconnected)) => {
+                    let reason = "editor save worker stopped before returning a result".to_string();
+                    state.pane.fail_save_worker(reason.clone());
+                    save_error = Some(reason);
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Empty)) | None => {}
+            }
+        }
+        if let Some(reason) = save_error {
+            self.control_flash = Some(format!("Editor save refused: {reason}"));
+        }
+        changed
+    }
+
     /// The opening layout: a fleet overview beside a stacked agent-lane /
     /// roadmap column — proof of multiplex on first launch. `initial` (if a
     /// known nav id) becomes the focused pane's surface.
@@ -2800,7 +2847,14 @@ impl ConsoleView {
             placement,
         )?;
         if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+            if let Some(state) = self.editors.get(&editor_key(&path, region)) {
+                if let Some(snapshot) = state.pane.snapshot_blob() {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path, region, document: state.pane.document().clone(), snapshot,
+                        viewer_peer: state.pane.buffer().expect("snapshot requires buffer").local_peer(),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -2855,8 +2909,10 @@ impl ConsoleView {
         let live_failed = self
             .editor_blocks
             .as_ref()
-            .is_some_and(|(live_path, blocks)| {
-                live_path == path && editor_error_from_blocks(blocks).is_some()
+            .is_some_and(|(document, blocks)| {
+                self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document)
+                    && editor_error_from_blocks(blocks).is_some()
             });
         (local_failed || live_failed).then(|| path.clone())
     }
@@ -2994,8 +3050,9 @@ impl ConsoleView {
             // no live snapshot has landed yet — or it's for a different file — fall back
             // to the persistent `self.editors` state (opened once by
             // `ensure_editor_states`) so the surface still renders honestly.
-            if let Some((live_path, blocks)) = &self.editor_blocks {
-                if live_path == path {
+            if let Some((document, blocks)) = &self.editor_blocks {
+                if self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document) {
                     return blocks.clone();
                 }
             }
@@ -3350,7 +3407,7 @@ impl ConsoleView {
                     invalidate_editor_blame(state);
                     let presence = Self::presence_for_editor(state, &after);
                     state.pane.set_local_presence(presence);
-                    Ok((state.pane.path_str().to_string(), frame, presence))
+                    Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
                 }
                 Err(reason) => {
                     state.input = prior_input;
@@ -3359,21 +3416,83 @@ impl ConsoleView {
             }
         };
 
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    fn save_focused_editor(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else { return false; };
+        let Some(state) = self.editors.get_mut(&key) else { return false; };
+        match state.pane.prepare_save() {
+            Ok(request) => {
+                let checking = request.is_verification();
+                let (tx, rx) = mpsc::channel();
+                state.save_rx = Some(rx);
+                std::thread::spawn(move || { let _ = tx.send(request.run()); });
+                self.control_flash = Some(if checking { "Checking local file…" } else { "Saving local file…" }.into());
+            }
+            Err(reason) => self.control_flash = Some(reason),
+        }
+        cx.notify();
+        true
+    }
+
+    fn apply_focused_editor_history(
+        &mut self,
+        direction: crate::buffer::HistoryDirection,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let Some(state) = self.editors.get_mut(&key) else {
+            return false;
+        };
+        let outcome = match state.pane.apply_history(direction, &mut state.input) {
+            Ok(Some(frame)) => {
+                let after = state.pane.text().unwrap_or_default();
+                invalidate_editor_blame(state);
+                let presence = Self::presence_for_editor(state, &after);
+                state.pane.set_local_presence(presence);
+                Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
+            }
+            Ok(None) => {
+                self.control_flash = Some(match direction {
+                    crate::buffer::HistoryDirection::Undo => "Nothing local to undo",
+                    crate::buffer::HistoryDirection::Redo => "Nothing local to redo",
+                }.into());
+                cx.notify();
+                return true;
+            }
+            Err(reason) => Err(reason),
+        };
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    /// Typing and history share one repaint/mirror path. An undo is a newly
+    /// authored CRDT operation, not a foreground-only visual rollback.
+    fn finish_editor_change(
+        &mut self,
+        outcome: Result<(String, crate::editor_sync::DocumentRef, String, PresenceState), String>,
+        cx: &mut Context<Self>,
+    ) {
         match outcome {
-            Ok((path, frame, presence)) => {
+            Ok((path, document, frame, presence)) => {
                 // The foreground buffer paints the keystroke immediately. The
                 // producer's collaboration Blocks return after importing this
                 // exact delta; until then they must not cover the newer local view.
                 if self
                     .editor_blocks
                     .as_ref()
-                    .is_some_and(|(live_path, _)| live_path == &path)
+                    .is_some_and(|(live_document, _)| live_document == &document)
                 {
                     self.editor_blocks = None;
                 }
                 if let Some(tx) = &self.control_tx {
                     let _ = tx.send(ControlMsg::EditorLocalChange {
                         path,
+                        document,
                         frame: Some(frame),
                         presence,
                     });
@@ -3385,62 +3504,6 @@ impl ConsoleView {
             }
         }
         cx.notify();
-        true
-    }
-
-    fn apply_focused_editor_history(&mut self, redo: bool, cx: &mut Context<Self>) -> bool {
-        let Some(key) = self.focused_editor_key() else {
-            return false;
-        };
-        let outcome = {
-            let Some(state) = self.editors.get_mut(&key) else {
-                return false;
-            };
-            let history = if redo {
-                state.pane.redo_local_text_edit()
-            } else {
-                state.pane.undo_local_text_edit()
-            };
-            match history {
-                Ok(Some(frame)) => {
-                    let after = state.pane.text().unwrap_or_default();
-                    state.input.unmark();
-                    state.input.reconcile(&after);
-                    invalidate_editor_blame(state);
-                    let presence = Self::presence_for_editor(state, &after);
-                    state.pane.set_local_presence(presence);
-                    Ok(Some((state.pane.path_str().to_string(), frame, presence)))
-                }
-                Ok(None) => Ok(None),
-                Err(reason) => Err(reason),
-            }
-        };
-
-        match outcome {
-            Ok(Some((path, frame, presence))) => {
-                if self
-                    .editor_blocks
-                    .as_ref()
-                    .is_some_and(|(live_path, _)| live_path == &path)
-                {
-                    self.editor_blocks = None;
-                }
-                if let Some(tx) = &self.control_tx {
-                    let _ = tx.send(ControlMsg::EditorLocalChange {
-                        path,
-                        frame: Some(frame),
-                        presence,
-                    });
-                }
-            }
-            Ok(None) => {}
-            Err(reason) => {
-                self.control_flash = Some(reason);
-                crate::audio::play(crate::audio::Cue::Gate);
-            }
-        }
-        cx.notify();
-        true
     }
 
     fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
@@ -3460,11 +3523,12 @@ impl ConsoleView {
             update(&mut state.input, &text);
             let presence = Self::presence_for_editor(state, &text);
             state.pane.set_local_presence(presence);
-            (state.pane.path_str().to_string(), presence)
+            (state.pane.path_str().to_string(), presence, state.pane.document().clone())
         };
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::EditorLocalChange {
                 path: change.0,
+                document: change.2,
                 frame: None,
                 presence: change.1,
             });
@@ -3480,12 +3544,21 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        let save_primary = if cfg!(target_os = "macos") {
+            modifiers.platform && !modifiers.control
+        } else {
+            modifiers.control && !modifiers.platform
+        };
+        if key == "s" && save_primary && !modifiers.alt && !modifiers.shift {
+            return self.save_focused_editor(cx);
+        }
+        if let Some(direction) = crate::editor_input::history_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.apply_focused_editor_history(direction, cx);
+        }
         match key {
-            "z" if modifiers.platform && modifiers.shift => {
-                self.apply_focused_editor_history(true, cx)
-            }
-            "z" if modifiers.platform => self.apply_focused_editor_history(false, cx),
-            "y" if modifiers.platform => self.apply_focused_editor_history(true, cx),
             "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
             "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
             "up" => self.move_focused_editor(|input, text| input.vertical(text, -1, select), cx),
@@ -4715,16 +4788,16 @@ impl ConsoleView {
     pub fn apply_editor_update(&mut self, update: EditorUpdate) {
         for frame in &update.remote_frames {
             for state in self.editors.values_mut() {
-                if state.pane.path_str() == update.path {
-                    let _ = state.pane.ingest_frame(frame);
-                    if let Some(text) = state.pane.text() {
-                        state.input.reconcile(&text);
+                if state.pane.document() == &update.document {
+                    if state.pane.ingest_preserving_selection(frame, &mut state.input) {
+                        invalidate_editor_blame(state);
                     }
-                    invalidate_editor_blame(state);
                 }
             }
         }
-        self.editor_blocks = Some((update.path, update.blocks));
+        if self.editors.values().any(|state| state.pane.document() == &update.document) {
+            self.editor_blocks = Some((update.document, update.blocks));
+        }
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -4891,6 +4964,7 @@ impl ConsoleView {
                         blame,
                         blame_status,
                         syntax_label: crate::syntax::lang_for_path(path).label().to_string(),
+                        save_status: state.pane.save_status(),
                         viewport_width: state
                             .input_bounds
                             .map(|bounds| f32::from(bounds.size.width)),
@@ -8023,6 +8097,7 @@ fn render_editor_toolbar(
 ) -> AnyElement {
     let t = current_theme();
     let wrap_key = editor_key.clone();
+    let save_key = editor_key.clone();
     let blame_key = editor_key;
     let wrap_on = options.wrap_lines;
     let blame_on = options.show_blame;
@@ -8054,6 +8129,24 @@ fn render_editor_toolbar(
             "COLUMN REPLICA"
         }))
         .child(div().flex_1())
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-save-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(t.line))
+                .text_color(rgb(t.ink2))
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.focused_editor_key().as_deref() == Some(save_key.as_str()) {
+                        this.save_focused_editor(cx);
+                    }
+                }))
+                .child(options.save_status.clone()),
+        )
         .child(
             div()
                 .id(SharedString::from(format!("editor-wrap-toggle-{id}")))

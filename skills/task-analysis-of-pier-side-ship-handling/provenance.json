@@ -1,0 +1,7 @@
+{
+  "status": "historical import metadata is non-operative",
+  "historical_record": "provenance/historical-import-metadata.json",
+  "source_path_status": "the historical ../batch_ndm_remaining path is not bundled or available here",
+  "cost_status": "historical total_cost_usd is extraction metadata and is not an audited cost claim",
+  "primary_method_source": "references/01-primary-method.md"
+}

@@ -317,6 +317,20 @@ export function writeTestCurrentContext(context) {
 }
 
 /**
+ * Read one CLI context slot from the isolated integration-test context dir.
+ *
+ * `pd begin --json` deliberately redacts the daemon-minted bearer credential
+ * from stdout. Tests that exercise context recovery must therefore use the
+ * same private file the next CLI invocation will read, rather than expecting
+ * secrets to leak through machine-readable command output.
+ */
+export function readTestCurrentContext(slot = CLI_CONTEXT_SLOT) {
+  const { contextDir } = getDaemonState();
+  const slotPath = getContextPathForSlot(slot, contextDir);
+  return JSON.parse(readFileSync(slotPath, 'utf8'));
+}
+
+/**
  * Clear all isolated current-context files created during integration tests.
  */
 export function clearTestCurrentContext(slot) {

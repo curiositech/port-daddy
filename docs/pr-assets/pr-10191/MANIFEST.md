@@ -69,10 +69,10 @@ only ink added is the grey caption band naming each panel.
 
 ---
 
-## Artefact 1 — `sealed-operating-curve-guide-dash-book-1x-150dpi.png`
+## Artefact 1 — `https://media.portdaddy.dev/sha256/c3/c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb.png`
 
-- File: `docs/pr-assets/pr-10191/sealed-operating-curve-guide-dash-book-1x-150dpi.png` (253 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/sealed-operating-curve-guide-dash-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/c3/c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb.png` (253 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/c3/c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb.png`
 - What it shows: BEFORE | AFTER of `fig-sealed-operating-curve` (Book preamble). The vertical `pd guide` is the element to read: sub-pixel dots at the merge-base, a real dotted rule at HEAD.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -81,10 +81,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `07d9bf752e0cb56d8e8c2ad49bbb2eae054abf32` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 2 — `bonded-key-custody-size-floor-book-1x-150dpi.png`
+## Artefact 2 — `https://media.portdaddy.dev/sha256/df/df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb.png`
 
-- File: `docs/pr-assets/pr-10191/bonded-key-custody-size-floor-book-1x-150dpi.png` (166 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/bonded-key-custody-size-floor-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/df/df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb.png` (166 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/df/df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb.png`
 - What it shows: BEFORE | AFTER of `fig-bonded-key-custody` (Book preamble) — seven `\\tiny`/`\\scriptsize` declarations replaced by the one legal size.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -93,10 +93,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `07d9bf752e0cb56d8e8c2ad49bbb2eae054abf32` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 3 — `bonded-key-custody-size-floor-chapter-1x-150dpi.png`
+## Artefact 3 — `https://media.portdaddy.dev/sha256/7d/7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e.png`
 
-- File: `docs/pr-assets/pr-10191/bonded-key-custody-size-floor-chapter-1x-150dpi.png` (246 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/bonded-key-custody-size-floor-chapter-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/7d/7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e.png` (246 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/7d/7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e.png`
 - What it shows: The same pair under the **chapter** preamble (11 pt Latin Modern, 16.3 cm column).
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -105,10 +105,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `07d9bf752e0cb56d8e8c2ad49bbb2eae054abf32` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 4 — `anchor-phases-gloss-lines-book-1x-150dpi.png`
+## Artefact 4 — `https://media.portdaddy.dev/sha256/48/48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e.png`
 
-- File: `docs/pr-assets/pr-10191/anchor-phases-gloss-lines-book-1x-150dpi.png` (220 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/anchor-phases-gloss-lines-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/48/48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e.png` (220 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/48/48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e.png`
 - What it shows: BEFORE | AFTER of `fig-anchor-phases` (Book preamble), the largest figure-source change in the diff.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -117,10 +117,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `07d9bf752e0cb56d8e8c2ad49bbb2eae054abf32` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 5 — `stp-rate-the-raters-gloss-and-math-book-1x-150dpi.png`
+## Artefact 5 — `https://media.portdaddy.dev/sha256/33/33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444.png`
 
-- File: `docs/pr-assets/pr-10191/stp-rate-the-raters-gloss-and-math-book-1x-150dpi.png` (272 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/stp-rate-the-raters-gloss-and-math-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/33/33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444.png` (272 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/33/33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444.png`
 - What it shows: BEFORE | AFTER of `fig-stp-rate-the-raters` (Book preamble). The two gloss lines ("reaches root near level 27/53") are the clearest sub-floor text in the corpus.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -129,10 +129,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `07d9bf752e0cb56d8e8c2ad49bbb2eae054abf32` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 6 — `sealed-pillar-pipeline-mono-and-reverse-book-1x-150dpi.png`
+## Artefact 6 — `https://media.portdaddy.dev/sha256/13/135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b.png`
 
-- File: `docs/pr-assets/pr-10191/sealed-pillar-pipeline-mono-and-reverse-book-1x-150dpi.png` (284 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/7e69c20562527e9636e1d7dc43d41e6bcf964df1/docs/pr-assets/pr-10191/sealed-pillar-pipeline-mono-and-reverse-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/13/135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b.png` (284 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/13/135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b.png`
 - What it shows: BEFORE | AFTER of `fig-sealed-pillar-pipeline` (Book preamble) — the new `pd mono label` identifier role and the reversed `pd state`.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git

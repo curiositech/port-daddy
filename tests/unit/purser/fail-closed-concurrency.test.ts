@@ -61,7 +61,7 @@ describe('FleetBar fail-closed endpoint refresh contract', () => {
   test('runtime Swift coverage proves both zero-request and positive-control paths', () => {
     const harness = readSource('apps/FleetBar/Tests/FleetBarTests/EndpointFailClosedTests.swift');
 
-    expect(harness).toContain('func testNoRequestIsBuiltWhenControlPlaneUnavailable() async');
+    expect(harness).toContain('func testInvalidOperatorEndpointBuildsNoRequestWhileRuntimeControlIsOpen() async');
     expect(harness).toContain('XCTAssertEqual(RequestCountingProtocol.total(), 0');
     expect(harness).toContain('func testCounterActuallyObservesRequestsWhenAvailable() async');
     expect(harness).toContain('XCTAssertGreaterThan(RequestCountingProtocol.total(), 0)');

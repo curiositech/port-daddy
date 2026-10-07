@@ -1,0 +1,38 @@
+% Paper 8 Figure 6: Conditional analytical illustration of the single-edge residual.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.7\linewidth,
+  height=6cm,
+  title style={font=\sffamily\bfseries\small, yshift=4pt},
+  title={Analytical Illustration: Assume $R^K_{\mathrm{eff}}(e)=1/3$},
+  xlabel style={font=\sffamily\small},
+  xlabel={Single-Edge Lie Magnitude $|s|$},
+  ylabel style={font=\sffamily\small},
+  ylabel={Completion Residual $r$},
+  xmin=0, xmax=5.2,
+  ymin=0, ymax=4.6,
+  grid=both,
+  grid style={line width=0.35pt, draw=ptGrid},
+  major grid style={line width=0.55pt, draw=ptGrid!75!black},
+  legend pos=north west,
+  legend cell align={left},
+  legend style={font=\sffamily\scriptsize, draw=ptDark, line width=0.8pt, fill=white},
+  tick label style={font=\sffamily\scriptsize},
+  axis line style={draw=ptDark, line width=0.9pt},
+]
+\addplot[
+  domain=0:5,
+  samples=2,
+  color=ptBlue,
+  line width=1.4pt
+] {x * sqrt(2/3)};
+\addlegendentry{$r=|s|\sqrt{2/3}$}
+\end{axis}
+\end{tikzpicture}
+\caption{Conditional analytical illustration of the single-edge formula $r=|s|\sqrt{1-R^K_{\mathrm{eff}}(e)}$. Assuming effective resistance $R^K_{\mathrm{eff}}(e)=1/3$ in the unit-weight visible graph gives $r=|s|\sqrt{2/3}$. Every point on this curve is calculated from that assumed value and the formula.}
+\label{fig:matrix}
+\end{figure}

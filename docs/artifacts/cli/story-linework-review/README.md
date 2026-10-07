@@ -21,15 +21,15 @@ durable proof session is
 
 ## Visual Matrix
 
-- `status-truecolor-proof.png`: healthy truecolor PTY at 108 columns. The daemon
+- `https://media.portdaddy.dev/sha256/61/61625f8336d080e6d99fafdf021c3f23b5dbf136352fe59b9f4343bece346574.png`: healthy truecolor PTY at 108 columns. The daemon
   is confirmed because `/status` and `/health` agree and binary drift is false.
-- `status-16color-narrow-proof.png`: ANSI-16 PTY at 58 columns. The long Bosun
+- `https://media.portdaddy.dev/sha256/7c/7cc94b80c3baac00a380c246e9c0c333f66f32fedf0e531e8582d49c5a9f21f0.png`: ANSI-16 PTY at 58 columns. The long Bosun
   row wraps and retains its stripe, dot, signal, and full operator truth.
-- `sessions-feature-daemon-proof.png`: durable session and claim read-back from
+- `https://media.portdaddy.dev/sha256/84/84f42bb0faf4606db242fc1257a9f19087d76dfd29fb9db42ab1ea25610254dc.png`: durable session and claim read-back from
   the named feature daemon after note and file-claim writes.
-- `status-daemon-down-proof.png`: refused connection with typed cause, next
+- `https://media.portdaddy.dev/sha256/f1/f10e5f091a2ec2270f1b75f67ef73d67d9712e4ea1c20a829de42f888bf6e0da.png`: refused connection with typed cause, next
   operator action, and the original nonzero exit contract.
-- `story-linework-runtime.gif`: the four raw proof states sequenced for review;
+- `https://media.portdaddy.dev/sha256/b3/b3e100c9da954b75f0fbaba0062e0f85ffb748fd5f495ba83149128b59662214.gif`: the four raw proof states sequenced for review;
   it is not simulated application motion.
 - `status-no-color.txt`: `NO_COLOR` inside a PTY, with no ANSI decoration.
 - `status-piped.txt`: non-TTY plain-output contract.

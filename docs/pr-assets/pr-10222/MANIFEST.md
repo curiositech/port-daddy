@@ -76,14 +76,14 @@ d[6].get_pixmap(dpi=150).save('page2.png')  # Parts III-IV
 "
 ```
 
-## Artifact 1 — `reader-map-spread-page1-parts-i-ii.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/e2/e2de6c2a995130cf1cfa3dc1a6a9982a9f830b2ae9c22225eae71498367611a8.png`
 
 Page one of the spread: Parts I–II (chapters 1–4), five archetype lanes, no
 caption (see the figure's own header comment for why: a caption here would
 consume a figure number the rest of the Book would then have to renumber
 around).
 
-- File: `docs/pr-assets/pr-10222/reader-map-spread-page1-parts-i-ii.png`
+- File: `https://media.portdaddy.dev/sha256/e2/e2de6c2a995130cf1cfa3dc1a6a9982a9f830b2ae9c22225eae71498367611a8.png`
 - Shows: page 6 of a 7-page front-matter-only compile (this PR's committed source, truncated after the figure)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 1050×1500 px; 62 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -96,12 +96,12 @@ around).
   officially committed Book PDF (see "How they were made" above), not
   fixtured, not mocked
 
-## Artifact 2 — `reader-map-spread-page2-parts-iii-iv.png`
+## Artifact 2 — `https://media.portdaddy.dev/sha256/ef/efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739.png`
 
 Page two of the spread: Parts III–IV (chapters 5–8), row labels repeated,
 carries the figure's caption and `\label{fig:book-reader-map}`.
 
-- File: `docs/pr-assets/pr-10222/reader-map-spread-page2-parts-iii-iv.png`
+- File: `https://media.portdaddy.dev/sha256/ef/efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739.png`
 - Shows: page 7 of the same front-matter-only compile
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 1050×1500 px; 211 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

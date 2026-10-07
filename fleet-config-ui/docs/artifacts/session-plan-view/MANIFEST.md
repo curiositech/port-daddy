@@ -43,13 +43,13 @@ roadmap synchronization, or native Porthole screen-recording permissions.
 
 | Artifact | Viewport | What it proves |
 | --- | --- | --- |
-| `dark-desktop.png` | 1440 × 1100 | Dark house theme, source provenance, full current plan |
-| `light-desktop.png` | 1440 × 1100 | Light theme and full current plan |
-| `light-mobile.png` | 375 × 812 | Wrapped identity/source metadata and compact controls |
-| `light-mobile-plan.png` | 375 × 812 | All nine checklist rows without truncation |
-| `keyboard-history.png` | 1440 × 1100 | Keyboard-opened newest evidence receipt |
-| `missing-session.png` | 1440 × 1100 | Exact missing-ID error, no fallback |
-| `denied-session.png` | 1440 × 1100 | Exact forbidden-ID error, no fallback |
+| `https://media.portdaddy.dev/sha256/eb/eb5ca6b14b45b095690e54494582cb2db7a8e5f551e0e00bff1f19f5d1e80864.png` | 1440 × 1100 | Dark house theme, source provenance, full current plan |
+| `https://media.portdaddy.dev/sha256/3e/3e5eafd51ce5a4f93c08d6836a6195b88c6d1ea8b25fc1342a4e0957b3f5aa33.png` | 1440 × 1100 | Light theme and full current plan |
+| `https://media.portdaddy.dev/sha256/c4/c4f5dc06540423ce75e4fd49156e8bd7c7764576bfada9f5d59fbe11e37c708b.png` | 375 × 812 | Wrapped identity/source metadata and compact controls |
+| `https://media.portdaddy.dev/sha256/9c/9c97290065c97dc812f7e9b22c776576b4af5a4b83e3b351362a2fc37f6687ff.png` | 375 × 812 | All nine checklist rows without truncation |
+| `https://media.portdaddy.dev/sha256/a9/a9c0027bfe310a4c6f4b8e36970cad74a970a59e6fce773641460020614cc78c.png` | 1440 × 1100 | Keyboard-opened newest evidence receipt |
+| `https://media.portdaddy.dev/sha256/ec/ecde41844e941cb3ea2aea191304669df69d0ebc39ee4e18624e18b31bb25af2.png` | 1440 × 1100 | Exact missing-ID error, no fallback |
+| `https://media.portdaddy.dev/sha256/af/af628b3663d461694c9025f196b8f9bace1d233db0aea0dad8667b920edf3da6.png` | 1440 × 1100 | Exact forbidden-ID error, no fallback |
 
 The in-app browser emitted JPEG screenshots, converted to PNG using
 `sips -s format png`; dimensions and depicted content were unchanged.

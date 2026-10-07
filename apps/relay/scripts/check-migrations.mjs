@@ -67,10 +67,142 @@ requireTable('fleet_runs');
 requireTable('fleet_run_steps');
 requireTable('events');
 requireTable('users');
+const fleetAccountsSql = requireTable('fleet_accounts');
+const fleetMembersSql = requireTable('fleet_account_members');
+const fleetTenantRepositoriesSql = requireTable('fleet_tenant_repositories');
+for (const column of ['id', 'status', 'created_at', 'updated_at']) requireColumn('fleet_accounts', column);
+for (const column of ['tenant_account_id', 'user_id', 'role']) requireColumn('fleet_account_members', column);
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'github_account_id', 'active',
+]) requireColumn('fleet_tenant_repositories', column);
+if (!fleetAccountsSql.includes("'active'") || !fleetAccountsSql.includes("'suspended'")) {
+  throw new Error('fleet_accounts.status lost its closed lifecycle CHECK');
+}
+if (!fleetMembersSql.includes("'owner'") || !fleetMembersSql.includes("'member'")) {
+  throw new Error('fleet_account_members.role lost its closed role CHECK');
+}
+for (const id of ['installation_id', 'repository_id', 'github_account_id']) {
+  if (!fleetTenantRepositoriesSql.includes(`typeof(${id}) = 'integer'`)
+    || !fleetTenantRepositoriesSql.includes(`${id} > 0`)) {
+    throw new Error(`fleet_tenant_repositories.${id} lost its positive-integer CHECK`);
+  }
+}
+const activeTenantIdentityIndex = db.prepare(
+  "SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_tenant_repositories_active_identity_idx'",
+).get();
+if (!String(activeTenantIdentityIndex?.sql ?? '').includes('WHERE active = 1')) {
+  throw new Error('fleet tenant identity lost its one-active-binding unique index');
+}
+for (const trigger of [
+  'fleet_accounts_immutable_id',
+  'fleet_account_members_immutable_ids',
+  'fleet_tenant_repositories_immutable_ids',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`relay migration chain did not create immutable identity trigger ${trigger}`);
+  }
+}
+const onboardingSql = requireTable('fleet_repository_onboarding');
+const proposalsSql = requireTable('fleet_configuration_proposals');
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'requested_by_user_id',
+  'desired_outcomes_json', 'customer_budget_microusd', 'provider_cost_cap_microusd',
+  'margin_floor_bps', 'config_status', 'execution_status',
+]) requireColumn('fleet_repository_onboarding', column);
+for (const column of ['tenant_account_id', 'installation_id', 'repository_id', 'proposal_json', 'status']) {
+  requireColumn('fleet_configuration_proposals', column);
+}
+if (!onboardingSql.includes("execution_status = 'blocked_pending_executor'")) {
+  throw new Error('fleet onboarding can activate without executor tenant validation');
+}
+if (!onboardingSql.includes('margin_floor_bps BETWEEN 7500 AND 10000')) {
+  throw new Error('fleet onboarding lost the platform 75 percent margin floor');
+}
+if (!onboardingSql.includes('provider_cost_cap_microusd * 10000')) {
+  throw new Error('fleet onboarding lost the budget-to-provider-cost constraint');
+}
+if (!proposalsSql.includes("'accepted'") || !proposalsSql.includes("'superseded'")) {
+  throw new Error('fleet proposal lifecycle lost its closed status set');
+}
+if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_configuration_proposals_one_accepted_idx'").get()) {
+  throw new Error('fleet proposals lost their one-accepted-per-repository index');
+}
+for (const trigger of [
+  'fleet_repository_onboarding_immutable_scope',
+  'fleet_configuration_proposals_immutable_scope',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`fleet onboarding lost immutable authority trigger ${trigger}`);
+  }
+}
 requireColumn('parleys', 'convened_by');
 requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');
 requireColumn('mercy_health', 'hooks_json');
+
+// Managed Fleet stop-loss: explicit entitlement, one deterministic reservation
+// per run, integer micro-USD, and a fresh v2 spend identity. Do not retrofit a
+// uniqueness constraint onto the legacy spend table: deployed history may have
+// duplicate retry rows.
+const managedEntitlementsSql = requireTable('fleet_managed_entitlements');
+const managedReservationsSql = requireTable('fleet_run_reservations');
+const managedSpendSql = requireTable('fleet_run_spend_v2');
+requireTable('fleet_run_call_authorizations');
+requireTable('fleet_served_installations');
+for (const column of ['retail_balance_microusd', 'run_retail_microusd', 'source_ref']) {
+  requireColumn('fleet_managed_entitlements', column);
+}
+for (const column of [
+  'retail_microusd', 'provider_cost_cap_microusd', 'provider_cost_microusd',
+  'state', 'settled_at', 'released_at',
+]) requireColumn('fleet_run_reservations', column);
+requireColumn('fleet_run_spend_v2', 'provider_cost_microusd');
+if (!managedEntitlementsSql.includes("'active'") || !managedReservationsSql.includes("'settled'")) {
+  throw new Error('managed billing state enums are not storage-enforced');
+}
+if (!managedReservationsSql.includes('provider_cost_cap_microusd * 4 <= retail_microusd')) {
+  throw new Error('managed billing lost the 75% gross-margin floor');
+}
+for (const sql of [managedEntitlementsSql, managedReservationsSql, managedSpendSql]) {
+  if (!sql.includes("typeof(") || !sql.includes("'integer'")) {
+    throw new Error('managed billing money/token fields must be storage-enforced integers');
+  }
+}
+db.exec(`INSERT INTO fleet_managed_entitlements
+  (installation_id, state, retail_balance_microusd, run_retail_microusd, source_ref, created_at, updated_at)
+ VALUES (4242, 'active', 2000000, 1000000, 'migration-check', 1, 1)`);
+db.exec(`INSERT INTO fleet_run_reservations
+  (run_id, installation_id, retail_microusd, provider_cost_cap_microusd, state, created_at, updated_at)
+ VALUES ('billing-check', 4242, 1000000, 250000, 'reserved', 1, 1)`);
+db.exec(`INSERT INTO fleet_run_spend_v2
+  (run_id, ship, installation_id, model, input_tokens, output_tokens, provider_cost_microusd, created_at)
+ VALUES ('billing-check', 'reviewer', 4242, '@cf/check', 1, 1, 250000, 1)`);
+for (const bad of [
+  `INSERT INTO fleet_managed_entitlements
+    (installation_id, state, retail_balance_microusd, run_retail_microusd, source_ref, created_at, updated_at)
+   VALUES (4243, 'active', 1.5, 1, 'bad', 1, 1)`,
+  `INSERT INTO fleet_run_reservations
+    (run_id, installation_id, retail_microusd, provider_cost_cap_microusd, state, created_at, updated_at)
+   VALUES ('billing-bad-margin', 4242, 100, 26, 'reserved', 1, 1)`,
+  `INSERT INTO fleet_run_spend_v2
+    (run_id, ship, installation_id, model, input_tokens, output_tokens, provider_cost_microusd, created_at)
+   VALUES ('billing-check', 'bad', 4242, '@cf/check', 1, 1, 1.5, 1)`,
+  `UPDATE fleet_run_reservations SET lease_fence = 1.5 WHERE run_id = 'billing-check'`,
+  `INSERT INTO fleet_run_call_authorizations
+    (authorization_id, run_id, lease_fence, call_sequence, attempt_id, ship, model,
+     max_input_tokens, max_output_tokens, authorized_cost_microusd, state, created_at)
+   VALUES ('billing-bad-call', 'billing-check', 1, 1, 'a', 'reviewer', '@cf/check', 1.5, 1, 1, 'authorized', 1)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('managed billing constraints admitted invalid money state');
+}
+db.exec(`UPDATE fleet_run_reservations SET lease_fence = 1 WHERE run_id = 'billing-check'`);
+db.exec(`UPDATE fleet_run_spend_v2 SET provider_cost_microusd = 1 WHERE run_id = 'billing-check'`);
+let badSpendUpdateRejected = false;
+try { db.exec(`UPDATE fleet_run_spend_v2 SET provider_cost_microusd = 1.5 WHERE run_id = 'billing-check'`); }
+catch { badSpendUpdateRejected = true; }
+if (!badSpendUpdateRejected) throw new Error('managed billing update guards admitted non-integer spend');
 
 // repo_settings (/account/repos): the SITREP dial must stay a closed enum at
 // the storage layer — the Worker trusts the CHECK as its last line of defense.

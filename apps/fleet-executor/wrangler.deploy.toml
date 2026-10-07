@@ -33,6 +33,9 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+[triggers]
+crons = ["17 * * * *"]
+
 # Required for operator-grade delivery forensics. Console diagnostics include
 # bounded GitHub response status/request-id/rate-limit evidence; request
 # headers, request bodies, and the GitHub token are never recorded.

@@ -950,6 +950,13 @@ await pd.killSpawned(agentId);
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
 
+`SpawnResult.runReceipt` joins the captured intent/plan to the exact launch,
+agent, managed session and transcript. `pd.getSpawnReceipt(result.runReceipt.id)`
+reads the durable observation without starting work. Stop requests are acknowledged
+as `requested`; inspect the receipt for the observed outcome. An interrupted run
+remains `unknown` until separately reconciled and is never automatically retried.
+The receipt is not a signed WorkReceipt or proof of runtime deployment.
+
 `SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
 The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
 Today, the operator-facing launchable path for that contract is the Claude SDK backend with an exact-rate model entry. Other backend integrations may exist in source, but they should be treated as blocked until they can return the same exact telemetry.

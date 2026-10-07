@@ -1,70 +1,74 @@
-% Brief (tikz-diagram-craft), register row ch4-08.
-% Reader question: through what states does one consent grant pass, and
-%   what closes off its legitimate action set?
-% Claim: a grant is ISSUED, then ACTIVE; each candidate action is ADMITTED
-%   only if it clears a three-clause guard (in scope, under the stakes
-%   ceiling, above the reversibility floor), else it ESCALATES -- both
-%   outcomes return the grant to ACTIVE -- until TTL or revocation moves it
-%   to EXPIRED/REVOKED, a terminal state that shrinks the daemons legitimate
-%   action set.
-% Evidence: Protocol Consent-grant lifecycle (Issue/Act/Witness/Expire),
-%   Def. consent, whitepaper/legible-swarm.tex sec 4.2.2 (this pass).
-% Must distinguish: the per-action guard on ADMIT (three clauses) from the
-%   separate TTL/revoke guard that ends the grants life; that both ADMIT
-%   and ESCALATE return to ACTIVE rather than ending the grant.
-% Grammar chosen: state machine with a per-action guarded loop back to
-%   ACTIVE, keyed to a ruled legend, reusing the swk workunit-machine spine.
-% Grammar rejected: a flat four-step protocol ladder (issue, act, witness,
-%   expire) would draw the four prose steps in order but hide that act is a
-%   repeatable loop returning to ACTIVE, not a one-shot step between issue
-%   and expiry.
-% Five-second test: does a single escalated action end the grant, or does
-%   the grant stay active for the next one?
+% Candidate contract and evidence boundaries: BRIEF.md / REPORT.md.
+% All coordinates are physical TeX points. No scaling or local font reduction.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd focus state,minimum width=2.4cm] (I) at (1.60,5.60) {issued};
-  \node[pd focus state,minimum width=2.4cm] (A) at (1.60,3.60) {active};
-  \node[pd terminal,minimum width=2.9cm]    (X) at (1.60,0.30) {expired / revoked};
-  \node[pd ready state,minimum width=2.5cm] (D) at (7.90,4.80) {admitted};
-  \node[pd warn state,minimum width=2.5cm]  (E) at (7.90,2.40) {escalated};
-  \draw[pd focus arrow] (I) -- (A);
-  \node[pd label,anchor=west] at (2.15,4.60) {issue};
-  \draw[pd ready arrow] (A) to[bend left=12] (D);
-  \draw[pd ready arrow] (D) to[bend left=12] (A);
-  \draw[pd warn arrow] (A) to[bend right=12] (E);
-  \draw[pd warn arrow] (E) to[bend right=12] (A);
-  \draw[pd focus arrow] (A) -- (X);
-  \node[pd badge] at (4.65,4.95) {1};
-  \node[pd label,anchor=south] at (4.65,5.20) {action $x$: admit?};
-  \node[pd label,anchor=north] at (4.65,2.75) {else};
-  \node[pd badge] at (2.20,1.95) {2};
-  \node[pd label,anchor=west,text width=2.4cm,align=left] at (2.50,1.95) {ttl or revoke};
-  \def\ly{-1.55}
-  \draw[pd rule] (0,\ly) -- (10.40,\ly);
-  \node[pd title,anchor=north west] at (0.05,{\ly-.35}) {guard};
-  \node[pd title,anchor=north west] at (5.20,{\ly-.35}) {what breaks without it};
-  \draw[pd hairline] (0,{\ly-1.00}) -- (10.40,{\ly-1.00});
-  \node[pd badge] at (.28,{\ly-1.45}) {1};
-  \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-1.45})
-    {in scope, stakes$\le s_{\max}$,\\reversibility$\ge v_{\min}$};
-  \node[pd label,anchor=west,align=left,text width=4.9cm,text=pderror] at (5.20,{\ly-1.45})
-    {an out-of-scope or high-stakes\\action executes unsupervised};
-  \node[pd badge] at (.28,{\ly-2.55}) {2};
-  \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-2.55})
-    {ttl elapsed, or operator revokes};
-  \node[pd label,anchor=west,align=left,text width=4.9cm,text=pderror] at (5.20,{\ly-2.55})
-    {a stale or revoked grant keeps\\admitting actions};
-\end{tikzpicture}
-\caption{The consent-grant lifecycle of Def.~\ref{def:consent} and the
-Consent-grant lifecycle protocol. A grant is issued, then active. Each
-candidate action is admitted only if it clears the three-clause guard
-(scope, stakes ceiling, reversibility floor); any clause it fails sends the
-action to escalation instead. Both outcomes leave the grant active for the
-next action -- a single escalated action does not end the grant. Only ttl
-expiry or an operator revocation moves the grant to its terminal state,
-after which the daemons legitimate action set shrinks by exactly that
-grant. [internal]}
+\SGMeasuredFigure{I/fig:consent-lifecycle}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=-1pt,
+  cl text/.style={pd label,anchor=west,inner sep=0pt,outer sep=0pt,align=left},
+  cl edge/.style={pd label,anchor=center,inner sep=0pt,outer sep=0pt},
+  cl flow/.style={pd arrow,line width=.8pt}]
+  % Grant state: issue once; removal has no outgoing transition.
+  \node[cl text] (operator) at (0,26) {Operator};
+  \draw[cl flow,draw=pdteal] (47,26)--(94,26);
+  \node[cl edge] (issue) at (70,12) {issues};
+  \draw[draw=pdteal,line width=.8pt,fill=pdteal!5]
+    (104,0)--(163,0)--(173,10)--(173,44)--(104,44)--cycle;
+  \draw[draw=pdteal,line width=.8pt] (163,0)--(163,10)--(173,10);
+  \node[cl text,font=\pdfiglabelbold] (grant) at (115,15) {Grant $g$};
+  \node[cl text] (active) at (115,32) {active};
+  \draw[cl flow,draw=pdamber] (182,26)--(241,26);
+  \node[cl edge] (expiry) at (209,12) {expiry / revoke};
+  \draw[draw=pdamber,line width=.9pt] (246,17)--(246,40);
+  \draw[draw=pdamber,line width=.9pt] (249,17)--(249,40);
+  \node[cl text,text width=65pt] (removed) at (258,28)
+    {$g$ removed\\from active set};
+  \draw[pd hairline] (0,64)--(323,64);
+
+  % Action decisions are not grant states. Re-read validity for every x.
+  \node[cl text,font=\pdfiglabelbold] (each) at (30,89)
+    {For every action $x$, check current $g$};
+  \draw[draw=pdinkmuted,line width=.7pt] (30,110) rectangle (191,248);
+  \node[cl text,font=\pdfiglabelbold] (conjunction) at (42,126) {All five must hold (AND)};
+  \node[cl text] (scope) at (42,150) {$x$ in scope};
+  \node[cl text] (stakes) at (42,170) {$\mathrm{stakes}(x)\le s_{\max}$};
+  \node[cl text] (reversibility) at (42,190) {$\mathrm{reversibility}(x)\ge v_{\min}$};
+  \node[cl text] (unexpired) at (42,210) {$g$ unexpired};
+  \node[cl text] (unrevoked) at (42,230) {$g$ unrevoked};
+
+  \draw[cl flow,draw=pdteal] (191,148)--(240,148);
+  \node[cl edge] (all) at (215,134) {all five};
+  \node[cl text,font=\pdfiglabelbold,text=pdteal] (admit) at (250,148) {Admit};
+  \node[cl text] (permission) at (250,165) {may act};
+  \node[cl text] (noasking) at (250,182) {without asking};
+  \draw[cl flow,draw=pdamber] (191,215)--(240,215);
+  \node[cl edge] (otherwise) at (218,198) {otherwise};
+  \node[cl text,font=\pdfiglabelbold] (escalate) at (250,215) {Escalate};
+  \node[cl text] (recipient) at (250,232) {to operator};
+  \node[cl text] (noexecution) at (250,249) {no automatic act};
+
+  % This loop returns to the next action check, never to the grant-state spine.
+  \draw[cl flow,draw=pdinkmuted] (30,270)--(10,270)--(10,89)--(22,89);
+  \node[cl text] (next) at (40,270) {Next candidate: recheck, never renew};
+
+  % A taken action requires a record; admission alone is not an action taken.
+  \draw[draw=pdinkmuted,line width=.7pt,fill=pdpage]
+    (30,293)--(298,293)--(310,305)--(310,344)--(30,344)--cycle;
+  \draw[draw=pdinkmuted,line width=.7pt] (298,293)--(298,305)--(310,305);
+  \node[cl text] (witnesscondition) at (42,310)
+    {If $x$ is taken under $g$, record its witness:};
+  \node[cl text,font=\pdfiglabelbold] (witness) at (42,329)
+    {$(g,\,x,\,\text{reason},\,\text{artifact-link})$};
+
+  % Real text-node extents for the bounded offline geometry audit.
+  \foreach \name in {operator,issue,grant,active,expiry,removed,each,
+    conjunction,scope,stakes,reversibility,unexpired,unrevoked,all,admit,
+    permission,noasking,otherwise,escalate,recipient,noexecution,next,
+    witnesscondition,witness}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{CL-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}%
+}
+\caption{\textbf{Vision.} Permission is not execution, and an action decision does not renew the grant.}
 \label{fig:consent-lifecycle}
 \end{figure}

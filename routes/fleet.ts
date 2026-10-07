@@ -196,6 +196,14 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
       skippedAgents.push(agentName);
       continue;
     }
+    // This endpoint controls local Fleet runtimes. A hosted-only declaration
+    // must never have its backend/model/fallback chain rewritten by a bulk or
+    // explicitly named local-runtime update. As in the source AST, malformed
+    // `cloud_only` fails closed; only an explicit boolean false admits updates.
+    if (item.value.has('cloud_only') && item.value.get('cloud_only') !== false) {
+      skippedAgents.push(agentName);
+      continue;
+    }
     if (!requestedAgents && update.skipCustomAgents && item.value.get('backend') === 'custom') {
       skippedAgents.push(agentName);
       continue;

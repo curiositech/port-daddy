@@ -48,12 +48,6 @@
           "value": "0/16",
           "tag": "internal",
           "regex": "0/16"
-        },
-        {
-          "name": "wrong_turn_spurious_violations",
-          "value": "8/14",
-          "tag": "internal",
-          "regex": "8/14"
         }
       ],
       "mechanization": [],
@@ -66,7 +60,7 @@
       "id": "R2",
       "kind": "theorem",
       "title": "Split-digest theorem (comonotone characterization)",
-      "one_breath": "A scalar head serves a reader iff ranking by it realizes that reader's optimal selection at every budget; one head serves two readers iff their preference orders are comonotone, and the successor and operator readers provably are not.",
+      "one_breath": "One scalar ranking serves two strict reader orders at every selection budget exactly when they agree; crossing preferences require distinct decision heads, which may share a vector representation.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper1.tex",
         "labels": [
@@ -185,7 +179,8 @@
         "labels": [
           "sec:frontier",
           "sec:rdf",
-          "sec:zoom"
+          "sec:zoom",
+          "cor:zoom-advantage"
         ],
         "sections": [
           "S5 (sec:frontier): S5.1 the pinned-joint proposition, S5.2 Theorem 4 (zoom advantage)"
@@ -231,9 +226,9 @@
         },
         {
           "name": "composition_window",
-          "value": "f >= 12(p - delta)",
+          "value": "f > 12(p - delta)",
           "tag": "verified",
-          "regex": "f\\\\ge ?12\\(p-\\\\delta\\)"
+          "regex": "f\\s*>\\s*12\\(p-\\\\delta\\)"
         },
         {
           "name": "tightness_instance",
@@ -294,13 +289,13 @@
     {
       "id": "R6",
       "kind": "theorem",
-      "title": "Sheaf verdict: cohomology of equivocation",
-      "one_breath": "In gossip of signed logs, the least-squares completion residual detects a single equivocator's split-view lie beyond pairwise comparison iff the unchecked edge lies on a cycle of the visible coordinate subgraph, and its endpoints' reports are relayed to the analyst.",
+      "title": "Information boundary and visible-cycle sensitivity of edge residuals",
+      "one_breath": "An equal-information sender-claim checker subsumes residual detection on the relayed-report contract (0 residual-only and 209 direct-only cases in 1,800 synthetic trials). One-edge faults have a sharp bounded-error separation threshold set by effective resistance; the sender blind-spot dimension and smallest projected singular value give the exact worst-case split-view margin. A new edge-only receipt increases squared residual by its squared innovation divided by one plus effective resistance when its endpoints are already connected, and by zero when it joins components.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper7.tex",
         "labels": [],
         "sections": [
-          "S4 (sec:mechanism), boxed \"Theorem 1 (mechanism)\"; harness verdict COMMIT in S5 (sec:harness)"
+          "S4 (sec:mechanism), boxed \"Theorem 1 (one-edge criterion)\", general one-sender criterion, and blind-spot dimension; S5 (sec:harness) reports synthetic checked-edge-baseline trials; sec:robust proves sharp complete-error-ball thresholds for one edge and all one-sender split views; sec:active-audit gives the exact marginal receipt formula and disconnected exception"
         ]
       },
       "chapters": [
@@ -312,18 +307,18 @@
             "thm:sheaf-equivocation"
           ],
           "sections": [
-            "sec:fh-sheaf: Theorem 1 as the labeled claim thm:sheaf-equivocation (Theorem), the pre-registered harness paragraph (verdict COMMIT, 200/200, 0/200, 113/200 with the 79+8 dark trials), the cochain worked by hand on the four-ring, and the consistency-radius example"
+            "sec:fh-sheaf: one-edge claim thm:sheaf-equivocation, triangle-with-leaf counterexample, receipt-coverage score, sharp bounded-error margin, marginal receipt formula, equal-information baseline with 0 residual-only and 209 direct-only synthetic cases, and four-ring and consistency-radius examples"
           ]
         }
       ],
       "figures": [
-        "docs/harbor-research/figures/fig-r6-relation.tex",
         "docs/harbor-research/figures/fig-paper7-visibility.tex",
         "docs/harbor-research/figures/fig-r6-regime.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/sheaf_mechanism_proof.py",
-        "skills/harbor-results/scripts/sheaf_harness_v2.py"
+        "skills/harbor-results/scripts/sheaf_harness_v2.py",
+        "skills/harbor-results/scripts/paper7_failure_cases.py"
       ],
       "numbers": [
         {
@@ -661,7 +656,7 @@
           "name": "committed_share_threshold_mu_star",
           "value": "1/6",
           "tag": "verified",
-          "regex": "\\\\mu\\^\\\\star=1/6"
+          "regex": "\\\\mu\\^\\\\star\\s*&?=\\s*1/6"
         },
         {
           "name": "attested_keep_vs_swap",
@@ -692,7 +687,7 @@
       "id": "R14",
       "kind": "theorem",
       "title": "Costly-escalation threshold equilibrium and the debit tuning band",
-      "one_breath": "A strictly increasing escalation payoff gives a unique separating threshold u*(delta); the feasible debit set between the alarm-fatigue wall and the distress-silencing wall is an interval that can be empty, in which case the honest fix is capacity or evidence quality, not tuning.",
+      "one_breath": "Under continuous strictly increasing benefit, continuous nondecreasing validation and a crossing condition, escalation has a unique separating threshold; monotone alarm-load and miss-loss constraints define a possibly empty feasible debit interval.",
       "standalone": null,
       "chapters": [
         {
@@ -767,9 +762,9 @@
     },
     {
       "id": "R16",
-      "kind": "theorem",
+      "kind": "result-family",
       "title": "Context paging with an untrusted pin oracle",
-      "one_breath": "Landlord's k/(k-h+1) competitiveness against offline OPT imports to variable-size context spans; a pin oracle corrupted on a psi fraction of consultations costs only an additive, linear psi*N*c_refetch penalty under repair-on-touch, sharing its corruption budget with R1's forgeable-feature budget.",
+      "one_breath": "Young's Landlord algorithm has k/(k-h+1) competitiveness against offline cache capacity h; the additional corrupted-pin surcharge is a separately stated experimental conjecture, conditional on its repair model.",
       "standalone": null,
       "chapters": [
         {
@@ -780,7 +775,7 @@
             "thm:paging"
           ],
           "sections": [
-            "S8.3 Context paging (sec:context-paging), \"Context Paging Competitiveness\" -- annotated \\Verified--upgraded from proposed, with the b9_context_paging.py sweep numbers"
+            "sec:context-paging, thm:paging: imported Landlord comparator-capacity bound; corrupted-pin extension separately qualified as a conjecture with finite checks."
           ]
         }
       ],
@@ -788,14 +783,7 @@
       "scripts": [
         "skills/harbor-results/scripts/b9_context_paging.py"
       ],
-      "numbers": [
-        {
-          "name": "corruption_slope",
-          "value": "22.8",
-          "tag": "internal",
-          "regex": "22\\.8"
-        }
-      ],
+      "numbers": [],
       "mechanization": [],
       "site": [],
       "status": "chapter-only"
@@ -804,12 +792,15 @@
       "id": "R17",
       "kind": "result-family",
       "title": "Tractable deontic-conflict fragment and its NP-complete frontier",
-      "one_breath": "Inside a fragment of facts, definite Horn rules, ground deontic O/F rules, exclusive interval claims and difference constraints, conflict detection is polynomial and witness-producing; one expressive step out (disjunctive obligations under discharge choice) makes conflict-freedom NP-complete.",
+      "one_breath": "Inside the ground positive-Horn deontic fragment, an indexed conflict-existence check is polynomial and witness-producing; enumerating every clash pays for its scope incidences and output, while adding disjunctive discharge choice makes conflict-freedom NP-complete without requiring a human judge.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper6.tex",
-        "labels": [],
+        "labels": [
+          "sec:reachable-admission"
+        ],
         "sections": [
-          "S(sec:lang / sec:thm-detect), boxed \"Theorem 1a (membership)\" and \"Theorem 1b (frontier: one step outside is NP-complete)\""
+          "S(sec:lang / sec:thm-detect), boxed Theorem 1a separates indexed existence from output-sensitive enumeration (scope incidences I and keyed pair occurrences Q); Theorem 1b gives the NP-complete frontier without deriving a human-role requirement",
+          "sec:reachable-admission, Theorem 1c: fixed positive rules and a nonempty explicit finite reachable fact family are safe iff all inclusion-maximal reachable members pass the batch check; reachability itself is an independent input"
         ]
       },
       "chapters": [
@@ -819,10 +810,13 @@
           "prefix": "he",
           "labels": [
             "thm:deontic-detect",
-            "thm:deontic-frontier"
+            "thm:deontic-frontier",
+            "sec:he-reachable-admission",
+            "thm:he-reachable-admission"
           ],
           "sections": [
-            "sec:three-on-one, paragraph \"The deontic layer's decision procedure\": Theorem 1a as thm:deontic-detect and Theorem 1b as thm:deontic-frontier (both Theorem kind, the reduction as proof), the dichotomy reading, the 3000-set oracle sweep and the propagation mutant, the worked witness, the authority inventory as what it buys, and a boundary box"
+            "sec:three-on-one: thm:deontic-detect charges scope incidences and output separately; thm:deontic-frontier states NP-completeness; the 3000-set oracle sweep, propagation mutant and worked witness support the finite check. Policy authority specifies permitted discharge and timeout handling; admission-time refusal does not alone prove future-fact safety",
+            "sec:he-reachable-admission and thm:he-reachable-admission: elementary maximal reachable-fact criterion, exclusive-futures counterexample, and finite oracle with current-only and unreachable-union mutants"
           ]
         }
       ],
@@ -832,7 +826,9 @@
         "docs/harbor-research/figures/fig-paper6-witness.tex"
       ],
       "scripts": [
-        "skills/harbor-results/scripts/b4_deontic_fragment.py"
+        "skills/harbor-results/scripts/b4_deontic_fragment.py",
+        "skills/harbor-results/scripts/research_envelopes.py",
+        "skills/harbor-results/scripts/test_research_envelopes.py"
       ],
       "numbers": [
         {
@@ -858,24 +854,36 @@
           "value": "100 of 149",
           "tag": "internal",
           "regex": "100 of\\s"
+        },
+        {
+          "name": "finite_reachable_family_sweep",
+          "value": "130560",
+          "tag": "internal",
+          "regex": "130\\{,\\}560"
+        },
+        {
+          "name": "finite_independent_oracle_cases",
+          "value": "4096",
+          "tag": "internal",
+          "regex": "4096"
         }
       ],
       "mechanization": [],
       "site": [
         "/research/paper6.pdf"
       ],
-      "status": "standalone-only"
+      "status": "folded"
     },
     {
       "id": "CR",
       "kind": "result-family",
       "title": "Consistency radius of the completion residual (CR-1/2/3)",
-      "one_breath": "The completion residual r is a certified lower bound on any injected lie (equality at the completion, closed form r = |s| * sqrt(1 - R_eff) for a single-edge lie), localizes to visible cycles through the equivocator, and computes as at most L scalar graph-Laplacian solves.",
+      "one_breath": "The completion residual r is the minimum unrestricted edge-data change restoring consistency; fixed-sender changes can require more or be infeasible. A single visible edge has sensitivity r = |s| * sqrt(1 - R_eff), and coordinate decomposition uses at most T = |union of visible edge coordinate sets| Laplacian systems.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper7.tex",
         "labels": [],
         "sections": [
-          "S6 (sec:radius), boxed \"Theorem CR-1 (soundness and achievability)\", \"Theorem CR-2 (localization)\", \"Theorem CR-3 (complexity)\""
+          "S6 (sec:radius), boxed CR-1 unrestricted edge minimum, CR-2 one-edge sensitivity, CR-3 union-coordinate decomposition"
         ]
       },
       "chapters": [
@@ -889,7 +897,7 @@
             "thm:radius-cost"
           ],
           "sections": [
-            "sec:fh-sheaf (inside sec:fh-revocation), paragraph \"The residual as a certificate\": CR-1 as thm:radius-soundness (Theorem, proof sketch via the distance to the coboundary image and the effective-resistance identity), CR-2 as thm:radius-localization, CR-3 as thm:radius-cost, the Checked paragraph with the 0/600 and 600/600 sweeps, what it buys, and the four-clause boundary box"
+            "sec:fh-sheaf (inside sec:fh-revocation): unrestricted edge minimum and fixed-sender caveat in thm:radius-soundness, one-edge sensitivity in thm:radius-localization, union-coordinate cost in thm:radius-cost, synthetic sweeps and evidence boundary"
           ]
         }
       ],
@@ -911,7 +919,7 @@
       "site": [
         "/research/paper7.pdf"
       ],
-      "status": "standalone-only"
+      "status": "folded"
     },
     {
       "id": "B6",
@@ -1001,9 +1009,458 @@
       ],
       "site": [],
       "status": "folded"
+    },
+    {
+      "id": "lem:chain",
+      "kind": "lemma",
+      "title": "Sheaf cochain identity",
+      "one_breath": "Composition-compatible vertex-to-edge and edge-to-face restrictions make the first coboundary annihilate the zeroth.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "lem:chain"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-sheaf): typed boundary-of-a-boundary identity."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "def:cellular-sheaf",
+      "kind": "definition",
+      "title": "Typed evidence cochain complex",
+      "one_breath": "A finite two-complex carries typed vertex, edge, and face stalks with explicit incidence maps whose coboundaries obey d1 d0 = 0.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "def:cellular-sheaf"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-sheaf): typed stalks, incidence maps, and observation contract."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "def:compatible-report",
+      "kind": "definition",
+      "title": "Compatible edge differences",
+      "one_breath": "A complete same-feature observation is compatible when a single integer value at each node explains every edge difference.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "def:compatible-report"
+        ],
+        "sections": [
+          "Section 2 (sec:model)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:typed-hodge",
+      "kind": "theorem",
+      "title": "Typed local and global obstruction channels",
+      "one_breath": "The sheaf edge cochain splits orthogonally into exact, face-coexact, and harmonic parts; the latter two give the completion residual and distinguish a face violation from a closed nonexact H1 class.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:typed-hodge"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-sheaf): cellular-sheaf Hodge audit channels."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:face-invariance",
+      "kind": "theorem",
+      "title": "Face attachment and information boundary",
+      "one_breath": "Changing compatible face maps can move an edge obstruction between coexact and harmonic channels but cannot change edge-completion detection without new observations.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:face-invariance"
+        ],
+        "sections": [
+          "Section 2 (sec:typed-fixture): exact two-face comparison."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:sheaf-edge-distance",
+      "kind": "theorem",
+      "title": "Typed sheaf report-error distance",
+      "one_breath": "The minimum edge-group support of a nonzero compatible sheaf report sets exact thresholds dF>k for detecting every k-edge fault and dF>2k for unique recovery, with restricted-projection stability.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:sheaf-edge-distance"
+        ],
+        "sections": [
+          "Section 2 (sec:sheaf-distance): edge-group distance and robustness."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:relative-extension",
+      "kind": "theorem",
+      "title": "Relative extension criterion",
+      "one_breath": "A visible compatible section extends over the declared hidden complex exactly when its relative connecting cohomology class vanishes.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:relative-extension"
+        ],
+        "sections": [
+          "Section 2 (sec:relative): connecting class and typed visibility fixture."
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_2complex_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:cycle-test",
+      "kind": "theorem",
+      "title": "Exact cycle test",
+      "one_breath": "Graph-cycle sums, integer spanning-forest propagation, and zero completion residual are equivalent tests of edge-difference compatibility.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:cycle-test"
+        ],
+        "sections": [
+          "Section 2 (sec:model)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:compatibility-limits",
+      "kind": "theorem",
+      "title": "Information limits of compatibility",
+      "one_breath": "Forests, gradient-shaped errors, and jointly false reports can have zero completion residual.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:compatibility-limits"
+        ],
+        "sections": [
+          "Section 3 (sec:limits)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:duplicate-dominance",
+      "kind": "theorem",
+      "title": "Duplicate-claim dominance",
+      "one_breath": "When all endpoint claims are visible, every positive cycle residual implies a repeated-node claim mismatch.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:duplicate-dominance"
+        ],
+        "sections": [
+          "Section 4 (sec:baseline)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:failure-identifiability",
+      "kind": "theorem",
+      "title": "Conditional failure-mode identifiability",
+      "one_breath": "A finite predeclared fault library is identifiable from projected reports exactly when its residual signatures have a positive pairwise separation margin; bounded projected noise below half that margin preserves nearest-signature classification.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:failure-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:edge-monotonicity",
+      "kind": "theorem",
+      "title": "Redundant-observation monotonicity",
+      "one_breath": "Adding an independently observed edge cannot reduce pairwise residual-signature distance for a fixed fault library and unweighted Euclidean objective.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:edge-monotonicity"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:three-edge-identifiability",
+      "kind": "theorem",
+      "title": "Three-edge-connectivity criterion",
+      "one_breath": "Signed unit single-edge report faults have distinct cycle projections exactly when the observation graph is three-edge-connected.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:three-edge-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:sparse-cut-identifiability",
+      "kind": "theorem",
+      "title": "Sparse report-error identifiability",
+      "one_breath": "Every arbitrary-amplitude k-sparse edge-report error has a distinct cycle projection exactly when the observation graph minimum cut exceeds 2k; a restricted singular value bounds noise sensitivity.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:sparse-cut-identifiability"
+        ],
+        "sections": [
+          "Section 5 (sec:identifiability)"
+        ]
+      },
+      "chapters": [],
+      "figures": [],
+      "scripts": [
+        "scripts/sheaf_observability_study.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "standalone-only"
+    },
+    {
+      "id": "thm:categorical-certificate",
+      "kind": "theorem",
+      "title": "Exact categorical feasibility and least-cost retained certificate",
+      "one_breath": "A valid finite one-hot edge table is feasible exactly when no zero-edge component has conflicting pins; under nonnegative additive observation costs, the cheapest infeasible subset is a conflicting pin pair, its distinct source edges and a cheapest connecting zero path.",
+      "standalone": {
+        "file": "docs/harbor-research/tex/paper8.tex",
+        "labels": [
+          "thm:categorical-certificate"
+        ],
+        "sections": [
+          "sec:categorical"
+        ]
+      },
+      "chapters": [
+        {
+          "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+          "chapter": 8,
+          "prefix": "fh",
+          "labels": [
+            "thm:categorical-certificate"
+          ],
+          "sections": [
+            "sec:fh-evidence-decision"
+          ]
+        }
+      ],
+      "figures": [],
+      "scripts": [
+        "skills/harbor-results/scripts/claim_audit.py",
+        "skills/harbor-results/scripts/test_claim_audit.py",
+        "skills/harbor-results/scripts/costed_claim_certificates.py",
+        "skills/harbor-results/scripts/test_costed_claim_certificates.py"
+      ],
+      "numbers": [],
+      "mechanization": [],
+      "site": [
+        "/research/paper8.pdf"
+      ],
+      "status": "folded"
     }
   ],
   "unindexed_allow": [
+    {
+      "id": "thm:ephemeral-memory",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Ephemeral Inference State and the KV Boundary')."
+    },
+    {
+      "id": "thm:ephemeral-memory",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Ephemeral Inference State and the KV Boundary')."
+    },
+    {
+      "id": "def:agent",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational definition ('Autonomous Software Agent')."
+    },
+    {
+      "id": "def:agent",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational definition ('Autonomous Software Agent')."
+    },
+    {
+      "id": "def:kernel",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational definition ('Supervisory Kernel / agentsd')."
+    },
+    {
+      "id": "def:kernel",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational definition ('Supervisory Kernel / agentsd')."
+    },
+    {
+      "id": "thm:arrow",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Arrow Impossibility Theorem in Multi-Agent Consensus')."
+    },
+    {
+      "id": "thm:arrow",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Arrow Impossibility Theorem in Multi-Agent Consensus')."
+    },
+    {
+      "id": "thm:non-determinism",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Stochastic Execution and the Non-Determinism Invariant')."
+    },
+    {
+      "id": "thm:non-determinism",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter 0 foundational theorem ('Stochastic Execution and the Non-Determinism Invariant')."
+    },
     {
       "id": "unlabeled-env:docs/harbor-research/tex/exec1.tex:30",
       "file": "docs/harbor-research/tex/exec1.tex",
@@ -1055,9 +1512,9 @@
       "reason": "Chapter-native definition (\"Evidence Trail\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
-      "id": "def:float-plan",
+      "id": "def:bonded-float-plan",
       "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Float Plan\") -- distinct instance of a shared label id used independently by harbor-economy.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+      "reason": "Chapter-native definition (\"Float Plan\"); the Bonded Commons chapter's collateral profile of harbor-economy.tex's def:float-plan uses a distinct raw label; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
       "id": "def:isolation",
@@ -1275,9 +1732,9 @@
       "reason": "Chapter-native open conjecture; Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
     },
     {
-      "id": "def:0040b",
+      "id": "def:cross-operator-attestation-problem",
       "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native definition (\"The cross-operator attestation problem\") -- distinct instance of a shared label id used independently by spawn-to-person.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+      "reason": "Chapter-native definition (\"The cross-operator attestation problem\"); restates spawn-to-person.tex's def:cross-operator-attestation from the market's side under a distinct raw label; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
       "id": "def:float-plan",
@@ -1355,7 +1812,7 @@
       "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
-      "id": "def:0040b",
+      "id": "def:cross-operator-attestation",
       "file": "website-v2/public/whitepaper/spawn-to-person.tex",
       "reason": "Chapter-native definition (\"Cross-operator attestation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
@@ -1503,6 +1960,51 @@
       "id": "thm:schneider",
       "file": "whitepaper/single-writer-kernel.tex",
       "reason": "Chapter-native theorem (\"A prevention bound for post-commit monitoring\") -- imports Schneider's EM-enforceability result directly (the ambient case R5's paper2.tex also names), but does not carry R5's Sigma_c/Sigma_u controllability generalization; not the same theorem. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:float-plan",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Alias for def:bonded-float-plan (local collateral profile of a Float Plan)."
+    },
+    {
+      "id": "def:autonomous-agent",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite definition of an autonomous agent tuple; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:agent-kernel",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite definition of an agent operating kernel; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:kernel-gap",
+      "file": "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite theorem on non-sovereignty of autoregressive generation; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:autonomous-agent",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite definition of an autonomous agent tuple; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:agent-kernel",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite definition of an agent operating kernel; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:kernel-gap",
+      "file": "whitepaper/chapter-0-prerequisites.tex",
+      "reason": "Chapter-native prerequisite theorem on non-sovereignty of autoregressive generation; no companion research paper restating it; out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:0040b",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "ADR-0040b alias for def:cross-operator-attestation-problem."
+    },
+    {
+      "id": "def:0040b",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "ADR-0040b alias for def:cross-operator-attestation."
     }
   ]
 }

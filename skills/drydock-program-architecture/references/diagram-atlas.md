@@ -28,6 +28,9 @@ using it in a real packet. These are architecture models, not runtime receipts.
 | 15. Operator journey | Designing pd-console/FleetBar/iOS | Can a human start, inspect, intervene, and resume? |
 | 16. Implementation DAG | Sequencing work | What must land before dynamic authority? |
 | 17. Promotion ladder | Reviewing release claims | Which evidence grants the next exact tier? |
+| 18. Hypertree compilation | Separating planning from execution | How does a vague future become one admitted round DAG? |
+| 19. Mutation evidence | Auditing validator quality | Which exact lies are rejected, survive, or remain untried? |
+| 20. Cooperative studio | Designing the GPUI/CLI product | How do manager chat, code, artifacts, graph, and service agents coexist? |
 
 ## 1. Program context
 
@@ -655,6 +658,142 @@ flowchart TB
     G4 -->|"missing"| Blocked
     G5 -->|"missing"| Blocked
     G6 -->|"missing"| Blocked
+```
+
+## 18. Hypertree-to-round-DAG compilation
+
+**Proves visually:** a proposal grows a richer hypertree; only the concrete,
+admitted frontier becomes the current executable DAG, while later work remains
+fog or alternatives.
+
+**Does not prove:** that decomposition quality is high or that any node has
+execution authority.
+
+```mermaid
+flowchart LR
+    Intent["Work intent\nend state + constraints"]
+    Root["Hypertree root\nmanager-owned proposal"]
+
+    subgraph Known["Round n · concrete region"]
+        A["A · inspect contracts"]
+        B["B · draft interface"]
+        C["C · adversarial review"]
+        Join{{"typed join\nA + B + C"}}
+    end
+
+    subgraph Future["Future · deliberately vague"]
+        Fog1(["integration ?"])
+        Fog2(["provider proof ?"])
+        Alt1["alternative α"]
+        Alt2["alternative β"]
+    end
+
+    Compiler["Round compiler\npolicy + capacity + evidence"]
+    DAG["Executable DAG n\nA, B, C, join"]
+    Event["Plan delta + event head"]
+
+    Intent --> Root
+    Root --> A
+    Root --> B
+    Root --> C
+    A --> Join
+    B --> Join
+    C --> Join
+    Join -.-> Fog1
+    Fog1 -.-> Fog2
+    Root -.-> Alt1
+    Root -.-> Alt2
+    Known --> Compiler
+    Future -. "questions only" .-> Compiler
+    Compiler --> DAG --> Event
+```
+
+## 19. Lie-per-invariant evidence loop
+
+**Proves visually:** the same validator sees an accepted baseline and a
+deliberately false variant; results feed named rejection coverage and Porthole
+replay rather than a context-free score.
+
+**Does not prove:** universal rejection of every possible lie in a claim class.
+
+```mermaid
+flowchart LR
+    Invariant["Important invariant\nclaim class + owner"]
+    Baseline["Honest baseline\nexact digest"]
+    Lie["Constructed lie\nsmallest semantic violation"]
+    Validator["Owning validator\nexact artifact digest"]
+    BaseResult{"Baseline accepted?"}
+    MutantResult{"Lie rejected?"}
+    Invalid["Inconclusive\nrepair baseline or runner"]
+    Killed["KILLED\nrejection demonstrated"]
+    Survived["SURVIVED\nvalidator blind spot"]
+    Receipt["PortholeMutationReceipt\ninputs + output + replay"]
+    Coverage["Rejection coverage\nknown / not demonstrated"]
+    Rework["Named validator/test rework"]
+
+    Invariant --> Baseline
+    Invariant --> Lie
+    Baseline --> Validator
+    Lie --> Validator
+    Validator --> BaseResult
+    BaseResult -->|no| Invalid --> Receipt
+    BaseResult -->|yes| MutantResult
+    MutantResult -->|yes| Killed --> Receipt
+    MutantResult -->|no| Survived --> Receipt
+    Receipt --> Coverage
+    Survived --> Rework
+    Coverage -. "uncovered important claim" .-> Rework
+```
+
+## 20. Manager-centered cooperative coding studio
+
+**Proves visually:** repositories, worktrees, manager chat, the zoomable
+hypertree, artifacts, terminals, evidence, and orthogonal service agents occupy
+distinct product regions over one event history.
+
+**Does not prove:** GPUI implementation, usability, or live service health.
+
+```mermaid
+flowchart TB
+    CLI["CLI\nintent · status · evidence"]
+    GPUI["GPUI cooperative IDE"]
+    Manager["Manager chat\nwork intent + synthesis"]
+    Repo["Repo / branch / worktree rail"]
+    Graph["Gigantic zoomable hypertree\nactive frontier + future fog"]
+    Build["Artifact canvas\ncode · UI · docs · plots"]
+    Detail["Node inspector\nchat · diff · terminal · receipts"]
+    Services["Orthogonal services"]
+    Skill["skill fitting"]
+    Parley["parley scout"]
+    Risk["epistemology risk"]
+    Tools["MCP/tool upkeep"]
+    HITL["HITL concierge"]
+    Judge["validators + rework"]
+    Log[("Append-only event history")]
+
+    CLI --> Manager
+    GPUI --> Manager
+    Repo --> Graph
+    Manager --> Graph
+    Graph --> Build
+    Graph --> Detail
+    Services --> Skill
+    Services --> Parley
+    Services --> Risk
+    Services --> Tools
+    Services --> HITL
+    Services --> Judge
+    Skill -. "proposal" .-> Manager
+    Parley -. "proposal" .-> Manager
+    Risk -. "proposal" .-> Manager
+    Tools -. "proposal" .-> Manager
+    HITL -. "question" .-> Manager
+    Judge -. "verdict" .-> Manager
+    Log --> CLI
+    Log --> GPUI
+    Log --> Graph
+    Log --> Build
+    Log --> Detail
 ```
 
 ## Selecting and maintaining diagrams

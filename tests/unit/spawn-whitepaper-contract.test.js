@@ -264,6 +264,6 @@ describe('Spawn-to-Person publication contract', () => {
       encoding: 'utf8',
     });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('on the brand palette');
+    expect(result.stdout).toContain('use a registered palette');
   });
 });

@@ -43,8 +43,10 @@ WORK="$SCRATCH/work"          # cwd for every CLI call — contains cwd-writers
 SNAP_ROOT="$SCRATCH/snapshots" # redirect snapshot store away from ~/.port-daddy
 LOG="$SCRATCH/daemon.log"
 SOCK="$SCRATCH/pd.sock"
+TEST_DB="$SCRATCH/registry.db"
 DAEMON_PID=""
 mkdir -p "$WORK" "$SNAP_ROOT"
+chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT"
 
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
@@ -63,7 +65,9 @@ fi
 # --------------------------------------------------------------------------
 echo "Booting self-hosted scratch daemon from the compiled binary ($BIN)..."
 PORT_DADDY_PORT="$PORT" \
-PORT_DADDY_DB="$SCRATCH/registry.db" \
+PD_HOME="$SCRATCH" \
+PORT_DADDY_DB="$TEST_DB" \
+PORT_DADDY_TEST_DB="$TEST_DB" \
 PORT_DADDY_PREFIX="$SCRATCH" \
 PORT_DADDY_SOCK="$SOCK" \
 PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
@@ -97,11 +101,14 @@ echo
 cli() {
   ( cd "$WORK" && env \
       PORT_DADDY_PORT="$PORT" \
+      PD_HOME="$SCRATCH" \
       PORT_DADDY_CONTEXT_SLOT="e2e-cli-surface" \
       PORT_DADDY_PREFIX="$SCRATCH" \
       PORT_DADDY_SOCK="$SOCK" \
       PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
-      PORT_DADDY_DB="$SCRATCH/registry.db" \
+      PORT_DADDY_DB="$TEST_DB" \
+      PORT_DADDY_TEST_DB="$TEST_DB" \
+      PORT_DADDY_DISABLE_KEYCHAIN=1 \
       "$BIN" "$@" )
 }
 
@@ -231,16 +238,18 @@ else
   fail "safe scan --json" "not a valid posture report: $(printf '%s' "$__safe_out" | head -c 200); stderr: $(head -c 800 "$__safe_err" 2>/dev/null || true)"
 fi
 # ADR-0088 Phase B: `pd safe corral --all` with NO --apply is a DRY RUN — it
-# prints the plan and writes nothing (no vault write, no source rewrite). Assert
-# it runs, declares itself a dry run, and echoes the corral honest-limit. The
+# prints a plan when findings exist and writes nothing (no vault write, no source
+# rewrite). With a clean scratch home it may instead report that there are no
+# detected secrets. Assert either non-mutating outcome plus the honest-limit. The
 # `safe guard --staged` read-only scan of the staged diff is exercised too; with
 # no staged changes it must exit clean (0) without dying.
 __corral_out="$(cli safe corral --all 2>/dev/null || true)"
-if printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
-   && printf '%s' "$__corral_out" | grep -qi "reduces blast radius"; then
-  pass "safe corral --all (dry-run default; honest-limit echoed; nothing written)"
+if printf '%s' "$__corral_out" | grep -qi "reduces blast radius" \
+   && { printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
+        || printf '%s' "$__corral_out" | grep -qi "No detected secrets to corral"; }; then
+  pass "safe corral --all (non-mutating outcome; honest-limit echoed; nothing written)"
 else
-  fail "safe corral --all" "no dry-run plan / honest-limit: $(printf '%s' "$__corral_out" | head -c 160)"
+  fail "safe corral --all" "no non-mutating outcome / honest-limit: $(printf '%s' "$__corral_out" | head -c 160)"
 fi
 # guard --staged: read-only scan of the staged diff. In the scratch repo with no
 # staged secrets it must NOT be the guarded failure mode (exit 1 + empty output).

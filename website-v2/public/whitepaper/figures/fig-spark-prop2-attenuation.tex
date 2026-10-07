@@ -1,0 +1,170 @@
+% fig-spark-prop2-attenuation.tex
+% Proposition 2: Monotonic Capability Attenuation (The Anchor Protocol)
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop2-attenuation.jpg.
+% Full-width (15.0cm = \pdfullwidth), pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2):
+% - Sentence case for all titles and labels (never ALL-CAPS).
+% - High Tufte data-ink ratio (quiet neutral tones, minimal non-data ink, crisp borders).
+% - Typographic law: \pdfiglabelsize (\footnotesize), pd title, pd label; zero inline \fontsize.
+% - Line weight ladder: 0.5pt (hairline/guides), 0.9pt (rules/arrows/borders), 1.6pt (spine).
+% - Semantic palette: pdcobalt (permission scope), pdrust (lifetime attenuation), pdink (text/rules).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    outerenvelope/.style={
+      draw=pdink,
+      line width=0.9pt,
+      fill=pdpage,
+      rounded corners=1.5pt
+    },
+    innerbox/.style={
+      draw=pdink!80!black,
+      line width=0.7pt,
+      fill=pdpage,
+      rounded corners=1.5pt
+    },
+    scopebar/.style={
+      draw=pdcobalt,
+      line width=0.7pt,
+      fill=pdcobalt!20
+    },
+    timebar/.style={
+      draw=pdrust,
+      line width=0.7pt,
+      fill=pdrust!20
+    },
+    dimline/.style={
+      <->,
+      >=Stealth,
+      line width=0.5pt,
+      draw=pdink!80!black
+    },
+    guideline/.style={
+      line width=0.5pt,
+      draw=pdink!60!black
+    },
+    descentarrow/.style={
+      ->,
+      >=Stealth,
+      line width=0.9pt,
+      draw=pdink
+    }
+  }
+
+  % =========================================================================
+  % TIER 1: ROOT AUTHORITY (C0) (y in [6.8, 9.8])
+  % =========================================================================
+  % Title (Sentence case)
+  \node[pd title,anchor=south west,text=pdink] at (0.8, 9.55) {%
+    Root authority ($C_0$)%
+  };
+
+  % Outer Envelope Box
+  \draw[outerenvelope] (0.8, 7.0) rectangle (10.4, 9.5);
+
+  % Top Horizontal Bar: Permission Scope (Blue) + Lifetime (Rust)
+  \filldraw[scopebar] (0.8, 9.0) rectangle (9.1, 9.5);
+  \filldraw[timebar] (9.1, 9.0) rectangle (10.4, 9.5);
+
+  % Permission Scope Dimension Line (knockout text on line)
+  \draw[dimline] (1.2, 8.75) -- (9.9, 8.75);
+  \node[pd label,fill=pdpage,inner xsep=4pt,text=pdink] at (5.55, 8.75) {%
+    Permission scope%
+  };
+
+  % Inner Capability Box (Original Capability C0)
+  \draw[innerbox] (1.2, 7.2) rectangle (9.9, 8.4);
+
+  % Label to the right of Inner Box
+  \draw[guideline] (9.9, 7.8) -- (11.0, 7.8);
+  \node[pd label,anchor=west,text=pdink] at (11.0, 7.8) {%
+    Original capability ($C_0$)%
+  };
+
+  % Long Lifetime Dimension Arrow
+  \draw[guideline] (10.4, 9.25) -- (10.4, 8.75);
+  \draw[descentarrow] (10.4, 8.75) -- (14.6, 8.75)
+    node[midway,above=2pt,pd label,text=pdink] {Long lifetime};
+
+  % =========================================================================
+  % DESCENT ARROW: TIER 1 -> TIER 2
+  % =========================================================================
+  \draw[descentarrow] (6.0, 7.0) -- (6.0, 6.85);
+
+  % =========================================================================
+  % TIER 2: INTERMEDIATE DELEGATE (C1) (y in [3.5, 6.2])
+  % =========================================================================
+  % Title (Sentence case)
+  \node[pd title,anchor=south,text=pdink] at (6.0, 6.25) {%
+    Intermediate delegate ($C_1$)%
+  };
+
+  % Outer Envelope Box
+  \draw[outerenvelope] (3.4, 3.7) rectangle (8.7, 6.2);
+
+  % Top Horizontal Bar: Narrowed Scope (Blue) + Shortened Lifetime (Rust)
+  \filldraw[scopebar] (3.4, 5.7) rectangle (6.8, 6.2);
+  \filldraw[timebar] (6.8, 5.7) rectangle (8.7, 6.2);
+
+  % Narrowed Scope Dimension Line and Callout
+  \draw[dimline] (3.4, 5.45) -- (6.8, 5.45);
+  \draw[guideline] (5.1, 5.45) -- (5.1, 5.0) -- (2.6, 5.0);
+  \node[pd label,anchor=east,align=right,text=pdink] at (2.5, 5.0) {%
+    Narrowed\\scope%
+  };
+
+  % Inner Capability Box (Delegated Capability C1)
+  \draw[innerbox] (5.2, 3.9) rectangle (8.4, 4.9);
+
+  % Label to the right of Inner Box
+  \draw[guideline] (8.4, 4.4) -- (9.6, 4.4);
+  \node[pd label,anchor=west,align=left,text=pdink] at (9.6, 4.4) {%
+    Delegated capability ($C_1$)\\[1pt]%
+    \mdseries[subset of $C_0$]%
+  };
+
+  % Shortened Lifetime Bracket and Arrow
+  \draw[guideline] (8.9, 6.2) -- (9.05, 6.2) -- (9.05, 3.7) -- (8.9, 3.7);
+  \draw[descentarrow] (9.05, 5.45) -- (13.2, 5.45)
+    node[midway,above=2pt,pd label,text=pdink] {Shortened lifetime};
+
+  % =========================================================================
+  % DESCENT ARROW: TIER 2 -> TIER 3
+  % =========================================================================
+  \draw[descentarrow] (6.5, 3.7) -- (6.5, 3.55);
+
+  % =========================================================================
+  % TIER 3: WORKER TASK (C2) (y in [0.8, 2.9])
+  % =========================================================================
+  % Title (Sentence case)
+  \node[pd title,anchor=south,text=pdink] at (6.5, 2.95) {%
+    Worker task ($C_2$)%
+  };
+
+  % Outer Envelope Box
+  \draw[outerenvelope] (5.1, 1.0) rectangle (7.9, 2.9);
+
+  % Top Horizontal Bar: Tightly Restricted Leaf Scope + Minimal Lifetime
+  \filldraw[scopebar] (5.1, 2.5) rectangle (7.1, 2.9);
+  \filldraw[timebar] (7.1, 2.5) rectangle (7.9, 2.9);
+
+  % Vertical Subdivision Lines for Individual Leaf Permissions
+  \draw[guideline] (5.8, 2.5) -- (5.8, 2.9);
+  \draw[guideline] (6.4, 2.5) -- (6.4, 2.9);
+
+  % Callouts for Tightly Restricted Leaf Permissions
+  \draw[guideline] (5.7, 2.5) -- (5.7, 1.9) -- (3.9, 1.9);
+  \draw[guideline] (6.3, 2.5) -- (6.3, 1.5) -- (3.9, 1.5);
+  \node[pd label,anchor=east,align=right,text=pdink] at (3.8, 1.7) {%
+    Tightly restricted\\leaf permissions%
+  };
+
+  % Right Bracket and Sub-delegated Capability Label
+  \draw[guideline] (8.1, 2.9) -- (8.25, 2.9) -- (8.25, 1.0) -- (8.1, 1.0);
+  \draw[guideline] (8.25, 1.95) -- (9.6, 1.95);
+  \node[pd label,anchor=west,align=left,text=pdink] at (9.6, 1.95) {%
+    Sub-delegated capability ($C_2$)\\[1pt]%
+    \mdseries[subset of $C_1$]%
+  };
+
+\end{tikzpicture}

@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: build-coop-ide-gpui
-description: 'Capstone/orchestration skill — build an M-Agent + N-Human cooperative IDE in Rust gpui (the Harbor): many agents and humans co-editing the same files as co-equal CRDT replicas, governed by claims/guard/salvage, across LAN/shared/remote harbors. The INDEX that dispatches into the sibling rust skills. Use when building the collaborative editor, the agent-fleet console, multiplayer editing with agents-as-peers, or any slice of the Harbor. Trigger on: cooperative IDE, collaborative editor, multiplayer editor, agents and humans co-editing, gpui IDE, Loro CRDT editor, harbor editor, claims/salvage, "build the cooperative IDE". NOT for: a single non-collaborative gpui screen (compose the siblings directly), web editors, or non-editor apps.'
+description: 'Plan or audit the cross-layer Harbor cooperative editor: Loro replicas for humans and agents, governed edit claims, salvage authority, and transport across shared, LAN, and remote harbors. Use when a change spans editor collaboration, identity, recovery, or transport contracts. For a single GPUI pane use gpui-rust-console; for motion use rust-gpui-motion; for a shader use gpui-shaders. NOT for non-collaborative screens, web editors, or generic Rust development.'
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   provenance:
@@ -37,6 +37,8 @@ metadata:
 ---
 
 # Build an M-Agent + N-Human Cooperative IDE in Rust gpui
+
+**Activation boundary:** use this when editor collaboration or recovery needs a decision across UI, CRDT, claims, and transport. A bounded pane, transition, or shader change can activate its owning sibling directly. This entry is the cross-layer architecture and authority contract, not a required wrapper for every visual edit.
 
 This is the **capstone**: the whole-system skill for building the Harbor — an editor where **M autonomous agents and N humans edit the same files at once, as co-equal replicas**, on a native Rust gpui shell, governed by a daemon that already exists. It is an **index/orchestration** skill: it holds the architecture and dispatches each slice into the sibling rust skills. The thesis (from the battle plan) is the critical wall: *make the CRDT governable — Loro merges bytes, claims govern intent, the harbor card decides who may write the region at all.*
 
@@ -83,8 +85,8 @@ flowchart TD
 ## Core Rules
 
 - **Governable CRDT.** Loro v1.13.x is the buffer; a **claim is a presence range the guard can refuse to merge across**. Bytes merge automatically; *intent* is governed above the CRDT.
-- **Agents are peers, not tools.** Every actor (human or agent) is a Loro replica with a PeerID minted from its PD identity, rendered identically (cursor, claimed range, name), with provenance.
-- **Claims govern intent, not bytes.** "Merges cleanly" ≠ "merges correctly" — surface logical conflict (`POST /conflicts/predict`) as a `Conflicted`/`Gated` band *before* a byte is written; never a silent auto-merge.
+- **Actors and replicas are distinct.** Bind a verified principal to a distinct device/session incarnation. Never derive a PeerID from a principal or display name alone: two devices must not reuse one operation counter. DocumentRef, not an absolute path, identifies a shared document. Names are labels, not verification.
+- **Claims govern intent, not bytes.** "Merges cleanly" ≠ "merges correctly". Enforce direct claim violations. Semantic intersection allegations remain advisory unless an authorized policy explicitly creates a gate; similarity or an unconfirmed prediction cannot block human editing by itself.
 - **Authoritative recovery is the target wedge, not current functionality.** P3.5 requires daemon-owned typed receipts from sequence zero, sealed abandonment, canonical Rust Loro validation, and one atomic P3 claim transfer/token/provenance transaction. Current P2 snapshots, `/blob`, notes, generic salvage, and `apply_remote_ops` cannot authorize it. Build the missing authorities; never simulate them.
 - **The daemon IS the collab server** — no new sync backend. Loro Protocol rides the existing tube; the canonical editor-sync contract owns checkpoint/reconnect behavior, while P3.5 salvage uses separate daemon-owned typed operation receipts. Notes are provenance, never replay evidence.
 - **Topology behind a trait.** `SyncTransport` abstracts Shared (daemon HTTP+SSE) / LAN (iroh) / Remote (relay+E2E); the editor never knows which.
@@ -100,7 +102,7 @@ The authenticated `POST /editor/recovery/{request,prepare,replay,finalize}` rout
 ### Anti-Pattern: "Agents as tools, not peers"
 **Symptom**: agents are a side-panel that edits *for* the human; no shared cursor/claim/provenance.
 **Detection**: agent edits don't appear as a replica in the buffer; no PeerID identity.
-**Fix**: make every agent a first-class Loro replica keyed to its PD identity (ref 03).
+**Fix**: make every human/agent embodiment a distinct replica with verified principal/device/session provenance (ref 03). Do not hash a principal into one shared PeerID.
 
 ### Anti-Pattern: "Trusting CRDT auto-merge for correctness"
 **Symptom**: two actors edit the same symbol; it merges cleanly and silently produces wrong code.
@@ -121,7 +123,7 @@ The authenticated `POST /editor/recovery/{request,prepare,replay,finalize}` rout
 
 Adding the **Editor** surface (battle plan P0→P1), composing the siblings:
 1. **Shell (Layer 1)** — add `SurfaceKind::Editor { path, region }` to `mux.rs`; implement the object-safe `Pane` (one pane, two faces). *Pull `beautiful-gui-design`* for hierarchy/tokens, *`rust-gpui-motion`* for the open transition (no transform — layout-fraction zoom).
-2. **Text (Layer 2)** — back it with one `LoroDoc`/`LoroText`; mint a PeerID from `pd whoami`; authorship gutter colored by replica (ref 03).
+2. **Text (Layer 2)** — reuse the existing `EditorPane` and `HarborBuffer`; allocate a distinct replica incarnation, bind shared admission to verified principal/device/session authority, and route by DocumentRef. Never shell out to `pd whoami` or treat its label as verification.
 3. **Governance (Layer 3)** — claim the edited region; `/conflicts/predict`; paint overlap `Tone::Conflicted`; guard the commit; record each validated operation in the typed salvage ledger.
 4. **Polish** — *pull `gpui-shaders`* for the living-harbor water behind it; *`sound-design-and-audio`* for the `board`/`approve` cues.
 5. **Land** — visual artifacts (screenshot + a board→steer→diff clip) in the PR test plan, per the standing rule.

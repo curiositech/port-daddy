@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/swarm-invocation-trace-v1.json",
+  "title": "ControllerOwnedInvocationTrace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "contractDigest", "invocationId", "planDigest", "planRevision", "attempts", "events", "gatherResults", "reviewResults", "terminal", "replayProjection"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "ControllerOwnedInvocationTrace"},
+    "contractDigest": {"type": "string"},
+    "invocationId": {"type": "string"},
+    "planDigest": {"type": "string"},
+    "planRevision": {"type": "integer", "minimum": 1},
+    "attempts": {"type": "array"},
+    "events": {"type": "array"},
+    "gatherResults": {"type": "array"},
+    "reviewResults": {"type": "array"},
+    "terminal": {"type": "object"},
+    "replayProjection": {"type": "object"}
+  }
+}

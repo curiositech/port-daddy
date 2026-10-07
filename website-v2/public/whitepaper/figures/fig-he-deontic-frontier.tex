@@ -46,15 +46,6 @@
     {verified on 16 seeded instances (8 satisfiable, 8 unsatisfiable, seed
      20260816): conflict-freedom $\Leftrightarrow$ satisfiability on all 16};
 \end{tikzpicture}
-\caption{\textbf{One added rule kind turns a polynomial check into an
-NP-complete one.} Both columns share the identical rule vocabulary of
-$L_c$: Horn rules, deontic obligations/prohibitions on scope and interval,
-exclusive claims, and difference constraints, decided in
-$O(H+T\log T+C\log C+VE)$ with a polynomial witness per conflict
-(the in-fragment theorem, left). Letting exactly one obligation become disjunctive
-(right) is enough: the extended fragment's conflict-freedom is
-NP-complete by reduction from 3-SAT (the frontier theorem), so the boundary is the
-presence of that one feature, not a graded notion of expressiveness.
-[verified, \texttt{b4\_deontic\_fragment.py}]}
+\caption{Conflict checking is polynomial in the stated fragment; disjunctive obligations permit an NP-complete conflict-freedom problem. [verified, \protect\path{b4_deontic_fragment.py}]}
 \label{fig:he-deontic-frontier}
 \end{figure}

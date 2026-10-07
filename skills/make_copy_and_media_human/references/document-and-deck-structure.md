@@ -36,7 +36,6 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`conclusion-recap-tag`](#conclusion-recap-tag) | HIGH | shape | **no** |
 | [`emoji-section-headers`](#emoji-section-headers) | HIGH | shape | yes |
 | [`h2-spam-full-sentence-headings`](#h2-spam-full-sentence-headings) | HIGH | shape | **no** |
-| [`headline-then-bullets-disease`](#headline-then-bullets-disease) | HIGH | shape | **no** |
 | [`key-takeaways-box-everywhere`](#key-takeaways-box-everywhere) | HIGH | shape | **no** |
 | [`markdown-leak-in-unrendered-medium`](#markdown-leak-in-unrendered-medium) | HIGH | form | yes |
 | [`model-markup-residue`](#model-markup-residue) | HIGH | residue | yes |
@@ -56,6 +55,7 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`unattributed-inspirational-quote-slide`](#unattributed-inspirational-quote-slide) | med | shape | n/a |
 | [`agent-namespaced-branch`](#agent-namespaced-branch) | low | residue | **no** |
 | [`heading-level-skip`](#heading-level-skip) | low | form | yes |
+| [`headline-then-bullets-disease`](#headline-then-bullets-disease) | low | shape | **no** |
 | [`title-case-heading-uniformity`](#title-case-heading-uniformity) | low | form | yes |
 | [`title-echo`](#title-echo) | low | shape | n/a |
 
@@ -224,34 +224,6 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 
 > ## Choosing a CRM
 > A CRM keeps customer data in one place, which matters more than the feature checklist most vendors push. Start with pricing: per-seat costs balloon once your team crosses ten people, so model the 18-month bill, not the sticker.
-
-<a id="headline-then-bullets-disease"></a>
-### `headline-then-bullets-disease`  ·  high · generic-llm · slide-deck · structural · family: shape
-
-**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
-
-Every slide is a declarative claim followed by 3-5 bullets, with no connective narrative or prose. The deck becomes a stack of identically-shaped claim+list units; nothing argues, everything asserts and enumerates.
-
-**Why it reads AI:** Humans build a talk around an arc with build-up and uneven emphasis. AI defaults to the average slide: a topic sentence plus a tidy list, repeated. The total absence of prose between bullets is the tell.
-
-**Detect:** structural: measure the fraction of slides matching a single topic line plus a 3-5 item bullet list with no prose, and the absence of single-idea or chart-only slides; flag a deck that is near-uniformly claim+list.
-
-**Fix:** Convert at least one in three slides to a single-idea statement, a chart with one annotation, or a narrative card. Let bullet counts vary. Add a 'so what' sentence instead of another bullet.
-
-**False positive when:** Assertion-evidence slide structure is a researched, deliberate design and some organisations mandate it. Flag a deck where nothing argues -- every unit asserts and enumerates and no connective thread runs between slides.
-
-**Before**
-
-> Slide: 'Our Q3 Strategy'
-> - Expand into three new markets
-> - Increase retention by 15%
-> - Launch the mobile app
-> - Strengthen the partner channel
-
-**After**
-
-> Slide: 'We bet everything on retention this quarter'
-> Last year we chased new markets and leaked customers out the back. So Q3 is one number: 15% better retention. Markets wait until that holds.
 
 <a id="key-takeaways-box-everywhere"></a>
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
@@ -768,6 +740,36 @@ Heading levels jumped rather than nested — H1 straight to H3, or H1s used wher
 
 > # Overview
 > ## Installation
+
+<a id="headline-then-bullets-disease"></a>
+### `headline-then-bullets-disease`  ·  low · generic-llm · slide-deck · structural · family: shape
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
+Every slide is a declarative claim followed by 3-5 bullets, with no connective narrative or prose. The deck becomes a stack of identically-shaped claim+list units; nothing argues, everything asserts and enumerates.
+
+**Why it reads AI:** Humans build a talk around an arc with build-up and uneven emphasis. AI defaults to the average slide: a topic sentence plus a tidy list, repeated. The total absence of prose between bullets is the tell.
+
+**Detect:** structural: measure the fraction of slides matching a single topic line plus a 3-5 item bullet list with no prose, and the absence of single-idea or chart-only slides; flag a deck that is near-uniformly claim+list.
+
+**Fix:** Convert at least one in three slides to a single-idea statement, a chart with one annotation, or a narrative card. Let bullet counts vary. Add a 'so what' sentence instead of another bullet.
+
+**False positive when:** Assertion-evidence slide structure is a researched, deliberate design and some organisations mandate it. Flag a deck where nothing argues -- every unit asserts and enumerates and no connective thread runs between slides.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> Slide: 'Our Q3 Strategy'
+> - Expand into three new markets
+> - Increase retention by 15%
+> - Launch the mobile app
+> - Strengthen the partner channel
+
+**After**
+
+> Slide: 'We bet everything on retention this quarter'
+> Last year we chased new markets and leaked customers out the back. So Q3 is one number: 15% better retention. Markets wait until that holds.
 
 <a id="title-case-heading-uniformity"></a>
 ### `title-case-heading-uniformity`  ·  low · chatgpt · structure · structural · family: form

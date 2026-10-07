@@ -92,6 +92,7 @@ import {
 } from './github-app.js';
 import { randomHex } from './crypto.js';
 import { authorizeExactRepository } from './github-publisher.js';
+import { saveFleetOnboardingDraft } from './fleet-onboarding.js';
 
 // ── Bounds ──────────────────────────────────────────────────────────────────
 //
@@ -124,7 +125,8 @@ YOUR PROCESS, in order:
    Fit the roster to the repo: a small library wants 2-3 ships, not eleven. Say what you left out and why. Invite pushback.
 4. When the operator is happy with the roster, EMIT the complete pd-fleet.yml in ONE fenced \`\`\`yaml block — a full, valid file, never a fragment. Schema:
    - Top-level key \`fleet:\` with \`name\`, \`harbor: "{project}:fleet"\`, \`limits:\` (\`max_concurrent_spawns\`, \`max_spawns_per_hour\`, \`budget_usd_per_day\`), and \`agents:\`.
-   - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`capability: cheap\` (the rung the cloud executor resolves — NEVER a literal model id), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
+   - Each ordinary agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`capability: cheap\` (the rung the cloud executor resolves — NEVER a literal model id), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
+   - QA is the hosted-diff exception: emit \`cloud_only: true\`, \`backend: cloudflare\`, and an admitted \`model:\` from the MODEL BOARD, with no local backend or fallback. Only the hosted executor is guaranteed to receive the frozen pull-request diff, so never emit local QA.
    - Ideation ships add \`class: ideation\` and a \`temperature:\`. The purser uses \`class: purser\`, \`blocking: false\`, and a \`graft:\` list.
    - Choose every \`model:\` id FROM THE MODEL BOARD below, quoted exactly, and justify the pick by role fit and price (cheap agentic for reviewers reading diffs, the agentic coder tier for ships that must emit runnable code, frontier tiers only where a single judgment is the product).
    - A \`model:\` id you choose is honored only if it is admitted; the board contains exactly the admitted set, so quote from it and never invent one. Where a ship's need is a JOB rather than a specific measured model ("whatever fills the cheap reviewer slot"), you may instead write \`capability:\` with one of cheap | balanced | high | max-thinking | code, which survives a re-tier without an edit.
@@ -285,7 +287,7 @@ export function buildShipwrightDraftProposal(repo: string, profile: ShipwrightOn
     : 'No protected paths were named; do not infer any.';
   const context = `Repository stack: ${yamlPromptLine(profile.languagesAndFrameworks)}. Desired outcomes: ${yamlPromptLine(profile.desiredReviewOutcomes)}. ` +
     `Risk tolerance: ${profile.riskTolerance}. Review strictness: ${profile.reviewStrictness}. ${protectedNote}`;
-  return `fleet:\n  name: ${yamlString(`${repo} review fleet`)}\n  harbor: ${yamlString(`${project}:fleet`)}\n  limits:\n    max_concurrent_spawns: 2\n    max_spawns_per_hour: 12\n    budget_usd_per_day: ${profile.budgetCeilingUsdPerDay}\n  agents:\n    code-reviewer:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Review the diff for correctness, regressions, and maintainability. Rank concrete findings by severity and cite exact evidence.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:code-reviewer`)}\n      telos: ${yamlString('Find actionable defects without manufacturing work.')}\n    qa:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Design hostile tests around the strongest contract implied by the change. Report gaps; do not claim execution you cannot prove.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:qa`)}\n      telos: ${yamlString('Turn likely regressions into reproducible tests.')}\n    purser:\n      trigger: pull_request:*\n      class: purser\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      graft:\n        - sandboxed-adversarial-test-harness\n        - steel-man-argument\n      prompt: |\n        Steel-man the pull request into its strongest testable contract, then identify the smallest decisive tests. Stay advisory until explicitly promoted.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:purser`)}\n      telos: ${yamlString('Make the review contract explicit and testable.')}\n`;
+  return `fleet:\n  name: ${yamlString(`${repo} review fleet`)}\n  harbor: ${yamlString(`${project}:fleet`)}\n  limits:\n    max_concurrent_spawns: 2\n    max_spawns_per_hour: 12\n    budget_usd_per_day: ${profile.budgetCeilingUsdPerDay}\n  agents:\n    code-reviewer:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Review the diff for correctness, regressions, and maintainability. Rank concrete findings by severity and cite exact evidence.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:code-reviewer`)}\n      telos: ${yamlString('Find actionable defects without manufacturing work.')}\n    qa:\n      trigger: pull_request:*\n      cloud_only: true\n      backend: cloudflare\n      model: ${yamlString(CF_ROLE_MODELS.shipDefault)}\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Design hostile tests around the strongest contract implied by the change. Report gaps; do not claim execution you cannot prove.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:qa`)}\n      telos: ${yamlString('Turn likely regressions into reproducible tests.')}\n    purser:\n      trigger: pull_request:*\n      class: purser\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      graft:\n        - sandboxed-adversarial-test-harness\n        - steel-man-argument\n      prompt: |\n        Steel-man the pull request into its strongest testable contract, then identify the smallest decisive tests. Stay advisory until explicitly promoted.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:purser`)}\n      telos: ${yamlString('Make the review contract explicit and testable.')}\n`;
 }
 
 /** POST /v1/shipwright/thread — issue an opaque, server-bound thread id. */
@@ -433,6 +435,38 @@ export async function handleShipwrightOnboarding(request: Request, env: Env): Pr
     repoFullName: scope.thread.repo_full_name,
   };
   const yaml = buildShipwrightDraftProposal(scope.thread.repo_full_name, profile);
+  let repositoryIdentity;
+  try {
+    repositoryIdentity = await authorizeExactRepository(
+      scope.thread.installation_id,
+      scope.thread.repo_full_name,
+      scope.session.ghToken!,
+      'read',
+    );
+  } catch {
+    return json(404, { code: 'SHIPWRIGHT_SCOPE_UNAVAILABLE', error: 'repository context is unavailable' });
+  }
+  if (repositoryIdentity.repositoryId == null || repositoryIdentity.githubAccountId == null) {
+    return json(502, { code: 'GITHUB_REPOSITORY_IDENTITY_UNAVAILABLE', error: 'GitHub did not return immutable repository identity; no onboarding state changed' });
+  }
+  const customerBudgetMicrousd = Math.round(profile.budgetCeilingUsdPerDay * 1_000_000);
+  let fleetDraft;
+  try {
+    fleetDraft = await saveFleetOnboardingDraft(env.DB, {
+      userId: scope.session.user.id,
+      userLogin: scope.session.user.login,
+      installationId: scope.thread.installation_id,
+      repositoryId: repositoryIdentity.repositoryId,
+      githubAccountId: repositoryIdentity.githubAccountId,
+      repositoryFullName: repositoryIdentity.fullName,
+    }, {
+      desiredOutcomes: [profile.desiredReviewOutcomes],
+      customerBudgetMicrousd,
+      proposal: { source: 'shipwright_deterministic_onboarding', yaml, profile },
+    }, now);
+  } catch {
+    return json(503, { code: 'FLEET_ONBOARDING_STORE_UNAVAILABLE', error: 'Fleet onboarding could not be saved; no configuration was activated' });
+  }
   await upsertShipwrightRepoMemory(env.DB, {
     id: `swm_${randomHex(24)}`,
     ...repoScope,
@@ -443,7 +477,17 @@ export async function handleShipwrightOnboarding(request: Request, env: Env): Pr
   await insertShipwrightProposal(env.DB, {
     id: `swp_${randomHex(24)}`, ...repoScope, yaml, origin: 'deterministic_onboarding', now,
   });
-  return json(200, { code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile, draftProposal: { yaml, verdict: validateFleetYaml(yaml) } });
+  return json(200, {
+    code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile,
+    fleetOnboarding: {
+      tenantAccountId: fleetDraft.tenantAccountId,
+      proposalId: fleetDraft.proposalId,
+      configurationStatus: 'proposed',
+      executionStatus: 'blocked_pending_executor',
+      activationRequirements: ['accepted configuration', 'managed entitlement', 'served installation', 'per-call stop-loss'],
+    },
+    draftProposal: { yaml, verdict: validateFleetYaml(yaml) },
+  });
 }
 
 /** POST /v1/shipwright/ai-context-consent — an independent, reversible egress choice. */

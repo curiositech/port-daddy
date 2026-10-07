@@ -1,78 +1,25 @@
-% Figure IV.2 --- three economically distinct flows close on one journal.
-%
-% Reader question: how can three different market sides (labor, capital,
-% licensed IP) close through one escrow without becoming three separate
-% ledgers?
-% Claim: the same agent can be three economically different things, and all
-% three settle through one witnessed journal that still conserves value.
-% Evidence: sec:three-sides (the three-side enumeration) and the running
-% Bob/Alice/Carol example; conservation invariant
-% Delta W + Delta E + Delta C = 0.
-% Must distinguish: the three rows carry different hidden information and a
-% different exposure, yet all three close on the same escrow spine.
-% Grammar chosen: typed accounting-flow junction -- three tributaries into
-% one spine (the idiom in examples/redraw-commitment-oracle.tex). Each rail
-% now carries its own exposure and payee; the table keeps only the hidden-
-% information column, the one fact the rail geometry cannot carry.
-% Grammar rejected: three circles around a shared escrow (atlas reject list)
-% -- it reads as three markets, not three exposure profiles closing on one
-% journal; also rejected an overly blue Sankey, which erases which lane is
-% whose.
-% Five-second test: a reader can name which row is Alice's reputational
-% exposure (badge 2) and see all three rows end on the same gold spine.
-\begin{figure}[H]
+% Reader question: how does Bob's choice change the seller's exposure?
+% The chapter's refactor example, not three abstract risk rails.
+% Alternative purchases, not three cumulative charges or paid flows.
+% Conservation and reputation subject keys remain in the surrounding prose.
+\begin{table}[htbp]
 \centering
-\pdfigurehue{pdgold}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- the grid -------------------------------------------------------------
-  \def\dy{1.95}    % row pitch
-  \def\lx{0}       % kind-tag column (anchor east)
-  \def\rx{0.20}    % lane start
-  \def\bx{3.00}    % badge column
-  \def\sx{6.60}    % escrow spine
-  \def\ex{6.82}    % spine label start
-  % ---- title ------------------------------------------------------------
-  \node[pd title,anchor=west] at (\lx,5.05)
-    {one agent can carry three different risk signatures};
-  % ---- three lanes, each a clean rule broken only at its keyed guard --------
-  \foreach \y/\k/\n/\e in {3.90/{Labor}/1/{principal bond $\to$ fleet principal},
-      1.95/{Capital}/2/{reputation exposure $\to$ asset owner},
-      0/{Licensed IP}/3/{content hash $+$ use $\to$ licensor}}{
-    \node[pd kind,anchor=east] at (\lx,\y) {\k};
-    \draw[pd rule,pd to badge] (\rx,\y) -- (\bx,\y);
-    \node[pd badge] at (\bx,\y) {\n};
-    \draw[pd rule,pd from badge,->] (\bx,\y) -- (\sx,\y);
-    \node[pd label,anchor=north,align=center,text width=3.5cm]
-      at ({(\bx+\sx)/2},{\y-.20}) {\e};
-  }
-  % ---- the escrow spine: the figure's subject ------------------------------
-  \draw[pd focus rule,line width=1.6pt] (\sx,-0.90) -- (\sx,{2*\dy+0.55});
-  \foreach \y in {0,1.95,3.90}{\node[pd focus datum] at (\sx,\y) {};}
-  \node[pd focus label,anchor=west,align=left,text width=2.1cm] at (\ex,\dy)
-    {one witnessed settlement journal};
-  % ---- the conserved close ---------------------------------------------------
-  \draw[pd focus rule] (-0.30,-1.35) -- (\sx,-1.35);
-  \node[pd note,anchor=north west,text width=8.7cm] at (-0.30,-1.55)
-    {$\Delta W+\Delta E+\Delta C=0$, despite three different counterparties and
-     three different exposure keys};
-\end{tikzpicture}
-
-\smallskip
-\begin{tabularx}{\textwidth}{@{}c >{\raggedright\arraybackslash}X@{}}
+\begingroup
+\pdfiglabelfamily\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{.29\linewidth}@{\hspace{1em}}>{\raggedright\arraybackslash}p{.20\linewidth}@{\hspace{1em}}>{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{No.} & \textbf{Hidden information} \\
+\textbf{Bob buys} & \textbf{Payment} & \textbf{Seller's exposure} \\
 \midrule
-1 & fleet capability unknown \\
-2 & specialist quality hidden \\
-3 & version quality hidden \\
+Work from Alice's three-agent fleet & 400 cr bounty & Alice posts 60 cr per agent; 180 cr in sub-bonds. \\
+\addlinespace
+An afternoon with Alice's specialist & 90 cr rent & Poor work lowers the specialist's reputation---Alice's asset. \\
+\addlinespace
+Carol's lint-and-type skill & 0.5 cr per file & Carol's fee is released only on successful settlement. \\
 \bottomrule
 \end{tabularx}
-
-\caption{\textbf{The three sides are three risk signatures, not three tabs.}
-Labor exposes a principal bond and pays a fleet principal; rented capital exposes
-the owner's reputation and pays rent; licensed IP exposes a version-bound content
-claim and pays a metered fee. All three close through one witnessed journal (the
-gold spine), so the conservation invariant is shared even though the
-counterparties, private information, and reputation keys are not. [internal]}
+\endgroup
+\caption{One refactor, three alternative purchases. Rental and licensing are designed, not shipped; all three use the same escrow. [illustrative]}
+\label{tab:he-three-purchases}
 \label{fig:he-three-sided}
-\end{figure}
+\end{table}

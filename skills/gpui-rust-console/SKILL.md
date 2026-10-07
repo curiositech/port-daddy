@@ -1,6 +1,5 @@
 ---
 name: gpui-rust-console
-version: 0.2.0
 description: >
   Build and extend pd-console — Port Daddy's GPU-native macOS operator console (GPUI
   0.2.x, Zed's Rust UI). Covers the render-agnostic Block/Pane(Surface) contract, the
@@ -8,13 +7,14 @@ description: >
   scroll, focus + keyboard nav, the OKLCH theme and ICS maritime flag badges, GPUI's
   missing text-input, and the real feature-gated cargo/CI gate. Use when adding panes,
   visual polish, or debugging GPUI rendering/layout/focus in core/pd-console. NOT for the
-  TypeScript daemon, generic Rust toolchain/borrow-checker help (use rust-with-claude-code),
+  TypeScript daemon, generic Rust toolchain/borrow-checker help (use rust-development-workflow),
   or non-pd GPUI apps with a different theme/architecture.
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
-author: port-daddy
 license: Apache-2.0
-tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
 metadata:
+  version: 0.2.0
+  author: port-daddy
+  tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
   category: Native UI & Rendering
   argument-hint: '[task: add-pane|layout|scroll|theme|maritime|text-input|verify]'
   provenance:
@@ -22,7 +22,7 @@ metadata:
     owners:
       - port-daddy
   pairs-with:
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Generic Rust toolchain/borrow-checker/async help once you're past pd-console's own render-agnostic contracts.
     - skill: rust-gpui-motion
       reason: with_animation/easing/pane transitions for a pane this skill already renders — motion is out of scope here.
@@ -46,6 +46,8 @@ metadata:
 
 # gpui-rust-console
 
+**Activation boundary:** use this for `core/pd-console` pane data, rendering, layout, focus, theme, and the Tokio producer ↔ GPUI consumer contract. A transition on an existing pane belongs to `rust-gpui-motion`; a per-pixel effect belongs to `gpui-shaders`; cross-layer CRDT and recovery design belongs to `build-coop-ide-gpui`. For ordinary Rust compiler and test workflow, use `rust-development-workflow`.
+
 Authoritative skill for `core/pd-console` (crate `pd-console` v0.2.0, ADR-0046): a
 GPU-native standalone macOS operator console built on GPUI 0.2.2, plus a headless ratatui
 REPL that renders the *same* panes. The defining idea: **a pane emits render-agnostic
@@ -64,7 +66,7 @@ unit-tested on cheap Linux runners while the Metal window builds only on macOS.
 
 ❌ **NOT for**:
 - The TypeScript daemon, routes, or `agent.rs` HTTP wiring beyond consuming it
-- Generic Rust (borrow checker, async, FFI, testing idioms) → `rust-with-claude-code`
+- Generic Rust (borrow checker, async, FFI, testing idioms) → `rust-development-workflow`
 - A non-pd GPUI app — the theme, the 17-pane model, and the daemon contract are specific
 - Generic macOS app packaging / notarization → `rust-app-distribution`
 
@@ -74,9 +76,9 @@ unit-tested on cheap Linux runners while the Metal window builds only on macOS.
 flowchart TD
   D["DaemonClient (reqwest)"] -->|"GET /route per pane"| PR
   subgraph PR["Producer: std::thread + current-thread tokio (2s loop)"]
-    R["pane.refresh(&client).await"] --> V["pane.view() → Vec&lt;Block&gt;"]
+    R["pane.refresh(&client).await"] --> V["pane.view() → Vec‹Block›"]
   end
-  PR -->|"std::sync::mpsc: Vec&lt;(nav_idx, Vec&lt;Block&gt;)&gt;"| CO
+  PR -->|"std::sync::mpsc: Vec‹(nav_idx, Vec‹Block›)›"| CO
   subgraph CO["Consumer: GPUI foreground (smol, main thread, 500ms)"]
     U["window.update → view.update_panes"] --> N["cx.notify()"]
   end

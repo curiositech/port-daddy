@@ -4,7 +4,7 @@
 %   preventable?
 % Claim: preventable is one cell, not a spectrum -- exactly the top-right,
 %   where the daemon controls the event AND its trigger is witnessed at the
-%   mediation boundary; every other combination is detect-only.
+%   mediation boundary. Missing observation does not imply detectability.
 % Evidence: whitepaper/single-writer-kernel.tex sec:partial-observation,
 %   thm:regimentation-controllability; b3_controllability.py classifies each
 %   column; row membership is by inspection of each trigger.
@@ -21,23 +21,23 @@
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  cell/.style={pd label,align=center,text width=4.1cm}]
-  \def\w{4.20}  \def\h{2.55}  \def\ox{2.30}  \def\oy{0.00}
+  cell/.style={pd label,align=center,text width=3.8cm}]
+  \def\w{4.05}  \def\h{2.55}  \def\ox{2.30}  \def\oy{0.00}
   \draw[pd focus fill] ({\ox+\w},{\oy+\h}) rectangle ({\ox+2*\w},{\oy+2*\h});
   \draw[pd rule] (\ox,\oy) rectangle ({\ox+2*\w},{\oy+2*\h});
   \draw[pd rule] ({\ox+\w},\oy) -- ({\ox+\w},{\oy+2*\h});
   \draw[pd rule] (\ox,{\oy+\h}) -- ({\ox+2*\w},{\oy+\h});
 
   \foreach \cx/\cy/\head/\inst in {%
-    0/1/{detect-only}/{a plan stated in the model's context},
-    1/1/{preventable $\star$}/{\texttt{git\_push}, net egress, spawn child},
-    0/0/{detect-only}/{a thought},
-    1/0/{detect-only}/{an effect whose guard reads unwitnessed state}}{
+    0/1/{guard not evaluable}/{gated egress, but a trigger in private context},
+    1/1/{prevention possible $\star$}/{gated egress with witnessed authorization},
+    0/0/{outside observation}/{an unreported internal step},
+    1/0/{observed after effect}/{an external write logged only after commit}}{
       \node[pd title,anchor=north] at ({\ox+\cx*\w+\w/2},{\oy+\cy*\h+\h-.30}) {\head};
       \node[cell,anchor=north] at ({\ox+\cx*\w+\w/2},{\oy+\cy*\h+\h-.86}) {\inst};}
 
   % column heads: the witnessing axis, stated as a clause, above the grid
-  \node[pd label,anchor=south,text width=8.4cm,align=center] at ({\ox+\w},{\oy+2*\h+.60})
+  \node[pd label,anchor=south,text width=8.1cm,align=center] at ({\ox+\w},{\oy+2*\h+.60})
     {the trigger is witnessed at the mediation boundary};
   \foreach \cx/\l in {0/no, 1/yes}{
     \node[pd label,anchor=south] at ({\ox+\cx*\w+\w/2},{\oy+2*\h+.15}) {\l};}
@@ -48,11 +48,9 @@
   \foreach \cy/\l in {0/no, 1/yes}{
     \node[pd label,rotate=90,anchor=south] at ({\ox-.42},{\oy+\cy*\h+\h/2}) {\l};}
 \end{tikzpicture}
-\caption{Preventable is one cell, not a spectrum. An event is preventable
-exactly when it is controllable (top row) \emph{and} its trigger is witnessed
-at the mediation boundary (right column): the shaded cell, marked $\bigstar$
-and tied to Theorem~\ref{thm:regimentation-controllability}. Every other
-combination is detect-only. Column membership reproduces from the checker; row membership is by inspection
-of each trigger. [internal, \texttt{b3\_controllability.py}]}
+\caption{Prevention needs both control of the event and observation sufficient
+to evaluate its guard: the shaded cell. The partial-observation theorem gives
+the formal condition. Outside this cell, detection is not automatic; private,
+unreported state may remain invisible. [internal; schematic]}
 \label{fig:swk-controllability-quadrant}
 \end{figure}

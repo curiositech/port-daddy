@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Woven hemp dockyard cargo sling net lifting wooden crates with cobalt blue hoist hook. Analogy for bundling work orders and batch execution.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "568aeff59dffe2c624b56ba65daca9d64d37ea209cc93b1dd8bed55421a2e534",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

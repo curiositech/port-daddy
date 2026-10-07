@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0.0",
+  "capsuleId": "capsule-1",
+  "subject": {
+    "actorId": "actor-1",
+    "predecessorBodyId": "body-a",
+    "proposedBodyId": "body-b",
+    "authorityEpoch": 2,
+    "repository": "https://github.com/example/repo.git",
+    "taskId": "task-1",
+    "audience": "actor-1/task-1/body-b"
+  },
+  "compiler": {
+    "compilerId": "context-compiler-static",
+    "policyVersion": "context-policy-v1",
+    "sourceManifestRef": "manifest:source-1"
+  },
+  "inputManifestDigest": "sha256:inputs",
+  "policyDigest": "sha256:context-policy",
+  "items": [
+    {
+      "itemId": "item-fact",
+      "contentRef": "source:repository-state",
+      "contentDigest": "sha256:fact",
+      "trustClass": "VERIFIED_FACT",
+      "instructionUse": "DATA_ONLY",
+      "authorityRef": null,
+      "provenanceRefs": ["git:anchor"],
+      "disclosureScope": "repository",
+      "audience": "actor-1/task-1/body-b",
+      "freshness": "CURRENT",
+      "revocationChecked": false,
+      "integrityRef": "git:anchor",
+      "spaceId": "space:minilm-v1",
+      "redaction": "NONE",
+      "obligationIds": []
+    },
+    {
+      "itemId": "item-directive",
+      "contentRef": "directive:operator-1",
+      "contentDigest": "sha256:directive",
+      "trustClass": "CURRENT_OPERATOR_DIRECTIVE",
+      "instructionUse": "DIRECTIVE_ELIGIBLE",
+      "authorityRef": "authority:operator/task-1",
+      "provenanceRefs": ["receipt:operator-directive"],
+      "disclosureScope": "task-1",
+      "audience": "actor-1/task-1/body-b",
+      "freshness": "CURRENT",
+      "revocationChecked": true,
+      "integrityRef": "signature:operator-directive",
+      "spaceId": null,
+      "redaction": "NONE",
+      "obligationIds": ["obligation-1"]
+    },
+    {
+      "itemId": "item-secret",
+      "contentRef": "opaque://broker/credential-7",
+      "contentDigest": "sha256:opaque-handle",
+      "trustClass": "SECRET_HANDLE",
+      "instructionUse": "FORBIDDEN",
+      "authorityRef": null,
+      "provenanceRefs": ["broker:credential-7"],
+      "disclosureScope": "handle-only",
+      "audience": "actor-1/task-1/body-b",
+      "freshness": "UNKNOWN",
+      "revocationChecked": false,
+      "integrityRef": "broker:handle-receipt",
+      "spaceId": null,
+      "redaction": "OPAQUE_HANDLE",
+      "obligationIds": []
+    }
+  ],
+  "retrievalJoins": [
+    {
+      "joinId": "retrieval-1",
+      "querySpaceId": "space:minilm-v1",
+      "candidateSpaceId": "space:minilm-v1",
+      "policyRef": "retrieval-policy:repository",
+      "status": "MATCHED"
+    }
+  ],
+  "obligations": [
+    {
+      "obligationId": "obligation-1",
+      "statement": "Preserve the local runtime halt.",
+      "status": "COVERED",
+      "sourceRefs": ["item-directive"],
+      "reason": null
+    },
+    {
+      "obligationId": "obligation-2",
+      "statement": "Recover transient brainstorming details.",
+      "status": "OMITTED",
+      "sourceRefs": [],
+      "reason": "Excluded by deliberate-forgetting policy."
+    }
+  ],
+  "translations": [
+    {
+      "kind": "MODEL",
+      "sourceName": "source-model",
+      "targetName": "target-model",
+      "status": "SUBSTITUTED",
+      "authorityRef": null,
+      "rationale": "Target backend uses a different model; no capability is implied."
+    },
+    {
+      "kind": "SKILL",
+      "sourceName": "steel-man-argument",
+      "targetName": "steel-man-argument",
+      "status": "EXACT",
+      "authorityRef": null,
+      "rationale": "Same versioned skill bundle is available."
+    },
+    {
+      "kind": "PERMISSION",
+      "sourceName": "repository-read",
+      "targetName": null,
+      "status": "UNKNOWN",
+      "authorityRef": null,
+      "rationale": "A lifecycle authority must make a fresh capability decision."
+    }
+  ],
+  "omissions": [
+    {
+      "omissionId": "omission-1",
+      "category": "transient-brainstorming",
+      "reason": "Excluded by deliberate-forgetting policy without copying content.",
+      "policyRef": "policy:forgetting-v1"
+    }
+  ],
+  "unknowns": ["Target backend permission availability has not been adjudicated."],
+  "proposalNonce": "nonce:context-capsule-1",
+  "outputDigest": "sha256:context-ir",
+  "admissionAuthority": "NONE",
+  "capabilityAuthority": "NONE",
+  "truthEffect": "NONE"
+}

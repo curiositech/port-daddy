@@ -1,0 +1,10 @@
+{
+  "tests_run": 12,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "log": "test_finite_readback_assertions (__main__.MeasuredReadback) ... ok\ntest_observer_snapshot_then_release_order (__main__.MeasuredReadback) ... ok\ntest_reject_changed_connection_settings (__main__.MeasuredReadback) ... ok\ntest_reject_falsely_fresh_pinned_reader (__main__.MeasuredReadback) ... ok\ntest_reject_issued_equals_verified_ack (__main__.MeasuredReadback) ... ok\ntest_reject_promoting_completion_to_durability_proof (__main__.MeasuredReadback) ... ok\ntest_source_and_preserved_bytes_hashes (__main__.MeasuredReadback) ... ok\ntest_exactly_two_explicit_connect_calls_and_exclusive_creation (__main__.SafetyAndContract) ... ok\ntest_existing_run_is_rejected_without_opening_sqlite (__main__.SafetyAndContract) ... ok\ntest_issued_is_not_a_completion_or_durability_witness (__main__.SafetyAndContract) ... ok\ntest_paths_and_traversal_are_rejected (__main__.SafetyAndContract) ... ok\ntest_symlink_lab_is_rejected (__main__.SafetyAndContract) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.003s\n\nOK\n",
+  "sqlite_connections_opened_by_tests": 0,
+  "tests_source_sha256": "ce77e072e3f55813659b619198494c57f79bc191bbdff606751a9e3b833cb3c5",
+  "measured_results_sha256": "bbd26649e30c3e3389e0282fbdf6a63374f84082c14c73ec3f53590f9e3426e3"
+}

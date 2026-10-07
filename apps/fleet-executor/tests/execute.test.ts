@@ -3255,7 +3255,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       .resolves.toEqual(new Map());
   });
 
-  it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
+  it('D1 down: managed billing fails closed before any AI spend', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -3265,8 +3265,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
+    expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('No AI was run');
   });
 
   it('parseShipCheckpoint refuses mis-attributed or malformed rows', () => {

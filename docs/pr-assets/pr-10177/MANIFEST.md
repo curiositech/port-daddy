@@ -91,12 +91,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[341-1].get_pixmap(dpi=150)
 
 ---
 
-## Artifact 1 — `worked-example-pairwise-count.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png`
 
 1 / The exact count behind O(n^2)
 
-- File: `docs/pr-assets/pr-10177/worked-example-pairwise-count.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/92cd7dcfbbe30d9e935efaa122a9c9b97cc89f13/docs/pr-assets/pr-10177/worked-example-pairwise-count.png`
+- File: `https://media.portdaddy.dev/sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png`
+  - raw: `https://media.portdaddy.dev/sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png`
 - Shows: before = p.341 · after = p.341 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 547 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -107,12 +107,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[341-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 2 — `worked-example-declared-dead.png`
+## Artifact 2 — `https://media.portdaddy.dev/sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png`
 
 2 / When a crashed agent is declared dead, second by second
 
-- File: `docs/pr-assets/pr-10177/worked-example-declared-dead.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/92cd7dcfbbe30d9e935efaa122a9c9b97cc89f13/docs/pr-assets/pr-10177/worked-example-declared-dead.png`
+- File: `https://media.portdaddy.dev/sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png`
+  - raw: `https://media.portdaddy.dev/sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png`
 - Shows: before = p.360 · after = p.362 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 754 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -123,12 +123,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[341-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 3 — `conservation-invariant.png`
+## Artifact 3 — `https://media.portdaddy.dev/sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png`
 
 3 / The TLA+ invariant joined to the subsystem that realizes it
 
-- File: `docs/pr-assets/pr-10177/conservation-invariant.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/92cd7dcfbbe30d9e935efaa122a9c9b97cc89f13/docs/pr-assets/pr-10177/conservation-invariant.png`
+- File: `https://media.portdaddy.dev/sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png`
+  - raw: `https://media.portdaddy.dev/sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png`
 - Shows: before = p.387 · after = p.389 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 688 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

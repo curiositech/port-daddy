@@ -12,7 +12,7 @@
  *     returns a prUrl, and NEVER writes fleet state to D1 (prepare untouched).
  */
 
-import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
+import { CF_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   handleFleetConfig,
@@ -149,9 +149,9 @@ describe('handleFleetValidate', () => {
     const reviewer = json.ships.find((s) => s.name === 'code-reviewer');
     expect(reviewer).toBeDefined();
     expect(reviewer!.blocking).toBe(true);
-    // `code-reviewer` ends in "reviewer", so the review role wins over the
-    // fixture's own pin — the same routing rule the executor applies.
-    expect(reviewer!.cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+    // The declared capability wins over the name-based review default, matching
+    // the production executor's shared model-token semantics.
+    expect(reviewer!.cfModel).toBe(CF_MODELS.cheap);
     expect(json.ships.map((s) => s.name)).toContain('qa');
   });
 
@@ -193,6 +193,25 @@ fleet:
     expect(json.errors.some((e) => e.field === 'reviewer.prompt' && e.message === 'required')).toBe(true);
   });
 
+  it('BAD_SCHEMA when cloud_only is not a boolean', async () => {
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: "Review the exact head."
+      cloud_only: "false"
+`;
+    const res = await handleFleetValidate(
+      req('/v1/fleet/validate', 'POST', OPERATOR, { yaml }),
+      makeEnv(),
+    );
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { code: string; errors: Array<{ field: string; message: string }> };
+    expect(json.code).toBe('BAD_SCHEMA');
+    expect(json.errors).toContainEqual({ field: 'qa.cloud_only', message: 'must be a boolean' });
+  });
+
   it('BAD_JSON when the body is not {yaml: string}', async () => {
     const res = await handleFleetValidate(
       req('/v1/fleet/validate', 'POST', OPERATOR, { notyaml: 1 }),
@@ -224,11 +243,92 @@ describe('handleFleetSmokeTest', () => {
     expect(json.output).toContain('null dereference');
     expect(typeof json.ms).toBe('number');
 
-    // AI was called once, with the ship's review model.
+    // AI was called once, with the ship's declared capability model.
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.reviewBot);
+    expect(ai.run.mock.calls[0]![0]).toBe(CF_MODELS.cheap);
     const inputs = ai.run.mock.calls[0]![1] as { max_tokens: number; messages: Array<{ role: string }> };
     expect(inputs.max_tokens).toBe(2000); // bounded
+  });
+
+  it('runs an admitted primary Cloudflare model instead of the ship default', async () => {
+    const pinnedModel = '@cf/zai-org/glm-4.7-flash';
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: "${pinnedModel}"
+      cloud_only: true
+      prompt: "Review the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'qa',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(pinnedModel);
+    expect(ai.run.mock.calls[0]![0]).not.toBe(CF_ROLE_MODELS.shipDefault);
+  });
+
+  it.each([
+    ['role', 'reviewBot', CF_ROLE_MODELS.reviewBot],
+    ['capability', 'high', CF_MODELS.high],
+  ])('resolves a primary Cloudflare %s token before admission', async (_kind, token, expected) => {
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: "${token}"
+      cloud_only: true
+      prompt: "Review the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'qa',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(expected);
+  });
+
+  it('honors purser cf_role before model without requiring a Cloudflare primary', async () => {
+    const yaml = `
+fleet:
+  agents:
+    purser:
+      class: purser
+      trigger: pull_request:opened
+      cf_role: author
+      model: cheap
+      prompt: "Adjudicate the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'purser',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.author);
+    expect(ai.run.mock.calls[0]![0]).not.toBe(CF_MODELS.cheap);
   });
 
   it('SHIP_NOT_FOUND when the ship name is absent from the YAML', async () => {

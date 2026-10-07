@@ -1,59 +1,51 @@
-% Brief (tikz-diagram-craft), register row ch4-20.
-% Reader question: does a completion claim actually resolve against a
-%   checkable predicate, or does it silently pass on nothing?
-% Claim: a completion claim is CLAIMED, then a verifier runs the acceptance
-%   predicate; a met predicate closes DONE, an unmet one is REFUSED, and an
-%   unverifiable one must FAIL-LOUD rather than silently pass -- three
-%   distinct outcomes, never a default accept.
-% Evidence: Def. completionist, whitepaper/legible-swarm.tex, sec 4.4.5
-%   (this pass); the swk commitment-oracle figure draws the same claim to
-%   gate to DONE/reject shape this fragment reuses.
-% Must distinguish: FAIL-LOUD (honest abstention, the mechanisms own point)
-%   from REFUSED (a checked, failing predicate) -- collapsing them would
-%   hide that fail-loud is correct behavior, not an error state.
-% Grammar chosen: small state machine, one spine into a three-way guarded
-%   gate, each branch a numbered guard keyed to a ruled legend.
-% Grammar rejected: a two-outcome DONE/reject machine (the swk oracle
-%   original) would silently merge unverifiable into refused, exactly the
-%   silent-pass failure Def. completionist forbids naming.
-% Five-second test: which of the three gates fires when the verifier itself
-%   cannot run, and is that gate distinct from an outright failing check?
+% I/fig:completion-verifier. Source contract: def:completionist.
+% Integration evidence: BOOK-COMPLETION-VERIFIER-PASS-20260920.md.
+% Vision (owner status row): diagrammed obligation, not implemented enforcement.
+% No predicate implementation, signature, test result or empirical count is depicted.
+\usetikzlibrary{arrows.meta,calc}
+\newcommand{\CompletionVerifierFigure}{%
+\begin{tikzpicture}[x=1pt,y=-1pt,line cap=butt,line join=miter,
+  every node/.style={pd label,inner sep=0pt,align=center},
+  cv arrow/.style={-{Stealth[length=4.4pt,width=3.5pt]},draw=pdink,line width=.8pt},
+  cv outcome/.style={minimum width=98pt,minimum height=46pt,text width=84pt,
+    inner xsep=7pt,inner ysep=7pt,line width=.85pt,font=\pdfiglabel}]
+  % The two records play different roles: assertion versus the criteria that bind evaluation.
+  \path[draw=pdinkmuted,fill=pdinkmuted!3,line width=.8pt]
+    (0,0)--(116,0)--(128,12)--(128,45)--(0,45)--cycle;
+  \draw[pdinkmuted,line width=.6pt] (116,0)--(116,12)--(128,12);
+  \node (claim) at (64,23) {Completion\\claim};
+  \path[draw=pdviolet,fill=pdviolet!5,line width=.8pt]
+    (192,0)--(308,0)--(320,12)--(320,45)--(192,45)--cycle;
+  \draw[pdviolet,line width=.6pt] (308,0)--(308,12)--(320,12);
+  \node (criteria) at (256,23) {Acceptance\\criteria};
+
+  \node[draw=pdink,line width=.9pt,minimum width=108pt,minimum height=38pt,
+    inner xsep=8pt,inner ysep=8pt,font=\pdfiglabelbold] (verifier) at (160,98) {Verifier};
+  % claim -> verifier, never directly to an outcome.
+  \draw[cv arrow] (64,45)--(64,98)--(verifier.west);
+  % criteria -> verifier: this is a binding input, not a verifier-created standard.
+  \draw[cv arrow,draw=pdviolet] (256,45)--(256,58)--(160,58)--(verifier.north);
+
+  % A common source, three separate guarded outputs. These are alternatives, not a sequence.
+  \draw[pdink,line width=.8pt] (verifier.south)--(160,134);
+  \draw[pdink,line width=.8pt] (52,134)--(268,134);
+  \node[cv outcome,draw=pdteal,fill=pdteal!7,rounded corners=3pt] (done) at (52,214)
+    {Done\\for these criteria};
+  \node[cv outcome,draw=pdrust,fill=pdrust!6] (refused) at (160,214) {Refused};
+  \node[cv outcome,draw=pdgold,fill=pdgold!7,dashed] (inability) at (268,214)
+    {I cannot verify\\this completion};
+
+  \draw[cv arrow,draw=pdteal] (52,134)--(done.north);
+  \node[anchor=east,text=pdteal] at (42,161) {met};
+  \draw[cv arrow,draw=pdrust] (160,134)--(refused.north);
+  \node[anchor=east,text=pdrust] at (150,161) {unmet};
+  \draw[cv arrow,draw=pdgold,dashed] (268,134)--(inability.north);
+  \node[anchor=east,text=pdink] at (258,161) {unevaluable};
+\end{tikzpicture}}
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lx{1.30}   % claim column
-  \def\rx{8.60}   % outcome column
-  \node[pd focus state,minimum width=2.5cm] (C) at (\lx,1.60) {claimed};
-  \node[pd ready state,minimum width=3.0cm]  (D) at (\rx,3.10) {done};
-  \node[pd warn state,minimum width=3.0cm]   (U) at (\rx,1.60) {fail-loud};
-  \node[pd breach state,minimum width=3.0cm] (R) at (\rx,0.10) {refused};
-  \draw[pd focus arrow] (C.east) -- (4.95,1.60) -- (D.west);
-  \draw[pd focus arrow] (C.east) -- (U.west);
-  \draw[pd focus arrow] (C.east) -- (4.95,1.60) -- (R.west);
-  \node[pd title,anchor=south] at (3.10,1.90) {run verifier};
-  \node[pd badge] at (6.55,2.62) {1};
-  \node[pd badge] at (6.55,1.60) {2};
-  \node[pd badge] at (6.55,0.58) {3};
-  \def\ly{-1.55}
-  \draw[pd rule] (0,\ly) -- (10.9,\ly);
-  \node[pd title,anchor=north west] at (0.05,{\ly-.35}) {guard};
-  \node[pd title,anchor=north west] at (5.30,{\ly-.35}) {what breaks without it};
-  \draw[pd hairline] (0,{\ly-1.00}) -- (10.9,{\ly-1.00});
-  \foreach \i/\n/\g/\c in {0/1/{predicate met}/{a hollow claim reads as done},
-    1/2/{predicate unverifiable}/{an unverifiable claim silently auto-passes},
-    2/3/{predicate unmet}/{a failing claim is accepted anyway}}{
-    \node[pd badge] at (.28,{\ly-1.35-\i*.60}) {\n};
-    \node[pd label,anchor=west,align=left] at (.62,{\ly-1.35-\i*.60}) {\g};
-    \node[pd label,anchor=west,align=left,text=pderror] at (5.30,{\ly-1.35-\i*.60}) {\c};}
-\end{tikzpicture}
-\caption{The completionist obligation of Def.~\ref{def:completionist}: a
-completion claim is CLAIMED, then the authority runs a verifier derived
-from the tasks own acceptance criteria. A met predicate closes done
-(green); an unmet predicate is refused (red) rather than accepted anyway;
-and a predicate the verifier cannot evaluate must fail loudly (amber) and
-surface I cannot verify this completion rather than silently passing.
-Fail-loud is a third, distinct outcome from refused: it is the mechanism
-working as designed, not a failure the way refused is. [internal]}
+\SGMeasuredFigure{I/fig:completion-verifier}{\CompletionVerifierFigure}
+\caption{Vision: a proposed authority-side rule, not implemented enforcement or a guarantee of universal correctness. Passing it still leaves any omitted requirement unchecked.}
 \label{fig:completion-verifier}
 \end{figure}

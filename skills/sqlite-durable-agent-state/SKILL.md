@@ -63,22 +63,23 @@ Design local SQLite state for multi-agent daemons and CLIs that survives `brew u
 
 ```mermaid
 flowchart TD
-  A[Name one canonical DB path, env-pinned] --> B[Choose journal mode + busy_timeout]
-  B --> C[Design migrations: idempotent, atomic, versioned]
-  C --> D[Attach a post-apply verify probe per migration]
-  D --> E[Define writer topology: single-writer or serialized queue]
-  E --> F[Run scripts/db_path_audit.mjs on the plan]
-  F --> G{Blocker findings?}
-  G -->|Yes| C
-  G -->|No| H[Ship; add a doctor check for stray DB files]
+  A[Resolve canonical DB path and conflicting config policy] --> B[Choose journal mode for platform and access topology]
+  B --> C[Set caller-deadline timeout and explicit busy/stale-snapshot handling]
+  C --> D[Design idempotent migration and target-state verification]
+  D --> E[Declare writer serialization, checkpoint, and backup plan]
+  E --> F[Run static plan audit and inspect its exact version]
+  F --> G{Plan findings or unresolved assumptions?}
+  G -->|Yes| H[Revise plan or hold change]
+  H --> A
+  G -->|No| I[Require local migration, contention, crash, and restore tests]
 ```
 
 1. Name exactly one canonical path, resolved by every reader and writer through the same env var (e.g. `PORT_DADDY_DB`). No per-tool fallback default — that is how CLI/snapshot/export tooling end up reading three different files.
 2. Choose journal mode: `WAL` for a single writer with concurrent readers (the common daemon shape); `DELETE`/`TRUNCATE` only for a genuinely single-connection tool.
-3. If `WAL`, set `PRAGMA busy_timeout` (2000-5000ms floor) on every connection open. WAL gives reader/writer concurrency, not writer/writer concurrency — without a timeout, contention becomes `SQLITE_BUSY` crash-loops, not graceful waits.
-4. Write migrations as idempotent, transaction-wrapped SQL. If a "migration" spans two SQLite files (hot + tiering), treat the cross-file write as non-atomic by default and design an intent log or single-file merge — this is the literal WAL+WAL crash-loop failure mode.
-5. Attach a post-apply verification probe to every migration that queries the actual target table/column, not the migration-history table. `migration repair --status applied` (or any equivalent) only rewrites history bookkeeping; it never runs SQL.
-6. Declare writer topology explicitly: `single-writer`, `queue`, or `serialized`. More than one writer with no strategy is how upserts silently vanish across concurrent, non-serialized writes.
+3. If using WAL, declare a per-connection busy-handling policy that fits the caller deadline and transaction semantics: a bounded `busy_timeout`, safe caller retry, serialized writes, or a justified combination. WAL permits readers with one writer; it does not serialize application-level multi-step operations. Handle `SQLITE_BUSY` and stale-snapshot cases explicitly.
+4. Write migrations as idempotent, transaction-wrapped SQL. If a transaction spans attached databases, consult SQLite’s journal-mode atomicity limits: transactions across attached databases are not atomic as a set in WAL mode. Use one database or a durable intent/reconciliation protocol when cross-file consistency is required.
+5. Attach a post-apply verification probe to every migration that queries the actual target table/column, not the migration-history table. A migration-history update alone does not prove target schema/data changed; inspect the tool behavior and query the target.
+6. Declare writer topology explicitly: `single-writer`, `queue`, or `serialized`. More than one writer without a serialization/transaction plan can produce contention or application-level lost-update bugs; demonstrate the exact schedule rather than claiming upserts generally disappear.
 7. Run `scripts/db_path_audit.mjs` on the assembled plan before shipping. Any blocker finding means don't ship yet.
 
 ## Output Contract
@@ -91,6 +92,12 @@ flowchart TD
 - `recommendations[]` — concrete next actions, not restatements of the findings.
 
 Use `scripts/db_path_audit.mjs` to validate a `db-plan.schema.json`-shaped plan before shipping a daemon path change or migration.
+
+The bundled auditor's result shape and blocker taxonomy are local tool contracts;
+inspect its source/schema version before relying on a specific code or promotion
+meaning. Static plan validation is not a test of SQLite concurrency, migration
+application, backup restoration, or runtime state. Do not infer SQL execution,
+crash safety, or runtime state from a pass.
 
 ## Anti-Patterns
 
@@ -109,14 +116,15 @@ Use `scripts/db_path_audit.mjs` to validate a `db-plan.schema.json`-shaped plan 
 ### WAL Makes Concurrency Free
 
 **Novice**: "We're in WAL mode, so the daemon and three CLIs can all write whenever they want."
-**Expert**: Sets `busy_timeout` and routes writes through one process or a serialized queue; WAL buys reader/writer concurrency, not writer/writer concurrency.
-**Detection**: `writerTopology` lists more than one writer with no `single-writer`/`queue`/`serialized` strategy, or `busyTimeoutMs` is 0/unset while `journalMode` is `wal`.
+**Expert**: Declares caller-deadline-bounded waiting, safe transaction retry, or write serialization as appropriate; WAL permits readers alongside one writer but does not remove contention or make multi-step operations atomic.
+**Detection**: writer topology lacks an application-level serialization plan, or the caller’s configured wait/transaction policy does not handle `SQLITE_BUSY` and fresh-snapshot retries.
 
 ## References
 
 | File | Load When |
 | --- | --- |
-| `references/durable-path-and-wal-discipline.md` | Choosing a canonical path, journal mode, busy_timeout, or designing a migration and its verification probe. |
+| `references/durable-path-and-wal-discipline.md` | Choosing a canonical path, journal mode, timeout, WAL checkpoint, backup, or migration verification. |
+| `references/retry-and-migration-recovery.md` | Handling `SQLITE_BUSY`, stale snapshots, idempotent retries, or mismatched target/history state. |
 | `references/fragmented-multidb-recovery.md` | The fragmentation already happened: diagnosing scattered `.db` files and planning a safe consolidation. |
 | `examples/expected-output.md` | Need a finished, filled-in audit report and consolidation note for a realistic scenario. |
 | `templates/output-template.md` | Need a reusable template for a db-plan review or consolidation writeup. |
@@ -143,6 +151,7 @@ Use `scripts/db_path_audit.mjs` to validate a `db-plan.schema.json`-shaped plan 
 
 **`references/`**
 - [`references/durable-path-and-wal-discipline.md`](references/durable-path-and-wal-discipline.md) — Durable Path Selection And Journaling Discipline — Use this when choosing where a daemon's SQLite file lives, which journal mode it runs in, and how migrations get applied and verified.
+- [`references/retry-and-migration-recovery.md`](references/retry-and-migration-recovery.md) — Retry And Migration Recovery — Use this for bounded `SQLITE_BUSY` handling, stale-snapshot retries, idempotency, or mismatched migration-history/target state.
 - [`references/fragmented-multidb-recovery.md`](references/fragmented-multidb-recovery.md) — Diagnosing And Consolidating An Already-Fragmented Multi-DB Mess — Use this when the damage is already done: several `.db` files exist, different tools report different counts for "the same" data, and nobody
 
 **`schemas/`**
@@ -155,3 +164,21 @@ Use `scripts/db_path_audit.mjs` to validate a `db-plan.schema.json`-shaped plan 
 - [`templates/output-template.md`](templates/output-template.md) — SQLite Durable State Review — [db name] — - Env pin: `[ENV_VAR_NAME]` - Canonical path: `[path]` - Non-canonical/fossil paths found: `[path list, or none]` | Setting | Value | Ration
 
 <!-- END BUNDLE INDEX -->
+
+## SQLite behavior and recovery boundary
+
+`busy_timeout` is configured per connection and waits up to the requested bound;
+it may still return `SQLITE_BUSY`. Select it from the caller deadline and retry
+contract, not a universal floor. WAL permits concurrent readers with a writer
+but serializes writers; a stale read transaction that tries to upgrade may need
+a full transaction restart from fresh state. Keep WAL on a supported same-host
+filesystem, account for checkpoints, and make backup/copy procedures WAL-aware.
+Attached-database transactions have a WAL-mode atomicity limitation across the
+database set. A migration-history row is not target-state truth.
+
+The bundled auditor/schema can evaluate plan shape only. No SQLite stress
+schedule, backup restore, or migration execution is implied by that static
+result. Sources: [SQLite WAL](https://www.sqlite.org/wal.html), [transactions](https://www.sqlite.org/lang_transaction.html), [busy timeout](https://www.sqlite.org/c3ref/busy_timeout.html), and [backup API](https://www.sqlite.org/backup.html).
+
+- [WAL reader/writer schedule and safe retry](diagrams/research-sql01-wal-reader-writer-schedule-and-safe-retry.md)
+- [Migration verification and history separation](diagrams/research-sql02-migration-verification-and-history-separation.md)

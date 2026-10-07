@@ -23,7 +23,7 @@
 \begin{tikzpicture}[pd figure]
 \begin{groupplot}[
   group style={group size=2 by 1, horizontal sep=1.05cm},
-  pd axis,width=4.55cm,height=4.05cm,
+  pd axis,width=4.3cm,height=4.05cm,
   ymin=0,ymax=1,ytick={0,.25,.5,.75,1},
   yticklabels={0,.25,.5,.75,1},
 ]
@@ -48,14 +48,10 @@
 \end{groupplot}
 \node[pd label,rotate=90,anchor=south] at (-0.95,2.15) {Pareto-dominance rate};
 \end{tikzpicture}
-\caption{Pareto-dominance rate of the competitive mechanism over the static
-baseline, from 2000 trials per configuration (50 transactions/trial). (a) At
-$n=5$ insurers, dominance stays above the 50\% criterion for zero and one
-colluders across the tested noise range, but a three-insurer cartel falls
-below it once $\sigma_r \geq 0.3$. (b) With no cartel and no noise,
-dominance falls from 91\% at $n=3$ to 74\% at $n=10$ as more competing
-insurers dilute the savings any one trial can show. Wilson 95\% intervals at
-this trial count are within $\pm0.02$ of every plotted rate, too narrow to
-draw as bars at this scale. [verified, proofs/bonded/pareto/simulation.mjs]}
+\caption{Competition's advantage over the static baseline depends on noise,
+collusion and insurer count: more insurers do not guarantee better outcomes.
+2{,}000 trials per configuration, 50 transactions each; Wilson 95\% intervals
+are within $\pm0.02$ of the plotted rates.
+[verified, \protect\path{proofs/bonded/pareto/simulation.mjs}]}
 \label{fig:pareto-mc-inline}
 \end{figure}

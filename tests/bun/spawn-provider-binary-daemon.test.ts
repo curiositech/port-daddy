@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -27,6 +28,9 @@ import { CORE_SCHEMA_SQL } from '../../lib/db.ts';
 import { createTranscripts, type Transcripts } from '../../lib/transcripts.ts';
 import { createSpawner } from '../../lib/spawner.ts';
 import { spawnPlugin } from '../../routes/spawn.ts';
+import { createConductor } from '../../lib/fleet/conductor.ts';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.ts';
+import { createWorkIntentSpawn } from '../../lib/agent-harbor/work-intent-spawn.ts';
 
 const LAUNCHD_RESTRICTED_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
 
@@ -111,8 +115,17 @@ async function startHarness(): Promise<Harness> {
   (db as unknown as { exec(sql: string): void }).exec(CORE_SCHEMA_SQL);
 
   const transcripts = createTranscripts(db);
+  let worktreeBinding: { cwd: string | null } = { cwd: null };
   const spawner = createSpawner({
     transcripts,
+    managedSessionLifecycle: {
+      admit: async input => {
+        worktreeBinding = { cwd: input.workdir ? realpathSync(input.workdir) : null };
+        return { success: true, sessionId: 'provider-fixture-session', credential: 'synthetic', worktreeBinding };
+      },
+      bind: async () => ({ success: true, worktreeBinding, validateBeforeLaunch: async () => ({ success: true }) }),
+      complete: async () => ({ success: true }), abort: async () => ({ success: true }),
+    },
     enforceTranscriptPolicy: true,
     enforceTelemetryPolicy: false,
     telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
@@ -122,6 +135,7 @@ async function startHarness(): Promise<Harness> {
   await app.register(spawnPlugin, {
     deps: {
       spawner,
+      workIntentSpawn: createWorkIntentSpawn({ db, workIntentService: createWorkIntentService({ db }), conductor: createConductor({ db, spawner }) }),
       costTracker: {
         budgetStatus: () => ({
           project: 'port-daddy',

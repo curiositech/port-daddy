@@ -377,6 +377,7 @@ export function renderAccountPage(
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/repos">Repo settings</a>
       <a href="/account/ships">Ship controls</a>
+      <a href="/account/publisher-grants">Publisher grants</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/seamanship">Seamanship</a>
       <a href="/account/billing">Billing &amp; credits</a>

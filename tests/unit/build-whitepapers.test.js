@@ -6,6 +6,13 @@ import { join } from 'node:path';
 
 const repoRoot = process.cwd();
 const buildScript = join(repoRoot, 'scripts', 'build-whitepapers.sh');
+const fragmentCompiler = join(
+  repoRoot,
+  'skills',
+  'harbor-chartwork',
+  'scripts',
+  'compile_fragment.sh',
+);
 
 function bashFunction(functionName, ...args) {
   return execFileSync(
@@ -43,7 +50,7 @@ describe('reproducible whitepaper source scoping', () => {
     // and pd-discharges.tex -- which arrived with the margin citations and the
     // discharge pointers. The chapter did not grow a figure; its apparatus grew
     // a dependency, and paper_sources is right to follow it transitively.
-    expect(sources).toHaveLength(19);
+    expect(sources).toHaveLength(27);
     for (const generated of [
       'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
       'website-v2/public/whitepaper/figures/pd-discharges.tex',
@@ -67,6 +74,7 @@ describe('reproducible whitepaper source scoping', () => {
     // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-')
+        || source.includes('/figures/spark-stp-')
         || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
         || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
@@ -87,6 +95,73 @@ describe('reproducible whitepaper source scoping', () => {
     expect(sources).toContain(
       'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex',
     );
+  });
+
+  const semanticIcons = [
+    'book-open', 'calculator', 'file-text', 'flask-conical', 'key-round',
+    'list-checks', 'lock-keyhole', 'scroll-text', 'workflow',
+  ];
+
+  test('every Book edition includes the semantic helper and its exact mapped PDF dependencies', () => {
+    const pub = 'website-v2/public/whitepaper';
+    const helper = `${pub}/figures/pd-semantic-blocks.tex`;
+    // These are explicit TeX assignments, not a title/content classifier. Keep
+    // the dependency list synchronized when the helper adds an icon family.
+    const mappedIcons = [...new Set([...readFileSync(join(repoRoot, helper), 'utf8')
+      .matchAll(/\\def\\pdblock@icon\{([^}]+)\}/g)].map((match) => match[1]))].sort();
+    expect(mappedIcons).toEqual(semanticIcons);
+    for (const edition of ['', '-maritime', '-swiss', '-technical']) {
+      const sources = bashFunction('paper_sources', pub,
+        `coordination-papers-mega-volume${edition}.tex`).split('\n');
+      expect(sources).toContain(helper);
+      expect(sources.filter((source) => source.startsWith(`${pub}/figures/lucide/`)).sort())
+        .toEqual(semanticIcons.map((icon) => `${pub}/figures/lucide/${icon}.pdf`));
+    }
+  });
+
+  test.each([
+    ['helper modification', 'figures/pd-semantic-blocks.tex', 'modify', true],
+    ['helper deletion', 'figures/pd-semantic-blocks.tex', 'delete', true],
+    ...semanticIcons.flatMap((icon) => [
+      [`${icon} PDF modification`, `figures/lucide/${icon}.pdf`, 'modify', true],
+      [`${icon} PDF deletion`, `figures/lucide/${icon}.pdf`, 'delete', true],
+    ]),
+    ['unconsumed SVG modification', 'figures/lucide/workflow.svg', 'modify', false],
+    ['unrelated PDF modification', 'figures/unrelated.pdf', 'modify', false],
+  ])('Book incremental selection handles %s', (_name, relativePath, operation, shouldBuild) => {
+    const dir = mkdtempSync(join(tmpdir(), 'book-semantic-deps-'));
+    const pub = 'website-v2/public/whitepaper';
+    const root = 'coordination-papers-mega-volume.tex';
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+    try {
+      g('init', '-q', '-b', 'main');
+      g('config', 'user.email', 'test@example.invalid');
+      g('config', 'user.name', 'whitepaper test');
+      mkdirSync(join(dir, pub, 'figures/lucide'), { recursive: true });
+      writeFileSync(join(dir, pub, root), '\\input{coordination-papers-mega-volume-preamble}\n');
+      const changedPath = join(dir, pub, relativePath);
+      writeFileSync(changedPath, 'original dependency\n');
+      g('add', '-A');
+      g('commit', '-qm', 'baseline Book input');
+      const base = g('rev-parse', 'HEAD');
+      if (operation === 'delete') rmSync(changedPath);
+      else writeFileSync(changedPath, 'changed dependency\n');
+      g('add', '-A');
+      g('commit', '-qm', 'change only selected input');
+
+      const run = (body) => execFileSync('/bin/bash', ['-c',
+        `source "$1"; cd "$2"; ${body}`, 'whitepaper-test', buildScript, dir, base],
+      { encoding: 'utf8' }).trim();
+      // The actual --changed-since predicate and the PDF restore list must
+      // agree: deleting an input must rebuild (and fail on the missing file),
+      // never quietly retain an old PDF. No TeX process is needed for selection.
+      expect(run(`if paper_changed_since "$3" "${pub}" "${root}"; then echo build; else echo skip; fi`))
+        .toBe(shouldBuild ? 'build' : 'skip');
+      expect(run(`PAPERS=("${pub}|${root}|out/book.pdf"); list_unchanged_since "$3"`))
+        .toBe(shouldBuild ? '' : 'out/book.pdf');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   // One edition is built; three drivers are present. The Book's central
@@ -122,6 +197,34 @@ describe('reproducible whitepaper source scoping', () => {
       pdf.includes('coordination-papers-mega-volume'),
     );
     expect(megaVolumeRoots).toEqual([`${pub}/coordination-papers-mega-volume.pdf`]);
+  });
+
+  test('standalone chapter PDF targets fail closed', () => {
+    const result = spawnSync('/bin/bash', [buildScript, 'spawn-to-person'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('not a Book target; chapter PDFs are retired');
+  });
+
+  test('figure QA rejects the retired chapter preamble', () => {
+    const result = spawnSync(
+      '/bin/bash',
+      [
+        fragmentCompiler,
+        'whitepaper/figures/fig-swk-stack-map.tex',
+        '--preamble',
+        'chapter',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain(
+      'chapter preambles are retired; Book figures must use --preamble book',
+    );
   });
 
   // Swiss is the Book's central edition: \pdedition defaults to it in the

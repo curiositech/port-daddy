@@ -1,33 +1,33 @@
 # Agent Computation vs Control Flow Separation
 
 ```mermaid
-stateDiagram-v2
-    [*] --> MessageReceived
+flowchart TD
+    Start((Start)) --> MessageReceived
 
-    MessageReceived --> ParseContent: Analyze message type\nand context
-    
-    ParseContent --> ComputationLayer: Route to agent\nspecialization
-    
-    ComputationLayer --> ExecutionAgent: Execution task\n(run code, call tools)
-    ComputationLayer --> ValidationAgent: Validation task\n(check correctness)
-    ComputationLayer --> SafetyAgent: Safety task\n(audit constraints)
-    ComputationLayer --> ExpertAgent: Domain task\n(specialized knowledge)
-    
-    ExecutionAgent --> ExecutionResult{Execution\nsucceeds?}
-    ExecutionResult -->|Yes| ResultMessage: Generate result\nmessage
-    ExecutionResult -->|No| ErrorMessage: Generate error\nmessage
-    
-    ValidationAgent --> ValidationCheck{Output\nvalid?}
-    ValidationCheck -->|Yes| ValidMessage: Confirm validity
-    ValidationCheck -->|No| CritiqueMessage: Return critique
-    
-    SafetyAgent --> SafetyCheck{Passes\nsafety rules?}
-    SafetyCheck -->|Yes| SafeMessage: Approve
-    SafetyCheck -->|No| BlockMessage: Veto/block
-    
-    ExpertAgent --> ExpertAnalysis: Apply expertise\nto message
-    ExpertAnalysis --> ExpertMessage: Return analysis\nor refinement
-    
+    MessageReceived -->|Analyze message type<br/>and context| ParseContent
+
+    ParseContent -->|Route to agent<br/>specialization| ComputationLayer
+
+    ComputationLayer -->|Execution task<br/> run code, call tools| ExecutionAgent
+    ComputationLayer -->|Validation task<br/> check correctness| ValidationAgent
+    ComputationLayer -->|Safety task<br/> audit constraints| SafetyAgent
+    ComputationLayer -->|Domain task<br/> specialized knowledge| ExpertAgent
+
+    ExecutionAgent --> ExecutionResult{"Execution<br/>succeeds?"}
+    ExecutionResult -->|Yes| ResultMessage["Generate result<br/>message"]
+    ExecutionResult -->|No| ErrorMessage["Generate error<br/>message"]
+
+    ValidationAgent --> ValidationCheck{"Output<br/>valid?"}
+    ValidationCheck -->|Yes| ValidMessage["Confirm validity"]
+    ValidationCheck -->|No| CritiqueMessage["Return critique"]
+
+    SafetyAgent --> SafetyCheck{"Passes<br/>safety rules?"}
+    SafetyCheck -->|Yes| SafeMessage["Approve"]
+    SafetyCheck -->|No| BlockMessage["Veto/block"]
+
+    ExpertAgent -->|Apply expertise<br/>to message| ExpertAnalysis
+    ExpertAnalysis -->|Return analysis<br/>or refinement| ExpertMessage
+
     ErrorMessage --> ControlFlow
     ResultMessage --> ControlFlow
     ValidMessage --> ControlFlow
@@ -35,38 +35,27 @@ stateDiagram-v2
     SafeMessage --> ControlFlow
     BlockMessage --> ControlFlow
     ExpertMessage --> ControlFlow
-    
-    ControlFlow --> SpeakerSelection{Who speaks\nnext?}
-    
-    SpeakerSelection -->|Message pattern\nmatches rule| DynamicSpeaker: Select next speaker\nfrom pattern rules
-    SpeakerSelection -->|Static topology| StaticSpeaker: Use predefined\nconversation flow
-    SpeakerSelection -->|Requires human| HumanSpeaker: Escalate to human\nagent
-    
+
+    ControlFlow --> SpeakerSelection{"Who speaks<br/>next?"}
+
+    SpeakerSelection -->|Message pattern<br/>matches rule| DynamicSpeaker["Select next speaker<br/>from pattern rules"]
+    SpeakerSelection -->|Static topology| StaticSpeaker["Use predefined<br/>conversation flow"]
+    SpeakerSelection -->|Requires human| HumanSpeaker["Escalate to human<br/>agent"]
+
     DynamicSpeaker --> TerminationCheck
     StaticSpeaker --> TerminationCheck
     HumanSpeaker --> TerminationCheck
-    
-    TerminationCheck --> ShouldTerminate{Termination\nconditions met?}
-    
-    ShouldTerminate -->|No| MessageReceived: Continue conversation
-    ShouldTerminate -->|Yes| FinalOutput: Emit final output
-    
-    FinalOutput --> [*]
-    
-    note right of ComputationLayer
-        COMPUTATION LAYER
-        What agents can do:
-        Determined by agent
-        design and message
-        content analysis
-    end note
-    
-    note right of ControlFlow
-        CONTROL FLOW LAYER
-        Who speaks when:
-        Determined by
-        message patterns,
-        validation results,
-        dynamic rules
-    end note
+
+    TerminationCheck --> ShouldTerminate{"Termination<br/>conditions met?"}
+
+    ShouldTerminate -->|No| MessageReceived["Continue conversation"]
+    ShouldTerminate -->|Yes| FinalOutput["Emit final output"]
+
+    FinalOutput --> End((End))
+
+Annotation1["COMPUTATION LAYER<br/>What agents can do:<br/>Determined by agent<br/>design and message<br/>content analysis"]
+ComputationLayer -.-> Annotation1
+
+Annotation2["CONTROL FLOW LAYER<br/>Who speaks when:<br/>Determined by<br/>message patterns,<br/>validation results,<br/>dynamic rules"]
+ControlFlow -.-> Annotation2
 ```

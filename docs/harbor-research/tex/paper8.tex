@@ -1,0 +1,455 @@
+% TWIN-LOCATION NOTICE. Keep the categorical certificate statement aligned.
+% Standalone: docs/harbor-research/tex/paper8.tex
+% Chapter: website-v2/public/whitepaper/federated-harbor-whitepaper.tex
+% Index ids: thm:categorical-certificate
+% Check: python3 scripts/harbor-research/check_library_index.py
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{graphicx}
+\usepackage{float}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+
+\title{\textbf{The Cohomology of Agent Evidence}\\[4pt]
+\large Typed Cellular Sheaves, Relative Extension, and Fault Observability}
+\author{Erich Owens \quad \texttt{erich@curiositech.ai}\\
+\normalsize Curiositech AI Research}
+\date{September 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A multi-agent workflow leaves local evidence on agents, handoffs, and joint review contracts. We model those observations as a typed cellular sheaf on a two-dimensional complex, with explicit vertex-to-edge and edge-to-face maps. The resulting degree-one cochains have two distinct algebraic obstructions: a violated face relation and a closed but nonexact class in $H^1$. A relative connecting class tests whether a partially visible section can extend through unobserved contracts. We compute all three channels exactly on a heterogeneous four-role complex, including a face attachment that destroys $H^1$ without changing total edge-compatibility detection. A sheaf edge-group distance characterizes when sparse erroneous handoff reports can be detected or uniquely recovered; a restricted projection gain quantifies stability. The graph-cycle case supplies a sharp baseline: when both endpoint claims are visible, direct equality catches every cycle inconsistency. For finite registered facts, an exact categorical test can expose contradictions with zero real residual and returns a least-cost retained-evidence certificate. These results specify what an audit can prove from selected evidence and what remains invisible, including coherent falsehood and copied observations. The prospective application is a provenance-bound audit of real agent workflows against independent ledger truth and equal-information contract checks; field utility and semantic fault attribution require that experiment.
+\end{abstract}
+
+\section{Question and contribution}\label{sec:intro}
+Agent workflows distribute evidence across roles: an author records work, a reviewer sees a subset, a CI job observes a commit and test run, and a publisher sees an approval or artifact receipt. A global claim can fail even when each observed overlap appears locally coherent. The question is which incompatibilities can be inferred from the evidence an auditor actually receives.
+
+Cellular sheaves give a precise language for this question. A stalk records one typed feature at a cell; restriction maps state which part of a role's state can be compared on a handoff or joint contract. Cohomology distinguishes a local face-relation violation from a globally nontrivial closed obstruction, while relative cohomology tests extension through a visibility boundary. These constructions are established mathematics~\cite{hansen2019,curry2013,jiang2009}. The contribution here is a concrete agent-evidence contract, exact failure-observability criteria, and an executable comparison with simpler checks. We make no claim that a topological signature alone establishes which agent erred.
+
+The numerical examples use exact count features, one work item, and one immutable event-log watermark. A production observation must bind each packet to its schema, work item, source identity, log root, and evidence reference. An artifact digest or approval cannot be treated as a real coordinate merely to make a Laplacian run. We keep the external truth oracle separate from algebraic compatibility and use a synthetic fixture to expose the information boundary before collecting field traces.
+
+\section{A typed cellular sheaf of work evidence}\label{sec:typed-sheaf}
+A multi-agent audit has several kinds of overlap: two roles can compare an exact count on one handoff, while a three-role contract can require those comparisons to compose. A graph with one scalar at each vertex cannot express which feature each overlap exposes. We therefore fix a finite oriented two-dimensional simplicial complex $K$ and a cellular sheaf $\mathcal F$ of finite-dimensional real vector spaces. A vertex, edge, or face $\sigma$ has a stalk $F(\sigma)$; for each incidence $\sigma\subseteq\tau$, a linear map $\rho_{\sigma\tau}:F(\sigma)\to F(\tau)$ states exactly which feature is shared. Maps along the two routes from a vertex to a face must agree. The linear structure is used only for quantities with declared additive units. Artifact hashes and approval identities instead require symbolic equality or a separate constraint system.
+
+\begin{definition}[Typed evidence cochain complex]\label{def:cellular-sheaf}
+Put $C^j(K;\mathcal F)=\bigoplus_{\dim\sigma=j}F(\sigma)$. With fixed orientations, the coboundaries $A=\delta_0:C^0\to C^1$ and $B=\delta_1:C^1\to C^2$ are the signed sums of the declared incidence maps. For an oriented edge $e=(u,v)$,
+\[
+(Ax)_e=\rho_{ve}x_v-\rho_{ue}x_u.
+\]
+For an oriented face $t=(u,v,w)$,
+\[
+(By)_t=\rho_{vw,t}y_{vw}-\rho_{uw,t}y_{uw}+\rho_{uv,t}y_{uv}.
+\]
+The incidence maps are admitted only if $BA=0$ exactly. An edge cochain $y$ is an independently collected set of same-schema overlap reports, not a difference computed from one already assembled vertex assignment. All packet provenance, feature versions, and observation watermarks are checked before forming $y$.
+\end{definition}
+
+The word \emph{independently} is an acquisition condition, not an assumption of statistical independence. Two packets copied from one unverified source can have distinct identifiers and still supply one piece of evidence. A face is included only when its three-party contract and incidence maps are declared in advance. Merely drawing a filled triangle does not create a new measurement.
+
+\begin{lemma}[Sheaf cochain identity]\label{lem:chain}
+Composition-compatible restriction maps imply $BA=0$.
+\end{lemma}
+\begin{proof}
+On each oriented face $(u,v,w)$, substitute the three edge components of $Ax$ into the formula for $B$. The two contributions from each vertex cancel because the restrictions from that vertex to the face agree along both incident edges. This is the typed version of the simplicial boundary-of-a-boundary identity.
+\end{proof}
+
+Choose and publish inner products on every stalk before inspecting observations. They set units and weights; changing them changes energy magnitudes. Let
+\[
+\mathcal H^1=\ker A^*\cap\ker B,
+\qquad Q=I-AA^+.
+\]
+The following decomposition is standard cellular-sheaf Hodge theory~\cite{hansen2019,curry2013}; its audit interpretation depends on the evidence contract.
+
+\begin{theorem}[Typed local and global obstruction channels]\label{thm:typed-hodge}
+Every $y\in C^1(K;\mathcal F)$ has a unique orthogonal decomposition
+\[
+y=Ax+ B^*z+h,
+\qquad h\in\mathcal H^1,
+\qquad Qy=B^*z+h.
+\]
+The three summands are unique. Their parameters need not be: $x$ is defined modulo $H^0(K;\mathcal F)=\ker A$, and $z$ modulo $\ker B^*$. The face channel satisfies $By=B B^*z$; it vanishes precisely when the coexact component $B^*z$ vanishes. If $By=0$ and $h\ne0$, the observed cochain is locally closed but has a nonzero class in $H^1(K;\mathcal F)=\ker B/\operatorname{im}A$. The total completion residual obeys
+\[
+\min_x\|y-Ax\|^2=\|B^*z\|^2+\|h\|^2.
+\]
+Neither channel identifies a cause or validates the truth of a compatible assignment.
+\end{theorem}
+\begin{proof}
+The identity $BA=0$ makes $\operatorname{im}A$ orthogonal to $\operatorname{im}B^*$. The orthogonal complement of their sum is $\ker A^*\cap\ker B=\mathcal H^1$. Orthogonal projection therefore gives the decomposition and the residual identity. On $\operatorname{im}B^*$, $B$ is injective: if $B B^*z=0$, then $\|B^*z\|^2=\langle z,B B^*z\rangle=0$. Thus $By=0$ precisely when the coexact term vanishes. A closed cochain is exact precisely when its harmonic term vanishes; quotienting closed cochains by exact ones identifies the harmonic subspace with $H^1$.
+\end{proof}
+
+A nonzero $By$ is a violation of a selected face relation. A nonzero $h$ is a closed, nonexact obstruction in the \emph{declared sheaf complex}; nontrivial sheaf cohomology need not imply a hole in the underlying simplicial space. Their energy ratio is not a universal classifier of ``local mistake'' versus ``network partition'': topology, feature maps, and inner products are model choices. A gradient-shaped jointly false account lies in $\operatorname{im}A$ and makes both channels zero.
+
+\subsection{An exact heterogeneous two-complex}\label{sec:typed-fixture}
+Consider four roles $0,1,2,3$, each with a two-coordinate vertex stalk $(c,h)$: an accepted completion count $c$ and a validated handoff count $h$ for one work item and watermark. These are two separately typed integer features; the real cochain calculation is an exact rational audit of their differences. The oriented edges are $(01),(12),(02),(23),(03)$. Edges $01$ and $12$ expose only $c$; edges $23$ and $03$ expose only $h$; edge $02$ exposes both. Thus the edge stalk dimensions are $(1,1,2,1,1)$, and the vertex-to-edge maps are coordinate projections except for the identity map on $02$. The one filled face $012$ compares only $c$: its edge-to-face maps are the identity on $01,12$ and the $c$ projection on $02$. The loop $0230$ has no face contract.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=1.25, every node/.style={font=\small}]
+  \coordinate (v0) at (0,2.8); \coordinate (v1) at (4.4,2.8);
+  \coordinate (v2) at (4.4,0);   \coordinate (v3) at (0,0);
+  \fill[ptBlue!12] (v0)--(v1)--(v2)--cycle;
+  \draw[-{Stealth},thick,ptDark] (v0)--node[above] {$01:\ c$}(v1);
+  \draw[-{Stealth},thick,ptDark] (v1)--node[right] {$12:\ c$}(v2);
+  \draw[-{Stealth},thick,ptDark] (v0)--node[above left] {$02:\ (c,h)$}(v2);
+  \draw[-{Stealth},thick,ptDark] (v2)--node[below] {$23:\ h$}(v3);
+  \draw[-{Stealth},thick,ptDark] (v0)--node[left] {$03:\ h$}(v3);
+  \foreach \i/\p in {0/v0,1/v1,2/v2,3/v3} {
+    \node[circle,draw=ptDark,fill=white,inner sep=2pt] at (\p) {$\i$};
+  }
+  \node[align=center,ptBlue!70!black] at (3.45,2.35) {filled $012$\\count face};
+  \node[align=center,ptDark] at (1.65,0.7) {unfilled $023$\\handoff loop};
+\end{tikzpicture}
+\caption{A heterogeneous two-complex with five physical edges and six typed edge coordinates. The $012$ face compares completion counts; no face relation is declared for the $023$ handoff cycle.}
+\label{fig:typed-complex}
+\end{figure}
+
+Order edge coordinates as $(01c,12c,02c,02h,23h,03h)$. Direct substitution gives
+\begin{align}\label{eq:typed-fixture}
+Ax&=(c_1-c_0,\ c_2-c_1,\ c_2-c_0,\ h_2-h_0,\ h_3-h_2,\ h_3-h_0),\\
+By&=y_{01c}+y_{12c}-y_{02c}.
+\end{align}
+The maps obey $BA=0$. Exact row reduction gives $\operatorname{rank}A=4$ and $\operatorname{rank}B=1$, hence
+\[
+\bigl(\dim H^0,\dim H^1,\dim H^2\bigr)=(4,1,0).
+\]
+The unused count at vertex $3$ and unused handoff at vertex $1$ account for two of the four global-section degrees of freedom. The remaining two are common count and common handoff values. With unit weights in this synthetic fixture, set
+\[
+a=(1,1,-1,0,0,0)^T,\qquad b=(0,0,0,1,1,-1)^T.
+\]
+Then $a\perp b$, $\|a\|^2=\|b\|^2=3$, and exact projectors are
+\begin{equation}\label{eq:typed-projectors}
+P_{\mathrm{face}}=aa^T/3,\qquad P_{H^1}=bb^T/3,\qquad Q=(aa^T+bb^T)/3.
+\end{equation}
+The three controlled inputs $y=a$, $y=b$, and $y=Ax$ have different observability signatures: $(By,\|P_{\mathrm{face}}y\|^2,\|P_{H^1}y\|^2)$ is $(3,3,0)$ for a count-face violation, $(0,0,3)$ for a closed handoff-loop obstruction, and $(0,0,0)$ for every gradient. These are labels for injected cochain patterns, not labels for a dishonest role. A mixture $a+b$ has both components. The exact code computes these values without a floating-point threshold.
+
+Add a second declared face $023$ that compares $h$, with the $h$ projection from edge $02$ and identity maps from $23,03$. Its new $B$ has rows $a^T$ and $b^T$. The handoff class becomes coexact and $\dim H^1$ falls from one to zero. The same edge reports and $A$ still give the same $Q$ in Eq.~\ref{eq:typed-projectors}. This distinction is general.
+
+\begin{theorem}[Face attachment and information boundary]\label{thm:face-invariance}
+For fixed vertex and edge stalks, fixed $A$, and the same observed edge cochain $y$, changing or adding compatible face stalks and edge-to-face maps can change $B$, $H^1$, and the division of $Qy$ into face and harmonic parts. It cannot change $Qy$, $\min_x\|y-Ax\|$, or which edge cochains admit a vertex completion. An independently acquired face receipt is additional evidence only when it supplies an observation beyond the edge cochain; a fair direct-contract baseline must receive that receipt too.
+\end{theorem}
+\begin{proof}
+The projector $Q=I-AA^+$ and the membership test $y\in\operatorname{im}A$ depend only on $A$ and $y$. The Hodge split inside $\operatorname{im}A^\perp$ depends on $B$ through $\operatorname{im}B^*$ and $\ker B$. In the fixture, the two orthogonal rows $a^T,b^T$ explicitly move $b$ from the harmonic space to the coexact space without changing $Q$.
+\end{proof}
+
+\subsection{Fault distance with typed edge stalks}\label{sec:sheaf-distance}
+The graph minimum-cut threshold is a special case of a sheaf-coded observation limit. Count the support of an edge cochain by \emph{edge groups}, not by scalar coordinates: a change in either coordinate of edge $02$ affects one edge packet. Define
+\[
+d_{\mathcal F}=\min_{Ax\ne0}\bigl|\{e:(Ax)_e\ne0\}\bigr|,
+\]
+with $d_{\mathcal F}=\infty$ if $A=0$. This is the minimum group support of a nonzero compatible edge report. It is computable in a small complex by checking ranks after deleting subsets of edge-stalk blocks. Let $\Sigma_k^{E}$ be the set of cochains supported on at most $k$ edge groups.
+
+\begin{theorem}[Typed sheaf report-error distance]\label{thm:sheaf-edge-distance}
+For an integer $k\ge1$ and $y=Ax+e$ with arbitrary-amplitude $e\in\Sigma_k^{E}$, every nonzero $k$-edge error is detectable from $Qy$ if and only if $d_{\mathcal F}>k$. Every $e\in\Sigma_k^{E}$ is uniquely determined by $y$ modulo the compatible component $Ax$ if and only if $d_{\mathcal F}>2k$. Vertex assignments remain identifiable only modulo $H^0=\ker A$. If $d_{\mathcal F}>2k$ and
+\[
+\alpha_{2k}=\min_{\varnothing\ne T\subseteq E,\,|T|\le\min(2k,|E|)}\inf_{\|v\|=1}\|Q_Tv\|>0,
+\]
+where $Q_T$ contains every coordinate column in the selected edge-stalk blocks and $v$ ranges over those coordinates, a $k$-edge fit with projected residual at most $\epsilon$ under projected noise at most $\epsilon$ has edge-error estimation error at most $2\epsilon/\alpha_{2k}$.
+\end{theorem}
+\begin{proof}
+The kernel of $Q$ is $\operatorname{im}A$. Thus a nonzero error supported on at most $k$ groups is invisible exactly when such a cochain lies in $\operatorname{im}A$, proving the detection criterion. If two $k$-group errors explain the same $y$, their difference is a compatible cochain supported on at most $2k$ groups. Conversely, partition the support of any nonzero compatible cochain with at most $2k$ groups into two sets of size at most $k$ to construct two explanations. Finitely many group selections make $\alpha_{2k}$ positive exactly when no selected column space intersects $\ker Q$; this is the same distance condition. The final bound follows by applying $\|Qh\|\ge\alpha_{2k}\|h\|$ to the difference $h$ between the two $k$-group errors and using the triangle inequality on their residuals.
+\end{proof}
+
+The fixture has $d_{\mathcal F}=2$: each channel occupies a three-edge loop, and a nonconstant state on one of its connected triples changes at least two edge groups. Changing only $c_1$ attains two. Therefore every single-edge error is detectable, but arbitrary single-edge \emph{correction} is not guaranteed. For example, $(1,0,0,0,0,0)$ is an error on $01$, or the compatible report from $c_1=1$ plus a unit error on $12$. The smallest normalized projection gain for a one-edge fault is $1/\sqrt3$ in the declared unit metric. The support theorem is a sheaf-code design criterion; it neither names an agentic cause nor makes a copied packet independent.
+
+\subsection{Partial observations and relative obstruction}\label{sec:relative}
+An auditor may see only a subcomplex $L\subseteq K$. The relative cochain complex $C^\bullet(K,L;\mathcal F)$ consists of cochains that vanish on $L$. Standard relative sheaf cohomology supplies the exact sequence~\cite{hansen2019}
+\[
+H^0(K;\mathcal F)\longrightarrow H^0(L;\mathcal F|_L)
+\xrightarrow{\partial}H^1(K,L;\mathcal F)
+\longrightarrow H^1(K;\mathcal F).
+\]
+The connecting map is a coverage certificate for a \emph{visible compatible section}; it does not apply to arbitrary inconsistent edge observations without formulating a separate affine extension problem.
+
+\begin{theorem}[Relative extension criterion]\label{thm:relative-extension}
+Let $s\in H^0(L;\mathcal F|_L)$ be a section on the visible subcomplex. It extends to a global section on $K$ if and only if $\partial s=0$. Vanishing proves existence of a model-compatible extension, not uniqueness or agreement with unseen evidence.
+\end{theorem}
+\begin{proof}
+Lift $s$ to any vertex cochain $\widetilde s$ on $K$. Its coboundary vanishes on $L$, so it is a relative $1$-cocycle and $\partial s=[A\widetilde s]$. A different lift changes this class by a relative coboundary. If $s$ has a global-section lift, the class is zero. Conversely, if the class is zero, a relative vertex cochain $z$ satisfies $A\widetilde s=Az$; then $\widetilde s-z$ is a global section and still restricts to $s$.
+\end{proof}
+
+In the fixture, let $L$ contain vertices $0,1,2$ and only count edges $01,12$. Counts $c_0=c_1=c_2=0$ and handoffs $h_0=0$, $h_2=1$ form a valid visible section because those edges expose only counts. Extending it with zero at vertex $3$ produces the relative edge cochain $(02c,02h,23h,03h)=(0,1,-1,0)$. No adjustment at hidden vertex $3$ can remove its $02h=1$ component, so $\partial s\ne0$. Exact ranks give $\dim H^0(L)=4$, $\dim\operatorname{im}(H^0(K)\to H^0(L))=3$, and $\dim H^1(K,L)=2$. One relative dimension records this extension failure; the other maps to the ordinary handoff-loop class. A zero relative class would allow an extension while leaving actual unseen packets and event truth unresolved.
+
+\section{Graph specialization: one exact feature}\label{sec:model}
+Let $G=(V,E)$ be a finite oriented multigraph. Every edge $e=(u,v)$ represents one independently collected report packet. Let $f$ name one exact feature schema and $w$ one immutable event-log watermark. The packet carries endpoint claims $a_{e,u}$ and $a_{e,v}$ in $\mathbb Z$, a work-item identifier, a packet identifier, and a reference to the underlying evidence. It also carries its feature/schema version, watermark, and event-log root. Orientation is canonical and fixed before observations are read. The reported difference is
+\begin{equation}\label{eq:edge-difference}
+y_e=a_{e,v}-a_{e,u}.
+\end{equation}
+A precheck rejects a missing packet, duplicate packet identifier, mixed feature or schema, inconsistent watermark, or inconsistent log root. These are input validity failures, not topological alarms. A packet identifier or hash alone is not proof that an agent, workflow, or ledger produced a claim. The offline benchmark tests metadata equality and does not verify signatures.
+
+\begin{definition}[Compatible edge differences]\label{def:compatible-report}
+A complete, metadata-valid observation $y\in\mathbb Z^E$ is \emph{compatible} when there is an $x\in\mathbb Z^V$ such that $y_e=x_v-x_u$ for every oriented edge $e=(u,v)$. Compatibility asserts the existence of one node value per agent for this feature and watermark. It does not assert that $x$ equals the event ledger or that any event really happened.
+\end{definition}
+
+Write $B\in\{-1,0,1\}^{E\times V}$ for the oriented incidence matrix, so compatibility is $y\in\operatorname{im}B$. Over real numbers, the least-squares completion residual is
+\begin{equation}\label{eq:projection}
+r(y)=\min_{x\in\mathbb R^V}\|y-Bx\|_2
+     =\|(I-BB^+)y\|_2.
+\end{equation}
+Here $B^+$ is the Moore--Penrose pseudoinverse. The exact decision $r=0$ needs no floating-point solver for integer packets. It is available from a spanning forest. Computing either the projection or that forest check requires collecting the selected edge reports somewhere; no decentralized implementation or communication advantage is established by this paper.
+
+\begin{theorem}[Exact cycle test]\label{thm:cycle-test}
+For a complete integer observation on $G$, the following are equivalent: (i) the reports are compatible; (ii) the oriented sum of $y$ around every graph cycle is zero; (iii) a spanning-forest propagation assigns integer potentials to vertices and every remaining edge agrees with its endpoint difference; and (iv) $r(y)=0$. The dimension of the real cycle space is $|E|-|V|+c$, where $c$ is the number of connected components, including isolated vertices.
+\end{theorem}
+\begin{proof}
+If $y=Bx$, each cycle sum telescopes to zero. Choose one root per component, set its potential to zero, and propagate along a spanning tree by adding or subtracting each oriented edge value. Every vertex receives an integer value. A non-tree edge closes a fundamental cycle, so its agreement with the propagated difference is equivalent to that cycle sum being zero. Fundamental cycles span the cycle space, proving the reverse implication. Orthogonal decomposition gives $\mathbb R^E=\operatorname{im}B\oplus\ker B^T$ and hence the equivalence with $r=0$. Finally $\operatorname{rank}B=|V|-c$ and rank-nullity yields $\dim\ker B^T=|E|-|V|+c$.
+\end{proof}
+
+If each observed edge difference is constructed from a \emph{single} already assembled node vector $x$, then $y=Bx$ by construction and the completion residual is identically zero. The graph Dirichlet energy $\sum_e\|x_u-x_v\|^2$ may be positive for honest unequal counts; it is not the completion residual in Eq.~\ref{eq:projection}. Independent edge evidence is necessary for a nontrivial test.
+
+\section{What the algebra cannot identify}\label{sec:limits}
+\begin{theorem}[Information limits of compatibility]\label{thm:compatibility-limits}
+Under the model above: (a) on a forest, every edge-difference vector is compatible; (b) adding any gradient $Bz$ to a compatible observation preserves compatibility, regardless of whether $z$ is true; and (c) a jointly false but internally consistent report passes the cycle test. A positive residual certifies incompatibility of the selected reports, but alone identifies neither a dishonest party nor a physical network partition.
+\end{theorem}
+\begin{proof}
+A forest has $|E|=|V|-c$, so Theorem~\ref{thm:cycle-test} gives a zero-dimensional cycle space and $\operatorname{im}B=\mathbb R^E$. If $y=Bx$, then $y+Bz=B(x+z)$. In particular, $x+z$ may disagree with an independent event ledger while the residual remains zero. The same construction proves (c). Permuting which packet is declared erroneous can produce the same nonzero cycle sum; the algebra therefore supplies no unique source attribution.
+\end{proof}
+
+A three-edge triangle with values $(1,1,1)$ around its orientation is incompatible because the cycle sum is $3$. A one-edge report with value $100$ is always compatible: assign its endpoints potentials $0$ and $100$. A triangle with values derived from false node values $(10,10,10)$ is also compatible. These examples distinguish a contradiction \emph{among reports} from a contradiction with the external event record.
+
+The decomposition in Theorem~\ref{thm:typed-hodge} separates chosen face relations from classes in the chosen $H^1$. It does not turn those algebraic channels into causal diagnoses. Adding a face without an independent observation changes the channel assignment but leaves completion detection fixed by Theorem~\ref{thm:face-invariance}. Fencing an edge changes which claims are tested; it does not repair the underlying work or prove the fenced agent was at fault.
+
+\section{The simpler baseline}\label{sec:baseline}
+When packets expose both endpoint claims, the auditor can compare repeated reports made about the same node. Define $D=1$ if some node has two incident packets giving it different values at the same feature, work item, watermark, and log root. This check uses equality and a map keyed by node; it needs no graph solver.
+
+\begin{theorem}[Duplicate-claim dominance for visible endpoints]\label{thm:duplicate-dominance}
+On complete metadata-valid packets as defined in Section~\ref{sec:model}, if $D=0$ then $r(y)=0$. Consequently, every positive cycle residual is also detected by the duplicate-claim baseline. The converse need not hold: a duplicate claim can be inconsistent even when the edge differences form a gradient.
+\end{theorem}
+\begin{proof}
+If $D=0$, choose $x_v$ to be the common endpoint claim for each non-isolated vertex $v$, and choose any integer value for each isolated vertex. Then Eq.~\ref{eq:edge-difference} gives $y_e=x_v-x_u$ on every edge, so Theorem~\ref{thm:cycle-test} yields $r=0$. For the converse, take a triangle whose every reported edge difference is zero. Set endpoint claims to $(0,0)$ on two edges and $(1,1)$ on the third. The differences are all zero, while at least one repeated node claim differs.
+\end{proof}
+
+This dominance result is a practical cut condition. With visible endpoint claims, topology cannot improve \emph{detection recall} over the equality baseline under the same metadata and packet set. It may still help explain a pattern when raw endpoint claims are unavailable, when only edge differences can be disclosed, or when independent redundant paths have special provenance. Those are distinct privacy and acquisition contracts requiring their own tests. We claim no cost or utility advantage for the current setting.
+
+\section{Finite facts and exact contradiction certificates}\label{sec:categorical}
+A commit digest, approval identity, or discrete work status has a finite declared
+value domain. Replacing that domain by a real vector space can admit explanations
+that no valid fact assignment realizes. An auditor can keep the finite domain
+explicit and return a short contradiction certificate before using a projection
+to describe its geometry.
+
+Fix one fact, schema and snapshot, a nonempty finite domain $D$, and oriented
+edges $e=(u,v)$. Encode a value $a\in D$ by its one-hot vector $e_a$. An admitted
+edge observation is either zero or $e_b-e_a$ with $a\ne b$ in $D$; all other
+vectors are invalid inputs. Missing observations are omitted, not encoded as
+zero. Let $G_0$ contain the observed zero edges. A nonzero observation
+$e_b-e_a$ pins $u$ to $a$ and $v$ to $b$, with the observation's edge identifier
+attached to each pin. Write a pin as $p=(v_p,a_p,s_p)$.
+
+\begin{theorem}[Exact categorical feasibility and least-cost certificate]
+\label{thm:categorical-certificate}
+There exists a categorical assignment $x:V\to D$ with
+$y_{uv}=e_{x_v}-e_{x_u}$ on every observed edge if and only if each connected
+component of $G_0$ contains pins of at most one value. If it is infeasible,
+two differently valued pins in one component, their source observations, and
+a zero-edge path between them certify the contradiction.
+
+Give every observed edge a nonnegative cost $w_e$, charged once per retained
+observation. Among all infeasible retained subsets, the minimum cost is
+\[
+ \min_{\substack{p,q:\ a_p\ne a_q\\ v_p\leftrightarrow v_q\text{ in }G_0}}
+ \left(\operatorname{dist}_{G_0,w}(v_p,v_q)
+       +\sum_{e\in\{s_p,s_q\}}w_e\right).
+\]
+The source-edge sum uses a set: two pins from one observation pay for it once.
+This minimum is undefined when every retained subset is feasible.
+\end{theorem}
+\begin{proof}
+Zero differences force equality of categorical values, hence constancy on each
+component of $G_0$. A nonzero one-hot difference uniquely fixes its tail and
+head values. Therefore two different pins in one component are impossible.
+Conversely, assign each pinned component its common pin value and every
+unpinned component any value of $D$. This realizes every zero and nonzero
+observation, proving sufficiency.
+
+Every infeasible subset consequently contains two incompatible pins connected
+by its zero edges. A shortest zero-edge path in the full observation graph
+costs no more than those retained zero edges. The two nonzero source edges
+cannot also be zero-path edges, and charging their union once gives the
+displayed lower bound on any infeasible subset. Conversely each candidate
+path and its source-edge set is infeasible and realizes its stated cost.
+Nonnegative weights ensure a simple shortest path suffices.
+\end{proof}
+
+\paragraph{A tree that the real relaxation accepts.}
+On the path $0\to1\to2$, let both observations be $e_B-e_A$ for distinct
+$A,B\in D$. The first edge pins vertex $1$ to $B$ and the second pins it to
+$A$: the zero-length path at vertex $1$ is already a categorical contradiction.
+Yet real potentials $0$, $e_B-e_A$, and $2(e_B-e_A)$ explain both differences,
+so the real completion residual is zero. Costs $2$ and $3$ give an exact
+certificate cost of $5$. This does not contradict the forest limit for
+unrestricted real potentials; the domain supplies a stronger constraint.
+
+\paragraph{What the certificate buys.}
+The auditor can return the conflicting values and exact observation IDs rather
+than a scalar alarm. The implementation in \texttt{claim\_audit.py} checks
+categorical feasibility; \texttt{costed\_claim\_certificates.py} uses shortest
+zero-edge paths and pin pairs. Their independent exhaustive assignment and
+retained-subset tests check the two conclusions separately. A schema/hash check
+does not authenticate a producer, and algebraic infeasibility does not decide
+which observation is false. The optimizer selects among known answers;
+choosing an unknown receipt needs an answer model or adversarial objective.
+Two individually compatible additional receipts can jointly close a
+contradiction, so zero immediate residual gain is not a valid general stopping
+rule for acquisition.
+
+\section{Failure-separating feature maps and degeneracy}\label{sec:identifiability}
+A choice of stalks is an engineering hypothesis about what the evidence preserves. A useful feature map must be typed, versioned, and checked against the failure modes it is meant to identify. Let $t_{v,e}$ be the evidence visible at endpoint $v$ on edge $e$, and let $\varphi_{v,e}(t_{v,e})$ take values in a declared stalk $F(v)$. The restriction map $R_{v,e}:F(v)\to F(e)$ must land in a common edge feature space. When subtraction is meaningful, one can form an edge report
+\[
+y_e=R_{v,e}\varphi_{v,e}(t_{v,e})-R_{u,e}\varphi_{u,e}(t_{u,e}).
+\]
+The use of $t_{v,e}$ rather than a single shared $t_v$ is deliberate: applying one vertex map once and taking all its edge differences produces $y=Bx$ and forces the cycle residual to zero. Each edge packet must have an independently accountable evidence path. For a count, the maps can return exact integers. For an approval, artifact digest, or event sequence, use a suitable typed or symbolic constraint; mapping its bits to an arbitrary real coordinate does not create a meaningful distance.
+
+Fix one context: work item, feature schema, watermark, graph, admissible evidence, and a reference trace $t_0$. Predeclare a finite set $\mathcal M=\{0,1,\ldots,k\}$ of fault interventions, with $0$ denoting no injected fault. An intervention $I_j$ changes specified edge evidence and produces a deterministic edge signature $s_j=\Phi(I_j(t_0))-\Phi(t_0)$, with $s_0=0$. These are signatures of \emph{specified interventions}, not generic labels such as ``hallucination'' or ``partition.'' Let $Q=I-BB^+$ be the graph-cycle projector and $z_j=Qs_j$. The \emph{failure-separation margin} is
+\begin{equation}\label{eq:margin}
+\gamma=\min_{i\ne j}\|z_i-z_j\|_2,
+\qquad
+D=\bigl\{\{i,j\}:i\ne j,\ z_i=z_j\bigr\}.
+\end{equation}
+The degeneracy set $D$ and the margin can be computed exactly for rational signatures. A zero margin is a decisive failure of one-to-one diagnosis for this library. A positive margin is conditional on the reference context and on the intervention signatures being faithful to the real failure modes.
+
+\begin{theorem}[Conditional failure-mode identifiability]\label{thm:failure-identifiability}
+For the fixed deterministic library above, the projected observation $Qy$ uniquely identifies the injected label $j$ in the absence of noise if and only if $\gamma>0$. If the observed projection is $z_j+Q\eta$ and $\|Q\eta\|_2<\gamma/2$, nearest-signature classification returns $j$ uniquely. If $\gamma=0$, no rule using only the projected observation can always distinguish every label in $\mathcal M$.
+\end{theorem}
+\begin{proof}
+When $\gamma>0$, all prototypes are distinct. For any $i\ne j$, the triangle inequality gives
+$\|z_j+Q\eta-z_i\|_2\ge\|z_j-z_i\|_2-\|Q\eta\|_2>\gamma/2$, whereas the distance to $z_j$ is below $\gamma/2$. Conversely, if $\gamma=0$, finiteness implies $z_i=z_j$ for some distinct pair. The same observation then occurs under both labels, so a deterministic or randomized rule cannot be correct with certainty in both worlds.
+\end{proof}
+
+For the particular library of one signed unit error on an unknown edge, topology alone gives a sharper criterion. Let $e_i$ denote the $i$th coordinate vector in $\mathbb R^E$, and consider the $1+2|E|$ labels $\{0\}\cup\{+e_i,-e_i:i\in E\}$. The label describes one corrupted \emph{edge report}, not the agent or event that caused it.
+
+\begin{theorem}[Three-edge-connectivity criterion]\label{thm:three-edge-identifiability}
+For a connected loopless graph with at least two vertices, all labels in the signed single-edge library have distinct cycle projections if and only if the graph is three-edge-connected, meaning removal of any one or two edges leaves it connected. A bridge makes its own error invisible; a non-bridge two-edge cut makes two signed edge-error labels indistinguishable. This criterion assumes exact edge-only differences and known unit amplitude.
+\end{theorem}
+\begin{proof}
+Write $q_i=Qe_i$. If $q_i=0$, then $e_i=Bx$ for some potential $x$. On every edge other than $i$ the potential difference is zero. If deleting $i$ leaves the graph connected, $x$ is constant and $Bx=0$, a contradiction. If $i$ is a bridge, assigning potentials zero and one to the two components after its deletion gives $Bx=\pm e_i$ and thus $q_i=0$.
+
+For distinct non-bridge edges $i,j$, an equality $q_i=\pm q_j$ means $e_i\mp e_j=Bx$. All potential differences vanish outside $\{i,j\}$; if deleting both edges leaves a connected graph, $x$ is constant, again a contradiction. Conversely, if deleting $i$ and $j$ disconnects the graph while neither is individually a bridge, the remaining graph has two components linked by those two edges. Assigning potentials zero and one to the components gives $Bx=\pm e_i\pm e_j$, so one signed label on $i$ shares a cycle projection with one signed label on $j$. The nominal label is distinct from every edge label exactly when there are no bridges. Combining these cases proves the criterion.
+\end{proof}
+
+The signed-unit criterion is a special case of a support-level boundary. Let $\lambda(G)$ be the minimum number of edges crossing a nontrivial vertex cut, counting parallel edges separately, and let $\Sigma_k=\{a\in\mathbb R^E:\|a\|_0\le k\}$ denote arbitrary-amplitude edge-report errors on at most $k$ edges. This model permits unknown support and magnitude; it still does not identify the agent or event that produced an erroneous report.
+
+\begin{theorem}[Sparse report-error identifiability]\label{thm:sparse-cut-identifiability}
+For a finite connected loopless graph with at least two vertices and $k\ge1$, the map $a\mapsto Qa$ is injective on $\Sigma_k$ if and only if $\lambda(G)>2k$. Put $s=\min(2k,|E|)$ and
+\[
+\alpha_s=\min_{\varnothing\ne T\subseteq E,\,|T|\le s}\sigma_{\min}(Q_T),
+\]
+where $Q_T$ contains the columns indexed by $T$. Then $\alpha_s>0$ exactly under the same condition. If $q=Qa+\xi$ with $a\in\Sigma_k$ and $\|\xi\|_2\le\epsilon$, every $\widehat a\in\Sigma_k$ satisfying $\|q-Q\widehat a\|_2\le\epsilon$ obeys $\|\widehat a-a\|_2\le2\epsilon/\alpha_s$ when $\alpha_s>0$.
+\end{theorem}
+\begin{proof}
+The kernel of $Q$ is $\operatorname{im}B$. For every nonconstant vertex potential $x$, choose a threshold strictly between its minimum and maximum values. The edges crossing the induced nontrivial cut are all in $\operatorname{supp}(Bx)$, so $\|Bx\|_0\ge\lambda(G)$. A zero-one potential on a minimum cut attains equality. Hence the smallest support of a nonzero vector in $\ker Q$ is exactly $\lambda(G)$. Two vectors in $\Sigma_k$ have the same projection precisely when their difference is in this kernel; that difference has support at most $2k$. Conversely, the minimum-cut gradient can be partitioned into two vectors of support at most $k$, giving a collision when $\lambda(G)\le2k$. This proves injectivity. The minimum defining $\alpha_s$ ranges over finitely many column sets and is positive exactly when none has a nonzero kernel vector, which is the same cut condition. Finally, $h=\widehat a-a$ has support at most $s$ and $\|Qh\|_2\le\|q-Q\widehat a\|_2+\|\xi\|_2\le2\epsilon$, while $\|Qh\|_2\ge\alpha_s\|h\|_2$.
+\end{proof}
+
+For example, $K_4$ has $\lambda=3$, so it distinguishes any one arbitrary-amplitude edge-report error but not every pair of two-edge errors. Its three-edge cut can be split into two errors of support at most two whose cycle projections coincide. The score $\alpha_s$ quantifies robustness for this support model; minimum-cut size alone does not give its numerical value. Exhaustively computing $\alpha_s$ may be costly on a large graph. More importantly, a consistent false node assignment remains a gradient and can pass regardless of edge connectivity. The theorem does not close the semantic coalition-equivocation problem recorded in the research program.
+
+If the fault amplitudes are unknown continuous coordinates $a\in\mathbb R^k$, collect their unit edge signatures in $S=[s_1\ \cdots\ s_k]$ and define the \emph{contract observability Gram matrix}
+\begin{equation}\label{eq:gram}
+M=S^TQS=(QS)^T(QS).
+\end{equation}
+Because $Q$ is an orthogonal projector, $M$ is positive semidefinite. If $\lambda_{\min}(M)>0$, the map $a\mapsto QSa$ is injective and the coefficient error under projected noise is bounded by $\|Q\eta\|_2/\sqrt{\lambda_{\min}(M)}$ for a least-squares estimate. If $\lambda_{\min}(M)=0$, some nonzero fault combination is invisible. Necessarily $k\le\dim\ker B^T=|E|-|V|+c$ for full-rank continuous identification. This rank bound does \emph{not} preclude classifying more than that many known, fixed-amplitude discrete prototypes, which only need pairwise separation.
+
+\begin{theorem}[Redundant-observation monotonicity]\label{thm:edge-monotonicity}
+Keep the same vertices, existing edge reports, and existing failure labels, and add an independently observed edge with fixed signatures for those labels. With the ordinary unweighted Euclidean norm, every pairwise squared residual-signature distance is nondecreasing. Hence the minimum separation margin for the same label library cannot decrease. Equality is possible; an added edge is useful for distinguishing labels only when it separates a degenerate pair or increases its margin.
+\end{theorem}
+\begin{proof}
+For a pair $i,j$, let $d$ be the difference of their old edge signatures and $d'$ its value on the added edge. Its new squared projected distance is
+$\min_x\{\|d-Bx\|_2^2+|d'-b'x|^2\}$, where $b'$ is the new incidence row. This is at least $\min_x\|d-Bx\|_2^2$, the old squared distance. Taking square roots and then the minimum over a fixed finite set of pairs preserves the inequality.
+\end{proof}
+
+For a new observed residual $q=Qy$, a declared projected-noise bound $\epsilon$ gives an operational ambiguity set $\mathcal A_\epsilon(q)=\{j:\|q-z_j\|_2\le\epsilon\}$. A singleton supports one label \emph{within the library and the noise bound}; several labels mean ``ambiguous,'' and an empty set means ``outside the modeled library.'' Reporting this set and its distances is more informative than forcing a scalar severity number or a causal name onto every trace.
+
+A proposed stalk schema should therefore pass four gates before a 1:1 claim is made:
+\begin{enumerate}[noitemsep]
+\item \textbf{Evidence type:} every comparison uses the same exact contract, work item, schema, watermark, and provenance rule;
+\item \textbf{Feature separation:} the chosen maps preserve distinctions among the predeclared, externally labeled interventions;
+\item \textbf{Projected separation:} $\gamma>0$ for discrete labels, $\alpha_{2k}>0$ for unknown $k$-sparse edge-error support (with the capped index above), or $\lambda_{\min}(M)>0$ for specified continuous fault coordinates;
+\item \textbf{Robustness and truth:} the observed error is below the declared margin and an independent evidence source checks that the signature library represents the claimed behavior.
+\end{enumerate}
+Failing any gate means a diagnosis is unproved. A feature map cannot recover a distinction absent from its input evidence, and a graph projection cannot recover a distinction it places in its kernel.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9, every node/.style={font=\small}]
+  \begin{scope}[xshift=0cm]
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (a0) at (0,2) {0};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (a1) at (2.1,2) {1};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (a2) at (2.1,0) {2};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (a3) at (0,0) {3};
+    \draw[-{Stealth},thick,ptBlue] (a0)--(a1);
+    \draw[-{Stealth},thick,ptBlue] (a1)--(a2);
+    \draw[-{Stealth},thick,ptBlue] (a2)--(a3);
+    \draw[-{Stealth},thick,ptBlue] (a0)--(a3);
+    \draw[-{Stealth},thick,ptBlue] (a0)--(a2);
+    \node[align=center] at (1.05,-1.00) {Five edges\\7 of 11 signatures distinct};
+  \end{scope}
+  \begin{scope}[xshift=6cm]
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (b0) at (0,2) {0};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (b1) at (2.1,2) {1};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (b2) at (2.1,0) {2};
+    \node[circle,draw=ptDark,fill=ptDark,text=white,inner sep=2pt] (b3) at (0,0) {3};
+    \draw[-{Stealth},thick,ptBlue] (b0)--(b1);
+    \draw[-{Stealth},thick,ptBlue] (b1)--(b2);
+    \draw[-{Stealth},thick,ptBlue] (b2)--(b3);
+    \draw[-{Stealth},thick,ptBlue] (b0)--(b3);
+    \draw[-{Stealth},thick,ptBlue] (b0)--(b2);
+    \draw[-{Stealth},very thick,ptRed] (b1)--(b3);
+    \node[align=center] at (1.05,-1.00) {$K_4$ with one new packet\\11 of 11 signatures distinct};
+  \end{scope}
+\end{tikzpicture}
+\caption{One independently acquired cross-edge resolves the four signed single-edge signature collisions in the finite fixture. The new packet is an additional observation, not a repair action.}
+\label{fig:edge-probe}
+\end{figure}
+
+Figure~\ref{fig:edge-probe} makes the criterion concrete. A four-node square plus diagonal has five edges and two-edge cuts. For its 11 signed single-edge labels (including nominal), the exact projector produces only seven distinct signatures; four pairs of labels coincide and $\gamma=0$. An independent edge between the two previously unconnected vertices completes $K_4$, which is three-edge-connected. Keeping the same 11 predeclared labels and assigning the new edge zero injected error produces 11 distinct signatures and $\gamma^2=1/2$. Of 55 label pairs, 40 gain squared separation and none lose it. Among six equal-cost one-packet candidates in the scripted fixture (the new cross-edge or an independent repeat of one existing edge), the cross-edge alone maximizes the minimum squared margin at $1/2$. This is a measurement-design calculation; a real system must still justify why the new packet is independent and trustworthy. Indeed, on $K_4$ the incidence Laplacian is $B^TB=4I-J$, whence $Q=I-BB^T/4$ and every signed unit edge fault has the same scalar residual norm $1/\sqrt{2}$; the \emph{residual vector}, not its norm alone, carries the one-to-one label information.
+
+The Gram eigenvalue and $\gamma$ are \emph{design scores}, not direct failure probabilities. A high score for a synthetic fault library says the chosen observation topology separates those injected signatures. It says nothing about unmodeled faults, forged evidence, a colluding gradient-shaped change, or the real incidence of a failure mode. Any claim of one-to-one mapping to agentic behavior needs an externally validated intervention-to-signature map and a truth oracle for every label.
+
+\section{Reproducible offline protocol}\label{sec:protocol}
+The typed-complex companion \texttt{scripts/sheaf\_2complex\_study.py} constructs the nonuniform stalks and incidence maps of Section~\ref{sec:typed-fixture} with exact rational arithmetic. It rejects malformed maps when $BA\ne0$, computes cohomology ranks and Hodge projectors independently of a numerical eigensolver, and exercises the local count, global handoff, gradient, and mixed controls. It also computes the edge-group distance and the relative extension class from Section~\ref{sec:relative}. These are synthetic cochain tests, not observed rates of agent failures. Their purpose is to force a claim about a face, a hole, or a missing observation to have a reproducible exact witness.
+
+The graph fixture script \texttt{sheaf\_observability\_study.py} constructs a four-node square with a diagonal, plus a triangle with a bridge. It fixes one integer feature and one watermark, and tests all $3^5=243$ edge perturbations in $\{-1,0,1\}^5$ on the first graph. Its exact rational cycle-space projection is compared with a separately implemented integer graph-propagation oracle. The two implementations agree on all 243 perturbations; this checks the implementation against a distinct calculation, not against a field truth source. It reports the duplicate-claim baseline and a separate ledger-truth label. All packet data are synthetic fixtures. No LLM call or live Port Daddy runtime is part of this evaluation. Of 243 perturbations, 242 disagree with the independent synthetic ledger. The cycle test flags 226; the duplicate-claim baseline flags 240. The cycle test misses 16 ledger disagreements and the duplicate baseline misses two. Both have zero false positives in this fixture. These are exact counts for this finite corpus, not field estimates.
+
+The cases were selected before running the sweep:
+\begin{center}
+\begin{tabular}{p{0.25\linewidth}p{0.36\linewidth}p{0.29\linewidth}}
+\toprule
+Case & Cycle-test expectation & Required interpretation \\
+\midrule
+Unequal honest node values & Pass when edge reports share those values & Unequal does not mean inconsistent \\
+Single cycle-edge mutation & Fail if the changed edge closes a nonzero cycle & Incompatibility, no blame assignment \\
+Bridge-edge mutation & Pass if that edge is in no cycle & Topological blind spot \\
+Gradient-shaped mutation & Pass & Algebra cannot expose joint falsehood \\
+Stale or missing packet & Reject before graph test & Input validity failure \\
+Consistent but false nodes & Pass; ledger check fails & Compatibility is not truth \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The empirical acceptance gate for a distinctive graph-detector contribution is: on the same packets and metadata, find a reproducible error class detected by the cycle test that the cheaper duplicate-claim check misses. Theorem~\ref{thm:duplicate-dominance} proves this gate cannot pass under visible endpoints. A future test of edge-only reports must specify how those reports were independently produced and what the auditor is authorized to see. The next field gate requires event-grounded packets from actual runs, a separate immutable ledger oracle, stale and missing-data rates, false-alarm rates, end-to-end acquisition cost, and a baseline comparison. Until then, the benchmark is a correctness fixture, not deployment evidence.
+
+\section{Operational application and scope}\label{sec:application}
+A field audit should start from one immutable work item, PR head, workflow attempt, artifact identity, and ledger watermark. The additive coordinates in the typed fixture can count accepted completions and validated handoffs. Reviewer approvals, commit digests, and publisher grants remain exact symbolic predicates checked against authenticated event records. Each edge packet must say which role acquired it, from which independent source, and through which map its value enters the stalk. A three-party face contract needs its own provenance-bound receipt if it is to add evidence; the algebraic face relation alone only changes the interpretation of an existing edge residual.
+
+The practical comparison uses the \emph{same available inputs} for every method: metadata and provenance checks, repeated-claim equality, an exact typed-constraint solver, and the sheaf channels. Predeclared interventions include a stale CI attempt, mismatched PR head, replayed approval, forged edge report, jointly consistent false reports, missing packet, and no fault. An independently extracted ledger or symbolic contract oracle supplies truth labels. A graph or sheaf score earns an operational claim only if it improves detection or audit cost at a fixed false-alarm budget, or gives a measured explanation benefit that a direct solver does not. The synthetic fixture makes no such field claim.
+
+Relative cohomology adds a precise question when evidence is partial: can the visible compatible section extend through the declared hidden contracts? A nonzero connecting class rules out any extension under those maps; a zero class leaves actual hidden work unverified. Hodge components similarly describe the selected cochain complex. Human intervention must follow authenticated provenance and policy evidence, not a harmonic-to-curl ratio. Large sheaves may also make exhaustive support-distance and singular-value calculations expensive; deployment would need bounded, receipted approximations or a smaller audit subcomplex.
+
+\section{Related work and novelty boundary}\label{sec:related}
+Cellular sheaves, their cohomology, relative exact sequences, and Hodge Laplacians are established~\cite{curry2013,hansen2019}. Combinatorial Hodge ranking already separates gradient, curl, and harmonic components of pairwise data~\cite{jiang2009}. Sheaf cosystolic expansion supplies local-to-global and testing criteria under strong complex and sheaf hypotheses~\cite{first2024}; it does not make a nontrivial $H^1$ class visible to a face-only test. Relative spectral diagnostics with a separate grounding morphism provide another relevant construction~\cite{yokoyama2026}. Sparse recovery and coding-distance arguments also predate the edge-group support theorem~\cite{zhao2018}. Discourse sheaves model selective communication and lying~\cite{hansen2020}, while cellular-sheaf coordination has been studied for heterogeneous multi-agent systems~\cite{hanks2025,seely2026}.
+
+The mathematical statements in this paper specialize that literature to a declared agent-evidence contract. The potentially distinctive contribution is a testable design method: specify typed and provenance-bound restrictions, compute local, global, and relative obstruction classes, state exactly which injected report errors the map can distinguish, and compare against an equal-information direct solver. The heterogeneous fixture demonstrates the method and its limits; it is not evidence of broad field utility. A useful next result would show that independently sourced edge and face receipts reveal a real workflow failure more cheaply or more clearly than direct authenticated contract checks, under a predeclared acquisition and privacy budget.
+
+\section{Conclusion}\label{sec:conclusion}
+Typed cellular sheaves can express information that a scalar graph cannot: different overlaps reveal different coordinates, joint contracts impose face relations, and incomplete visibility creates an extension problem. In the exact fixture, a count-face violation and a closed handoff-loop obstruction occupy orthogonal cohomological channels; the relative class identifies a visible section that cannot extend. The sheaf edge-group distance states when sparse erroneous reports are detectable or uniquely recoverable. These are precise statements about a selected evidence complex. The same calculations show why topology alone cannot establish truth: coherent false reports remain invisible, a face without new evidence cannot increase detection, and a direct solver with the same packets has the same compatibility information. The field question is whether a provenance-bound sheaf audit improves the cost or clarity of checking real multi-agent work. The protocol here makes that question falsifiable.
+
+\begin{thebibliography}{15}
+\bibitem{curry2013} J. Curry. Sheaves, cosheaves and applications. arXiv:1303.3255, 2013. \url{https://arxiv.org/abs/1303.3255}.
+\bibitem{hansen2019} J. Hansen and R. Ghrist. Toward a spectral theory of cellular sheaves. \emph{Journal of Applied and Computational Topology} 3, 315--358, 2019. \url{https://arxiv.org/abs/1808.01513}.
+\bibitem{first2024} U. A. First and T. Kaufman. Cosystolic expansion of sheaves on posets with applications to good 2-query locally testable codes and lifted codes. arXiv:2403.19388, 2024. \url{https://arxiv.org/abs/2403.19388}.
+\bibitem{yokoyama2026} S. Yokoyama. Relative obstructions and spectral diagnostics for sheaves on cell complexes. arXiv:2601.19056v3, 2026. \url{https://arxiv.org/abs/2601.19056}.
+\bibitem{zhao2018} M. Zhao, M. D. Kaba, R. Vidal, D. P. Robinson, and E. Mallada. Sparse recovery over graph incidence matrices. IEEE Conference on Decision and Control, 2018. \url{https://arxiv.org/abs/1803.09631}.
+\bibitem{jiang2009} X. Jiang, L.-H. Lim, Y. Yao, and Y. Ye. Statistical ranking and combinatorial Hodge theory. arXiv:0811.1067, 2009. \url{https://arxiv.org/abs/0811.1067}.
+\bibitem{hansen2020} J. Hansen and R. Ghrist. Opinion dynamics on discourse sheaves. arXiv:2005.12798, 2020. \url{https://arxiv.org/abs/2005.12798}.
+\bibitem{hanks2025} T. Hanks, H. Riess, S. Cohen, T. Gross, M. Hale, and J. Fairbanks. Distributed multi-agent coordination over cellular sheaves. arXiv:2504.02049, 2025. \url{https://arxiv.org/abs/2504.02049}.
+\bibitem{seely2026} J. Seely, B. Cupia\l{}, and L. Jones. Learning multi-agent coordination via Sheaf-ADMM. arXiv:2605.31005, 2026. \url{https://arxiv.org/abs/2605.31005}.
+\end{thebibliography}
+\end{document}

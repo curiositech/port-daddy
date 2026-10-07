@@ -1,0 +1,15 @@
+{
+  "title": "An Introduction to MultiAgent Systems",
+  "edition": "Second edition",
+  "author": "Michael Wooldridge",
+  "publisher_record": "Wiley",
+  "canonical_author_site": "https://www.cs.ox.ac.uk/people/michael.wooldridge/pubs/imas/",
+  "accessible_primary_material": [
+    "Author-maintained table of contents",
+    "Author-hosted chapter lecture slides for chapters 2, 5, 8, 11, 14, 15, and 17"
+  ],
+  "source_access_status": "Contents and named lecture slide PDFs opened; full textbook and Wiley body were not accessed.",
+  "identity_status": "Topic/source identification supported by author site; imported generated narrative is not operative evidence.",
+  "historical_import_record": "The prior generated identity narrative is preserved as the bundle preimage at validation/wooldridge-method-restoration/preimage/_book_identity.json (SHA-256 recorded in the receipt). It is non-operative. The canonical source identity file is commit 00ab2c9ab2197ff97e85edc173370b7446fdb2ef, skills/ai-wiley-wooldridge-an-introduction-to-multi-agent-systems/_book_identity.json, SHA-256 912a8ed700a03e37d073f0449ca1e2d7f3af3f2daddcce2a6929b4ec25f251d0.",
+  "usage_boundary": "Source-bounded teaching-method map. Operational examples are labeled constructed. Not a claim that Wooldridge endorses those systems, current APIs, or deployment practices."
+}

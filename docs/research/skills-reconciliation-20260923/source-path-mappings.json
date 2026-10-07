@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "disposition": "Canonical coordination guidance is semantically merged; historical supporting files are retained with provenance. Portable filename changes preserve exact source-to-destination mapping.",
+  "bundleDestinations": {
+    "port-daddy": "port-daddy-agent-skill"
+  },
+  "sourceFileDestinations": {
+    "port-daddy": {
+      "CHANGELOG.md": "references/imported-port-daddy/CHANGELOG.md",
+      "affordance-scorecard.json": "references/imported-port-daddy/affordance-scorecard.json",
+      "references/sdk-reference.md": "references/imported-port-daddy/references/sdk-reference.md",
+      "references/multi-agent-patterns.md": "references/imported-port-daddy/references/multi-agent-patterns.md",
+      "references/INDEX.md": "references/imported-port-daddy/references/INDEX.md",
+      "references/portdaddyrc-spec.md": "references/imported-port-daddy/references/portdaddyrc-spec.md",
+      "references/api-reference.md": "references/imported-port-daddy/references/api-reference.md",
+      "diagrams/01_flowchart_decision-points.md": "references/imported-port-daddy/diagrams/01_flowchart_decision-points.md",
+      "diagrams/INDEX.md": "references/imported-port-daddy/diagrams/INDEX.md",
+      "SKILL.md": "SKILL.md"
+    },
+    "belief-desire-intention-model-of-agency": {
+      "diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md": "diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md"
+    },
+    "cambridge-handbook-of-expertise": {
+      "diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md": "diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md"
+    },
+    "conway-1968-how-do-committees-invent": {
+      "diagrams/01_flowchart_conway's_law_decision_tree:_ag.md": "diagrams/01_flowchart_conway's_law_decision_tree-_ag.md",
+      "diagrams/02_sequenceDiagram_homomorphic_reflection:_agent_.md": "diagrams/02_sequenceDiagram_homomorphic_reflection-_agent_.md"
+    },
+    "expert-knowledge-elicitation": {
+      "diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md": "diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md"
+    },
+    "fipa-00023-agent-management": {
+      "diagrams/03_flowchart_decision_tree:_agent_addressin.md": "diagrams/03_flowchart_decision_tree-_agent_addressin.md"
+    },
+    "focus-a-model-of-sensemaking": {
+      "diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md": "diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md",
+      "diagrams/02_flowchart_decision_framework:_anomaly_de.md": "diagrams/02_flowchart_decision_framework-_anomaly_de.md",
+      "diagrams/03_mindmap_focus_sensemaking_model:_knowl.md": "diagrams/03_mindmap_focus_sensemaking_model-_knowl.md"
+    },
+    "huang-et-al-2026-six-sigma-agent": {
+      "diagrams/03_quadrantChart_model_selection:_cost_vs._reli.md": "diagrams/03_quadrantChart_model_selection-_cost_vs._reli.md"
+    },
+    "kephart-chess-2003-autonomic-computing": {
+      "diagrams/02_stateDiagram-v2_cognitive_shift:_from_self-bla.md": "diagrams/02_stateDiagram-v2_cognitive_shift-_from_self-bla.md",
+      "diagrams/03_quadrantChart_market_dynamics:_feature_quant.md": "diagrams/03_quadrantChart_market_dynamics-_feature_quant.md"
+    },
+    "mastering-the-game-of-go-with-deep-neura": {
+      "diagrams/01_flowchart_alphago_decision_framework:_wh.md": "diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "diagrams/03_quadrantChart_cascading_approximation:_speed.md": "diagrams/03_quadrantChart_cascading_approximation-_speed.md"
+    },
+    "mastering-the-game-of-go-with-deep-neural-networks": {
+      "diagrams/01_flowchart_alphago_decision_framework:_wh.md": "diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "diagrams/03_quadrantChart_cascading_approximation:_speed.md": "diagrams/03_quadrantChart_cascading_approximation-_speed.md"
+    },
+    "muscettola-nicola-1993-1": {
+      "diagrams/01_flowchart_decision_framework:_when_to_co.md": "diagrams/01_flowchart_decision_framework-_when_to_co.md",
+      "diagrams/03_quadrantChart_problem_classification:_separa.md": "diagrams/03_quadrantChart_problem_classification-_separa.md"
+    },
+    "ongaro-ousterhout-2014-raft": {
+      "diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md": "diagrams/02_sequenceDiagram_log_replication_protocol-_happ.md",
+      "diagrams/03_mindmap_decomposition_hierarchy:_raft'.md": "diagrams/03_mindmap_decomposition_hierarchy-_raft'.md"
+    },
+    "sensemaking-focus-model": {
+      "diagrams/01_stateDiagram-v2_sensemaking_state_machine:_fra.md": "diagrams/01_stateDiagram-v2_sensemaking_state_machine-_fra.md",
+      "diagrams/02_flowchart_decision_framework:_anomaly_de.md": "diagrams/02_flowchart_decision_framework-_anomaly_de.md",
+      "diagrams/03_mindmap_focus_sensemaking_model:_knowl.md": "diagrams/03_mindmap_focus_sensemaking_model-_knowl.md"
+    },
+    "simon-and-newell-human-problem-solving-theory-1971": {
+      "diagrams/02_mindmap_problem_space_construction:_si.md": "diagrams/02_mindmap_problem_space_construction-_si.md",
+      "diagrams/03_quadrantChart_search_strategy_selection:_wor.md": "diagrams/03_quadrantChart_search_strategy_selection-_wor.md"
+    },
+    "taleb-blyth-2011-black-swan-of-cairo": {
+      "diagrams/03_quadrantChart_domain_characterization:_linea.md": "diagrams/03_quadrantChart_domain_characterization-_linea.md"
+    },
+    "the-belief-desire-intention-model-of-age": {
+      "diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md": "diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md"
+    },
+    "the-cambridge-handbook-of-expertise-and": {
+      "diagrams/03_quadrantChart_elicitation_method_fit_matrix:.md": "diagrams/03_quadrantChart_elicitation_method_fit_matrix-.md"
+    },
+    "yao-2022-react": {
+      "diagrams/01_flowchart_react_decision_loop:_when_to_r.md": "diagrams/01_flowchart_react_decision_loop-_when_to_r.md"
+    },
+    "yao-2023-tree-of-thoughts": {
+      "diagrams/01_flowchart_tree_of_thoughts:_decision_fra.md": "diagrams/01_flowchart_tree_of_thoughts-_decision_fra.md"
+    },
+    "alphago-deep-rl": {
+      "diagrams/01_flowchart_alphago_decision_framework:_wh.md": "diagrams/01_flowchart_alphago_decision_framework-_wh.md",
+      "diagrams/03_quadrantChart_cascading_approximation:_speed.md": "diagrams/03_quadrantChart_cascading_approximation-_speed.md"
+    },
+    "bdi-agency-model": {
+      "diagrams/02_stateDiagram-v2_intention_lifecycle:_commitmen.md": "diagrams/02_stateDiagram-v2_intention_lifecycle-_commitmen.md"
+    },
+    "beale-rise-up-revolt": {
+      "diagrams/02_stateDiagram-v2_cognitive_shift:_from_self-bla.md": "diagrams/02_stateDiagram-v2_cognitive_shift-_from_self-bla.md",
+      "diagrams/03_quadrantChart_market_dynamics:_feature_quant.md": "diagrams/03_quadrantChart_market_dynamics-_feature_quant.md"
+    },
+    "hsts-planning-scheduling": {
+      "diagrams/01_flowchart_decision_framework:_when_to_co.md": "diagrams/01_flowchart_decision_framework-_when_to_co.md",
+      "diagrams/03_quadrantChart_problem_classification:_separa.md": "diagrams/03_quadrantChart_problem_classification-_separa.md"
+    },
+    "bellifemine-2007-jade-fipa": {
+      "diagrams/03_flowchart_decision_tree:_which_jade_coor.md": "diagrams/03_flowchart_decision_tree-_which_jade_coor.md"
+    },
+    "embedded-agency": {
+      "diagrams/01_flowchart_goodhart's_law_progression:_op.md": "diagrams/01_flowchart_goodhart's_law_progression-_op.md",
+      "diagrams/02_mindmap_dualistic_vs._embedded_agency:.md": "diagrams/02_mindmap_dualistic_vs._embedded_agency-.md"
+    },
+    "liu-2023-agentbench": {
+      "diagrams/02_quadrantChart_model_selection_matrix:_task_t.md": "diagrams/02_quadrantChart_model_selection_matrix-_task_t.md",
+      "diagrams/03_stateDiagram-v2_agent_state_machine:_planning-.md": "diagrams/03_stateDiagram-v2_agent_state_machine-_planning-.md"
+    },
+    "park-2023-generative-agents": {
+      "diagrams/02_stateDiagram-v2_agent_behavior_loop:_memory-re.md": "diagrams/02_stateDiagram-v2_agent_behavior_loop-_memory-re.md"
+    },
+    "rao-georgeff-1995-bdi-agents-from-theory-to-practice": {
+      "diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle:_beli.md": "diagrams/01_stateDiagram-v2_bdi_agent_decision_cycle-_beli.md",
+      "diagrams/02_flowchart_plan_selection_pipeline:_from_.md": "diagrams/02_flowchart_plan_selection_pipeline-_from_.md",
+      "diagrams/03_sequenceDiagram_resource-bounded_rationality:_.md": "diagrams/03_sequenceDiagram_resource-bounded_rationality-_.md"
+    },
+    "smith-1980-contract-net-protocol": {
+      "diagrams/01_flowchart_knowledge_state_decision_tree:.md": "diagrams/01_flowchart_knowledge_state_decision_tree-.md",
+      "diagrams/02_sequenceDiagram_knowledge_propagation:_public_.md": "diagrams/02_sequenceDiagram_knowledge_propagation-_public_.md"
+    },
+    "stanton-2006-hierarchical-task-analysis": {
+      "diagrams/02_quadrantChart_p\u00d7c_stopping_rule:_analytical_.md": "diagrams/02_quadrantChart_p\u00d7c_stopping_rule-_analytical_.md"
+    },
+    "windags-librarian": {
+      "skill.md": "SKILL.md"
+    }
+  }
+}

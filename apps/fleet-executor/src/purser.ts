@@ -142,6 +142,7 @@ import {
   requireContextAdmission,
   utf8ByteLength,
 } from './context-admission.js';
+import { MODEL_CONTEXT_TOKENS } from './spend.js';
 
 // ---------------------------------------------------------------------------
 
@@ -1082,12 +1083,11 @@ async function purserAiCall(
   // budget only its user text and then append an over-window system prompt.
   requireContextAdmission(model, request.messages, maxTokens);
   const res = await runCaptured(capture, { phase, model }, request, () =>
-    aiCircuit.runForShip(ship.name, () =>
-      env.AI.run(
-        model as Parameters<typeof env.AI.run>[0],
-        request,
-        shipAiOptions(env.AI_GATEWAY_ID, ship.name, capture),
-      ),
+    aiCircuit.runForShip(
+      ship.name,
+      () => env.AI.run(model as Parameters<typeof env.AI.run>[0], request,
+        shipAiOptions(env.AI_GATEWAY_ID, ship.name, capture)),
+      { model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - maxTokens, maxOutputTokens: maxTokens },
     ),
   );
   await assertCurrentHead(`after pd-${ship.name} Purser model call`);

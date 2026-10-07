@@ -55,12 +55,6 @@
   \node[pd breach datum] at ({\x0+7.0},-3.20) {};
   \node[pd label,anchor=north west,text width=2.55cm,align=left] at ({\x0+6.55},-3.40) {B pushes: merge conflict $\to$ hallucinated resolution $\to$ corruption};
 \end{tikzpicture}
-\caption{The opening scene collision. Agent A
-and Agent B never communicate --- each lane runs independently, ninety
-seconds apart, the only hard number given. Both edit the same file; both
-commit; both push to the shared rail below. A's push lands first and
-commits cleanly. B's push lands second against a file A has already
-changed, produces a merge conflict neither agent can interpret, and a
-hallucinated resolution corrupts the file. [internal]}
+\caption{Two uncoordinated agents edit and push the same file, ninety seconds apart. The second push conflicts; an invented resolution corrupts it. This is the chapter's opening scenario. [internal]}
 \label{fig:bonded-trust-collision}
 \end{figure}

@@ -77,13 +77,6 @@
   \node[pd note,anchor=north west] at (0.00,-2.20)
     {the deadline is set by the daemon, never by the agent};
 \end{tikzpicture}
-\caption{Typed evidence passes a narrow closure aperture. A commitment closes
-as done only when the agent names a reference from the finite oracle
-vocabulary --- a released claim, a merged commit, a passing test identifier, or
-a satisfied policy sub-check --- and the daemon re-checks that the reference
-still holds at closure time. A free-text assertion (red, dashed) meets solid
-wall: it is refused and the commitment remains open. The deadline the
-commitment is judged against is derived by the daemon from scope policy and is
-never agent-supplied. [internal]}
+\caption{Closure requires a supported evidence reference rechecked by the daemon. Free-text assertions leave the commitment open; scope policy, not the agent, supplies its deadline. [internal]}
 \label{fig:swk-commitment-oracle}
 \end{figure}

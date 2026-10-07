@@ -1,95 +1,44 @@
-% Brief (grammar: before/after on identical six-bucket geometry; atlas
-%   V/fig:anchor-cuckoo-inline). Fixes the audit defect: v1 filled every
-%   bucket with a heavy solid navy cell, so the one fact (where c1 lands)
-%   could not out-shout the five empty buckets around it. Here every empty
-%   bucket is a plain white pd artifact cell; only a bucket that actually
-%   holds c1 is filled, in the hue that names why it is there.
-% Reader question: why can two daemons not merge cuckoo filters by OR-ing
-%   their bit arrays, and what do they gossip instead?
-% Claim: OR-ing keeps every placement either peer ever made, which is a state
-%   no single filter build could produce; gossiping the ID log and rebuilding
-%   locally keeps c1 in exactly one bucket.
-% Evidence: peer A's c1 at bucket 2, peer B's c1 at bucket 5 (\S "Withdrawing
-%   a card before it expires"); log union c1 c2 c4 c7 c9 [internal].
-% Must distinguish: an empty bucket (plain, uninformative) from a bucket that
-%   holds c1 (breach hue when the state is invalid, focus hue when rebuilt).
-% Grammar chosen: before/after (tpl-before-after), same six-bucket geometry in
-%   both panels. Rejected: heavy fills on every bucket (the v1 defect) --
-%   equal weight for five empty cells and the one occupied one erases the
-%   fact the figure exists to show.
-% Five-second test: "OR keeps c1 in two buckets at once; the rebuilt log
-%   keeps it in exactly one."
+% Bounded bit counterexample; semantic fixture in test_book_pictograph_semantics.py.
 \begin{figure}[H]
 \centering
-\pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.78cm,y=1cm,
-    bucket/.style={pd state,minimum width=.78cm,minimum height=.78cm,
-      inner sep=0pt,font=\pdfiglabelbold,rounded corners=1pt}]
-  \newcommand{\rowlabelnode}[2]{\node[pd label,anchor=east,text width=1.7cm,align=right] at (-.35,#1) {#2};}
+\SGMeasuredFigure{fig-anchor-cuckoo-inline}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \tikzset{slot/.style={draw=sgInk,line width=.8pt,minimum width=47pt,
+    minimum height=30pt,inner sep=3pt,align=center,font=\SGType\ttfamily}}
+  \draw[sg/grid] (161,0)--(161,231);
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0) {OR the encodings};
+  \node[anchor=north west,font=\SGType\bfseries] at (174,0) {Union the records};
+  \node at (70,32) {bucket 0};
+  \node at (125,32) {bucket 1};
+  \node[anchor=east] at (35,61) {A};
+  \node[anchor=east] at (35,103) {B};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (70,61) {001};
+  \node[slot,fill=sgInk!3] at (125,61) {000};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (70,103) {010};
+  \node[slot,fill=sgInk!3] at (125,103) {000};
+  \draw[sgInk,line width=.8pt] (45,128)--(150,128);
+  \node[anchor=east,text=sgRed] at (35,153) {OR};
+  \node[slot,draw=sgRed,fill=sgRed!7] at (70,153) {011};
+  \node[slot,fill=sgInk!3] at (125,153) {000};
+  \node[anchor=north,text=sgRed,align=center,text width=149pt] at (78,182)
+    {neither original\\fingerprint remains};
+  \node[anchor=north west] at (0,217) {\texttt{000}: empty slot};
 
-  % ---------- panel 1: filters do not merge ---------------------------------
-  \node[pd title,anchor=west] at (-.35,8.75) {filters do not merge};
-
-  \rowlabelnode{7.55}{peer A}
-  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.55) {};
-  \node[bucket,pd focus fill] at (a2) {c1};
-
-  \rowlabelnode{6.35}{peer B}
-  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.35) {};
-  \node[bucket,pd focus fill] at (b5) {c1};
-
-  \rowlabelnode{5.15}{A OR B}
-  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,5.15) {};
-  \node[bucket,pd breach fill] at (o2) {c1};
-  \node[bucket,pd breach fill] at (o5) {c1};
-
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,4.7) -- (\i-1,4.58);
-    \node[pd label,anchor=north] at (\i-1,4.55) {\i};
-  }
-  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,4.0)
-    {two placements, one id: not a filter anyone built};
-
-  % ---------- divider --------------------------------------------------------
-  \draw[pd hairline] (-.9,3.25) -- (5.9,3.25);
-
-  % ---------- panel 2: the log merges ----------------------------------------
-  \node[pd title,anchor=west] at (-.35,2.65) {the log merges};
-
-  \node[pd mono label,fill=none,anchor=west] (lA) at (-.35,1.85) {A: c1 c7 c4};
-  \node[pd mono label,fill=none,anchor=west] (lB) at (-.35,1.10) {B: c2 c1 c9};
-  \draw[pd focus arrow] (lA.east) ++(2.35,.375) to[out=0,in=160] (3.55,1.85);
-  \draw[pd focus arrow] (lB.east) ++(2.35,-.375) to[out=0,in=200] (3.55,1.85);
-  \node[pd title,text=pdfocus!85!pdink,anchor=west] at (3.95,1.85)
-    {c1 c2 c4 c7 c9};
-
-  \draw[pd focus arrow] (2.5,.55) -- (2.5,-.25);
-  \node[pd note,anchor=north,align=center,text width=2.5cm] at (6.15,1.30)
-    {set union over IDs is always well defined};
-
-  \rowlabelnode{-.95}{rebuilt}
-  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.95) {};
-  \node[bucket,pd neutral fill] at (r1) {c2};
-  \node[bucket,pd focus fill] at (r2) {c1};
-  \node[bucket,pd neutral fill] at (r3) {c4};
-  \node[bucket,pd neutral fill] at (r4) {c7};
-  \node[bucket,pd neutral fill] at (r5) {c9};
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,-1.40) -- (\i-1,-1.52);
-    \node[pd label,anchor=north] at (\i-1,-1.55) {\i};
-  }
-  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,-2.05)
-    {c1 occupies one bucket once: one valid local projection};
-\end{tikzpicture}
-\caption{Two six-bucket cuckoo filters compared before and after the design
-change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
-the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
-and eviction history; every other bucket is empty, and bitwise \texttt{OR}
-keeps both \texttt{c1} placements, a state no single filter build could have
-produced. Bottom: gossiping the append-only ID log instead---peer $A$'s
-\texttt{c1 c7 c4} and peer $B$'s \texttt{c2 c1 c9}---and taking the ordinary
-set union gives \texttt{c1 c2 c4 c7 c9}; each daemon rebuilds one local
-filter with \texttt{c1} in a single bucket, the rest in gold as ordinary
-occupants. [internal]}
+  \SGDocument{logA}{(174,34)}{67}{34}{sgViolet!8}{peer A\\ID \texttt{c1}}
+  \SGDocument{logB}{(250,34)}{67}{34}{sgAmber!8}{peer B\\ID \texttt{c2}}
+  \node[sg/check,draw=sgTeal,fill=sgTeal!6,minimum width=116pt,
+    minimum height=32pt] (union) at (246,105) {union IDs\\$\{\mathtt{c1},\mathtt{c2}\}$};
+  \draw[sg/arrow,draw=sgViolet] (logA.south)--(207.5,80)--(union.north west);
+  \draw[sg/arrow,draw=sgAmber] (logB.south)--(283.5,80)--(union.north east);
+  \draw[sg/arrow,draw=sgTeal] (union.south)--(246,162);
+  \node[anchor=east,text=sgTeal,align=right] at (236,141) {local\\rebuild};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (218,182) {001};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (273,182) {010};
+  \node[anchor=north,text=sgTeal,align=center,text width=145pt] at (246,208)
+    {both fingerprints found};
+\end{tikzpicture}}
+\caption{Bitwise OR corrupts stored fingerprints; set union preserves the
+identifiers needed to rebuild them. Two-bucket example with one three-bit
+slot per bucket.}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

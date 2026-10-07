@@ -1,0 +1,29 @@
+{
+  "skill": "operad-task-decomposition",
+  "status": "current inventory only; not a certification",
+  "assessedAt": "2026-09-24",
+  "currentInventory": {
+    "references": 1,
+    "referenceIndex": false,
+    "diagrams": 3,
+    "diagramIndex": true,
+    "workedExamples": true,
+    "qualityGates": true
+  },
+  "validation": {
+    "scope": "Packaging, local links, and rendered Mermaid are recorded in the B06 hierarchical final-repair evidence.",
+    "outcome": "No global validator or behavioral-certification result is asserted here."
+  },
+  "historicalImport": {
+    "source": "canonical commit 00ab2c9ab2197ff97e85edc173370b7446fdb2ef, skills/operad-task-decomposition/affordance-scorecard.json",
+    "sha256": "recorded in validation/original hashes",
+    "metadata": {
+      "updatedAt": "2026-04-18T22:42:31",
+      "lineCount": 458,
+      "reportedReferences": 0,
+      "reportedInlineMermaid": 1,
+      "reportedValidatorPassed": true
+    },
+    "interpretation": "These are predecessor import claims, not current validation facts."
+  }
+}

@@ -1,0 +1,120 @@
+\begin{pdSolution}{sealed:ex:sealed-pairs}
+Both parity classes have four members, so the equal-parity pairs number
+$2\binom{4}{2}=12$; those must stay indistinguishable forever. The remaining
+$\binom{8}{2}-12=16$ pairs have different parities and may differ at explicit
+gate-release steps only. Table~\ref{sealed:tab:sealed-parity-pairs} shows how this
+scales: doubling the secret count roughly quadruples both counts, since
+both grow quadratically in $n$ while the equal-parity share of the total
+stays fixed at one half.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-m1-trace}
+The script prints
+\begin{quote}\footnotesize\texttt{[m1 leaky gate: releases raw s] caught: EQUAL-CLASS VIOLATION}\\
+\texttt{witness: secrets (0,2), trace load\_data -> read\_secret ->}\\
+\texttt{submit\_to\_gate -> gate\_release, Erin sees (('gate', 0),) vs (('gate', 2),)}
+\end{quote}
+The pair $(0,1)$ has different parities, so the honest gate is
+\emph{allowed} to let Erin's view differ at a release step; a difference there
+proves nothing. The pair $(0,2)$ has equal parity, so any difference is a
+violation, and it appears at the fourth step, the release, when the leaky gate
+emits the raw secret instead of its parity.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-bypass}
+The witness is \texttt{load\_data -> read\_secret -> BYPASS\_write\_E}, with
+Erin seeing \texttt{(('leak', 0),)} against \texttt{(('leak', 1),)}: complete
+mediation fails, since a release occurred with no gate decision. The two-run
+check sees it because the bypass write lands in Erin-observable state at a step
+that is not a gate release, which is a difference the property forbids for
+every pair, whatever their parity.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-launder}
+Add a worker register $t$, a transition $\mathtt{compute}(f)$ that sets
+$t=f(s)$ for $f$ drawn from a finite family, and let \texttt{submit} pass $t$
+to the gate, which releases $g(t)$. The property must then be stated over
+worlds that agree on $g(s)$ but may disagree on $g(f(s))$, and the checker must
+quantify over the family of $f$; for any non-constant $f$ that maps an
+equal-parity pair to a different-parity pair, the honest gate releases a
+difference and the attack is exhibited. Delimited release rules the attack out
+by requiring that no variable used in a declassification is updated before it,
+which a compiler can check because the declassified expression is syntactic.
+A language model's release candidate is arbitrary output, not an expression
+the checker can identify, so the condition cannot be enforced and the residual
+is priced as channel capacity instead.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-compound}
+The compound rule disables only \texttt{net\_egress}, a controllable event, in
+the tainted state, and never disables the uncontrollable read, so its closed
+loop is controllable and a supervisor realises it exactly. The second rule
+must disable \texttt{in\_context\_read} itself, an event in $\Sigma_u$ that the
+plant enables, so controllability fails on the first history that reads and the
+rule is detect-only.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-torn}
+Under the torn write each release logs $\varepsilon$ but adds $\varepsilon-1$.
+Client 0 releases 2: log 2, $\sigma=1$, $\sum_\Lambda=2$. Client 0 releases 2
+again: the guard sees $\sigma+2=3\le4$ and admits it; log 2, $\sigma=2$,
+$\sum_\Lambda=4$. Client 1 releases 1: the guard sees $\sigma+1=3\le4$ and
+admits it; log 1, $\sigma=2$, $\sum_\Lambda=5>4$. The script prints exactly
+this trace:
+\begin{quote}\footnotesize\texttt{c0.release(2) [TORN: log 2, sigma +1] ->}\\
+\texttt{c0.release(2) [TORN: log 2, sigma +1] -> c1.release(1) [TORN: log 1, sigma +0]}
+\end{quote}
+The balance never breaks the bound, so the guard keeps admitting, and the
+auditable log overspends.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-15-states}
+A denied release still advances the denying client's program counter, so the
+state records not only what was committed but which requests have already been
+refused. Two interleavings that commit the same releases but differ in whether
+a client's later request has already been refused are distinct states with the
+same multiset. For example, after client 0 commits both of its releases
+($\sigma=4$), the state before client 1's first request is refused and the
+state after it is refused carry the same ledger $\{2,2\}$ and different
+counters.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-crossover}
+At $k=8$, $\varepsilon=0.5$: basic $4.00$; advanced
+$\sqrt{16\ln 10^{6}}\times0.5+8\times0.5\times(e^{0.5}-1)=7.43+2.59=10.03$,
+so quote the sequential bound, by a wide margin [verified]. At
+$\varepsilon=0.1$ the advanced bound is
+$0.1\sqrt{2k\ln 10^{6}}+0.010517k$; at $k=34$ it is $3.42$ against basic
+$3.40$, and at $k=35$ it is $3.48$ against $3.50$, so the crossover is $k=35$
+[verified].
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-power}
+$\beta^5=0.00032$, so detection is $0.99968$ [verified]; the script's analytic
+line reads \texttt{k=5: analytic 0.99968 simulated 0.99967}. The approximation
+gives $1-(1-0.01\times0.8)^{100}=1-0.992^{100}\approx0.552$.
+The exact hypergeometric probability is approximately $0.554$; before rounding,
+the approximation is lower by about $0.00143$\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-sprt}
+% Keep the calculation and its essential statistical qualifications together.
+\interlinepenalty=10000\relax
+$\mathrm{KL}(p_1\Vert p_0)=0.01\ln10+0.99\ln(0.99/0.999)\approx0.01407$.
+The numerator is $0.95\ln95+0.05\ln(0.05/0.99)\approx4.177$;
+their quotient is $296.9$ [verified arithmetic]. Boundary values replace terminal
+log-likelihoods; nominal targets replace attained errors. Overshoot, sampling
+uncertainty and the cap can affect the reported $359$, a capped sample mean, not an
+exact expectation. Non-detection
+$0.0483$ and false alarm $0.0052$ are point estimates, not upper bounds.
+Stopping counts include either decision; no wall-clock arrival model is specified.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-canary-secrecy}
+The clause: canary secrecy is a named security boundary, so disclosure of the
+planting list is a breach with its own bond, and the list is regenerated per
+job. The mechanism: plant per job from a fresh seed held by Derek's gateway
+alone, so a stolen list has value for one job only and the compromise
+probability applies per job rather than per engagement; power then returns
+toward $1-\beta^k$ for every job whose list was not taken. What no redesign
+restores is power against an adversary who holds \emph{this} job's list: with
+the canaries stripped the leak carries none and Theorem~\ref{sealed:thm:sealed-power}
+gives $1-\beta^0=0$, which is why detection is priced as a bounded bond and not
+sold as a guarantee.
+\end{pdSolution}
+\begin{pdSolution}{sealed:ex:sealed-budget}
+Before timing, $q\cdot b=200\times64=12{,}800$ bits. Three timing slots add up
+to $\log_2 3\approx1.585$ bits per job, so about $317$ more bits, for roughly
+$13{,}117$ bits in total; the timing term is why scheduled release with one
+slot is the design default.
+\end{pdSolution}

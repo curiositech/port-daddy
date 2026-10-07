@@ -88,13 +88,6 @@
 6 & Dismiss & $(\mathit{dead},\text{pending})\in\mathit{salvageQueue}$ & session $\to$ NULL; irrecoverable information loss \\
 \bottomrule
 \end{tabularx}}
-\caption{The coordination lifecycle of \texttt{BondedCommons.tla}: one honest
-path down the right (Begin, Commit) settles a session; a crash detours down
-the spine through the dead-threshold check Reap performs, to abandoned, from
-which a successor either resumes it (Salvage) or the session is permanently
-lost (Dismiss). \texttt{ClaimFile} is the one named action with no guard at
-all --- it always succeeds and only ever informs, drawn here as a self-loop.
-\texttt{Tick} advances no session state; it only ages the clock that feeds
-the guard Reap checks. [internal, \texttt{BondedCommons.tla}]}
+\caption{A crashed session becomes abandoned after the reaping threshold, then is salvaged or dismissed. File claims only inform; they do not exclude another claimant. [internal, \protect\path{BondedCommons.tla}]}
 \label{fig:bonded-session-lifecycle}
 \end{figure}

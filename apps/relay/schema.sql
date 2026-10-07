@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS identities (
   expires_at         INTEGER,
   revoked            INTEGER NOT NULL DEFAULT 0,
   revoked_reason     TEXT,
-  created_at         INTEGER NOT NULL DEFAULT (unixepoch())
+  created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
+  key_generation     INTEGER NOT NULL DEFAULT 1 CHECK (key_generation > 0)
 );
 
 CREATE TABLE IF NOT EXISTS harbor_members (
@@ -318,7 +319,10 @@ CREATE TABLE IF NOT EXISTS user_tokens (
   created_at  INTEGER NOT NULL,
   last_used_at INTEGER,
   expires_at  INTEGER,
-  revoked_at  INTEGER
+  revoked_at  INTEGER,
+  gh_credential_enc TEXT,
+  gh_credential_iv TEXT,
+  gh_credential_key_version INTEGER
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
@@ -380,6 +384,53 @@ CREATE INDEX IF NOT EXISTS credit_ledger_installation_idx ON credit_ledger (inst
 
 -- Per-run token spend metering. cost_usd is what the run consumed; a matching
 -- negative credit_ledger row (reason='fleet:spend') decrements the balance.
+CREATE TABLE IF NOT EXISTS fleet_managed_entitlements (
+  installation_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL CHECK (state IN ('active','paused','revoked')),
+  retail_balance_microusd INTEGER NOT NULL CHECK (typeof(retail_balance_microusd)='integer' AND retail_balance_microusd >= 0),
+  run_retail_microusd INTEGER NOT NULL CHECK (typeof(run_retail_microusd)='integer' AND run_retail_microusd > 0),
+  source_ref TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fleet_run_reservations (
+  run_id TEXT PRIMARY KEY, installation_id INTEGER NOT NULL,
+  retail_microusd INTEGER NOT NULL CHECK (typeof(retail_microusd)='integer' AND retail_microusd > 0),
+  provider_cost_cap_microusd INTEGER NOT NULL CHECK (typeof(provider_cost_cap_microusd)='integer' AND provider_cost_cap_microusd >= 0 AND provider_cost_cap_microusd * 4 <= retail_microusd),
+  provider_cost_microusd INTEGER CHECK(provider_cost_microusd IS NULL OR (typeof(provider_cost_microusd)='integer' AND provider_cost_microusd>=0 AND provider_cost_microusd<=provider_cost_cap_microusd)),
+  state TEXT NOT NULL CHECK (state IN ('reserved','settled','released')),
+  lease_owner TEXT, lease_fence INTEGER NOT NULL DEFAULT 0 CHECK(typeof(lease_fence)='integer' AND lease_fence>=0), lease_expires_at INTEGER CHECK(lease_expires_at IS NULL OR typeof(lease_expires_at)='integer'),
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER, released_at INTEGER,
+  FOREIGN KEY (installation_id) REFERENCES fleet_managed_entitlements(installation_id),
+  CHECK((state='reserved' AND settled_at IS NULL AND released_at IS NULL AND provider_cost_microusd IS NULL) OR (state='settled' AND settled_at IS NOT NULL AND released_at IS NULL AND provider_cost_microusd IS NOT NULL) OR (state='released' AND released_at IS NOT NULL AND settled_at IS NULL AND provider_cost_microusd IS NULL))
+);
+CREATE INDEX IF NOT EXISTS fleet_run_reservations_installation_state_idx ON fleet_run_reservations(installation_id,state,created_at);
+CREATE TABLE IF NOT EXISTS fleet_served_installations (
+ installation_id INTEGER PRIMARY KEY,
+ state TEXT NOT NULL CHECK(state IN ('served','retired')),
+ source_ref TEXT NOT NULL CHECK(length(source_ref)>0),
+ created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+ FOREIGN KEY(installation_id) REFERENCES fleet_managed_entitlements(installation_id)
+);
+-- Non-authoritative reported per-ship telemetry. Billing settlement derives
+-- charged cost from fleet_run_call_authorizations (actual or reserved worst case).
+CREATE TABLE IF NOT EXISTS fleet_run_spend_v2 (
+  run_id TEXT NOT NULL, ship TEXT NOT NULL, installation_id INTEGER NOT NULL, model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL CHECK(typeof(input_tokens)='integer' AND input_tokens >= 0), output_tokens INTEGER NOT NULL CHECK(typeof(output_tokens)='integer' AND output_tokens >= 0),
+  provider_cost_microusd INTEGER NOT NULL CHECK(typeof(provider_cost_microusd)='integer' AND provider_cost_microusd >= 0), created_at INTEGER NOT NULL,
+  PRIMARY KEY(run_id,ship), FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id),
+  FOREIGN KEY(installation_id) REFERENCES fleet_managed_entitlements(installation_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_v2_installation_created_idx ON fleet_run_spend_v2(installation_id,created_at);
+CREATE TABLE IF NOT EXISTS fleet_run_call_authorizations (
+  authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL CHECK(typeof(lease_fence)='integer' AND lease_fence>=0),
+  call_sequence INTEGER NOT NULL CHECK(typeof(call_sequence)='integer' AND call_sequence>0), attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
+  max_input_tokens INTEGER NOT NULL CHECK(typeof(max_input_tokens)='integer' AND max_input_tokens >= 0), max_output_tokens INTEGER NOT NULL CHECK(typeof(max_output_tokens)='integer' AND max_output_tokens >= 0),
+  authorized_cost_microusd INTEGER NOT NULL CHECK(typeof(authorized_cost_microusd)='integer' AND authorized_cost_microusd >= 0), actual_cost_microusd INTEGER CHECK(actual_cost_microusd IS NULL OR (typeof(actual_cost_microusd)='integer' AND actual_cost_microusd>=0)),
+  state TEXT NOT NULL CHECK(state IN ('authorized','reported','unreported','failed')),
+  created_at INTEGER NOT NULL, reconciled_at INTEGER, UNIQUE(run_id,lease_fence,call_sequence),
+  FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_call_authorizations_run_idx ON fleet_run_call_authorizations(run_id,state,created_at);
+
 CREATE TABLE IF NOT EXISTS fleet_run_spend (
   run_id          TEXT    NOT NULL,
   ship            TEXT,
@@ -1080,6 +1131,188 @@ BEGIN
   INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
   VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
 END;
+
+-- Fleetbot publisher standing grants (capability v2). Grant ids are references,
+-- while the workload signature and current row are authority.
+CREATE TABLE IF NOT EXISTS github_publisher_credentials (
+  account_user_id TEXT PRIMARY KEY REFERENCES users(id),
+  generation INTEGER NOT NULL CHECK (generation > 0),
+  credential_enc TEXT NOT NULL,
+  credential_iv TEXT NOT NULL,
+  credential_key_version INTEGER NOT NULL CHECK (credential_key_version > 0),
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS github_publisher_intents (
+  account_user_id TEXT NOT NULL REFERENCES users(id),
+  account_github_user_id INTEGER NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository TEXT NOT NULL,
+  scope_sha TEXT NOT NULL CHECK (length(scope_sha) = 40),
+  idempotency_key TEXT NOT NULL,
+  request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+  operation TEXT NOT NULL CHECK (operation IN (
+    'pull-request.publish','pull-request.update','pull-request.ready',
+    'pull-request.request-reviewers','pull-request.comment',
+    'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')),
+  state TEXT NOT NULL CHECK (state IN ('reserved','running','ambiguous','succeeded','failed')),
+  actor_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  identity_project TEXT NOT NULL,
+  roadmap_item TEXT,
+  resource_number INTEGER,
+  resource_url TEXT,
+  published_branch TEXT,
+  github_head_sha TEXT,
+  receipt_json TEXT CHECK (receipt_json IS NULL OR json_valid(receipt_json)),
+  error_code TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  lease_fence INTEGER NOT NULL DEFAULT 0 CHECK (lease_fence >= 0),
+  recovery_binding_json TEXT CHECK (
+    recovery_binding_json IS NULL OR (
+      json_valid(recovery_binding_json)
+      AND json_type(recovery_binding_json) = 'object'
+      AND json_type(recovery_binding_json, '$.grantId') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.grantId')) = 36
+      AND substr(json_extract(recovery_binding_json, '$.grantId'), 1, 4) = 'pdg_'
+      AND substr(json_extract(recovery_binding_json, '$.grantId'), 5) NOT GLOB '*[^0-9a-f]*'
+      AND json_type(recovery_binding_json, '$.grantEpoch') = 'integer'
+      AND json_extract(recovery_binding_json, '$.grantEpoch') > 0
+      AND json_type(recovery_binding_json, '$.repository') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.repository')) BETWEEN 3 AND 201
+      AND instr(json_extract(recovery_binding_json, '$.repository'), '/') > 1
+      AND json_type(recovery_binding_json, '$.operation') = 'text'
+      AND json_extract(recovery_binding_json, '$.operation') IN (
+        'pull-request.publish','pull-request.update','pull-request.ready',
+        'pull-request.request-reviewers','pull-request.comment',
+        'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')
+      AND json_type(recovery_binding_json, '$.baseBranch') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.baseBranch')) BETWEEN 1 AND 255
+      AND json_type(recovery_binding_json, '$.baseSha') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.baseSha')) = 40
+      AND json_extract(recovery_binding_json, '$.baseSha') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.headSha') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.headSha')) = 40
+      AND json_extract(recovery_binding_json, '$.headSha') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.sessionId') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.sessionId')) BETWEEN 1 AND 256
+      AND json_type(recovery_binding_json, '$.requestHash') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.requestHash')) = 64
+      AND json_extract(recovery_binding_json, '$.requestHash') NOT GLOB '*[^0-9a-fA-F]*'
+      AND json_type(recovery_binding_json, '$.idempotencyKey') = 'text'
+      AND length(json_extract(recovery_binding_json, '$.idempotencyKey')) BETWEEN 1 AND 256
+    )
+  ),
+  PRIMARY KEY (account_user_id, installation_id, repository, scope_sha, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS github_publisher_session_idx
+  ON github_publisher_intents (session_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS github_publisher_resource_idx
+  ON github_publisher_intents (repository, resource_number, updated_at DESC);
+CREATE TABLE IF NOT EXISTS publisher_grants (
+  grant_id TEXT PRIMARY KEY CHECK (substr(grant_id, 1, 4) = 'pdg_' AND length(grant_id) = 36
+    AND substr(grant_id, 5) NOT GLOB '*[^0-9a-f]*'),
+  epoch INTEGER NOT NULL CHECK (epoch > 0),
+  surface TEXT NOT NULL CHECK (surface = 'publisher'),
+  account_user_id TEXT NOT NULL REFERENCES users(id),
+  subject_fingerprint TEXT NOT NULL REFERENCES identities(daemon_fingerprint)
+    CHECK (length(subject_fingerprint) = 64 AND subject_fingerprint NOT GLOB '*[^0-9a-f]*'),
+  subject_class TEXT NOT NULL CHECK (subject_class IN ('ci', 'host')),
+  installation_id INTEGER NOT NULL CHECK (installation_id > 0),
+  repositories_json TEXT NOT NULL CHECK (json_valid(repositories_json) AND json_type(repositories_json) = 'array' AND json_array_length(repositories_json) BETWEEN 1 AND 100),
+  operations_json TEXT NOT NULL CHECK (json_valid(operations_json) AND json_type(operations_json) = 'array' AND json_array_length(operations_json) BETWEEN 1 AND 8),
+  branch_allow_json TEXT NOT NULL CHECK (json_valid(branch_allow_json) AND json_type(branch_allow_json) = 'array' AND json_array_length(branch_allow_json) BETWEEN 1 AND 100),
+  base_allow_json TEXT NOT NULL CHECK (json_valid(base_allow_json) AND json_type(base_allow_json) = 'array' AND json_array_length(base_allow_json) BETWEEN 1 AND 100),
+  mutations_per_day INTEGER NOT NULL CHECK (mutations_per_day BETWEEN 1 AND 1000),
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  created_via TEXT NOT NULL CHECK (created_via IN ('account-ui', 'operator-bootstrap')),
+  created_ip TEXT,
+  revoked_at INTEGER,
+  revoked_reason TEXT,
+  CHECK (expires_at > created_at),
+  CHECK ((revoked_at IS NULL) = (revoked_reason IS NULL))
+);
+CREATE INDEX IF NOT EXISTS publisher_grants_account_idx
+  ON publisher_grants (account_user_id, surface, revoked_at, expires_at);
+CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
+  ON publisher_grants (subject_fingerprint, surface, revoked_at, expires_at);
+CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope BEFORE INSERT ON publisher_grants
+BEGIN
+  -- D1's remote parser has rejected valid trigger CASE bodies as incomplete
+  -- while local SQLite accepts them. Avoid CASE and keep one statement:
+  -- https://github.com/cloudflare/workers-sdk/issues/4326
+  SELECT RAISE(ABORT, 'publisher grant scope invalid') WHERE EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
+    OR EXISTS (SELECT 1 FROM json_each(NEW.operations_json) WHERE type != 'text' OR value NOT IN (
+    'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
+    'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
+    OR EXISTS (
+    SELECT 1 FROM json_each(NEW.branch_allow_json)
+     WHERE type != 'text' OR length(value) > 200 OR value = ''
+       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
+  ) OR EXISTS (
+    SELECT 1 FROM json_each(NEW.base_allow_json)
+     WHERE type != 'text' OR length(value) > 200 OR value = '' OR value LIKE '%/'
+       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
+  ) OR EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
+    OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
+    OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
+    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1);
+END;
+CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
+BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
+  subject_class, installation_id, repositories_json, operations_json,
+  branch_allow_json, base_allow_json, mutations_per_day, expires_at,
+  created_at, created_via, created_ip ON publisher_grants
+BEGIN
+  SELECT RAISE(ABORT, 'publisher grant authority is immutable; create a new grant');
+END;
+CREATE TRIGGER IF NOT EXISTS publisher_grants_irreversible_revocation
+BEFORE UPDATE OF revoked_at, revoked_reason ON publisher_grants
+BEGIN
+  SELECT RAISE(ABORT, 'publisher grant revocation is irreversible') WHERE OLD.revoked_at IS NOT NULL
+      OR NEW.revoked_at IS NULL OR NEW.revoked_reason IS NULL
+      OR length(trim(NEW.revoked_reason)) = 0;
+END;
+CREATE TABLE IF NOT EXISTS github_publisher_session_bindings (
+  session_id TEXT PRIMARY KEY,
+  subject_fingerprint TEXT NOT NULL REFERENCES identities(daemon_fingerprint),
+  first_grant_id TEXT REFERENCES publisher_grants(grant_id) ON DELETE SET NULL,
+  bound_at INTEGER NOT NULL
+);
+-- v1 remains for rollback compatibility during the v2 rollout.
+CREATE TABLE IF NOT EXISTS github_publisher_capability_uses (
+  daemon_fingerprint TEXT NOT NULL,
+  signing_key_generation INTEGER NOT NULL CHECK (signing_key_generation > 0),
+  nonce TEXT NOT NULL CHECK (length(nonce) = 64),
+  account_user_id TEXT NOT NULL REFERENCES users(id),
+  account_token_hash TEXT NOT NULL CHECK (length(account_token_hash) = 64),
+  request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+  idempotency_key TEXT NOT NULL,
+  consumed_at INTEGER NOT NULL,
+  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce)
+);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_account_idx
+  ON github_publisher_capability_uses (account_user_id, consumed_at DESC);
+CREATE TABLE IF NOT EXISTS github_publisher_capability_uses_v2 (
+  daemon_fingerprint TEXT NOT NULL,
+  signing_key_generation INTEGER NOT NULL CHECK (signing_key_generation > 0),
+  nonce TEXT NOT NULL CHECK (length(nonce) = 64),
+  grant_id TEXT NOT NULL REFERENCES publisher_grants(grant_id),
+  grant_epoch INTEGER NOT NULL CHECK (grant_epoch > 0),
+  session_id TEXT NOT NULL REFERENCES github_publisher_session_bindings(session_id),
+  request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+  idempotency_key TEXT NOT NULL,
+  is_mutation INTEGER NOT NULL CHECK (is_mutation IN (0, 1)),
+  consumed_at INTEGER NOT NULL,
+  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce),
+  UNIQUE (grant_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_grant_idx
+  ON github_publisher_capability_uses_v2 (grant_id, consumed_at DESC, is_mutation);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_session_idx
+  ON github_publisher_capability_uses_v2 (session_id, consumed_at DESC);
 CREATE TRIGGER IF NOT EXISTS repo_ship_controls_update_audit AFTER UPDATE ON repo_ship_controls
 BEGIN
   INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
@@ -1149,3 +1382,123 @@ CREATE TABLE IF NOT EXISTS shipwright_proposals (
 );
 CREATE INDEX IF NOT EXISTS shipwright_proposals_scope_idx
   ON shipwright_proposals (user_id, installation_id, repo_full_name, thread_id, created_at DESC);
+
+-- Fleet tenant identity spine. There is deliberately no backfill from legacy
+-- name-scoped rows: only explicit active bindings can authorize queue work.
+CREATE TABLE IF NOT EXISTS fleet_accounts (
+  id TEXT PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
+  display_name TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'closed')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0)
+);
+CREATE TABLE IF NOT EXISTS fleet_account_members (
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_account_members_user_idx
+  ON fleet_account_members (user_id, tenant_account_id);
+CREATE TABLE IF NOT EXISTS fleet_tenant_installations (
+  installation_id INTEGER PRIMARY KEY CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  github_account_id INTEGER NOT NULL CHECK (typeof(github_account_id) = 'integer' AND github_account_id > 0),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  UNIQUE (tenant_account_id, installation_id, github_account_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_tenant_installations_account_idx
+  ON fleet_tenant_installations (tenant_account_id, installation_id);
+CREATE TABLE IF NOT EXISTS fleet_tenant_repositories (
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  installation_id INTEGER NOT NULL CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
+  repository_id INTEGER NOT NULL CHECK (typeof(repository_id) = 'integer' AND repository_id > 0),
+  github_account_id INTEGER NOT NULL CHECK (typeof(github_account_id) = 'integer' AND github_account_id > 0),
+  repository_full_name TEXT NOT NULL CHECK (length(repository_full_name) BETWEEN 3 AND 201),
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, installation_id, github_account_id)
+    REFERENCES fleet_tenant_installations (tenant_account_id, installation_id, github_account_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS fleet_tenant_repositories_active_identity_idx
+  ON fleet_tenant_repositories (installation_id, repository_id) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS fleet_tenant_repositories_account_idx
+  ON fleet_tenant_repositories (tenant_account_id, active, repository_id);
+CREATE TRIGGER IF NOT EXISTS fleet_accounts_immutable_id BEFORE UPDATE OF id ON fleet_accounts
+BEGIN
+  SELECT RAISE(ABORT, 'fleet account id is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_account_members_immutable_ids
+BEFORE UPDATE OF tenant_account_id, user_id ON fleet_account_members
+BEGIN
+  SELECT RAISE(ABORT, 'fleet account member identity is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_tenant_installations_immutable_ids
+BEFORE UPDATE OF installation_id, tenant_account_id, github_account_id ON fleet_tenant_installations
+BEGIN
+  SELECT RAISE(ABORT, 'fleet tenant installation identity is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_tenant_repositories_immutable_ids
+BEFORE UPDATE OF tenant_account_id, installation_id, repository_id, github_account_id
+ON fleet_tenant_repositories
+BEGIN
+  SELECT RAISE(ABORT, 'fleet tenant repository identity is immutable');
+END;
+CREATE TABLE IF NOT EXISTS fleet_repository_onboarding (
+  tenant_account_id TEXT NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository_id INTEGER NOT NULL,
+  requested_by_user_id TEXT NOT NULL,
+  desired_outcomes_json TEXT NOT NULL CHECK (json_valid(desired_outcomes_json) AND json_type(desired_outcomes_json) = 'array'),
+  customer_budget_microusd INTEGER NOT NULL CHECK (typeof(customer_budget_microusd) = 'integer' AND customer_budget_microusd BETWEEN 0 AND 1000000000000),
+  provider_cost_cap_microusd INTEGER NOT NULL CHECK (typeof(provider_cost_cap_microusd) = 'integer' AND provider_cost_cap_microusd BETWEEN 0 AND 1000000000000),
+  margin_floor_bps INTEGER NOT NULL DEFAULT 7500 CHECK (typeof(margin_floor_bps) = 'integer' AND margin_floor_bps BETWEEN 7500 AND 10000),
+  config_status TEXT NOT NULL DEFAULT 'discovery' CHECK (config_status IN ('discovery', 'proposed', 'accepted', 'rejected')),
+  execution_status TEXT NOT NULL DEFAULT 'blocked_pending_executor' CHECK (execution_status = 'blocked_pending_executor'),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, installation_id, repository_id, requested_by_user_id),
+  FOREIGN KEY (tenant_account_id, installation_id, repository_id)
+    REFERENCES fleet_tenant_repositories (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, requested_by_user_id)
+    REFERENCES fleet_account_members (tenant_account_id, user_id),
+  CHECK (provider_cost_cap_microusd * 10000 <= customer_budget_microusd * (10000 - margin_floor_bps))
+);
+CREATE INDEX IF NOT EXISTS fleet_repository_onboarding_requester_idx
+  ON fleet_repository_onboarding (requested_by_user_id, tenant_account_id, repository_id);
+CREATE TABLE IF NOT EXISTS fleet_configuration_proposals (
+  id TEXT PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
+  tenant_account_id TEXT NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository_id INTEGER NOT NULL,
+  proposed_by_user_id TEXT NOT NULL,
+  proposal_json TEXT NOT NULL CHECK (json_valid(proposal_json) AND json_type(proposal_json) = 'object'),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'proposed', 'accepted', 'rejected', 'superseded')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  FOREIGN KEY (tenant_account_id, installation_id, repository_id)
+    REFERENCES fleet_tenant_repositories (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, proposed_by_user_id)
+    REFERENCES fleet_account_members (tenant_account_id, user_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS fleet_configuration_proposals_one_accepted_idx
+  ON fleet_configuration_proposals (tenant_account_id, installation_id, repository_id) WHERE status = 'accepted';
+CREATE INDEX IF NOT EXISTS fleet_configuration_proposals_repo_idx
+  ON fleet_configuration_proposals (tenant_account_id, repository_id, updated_at DESC);
+CREATE TRIGGER IF NOT EXISTS fleet_repository_onboarding_immutable_scope
+BEFORE UPDATE OF tenant_account_id, installation_id, repository_id, requested_by_user_id
+ON fleet_repository_onboarding
+BEGIN
+  SELECT RAISE(ABORT, 'fleet onboarding user/repository scope is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_configuration_proposals_immutable_scope
+BEFORE UPDATE OF id, tenant_account_id, installation_id, repository_id, proposed_by_user_id
+ON fleet_configuration_proposals
+BEGIN
+  SELECT RAISE(ABORT, 'fleet proposal user/repository scope is immutable');
+END;

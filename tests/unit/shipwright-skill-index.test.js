@@ -73,6 +73,19 @@ test('loadSkillCatalog walks roots, parses frontmatter, dedupes by id', () => {
   expect(qa.contentHash).toMatch(/^[a-f0-9]{16}$/);
 });
 
+test('loadSkillCatalog excludes archived sources inside a skill bundle', () => {
+  const active = writeSkill(tmpRoot, 'hypertree-planning', 'active planning method');
+  const archive = join(tmpRoot, 'hypertree-planning', 'sources', 'prior-entry');
+  mkdirSync(archive, { recursive: true });
+  writeFileSync(join(archive, 'SKILL.md'),
+    '---\nname: hypertree-planning\ndescription: archived planning text\n---\n');
+
+  const skills = loadSkillCatalog([tmpRoot]);
+  expect(skills).toHaveLength(1);
+  expect(skills[0].sourcePath).toBe(active);
+  expect(skills[0].description).toBe('active planning method');
+});
+
 test('loadSkillCatalog skips files without name or description, never throws', () => {
   const dir = join(tmpRoot, 'broken');
   mkdirSync(dir);

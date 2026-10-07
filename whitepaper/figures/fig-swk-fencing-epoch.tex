@@ -1,47 +1,80 @@
-% Brief (tikz-diagram-craft). Register row ch1-14 [should].
-% Reader question: how does a holder who is asleep past reassignment get
-%   blocked from acting?
-% Claim: the epoch, not the lock, rejects the stale holder: A's late
-%   effect still names a real lease it once held, but it presents the
-%   epoch that lease had when A held it, and the effect broker rejects
-%   anything below the resource's current epoch.
-% Evidence: whitepaper/single-writer-kernel.tex thm:exclusion (every
-%   granted lease carries a strictly monotonic fencing epoch; downstream
-%   effect brokers reject any operation bearing an expired epoch); the
-%   work-unit machine's guard 1 (admit-effect: current epoch only),
-%   shortest crime: propose-authorize, start_exec, reassign_role,
-%   admit_effect(STALE), 4 steps.
-% Must distinguish: the epoch increments on reassignment, not on every
-%   write; the rejection compares the effect's carried epoch to the
-%   resource's current epoch, not to a wall-clock deadline.
-% Grammar: a four-step spine, epoch value named at each step, the stale
-%   effect crossing in from the side. Rejected: the full work-unit machine
-%   (536 states), which would bury this one guard in the machine it
-%   belongs to; this figure isolates the guard as a 3-actor sequence.
-% Five-second test: "epoch ticks 0 to 1 at reassignment; A's effect still
-%   says 0 and is rejected".
+% II/fig:swk-fencing-epoch. Fencing epoch rejection of stale paused agents.
+% Evidence: whitepaper/single-writer-kernel.tex Theorem 1.1 (thm:exclusion).
+% Developer story: claude:auth (paused during LLM rate limit) attempts late write after lease reassignment to codex:auth.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\sx{2.2}
-  \node[pd focus state,minimum width=3.6cm] (s1) at (\sx,5.6) {holder A, epoch $e=0$};
-  \node[pd state,minimum width=3.6cm] (s2) at (\sx,3.8) {reassign: epoch increments};
-  \node[pd focus state,minimum width=3.6cm] (s3) at (\sx,2.0) {holder B, epoch $e=1$};
-  \foreach \a/\b in {s1/s2,s2/s3}{\draw[pd focus arrow] (\a)--(\b);}
-  \node[pd breach state,minimum width=4.2cm] (lateeffect) at (8.2,3.8) {A's late effect: carries $e{=}0$};
-  \draw[pd breach arrow] (lateeffect.west) -- (s2.east);
-  \node[pd breach state,minimum width=4.2cm,text width=3.9cm,align=center] (rej) at (8.2,1.2) {rejected: carried epoch 0 is behind the resource's current epoch 1};
-  \draw[pd breach arrow] (lateeffect) -- (rej);
+  \useasboundingbox (0, 0) rectangle (11.4, 9.4);
+
+  % Coordinates of the 4 lifelines
+  \coordinate (A1) at (1.35, 8.5);  % Agent 1 (claude:auth)
+  \coordinate (K)  at (4.30, 8.5);  % Single-Writer Kernel
+  \coordinate (A2) at (7.25, 8.5);  % Agent 2 (codex:auth)
+  \coordinate (B)  at (10.15, 8.5); % Storage Broker
+
+  % Actor Header Nodes
+  \node[pd state, draw=pdviolet, fill=pdviolet!8, text width=2.3cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (A1) {
+    \textbf{\color{pdviolet}$\alpha_{\text{auth}}$} (claude)\\[1pt]
+    {\pdfigsub initial holder}
+  };
+  \node[pd focus state, text width=2.4cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (K) {
+    \textbf{\color{pdcobalt}Kernel}\\[1pt]
+    {\pdfigsub single-writer WAL}
+  };
+  \node[pd state, draw=pdteal, fill=pdteal!8, text width=2.3cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (A2) {
+    \textbf{\color{pdteal}$\alpha_{\text{worker}}$} (codex)\\[1pt]
+    {\pdfigsub new holder}
+  };
+  \node[pd state, draw=pdink!60, fill=pdink!6, text width=2.2cm, minimum height=1.0cm, align=center, inner ysep=4pt] at (B) {
+    \textbf{Storage Broker}\\[1pt]
+    {\pdfigsub effect gate}
+  };
+
+  % Lifelines (vertical dashed)
+  \draw[pd guide] (1.35, 7.9) -- (1.35, 1.2);
+  \draw[pd guide] (4.30, 7.9) -- (4.30, 1.2);
+  \draw[pd guide] (7.25, 7.9) -- (7.25, 1.2);
+  \draw[pd guide] (10.15, 7.9) -- (10.15, 1.2);
+
+  % 1. Initial Grant (t = 0s)
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdviolet] (4.30, 7.1) -- (1.35, 7.1)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdviolet, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {grant: epoch 104 (TTL 60s)};
+
+  % 2. Stall / Pause on Agent 1 Lifeline
+  \node[pd state, draw=pderror, fill=pderror!6, text width=2.1cm, align=center, inner ysep=4.5pt] at (1.35, 4.7) {
+    \textbf{\color{pderror}Pause (65s)}\\[2pt]
+    {\color{pderror}exceeds TTL}\\[2pt]
+    {\pdfigsub rate-limit stall}
+  };
+
+  % 3. Kernel Expiry & Reassignment
+  \node[pd state, draw=pdcobalt, fill=pdcobalt!8, text width=2.4cm, align=center, inner ysep=4pt] at (4.30, 5.8) {
+    \textbf{\color{pdcobalt}Lease Expired}\\[1pt]
+    \texttt{epoch 104 $\to$ 105}
+  };
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (4.30, 4.4) -- (7.25, 4.4)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {reassign: epoch 105};
+
+  % 4. Agent 2 Valid Write & Commit
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (7.25, 3.5) -- (10.15, 3.5)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{write} (epoch 105)};
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdteal] (10.15, 2.7) -- (7.25, 2.7)
+    node[pos=0.5, above=1pt, font=\pdfiglabelsize, text=pdteal, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{\color{pdteal}200 OK} ($105 \ge 105$)};
+
+  % 5. Agent 1 Wakes Up and Sends Late Write
+  \draw[pd breach rule, -{Stealth[length=3.5pt,width=2.5pt]}] (1.35, 2.0) -- (10.15, 2.0)
+    node[pos=0.60, above=1pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{Late Write:} \texttt{PUT} (stale epoch 104)};
+
+  % 6. Broker Rejection Response
+  \draw[pd breach rule, dashed, -{Stealth[length=3.5pt,width=2.5pt]}] (10.15, 1.3) -- (1.35, 1.3)
+    node[pos=0.45, above=1pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\textbf{412 Precondition Failed} (rejected: carried $104 < 105$)};
+
+  % Invariant banner at bottom
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.45) {
+    \textbf{Fencing Invariant (Theorem~\ref{thm:exclusion}):} Reassignment increments the monotonic epoch ($104 \to 105$). Downstream effect brokers reject mutations bearing stale epochs, eliminating silent write-races under arbitrary agent pause.
+  };
 \end{tikzpicture}
-\caption{The epoch, not the lock, rejects the paused holder. A acquires a
-lease at epoch $e=0$; reassignment increments the resource's fencing epoch
-to $e=1$ and grants it to B. A's late effect still names a real lease it
-once held, but it carries the epoch $e=0$ it was issued -- the effect broker
-compares that carried epoch to the resource's current epoch and rejects it,
-independent of any deadline. This is guard~1 of the work-unit machine
-(admit-effect: current epoch only), whose shortest violating trace without
-it is exactly this four-step sequence [internal, Thm.~\ref{thm:exclusion},
-c0\_workunit.py].}
+\caption{Reassignment advances the fencing epoch. When agent $\alpha_{\text{auth}}$ pauses past its 60s lease TTL, the kernel increments the epoch to 105 and reassigns \texttt{src/auth/jwt.ts} to $\alpha_{\text{worker}}$. The downstream storage broker rejects $\alpha_{\text{auth}}$'s late write bearing epoch 104 with \texttt{412 Precondition Failed}, preventing silent corruption. [internal, Theorem~\ref{thm:exclusion}]}
 \label{fig:swk-fencing-epoch}
 \end{figure}
