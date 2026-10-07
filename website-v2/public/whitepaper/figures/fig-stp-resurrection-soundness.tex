@@ -1,0 +1,34 @@
+% Book-native replacement for fig:stp-resurrection-soundness. Shared Swiss language is preloaded.
+\newcommand{\AccResurrectionDiagram}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north,font=\SGType\bfseries] at (52,0) {identity and sanction};
+  \node[anchor=north,font=\SGType\bfseries] at (160,0) {continuity};
+  \node[anchor=north,font=\SGType\bfseries] at (268,0) {work and outcomes};
+  \SGDocument{accPrincipal}{(4,25)}{96}{42}{sgViolet!9}{principal $P$\\trusted key $pk_P$}
+  \SGDocument{accSanction}{(4,93)}{96}{42}{sgRed!8}{sanction: $P$-keyed\\across engines}
+  \draw[sg/arrow,draw=sgRed] (accPrincipal.south)--(accSanction.north);
+  \SGDocument{accOld}{(112,25)}{96}{42}{sgBlue!7}{predecessor\\engine $E_1$}
+  \SGDocument{accWitness}{(112,93)}{96}{42}{sgTeal!8}{continuity witness\\$E_1\leadsto P$}
+  \draw[sg/arrow,draw=sgTeal] (accOld.south)--(accWitness.north);
+  \SGDocument{accOutcome}{(220,25)}{96}{42}{sgBlue!7}{outcome record\\engine-attested}
+  \SGDocument{accObligation}{(220,93)}{96}{42}{sgAmber!10}{obligation record\\close or escrow}
+  \draw[sg/arrow,draw=sgAmber] (accOutcome.south)--(accObligation.north);
+  \node[sg/check,minimum width=184pt,minimum height=34pt] (accCutover) at (160,191)
+    {cutover check: $S(P)$, witness, attestation, obligation settlement};
+  \draw[sg/arrow,draw=sgRed] (accSanction.south)--(52,162)--(accCutover.north west);
+  \draw[sg/arrow,draw=sgTeal] (accWitness.south)--(160,162)--(accCutover.north);
+  \draw[sg/arrow,draw=sgAmber] (accObligation.south)--(268,162)--(accCutover.north east);
+  \node[draw=sgTeal,fill=sgTeal,text=white,minimum width=100pt,minimum height=27pt,font=\SGType\bfseries] (accPass) at (78,263)
+    {pass: $E_2$ resumes};
+  \node[draw=sgRed,fill=white,text=sgRed,line width=1.2pt,minimum width=100pt,minimum height=27pt,font=\SGType\bfseries] (accFail) at (242,263)
+    {fail: reject cutover};
+  \draw[sg/arrow,draw=sgTeal] (78,208)--(accPass.north);
+  \draw[sg/arrow,draw=sgRed] (242,208)--(accFail.north);
+  \node[anchor=west,text=sgTeal] at (84,229) {all held};
+  \node[anchor=east,text=sgRed] at (236,229) {any absent};
+\end{tikzpicture}}
+\begin{figure}[H]
+\centering\SGMeasuredFigure{fig-stp-resurrection-soundness}{\AccResurrectionDiagram}
+\caption{A migration accepts only with principal-scoped sanctions, a continuity witness, engine-attested outcomes, and closed or escrowed obligations. The successor receives a continuing record, not a clean slate. [internal; schematic]}
+\label{fig:stp-resurrection-soundness}
+\end{figure}

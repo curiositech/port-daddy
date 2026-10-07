@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Stagecoach harness hitch and team swap with cobalt blue padded collar. Analogy for hot-swapping model backends without discarding mission or carriage.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "eb8ca5d52ec4232e558dffe92e8d78817d36840cc678ed3d77ffd07b893e8a29",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

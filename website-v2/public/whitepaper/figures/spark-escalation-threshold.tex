@@ -1,0 +1,25 @@
+% Analytical sparkline: Escalation threshold u*(delta) = delta / (1 + delta) for w=1.
+% Domain delta in [0, 0.50]; clears cost above threshold.
+% Fits inside the 93.95pt book margin column.
+% Source: sec:escalation, Eq. u* = delta*w / (1 + delta*w).
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=160pt,y=80pt,font=\fontsize{7}{8}\selectfont]
+  % Baseline and upper reference
+  \draw[pdinkmuted!35,line width=.35pt] (0,0) -- (0.50,0);
+  \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,0.333) -- (0.50,0.333);
+  % Escalation threshold curve u*(delta) = delta / (1 + delta)
+  \draw[pdteal,line width=.85pt] plot[domain=0:0.50,samples=31]
+    (\x,{\x / (1 + \x)});
+  % Highlighted points at delta=0.05 (textbook worked point) and delta=0.30
+  \fill[pdteal] (0.05,{0.05/1.05}) circle[radius=1pt];
+  \fill[pdteal] (0.30,{0.30/1.30}) circle[radius=1pt];
+  % Labels
+  \node[anchor=east,inner sep=1pt] at (0,0) {$0$};
+  \node[anchor=west,inner sep=1pt] at (0.50,0.333) {$.33$};
+  \node[anchor=south,inner sep=1pt] at (0.25,0.35) {$u^\star(\delta)=\tfrac{\delta}{1+\delta}$};
+  \node[anchor=north,inner sep=1.5pt] at (0.25,0) {debit $\delta: 0\longrightarrow .50$};
+\end{tikzpicture}
+\makeatother\endgroup

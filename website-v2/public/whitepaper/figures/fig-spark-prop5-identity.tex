@@ -1,0 +1,226 @@
+% fig-spark-prop5-identity.tex
+% Proposition 5: Accountability Must Outlive the Process (From Spawn to Person)
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop5-identity.jpg.
+% Full-width (14.6cm within \pdfullwidth = 15.0cm), pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2):
+% - Sentence case for all titles and labels (never ALL-CAPS).
+% - High Tufte data-ink ratio (quiet neutral tones, minimal non-data ink, crisp borders).
+% - Typographic law: \pdfiglabelsize (\footnotesize), pd title, pd label; zero inline \fontsize.
+% - Line weight ladder: 0.5pt (hairline/guides), 0.9pt (rules/arrows/borders), 1.6pt (spine).
+% - Semantic palette: pdcobalt (execution), pdrust (crash/liability), pdslate (neutral blocks).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    axisline/.style={
+      draw=pdslate!80!black,
+      line width=0.9pt,
+      ->,
+      >=Stealth
+    },
+    processblock/.style={
+      draw=pdcobalt,
+      line width=1.1pt,
+      fill=pdcobalt!15,
+      rounded corners=1.5pt
+    },
+    guideline/.style={
+      draw=pdink!60!black,
+      line width=0.5pt,
+      dashed
+    },
+    connectarrow/.style={
+      draw=pdink!80!black,
+      line width=0.7pt,
+      dashed,
+      <->,
+      >=Stealth
+    },
+    downlink/.style={
+      draw=pdink!80!black,
+      line width=0.7pt,
+      dashed,
+      ->,
+      >=Stealth
+    },
+    chainlink/.style={
+      draw=pdink,
+      line width=0.9pt,
+      ->,
+      >=Stealth
+    }
+  }
+
+  % Macro for drawing a 2D isometric vector ledger block
+  % #1: center x, #2: center y, #3: scale factor (e.g. 1.0)
+  \newcommand{\drawisoblock}[4][pdslate]{
+    \begin{scope}[shift={(#2,#3)},scale=#4]
+      % Top face (light tint)
+      \filldraw[fill=#1!20,draw=#1!90!black,line width=0.5pt]
+        (0.0, 0.28) -- (0.32, 0.44) -- (0.64, 0.28) -- (0.32, 0.12) -- cycle;
+      % Left face (medium tint)
+      \filldraw[fill=#1!45,draw=#1!90!black,line width=0.5pt]
+        (0.0, 0.28) -- (0.32, 0.12) -- (0.32, -0.28) -- (0.0, -0.12) -- cycle;
+      % Right face (deep tint)
+      \filldraw[fill=#1!75,draw=#1!90!black,line width=0.5pt]
+        (0.32, 0.12) -- (0.64, 0.28) -- (0.64, -0.12) -- (0.32, -0.28) -- cycle;
+    \end{scope}
+  }
+
+  % =========================================================================
+  % ROW LABELS (Left Column, x in [0.0, 2.2])
+  % =========================================================================
+  \node[pd title,anchor=east,align=right,text=pdink] at (2.0, 7.2) {%
+    Ephemeral\\process\\execution%
+  };
+
+  \node[pd title,anchor=east,align=right,text=pdink] at (2.0, 2.3) {%
+    Durable\\identity \&\\outcome ledger%
+  };
+
+  % =========================================================================
+  % TOP TIMELINE: EPHEMERAL PROCESS EXECUTION (y = 6.8)
+  % =========================================================================
+  % Timeline axis (extended to 14.8 for clean arrowhead clearance)
+  \draw[axisline] (2.0, 6.8) -- (14.8, 6.8);
+
+  % T1 tick and marker
+  \filldraw[fill=pdink] (2.2, 6.8) circle (2.2pt);
+  \node[pd title,anchor=north,text=pdink] at (2.2, 6.55) {T1};
+
+  % Agent Process Instance 1 (widened to 3.9cm so text has generous internal padding)
+  \filldraw[processblock] (2.2, 6.8) rectangle (6.1, 7.6);
+  \node[pd title,anchor=center,text=pdcobalt!90!black] at (4.15, 7.2) {%
+    Agent process instance 1%
+  };
+
+  % T_crash tick and marker (clean white background box prevents line strike-through)
+  \filldraw[fill=pdrust] (6.6, 6.8) circle (2.2pt);
+  \node[pd title,anchor=north,fill=pdpage,inner sep=1.5pt,text=pdrust] at (6.6, 6.55) {$T_{\text{crash}}$};
+
+  % Lightning crash glyph at (6.6, 7.25)
+  \draw[line width=1.6pt,pdrust]
+    (6.65, 7.55) -- (6.45, 7.22) -- (6.75, 7.22) -- (6.55, 6.9);
+
+  % Process crash and termination header (raised to 8.0 for generous clearance above glyph)
+  \node[pd title,anchor=south,align=center,text=pdrust] at (6.6, 8.0) {%
+    Process crash\\and termination%
+  };
+
+  % Downtime jagged line along the axis
+  \draw[line width=0.9pt,pdrust,dashed]
+    (6.6, 6.8) -- (7.8, 6.8) -- (7.95, 7.05) -- (8.15, 6.55) -- (8.3, 6.8) -- (10.4, 6.8);
+
+  % Time of downtime label
+  \node[pd label,anchor=south,align=center,text=pdink!80!black] at (8.5, 7.25) {%
+    Time of\\downtime%
+  };
+
+  % T2 tick and marker (Process restart)
+  \filldraw[fill=pdink] (10.4, 6.8) circle (2.2pt);
+  \node[pd title,anchor=north,text=pdink] at (10.4, 6.55) {T2};
+
+  % Process restart header (raised to 8.0 to align with crash header and clear instance 2)
+  \node[pd title,anchor=south,align=center,text=pdink] at (10.4, 8.0) {%
+    Process\\restart%
+  };
+
+  % Agent Process Instance 2 (box from 10.4 to 14.2; axis arrow extends to 14.8)
+  \filldraw[processblock] (10.4, 6.8) rectangle (14.2, 7.6);
+  \node[pd title,anchor=center,text=pdcobalt!90!black] at (12.3, 7.2) {%
+    Agent process instance 2%
+  };
+
+  % =========================================================================
+  % BOTTOM TIMELINE: DURABLE MERKLE CHAIN (y = 2.4)
+  % =========================================================================
+  % Timeline axis (extended to 14.8 for clean arrowhead clearance)
+  \draw[axisline] (2.0, 2.3) -- (14.8, 2.3);
+
+  % 9 Merkle Blocks along the ledger
+  \drawisoblock[pdrust]{2.35}{2.1}{0.9}
+  \drawisoblock[pdrust]{3.75}{2.1}{0.9}
+  \drawisoblock[pdrust]{4.95}{2.1}{0.9}
+  \drawisoblock[pdrust]{6.25}{2.1}{0.9}
+  \drawisoblock[pdrust]{7.55}{2.1}{0.9}
+  \drawisoblock[pdrust]{8.85}{2.1}{0.9}
+  \drawisoblock[pdrust]{10.55}{2.1}{0.9}
+  \drawisoblock[pdrust]{11.85}{2.1}{0.9}
+  \drawisoblock[pdrust]{13.15}{2.1}{0.9}
+
+  % Cryptographic Root Shield Icon above Block 1
+  \begin{scope}[shift={(2.65, 3.2)},scale=0.55]
+    \filldraw[fill=pdcobalt!20,draw=pdcobalt,line width=0.7pt]
+      (0, 0.4) -- (0.35, 0.3) -- (0.35, -0.1) .. controls (0.35, -0.35) and (0, -0.5) .. (0, -0.6)
+      .. controls (0, -0.5) and (-0.35, -0.35) .. (-0.35, -0.1) -- (-0.35, 0.3) -- cycle;
+  \end{scope}
+
+  % Inter-block causal hash chain arrows
+  \draw[chainlink] (3.0, 2.3) -- (3.7, 2.3);
+  \draw[chainlink] (4.4, 2.3) -- (4.9, 2.3);
+  \draw[chainlink] (5.6, 2.3) -- (6.2, 2.3);
+  \draw[chainlink] (6.9, 2.3) -- (7.5, 2.3);
+  \draw[chainlink] (8.2, 2.3) -- (8.8, 2.3);
+  \draw[chainlink,dashed] (9.5, 2.3) -- (10.5, 2.3);
+  \draw[chainlink] (11.2, 2.3) -- (11.8, 2.3);
+  \draw[chainlink] (12.5, 2.3) -- (13.1, 2.3);
+
+
+  % Small suspended persistence block and lock icon during downtime (x=6.65 to 9.2)
+  \drawisoblock[pdrust]{6.65}{3.4}{0.55}
+  % Lock icon next to persistent block
+  \begin{scope}[shift={(7.15, 3.4)},scale=0.45]
+    \filldraw[fill=pdgold!30,draw=pdgold!90!black,line width=0.6pt,rounded corners=1pt]
+      (-0.25, -0.3) rectangle (0.25, 0.1);
+    \draw[draw=pdgold!90!black,line width=0.6pt]
+      (-0.16, 0.1) -- (-0.16, 0.3) arc (180:0:0.16) -- (0.16, 0.1);
+  \end{scope}
+  \node[pd label,anchor=west,align=left,text=pdink] at (7.45, 3.4) {%
+    \textbf{Continuous persistence}%
+  };
+
+  % =========================================================================
+  % VERTICAL CROSS-PLANE EVIDENCE PROJECTIONS & RECOVERY
+  % =========================================================================
+  % Downlink from Process 1 to Ledger
+  \draw[connectarrow] (4.15, 6.8) -- (4.15, 2.7);
+  \node[pd title,anchor=east,align=right,fill=pdpage,inner sep=2pt,text=pdink] at (4.05, 4.8) {%
+    Agent identity\\persistence%
+  };
+
+  % Downlink from Crash state to checkpoint (starts below T_crash label to prevent strike-through)
+  \draw[downlink] (6.6, 6.0) -- (6.6, 3.8);
+
+  % Downlink from Process 2 to Ledger
+  \draw[downlink] (12.2, 6.8) -- (12.2, 2.7);
+  \node[pd label,anchor=west,align=left,fill=pdpage,inner sep=2pt,text=pdink] at (12.35, 4.8) {%
+    \textbf{Continuous ledger}\\%
+    {\color{pdink!80!black}\mdseries recording}%
+  };
+
+  % Horizontal persistence guideline across downtime
+  \draw[guideline] (4.15, 4.8) -- (12.2, 4.8);
+
+  % =========================================================================
+  % BOTTOM ANNOTATIONS (Sentence case, spaced out to prevent collision)
+  % =========================================================================
+  \node[pd label,anchor=north,align=center,text=pdink] at (3.5, 1.4) {%
+    Cryptographic\\Merkle chain%
+  };
+  \draw[pd hairline] (3.5, 1.4) -- (3.5, 1.7);
+
+  \node[pd label,anchor=north,align=center,text=pdink] at (6.6, 1.4) {%
+    Historical liability\\records%
+  };
+  \draw[pd hairline] (6.6, 1.4) -- (6.6, 1.7);
+
+  \node[pd label,anchor=north,align=center,text=pdink] at (9.2, 1.4) {%
+    Resource spend\\counters%
+  };
+  \draw[pd hairline] (9.2, 1.4) -- (9.2, 1.7);
+
+  \node[pd label,anchor=north,align=center,text=pdink] at (12.2, 1.4) {%
+    Audit\\records%
+  };
+  \draw[pd hairline] (12.2, 1.4) -- (12.2, 1.7);
+
+\end{tikzpicture}

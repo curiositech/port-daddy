@@ -1,0 +1,132 @@
+% fig-spark-prop8-federation.tex
+% Proposition 8: Cross-Harbor Relay & Zero-Trust Federation
+% 100% native vector Swiss TikZ spatial replica of fig-spark-prop8-federation.jpg.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    hostbox/.style={draw=pdcobalt!90!black,line width=0.9pt,fill=pdcobalt!5,rounded corners=2pt},
+    secboundary/.style={draw=pdcobalt!80,line width=0.6pt,dashed,rounded corners=2pt},
+    greenbox/.style={draw=pdteal!90!black,line width=0.5pt,fill=pdteal!85!black,rounded corners=1.5pt,inner sep=2pt},
+    policynode/.style={draw=pdteal!80!black,line width=0.8pt,fill=hhink!90,rounded corners=2pt,inner sep=3pt},
+    sovereignbadge/.style={draw=hhink,line width=0.8pt,fill=white,rounded corners=3pt,inner xsep=5pt,inner ysep=2.5pt}
+  }
+
+  % =========================================================================
+  % TOP-RIGHT BADGE: ZERO SHARED DATABASE
+  % =========================================================================
+  \node[sovereignbadge,anchor=north east] at (13.5, 5.15) {%
+    \pdgrotesk\fontsize{5.2}{6.2}\selectfont\bfseries\color{hhink}%
+    \begin{tabular}{c} ZERO SHARED DATABASE / \\ ZERO GLOBAL SOVEREIGN \end{tabular}%
+  };
+
+  % =========================================================================
+  % LEFT: HARBOR HOST A (x in [0.1, 4.6], y in [1.0, 5.15])
+  % =========================================================================
+  \node[anchor=west,font=\fontsize{6.2}{7.2}\selectfont\bfseries\color{hhink}] at (0.1, 5.05) {HARBOR HOST A};
+  \draw[hostbox] (0.1, 1.0) rectangle (4.6, 4.8);
+  \node[anchor=north,font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdcobalt}] at (2.35, 4.7) {--- SECURITY BOUNDARY ---};
+
+  % Local State DB (Left side of Host A)
+  \pdicondatabase[1.1]{(1.15, 3.65)}
+  \node[font=\fontsize{4.6}{5.4}\selectfont\bfseries\color{hhink},align=center] at (1.15, 3.15) {LOCAL\\STATE DB};
+
+  % Key Manager (Top Right of Host A)
+  \node[greenbox,anchor=center,text width=1.6cm,align=center] at (3.35, 3.9) {%
+    \fontsize{4.8}{5.6}\selectfont\bfseries\color{white}KEY\\MANAGER%
+  };
+
+  % Evidence Generator (Middle Right of Host A)
+  \node[greenbox,anchor=center,text width=1.6cm,align=center] at (3.35, 2.95) {%
+    \fontsize{4.8}{5.6}\selectfont\bfseries\color{white}EVIDENCE\\GENERATOR%
+  };
+
+  % Policy Engine (Bottom of Host A)
+  \draw[line width=0.6pt,pdcobalt!70] (1.15, 2.75) -- (1.15, 2.3) -- (2.0, 2.3);
+  \draw[line width=0.6pt,pdcobalt!70] (3.35, 2.6) -- (3.35, 2.3);
+  \node[policynode,anchor=center,text width=2.4cm,align=center] at (2.5, 1.7) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}POLICY ENGINE%
+  };
+
+  % =========================================================================
+  % RIGHT: HARBOR HOST B (x in [9.0, 13.5], y in [0.1, 4.2])
+  % =========================================================================
+  \node[anchor=west,font=\fontsize{6.2}{7.2}\selectfont\bfseries\color{hhink}] at (9.0, 4.35) {HARBOR HOST B};
+  \draw[hostbox] (9.0, 0.1) rectangle (13.5, 4.15);
+  \node[anchor=north,font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdcobalt}] at (11.25, 4.05) {--- SECURITY BOUNDARY ---};
+
+  % Key Manager (Top Left of Host B)
+  \node[greenbox,anchor=center,text width=1.6cm,align=center] at (10.25, 3.4) {%
+    \fontsize{4.8}{5.6}\selectfont\bfseries\color{white}KEY\\MANAGER%
+  };
+
+  % Evidence Generator (Middle Left of Host B)
+  \node[greenbox,anchor=center,text width=1.6cm,align=center] at (10.25, 2.45) {%
+    \fontsize{4.8}{5.6}\selectfont\bfseries\color{white}EVIDENCE\\GENERATOR%
+  };
+
+  % Policy Engine (Bottom Left of Host B)
+  \node[policynode,anchor=center,text width=1.8cm,align=center] at (10.25, 1.25) {%
+    \fontsize{5.0}{6.0}\selectfont\bfseries\color{white}POLICY\\ENGINE%
+  };
+
+  % Local State DB (Top Right of Host B)
+  \pdicondatabase[0.9]{(12.45, 3.35)}
+  \node[font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink},align=center] at (12.45, 2.85) {LOCAL\\STATE DB};
+
+  % Local State DB (Bottom Right of Host B)
+  \pdicondatabase[0.9]{(12.45, 1.6)}
+  \node[font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink},align=center] at (12.45, 1.1) {LOCAL\\STATE DB};
+
+  \node[anchor=south,font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdcobalt}] at (11.25, 0.15) {LOCAL PRIVATE SECURITY BOUNDARY};
+
+  % =========================================================================
+  % CENTER: ZERO-TRUST RELAY FABRIC & WITNESSING (x in [4.6, 9.0])
+  % =========================================================================
+
+  % 1. Top Receipts Flow
+  \pdicondocument[0.6]{(5.2, 4.65)}
+  \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink},align=center] at (6.8, 4.65) {CRYPTOGRAPHICALLY\\SIGNED WITNESS RECEIPTS};
+  \pdicondocument[0.6]{(8.4, 4.65)}
+  \draw[pd arrow,line width=0.8pt,hhink] (4.6, 4.45) -- (9.0, 4.45);
+
+  % 2. Merkle Inclusion Proofs (Upper)
+  \pdiconmerkle[0.7]{(5.5, 3.9)}
+  \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink},align=center] at (6.8, 3.9) {MERKLE\\INCLUSION PROOFS};
+  \pdiconmerkle[0.7]{(8.1, 3.9)}
+  \draw[pd arrow,line width=0.7pt,hhink] (9.0, 3.7) -- (4.6, 3.7);
+
+  % 3. Untrusted Zero-Trust Relay Fabric Pipe (Middle)
+  \draw[fill=pdrust!80!black,draw=pdslate!90!black,line width=0.7pt] (5.1, 2.3) rectangle (8.5, 3.3);
+  \draw[fill=pdteal!80!black,draw=pdslate!90!black,line width=0.6pt] (5.1, 2.8) ellipse (0.2 and 0.5);
+  \draw[fill=pdteal!90!black,draw=pdslate!90!black,line width=0.6pt] (8.5, 2.8) ellipse (0.2 and 0.5);
+  \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{white},align=center] at (6.8, 2.8) {%
+    UNTRUSTED\\ZERO-TRUST\\RELAY FABRIC%
+  };
+
+  % Ingress / Egress arrows into fabric
+  \draw[pd arrow,line width=1.0pt,pdrust!90!black] (4.6, 3.1) -- (5.0, 3.1);
+  \draw[pd arrow,line width=1.0pt,pdrust!90!black] (8.6, 2.5) -- (9.0, 2.5);
+
+  % 4. Merkle Inclusion Proofs (Lower)
+  \pdiconmerkle[0.7]{(5.6, 1.7)}
+  \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink},align=center] at (6.8, 1.7) {MERKLE\\INCLUSION};
+  \pdiconmerkle[0.7]{(8.0, 1.7)}
+  \draw[pd arrow,line width=0.7pt,hhink] (4.6, 1.45) -- (9.0, 1.45);
+
+  % 5. Revocation Gossips
+  \draw[pd arrow,line width=0.7pt,hhink] (6.0, 0.95) arc (180:-90:0.18);
+  \node[font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (6.7, 0.95) {UPDATE};
+  \draw[pd arrow,line width=0.7pt,hhink] (7.2, 0.95) -- (7.6, 1.15);
+  \draw[pd arrow,line width=0.7pt,hhink] (7.2, 0.95) -- (7.6, 0.95);
+  \draw[pd arrow,line width=0.7pt,hhink] (7.2, 0.95) -- (7.6, 0.75);
+  \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (6.8, 0.6) {REVOCATION GOSSIPS};
+
+  % Bottom Sovereign Badge
+  \node[sovereignbadge,anchor=south] at (6.8, 0.05) {%
+    \pdgrotesk\fontsize{4.6}{5.4}\selectfont\bfseries\color{hhink}%
+    \begin{tabular}{c} ZERO SHARED DATABASE / \\ ZERO GLOBAL SOVEREIGN \end{tabular}%
+  };
+
+\end{tikzpicture}

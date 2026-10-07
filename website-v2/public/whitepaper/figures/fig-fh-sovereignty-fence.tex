@@ -1,0 +1,19 @@
+% Reader question: must Bob accept a well-formed card issued by Alice?
+% Source: the preceding sovereignty example, before any transfer ceremony.
+% One request and refusal; the five powers remain in the definition.
+% A refused request is not a completed cross-harbor capability transfer.
+\begin{figure}[htbp]
+\centering
+\caption{Alice can issue a valid card; she cannot make Bob accept it. This refusal precedes the transfer ceremony. [illustrative]}
+\label{fig:fh-sovereignty-fence}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd label,align=center] at (1.7,5.2) {Alice's agent\\Harbor A};
+  \node[pd label,align=center] at (9.25,5.2) {Bob's daemon\\Harbor B};
+  \draw[pd guide] (1.7,.6) -- (1.7,4.65);
+  \draw[pd guide] (9.25,.6) -- (9.25,4.65);
+  \node[pd label,anchor=south] at (5.475,3.8) {Present Alice's \texttt{db:write} card};
+  \draw[pd arrow] (1.7,3.55) -- (9.25,3.55);
+  \node[pd label,anchor=south] at (5.475,1.6) {Refused: Alice's key is not trusted here};
+  \draw[pd arrow,dash pattern=on 4pt off 3pt] (9.25,1.35) -- (1.7,1.35);
+\end{tikzpicture}
+\end{figure}

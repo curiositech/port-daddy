@@ -1,0 +1,34 @@
+% Table for ch8-19 -- Conflict Resolution Across Harbors (S5.2), a
+% classification (rule x defends against x why rejected/adopted).
+%
+% Reader question: why is "only the issuer may revoke its own cards" the
+%   right default, and what do the alternatives get wrong?
+% Claim: of three candidate rules, only the authoritative rule avoids both
+%   failure modes (an attacker forging revocations, and honest cards
+%   rejected in equilibrium); the third rule is a degraded mode of the
+%   second, not an independent option.
+% Evidence: S:fh-revocation-conflict's own three-item enumeration.
+% Grammar rejected: a decision-tree figure would suggest the three rules
+%   are evaluated sequentially; they are evaluated in parallel against the
+%   same attacker, which a table's independent rows states directly.
+% Five-second test: which rule is adopted, and which one does it subsume
+%   as a degraded mode?
+\begin{table}[H]
+\centering
+\caption{Three candidate revocation-conflict rules, evaluated against the
+same disagreement (harbor $A$ has revoked card $c$; harbor $B$ has not yet
+seen it). The adopted rule is the only one with a bounded attacker window
+under stated assumptions. [internal]}
+\label{tab:fh-revocation-rules}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.24\linewidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{rule} & \textbf{what it defends against} & \textbf{why rejected / adopted} \\
+\midrule
+pessimistic (anyone revokes) & an issuer that refuses to revoke & rejects too many honest cards; an attacker injects spurious revocations into gossip \\
+\textbf{authoritative (only issuer revokes)} & \textbf{spurious revocations from a non-issuer} & \textbf{adopted: an \mbox{operator-priced} attacker window under stated \mbox{service-level} terms} \\
+epoch-bounded ($\Delta$-epoch deadline) & a harbor persistently falling behind & a degraded mode of authoritative with a watchdog, not a separate rule \\
+\bottomrule
+\end{tabularx}
+\end{table}

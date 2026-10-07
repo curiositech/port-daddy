@@ -1,0 +1,65 @@
+% TEMPLATE: Execution Swimlanes & Concurrency Gantt
+% Standard: Harbor Figure Language v2 (Swiss typography, standard weight ladder)
+% Clearance Invariants: 3pt breathing room between interval bars and swimlane boundaries.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 9.4);
+
+  % 1. Swimlane Boundaries & Actor Headers (3 lanes: y = 6.4, 4.4, 2.4)
+  % Lane 1: Agent 1 (claude)
+  \draw[pd panel] (0, 6.3) rectangle (11.4, 8.5);
+  \node[anchor=west, pd title, text=pdviolet] at (0.2, 8.05) {Lane 1: $\alpha_{\text{auth}}$ (claude)};
+
+  % Lane 2: Agent 2 (codex)
+  \draw[pd panel] (0, 4.2) rectangle (11.4, 6.0);
+  \node[anchor=west, pd title, text=pdteal] at (0.2, 5.65) {Lane 2: $\alpha_{\text{worker}}$ (codex)};
+
+  % Lane 3: Single-Writer Kernel
+  \draw[pd panel] (0, 2.2) rectangle (11.4, 3.9);
+  \node[anchor=west, pd title, text=pdcobalt] at (0.2, 3.55) {Kernel: Commit Serialization Rail};
+
+  % 2. Time Axis at Bottom (y = 2.2)
+  \draw[pd hairline] (2.4, 2.2) -- (11.0, 2.2);
+  \foreach \x/\t in {2.6/{0.0s}, 4.6/{1.0s}, 6.6/{2.0s}, 8.6/{3.0s}, 10.6/{4.0s}} {
+    \draw[pd tick] (\x, 2.2) -- (\x, 2.05);
+    \node[anchor=north, font=\pdfiglabelsize, text=pdink!60] at (\x, 1.85) {\t};
+  }
+
+  % 3. Task Execution Intervals
+  % Agent 1: Acquire & Execution Bar (t = 0.0s to 1.8s)
+  \node[pd state, draw=pdviolet, fill=pdviolet!12, text=pdviolet, text width=3.0cm, minimum height=0.85cm, align=center, inner xsep=4pt, inner ysep=4pt] at (4.3, 7.0) {
+    \textbf{Task A:} \texttt{leased} $\to$ \texttt{run}
+  };
+
+  % Agent 1: Stall / Lock Hold (t = 1.8s to 2.4s)
+  \node[pd state, draw=pderror, fill=pderror!10, text=pderror, text width=1.1cm, minimum height=0.85cm, align=center, inner xsep=3pt, inner ysep=4pt] at (6.8, 7.0) {
+    \textbf{Stall}
+  };
+
+  % Agent 2: Blocked / Waiting (t = 0.5s to 2.4s)
+  \node[pd state, draw=pdink!40, fill=pdink!5, dashed, text=pdink!70, text width=3.4cm, minimum height=0.85cm, align=center, inner xsep=4pt, inner ysep=4pt] at (5.3, 4.9) {
+    {\pdfigsub waiting lock on :7421}
+  };
+
+  % Agent 2: Active Work after Release (t = 2.4s to 4.0s)
+  \node[pd state, draw=pdteal, fill=pdteal!12, text=pdteal, text width=2.8cm, minimum height=0.85cm, align=center, inner xsep=4pt, inner ysep=4pt] at (9.0, 4.9) {
+    \textbf{Task B:} \texttt{leased} $\to$ \texttt{execute}
+  };
+
+  % 4. Kernel Commit Events
+  \node[pd state, draw=pdviolet, fill=pdviolet!8, text width=1.6cm, align=center, inner xsep=4pt, inner ysep=4pt] (commit1) at (6.8, 2.9) {\textbf{Commit 1}};
+  \draw[pd focus rule, draw=pdviolet, -{Stealth[length=3.5pt,width=2.5pt]}] (6.8, 6.5) -- (commit1.north);
+
+  % Unblock signal from Kernel to Agent 2
+  \draw[pd focus rule, draw=pdteal, dashed, -{Stealth[length=3.5pt,width=2.5pt]}] (commit1.north east) |- (7.5, 4.4);
+
+  % 5. Invariant Banner at Bottom
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.45) {
+    \textbf{Concurrency Invariant:} Competing tasks on scarce resources serialize through explicit commit gates. A successor task remains blocked until the active lease commits or is revoked.
+  };
+\end{tikzpicture}
+\caption{Execution swimlanes demonstrating serialized lock handoff. Agent $\alpha_{\text{worker}}$ blocks while $\alpha_{\text{auth}}$ holds the resource lease. The kernel serializes Commit 1 and dispatches the unblock trigger to Agent $\alpha_{\text{worker}}$ at $t=2.4\,\text{s}$. [template, Swimlanes / Gantt]}
+\label{fig:template-swimlanes-gantt}
+\end{figure}

@@ -1,0 +1,14 @@
+{
+  "model": "not reported",
+  "tool": "image_gen.imagegen",
+  "prompt": "Create exactly ONE finished text-free real-world object illustration for a scholarly Book outer margin. Portrait 3:4 canvas, composed to remain recognizable at 1.3 inches wide. Mature scientific-object engraving: clean precise black contours, disciplined fine black cross-hatching, believable materials and working construction, with simplified minor details that survive reduction. Mostly black ink on a flat quiet near-white neutral field, only a small restrained color accent on the functional part specified below. The style should feel physically observed, like an engraved specimen case or old scientific instrument, not a glossy render, cartoon, watercolor, synthetic photograph, pictogram or flat icon. Give the composition a clear silhouette, about 80 percent of canvas height and 75 to 85 percent of canvas width, fully inside the canvas with modest balanced margins. No large empty bounding field. No photographed book page, page curl, textured wall, decorative border, dramatic shadow or unrelated props. Absolutely no lettering, words, digits, labels, serial marks, handwriting, watermark, arrows, diagram connectors, plotted data or safety check marks. Blank paper surfaces are intentional. This is an editorial physical analogy, never documentary or experimental evidence. Deliver one PNG, not a collage or variations sheet.\n\nSUBJECT: A small, believable repair vignette consisting of a compact adjustable spanner lying diagonally beside a visibly damaged metal elbow pipe fitting and one intact replacement sealing washer. Show the fitting's open mouth and a clear localized crack through its rim, with a tiny separated chip beside that rim; no flowing liquid. Keep the crack legible at miniature scale, not a web of decorative cracks. The spanner's jaws, adjustment screw and grip are recognizable; give only its short handle grip a restrained deep-blue accent. The metal fitting and tool are otherwise pale metal in black engraving; the replacement washer is a plain dark ring. Compose these few tangible repair items as one compact vertical group, not an exploded technical diagram or before/after panels. No toolbox filled with dozens of tools, hands, arrows, measurements, cost tags, receipts, coins, bonds, scales, text or guarantee marks. The scene communicates that repair requires a tool and replacement material, not that all damage is repairable.\n\nOUTPUT: If the tool supports choosing the save path, save this one candidate as /Users/erichowens/coding/tmp/book-margin-object-batch3-20260920/ch07-cleanup-repair-kit.png. Do not write to the canonical Book tree or /tmp.",
+  "aspect": "3:4",
+  "image_size": "982x1179",
+  "dimensions_px": [
+    1086,
+    1448
+  ],
+  "sha256": "03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

@@ -52,6 +52,8 @@ export function makeFixture() {
   if (existsSync(resolve(subjectRoot, buildScriptRelative))) {
     cpSync(resolve(subjectRoot, buildScriptRelative), resolve(root, buildScriptRelative));
   }
+  cpSync(resolve(subjectRoot, 'scripts/prepare-book-fonts.py'),
+    resolve(root, 'scripts/prepare-book-fonts.py'));
   copyTexTree(resolve(subjectRoot, 'whitepaper'), resolve(root, 'whitepaper'));
   copyTexTree(
     resolve(subjectRoot, 'website-v2/public/whitepaper'),
@@ -81,12 +83,38 @@ export function writeFixture(root, relative, contents) {
   writeFileSync(resolve(root, relative), contents, 'utf8');
 }
 
+// True when the character at `index` sits after an unescaped % on its own line,
+// i.e. inside a TeX comment. Mirrors generate-mega-whitepaper.mjs's own
+// `inComment`, deliberately: this helper has to agree with the generator about
+// where a document starts, or it injects its probe somewhere the generator will
+// never collate.
+function inComment(tex, index) {
+  const lineStart = tex.lastIndexOf('\n', index - 1) + 1;
+  for (let i = lineStart; i < index; i += 1) {
+    if (tex[i] === '\\') { i += 1; continue; }
+    if (tex[i] === '%') return true;
+  }
+  return false;
+}
+
+// Inject after the REAL document start -- the first \begin{document} that is not
+// inside a comment. A plain string replace takes the first textual occurrence,
+// and a chapter preamble is allowed to talk about TeX in its comments: once
+// spawn-to-person.tex explained itself with "...always wins at \begin{document}"
+// eighty lines above the real marker, every probe this helper injected landed in
+// the preamble, the generator's own comment-skipping documentBody() correctly
+// left it out of the collated body, and test-namespace-conflicts.js failed on a
+// label that was never in the document at all.
 export function injectAfterDocumentStart(root, relative, addition) {
   const source = readFixture(root, relative);
-  if (!source.includes('\\begin{document}')) {
+  const BEGIN = '\\begin{document}';
+  let at = source.indexOf(BEGIN);
+  while (at >= 0 && inComment(source, at)) at = source.indexOf(BEGIN, at + 1);
+  if (at < 0) {
     throw new Error(`${relative} has no document start`);
   }
-  writeFixture(root, relative, source.replace('\\begin{document}', `\\begin{document}\n${addition}`));
+  const cut = at + BEGIN.length;
+  writeFixture(root, relative, `${source.slice(0, cut)}\n${addition}${source.slice(cut)}`);
 }
 
 function executableOnPath(name) {
@@ -113,7 +141,7 @@ function executableOnPath(name) {
 export function runFallbackBuild(root, { filter = 'coordination-papers-mega-volume', engine = 'xelatex' } = {}) {
   const bin = resolve(root, '.cache/fake-bin');
   mkdirSync(bin, { recursive: true });
-  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'wc']) {
+  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'python3', 'sort', 'wc']) {
     symlinkSync(executableOnPath(name), resolve(bin, name));
   }
 
@@ -130,9 +158,9 @@ for arg in "$@"; do
 done
 base="\${tex%.tex}"
 mkdir -p "$outdir"
-: > "$outdir/$base.log"
-printf 'fixture pdf\n' > "$outdir/$base.pdf"
-printf '%s\n' "$*" >> "$ENGINE_CALL_LOG"
+printf 'PD-MARGIN-CONVERGENCE: complete\\n' > "$outdir/$base.log"
+printf 'fixture pdf\\n' > "$outdir/$base.pdf"
+printf '%s\\n' "$*" >> "$ENGINE_CALL_LOG"
 `;
   // Both engines are faked identically regardless of which one this run
   // targets — build_one() picks the engine from the root's own filename, and

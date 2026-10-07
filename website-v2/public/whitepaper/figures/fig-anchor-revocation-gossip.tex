@@ -1,46 +1,32 @@
-% Semantic contract: each verifier has its own exposure interval; logarithmic
-% dissemination is an expectation, not a wall-clock deadline.
+% Book-native replacement for figures/fig-anchor-revocation-gossip.tex.
+% The missing-delivery branch intentionally remains exposed: gossip is not a
+% global kill switch. Coordinates are TeX points; labels are native 9pt.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.6cm,y=1cm]
-  \def\xzero{-4.5}
-  \def\xend{5.4}
-  \path[pd caution fill] (-4.5,-2.05) rectangle (2,2.55);
-
-  \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
-    \node[pd row label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
-    \draw[pd caution rule,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
-    \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
-    \draw[pd focus rule,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
-    \node[pd focus datum,minimum size=4.8pt,inner sep=0pt] at (\wake,\y) {};
-  }
-  \draw[pd focus rule]
-    (-4.5,2.4) -- (-4.5,1.95) -- (-1.4,1.95) -- (-1.4,1.35)
-    (-4.5,1.95) -- (-.6,1.95) -- (-.6,-.75)
-    (-1.4,1.35) -- (-1.4,.82) -- (2,.82) -- (2,.3)
-    (-.6,-.75) -- (-.6,-1.28) -- (2,-1.28) -- (2,-1.8);
-  \node[pd direct label,text=hhteal,anchor=south west] at (-4.35,2.62)
-    {authoritative append};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xzero,-2.32) -- (\xend,-2.32);
-  \foreach \x/\lab in {-4.5/$t$,-1.4/$t+\Delta$,2/$t+2\Delta$} {
-    \draw[pd tick] (\x,-2.23) -- (\x,-2.42);
-    \node[pd axis label,anchor=north] at (\x,-2.48) {\lab};
-  }
-  \node[pd axis label,anchor=west] at (\xend,-2.32) {time};
-  \node[pd direct label,text=hhamber,align=left,text width=5.3cm,anchor=north west]
-    at (\xzero,-3.0) {stale window: a revoked card may still be admitted};
-
-  \draw[pd danger rule,dashed] (4.05,-2.9) -- (4.05,2.85);
-  \draw[pd danger arrow] (4.05,-2.78) -- (5.2,-2.78);
-  \node[pd direct label,text=pderror,align=left,text width=2.9cm,anchor=north west]
-    at (5.25,-2.9) {partition: no finite deadline};
-\end{tikzpicture}
-\caption{A revocation advances as an observation frontier, leaving a distinct
-stale-exposure interval on every verifier lane. This execution converges after
-two rounds; the protocol claim is only expected $\Theta(\log m)$ dissemination
-under connected reliable rounds. The dashed partition marker separates that
-expectation from a guarantee: an unbounded partition removes every finite
-delivery deadline.}
+\SGMeasuredFigure{revocation-gossip}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Local stop is immediate};
+  \node[sg/check,fill=sgViolet!9,minimum width=91pt,minimum height=35pt] (sbrevcard) at (48,42)
+    {Harbor Card\\\textsf{kid = r\_42}};
+  \node[sg/check,draw=sgRed,minimum width=91pt,minimum height=29pt] (sbrevlog) at (48,112)
+    {local log\\$r\_42$ revoked};
+  \node[sg/check,draw=sgTeal,fill=sgTeal,text=white,minimum width=91pt,
+    font=\SGType\bfseries] (sbrevreject) at (48,162) {reject locally};
+  \draw[sg/arrow,draw=sgRed] (sbrevcard.south)--(sbrevlog.north);
+  \draw[sg/arrow,draw=sgRed] (sbrevlog.south)--(sbrevreject.north);
+  \node[anchor=north west,font=\SGType\bfseries] at (167,0)
+    {Remote: delivery missing};
+  \node[sg/check,fill=sgViolet!9,minimum width=125pt,minimum height=35pt] (sbrevremote) at (240,42)
+    {same card arrives at\\remote verifier $B$};
+  \node[sg/check,minimum width=125pt,minimum height=29pt] (sbrevstale) at (240,112)
+    {local log lacks $r\_42$};
+  \node[sg/check,draw=sgAmber,minimum width=125pt,minimum height=29pt] (sbrevexposed) at (240,162)
+    {may accept before update};
+  \draw[sg/arrow,draw=sgViolet] (sbrevremote.south)--(sbrevstale.north);
+  \draw[sg/arrow,draw=sgAmber] (sbrevstale.south)--(sbrevexposed.north);
+  \node[draw=sgRed,fill=white,line width=.85pt,minimum width=104pt,minimum height=26pt,
+    align=center] at (148,77) {gossip delta $r\_42$\\not delivered};
+\end{tikzpicture}}
+\caption{The issuing daemon stops a revoked card locally. A remote verifier can still accept while its revocation update is undelivered; gossip convergence is not a global kill switch.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

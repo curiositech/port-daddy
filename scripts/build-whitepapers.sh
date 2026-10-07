@@ -57,9 +57,7 @@ clean_build_dir() {
   [ -d "$BUILD_DIR" ] || return 0
   find "$BUILD_DIR" -depth -mindepth 1 -delete
 }
-clean_build_dir
 mkdir -p "$BUILD_DIR"
-trap clean_build_dir EXIT
 
 # Toolchain note. SOURCE_DATE_EPOCH is pinned per paper (see paper_epoch), so a
 # rebuild of unchanged source on the SAME renderer is byte-identical. It is not
@@ -264,6 +262,10 @@ build_one() {
         }
         node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
       fi
+      # Reference licensed fonts in place; never copy them into public/.
+      if command -v python3 >/dev/null 2>&1; then
+        python3 scripts/prepare-book-fonts.py "$outdir" || return 1
+      fi
       ;;
   esac
 
@@ -292,7 +294,7 @@ build_one() {
     esac
     if command -v latexmk >/dev/null 2>&1; then
       latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
-              -outdir="$outdir" "$roottex"
+              -e '$max_repeat=8;' -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
       # bibliographies, so bounded pdflatex passes are a complete fallback:
@@ -340,10 +342,14 @@ list_unchanged_since() {
 }
 
 main() {
-  local row srcdir roottex dest base
+  local row srcdir roottex dest base matched=0
   if [ -n "$LIST_UNCHANGED_SINCE" ]; then
     list_unchanged_since "$LIST_UNCHANGED_SINCE"
     return 0
+  fi
+  if [ -z "$CHANGED_SINCE" ] && [ -z "$FILTER" ]; then
+    clean_build_dir
+    mkdir -p "$BUILD_DIR"
   fi
   # A named filter can also reach an edition that is not in the default build
   # list; a full run, --changed-since and --list-unchanged-since never do.
@@ -357,6 +363,7 @@ main() {
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue
     fi
+    matched=1
     if [ -n "$CHANGED_SINCE" ] && ! paper_changed_since "$CHANGED_SINCE" "$srcdir" "$roottex"; then
       echo "skip $roottex (no imported TeX changed since $CHANGED_SINCE)"
       continue
@@ -367,6 +374,11 @@ main() {
       FAILED+=("$roottex")
     fi
   done
+
+  if [ -n "$FILTER" ] && [ "$matched" -eq 0 ]; then
+    echo "error: '$FILTER' is not a Book target; chapter PDFs are retired" >&2
+    exit 2
+  fi
 
   echo ""
   echo "built ${#BUILT[@]} PDF(s); ${#FAILED[@]} failure(s)"

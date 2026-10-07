@@ -1,32 +1,16 @@
 #!/usr/bin/env bash
-# Verify pinned SVGs/notices, then rebuild nine PDF derivatives.
-# Only a new output directory is written; source assets are never overwritten.
+# Rebuild the Book's unmodified Lucide SVGs and vector PDFs from pinned upstream.
 set -euo pipefail
 revision=951813ce76a859d4d8b145366972cbb237147a4e
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source_dir="$root/website-v2/public/whitepaper/figures/lucide"
-output="${1:?Usage: bash scripts/harbor-research/vendor_lucide_book_icons.sh NEW_OUTPUT_DIR}"
-if [[ -e "$output" ]]; then
-  echo "Refusing existing output directory: $output" >&2
-  exit 2
-fi
-case "$output" in /tmp|/tmp/*|/private/tmp|/private/tmp/*)
-  echo "Choose a persistent output directory, not /tmp." >&2; exit 2 ;;
-esac
-command -v curl >/dev/null
-command -v rsvg-convert >/dev/null
-mkdir -p "$output"
-output="$(cd "$output" && pwd)"
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+destination="$root/website-v2/public/whitepaper/figures/lucide"
+mirror="$root/whitepaper/figures/lucide"
+mkdir -p "$destination" "$mirror"
 base="https://raw.githubusercontent.com/lucide-icons/lucide/$revision"
-curl -q -fsSL --max-time 30 "$base/LICENSE" -o "$output/LICENSE"
-cmp "$output/LICENSE" "$source_dir/LICENSE"
-# Full pinned LICENSE is authoritative; retain supplementary notices as well.
-cp "$source_dir/LICENSE.lucide.txt" "$source_dir/LICENSE.feather.txt" "$output/"
-for icon in book-open calculator file-text flask-conical key-round list-checks lock-keyhole scroll-text workflow; do
-  curl -q -fsSL --max-time 30 "$base/icons/$icon.svg" -o "$output/$icon.svg"
-  cmp "$output/$icon.svg" "$source_dir/$icon.svg"
-  rsvg-convert --format=pdf1.5 --output="$output/$icon.pdf" "$output/$icon.svg"
+curl -fsSL "$base/LICENSE" -o "$destination/LICENSE"
+for icon in scroll-text book-open key-round flask-conical lock-keyhole calculator list-checks file-text terminal workflow; do
+  curl -fsSL "$base/icons/$icon.svg" -o "$destination/$icon.svg"
+  rsvg-convert --format=pdf1.5 --output="$destination/$icon.pdf" "$destination/$icon.svg"
+  cp "$destination/$icon.svg" "$destination/$icon.pdf" "$mirror/"
 done
-rsvg-convert --version
-echo "Verified nine pinned SVG sources; regenerated PDFs in $output"
-echo "PDF bytes may vary with librsvg/Cairo versions; review before replacing frozen assets."
+cp "$destination/LICENSE" "$mirror/LICENSE"

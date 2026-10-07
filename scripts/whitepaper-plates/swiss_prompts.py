@@ -26,6 +26,7 @@ PALETTE = {
     "paper": "#FBF7EF",   # hhpaper
     "ink": "#121212",     # pdink, near-black
     "red": "#DA291C",     # signal red, reserved: cover, chapter-sealed, chapter-bonded only
+    "prereq": {"name": "Mineral Slate", "100": "#384856", "62": "#768694", "38": "#AAB5BF"},
     "parts": {
         "I": {"name": "Reflex Blue", "100": "#001489", "62": "#5F6AB0", "38": "#9CA1C8"},
         "II": {"name": "Tonhalle Green", "100": "#006B5F", "62": "#5FA093", "38": "#9CC2B8"},
@@ -327,6 +328,23 @@ PLATES = {
             "edge. Nothing else is drawn."
         ),
         chosen="a", rationale="v2: one clean rail, no vanishing point",
+    ),
+    "chapter-prereq": dict(
+        aspect="16:9", image_size="2K", style="cover",
+        mechanism="bedrock footing and stepped monoliths across horizontal datum",
+        a=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF. Architectural bedrock and concrete "
+            "foundation footing photographed square-on as a high-contrast coarse halftone photograph filling the "
+            "left third, with stepped monolithic blocks of flat mineral slate #384856 rising on the grid across a "
+            "continuous thick horizontal black #121212 datum line into open warm paper space, anchored by a solitary "
+            "signal red #DA291C origin square resting on the datum."
+        ),
+        b=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF. Stepped monolith blocks of mineral slate "
+            "#384856 rising across a thick black datum bar from a coarse halftone bedrock foundation footing on "
+            "the left, with a single small signal red #DA291C square marking the foundation coordinate origin."
+        ),
+        chosen="a", rationale="bedrock footing, stepped slate monoliths, datum bar, solitary origin red square",
     ),
     "chapter-swk": dict(
         aspect="16:9", image_size="2K", style="cover",

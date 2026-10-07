@@ -662,12 +662,12 @@ def find_pd_pedagogy_file(chapter_path: Path):
 
 
 _ATBEGINDOCUMENT_RE = re.compile(r"\\AtBeginDocument\{")
-_LONG_DEF_RE = re.compile(r"\\long\\def\\([A-Za-z@]+)")
+_REDEF_RE = re.compile(r"\\(?:long\\def|def|RenewDocumentCommand|renewcommand)\s*\\([A-Za-z@]+)")
 
 
 def neutralized_macro_names(pd_pedagogy_path) -> set:
     """The macro names pd-pedagogy.tex's own \\AtBeginDocument block
-    re-\\long\\def's (today: keyidea, pitfall, scene, xrefbox, pullquote).
+    redefines (today: keyidea, pitfall, scene, xrefbox, pullquote, pdthesis).
     A chapter-preamble \\newcommand under one of these names -- however it
     draws itself, typically a tikz fill= box, pre-reform -- is neutralized
     at \\begin{document} time no matter what the chapter's own preamble
@@ -683,14 +683,15 @@ def neutralized_macro_names(pd_pedagogy_path) -> set:
     # Every \\AtBeginDocument block, not the first one. pd-pedagogy.tex has
     # more than one: the margin apparatus opens a block of its own to hook
     # \\section for the pending-pointer check, and it happens to come first,
-    # so searching for a single block returned that one, found no \\long\\def
+    # so searching for a single block returned that one, found no redefinitions
     # in it and reported that nothing is neutralized -- which reads as "every
     # fill-drawing macro is live" and is wrong in the direction that matters.
+    # User-facing pedagogy macros never contain '@' (internal LaTeX hooks do).
     names = set()
     for m in _ATBEGINDOCUMENT_RE.finditer(text):
         body, _ = balanced_brace_arg(text, m.end() - 1)
         if body:
-            names |= set(_LONG_DEF_RE.findall(body))
+            names |= {name for name in _REDEF_RE.findall(body) if "@" not in name}
     return names
 
 

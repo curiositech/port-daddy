@@ -1,0 +1,33 @@
+% Table for ch8-45 -- Partition Tolerance (S10.3), a classification
+% (protocol x behavior x what resumes it).
+%
+% Reader question: when the network partitions, which protocol keeps
+%   working, which stalls, and which waits?
+% Claim: partition tolerance is per-protocol, not a global property; each
+%   of the three governing protocols degrades differently and resumes by a
+%   different mechanism.
+% Evidence: S:fh-partition's own three one-sentence claims.
+% Grammar rejected: a figure would draw one partition event and three
+%   reactions as if simultaneous; the claim is that each protocol answers
+%   independently, which a table's per-row independence states directly.
+% Five-second test: which protocol keeps making progress inside a
+%   partition, and which one just waits?
+\begin{table}[H]
+\centering
+\caption{Federation runs no consensus, so partition tolerance is decided
+protocol by protocol. Transfer stalls outright; revocation keeps working
+inside each side of the split; settlement holds its position until the
+split heals. [internal]}
+\label{tab:fh-partition}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{protocol} & \textbf{behavior under partition} & \textbf{what resumes it} \\
+\midrule
+transfer & cannot proceed: cross-realm authentication needs both daemons to reach the witness log & the partition heals and both sides reach the log \\
+revocation & continues inside each partition; convergence bounded by that partition's own size & the two partitions merge their informed sets on reconnection \\
+settlement & parks at the escrow, holding the bond in place & the partition heals \\
+\bottomrule
+\end{tabularx}
+\end{table}

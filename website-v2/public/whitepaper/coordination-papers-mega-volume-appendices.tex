@@ -23,8 +23,7 @@
 \renewcommand{\theHtable}{volume.appendix.\arabic{table}}
 \renewcommand{\theHequation}{volume.appendix.\arabic{equation}}
 \renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
-\fancyhead[L]{\small\itshape\color{hhgray} Appendices}
-\fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Appendices}
+\pdbackmatterheaders{Appendices}
 
 \section{Implementation boundary}\label{app:volume-status}
 
@@ -281,21 +280,21 @@ Inspection tower and grader escalation & ch.~5, From Spawn to Person & ch.~1, 6 
 \end{tabularx}
 \end{table}
 
-\subsection*{Open problems, all three lists in one place}
+\subsection*{Routes to the open problems}
 \label{app:open-concordance}
 
 Open problems are numbered in three separate namespaces on purpose --- chapter
 1's \textsf{OP-$n$} is the kernel's, chapter 5 declines to extend it because its
 questions are not kernel questions, and chapter 8 states its own in prose --- and
-the cost of that decision is that no reader can see the whole set at once. This
-concordance indexes them; it does not renumber them, and the owning chapter's
-table stays the one to trust for status.
+this table gives a thematic route to the owning lists, not an exhaustive
+enumeration or a new numbering. The owning chapter's statement remains the
+source for assumptions and status. An incentive result about graders does not
+close a question about whether their observations are complete.
 
 \begin{table}[H]
 \centering
-\caption{Open-problem concordance. Statuses are the owning chapter's own, as of
-this edition; where a later chapter bears on a problem without closing it, the
-last column says how.}
+\caption{Where the unresolved questions live. Related results can narrow a
+question without closing it.}
 \label{tab:op-concordance}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}X@{}}
@@ -304,16 +303,23 @@ last column says how.}
 \midrule
 ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's agent-death ladder, rung 5; \textsf{OP-5} (oracle \emph{completeness}) is untouched by ch.~5's tower, which is about oracle \emph{incentives}. \\
 ch.~5 & Its own list, deliberately outside the kernel's numbering: death taxonomy, neutral graded outcomes, judge conflict of interest, correlated auditors. & The correlated-auditor question shares ch.~6's mixing model and its unmeasured $\theta$. \\
-ch.~8 & The federation limitations section: deployment-specific propagation tail bounds, and reconciling sheaf diffusion with epidemic gossip. & The second now carries a falsifier (rounds-to-first-alarm against $1/\lambda_2$) and no scheduled run. \\
-Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7's equilibrium assumes perfect public monitoring, which one harbor's ledger supplies and gossip does not. & Open in both ch.~7 and ch.~8; neither re-derives it, and ch.~8's settlement uses bonds rather than triggers to avoid needing it. \\
+ch.~8 & Deployment-specific propagation tails; the relationship between sheaf diffusion and anti-entropy gossip. & No spectral alarm-time law is established. A tree can have a positive diffusion gap and no detectable cycle residual. Visibility and a noise threshold must enter any proposed law. \\
+Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7 assumes both players see the same action history before the next round. & One ledger does not ensure timely shared observation. Gossip, hidden actions, resettable identities, and delayed views need their own incentive analysis. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\clearpage
-\addcontentsline{toc}{section}{References}
-\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
+\ifdefined\pdEnableMarginCitations\else
+  \clearpage
+  \pdbackmatterheaders{References}
+  \addcontentsline{toc}{section}{References}
+  \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
+\fi
 
 % Image credits for the marginalia (generated list; every plate has a licence sidecar).
 \clearpage
+\pdbackmatterheaders{Image credits}
 \IfFileExists{figures/pd-marginalia-credits.tex}{\input{figures/pd-marginalia-credits}}{}
+% Ship the final credits leaf before the root closes its local backmatter
+% group; otherwise fancyhdr reverts to the earlier solutions heading.
+\clearpage

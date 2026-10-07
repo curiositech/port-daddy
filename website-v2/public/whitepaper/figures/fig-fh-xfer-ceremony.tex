@@ -1,51 +1,46 @@
-% Figure IV.6 --- authority attenuates over the transfer ceremony; source
-% reachback disappears after the destination acknowledgement.
-\begin{figure}[H]
+% Stable atlas ID: IV/fig:fh-xfer.
+% Question: which messages cross the boundary, and when can B verify alone?
+% Claim: only offer/ack cross; attenuation never enlarges C_A.
+% Relation: four-party sequence, time downward, realms side by side.
+% Evidence: sec:fh-xfer-ceremony's four messages and signed epoch roots.
+% Counter-reading: local verification does not eliminate asynchronous revocation.
+\begin{figure}[t]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.15)
-    {authority shrinks while destination-local verification takes over};
-  \foreach \x/\n/\lab in {-5.4/1/request,-1.8/2/offer,1.8/3/acknowledge,5.4/4/deliver}
-    {\draw[pd lattice] (\x,-2.35)--(\x,2.30);
-     \node[pd datum] at (\x,2.15) {};
-     \node[pd direct label,anchor=south] at (\x,2.42) {\n. \lab};}
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.15,2.15)--(6.15,2.15);
-
-  % Capability envelope narrows at each authority-changing message.
-  \fill[pd focus fill]
-    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78)--
-    (5.4,-.22)--(1.8,-.22)--(-1.8,-.70)--(-5.4,-1.05)--cycle;
-  \draw[pd focus rule,line width=1.2pt]
-    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78);
-  \draw[pd focus rule,line width=1.2pt]
-    (-5.4,-1.05)--(-1.8,-.70)--(1.8,-.22)--(5.4,-.22);
-  \node[pd direct label,text=hhteal] at (-4.35,.25) {$C_A$: source authority};
-  \node[pd direct label,text=hhteal] at (3.55,.28) {$C'_B\subseteq C_A$};
-  \node[pd note,anchor=south] at (-1.8,1.48) {$R_A^{(e)}$ bound into offer};
-  \node[pd note,anchor=north] at (1.8,-.48) {$R_B^{(e)}$ + attenuated card};
-
-  % Hot-path source dependency ends at message 3.
-  \draw[pd caution rule,line width=1.2pt] (-5.4,-1.72)--(1.8,-1.72);
-  \draw[pd focus rule,line width=1.2pt] (1.8,-1.72)--(5.4,-1.72);
-  \node[pd caution datum] at (-5.4,-1.72) {};
-  \node[pd focus datum] at (1.8,-1.72) {};
-  \node[pd focus datum] at (5.4,-1.72) {};
-  \node[pd direct label,text=hhamber,anchor=south] at (-1.8,-1.58)
-    {Harbor A still participates};
-  \node[pd direct label,text=hhteal,anchor=south] at (3.6,-1.58)
-    {destination verifies locally};
-  \node[pd axis label,anchor=north] at (0,-2.05)
-    {revocation remains an asynchronous epoch-root dependency, not a hot-path call};
-  \node[pd note,anchor=north] at (0,-2.45)
-    {deferred to the settlement and witness rails --- Conditionally bounded escrow custody; dispute evidence};
-\end{tikzpicture}}
-\caption{\textbf{The transfer ceremony attenuates authority and then removes
-source reachback from the hot path.} The green envelope narrows from $C_A$ to
-$C'_B\subseteq C_A$ as the signed offer and acknowledgement bind source and
-destination epoch roots. After message 3, Harbor B can verify and deliver the
-attenuated card locally. Harbor A still matters asynchronously: a later epoch
-root can revoke the transfer once that root reaches B's audit surface. Transfer
-therefore neither copies full authority nor makes every use synchronous.}
+\pdfigurehue{pdgold}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{xfer head/.style={pd artifact,minimum width=1.9cm,
+    minimum height=.7cm,align=center}}
+  % Realm headers group the actors without borders through message fields.
+  \node[pd title,anchor=west] at (-.85,1.15) {Harbor $A$};
+  \node[pd title,anchor=west] at (4.85,1.15) {Harbor $B$};
+  \node[xfer head] (a) at (0,.3) {agent};
+  \node[xfer head] (da) at (3,.3) {daemon $D_A$};
+  \node[xfer head] (db) at (5.7,.3) {daemon $D_B$};
+  \node[xfer head] (b) at (8.7,.3) {agent};
+  % Leave explicit gaps for message fields; never draw through their letters.
+  \foreach \x in {0,3,5.7,8.7}{
+    \draw[pd uml lifeline] (\x,-.1) -- (\x,-1.5);
+    \draw[pd uml lifeline] (\x,-3.0) -- (\x,-3.7);
+    \draw[pd uml lifeline] (\x,-4.8) -- (\x,-5.2);
+    \draw[pd uml lifeline] (\x,-6.3) -- (\x,-6.9);}
+  % Local request; shafts remain visible between actor lifelines.
+  \draw[pd arrow] (0,-1.25) -- (3,-1.25);
+  \node[pd label,anchor=south,text width=2.9cm,align=center] at (1.5,-1.1)
+    {request $C_A$};
+  % Wire messages have their field lists above, never on the arrows.
+  \draw[pd protocol arrow] (3,-3.05) -- (5.7,-3.05);
+  \node[pd protocol label,anchor=south,text width=5.3cm,align=center] at (4.35,-2.9)
+    {offer: $C_A$, attenuation $\mathrm{att}_A$,\\signed epoch root $R_A^{(e)}$};
+  \draw[pd protocol arrow] (5.7,-4.85) -- (3,-4.85);
+  \node[pd protocol label,anchor=south,text width=5.3cm,align=center] at (4.35,-4.7)
+    {acknowledge: $C'_B$, epoch root $R_B^{(e)}$\\$C'_B=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$};
+  \draw[pd focus arrow] (5.7,-6.35) -- (8.7,-6.35);
+  \node[pd focus label,anchor=south,text width=3.3cm,align=center] at (7.2,-6.2)
+    {deliver $C'_B$\\verify locally under $\mathrm{sk}_B$};
+\end{tikzpicture}
+\caption{Only the offer and acknowledgement cross the boundary. The
+destination card has no more authority than the source card; $B$ then
+verifies locally. Later epoch roots carry revocation asynchronously.
+[internal]}
 \label{fig:fh-xfer}
 \end{figure}

@@ -1,69 +1,78 @@
-% Figure 2 — before/after Gantt pair, redrawn to spec [ch4.md 4.2]. Same time
-% axis (0-8) top and bottom. Top: four write windows that all cover [3,4], so
-% overlap is an ordinary state. Bottom: the same four requests, each band now
-% ending at its own grant on one commit spine; consent changes the schedule,
-% not who may participate.
+% Brief (tikz-diagram-craft). Figure 4.1, The Legible Swarm.
+% Reader question: what can actually happen when three independently launched
+%   agents edit the same developer settings file from the same revision?
+% Claim: an ungoverned overlap can converge, break loudly, or remain valid and
+%   fail later; visible claims, locks, and downstream evidence are what let an
+%   operator distinguish those cases.
+% Evidence: one concrete .vscode/settings.json base revision; three proposed
+%   key edits; a pointer claim, a whole-file lock, and a second pointer claim;
+%   three possible resolutions and their first observable consequences
+%   [internal, pedagogical counterexample].
+% Must distinguish: launch source from edit intent; pointer claim from file
+%   lock; syntactic failure from semantic failure; test-time observation from
+%   downstream consequence.
+% Grammar chosen: three aligned worked traces from one shared input. Equal
+%   rows make the operation and first observable output directly comparable;
+%   the delayed row alone continues to its later release failure.
+% Grammar rejected: actor bubbles around settings.json. A membership graph
+%   would show who touched the file but erase read revision, order, overlap,
+%   and the delay between a green mutation score and the downstream failure.
+% Five-second test: three agents read a1c9; one overlap is safe, one breaks now,
+%   and one stays green until a later release consumes the hidden fixture.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1.02cm,y=1cm]
-  % ---------------- top panel: unsequenced execution ----------------
-  \node[pd panel title,anchor=west] at (0,4.35) {unsequenced execution};
-
-  % overlap tint, drawn first so the bands sit on top of it
-  \fill[pd caution fill] (3,0.41) rectangle (4,3.29);
-
-  \foreach \y/\a/\xa/\xb in {3.05/A/0.5/4,2.25/B/1/5.5,1.45/C/2/6,0.65/D/3/7.5}{
-    \node[pd row label] at (-0.25,\y) {\a};
-    \draw[pd lattice] (0,\y) -- (8,\y);
-    \fill[pd neutral fill] (\xa,\y-0.24) rectangle (\xb,\y+0.24);
-  }
-  % re-stroke the overlap edges on top so the bands do not erase them
-  \draw[pd caution rule] (3,0.41) -- (3,3.29);
-  \draw[pd caution rule] (4,0.41) -- (4,3.29);
-
-  \node[pd direct label,text=pdinkmuted,anchor=south] at (3.5,3.52)
-    {four valid writes overlap};
-  \draw[pd hairline] (3.5,3.44) -- (3.5,3.30);
-
-  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (0,0) -- (8.35,0);
-  \foreach \x in {0,2,4,6,8}{
-    \draw[pd tick] (\x,0) -- (\x,-0.15);
-    \node[pd axis label,anchor=north] at (\x,-0.20) {\x};
-  }
-  \node[pd axis label,anchor=west] at (8.35,0) {time};
-
-  % ---------------- bottom panel: consented serialization ----------------
-  \node[pd panel title,anchor=west] at (0,4.35-6.0) {consented serialization};
-
-  \foreach \y/\a/\xa/\xg in {3.05/A/0.5/2,2.25/B/1/3.5,1.45/C/2/5,0.65/D/3/6.5}{
-    \node[pd row label] at (-0.25,\y-6.0) {\a};
-    \draw[pd lattice] (0,\y-6.0) -- (8,\y-6.0);
-    \fill[pd neutral fill] (\xa,\y-0.24-6.0) rectangle (\xg,\y+0.24-6.0);
-    \draw[pd hairline] (\xg,\y-0.24-6.0) -- (\xg,-6.0);
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    actor/.style={pd artifact,text width=2.20cm,minimum height=1.40cm},
+    operation/.style={pd state,text width=3.15cm,minimum height=1.35cm},
+    result/.style={text width=3.50cm,minimum height=1.35cm}
   }
 
-  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (0,-6.0) -- (8.35,-6.0);
-  \foreach \x in {0,2,4,6,8}{
-    \draw[pd tick] (\x,-6.0) -- (\x,-6.15);
-    \node[pd axis label,anchor=north] at (\x,-6.20) {\x};
-  }
-  \node[pd axis label,anchor=west] at (8.35,-6.0) {time};
+  % Every trace starts from this exact revision.
+  \node[pd artifact,text width=10.35cm,align=left] (base) at (5.45,7.20)
+    {\textbf{shared input}\quad \texttt{.vscode/settings.json @ a1c9}\\
+     \texttt{formatOnSave=false}\quad \texttt{tsdk=node\_modules/...}\\
+     \texttt{search.exclude=\{"**/dist": true\}}};
+  \node[pd label,anchor=north] at (5.45,6.50)
+    {all three agents read \texttt{a1c9} before any write lands};
 
-  % commit spine: the four grants land on the time axis in order
-  \draw[pd focus rule,line width=1.25pt] (2,-6.0) -- (6.5,-6.0);
-  \foreach \xg/\lab in {2/g1,3.5/g2,5/g3,6.5/g4}{
-    \node[pd focus datum] at (\xg,-6.0) {};
-    \node[pd axis label,text=hhteal,anchor=north] at (\xg,-6.55) {\lab};
-  }
-  \node[pd note,anchor=north,align=center] at (4.25,-7.05)
-    {each grant records actor $\cdot$ claim $\cdot$ artifact $\cdot$ reason};
+  \node[actor] (A) at (1.30,4.82)
+    {\textbf{Agent A}\\02:00 format cron\\\pdfigsub pointer claim};
+  \node[operation] (AO) at (5.20,4.82)
+    {set \texttt{formatOnSave}\\\texttt{false -> true}};
+  \node[pd ready state,result] (AR) at (9.30,4.82)
+    {\textbf{benign}\\keywise merge\\valid JSON; all keys};
+
+  \node[actor] (B) at (1.30,2.62)
+    {\textbf{Agent B}\\02:01 PnP prototype\\\pdfigsub whole-file lock};
+  \node[operation] (BO) at (5.20,2.62)
+    {replace \texttt{tsdk}\\by raw text splice};
+  \node[pd breach state,result] (BR) at (9.30,2.62)
+    {\textbf{immediate}\\comma lost\\parse fails at write};
+
+  \node[actor] (C) at (1.30,0.42)
+    {\textbf{Agent C}\\02:02 search cron\\\pdfigsub pointer claim};
+  \node[operation] (CO) at (5.20,0.42)
+    {add \texttt{**/fixtures}\\to \texttt{search.exclude}};
+  \node[pd warn state,result] (CR) at (9.30,0.42)
+    {\textbf{delayed}\\valid JSON; tests 98\%\\settings path untested};
+  \node[pd breach state,result] (CL) at (9.30,-2.10)
+    {\textbf{next release}\\\texttt{fixtures/v1} unseen\\replay fails};
+
+  \begin{scope}[on background layer]
+    \draw[pd focus arrow] (A.east) -- (AO.west);
+    \draw[pd ready arrow] (AO.east) -- (AR.west);
+    \draw[pd focus arrow] (B.east) -- (BO.west);
+    \draw[pd breach arrow] (BO.east) -- (BR.west);
+    \draw[pd focus arrow] (C.east) -- (CO.west);
+    \draw[pd warn arrow] (CO.east) -- (CR.west);
+    \draw[pd breach arrow] (CR.south) -- (CL.north);
+  \end{scope}
 \end{tikzpicture}
-\caption{Two Gantt panels on one time axis. Top: four write requests A--D
-arrive between $t{=}0.5$ and $t{=}3$ with windows that all cover $[3,4]$, so
-four valid writers overlap on one artifact with no total order among them.
-Bottom: the same four requests under consented serialization, each band now
-ending at its own grant g1--g4 ($t{=}2, 3.5, 5, 6.5$) on one commit
-spine, and every grant recording actor, claim, artifact, and reason. Consent
-changes the schedule, not who may participate [internal].}
+\caption{Three worked traces start from one \texttt{settings.json} revision.
+A keywise merge is benign; a raw splice fails immediately; a valid exclusion
+stays green until release replay exposes the hidden fixture. [internal,
+pedagogical counterexample]}
 \label{fig:state-of-nature}
 \end{figure}

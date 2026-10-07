@@ -39,8 +39,8 @@
     },
     {
       "path": "scripts/harbor-research/vendor_lucide_book_icons.sh",
-      "sha256": "0d7ee25c120ea84d23b82e49d329821fc10722125a6d7bbfb5c9d45eb6ba90f0",
-      "bytes": 1648,
+      "sha256": "d908ae59ed1533bb73f3b7cfd6eeec9283709f66831bcf9d90303bd3d6c3a104",
+      "bytes": 873,
       "change": "new"
     },
     {
@@ -63,8 +63,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "a1e8ee579d69335f5ca49fa7340729dd070efe6ddfcbc93615be34b76be170fb",
-      "bytes": 52365,
+      "sha256": "86f0751662f70e4b68636f9e7390fcdba9773b47b1d7f34b6741fa1ae09794ca",
+      "bytes": 63750,
       "change": "modified"
     },
     {
@@ -87,8 +87,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/lucide/README.md",
-      "sha256": "cc11567cf5a7e1bd3b7931176c80a552678bfeb79e72fdfef1aee699e19019bd",
-      "bytes": 1422,
+      "sha256": "703d3381218634dbdf5d6d2609bdefba41b0c4d450dfc4f2f2c3ac58af52236c",
+      "bytes": 1285,
       "change": "new"
     },
     {
@@ -357,13 +357,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "a1e8ee579d69335f5ca49fa7340729dd070efe6ddfcbc93615be34b76be170fb",
-      "bytes": 52365
+      "sha256": "86f0751662f70e4b68636f9e7390fcdba9773b47b1d7f34b6741fa1ae09794ca",
+      "bytes": 63750
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
-      "sha256": "344a626f7976d4fc69c314b38d776da51aa7bb93c5692a498228969a12a86ae5",
-      "bytes": 2342
+      "sha256": "1eff893e2431f5a55132ac82b8bb83a59cff697dd3dcceea9a89daf9c056c413",
+      "bytes": 14165
     },
     {
       "path": "website-v2/public/whitepaper/figures/lucide/workflow.pdf",
@@ -372,8 +372,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
-      "sha256": "db6f3a5e75dc391ba83b91663bcfa912aa17917eeba22a13d63726baf82fc956",
-      "bytes": 22751
+      "sha256": "ac93379b8b7be4dcec4487a3b42e8127d22d65e65be20567f89f6fd1a9c0f59a",
+      "bytes": 26920
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-discharges.tex",
@@ -382,13 +382,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex",
-      "sha256": "2141de2981cd8f98a57b2fbc6b0f629c8162f3e6619106d020e99af9de1f1ee9",
-      "bytes": 4301
+      "sha256": "01ac103f000102e0d90acb325a9570d7ab6de8ef1f47f7f8a4fa2a3fd11f0313",
+      "bytes": 4941
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-figure-language.tex",
-      "sha256": "1c7c847b44ec247d548a2143492dfca9ea7e2348a7f360535e82d11024d7965c",
-      "bytes": 23842
+      "sha256": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",
+      "bytes": 40314
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-hyperlinks.tex",
@@ -397,13 +397,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-palette.tex",
-      "sha256": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
-      "bytes": 2409
+      "sha256": "c86c325ea896aec44a6f3a93ace269151f9595180542507bec5d04624af2de33",
+      "bytes": 2493
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-pedagogy.tex",
-      "sha256": "4b6a5291b9bdf5553e338df8138dc546a30b6f4fd4fa8dc3f5641aab8c122212",
-      "bytes": 60840
+      "sha256": "ed558776c8eb3999a6a71295f66f57eef91b0434ddc55b312138151cc4231799",
+      "bytes": 79581
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
@@ -412,8 +412,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
-      "sha256": "8d98164275a9417e2fc5d6971604e4fedea3db6d972a17ccec5a3e912d7f5a68",
-      "bytes": 13852
+      "sha256": "46c65ffc7b640b2b202a167f8dbbf0af28b5e5f89e3a971a8568c8e663dcc246",
+      "bytes": 13909
     }
   ],
   "external_dependencies": {

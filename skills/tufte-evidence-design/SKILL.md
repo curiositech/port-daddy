@@ -88,7 +88,14 @@ rule, so the rule is applied with its known objection already in view rather tha
 - [ ] Any retained "redundant" ink (a gridline, both a legend and direct labels) is retained because it demonstrably
       speeds reading for this audience, not by default — see `references/critiques-and-limits.md` (Few, Wilke) before
       reflexively stripping it.
-- [ ] Run `scripts/ink_audit.py` on the rendered PNG as a second opinion, not a verdict (see below).
+- [ ] **Vector Reconstruction & Data-Ink Integrity (Production Doctrine):**
+      - Raster prototype graphics (JPEGs/PNGs) must be completely reconstructed as native Swiss TikZ/PGF/PGFPlots with pure white ground (`pdpage`).
+      - Eliminate solid dark blocks, fake gradient slabs, and AI hallucinatory glyphs.
+      - Quiet neutral frames (`pdslate!10`, `0.5pt` borders) provide structural context; semantic accents (`pdcobalt`, `pdrust`) are reserved strictly for active states, causal paths, and critical alerts.
+      - **Sentence-Case Mandate:** Convert all prototype ALL-CAPS titles and labels to sentence case (`Concurrent processes`, `Serial funnel`). ALL-CAPS forms dense, heavy ink rectangles that impair readability and degrade data-ink efficiency.
+      - **Zero Duplicate Canvas Titles:** Figure titles belong in the caption or running header, never embedded as banners in the TikZ drawing area.
+      - **Single-Node Compound Labels:** Multi-line annotations (title + subtitle) must use a single `\node[align=left]` so TeX manages leading (`\baselineskip`) naturally, preventing text collision.
+- [ ] Run `scripts/ink_audit.py` on the rendered PNG as a second opinion, not a verdict (target ink fraction $\le 0.15$ with zero chartjunk flags).
 
 ### Small multiples (when the tree says "many entities, same shape")
 
@@ -108,12 +115,15 @@ rule, so the rule is applied with its known objection already in view rather tha
 
 - [ ] The idea, not just the name, carries the sentence before you add a `\pdmarginfigure`.
 - [ ] At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`, checked
-      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
+      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) <!-- cite-exempt --> — a small multiple, sparkline, or regime
       strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
 - [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing a portrait's macro call.
-- [ ] Two margin figures of any kind are not placed within about a dozen source lines of each other, or they will
-      likely collide on the printed page (`scripts/margin_lint.py` warns advisory; the real gate is the build log's
-      "Marginpar on page" count).
+- [ ] Use actual data, small drawings and counterexamples in the margin through
+      `\pdmarginexhibit`, not only captions and portraits. Compose at native margin width.
+- [ ] Run the finished Book's caption, owner-adjacency and margin-bounds audits.
+      Source-line distance and an absent "Marginpar on page" warning are not proof of fit.
+- [ ] Open the actual pages at reading size. No shrinking, silent omission, footer
+      spill, detached caption or caption-height blank space in the body.
 - [ ] Every house term gets its own `\pdgloss{Term}{one-line definition}` at its first use — a chapter may (and
       should) carry many glosses, one per term — not `\pd@marginhead{Term}` by hand, and never the SAME term glossed
       twice (`scripts/margin_lint.py` checks both this and that the term actually appears in the chapter's own prose).

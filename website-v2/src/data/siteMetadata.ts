@@ -358,8 +358,8 @@ const productRoutes: SiteMetadata[] = [
   // sitemap and left the real page with no title, description or card at all.
   metadata(
     '/whitepaper',
-    'The Harbor, the Person, and the Economy',
-    'The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.',
+    'Governing AI Agents: The Harbor, the Person, and the Economy',
+    'A Textbook of Concurrency, Identity, and Accountable Autonomous Work: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.',
     { section: 'whitepaper' },
   ),
   metadata(

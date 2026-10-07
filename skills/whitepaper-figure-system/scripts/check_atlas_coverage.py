@@ -203,6 +203,8 @@ def extract_source_figures(
         root = (repo_root / relative_root).resolve()
         for source, text in walk_tex(root):
             for match in FIGURE_RE.finditer(text):
+                if r"\pdswisslandmarkplate" in match.group(1):
+                    continue
                 label = figure_label(match.group(1), source)
                 figures.append(SourceFigure(f"{volume}/{label}", source))
     return figures

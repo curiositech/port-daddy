@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage[paperwidth=14in,paperheight=10in,margin=0in]{geometry}
+\usepackage{pdfpages}
+\usepackage{hyperref}
+\hypersetup{
+  pdftitle={Governing AI Agents: The Harbor, the Person, and the Economy (Two-Page Spreads)},
+  pdfauthor={Erich Owens},
+  pdfsubject={Eight chapters, in dependency order, on accountable autonomous work},
+  pdfkeywords={supervisory control, multi-agent systems, capability security, coordination, accountability, federation}
+}
+\pagestyle{empty}
+\begin{document}
+% Sheet 1: Front Cover on the right half (recto) with blank left
+\includepdf[pages={{},1},nup=2x1,delta=0 0,offset=0 0]{coordination-papers-mega-volume.pdf}
+% Sheets 2..end: Pages 2 through end in facing pairs [even, odd]
+\includepdf[pages={2-},nup=2x1,delta=0 0,offset=0 0]{coordination-papers-mega-volume.pdf}
+\end{document}
