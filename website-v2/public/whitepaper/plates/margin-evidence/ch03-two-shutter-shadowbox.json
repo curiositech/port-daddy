@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Laboratory pass-through transfer box with interlocked guillotine doors, front hatch cobalt blue. Analogy for noninterference between secret input and observer.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "5b0d4da5a933e25eab5d3ffa0d140aea4c1f69b0ce05f491039ff1514842ab3a",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Steam engine centrifugal flyball governor with two rotating balls on hinged arms, cobalt blue valve collar. Explanatory analogy for rate-limiting and backpressure regulation.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "d821beb1cffe3189437291a824c47e0f7cfdde6d58f10842649973e3b7e7d9d7",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

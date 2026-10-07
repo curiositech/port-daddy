@@ -1,0 +1,271 @@
+% fig-spark-prop6-instruments.tex
+% Proposition 6: The Four Economic Instruments of Agent Coordination
+% Faithful high-Tufte, Swiss/Harbor Figure Standard vector diagram.
+% Balanced visual density and rich iconography matching Proposition 7.
+
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pdhair/.style={line width=0.5pt},
+    pdwire/.style={line width=0.85pt},
+    pdspine/.style={line width=1.6pt},
+    cardframe/.style={
+      fill=white,
+      line width=0.85pt,
+      rounded corners=3pt
+    },
+    cardheader/.style={
+      rounded corners=2.5pt
+    },
+    flowline/.style={
+      draw=pdslate!80!black,
+      line width=0.85pt,
+      ->,
+      >=Stealth
+    },
+    hazardline/.style={
+      draw=pdrust!70,
+      line width=0.6pt,
+      dashed
+    }
+  }
+
+  % =========================================================================
+  % CARD 1: PAYMENT (Top-Left)
+  % =========================================================================
+  \draw[cardframe, draw=pdcobalt] (0.2, 4.9) rectangle (7.1, 8.25);
+  % Header banner
+  \fill[fill=pdcobalt!90!black, rounded corners=2pt] (0.24, 7.7) rectangle (7.06, 8.21);
+  \node[anchor=west, inner sep=0pt] at (0.42, 7.95) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}1. PAYMENT\ \ \mdseries\color{white!85}\textbar\ \ Rewards Delivered Work%
+  };
+
+  % Worker agent avatar
+  \begin{scope}[shift={(1.15, 6.45)}]
+    \fill[pdcobalt] (0, 0.32) circle (0.22cm);
+    \fill[pdcobalt] (-0.28, -0.25) arc(180:0:0.28cm and 0.26cm) -- (0.28, -0.25) -- cycle;
+    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (0, -0.28) {Worker Agent};
+  \end{scope}
+
+  % Delivery arrow
+  \draw[pdwire, ->, draw=pdcobalt] (1.75, 6.45) -- (3.5, 6.45);
+  \node[anchor=south, font=\fontsize{4.6}{5.4}\selectfont\bfseries\color{pdcobalt}, align=center] at (2.6, 6.55) {Delivered Work};
+  \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\color{hhgray!90!black}, align=center] at (2.6, 6.35) {Completed tasks};
+
+  % Fork connectors
+  \draw[pdwire, ->, draw=pdcobalt] (3.5, 6.45) |- (4.15, 7.15);
+  \draw[pdwire, ->, draw=pdcobalt] (3.5, 6.45) |- (4.15, 5.75);
+
+  % Top fork: Token compensation (Rich gold coin stack)
+  \begin{scope}[shift={(5.0, 7.15)}]
+    % Stack 1
+    \foreach \y in {-0.24, -0.12, 0.0, 0.12} {
+      \draw[draw=pdgold!90!black, fill=pdgold!40, line width=0.5pt] (-0.35, \y) ellipse (0.26cm and 0.07cm);
+    }
+    % Stack 2
+    \foreach \y in {-0.24, -0.12, 0.0} {
+      \draw[draw=pdgold!90!black, fill=pdgold!55, line width=0.5pt] (0.25, \y) ellipse (0.24cm and 0.07cm);
+    }
+    \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (0.6, 0.0) {Tokens};
+  \end{scope}
+
+  % Bottom fork: Escrow payout (Crisp banknote)
+  \begin{scope}[shift={(5.35, 5.75)}]
+    \draw[pdwire, fill=pdteal!12, draw=pdteal!90!black, rounded corners=1.5pt] (-1.1, -0.26) rectangle (0.5, 0.26);
+    \draw[draw=pdteal!60, line width=0.4pt, rounded corners=1pt] (-1.02, -0.20) rectangle (0.42, 0.20);
+    \draw[draw=pdteal!90!black, fill=white, line width=0.6pt] (-0.3, 0) circle (0.13cm);
+    \node[font=\fontsize{4.5}{5.2}\selectfont\bfseries\color{pdteal!90!black}] at (-0.3, 0) {\$};
+    \fill[pdteal!80] (-0.85, 0) circle (0.04cm);
+    \fill[pdteal!80] (0.25, 0) circle (0.04cm);
+    \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (0.6, 0.0) {Fiat / USDC};
+  \end{scope}
+
+  % =========================================================================
+  % CARD 2: COLLATERAL (Top-Right)
+  % =========================================================================
+  \draw[cardframe, draw=pdgold!80!black] (7.7, 4.9) rectangle (14.6, 8.25);
+  % Header banner
+  \fill[fill=pdgold!90!black, rounded corners=2pt] (7.74, 7.7) rectangle (14.56, 8.21);
+  \node[anchor=west, inner sep=0pt] at (7.92, 7.95) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}2. COLLATERAL\ \ \mdseries\color{white!85}\textbar\ \ Prices Bounded Failure / Bond%
+  };
+
+  % Contractor agent (posts bond)
+  \begin{scope}[shift={(8.45, 7.05)}]
+    \fill[pdgold!90!black] (0, 0.24) circle (0.16cm);
+    \fill[pdgold!90!black] (-0.22, -0.16) arc(180:0:0.22cm and 0.20cm) -- (0.22, -0.16) -- cycle;
+  \end{scope}
+
+  \draw[pdwire, ->, draw=pdgold!80!black] (8.9, 7.05) -- (9.8, 7.05);
+
+  % Bond document icon
+  \begin{scope}[shift={(10.2, 7.05)}]
+    \draw[pdwire, fill=pdgold!15, draw=pdgold!90!black, rounded corners=1.5pt] (-0.32, -0.36) rectangle (0.32, 0.36);
+    \draw[draw=pdgold!90!black, line width=0.5pt] (-0.22, 0.20) -- (0.22, 0.20);
+    \draw[draw=pdgold!90!black, line width=0.5pt] (-0.22, 0.07) -- (0.22, 0.07);
+    \draw[draw=pdgold!90!black, line width=0.5pt] (-0.22, -0.06) -- (0.12, -0.06);
+    \fill[pdrust] (0.12, -0.22) circle (0.07cm);
+    \node[anchor=south, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdgold!90!black}] at (0, 0.38) {BOND};
+  \end{scope}
+
+  \draw[pdwire, ->, draw=pdgold!80!black] (10.65, 7.05) -- (11.7, 7.05);
+
+  % Escrow steel vault
+  \begin{scope}[shift={(12.95, 6.35)}]
+    \draw[draw=pdslate!90!black, fill=pdslate!15, line width=1.0pt, rounded corners=2pt] (-1.05, -0.9) rectangle (1.05, 0.9);
+    \draw[draw=pdslate!50, line width=0.5pt, rounded corners=1pt] (-0.92, -0.78) rectangle (0.92, 0.78);
+    % Combination dial
+    \draw[draw=pdslate!90!black, fill=white, line width=0.8pt] (0, 0) circle (0.32cm);
+    \draw[draw=pdslate!60, line width=0.5pt] (0, 0) circle (0.20cm);
+    \draw[draw=pdslate!90!black, line width=0.7pt] (-0.22, 0) -- (0.22, 0);
+    \draw[draw=pdslate!90!black, line width=0.7pt] (0, -0.22) -- (0, 0.22);
+    % Feet
+    \fill[pdslate!80] (-0.75, -0.98) rectangle (-0.55, -0.9);
+    \fill[pdslate!80] (0.55, -0.98) rectangle (0.75, -0.9);
+    % Label
+    \node[anchor=south, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (0, 0.93) {Bond Escrow Vault};
+  \end{scope}
+
+  % Return / Slash flow below
+  \begin{scope}[shift={(8.45, 5.65)}]
+    \fill[pdgold!90!black] (0, 0.24) circle (0.16cm);
+    \fill[pdgold!90!black] (-0.22, -0.16) arc(180:0:0.22cm and 0.20cm) -- (0.22, -0.16) -- cycle;
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\color{hhgray!90!black}] at (0, -0.18) {Contractor};
+  \end{scope}
+
+  \draw[pdwire, <-, draw=pdslate!80] (8.9, 5.65) -- (9.8, 5.65);
+
+  % Return condition badge (refund / slash)
+  \draw[pdwire, <-, draw=pdslate!80] (8.9, 5.65) -- (9.35, 5.65);
+  \begin{scope}[shift={(10.35, 5.65)}]
+    \draw[draw=pdhealth!90!black, fill=pdhealth!10, line width=0.5pt, rounded corners=1pt] (-0.95, -0.22) rectangle (0.95, 0.22);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdhealth!90!black}] at (0, 0) {Refund / Slash};
+  \end{scope}
+  \draw[pdwire, <-, draw=pdslate!80] (11.35, 5.65) -- (11.85, 5.65);
+
+  % =========================================================================
+  % CARD 3: EVIDENCE (Bottom-Left)
+  % =========================================================================
+  \draw[cardframe, draw=pdteal] (0.2, 0.4) rectangle (7.1, 3.75);
+  % Header banner
+  \fill[fill=pdteal!90!black, rounded corners=2pt] (0.24, 3.2) rectangle (7.06, 3.71);
+  \node[anchor=west, inner sep=0pt] at (0.42, 3.45) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}3. EVIDENCE\ \ \mdseries\color{white!85}\textbar\ \ Cryptographic Hashes \& Trace%
+  };
+
+  % Verified seal hexagon
+  \begin{scope}[shift={(0.85, 2.05)}]
+    \draw[draw=pdteal!90!black, fill=pdteal!15, line width=0.85pt] 
+      (0:0.42cm) -- (60:0.42cm) -- (120:0.42cm) -- (180:0.42cm) -- (240:0.42cm) -- (300:0.42cm) -- cycle;
+    \node[font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{pdteal!90!black}] at (0, 0) {\checkmark};
+    \node[anchor=north, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdteal!90!black}] at (0, -0.46) {Witness};
+  \end{scope}
+
+  \draw[pdwire, ->, draw=pdteal] (1.35, 2.05) -- (1.75, 2.05);
+
+  % Chained Merkle hashes
+  \begin{scope}[shift={(1.8, 1.65)}]
+    \draw[pdwire, fill=white, draw=pdteal!80!black, rounded corners=1.5pt] (0, 0) rectangle (0.68, 0.8);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0.34, 0.4) {Hash\\$H_0$};
+  \end{scope}
+  \draw[pdwire, ->, draw=pdteal] (2.52, 2.05) -- (2.78, 2.05);
+
+  \begin{scope}[shift={(2.82, 1.65)}]
+    \draw[pdwire, fill=white, draw=pdteal!80!black, rounded corners=1.5pt] (0, 0) rectangle (0.68, 0.8);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0.34, 0.4) {Hash\\$H_1$};
+  \end{scope}
+  \draw[pdwire, ->, draw=pdteal] (3.54, 2.05) -- (3.80, 2.05);
+
+  \begin{scope}[shift={(3.84, 1.65)}]
+    \draw[pdwire, fill=white, draw=pdteal!80!black, rounded corners=1.5pt] (0, 0) rectangle (0.68, 0.8);
+    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0.34, 0.4) {Hash\\$H_2$};
+  \end{scope}
+  \draw[pdwire, ->, draw=pdteal] (4.56, 2.05) -- (4.95, 2.05);
+
+  % Execution trace terminal window
+  \begin{scope}[shift={(5.0, 0.85)}]
+    \draw[draw=pdslate!90!black, fill=white, line width=0.85pt, rounded corners=2pt] (0, 0) rectangle (1.9, 2.15);
+    \fill[fill=pdslate!85!black, rounded corners=1.5pt] (0.02, 1.88) rectangle (1.88, 2.13);
+    % Window controls
+    \fill[pderror] (0.2, 2.0) circle (0.04cm);
+    \fill[pdgold] (0.35, 2.0) circle (0.04cm);
+    \fill[pdhealth] (0.5, 2.0) circle (0.04cm);
+    \node[anchor=west, font=\fontsize{3.6}{4.4}\selectfont\color{white!80}] at (0.65, 2.0) {trace.log};
+
+    % Trace entries
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\bfseries\color{pdteal!90!black}] at (0.12, 1.65) {PASS\ test\_gate};
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\color{hhink}] at (0.12, 1.38) {diff\ 3\ files};
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\color{pdcobalt}] at (0.12, 1.11) {sha:\ 0x9b41a};
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\bfseries\color{pdhealth!90!black}] at (0.12, 0.84) {SIG\ Ed25519};
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\color{hhgray!80!black}] at (0.12, 0.57) {root:\ $\tau_{\mathrm{fin}}$};
+    \node[anchor=west, font=\fontsize{3.8}{4.6}\selectfont\ttfamily\bfseries\color{pdslate}] at (0.12, 0.30) {status:\ SEALED};
+  \end{scope}
+
+  % =========================================================================
+  % CARD 4: SETTLEMENT (Bottom-Right)
+  % =========================================================================
+  \draw[cardframe, draw=pdslate!90!black] (7.7, 0.4) rectangle (14.6, 3.75);
+  % Header banner
+  \fill[fill=pdslate!90!black, rounded corners=2pt] (7.74, 3.2) rectangle (14.56, 3.71);
+  \node[anchor=west, inner sep=0pt] at (7.92, 3.45) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}4. SETTLEMENT\ \ \mdseries\color{white!85}\textbar\ \ Atomic Final Close%
+  };
+
+  % Counterparty agent
+  \begin{scope}[shift={(8.45, 2.05)}]
+    \fill[pdslate!90!black] (0, 0.28) circle (0.20cm);
+    \fill[pdslate!90!black] (-0.25, -0.22) arc(180:0:0.25cm and 0.22cm) -- (0.25, -0.22) -- cycle;
+    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}] at (0, -0.25) {Counterparty};
+  \end{scope}
+
+  % Decisive spine arrow with strong label
+  \draw[pdspine, ->, draw=pdslate!90!black, line width=1.6pt] (9.1, 2.05) -- (12.1, 2.05);
+  \node[anchor=south, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}, align=center] at (10.6, 2.22) {%
+    Set of Atomic Finalization%
+  };
+  \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\color{pdslate!90!black}, align=center] at (10.6, 1.88) {%
+    Decisive, irrevocable close%
+  };
+
+  % Notary stamp pressing onto lock
+  \begin{scope}[shift={(13.25, 2.05)}]
+    % Handle and stamp base
+    \fill[pdslate!90!black] (0, 0.72) circle (0.13cm);
+    \draw[draw=pdslate!90!black, line width=2.0pt] (0, 0.72) -- (0, 0.28);
+    \draw[draw=pdslate!90!black, fill=pdslate!30, line width=0.9pt, rounded corners=1pt] (-0.45, 0.12) rectangle (0.45, 0.28);
+    % Downward impact force arrows
+    \draw[draw=pdrust, line width=0.7pt, ->] (-0.35, 0.08) -- (-0.35, -0.15);
+    \draw[draw=pdrust, line width=0.7pt, ->] (0.35, 0.08) -- (0.35, -0.15);
+    % Sealed Lock
+    \begin{scope}[shift={(0, -0.55)}]
+      \draw[draw=pdrust!90!black, fill=pdrust!15, line width=0.9pt] (0, 0) circle (0.32cm);
+      \draw[draw=pdrust!90!black, line width=0.8pt] (-0.08, 0.06) arc(180:0:0.08cm and 0.14cm);
+      \draw[draw=pdrust!90!black, fill=pdrust!40, line width=0.8pt, rounded corners=0.5pt] (-0.14, -0.14) rectangle (0.14, 0.06);
+      \node[anchor=north, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdrust!90!black}] at (0, -0.36) {SEALED};
+    \end{scope}
+  \end{scope}
+
+  % =========================================================================
+  % CENTRAL HAZARD AXIOM & WARNING CALLOUT
+  % =========================================================================
+  \begin{scope}[shift={(7.4, 4.32)}]
+    \fill[fill=pdrust!8, draw=pdrust!80, line width=0.85pt, rounded corners=2.5pt] (-4.5, -0.42) rectangle (4.5, 0.42);
+
+    % Warning triangle
+    \draw[draw=pdrust!90!black, fill=pdrust!25, line width=0.85pt, rounded corners=1pt] (-4.15, -0.25) -- (-3.85, 0.25) -- (-3.55, -0.25) -- cycle;
+    \node[font=\fontsize{5.5}{6.5}\selectfont\bfseries\color{pdrust!90!black}] at (-3.85, -0.08) {!};
+
+    % Warning text
+    \node[anchor=west, align=left, font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{pdrust!90!black}] at (-3.4, 0) {%
+      Conflating these four elements into a single token or score\\%
+      creates adverse selection and moral hazard.%
+    };
+  \end{scope}
+
+  % Connectors to the 4 cards
+  \draw[hazardline] (3.65, 4.9) -- (3.65, 4.74);
+  \draw[hazardline] (11.15, 4.9) -- (11.15, 4.74);
+  \draw[hazardline] (3.65, 3.75) -- (3.65, 3.90);
+  \draw[hazardline] (11.15, 3.75) -- (11.15, 3.90);
+
+\end{tikzpicture}

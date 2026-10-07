@@ -1,72 +1,77 @@
-% Figure 9 — xy plot, redrawn to spec [ch4.md 4.9]. The two CURVES are the
-% chapter's closed-form Floor(N,k,m) (Thm.~\ref{thm:lowerbound},
-% \ref{thm:split-penalty}) at m=8: the flat (joint, 2k=4) and split
-% (per-reader, k=2) zero-miss floors. They are closed form by nature, not by
-% omission — Floor is exactly computable, so there is no "measured" version of
-% a curve to overlay.
+% Counting lower bounds for one reader, two separate readers, and their union.
 %
-% The MEASURED datum is the hollow marker at (60, 8.99): the smallest swept
-% digest budget at which the R1 sweep's oracle encoder actually observed zero
-% misses, from whitepaper/figures/data/r1-floor.csv (a7_experiment.py, seed
-% 20260816, 4000 trials/point). It sits 3.0 bits ABOVE the analytic floor
-% because the shared codebook is a randomized cover rather than an optimal
-% one. That gap is the honest content of the overlay: the bound holds as a
-% bound, and a real scheme pays more than it.
+% Stable atlas ID: I/fig:readpoverty (fig:readpoverty)
+% Reader question: how do the per-reader, summed, and joint counting bounds
+%   differ when the critical sets are disjoint?
+%
+% Analytic source, not measurements or achieved costs:
+%   Floor(N,k,m) = log_2 binom(N,k) - log_2 binom(m,k), k <= m < N.
+%   The two-reader comparison additionally requires 2k <= m because the joint
+%   head uses Floor(N,2k,m); that condition is not part of the one-head floor.
+%   For the worked instance k=2,m=8 and integer N in [16,100],
+%   F_1 = log_2(N(N-1)/56) is one head per reader,
+%   2F_1 is the two reader-specific heads in total, and
+%   F_2 = log_2(N(N-1)(N-2)(N-3)/1680) is one joint head for both readers.
+%   At N=60: F_1=5.9822, 2F_1=11.9644, F_2=12.7662,
+%   F_2/(2F_1)=1.0670. The ratio F_2/F_1=2.1340 is not the two-head penalty.
+% Opening policy: each split head may open m=8 items independently; one joint
+% head may open m=8 items total. This is not an equal-total-opening benchmark.
+% Source: whitepaper/legible-swarm.tex:2531--2557; provenance a7_experiment.py; data in r1-floor.csv.
+% The curves are authored analytic evaluations of the closed forms, not
+% empirical observations or simulation traces.
+
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,
   declare function={
-    split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
-    flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
+    perhead(\n) = ln(\n*(\n-1)/56)/ln(2);
+    joint(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3)/1680)/ln(2);
   }]
 \begin{axis}[pd axis,
-  width=8.6cm,height=6.0cm,
-  axis lines=left,
-  xmin=8,xmax=105,ymin=0,ymax=17.5,
-  xtick={20,40,60,80,100},ytick={0,5,10,15},
+  width=6.8cm,height=5.4cm,
+  xmin=16,xmax=100,ymin=0,ymax=17.5,
+  xtick={20,40,60,80,100},
+  ytick={0,5,10,15},
   xlabel={swarm size $N$},
-  ylabel={bits to locate},
-  clip=false,axis on top,
-  ]
-  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
-  \node[pd axis label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
+  ylabel={information floor (bits)},
+  axis on top,clip=false]
+  % One reserved numeric rail; the labels below are not placed on curves.
+  \node[pd label,anchor=south west,align=left,text width=6.6cm]
+    at (rel axis cs:0,1.03)
+    {$k{=}2$, $m{=}8$. At $N{=}60$: $F_1{=}5.982$/head;
+     $2F_1{=}11.964$ total;
+     $F_2{=}12.766$ joint; $F_2/(2F_1){=}1.067\times$.};
+  % Analytic integer-domain sweep; smooth=false preserves the authored
+  % integer evaluations instead of suggesting measured interpolation.
+  \addplot[pd rule,line width=.9pt,domain=16:100,samples=85,smooth=false]
+    {perhead(x)};
+  \addplot[pd focus rule,line width=1.05pt,domain=16:100,samples=85,smooth=false]
+    {2*perhead(x)};
+  \addplot[pd focus rule,densely dashed,line width=1.05pt,
+    domain=16:100,samples=85,smooth=false]
+    {joint(x)};
 
-  \addplot[pd rule,line width=1.05pt,domain=8:105,samples=100,smooth] {flat(x)};
-  \addplot[pd focus rule,line width=1.05pt,domain=8:105,samples=100,smooth] {split(x)};
+  % The source worked point and its honest architecture comparison.
+  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,13.55);
+  \node[pd datum] at (axis cs:60,{perhead(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{2*perhead(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{joint(60)}) {};
 
-  \node[pd datum] at (axis cs:60,{flat(60)}) {};
-  \node[pd focus datum] at (axis cs:60,{split(60)}) {};
-  \node[pd direct label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
-  \node[pd direct label,text=hhteal,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
-
-  % measured: smallest swept budget at which the oracle encoder observed zero
-  % misses (r1-floor.csv). Hollow, to read as observation against the curves.
-  \node[circle,draw=hhteal,fill=hhpaper,line width=.9pt,inner sep=2.3pt]
-        at (axis cs:60,8.99) {};
-  \draw[pd guide] (axis cs:60,{split(60)}) -- (axis cs:60,8.75);
-  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:61.5,8.99)
-        {8.99 measured};
-
-  \node[pd direct label,anchor=west] at (axis cs:87,{flat(87)}) {flat digest};
-  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:87,{split(87)}) {split digest};
+  % True outside-plot gutter: each label is reached by an endpoint leader and
+  % cannot be crossed by its own curve or mistaken for a point annotation.
+  \draw[pd rule] (axis cs:100,{perhead(100)}) -- (axis cs:104,7.75);
+  \node[pd label,anchor=west] at (axis cs:104.5,7.75) {one head $F_1$};
+  \draw[pd focus rule] (axis cs:100,{2*perhead(100)}) -- (axis cs:104,14.20);
+  \node[pd focus label,anchor=west] at (axis cs:104.5,14.20)
+    {two heads $2F_1$};
+  \draw[pd focus rule,densely dashed] (axis cs:100,{joint(100)}) -- (axis cs:104,16.45);
+  \node[pd focus label,anchor=west] at (axis cs:104.5,16.45)
+    {joint head $F_2$};
 \end{axis}
 \end{tikzpicture}
-\caption{Bits an operator must read to locate the critical artifact, at the
-lower bound of Thm.~\ref{thm:lowerbound} with $m{=}8$, $k{=}2$. One flat
-digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
-split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
-$N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
-a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
-predict. Both curves are the closed-form Floor, which is exactly computable
-and so has no measured counterpart. The hollow marker is the measurement: at
-$N{=}60$ the sweep's oracle encoder first achieved zero observed misses at
-$8.99$ bits, three bits \emph{above} the $5.98$-bit floor, because its shared
-codebook is a randomized cover and not an optimal one. Read the gap, not the
-agreement --- the floor is a lower bound that holds, not a prediction a real
-digest meets. No zero-miss point is marked on the flat curve because the
-sweep's budget range tops out at $10.98$ bits, below that curve's $12.77$-bit
-floor: the split penalty is why the measurement could not reach it
-[verified, \texttt{a7\_experiment.py}, seed 20260816; data in
-\texttt{figures/data/r1-floor.csv}].}
+\caption{Separate readers may each open eight items; the joint reader may
+open eight total. The comparison changes the total opening allowance.
+These counting lower bounds are not achieved implementation costs.}
 \label{fig:readpoverty}
 \end{figure}

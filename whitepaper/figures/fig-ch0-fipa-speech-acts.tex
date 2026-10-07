@@ -1,0 +1,211 @@
+% fig-ch0-fipa-speech-acts.tex
+% FIPA-00037 Communicative Speech Act State Transition Machine
+% 100% native vector Swiss TikZ layout adhering to Harbor Figure Standard (v2).
+% Bilateral speech act interaction protocols with cryptographic envelope structure.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    protocolbox/.style={
+      draw=pdslate!35,
+      line width=0.6pt,
+      fill=white,
+      rounded corners=2.5pt
+    },
+    actnode/.style={
+      draw=none,
+      fill=pdcobalt!90!black,
+      rounded corners=1.5pt,
+      inner xsep=4pt,
+      inner ysep=2.0pt
+    },
+    acceptpill/.style={
+      draw=none,
+      fill=pdhealth!90!black,
+      rounded corners=1.5pt,
+      inner xsep=4pt,
+      inner ysep=2.0pt
+    },
+    rejectpill/.style={
+      draw=none,
+      fill=pderror!90!black,
+      rounded corners=1.5pt,
+      inner xsep=4pt,
+      inner ysep=2.0pt
+    },
+    evalnode/.style={
+      draw=pdslate!60,
+      line width=0.5pt,
+      fill=hhpaper,
+      rounded corners=1.5pt,
+      inner xsep=4pt,
+      inner ysep=2.0pt
+    },
+    protoarrow/.style={
+      draw=pdcobalt,
+      line width=0.75pt,
+      ->,
+      >=Stealth
+    },
+    retarrow/.style={
+      draw=pdteal!80!black,
+      line width=0.75pt,
+      ->,
+      >=Stealth
+    }
+  }
+
+  % =========================================================================
+  % LEFT: CLIENT DISPATCH AGENT (Initiator: x in [0.1, 2.4])
+  % =========================================================================
+  \begin{scope}[shift={(1.25, 4.3)}]
+    \pdrobotbase[0.68]{(0, 0)}{pdcobalt}
+    \node[anchor=north, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.36) {%
+      Client Dispatch\\Agent%
+    };
+    \node[anchor=north, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}, align=center, text width=2.2cm] at (0, -0.92) {%
+      Orchestrates and\\issues structured\\directives%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % RIGHT: WORKER CONTRACTOR AGENT (Participant: x in [12.2, 14.5])
+  % =========================================================================
+  \begin{scope}[shift={(13.35, 4.3)}]
+    \pdrobotbase[0.68]{(0, 0)}{pdteal}
+    \node[anchor=north, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.36) {%
+      Worker Contractor\\Agent%
+    };
+    \node[anchor=north, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdteal!90!black}, align=center, draw=pdteal!60, fill=pdteal!8, rounded corners=1.5pt, inner xsep=4pt, inner ysep=2pt] at (0, -0.96) {%
+      Seatbelt Sandbox%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % CENTER: 3 SPEECH ACT PROTOCOLS (x in [2.6, 12.0])
+  % =========================================================================
+  \node[font=\fontsize{5.4}{6.4}\selectfont\bfseries\color{hhink}] at (7.3, 5.65) {%
+    Formal FIPA Speech Act Interaction Lifecycles%
+  };
+
+  % --- PROTOCOL 1: Directive `request` (Top: y = 4.8) ---
+  \draw[protocolbox] (2.6, 4.05) rectangle (12.0, 5.4);
+  \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdcobalt}] at (2.75, 5.22) {%
+    1. Directive Request Protocol%
+  };
+
+  % Nodes in Request
+  \node[actnode] (req_act) at (3.7, 4.65) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} request%
+  };
+  \node[acceptpill] (agree_act) at (5.5, 4.95) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} agree%
+  };
+  \node[rejectpill] (refuse_act) at (5.5, 4.35) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} refuse%
+  };
+  \node[evalnode] (exec_act) at (7.4, 4.95) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{hhink} execution%
+  };
+  \node[acceptpill] (done_act) at (9.3, 4.95) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} inform-done%
+  };
+  \node[rejectpill] (fail_act) at (9.3, 4.35) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} failure%
+  };
+
+  % Transitions
+  \draw[protoarrow] (req_act) to[out=20, in=180] (agree_act);
+  \draw[->, line width=0.7pt, pderror] (req_act) to[out=-20, in=180] (refuse_act);
+  \draw[protoarrow] (agree_act) -- (exec_act);
+  \draw[protoarrow] (exec_act) -- (done_act);
+  \draw[->, line width=0.7pt, pderror] (exec_act) to[out=-30, in=180] (fail_act);
+
+  % Bilateral connection lines
+  \draw[protoarrow] (2.05, 4.65) -- (req_act.west);
+  \draw[retarrow] (done_act.east) to[out=0, in=180] (12.55, 4.65);
+
+  % --- PROTOCOL 2: Assertive `inform` (Middle: y = 3.3) ---
+  \draw[protocolbox] (2.6, 2.85) rectangle (12.0, 3.9);
+  \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdteal!90!black}] at (2.75, 3.72) {%
+    2. Assertive Inform Protocol%
+  };
+
+  % Nodes in Inform
+  \node[actnode, fill=pdteal!90!black] (inf_act) at (4.0, 3.3) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} inform(p)%
+  };
+  \node[evalnode] (guard_act) at (6.6, 3.3) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{hhink} Context Guard Check%
+  };
+  \node[acceptpill] (belief_act) at (9.6, 3.3) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} Belief Base Update ($B \cup \{p\}$)%
+  };
+
+  \draw[protoarrow, draw=pdteal!90!black] (inf_act) -- (guard_act);
+  \draw[protoarrow, draw=pdteal!90!black] (guard_act) -- (belief_act);
+
+  % Bilateral connection
+  \draw[protoarrow, draw=pdteal!90!black] (2.05, 3.3) -- (inf_act.west);
+  \draw[retarrow] (belief_act.east) -- (12.55, 3.3);
+
+  % --- PROTOCOL 3: Commissive `propose` (Bottom: y = 1.95) ---
+  \draw[protocolbox] (2.6, 1.45) rectangle (12.0, 2.7);
+  \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdgold!90!black}] at (2.75, 2.52) {%
+    3. Commissive Propose Protocol%
+  };
+
+  % Nodes in Propose
+  \node[actnode, fill=pdgold!90!black] (prop_act) at (4.0, 1.95) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} propose%
+  };
+  \node[evalnode] (eval_act) at (6.6, 1.95) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{hhink} Utility Evaluation%
+  };
+  \node[acceptpill] (acc_prop) at (9.4, 2.25) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} accept-proposal%
+  };
+  \node[rejectpill] (rej_prop) at (9.4, 1.65) {%
+    \fontsize{4.0}{4.8}\selectfont\bfseries\color{white} reject-proposal%
+  };
+
+  \draw[protoarrow, draw=pdgold!90!black] (prop_act) -- (eval_act);
+  \draw[protoarrow, draw=pdhealth!90!black] (eval_act) to[out=20, in=180] (acc_prop);
+  \draw[->, line width=0.7pt, pderror] (eval_act) to[out=-20, in=180] (rej_prop);
+
+  % Bilateral connection
+  \draw[protoarrow, draw=pdgold!90!black] (2.05, 1.95) -- (prop_act.west);
+  \draw[retarrow] (acc_prop.east) to[out=0, in=180] (12.55, 2.05);
+
+  % =========================================================================
+  % BOTTOM: CRYPTOGRAPHIC ENVELOPE INSPECTION (x in [0.1, 14.5], y in [0.05, 1.25])
+  % =========================================================================
+  \draw[draw=pdcobalt!80!black, line width=0.75pt, fill=white, rounded corners=2.5pt] (0.1, 0.05) rectangle (14.5, 1.25);
+  \fill[fill=pdcobalt!90!black, rounded corners=1.5pt] (0.14, 0.96) rectangle (14.46, 1.21);
+  \node[anchor=center] at (7.3, 1.085) {%
+    \fontsize{4.8}{5.8}\selectfont\bfseries\color{white}CRYPTOGRAPHIC SPEECH ACT ENVELOPE SPECIFICATION%
+  };
+
+  % Envelope fields formatted as a structured packet inspector
+  \begin{scope}[shift={(0.3, 0.5)}]
+    % Header group
+    \node[draw=pdslate!50, fill=hhpaper, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\color{hhink}] at (0.9, 0) {performative};
+    \node[draw=pdslate!50, fill=hhpaper, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\color{hhink}] at (2.4, 0) {sender\_id};
+    \node[draw=pdslate!50, fill=hhpaper, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\color{hhink}] at (3.9, 0) {receiver\_id};
+    \node[draw=pdslate!50, fill=hhpaper, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\color{hhink}] at (5.6, 0) {conversation\_id};
+    \node[draw=pdslate!50, fill=hhpaper, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\color{hhink}] at (7.3, 0) {in\_reply\_to};
+    % Capability Token
+    \node[draw=pdcobalt, fill=pdcobalt!12, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\bfseries\color{pdcobalt}] at (9.2, 0) {capability\_token};
+    % Hash & Sig
+    \node[draw=pdteal!80!black, fill=pdteal!10, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\bfseries\color{pdteal!90!black}] at (11.2, 0) {sha256\_digest};
+    \node[draw=pdhealth!90!black, fill=pdhealth!10, rounded corners=1pt, font=\fontsize{3.8}{4.5}\selectfont\ttfamily\bfseries\color{pdhealth!90!black}] at (13.0, 0) {ed25519\_sig};
+  \end{scope}
+
+  \begin{scope}[shift={(0.3, 0.18)}]
+    \node[anchor=west, font=\fontsize{3.6}{4.4}\selectfont\color{hhgray!80!black}] at (0.1, 0) {%
+      \textbf{RFC-Grade Contract:}\ Monotonic nonce, sender-signed Ed25519 authentication, capability attenuation, and deterministic payload hashing.%
+    };
+  \end{scope}
+
+\end{tikzpicture}

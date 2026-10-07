@@ -1,0 +1,78 @@
+% Analytic phase plot; not deployment measurements.
+% Provenance: pinned-joint theorem and b1_frontier.py worked values.
+% Boundary/polygon regression: scripts/harbor-research/check_rate_regime.py.
+%
+% Figure brief
+% Stable ID: IV/fig:rate-regime (fig:rate-regime)
+% Reader question: for tolerated miss mass delta and flag budget f, is the
+%   point infeasible, positively priced, or already zero-rate?
+% Claim: the positive-rate wedge is bounded by f=p-delta and
+%   f=1-delta/p; the zero-rate boundary is shown only where it lies inside
+%   the panel, with its continuation above the panel explicitly marked.
+% Relation: quantitative threshold/phase boundary.
+% Required evidence: infeasible strip, positive-rate wedge, in-frame portion
+%   of the zero-rate boundary, continuation cue, and the three worked values.
+% Counter-reading: the top of the panel is not itself the zero-rate boundary;
+%   for delta<.03 the true boundary is above f=.4.
+% Visual grammar: source-owned phase plot; a single dashed continuation cue is
+%   used outside the panel, never as data.
+% Rejected alternative: min(1-delta/p,.4) as one plotted curve, because its
+%   horizontal clipping creates a false threshold at f=.4.
+
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=7.8cm,height=5.6cm,
+  xmin=0,xmax=0.05,ymin=0,ymax=0.4,
+  xtick={0,0.01,0.02,0.03,0.04,0.05},
+  ytick={0,0.05,0.10,0.20,0.30,0.40},
+  xlabel={tolerated miss mass $\delta$},
+  ylabel={flag budget $f$},
+  axis on top,clip=false]
+  % p=.05. The infeasibility floor is f=p-delta.
+  % Explicit closed region polygons. Their x-domains and vertices match the
+  % theorem geometry; draw=none prevents fill edges from becoming fake data.
+  \path[fill=pdfocus!24,draw=none]
+    (axis cs:0,0.05) -- (axis cs:0,0.4) --
+    (axis cs:0.03,0.4) -- (axis cs:0.03,0.02) -- cycle;
+  \path[fill=pdfocus!24,draw=none]
+    (axis cs:0.03,0.02) -- (axis cs:0.03,0.4) --
+    (axis cs:0.05,0) -- cycle;
+  \path[fill=pdinkmuted!7,draw=none]
+    (axis cs:0.03,0.4) -- (axis cs:0.05,0.4) --
+    (axis cs:0.05,0) -- cycle;
+  \path[fill=pdinkmuted!12,draw=none]
+    (axis cs:0,0) -- (axis cs:0,0.05) --
+    (axis cs:0.05,0) -- cycle;
+
+  % Boundary strokes. The zero-rate boundary is drawn only where it is in
+  % frame; its short dashed continuation follows the true slope above-left.
+  \addplot[pd rule,line width=.9pt,domain=0:0.05,samples=2] {0.05-x};
+  \addplot[pd focus rule,line width=1.05pt,domain=0.03:0.05,samples=60]
+    {1-x/0.05};
+  \draw[pd focus rule,dash pattern=on 2pt off 1.8pt,->]
+    (axis cs:0.03,0.4) -- (axis cs:0.028,0.44);
+  \node[pd focus label,anchor=south west]
+    at (axis cs:0.005,0.405) {continues above};
+
+  \node[pd label,anchor=west] at (axis cs:0.001,0.022) {infeasible};
+  \node[pd label,anchor=west] at (axis cs:0.006,0.28) {$R(\delta,f)>0$};
+  \node[pd focus label,anchor=north west] at (axis cs:0.037,0.35) {rate $=0$};
+
+  % The three worked values, retained from the active source.
+  \node[pd focus datum] at (axis cs:0,0.05) {};
+  \node[pd focus label,anchor=south west] at (axis cs:0.0015,0.075) {$H(p){=}0.2864$};
+  \node[pd datum] at (axis cs:0,0.10) {};
+  \node[pd label,anchor=south west] at (axis cs:0.0015,0.115) {$R{=}0.1864$};
+  \node[pd datum] at (axis cs:0.04,0.06) {};
+  \draw[pd guide] (axis cs:0.04,0.06) -- (axis cs:0.033,0.10);
+  \node[pd label,anchor=south west] at (axis cs:0.021,0.095) {$R{=}0.0087$};
+\end{axis}
+\end{tikzpicture}
+\caption{At $p=.05$, the positive-rate wedge lies between
+$f=p-\delta$ and $f=1-\delta/p$; the zero-rate boundary enters at
+$(.03,.4)$ and continues above-left outside the panel.}
+\label{fig:rate-regime}
+\end{figure}

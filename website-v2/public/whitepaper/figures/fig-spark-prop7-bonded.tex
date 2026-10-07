@@ -1,0 +1,140 @@
+% fig-spark-prop7-bonded.tex
+% Proposition 7: Bonded Execution & Liquidated Damages
+% 100% native vector Swiss TikZ spatial replica of fig-spark-prop7-bonded.jpg.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    stagecard/.style={draw=pdslate!80!black,line width=0.7pt,fill=white,rounded corners=2.5pt},
+    stageheader/.style={font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{white},inner sep=3pt,rounded corners=2pt},
+    sublabel/.style={font=\fontsize{4.6}{5.6}\selectfont\bfseries\color{hhink},align=center},
+    tinylabel/.style={font=\fontsize{4.0}{4.8}\selectfont\color{hhgray!90!black},align=center}
+  }
+
+  % =========================================================================
+  % CARD 1: 1. BONDED STAKE DEPOSIT (x in [0.1, 2.9], y in [1.5, 5.1])
+  % =========================================================================
+  \draw[stagecard] (0.1, 1.5) rectangle (2.9, 5.1);
+  % Header
+  \draw[fill=hhink!95,draw=none,rounded corners=2pt] (0.1, 4.65) rectangle (2.9, 5.1);
+  \node[anchor=west,font=\fontsize{4.4}{5.4}\selectfont\bfseries\color{white}] at (0.18, 4.87) {1. BONDED STAKE DEPOSIT};
+  \pdiconshieldcheck[0.45]{(2.7, 4.87)}
+
+  % Agent Robot
+  \pdrobotbase[0.55]{(0.7, 3.25)}{pdcobalt}
+  \node[sublabel] at (0.7, 2.45) {AGENT};
+
+  % Arrow: Stake
+  \draw[pd arrow,line width=0.8pt,hhink] (1.15, 3.25) -- (1.65, 3.25);
+  \node[sublabel] at (1.4, 3.5) {STAKE};
+
+  % Bonded Commons Pool (Coins Stack)
+  \pdiconcoinstall[0.85]{(2.15, 3.25)}
+  \node[sublabel] at (2.15, 2.40) {BONDED\\COMMONS\\POOL};
+
+  % Arrow Card 1 -> Card 2
+  \draw[pd arrow,line width=1.0pt,hhink] (2.9, 3.3) -- (3.35, 3.3);
+
+  % =========================================================================
+  % CARD 2: 2. RANDOMIZED AUDIT INSPECTION (x in [3.35, 6.35], y in [1.5, 5.1])
+  % =========================================================================
+  \draw[stagecard,draw=pdteal!85!black] (3.35, 1.5) rectangle (6.35, 5.1);
+  % Header
+  \draw[fill=pdteal!85!black,draw=none,rounded corners=2pt] (3.35, 4.65) rectangle (6.35, 5.1);
+  \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{white}] at (3.45, 4.87) {2. RANDOMIZED AUDIT};
+  \pdiconmagnifier[0.5]{(6.1, 4.87)}
+
+  % Agent Selection Block
+  \draw[line width=0.8pt,pdteal!85!black] (3.6, 4.1) -- (3.9, 4.1);
+  \draw[line width=0.8pt,pdteal!85!black] (3.9, 4.3) -- (3.9, 3.9);
+  \draw[line width=0.6pt,pdteal!85!black] (3.9, 4.3) -- (4.15, 4.3);
+  \draw[line width=0.6pt,pdteal!85!black] (3.9, 4.1) -- (4.15, 4.1);
+  \draw[line width=0.6pt,pdteal!85!black] (3.9, 3.9) -- (4.15, 3.9);
+  \draw[fill=pdteal!20,draw=pdteal!85!black,line width=0.4pt] (4.15, 4.23) rectangle (4.32, 4.37);
+  \draw[fill=pdteal!20,draw=pdteal!85!black,line width=0.4pt] (4.15, 4.03) rectangle (4.32, 4.17);
+  \draw[fill=pdteal!20,draw=pdteal!85!black,line width=0.4pt] (4.15, 3.83) rectangle (4.32, 3.97);
+  \node[anchor=west,sublabel] at (4.45, 4.1) {AGENT\\SELECTION};
+
+  % Independent Witness Verifiers
+  \pdrobotbase[0.45]{(4.35, 3.05)}{pdteal}
+  \pdrobotbase[0.45]{(5.35, 3.05)}{pdrust}
+  \draw[fill=white,draw=pdteal!80!black,line width=0.4pt] (4.0, 3.2) circle (0.12);
+  \fill[pdteal!80!black] (4.0, 3.2) circle (0.05);
+  \draw[fill=white,draw=pdteal!80!black,line width=0.4pt] (4.25, 3.2) circle (0.12);
+  \fill[pdteal!80!black] (4.25, 3.2) circle (0.05);
+  \node[sublabel] at (4.85, 2.45) {INDEPENDENT\\WITNESS VERIFIERS};
+  \node[tinylabel] at (4.85, 1.95) {OBJECTIVE SCRUTINY\\AND VERIFICATION};
+
+  % Arrow Card 2 -> Card 3
+  \draw[pd arrow,line width=1.0pt,pdteal!85!black] (6.35, 3.3) -- (6.8, 3.3);
+
+  % =========================================================================
+  % CARD 3: 3. CONTEST & APPEAL ARBITRATION (x in [6.8, 9.8], y in [1.5, 5.1])
+  % =========================================================================
+  \draw[stagecard,draw=pdrust!85!black] (6.8, 1.5) rectangle (9.8, 5.1);
+  % Header
+  \draw[fill=pdrust!90!black,draw=none,rounded corners=2pt] (6.8, 4.65) rectangle (9.8, 5.1);
+  \node[anchor=west,font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{white}] at (6.9, 4.87) {3. CONTEST \& APPEAL COURT};
+
+  % Contested Claims & Arbitration
+  \node[sublabel] at (7.5, 4.25) {CONTESTED\\CLAIMS};
+  \draw[pd arrow,line width=0.7pt,hhink] (7.5, 3.9) |- (8.1, 3.4);
+  \pdiconarbitration[0.9]{(8.85, 3.45)}
+  \node[sublabel] at (8.3, 2.65) {NEUTRAL\\ARBITRATION};
+  \node[tinylabel] at (8.3, 1.95) {DUE PROCESS \&\\ADJUDICATION};
+
+  % Forking arrows from Card 3 to Outcomes
+  \draw[pd arrow,line width=1.0pt,pdcobalt] (9.8, 3.8) -- (10.25, 3.8) |- (10.4, 4.1);
+  \draw[pd arrow,line width=1.0pt,pderror] (9.8, 2.6) -- (10.25, 2.6) |- (10.4, 2.1);
+
+  % =========================================================================
+  % OUTCOME 1: VALID OUTCOME (Top Right, x in [10.4, 13.5], y in [2.9, 5.1])
+  % =========================================================================
+  \draw[stagecard,draw=pdcobalt!85!black] (10.4, 2.85) rectangle (13.5, 5.1);
+  \draw[fill=pdcobalt!90!black,draw=none,rounded corners=2pt] (10.4, 4.65) rectangle (13.5, 5.1);
+  \node[anchor=west,font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{white}] at (10.55, 4.87) {VALID OUTCOME};
+  \pdiconshieldcheck[0.45]{(13.25, 4.87)}
+
+  \node[font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{pdcobalt!90!black},align=center] at (11.95, 4.35) {BOND RELEASED TO WORKER};
+  \pdrobotbase[0.45]{(10.95, 3.55)}{pdcobalt}
+  \node[sublabel] at (10.95, 3.1) {AGENT};
+
+  \draw[pd arrow,line width=0.8pt,hhink] (11.45, 3.55) -- (11.95, 3.55);
+
+  \pdiconcoinstall[0.75]{(12.5, 3.55)}
+  \node[sublabel] at (12.5, 3.1) {REWARDS};
+
+  % =========================================================================
+  % OUTCOME 2: DEFECT / HARM (x in [10.4, 13.5], y in [1.5, 2.65])
+  % =========================================================================
+  \draw[stagecard,draw=pderror!90!black] (10.4, 1.5) rectangle (13.5, 2.65);
+  \draw[fill=pderror!90!black,draw=none,rounded corners=2pt] (10.4, 2.25) rectangle (13.5, 2.65);
+  \node[anchor=west,font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{white}] at (10.55, 2.45) {DEFECT / HARM};
+  \pdiconcrash[0.45]{(13.25, 2.45)}
+
+  \node[sublabel,pderror!90!black] at (11.95, 1.85) {BREACH DETECTED};
+
+  % Slashed Stake & Remedy workflow below (y in [0.05, 1.35])
+  \draw[stagecard,draw=pderror!70!black,dashed,fill=pdpage!30] (3.35, 0.05) rectangle (13.5, 1.35);
+
+  % Connector from Defect card down into remediation tray
+  \draw[line width=0.8pt,pderror,pd arrow] (10.4, 1.7) -| (3.15, 0.7) -- (3.35, 0.7);
+
+  % Step A: Stake Slashed
+  \pdiconcoinslashed[0.7]{(4.45, 0.75)}
+  \node[sublabel,color=pderror!90!black] at (4.45, 0.25) {STAKE SLASHED};
+
+  \draw[pd arrow,line width=0.8pt,pderror] (5.45, 0.75) -- (6.05, 0.75);
+
+  % Step B: Compensation
+  \pdiconcash[0.8]{(7.45, 0.75)}
+  \node[sublabel] at (7.45, 0.25) {COMPENSATION TO PARTIES};
+
+  \draw[pd arrow,line width=0.8pt,pderror] (8.9, 0.75) -- (9.5, 0.75);
+
+  % Step C: Remedy
+  \pdicongrouppeople[0.75]{(11.2, 0.75)}
+  \node[sublabel,color=pdteal!90!black] at (11.2, 0.25) {REMEDY: HARM RECTIFIED};
+
+\end{tikzpicture}

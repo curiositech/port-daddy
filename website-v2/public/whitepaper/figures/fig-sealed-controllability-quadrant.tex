@@ -1,0 +1,71 @@
+% Fragment: fig-sealed-controllability-quadrant.tex -- the room's candidate
+% policies on controllability x witnessing, including the structurally empty
+% cell implied by complete mediation.
+%
+% Reader question: which candidate safety policies can the mediation layer
+% enforce, which can it only watch, and why is one quadrant impossible?
+% Claim: a policy is regimentable exactly when its enforcement event is both
+% controllable and witnessed; under complete mediation, controllable but
+% unwitnessed is structurally empty because every controlled attempt crosses a
+% gate that witnesses it.
+% Evidence: Table sealed-policy-classification and the controllability theorem
+% paragraph, website-v2/public/whitepaper/sealed-harbor.tex,
+% Sec. sealed-enforceability [internal, b3_controllability.py].
+% Must distinguish: the regimentable upper-right cell; the two detect-only
+% cells; the impossible upper-left cell; and the compound rule's witnessed
+% trigger from its later controllable enforcement point.
+% Grammar chosen: the reused controllability x witnessing quadrant, with the
+% logically impossible cell encoded as a neutral filled region rather than
+% left as unexplained white space.
+% Grammar rejected: a three-cell triangle, which would hide the logical
+% implication by deleting the coordinate combination it rules out.
+% Five-second test: point to the impossible cell and say why it is empty.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  cell/.style={pd label,align=center,text width=4.5cm}]
+  \def\W{9.6}  \def\H{7.6}
+  \draw[pd neutral fill] (0,\H/2) rectangle (\W/2,\H);
+  \draw[pd focus fill] (\W/2,\H/2) rectangle (\W,\H);
+  \draw[pd rule] (0,0) rectangle (\W,\H);
+  \draw[pd rule] (\W/2,0) -- (\W/2,\H);
+  \draw[pd rule] (0,\H/2) -- (\W,\H/2);
+  \node[pd label,anchor=north,text width=8.9cm] at (\W/2,-0.25)
+    {the event is witnessed at the mediation boundary};
+  \node[pd label] at (\W/4,{\H+0.45}) {no};
+  \node[pd label] at ({3*\W/4},{\H+0.45}) {yes};
+  \node[pd label,rotate=90,anchor=south,text width=6.2cm]
+    at (-0.55,\H/2) {the event is controllable: the gate can veto it};
+  \node[pd label,rotate=90] at (-0.20,{3*\H/4}) {yes};
+  \node[pd label,rotate=90] at (-0.20,{\H/4}) {no};
+
+  \node[pd kind,text width=4.0cm] at (\W/4,7.02)
+    {controllable but not witnessed};
+  \node[pd title,text width=3.8cm] at (\W/4,6.22)
+    {invalid under complete mediation};
+  \node[pd label,text width=3.8cm] at (\W/4,5.10)
+    {every gate-controlled attempt is witnessed at that gate};
+  \node[pd title] at ({3*\W/4},6.88) {regimentable};
+  \node[cell,text width=4.3cm] at ({3*\W/4},5.78)
+    {\texttt{fs\_write}: outside workroom\\[2pt]
+     \texttt{net\_egress}: bypassing slot};
+  \node[pd title] at (\W/4,2.40) {detect-only};
+  \node[cell] at (\W/4,1.25)
+    {\texttt{internal\_plan}: never plan an exfiltration};
+  \node[pd title] at ({3*\W/4},1.85) {detect-only};
+  \node[cell,text width=4.2cm] at ({3*\W/4},0.82)
+    {\texttt{model\_emit\_token}: never emit a token naming a secret};
+  \node[pd state,text width=3.0cm] (TRIG) at ({3*\W/4},3.08)
+    {\texttt{in\_context\_read} of a secret};
+  \node[pd focus state,text width=3.0cm] (COMP) at ({3*\W/4},4.48)
+    {\textbf{compound rule}: gates \texttt{net\_egress}};
+  \draw[pd focus arrow] (TRIG) -- (COMP);
+\end{tikzpicture}
+\caption{Room events on controllability $\times$ witnessing. Complete
+mediation makes the upper-left cell invalid: every gate-controlled event is
+witnessed. The compound rule watches the read, then vetoes
+\texttt{net\_egress}.
+[internal, \texttt{b3\_controllability.py}]}
+\label{fig:sealed-controllability-quadrant}
+\end{figure}

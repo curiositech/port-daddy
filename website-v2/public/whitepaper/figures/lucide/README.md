@@ -1,24 +1,22 @@
-# Protocol frame icon dependencies
+# Book semantic icons
 
-Nine unmodified SVGs from [Lucide commit 951813ce76a859d4d8b145366972cbb237147a4e](https://github.com/lucide-icons/lucide/tree/951813ce76a859d4d8b145366972cbb237147a4e/icons).
-The complete pinned LICENSE carries Lucide ISC and applicable Feather MIT notices;
-retain LICENSE, LICENSE.lucide.txt, and LICENSE.feather.txt in both source mirrors.
+Unmodified SVGs from Lucide commit `951813ce76a859d4d8b145366972cbb237147a4e`.
+Source: https://github.com/lucide-icons/lucide/tree/951813ce76a859d4d8b145366972cbb237147a4e/icons
+The accompanying LICENSE includes ISC and applicable Feather MIT notices.
 
-The shared helper references book-open, calculator, file-text, flask-conical,
-key-round, list-checks, lock-keyhole, scroll-text, and workflow. All nine travel
-with the helper, although this checkpoint activates only the Protocol/workflow
-family. It does not adopt terminal styling or broader semantic changes.
+Vector PDFs are generated with librsvg's `rsvg-convert --format=pdf1.5`.
+Rebuild with `bash scripts/harbor-research/vendor_lucide_book_icons.sh`.
+No custom icon approximations are used. The shared helper places each icon at
+12pt, independently of the block's semantic color and original text label.
 
-SVGs are the upstream sources. PDFs are vector rendering inputs, mirrored
-byte-for-byte in whitepaper/figures/lucide. The helper uses 12-point glyphs.
-The workflow icon is black currentColor inside the copper protocol frame.
+Mappings: scroll-text = theorem/lemma/proposition/corollary; book-open =
+definition; key-round = property; flask-conical = empirical hypothesis and
+conjecture; lock-keyhole = design invariant; calculator = numbers by hand;
+list-checks = model-checked property; file-text = neutral fallback.
+Protocols use workflow from the same pinned revision. The connected steps
+identify a procedure, not a proof or an implementation-status claim.
 
-From repository root, verify pinned upstream sources and rebuild into a NEW
-persistent directory (requires curl and librsvg):
-
-    bash scripts/harbor-research/vendor_lucide_book_icons.sh .cache/protocol-icons-review
-
-Expected output: nine verified SVGs, nine regenerated PDFs, complete notices,
-and the converter version in the named directory. The recipe never overwrites
-checked-in assets. Conversion bytes can vary by librsvg/Cairo version; the
-checkpoint manifest hashes the actual frozen PDF bytes.
+Terminal transcripts use `terminal` from the same pinned commit. Its full
+Feather MIT notice is included in LICENSE alongside Lucide ISC. The terminal
+frame fixture converts this SVG into its own build directory; no source
+assets or live services are modified by that test.

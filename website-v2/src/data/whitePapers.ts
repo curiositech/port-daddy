@@ -111,7 +111,7 @@ export interface WhitePaper {
    * must agree with it, and the data test checks that it does.
    */
   chapter: number
-  /** First-edition numbering (I–VII), kept only for the concordance. */
+  /** First-edition numbering (I–VII), retained as historical citation metadata. */
   formerNumeral: string
   /** The part this chapter belongs to (a part id from textbook.json). */
   part: string
@@ -259,8 +259,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 592,
-  sizeKb: 9714,
+  pages: 813,
+  sizeKb: 10187,
   references: 221,
   // No `editions` while the Book publishes only its central edition. See the
   // CollectedVolumeEdition doc comment above.
@@ -1401,7 +1401,7 @@ export function findWhitePaperByChapter(chapter: number) {
   return WHITE_PAPERS.find((paper) => paper.chapter === chapter)
 }
 
-/** Resolve a first-edition numeral (I–VII) to its chapter, for the concordance. */
+/** Resolve a historical first-edition numeral (I–VII) to its current chapter. */
 export function findWhitePaperByFormerNumeral(numeral: string) {
   return WHITE_PAPERS.find((paper) => paper.formerNumeral === numeral)
 }

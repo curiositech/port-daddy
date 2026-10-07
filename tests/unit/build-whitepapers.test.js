@@ -6,6 +6,13 @@ import { join } from 'node:path';
 
 const repoRoot = process.cwd();
 const buildScript = join(repoRoot, 'scripts', 'build-whitepapers.sh');
+const fragmentCompiler = join(
+  repoRoot,
+  'skills',
+  'harbor-chartwork',
+  'scripts',
+  'compile_fragment.sh',
+);
 
 function bashFunction(functionName, ...args) {
   return execFileSync(
@@ -43,7 +50,7 @@ describe('reproducible whitepaper source scoping', () => {
     // and pd-discharges.tex -- which arrived with the margin citations and the
     // discharge pointers. The chapter did not grow a figure; its apparatus grew
     // a dependency, and paper_sources is right to follow it transitively.
-    expect(sources).toHaveLength(19);
+    expect(sources).toHaveLength(27);
     for (const generated of [
       'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
       'website-v2/public/whitepaper/figures/pd-discharges.tex',
@@ -67,6 +74,7 @@ describe('reproducible whitepaper source scoping', () => {
     // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-')
+        || source.includes('/figures/spark-stp-')
         || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
         || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
@@ -189,6 +197,34 @@ describe('reproducible whitepaper source scoping', () => {
       pdf.includes('coordination-papers-mega-volume'),
     );
     expect(megaVolumeRoots).toEqual([`${pub}/coordination-papers-mega-volume.pdf`]);
+  });
+
+  test('standalone chapter PDF targets fail closed', () => {
+    const result = spawnSync('/bin/bash', [buildScript, 'spawn-to-person'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('not a Book target; chapter PDFs are retired');
+  });
+
+  test('figure QA rejects the retired chapter preamble', () => {
+    const result = spawnSync(
+      '/bin/bash',
+      [
+        fragmentCompiler,
+        'whitepaper/figures/fig-swk-stack-map.tex',
+        '--preamble',
+        'chapter',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain(
+      'chapter preambles are retired; Book figures must use --preamble book',
+    );
   });
 
   // Swiss is the Book's central edition: \pdedition defaults to it in the
