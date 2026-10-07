@@ -35,10 +35,15 @@ export function localRuntimePostureInput(state: LocalRuntimeControlState): Runti
 }
 
 /**
- * Hosted release-candidate tests exercise an isolated staged binary, not the
- * operator's installed runtime. Their explicit control root is accepted only
- * under the full test/CI contract; ordinary processes cannot use PD_HOME to
- * hide the canonical operator stop markers.
+ * Resolves the explicit canonical control root when hosted release-candidate
+ * tests exercise an isolated staged binary.
+ *
+ * Motivation and design: Under the full CI test contract, tests must isolate
+ * their control plane without allowing ordinary processes to bypass operator
+ * stop markers via arbitrary PD_HOME overrides.
+ *
+ * @param env Process environment variables to inspect.
+ * @returns Absolute path to isolated control root if valid contract is met, otherwise undefined.
  */
 function isolatedTestCanonicalRoot(env: NodeJS.ProcessEnv): string | undefined {
   const root = env.PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT;

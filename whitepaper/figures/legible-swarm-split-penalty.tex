@@ -1,14 +1,24 @@
-% Super-additive split penalty (Thm.~\ref{thm:split-penalty}): the joint
-% zero-miss floor over disjoint successor/operator critical sets grows faster
-% than twice the single-reader floor, and the gap widens with the critical-set
-% size k. Both curves are the theorem's own closed form
-% Floor(N,2k,m)/(2*Floor(N,k,m)) at N=60, evaluated at every integer k in its
-% domain (2k<=m); the m=8 series reproduces the four values the theorem states
-% in prose (1.029, 1.067, 1.122, 1.224) and the m=20 endpoint reproduces its
-% stated 1.392 at k=10 -- no simulated or invented points, only the closed
-% form the chapter already commits to. [internal; analytic]
+% Brief (tikz-diagram-craft), register row ch4-48.
+% Reader question: as each readers critical set grows, how much worse than
+%   just doubling the single-reader floor does running two separate digest
+%   heads actually get?
+% Claim: the split penalty Floor(N,2k,m)/(2 Floor(N,k,m)) is always above 1
+%   and grows without bound in k, not a fixed band; at N=60,m=8 it runs
+%   1.029 to 1.224 over k=1..4, and at N=60,m=20 it reaches 1.392 by k=10.
+% Evidence: penalty(60,k,8) for k=1..4 = 1.029,1.067,1.122,1.224; and
+%   penalty(60,10,20)=1.392 [verified, closed form, this pass].
+% Must distinguish: the two review-budget curves (m=8, m=20); that neither
+%   curve ever returns to the naive-doubling ratio of 1.
+% Grammar chosen: measured-quantity plot, penalty ratio against k, two
+%   review-budget curves (m=8, m=20), a naive-doubling guide at ratio=1.
+% Grammar rejected: a bar chart at the named k values would state the
+%   numbers without showing the trend is monotone and unbounded in k, which
+%   is the theorems own content, not a property of five named points alone.
+% Five-second test: does the m=20 curve ever dip back toward the naive
+%   doubling line as k grows, or only move further from it?
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[
   width=\linewidth, height=0.62\linewidth,
