@@ -684,8 +684,6 @@
   \renewcommand{\pdcurrentchapter}{#1}%
   \renewcommand{\pdchapterprefix}{#3}%
   \renewcommand{\pdcurrentchaptercolor}{#4}%
-  \renewcommand{\pdchapterepigraph}{\csname pdchapterepigraphof\pdchapterprefix\endcsname}%
-  \renewcommand{\pdchapterepigraphsource}{\csname pdchapterepigraphsourceof\pdchapterprefix\endcsname}%
   \setcounter{pdchapter}{#1}\addtocounter{pdchapter}{-1}\refstepcounter{pdchapter}%
   \label{chap:#3}%
   \addcontentsline{toc}{chapter}{\protect\numberline{#1}#2}%
