@@ -10,6 +10,7 @@ import {
   buildReadyRequest,
   buildRequestReviewersRequest,
   buildReviewReplyRequest,
+  buildResolveReviewThreadRequest,
   buildReceiptRecoveryEnvelope,
   buildRecoveryManifest,
   grantReadHeaders,
@@ -174,6 +175,7 @@ describe('fleetbot workload client', () => {
         repositories: ['curiositech/port-daddy'],
         operations: [
           'pull-request.review-reply',
+          'pull-request.resolve-review-thread',
           'pull-request.ready',
           'pull-request.request-reviewers',
           'pull-request.enqueue',
@@ -190,6 +192,7 @@ describe('fleetbot workload client', () => {
     const sharedKeys = ['baseBranch', 'baseSha', 'expectedGithubHeadSha', 'pullRequestNumber']
     const cases = [
       [buildReviewReplyRequest({ ...common, body: 'Addressed.', commentId: 42 }), [...sharedKeys, 'body', 'commentId']],
+      [buildResolveReviewThreadRequest({ ...common, threadId: 'PRRT_exact_thread' }), [...sharedKeys, 'threadId']],
       [buildReadyRequest(common), sharedKeys],
       [buildRequestReviewersRequest({ ...common, reviewers: ['z-user', 'A-user', 'a-user'], teamReviewers: ['Core-Team', 'core-team'] }), [...sharedKeys, 'reviewers', 'teamReviewers']],
       [buildEnqueueRequest(common), sharedKeys],
@@ -199,8 +202,8 @@ describe('fleetbot workload client', () => {
       assert.equal(request.capability.operation, request.operation)
       assert.equal(request.capability.requestHash, request.idempotencyKey.slice('pd-gh-'.length))
     }
-    assert.deepEqual(cases[2][0].payload.reviewers, ['a-user', 'z-user'])
-    assert.deepEqual(cases[2][0].payload.teamReviewers, ['core-team'])
+    assert.deepEqual(cases[3][0].payload.reviewers, ['a-user', 'z-user'])
+    assert.deepEqual(cases[3][0].payload.teamReviewers, ['core-team'])
   })
 
   it('fails closed on hostile operation-specific inputs before signing', () => {
@@ -211,7 +214,7 @@ describe('fleetbot workload client', () => {
         grantEpoch: 8,
         signingKeyGeneration: 4,
         repositories: ['curiositech/port-daddy'],
-        operations: ['pull-request.review-reply', 'pull-request.request-reviewers'],
+        operations: ['pull-request.review-reply', 'pull-request.resolve-review-thread', 'pull-request.request-reviewers'],
       },
       repository: 'curiositech/port-daddy',
       pullRequest: { number: 1, base: { ref: 'main', sha: '1'.repeat(40) }, head: { ref: 'x', sha: '2'.repeat(40) } },
@@ -221,6 +224,8 @@ describe('fleetbot workload client', () => {
     const cases = [
       [() => buildReviewReplyRequest({ ...common, body: 'reply', commentId: 0 }), /positive integer/],
       [() => buildReviewReplyRequest({ ...common, body: 'reply', commentId: Number.MAX_SAFE_INTEGER + 1 }), /positive integer/],
+      [() => buildResolveReviewThreadRequest({ ...common, threadId: '' }), /FLEETBOT_REVIEW_THREAD_ID is missing or malformed/],
+      [() => buildResolveReviewThreadRequest({ ...common, threadId: 'thread with spaces' }), /FLEETBOT_REVIEW_THREAD_ID is missing or malformed/],
       [() => buildRequestReviewersRequest({ ...common, reviewers: [], teamReviewers: [] }), /at least one reviewer/],
       [() => buildRequestReviewersRequest({ ...common, reviewers: ['unsafe name'], teamReviewers: [] }), /safe identifiers/],
       [() => buildRequestReviewersRequest({ ...common, reviewers: Array.from({ length: 21 }, (_, index) => `user-${index}`), teamReviewers: [] }), /at most 20/],
@@ -334,6 +339,13 @@ describe('fleetbot workload client', () => {
         result: 'created',
         env: { FLEETBOT_COMMENT_BODY: 'Addressed.', FLEETBOT_REVIEW_COMMENT_ID: '42' },
         assertPayload: (payload) => assert.deepEqual({ body: payload.body, commentId: payload.commentId }, { body: 'Addressed.', commentId: 42 }),
+      },
+      {
+        command: 'resolve-review-thread',
+        operation: 'pull-request.resolve-review-thread',
+        result: 'updated',
+        env: { FLEETBOT_REVIEW_THREAD_ID: 'PRRT_exact_thread' },
+        assertPayload: (payload) => assert.deepEqual({ threadId: payload.threadId }, { threadId: 'PRRT_exact_thread' }),
       },
       { command: 'ready', operation: 'pull-request.ready', result: 'updated' },
       {
@@ -861,7 +873,7 @@ describe('fleetbot workload client', () => {
   it('keeps the first write workflow manual, protected, typed, and credential-separated', () => {
     const workflow = readFileSync(new URL('../.github/workflows/fleetbot-actuator.yml', import.meta.url), 'utf8')
     assert.match(workflow, /workflow_dispatch:/)
-    assert.match(workflow, /options:\n          - publish\n          - comment\n          - review-reply\n          - ready\n          - request-reviewers\n          - enqueue/)
+    assert.match(workflow, /options:\n          - publish\n          - comment\n          - review-reply\n          - resolve-review-thread\n          - ready\n          - request-reviewers\n          - enqueue/)
     assert.match(workflow, /environment: fleetbot-workload/)
     assert.match(workflow, /main-ref-gate:/)
     assert.match(workflow, /needs: main-ref-gate/)
@@ -876,6 +888,7 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /FLEETBOT_SESSION_ID:.*inputs\.session_id/)
     assert.match(workflow, /FLEETBOT_ACTOR_ID: github-user:\$\{\{ github\.actor_id \}\}/)
     assert.match(workflow, /FLEETBOT_REVIEW_COMMENT_ID:.*inputs\.review_comment_id/)
+    assert.match(workflow, /FLEETBOT_REVIEW_THREAD_ID:.*inputs\.review_thread_id/)
     assert.match(workflow, /FLEETBOT_REVIEWERS_JSON:.*inputs\.reviewers_json/)
     assert.match(workflow, /FLEETBOT_TEAM_REVIEWERS_JSON:.*inputs\.team_reviewers_json/)
     assert.match(workflow, /if: github\.run_attempt == 1/)

@@ -86,7 +86,8 @@ deny the agent account access to its keychain, private key, and service secrets.
 2. Prepare the exact structured operation. Supported contract operations are
    `pull-request.publish`, `pull-request.update`, `pull-request.ready`,
    `pull-request.request-reviewers`, `pull-request.comment`,
-   `pull-request.review-reply`, `pull-request.enqueue`, and
+   `pull-request.review-reply`, `pull-request.resolve-review-thread`,
+   `pull-request.enqueue`, and
    `pull-request.inspect`.
 3. Submit it only through the configured Fleetbot actuator. The canonical
    contract is `lib/github-publisher-contract.ts`; the protected Relay executor

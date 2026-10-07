@@ -134,12 +134,17 @@ interface MessagePayload extends ExistingPayload {
   commentId?: number;
 }
 
+interface ResolveReviewThreadPayload extends ExistingPayload {
+  threadId: string;
+}
+
 type ParsedPayload =
   | PublishPayload
   | UpdatePayload
   | ExistingPayload
   | ReviewersPayload
-  | MessagePayload;
+  | MessagePayload
+  | ResolveReviewThreadPayload;
 
 interface IntentKey {
   accountUserId: string;
@@ -404,6 +409,13 @@ function parsePayload(operation: FleetbotOperation, value: unknown, authorship: 
     if (operation === 'pull-request.review-reply') result.commentId = positiveInteger(payload.commentId, 'commentId');
     return result;
   }
+  if (operation === 'pull-request.resolve-review-thread') {
+    exactKeys(['baseBranch', 'baseSha', 'pullRequestNumber', 'expectedGithubHeadSha', 'threadId']);
+    if (!isSafePublisherIdentifier(payload.threadId)) {
+      failure('INVALID_REQUEST', 400, 'threadId is invalid');
+    }
+    return { ...existing, threadId: payload.threadId };
+  }
   exactKeys(['baseBranch', 'baseSha', 'pullRequestNumber', 'expectedGithubHeadSha']);
   return existing;
 }
@@ -457,6 +469,7 @@ function parseRequest(value: unknown): {
     'pull-request.request-reviewers',
     'pull-request.comment',
     'pull-request.review-reply',
+    'pull-request.resolve-review-thread',
     'pull-request.enqueue',
     'pull-request.inspect',
   ];
@@ -556,7 +569,8 @@ function parseReceiptRecoveryEnvelope(value: unknown, now: number): FleetbotRece
   const operations: FleetbotOperation[] = [
     'pull-request.publish', 'pull-request.update', 'pull-request.ready',
     'pull-request.request-reviewers', 'pull-request.comment',
-    'pull-request.review-reply', 'pull-request.enqueue', 'pull-request.inspect',
+    'pull-request.review-reply', 'pull-request.resolve-review-thread',
+    'pull-request.enqueue', 'pull-request.inspect',
   ];
   if (!envelope || JSON.stringify(envelopeKeys) !== JSON.stringify(['proof', 'proofSignature'])
       || typeof envelope.proofSignature !== 'string' || !/^[0-9a-f]{128}$/i.test(envelope.proofSignature)
@@ -1519,9 +1533,46 @@ async function listIssueComments(
   return listAllPages(`${GH_API}/repos/${owner}/${repo}/issues/${number}/comments`, token);
 }
 
+interface ReviewThreadWitness {
+  id: string;
+  isResolved: boolean;
+  viewerCanResolve: boolean;
+  pullRequest: {
+    number: number;
+    headRefOid: string;
+    repository: { nameWithOwner: string };
+  };
+}
+
+async function exactReviewThread(
+  token: string,
+  threadId: string,
+  repository: string,
+  pullRequestNumber: number,
+  expectedHeadSha: string,
+): Promise<ReviewThreadWitness> {
+  type ThreadData = {
+    node?: ({ __typename?: string } & Partial<ReviewThreadWitness>) | null;
+  };
+  const data = await graphql<ThreadData>(token,
+    'query($id:ID!){node(id:$id){__typename ... on PullRequestReviewThread{id isResolved viewerCanResolve pullRequest{number headRefOid repository{nameWithOwner}}}}}',
+    { id: threadId });
+  const thread = data.node;
+  if (thread?.__typename !== 'PullRequestReviewThread'
+      || thread.id !== threadId
+      || typeof thread.isResolved !== 'boolean'
+      || typeof thread.viewerCanResolve !== 'boolean'
+      || thread.pullRequest?.number !== pullRequestNumber
+      || thread.pullRequest.repository?.nameWithOwner?.toLowerCase() !== repository
+      || thread.pullRequest.headRefOid?.toLowerCase() !== expectedHeadSha) {
+    failure('REVIEW_THREAD_SCOPE_CHANGED', 409, 'review thread no longer belongs to the exact pull request head');
+  }
+  return thread as ReviewThreadWitness;
+}
+
 async function executeExisting(
   request: FleetbotActionRequest,
-  payload: ExistingPayload | ReviewersPayload | MessagePayload,
+  payload: ExistingPayload | ReviewersPayload | MessagePayload | ResolveReviewThreadPayload,
   owner: string,
   repo: string,
   token: string,
@@ -1622,6 +1673,39 @@ async function executeExisting(
       failure('GITHUB_RESPONSE_INVALID', 502, 'review reply readback has no resource URL');
     }
     resourceUrl = reply.html_url;
+  } else if (request.operation === 'pull-request.resolve-review-thread') {
+    const resolution = payload as ResolveReviewThreadPayload;
+    let thread = await exactReviewThread(
+      token,
+      resolution.threadId,
+      request.repository,
+      pull.number,
+      payload.expectedGithubHeadSha,
+    );
+    if (!thread.isResolved) {
+      if (!thread.viewerCanResolve) {
+        failure('REVIEW_THREAD_NOT_RESOLVABLE', 403, 'GitHub does not allow this installation to resolve the review thread');
+      }
+      try {
+        await graphql(token,
+          'mutation($input:ResolveReviewThreadInput!){resolveReviewThread(input:$input){thread{id isResolved}}}',
+          { input: { threadId: resolution.threadId, clientMutationId: request.idempotencyKey } },
+          mutated);
+      } catch (error) {
+        if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
+      }
+      thread = await exactReviewThread(
+        token,
+        resolution.threadId,
+        request.repository,
+        pull.number,
+        payload.expectedGithubHeadSha,
+      );
+      if (!thread.isResolved) {
+        failure('REVIEW_THREAD_RESOLUTION_AMBIGUOUS', 409, 'review thread resolution did not read back exactly', true);
+      }
+      result = 'updated';
+    } else result = 'reused';
   } else if (request.operation === 'pull-request.enqueue') {
     if (pull.draft) failure('PULL_REQUEST_NOT_READY', 409, 'draft pull request cannot enter the merge queue');
     await assertNoUnresolvedReviewThreads(owner, repo, pull.number, token);
@@ -1664,7 +1748,8 @@ async function executeExisting(
   }
   if (request.operation === 'pull-request.request-reviewers'
       || request.operation === 'pull-request.comment'
-      || request.operation === 'pull-request.review-reply') {
+      || request.operation === 'pull-request.review-reply'
+      || request.operation === 'pull-request.resolve-review-thread') {
     const observedPull = await getPull(owner, repo, pull.number, token);
     verifyPull(observedPull, {
       repository: request.repository,

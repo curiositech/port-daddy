@@ -1153,7 +1153,8 @@ CREATE TABLE IF NOT EXISTS github_publisher_intents (
   operation TEXT NOT NULL CHECK (operation IN (
     'pull-request.publish','pull-request.update','pull-request.ready',
     'pull-request.request-reviewers','pull-request.comment',
-    'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')),
+    'pull-request.review-reply','pull-request.resolve-review-thread',
+    'pull-request.enqueue','pull-request.inspect')),
   state TEXT NOT NULL CHECK (state IN ('reserved','running','ambiguous','succeeded','failed')),
   actor_id TEXT NOT NULL,
   agent_id TEXT NOT NULL,
@@ -1186,7 +1187,8 @@ CREATE TABLE IF NOT EXISTS github_publisher_intents (
       AND json_extract(recovery_binding_json, '$.operation') IN (
         'pull-request.publish','pull-request.update','pull-request.ready',
         'pull-request.request-reviewers','pull-request.comment',
-        'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')
+        'pull-request.review-reply','pull-request.resolve-review-thread',
+        'pull-request.enqueue','pull-request.inspect')
       AND json_type(recovery_binding_json, '$.baseBranch') = 'text'
       AND length(json_extract(recovery_binding_json, '$.baseBranch')) BETWEEN 1 AND 255
       AND json_type(recovery_binding_json, '$.baseSha') = 'text'
@@ -1246,7 +1248,8 @@ BEGIN
   SELECT RAISE(ABORT, 'publisher grant scope invalid') WHERE EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
     OR EXISTS (SELECT 1 FROM json_each(NEW.operations_json) WHERE type != 'text' OR value NOT IN (
     'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
-    'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
+    'pull-request.comment','pull-request.review-reply','pull-request.resolve-review-thread',
+    'pull-request.enqueue','pull-request.inspect'))
     OR EXISTS (
     SELECT 1 FROM json_each(NEW.branch_allow_json)
      WHERE type != 'text' OR length(value) > 200 OR value = ''
