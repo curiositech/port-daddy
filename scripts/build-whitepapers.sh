@@ -155,6 +155,7 @@ paper_sources() {
       # its own source.
       printf '%s\n' "$srcdir/coordination-papers-mega-volume.tex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
         "$srcdir/coordination-papers-mega-volume-seams.tex" \
+        "$srcdir/coordination-papers-mega-volume-chapter-0.tex" \
         "$srcdir/coordination-papers-mega-volume-appendices.tex" \
         "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
         "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
