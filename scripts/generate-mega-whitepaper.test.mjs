@@ -217,7 +217,7 @@ test('every chapter opens on a question and an attributed epigraph', () => {
   }
   const rendered = renderTextbookMap(loadTextbook());
   assert.match(rendered, /pdchapterquestionofswk\\endcsname\{Where can a rule be made real\?\}/);
-  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{John Locke/);
+  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{Norbert Wiener/);
   // chapters inherit their part's hue: both Part I chapters are cobalt
   assert.match(rendered, /pdchaptercolorofswk\\endcsname\{pdcobalt\}/);
   assert.match(rendered, /pdchaptercolorofanchor\\endcsname\{pdcobalt\}/);
