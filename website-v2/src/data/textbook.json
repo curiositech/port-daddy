@@ -101,7 +101,7 @@
       "question": "What can a sealed agent leak, and how would we know?",
       "teaser": "Derek wants an answer from Erin's agent without giving Erin his data. Erin wants to supply the agent without giving Derek its internals. The answer itself reveals something, so their contract must specify which releases are allowed and how much they may disclose.",
       "epigraph": {
-        "text": "The problem is to confine an arbitrary program, which may have been written by someone else, so that it cannot transmit information to any other program except its caller.",
+        "text": "This note explores the problem of confining a program during its execution so that it cannot transmit information to any other program except its caller.",
         "source": "Butler W. Lampson, A Note on the Confinement Problem, 1973"
       }
     },
@@ -183,8 +183,8 @@
       "question": "What can cross a trust boundary without moving the authority itself?",
       "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed transfer, revocation, and settlement protocols to see what each owner must accept and what neither can decide for the other.",
       "epigraph": {
-        "text": "Sheaves provide a natural language for data that are distributed, heterogeneous, and constrained by local relations.",
-        "source": "Jakob Hansen and Robert Ghrist, Toward a Spectral Theory of Cellular Sheaves, 2019"
+        "text": "We reject: kings, presidents and voting. We believe in: rough consensus and running code.",
+        "source": "David D. Clark, A Cloudy Crystal Ball: Visions of the Future, 1992"
       }
     }
   ]
