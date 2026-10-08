@@ -67,8 +67,8 @@
       "question": "Where can a rule be made real?",
       "teaser": "Two agents ask for the same resource. Which request succeeds, and what happens if the writer crashes before replying? A local database can settle the first question. The second depends on when it commits and which kind of failure follows.",
       "epigraph": {
-        "text": "A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable.",
-        "source": "Leslie Lamport, message to a DEC SRC bulletin board, 28 May 1987"
+        "text": "There is no fundamental need to keep a database at all; the log is all the information there is. The only reason for storing the database is performance of retrieval operations.",
+        "source": "Jim Gray and Andreas Reuter, Transaction Processing: Concepts and Techniques, 1993"
       }
     },
     {
@@ -84,8 +84,8 @@
       "question": "How may authority travel without silently growing?",
       "teaser": "A reviewer may read a repository but may not deploy it. If that reviewer delegates another task, the new agent must inherit the same limit. Follow the signed permission chain and the checks that prevent a later delegate from gaining authority.",
       "epigraph": {
-        "text": "Every program and every user of the system should operate using the least set of privileges necessary to complete the job.",
-        "source": "Jerome Saltzer and Michael Schroeder, The Protection of Information in Computer Systems, 1975"
+        "text": "Target services can verify credentials without communicating with the issuing service, and clients can freely attenuate credentials by adding caveats.",
+        "source": "Arnar Birgisson et al., Macaroons: Cookies with Contextual Caveats, 2014"
       }
     },
     {
@@ -101,8 +101,8 @@
       "question": "What can a sealed agent leak, and how would we know?",
       "teaser": "Derek wants an answer from Erin's agent without giving Erin his data. Erin wants to supply the agent without giving Derek its internals. The answer itself reveals something, so their contract must specify which releases are allowed and how much they may disclose.",
       "epigraph": {
-        "text": "Whereof one cannot speak, thereof one must be silent.",
-        "source": "Ludwig Wittgenstein, Tractatus Logico-Philosophicus, proposition 7, 1921 (Ogden translation, 1922)"
+        "text": "The problem is to confine an arbitrary program, which may have been written by someone else, so that it cannot transmit information to any other program except its caller.",
+        "source": "Butler W. Lampson, A Note on the Confinement Problem, 1973"
       }
     },
     {
@@ -117,8 +117,8 @@
       "question": "What must remain visible, and what does seeing cost?",
       "teaser": "Six agents finish their tasks and leave five pull requests. You have time to review one. What must a summary tell you so you choose the right one, and what evidence should open when you need to check it?",
       "epigraph": {
-        "text": "Certain forms of knowledge and control require a narrowing of vision. The great advantage of such tunnel vision is that it brings into sharp focus certain limited aspects of an otherwise far more complex and unwieldy reality.",
-        "source": "James C. Scott, Seeing Like a State, 1998"
+        "text": "In an information-rich world, the wealth of information means a dearth of something else: a scarcity of whatever it is that information consumes. What information consumes is rather obvious: it consumes the attention of its recipients.",
+        "source": "Herbert A. Simon, Designing Organizations for an Information-Rich World, 1971"
       }
     },
     {
@@ -133,8 +133,8 @@
       "question": "What remains long enough to owe anything?",
       "teaser": "Alice wants to hire Heron again after a successful job. But Heron has exited, and tomorrow's process could reuse the name without inheriting its record. What must survive the restart so Alice can recognize the same accountable participant?",
       "epigraph": {
-        "text": "Person, as I take it, is the name for this self. It is a forensic term, appropriating actions and their merit; and so belongs only to intelligent agents, capable of a law, and happiness, and misery.",
-        "source": "John Locke, An Essay Concerning Human Understanding, II.xxvii.26, 1690"
+        "text": "We are but whirlpools in a river of ever-flowing water. We are not stuff that abides, but patterns that perpetuate themselves.",
+        "source": "Norbert Wiener, The Human Use of Human Beings: Cybernetics and Society, 1950"
       }
     },
     {
@@ -149,8 +149,8 @@
       "question": "What makes cooperation rational without making loss unbounded?",
       "teaser": "Bob hires Alice's fleet and licenses Carol's skill for the same job. They need different evidence of performance, yet their payments and collateral must settle together. The chapter works through that transaction and the losses its rules can bound.",
       "epigraph": {
-        "text": "Virtually every commercial transaction has within itself an element of trust, certainly any transaction conducted over a period of time.",
-        "source": "Kenneth J. Arrow, Gifts and Exchanges, 1972"
+        "text": "The main reason why it is profitable to establish a firm would seem to be that there is a cost of using the price mechanism.",
+        "source": "Ronald H. Coase, The Nature of the Firm, 1937"
       }
     },
     {
@@ -166,8 +166,8 @@
       "question": "Who may decide, on what evidence, with what consequence?",
       "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose bond may pay for it? The chapter separates admission, attribution, and settlement, then checks the ledger rules under explicit assumptions.",
       "epigraph": {
-        "text": "If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.",
-        "source": "James Madison, Federalist No. 51, 1788"
+        "text": "The power to constrain an adversary may depend on the power to bind oneself.",
+        "source": "Thomas C. Schelling, The Strategy of Conflict, 1960"
       }
     },
     {
@@ -183,8 +183,8 @@
       "question": "What can cross a trust boundary without moving the authority itself?",
       "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed transfer, revocation, and settlement protocols to see what each owner must accept and what neither can decide for the other.",
       "epigraph": {
-        "text": "Good fences make good neighbours.",
-        "source": "Robert Frost, Mending Wall, 1914"
+        "text": "Sheaves provide a natural language for data that are distributed, heterogeneous, and constrained by local relations.",
+        "source": "Jakob Hansen and Robert Ghrist, Toward a Spectral Theory of Cellular Sheaves, 2019"
       }
     }
   ]
