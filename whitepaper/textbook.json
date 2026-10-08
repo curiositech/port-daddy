@@ -84,8 +84,8 @@
       "question": "How may authority travel without silently growing?",
       "teaser": "A reviewer may read a repository but may not deploy it. If that reviewer delegates another task, the new agent must inherit the same limit. Follow the signed permission chain and the checks that prevent a later delegate from gaining authority.",
       "epigraph": {
-        "text": "Target services can verify credentials without communicating with the issuing service, and clients can freely attenuate credentials by adding caveats.",
-        "source": "Arnar Birgisson et al., Macaroons: Cookies with Contextual Caveats, 2014"
+        "text": "Every program and every user of the system should operate using the least set of privileges necessary to complete the job.",
+        "source": "Jerome Saltzer and Michael Schroeder, The Protection of Information in Computer Systems, 1975"
       }
     },
     {
