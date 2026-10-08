@@ -412,8 +412,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
-      "sha256": "85a69e80fabd66b8160f26958624a39471f3fd52ca196c03fb1be611fef1c632",
-      "bytes": 14034
+      "sha256": "edff9d319bfe8721e88430a7ed96cf09aa18f027d7f7edf3e5edfd21da6717cc",
+      "bytes": 14027
     }
   ],
   "external_dependencies": {
