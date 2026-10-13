@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "readback-receipt.json": "16ab60e7584a9fb20e7e498104601032395220b8d43dfc546e7a8091d5507532",
+    "independent-exact-check.py": "e3f82b9fd77f7568d0fb7a141a49a3572f1fbe8b873f33f37cce11db2e53a569",
+    "independent-exact-results.json": "8ee198edef1b78af3099b37477a9298cf984d46da3dbd7d6303dea5d14207559"
+  },
+  "review": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/research/harbor-CR4-independent-review.md",
+    "sha256": "3f41946e57a8f5d298c559c35d72e867d4aa9074bdb2fb1c69b2ce3bc4ff20f8"
+  }
+}

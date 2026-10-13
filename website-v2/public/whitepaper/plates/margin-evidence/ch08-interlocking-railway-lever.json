@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Railway switch mechanical interlocking ground lever with cobalt blue grip and cutaway locking dogs. Analogy for distributed mutual exclusion across federation boundaries.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "618cd92276222bbe9d1e919186b6b79dd14fe7bb1201a487a75765ec15e36791",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

@@ -276,6 +276,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
+
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
@@ -292,6 +295,12 @@ jobs:
         # Routed per-file by tests/purser/ROUTING.json; the jest-shaped ones ran
         # in the step above, these target node:test.
         run: npm run test:purser
+
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
@@ -333,6 +342,9 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
+
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
@@ -347,6 +359,12 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
 
       - name: Test CLI tools
         run: |
@@ -379,6 +397,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
 
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)

@@ -1,0 +1,30 @@
+% TEMPLATE: swimlane / Gantt (concurrent work in time, one order out).
+% One row per actor, a band per request with a drawn edge, verticals down to a
+% single commit rail so the reader can read the serialization off the bottom.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{2.55}   \def\xe{10.60}   \def\h{0.30}
+  \foreach \i/\name/\a/\b in {0/{caller A}/0.4/3.1, 1/{caller B}/1.2/4.6,
+                              2/{caller C}/2.6/6.2, 3/{caller D}/4.0/7.4}{
+    \node[pd title,anchor=east,text width=2.1cm,align=right] at ({\x0-.25},{-\i*.72}) {\name};
+    \draw[pd hairline] (\x0,{-\i*.72}) -- (\xe,{-\i*.72});
+    \draw[pd focus fill] ({\x0+\a},{-\i*.72-\h}) rectangle ({\x0+\b},{-\i*.72+\h});}
+  % the single writer's rail: one commit point per request, in order
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}] (\x0,-3.35) -- (\xe,-3.35);
+  \node[pd label,anchor=west] at (\xe,-3.35) {time};
+  \node[pd title,anchor=east,text width=2.1cm,align=right] at ({\x0-.25},-3.35) {one writer};
+  \foreach \i/\b/\n in {0/3.1/1, 1/4.6/2, 2/6.2/3, 3/7.4/4}{
+    \draw[pd guide] ({\x0+\b},{-\i*.72}) -- ({\x0+\b},-3.35);
+    \node[pd focus datum] at ({\x0+\b},-3.35) {};
+    \node[pd label,anchor=north] at ({\x0+\b},-3.55) {\n};}
+  \node[pd note,anchor=north west,text width=8cm] at (\x0,-4.05)
+    {each band's right edge is where that request commits};
+\end{tikzpicture}
+\caption{Four concurrent callers and one writer. Each band is a request in
+flight; its right edge is where the writer commits it, and the rail below
+records the commit order 1--4. Overlap in the bands is real concurrency; the
+rail is the single order every caller then observes. [internal]}
+\label{fig:tpl-swimlane-gantt}
+\end{figure}

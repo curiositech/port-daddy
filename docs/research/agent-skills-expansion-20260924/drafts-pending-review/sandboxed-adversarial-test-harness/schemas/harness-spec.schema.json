@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sandboxed Adversarial Test Harness Spec",
+  "description": "Input to scripts/containment_audit.mjs. Describes the isolation boundary, egress/path/secret policies, and the adversarial cases that assert containment invariants.",
+  "type": "object",
+  "required": ["name", "isolationDimensions", "egressPolicy", "pathPolicy", "secretHandling", "adversarialCases", "failMode"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the sandbox or trust surface under test, e.g. 'fleet-webhook-output-sink' or 'coast-guard-worktree-exec'."
+    },
+    "isolationDimensions": {
+      "type": "array",
+      "description": "Isolation dimensions this harness claims to cover.",
+      "items": {
+        "type": "string",
+        "enum": ["filesystem", "network", "process", "secrets", "resources"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "egressPolicy": {
+      "type": "object",
+      "required": ["mode", "default"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["allowlist", "denylist"] },
+        "default": { "type": "string", "enum": ["allow", "deny"] },
+        "allow": { "type": "array", "items": { "type": "string" } },
+        "deny": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "pathPolicy": {
+      "type": "object",
+      "required": ["mode", "jailRoot"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["allowlist", "denylist"] },
+        "jailRoot": { "type": "string" },
+        "allowedRoots": { "type": "array", "items": { "type": "string" } },
+        "deniedPatterns": { "type": "array", "items": { "type": "string" } },
+        "realpathChecked": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "secretHandling": {
+      "type": "object",
+      "required": ["mode", "exposedToSandbox"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["fake-credentials", "redacted", "real", "none"] },
+        "exposedToSandbox": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "adversarialCases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "invariant", "threatClass", "expected", "failMode"],
+        "properties": {
+          "id": { "type": "string" },
+          "invariant": { "type": "string", "description": "The containment invariant this case asserts, in plain language." },
+          "threatClass": {
+            "type": "string",
+            "enum": ["ssrf", "path-traversal", "secret-exfil", "resource-exhaustion", "side-effect-write"]
+          },
+          "expected": { "type": "string", "enum": ["contained"], "description": "Must be 'contained' — a case that expects an escape is not an adversarial test, it's a documented residual risk and belongs in the report narrative, not here." },
+          "failMode": { "type": "string", "enum": ["fail-closed", "fail-open"] },
+          "mechanism": { "type": "string", "description": "Optional: the concrete guard/isolation mechanism this case exercises, e.g. 'assertSafeOutboundUrl' or 'containPath'." }
+        },
+        "additionalProperties": true
+      }
+    },
+    "failMode": {
+      "type": "string",
+      "enum": ["fail-closed", "fail-open"],
+      "description": "Harness-wide default when containment cannot be proven for a given input."
+    }
+  },
+  "additionalProperties": true
+}

@@ -185,13 +185,14 @@ converse is where most current guidance goes wrong.
    also produces better editing, since the goal was always to sound like
    *this person* rather than to sound like nobody.
 
-3. **Residue is the exception, and it is safe.**
-<!-- humanize:ignore-start -->
-   U+202F before an em dash, `utm_source=chatgpt.com`, `oaicite` tokens, and the
-   "As an AI language model" opener are artifacts with no human source.
-<!-- humanize:ignore-end --> Act on those with full confidence. Note that
-   they tell you the text passed through a chat window, which is not the same as
-   telling you nobody thought about it.
+3. **Verify the context of residue.** Unconverted citation tokens, tracking
+   parameters, and assistant boilerplate can require editing in ordinary prose,
+   while quotations and documentation may include them deliberately. They do
+   not establish the author's identity or how much work was human. Unicode
+   spacing is a separate typography concern: preserve meaningful locale spacing
+   and script joiners unless there is a demonstrated defect. In particular,
+   [CLDR 34](https://cldr.unicode.org/downloads/cldr-34) documents U+202F in
+   French number and unit formatting.
 
 4. **Citations are the other exception, and they are about truth, not
    authorship.** A dead DOI, a reference that does not support its sentence, an

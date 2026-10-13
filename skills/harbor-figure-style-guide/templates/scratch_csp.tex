@@ -1,0 +1,265 @@
+% Brief (csp-concurrency)
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,  >=Stealth,
+  baseBox/.style={
+    draw=charcoal, line width=0.8pt, fill=white, text=charcoal,
+    inner sep=3.5pt, align=left, font=\footnotesize
+  },
+  cardBox/.style={
+    baseBox, text width=3.2cm, minimum height=1.15cm
+  },
+  hazardBox/.style={
+    baseBox, fill=hazardTint, draw=hazardBorder, text=charcoal
+  },
+  remedyBox/.style={
+    baseBox, fill=remedySeafoam, draw=remedyBorder, text=charcoal
+  },
+  sectionFrame/.style={
+    draw=charcoal, line width=0.9pt
+  },
+  secHeader/.style={
+    font=\bfseries\footnotesize, text=charcoal, anchor=west
+  }
+]
+  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
+
+  % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
+  \node[anchor=west, font=\bfseries\normalsize, text=charcoal] at (0.2, 18.45) {COMMUNICATING SEQUENTIAL PROCESSES (CSP)};
+  \node[anchor=east, font=\bfseries\footnotesize, text=charcoal!70] at (15.3, 18.45) {Hoare (1978)};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (0.2, 18.05) {Synchronous Rendezvous \textperiodcentered\ Guarded Choice \textperiodcentered\ Deadlock Breaking \textperiodcentered\ Actor Duality};
+  \draw[line width=1.2pt, charcoal] (0.2, 17.8) -- (15.3, 17.8);
+
+  % Semantic Legend
+  \node[anchor=west, font=\footnotesize\bfseries, text=charcoal] at (0.2, 17.48) {SEMANTIC KEY:};
+  
+  \node[anchor=west, draw=activeCobalt, fill=activeCobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (3.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (3.75, 17.48) {Rendezvous};
+
+  \node[anchor=west, draw=charcoal, fill=codeBg, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (6.3, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (6.75, 17.48) {Choice ($\mathbin{\square}$)};
+
+  \node[anchor=west, draw=hazardBorder, fill=hazardTint, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (9.85, 17.48) {Deadlock Hazard};
+
+  \node[anchor=west, draw=remedyBorder, fill=remedySeafoam, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (12.8, 17.48) {};
+  \node[anchor=west, font=\footnotesize, text=charcoal] at (13.25, 17.48) {Lease Break};
+
+  % ================= SECTION 1: SYNCHRONOUS RENDEZVOUS BARRIER =================
+  \draw[sectionFrame, draw=activeCobalt, line width=1.2pt, fill=activeTint!35] (0.2, 13.55) rectangle (15.3, 17.25);
+  \node[secHeader, text=activeCobalt] at (0.45, 16.95) {1. INSTANTANEOUS SYNCHRONOUS RENDEZVOUS BARRIER ($|Q_c| = 0$)};
+
+  % Left Card: Writer P1
+  \node[cardBox, draw=activeCobalt, anchor=west] (cardP1) at (0.5, 15.8) {
+    \includegraphics[height=9pt]{figures/lucide/terminal.pdf} \textbf{Writer $P_1$} \\[2pt]
+    \footnotesize Expr: $c!\langle\mathtt{commit}\rangle$ \\[1pt]
+    \footnotesize\color{hazardBorder}\textbf{Status: BLOCKED}
+  };
+
+  % Right Card: Auditor P2
+  \node[cardBox, draw=activeCobalt, anchor=east] (cardP2) at (15.0, 15.8) {
+    \includegraphics[height=9pt]{figures/lucide/list-checks.pdf} \textbf{Auditor $P_2$} \\[2pt]
+    \footnotesize Expr: $c?x$ \\[1pt]
+    \footnotesize\color{hazardBorder}\textbf{Status: BLOCKED}
+  };
+
+  % Visual Pipe Channel Between P1 and P2
+  \draw[draw=activeCobalt, line width=1.4pt, fill=white] (4.0, 15.3) rectangle (11.5, 16.3);
+  
+  % Left side feed arrow
+  \draw[->, line width=1.6pt, activeCobalt] (4.2, 15.7) -- (6.6, 15.7)
+    node[midway, above=1pt, font=\footnotesize\bfseries] {$v$ (send)};
+
+  % Right side recv arrow
+  \draw[<-, line width=1.6pt, activeCobalt] (8.9, 15.7) -- (11.3, 15.7)
+    node[midway, above=1pt, font=\footnotesize\bfseries] {$x$ (recv)};
+
+  % Central Physical Barrier Gate
+  \draw[draw=hazardBorder, fill=hazardTint, line width=1.4pt] (7.1, 15.0) rectangle (8.4, 16.6);
+  \node at (7.75, 15.95) {\includegraphics[height=12pt]{figures/lucide/lock-keyhole.pdf}};
+  \node[anchor=center, font=\footnotesize\bfseries\color{hazardBorder}] at (7.75, 14.75) {Gate: $\Delta t = 0$};
+
+  % Crossed-out Buffer Memory Representation
+  \begin{scope}[shift={(0.8, 13.9)}]
+    % 4 queue slots
+    \draw[draw=charcoal!60, line width=0.8pt, fill=white] (0, 0) rectangle (2.4, 0.45);
+    \draw[draw=charcoal!60, line width=0.8pt] (0.6, 0) -- (0.6, 0.45);
+    \draw[draw=charcoal!60, line width=0.8pt] (1.2, 0) -- (1.2, 0.45);
+    \draw[draw=charcoal!60, line width=0.8pt] (1.8, 0) -- (1.8, 0.45);
+    % Big Red X
+    \draw[draw=hazardBorder, line width=1.8pt] (-0.1, -0.05) -- (2.5, 0.5);
+    \draw[draw=hazardBorder, line width=1.8pt] (-0.1, 0.5) -- (2.5, -0.05);
+  \end{scope}
+
+  \node[anchor=west, font=\footnotesize, align=left, text width=11.2cm] at (3.6, 14.1) {
+    \textbf{Zero Heap Storage ($|Q_c| = 0$):} Direct register handoff across threads.\\
+    \footnotesize Neither process advances past primitive until both arrive simultaneously ($\Delta t = 0$).
+  };
+
+  % ================= SECTION 2: GUARDED EXTERNAL CHOICE =================
+  \draw[sectionFrame] (0.2, 10.15) rectangle (15.3, 13.4);
+  \node[secHeader] at (0.45, 13.1) {2. GUARDED EXTERNAL CHOICE COMMUTATOR (HOARE'S $\mathbin{\square}$ OPERATOR)};
+
+  % Left: Code snippet in crisp terminal card
+  \node[baseBox, fill=codeBg, text width=4.6cm, font=\footnotesize\ttfamily, inner sep=5pt, anchor=west] (codecard) at (0.5, 11.65) {
+    \textbf{select} \{\\
+    \ \ $\mathtt{c\_req?j} \implies \textsf{dispatch(j)}$\\
+    \ \ $\mathbin{\square}\;\mathtt{c\_die?s} \implies \textsf{abort()}$\\
+    \ \ $\mathbin{\square}\;\mathtt{30s} \implies \textsf{salvage()}$\\
+    \}
+  };
+
+  % Center: Multi-Way Commutator Schematic
+  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in1) at (7.5, 12.45) {$\mathtt{c\_req?j}$};
+  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in2) at (7.5, 11.65) {$\mathtt{c\_die?s}$};
+  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal] (in3) at (7.5, 10.85) {$\Delta t = 30\text{s}$};
+
+  % Clock icon next to timer
+  \begin{scope}[shift={(6.0, 10.85)}]
+    \draw[line width=0.8pt, charcoal] circle (0.18);
+    \draw[line width=0.8pt, charcoal] (0,0) -- (0,0.11);
+    \draw[line width=0.8pt, charcoal] (0,0) -- (0.08,0);
+  \end{scope}
+
+  % Central Switch Hub
+  \draw[draw=activeCobalt, fill=activeTint, line width=1.3pt] (9.1, 11.65) circle (0.55);
+  \node[font=\bfseries\large, text=activeCobalt] at (9.1, 11.65) {$\mathbin{\square}$};
+  \node[font=\footnotesize\bfseries, text=activeCobalt] at (9.1, 10.9) {COMMUTATOR};
+
+  % Feed lines into switch
+  \draw[->, line width=1.0pt, charcoal] (in1.east) -- (8.6, 11.9);
+  \draw[->, line width=1.0pt, activeCobalt] (in2.east) -- (8.55, 11.65);
+  \draw[->, line width=1.0pt, charcoal] (in3.east) -- (8.6, 11.4);
+
+  % Switch output branch
+  \draw[->, line width=1.8pt, activeCobalt] (9.65, 11.65) -- (11.0, 11.65);
+
+  % Right Output: Execution action
+  \node[baseBox, draw=seafoamBorder, fill=seafoamSuccess, text width=3.5cm, anchor=west, inner sep=4pt] at (11.0, 11.65) {
+    \includegraphics[height=9pt]{figures/lucide/workflow.pdf} \textbf{Winner Action}\\[2pt]
+    \footnotesize First arrival fires;\\
+    \footnotesize others discarded;\\
+    \footnotesize zero CPU burn.
+  };
+
+  % ================= SECTION 3: DEADLOCK HAZARD & LEASE GUILLOTINE =================
+  \draw[sectionFrame] (0.2, 4.35) rectangle (15.3, 10.0);
+  \node[secHeader] at (0.45, 9.7) {3. CIRCULAR WAIT DEADLOCK HAZARD \& MANDATORY LEASE TIMEOUT};
+
+  % Left: Visual Circular Dependency Ring (Triangle of Processes)
+  \begin{scope}[shift={(0.2, 5.95)}]
+    % Process A
+    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeA) at (1.1, 2.7) {
+      \textbf{\footnotesize Proc $A$}\\[1pt]\footnotesize waits on $c_1$
+    };
+    % Process B
+    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeB) at (4.5, 2.7) {
+      \textbf{\footnotesize Proc $B$}\\[1pt]\footnotesize waits on $c_2$
+    };
+    % Process C
+    \node[hazardBox, minimum width=1.7cm, minimum height=0.8cm, align=center] (nodeC) at (2.8, 1.3) {
+      \textbf{\footnotesize Proc $C$}\\[1pt]\footnotesize waits on $c_3$
+    };
+
+    % Circular directed arrows
+    \draw[->, line width=1.3pt, hazardBorder] (nodeA.east) -- (nodeB.west)
+      node[midway, above=1pt, font=\footnotesize\bfseries] {$c_1$};
+    \draw[->, line width=1.3pt, hazardBorder] (nodeB.south) -- (nodeC.east)
+      node[midway, right=1pt, font=\footnotesize\bfseries] {$c_2$};
+    \draw[->, line width=1.3pt, hazardBorder] (nodeC.west) -- (nodeA.south)
+      node[midway, left=1pt, font=\footnotesize\bfseries] {$c_3$};
+
+    % Center circular deadlock badge
+    \node[anchor=center, align=center] at (2.8, 2.2) {
+      \color{hazardBorder}\textbf{\footnotesize $\mathcal{W}_{\text{circ}}$}\\[-1pt]
+      \color{hazardBorder}\textbf{\footnotesize DEADLOCK}
+    };
+  \end{scope}
+
+  % Center: The Countdown Timer Clock and Snip Shears
+  \begin{scope}[shift={(6.9, 7.65)}]
+    % Clock face
+    \draw[line width=1.0pt, charcoal] circle (0.45);
+    \draw[line width=1.0pt, charcoal] (0, 0) -- (0, 0.28);
+    \draw[line width=1.0pt, charcoal] (0, 0) -- (0.2, 0);
+    \node[font=\footnotesize\bfseries\color{remedyBorder}] at (0, -0.68) {$\tau \le t_{\text{lease}}$};
+
+    % Cutting Shears / Scissors (Physical Break)
+    \begin{scope}[shift={(1.2, 0)}]
+      % Blade 1 & handle
+      \draw[line width=1.1pt, hazardBorder] (-0.3, 0.18) circle (0.11);
+      \draw[line width=1.4pt, hazardBorder] (-0.2, 0.14) -- (0.3, -0.14);
+      % Blade 2 & handle
+      \draw[line width=1.1pt, hazardBorder] (-0.3, -0.18) circle (0.11);
+      \draw[line width=1.4pt, hazardBorder] (-0.2, -0.14) -- (0.3, 0.14);
+      % Pivot screw
+      \fill[charcoal] (0, 0) circle (0.035);
+      \node[above=2pt, font=\footnotesize\bfseries\color{hazardBorder}] at (0.12, 0.16) {SNIP!};
+    \end{scope}
+
+    % Direct trigger arrow into recovery card
+    \draw[->, line width=1.3pt, remedyBorder] (1.8, 0) -- (2.6, 0);
+  \end{scope}
+
+  % Right: Deterministic Recovery Card
+  \node[remedyBox, text width=4.8cm, anchor=west] at (9.8, 7.65) {
+    \textbf{\footnotesize Deterministic Lease Break}\\[2pt]
+    \footnotesize $\bullet$ \textbf{Clock expiry:} $t > t_{\text{lease}}$\\
+    \footnotesize $\bullet$ \textbf{Kernel intervention:} Force-kill lock\\
+    \footnotesize $\bullet$ \textbf{Salvage pool:} Resources released
+  };
+
+  % Full-width Invariant banner below
+  \node[baseBox, text width=14.3cm, inner sep=3.5pt, anchor=north] at (7.75, 5.45) {
+    \textbf{Kernel Liveness Invariant:} No unbuffered channel may block indefinitely. Every synchronous wait is bounded by mandatory lease timeout ($t_{\text{lease}}$).
+  };
+
+  % ================= SECTION 4: ARCHITECTURAL DUALITY (ACTORS VS CSP) =================
+  \draw[sectionFrame, fill=codeBg!40] (0.2, 0.3) rectangle (15.3, 4.2);
+  \node[secHeader] at (0.45, 3.9) {4. ARCHITECTURAL DUALITY: ASYNCHRONOUS ACTORS VS. SYNCHRONOUS CSP};
+
+  % Left Card: Actor Model (explicit rectangle)
+  \draw[draw=activeCobalt, fill=white, line width=0.9pt] (0.5, 1.35) rectangle (7.6, 3.6);
+  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (0.7, 3.35) {Hewitt--Agha Actors};
+  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal!60] at (7.4, 3.35) {Async Mailbox};
+  
+  % Diagram inside Actor Card (positioned at y = 2.65)
+  \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\footnotesize\bfseries] (actA) at (1.3, 2.65) {Actor $A$};
+  \draw[draw=activeCobalt, line width=0.8pt, fill=white] (2.3, 2.5) rectangle (4.3, 2.8);
+  \node[draw=activeCobalt, fill=white, inner sep=1pt, font=\footnotesize] at (2.6, 2.65) {$\Box$};
+  \node[draw=activeCobalt, fill=white, inner sep=1pt, font=\footnotesize] at (3.3, 2.65) {$\Box$};
+  \node[draw=activeCobalt, fill=activeCobalt, text=white, inner sep=1pt, font=\footnotesize] at (4.0, 2.65) {$\Box$};
+  \node[draw=charcoal, fill=activeTint, inner sep=2pt, font=\footnotesize\bfseries] (actB) at (5.7, 2.65) {Actor $B$};
+  \draw[->, line width=0.8pt] (actA.east) -- (2.2, 2.65);
+  \draw[->, line width=0.8pt] (4.4, 2.65) -- (actB.west);
+
+  % Bullets inside Actor Card
+  \node[anchor=north west, font=\footnotesize, text width=6.8cm, align=left] at (0.65, 2.25) {
+    $\bullet$ \textbf{Decoupled:} Sender proceeds; mailbox buffers queue.\\[2pt]
+    $\bullet$ \textbf{Risk:} Mailbox heap exhaustion under packet flood.
+  };
+
+  % Right Card: CSP Model (explicit rectangle)
+  \draw[draw=activeCobalt, fill=white, line width=0.9pt] (7.9, 1.35) rectangle (15.0, 3.6);
+  \node[anchor=west, font=\bfseries\footnotesize, text=activeCobalt] at (8.1, 3.35) {Hoare CSP};
+  \node[anchor=east, font=\footnotesize\bfseries, text=charcoal!60] at (14.8, 3.35) {Sync Rendezvous};
+
+  % Diagram inside CSP Card (positioned at y = 2.65)
+  \node[draw=charcoal, fill=ingressTint, inner sep=2pt, font=\footnotesize\bfseries] (proc1) at (9.1, 2.65) {Proc $P_1$};
+  \draw[line width=2.2pt, draw=activeCobalt] (11.45, 2.35) -- (11.45, 2.95);
+  \node[font=\footnotesize\bfseries, text=activeCobalt] at (11.45, 3.12) {$\Delta t = 0$};
+  \node[draw=charcoal, fill=activeTint, inner sep=2pt, font=\footnotesize\bfseries] (proc2) at (13.8, 2.65) {Proc $P_2$};
+  \draw[->, line width=1pt] (proc1.east) -- (11.35, 2.65);
+  \draw[<-, line width=1pt] (11.55, 2.65) -- (proc2.west);
+
+  % Bullets inside CSP Card
+  \node[anchor=north west, font=\footnotesize, text width=6.8cm, align=left] at (8.05, 2.15) {
+    $\bullet$ \textbf{Coupled:} Sender \& receiver meet in lockstep.\\[2pt]
+    $\bullet$ \textbf{Risk:} Circular wait deadlocks without lease timeouts.
+  };
+
+  % Bottom Synthesis Strip
+  \node[baseBox, draw=remedyBorder, fill=remedySeafoam, text width=14.3cm, anchor=north, align=center, inner sep=3.5pt] at (7.75, 1.15) {
+    \textbf{The Kernel Synthesis:} Confined \textbf{Actors} run autonomous agent deliberation; synchronous \textbf{CSP rendezvous} serializes physical file/port mutations without mailbox heap overhead.
+  };
+
+\end{tikzpicture}
+

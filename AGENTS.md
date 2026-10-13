@@ -2,9 +2,39 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Stop and wait when blocked; merge your own PRs — operator order, 2026-10-01
+
+- When blocked on something only Erich can answer, state exactly what is needed in one short
+  message and stop. No scheduled check-ins, no timers, no polling, no PR subscriptions, no
+  re-reading state while waiting. Wait for the reply.
+- Open the PR, address review findings, then merge it yourself. Never wait on Erich to merge.
+- Keep status messages short. Do not restate state Erich already has.
+
+## Local runtime halt takes precedence — operator order, 2026-09-05
+
+The Port Daddy local runtime is currently halted. This controls every later
+mention of `pd`, `port-daddy`, MCP, daemons, FleetBar, hooks, launchd, spawning,
+claims, notes, plans, locks, and runtime verification in this file. **No later
+instruction authorizes those actions while the halt remains in place.** Do not
+start, probe, repair, or substitute the local runtime.
+
+Use a linked worktree, ordinary Git, hosted CI, PR review, tool-native
+subagents, and checked-in skill files instead. For skill grafting during the
+halt, read the applicable `SKILL.md` and only the references it requires, then
+say which skill informed the work. That is offline guidance, not a native
+Jury-rig graft or evidence of live catalog state. The native Jury-rig and local
+Port Daddy workflow below apply only after Erich explicitly lifts this halt. The
+hosted Harbor Register remains separately available through its browser-approved,
+repository-scoped pairing bearer.
+
 ## Recently Shipped Surfaces (verify before you depend on them)
 
-These landed on `main` in the last few weeks. The installed Homebrew `pd` binary **lags `main`** — a feature being in source does not mean it is in the operator's `pd`. Run `pd <verb> --help` to confirm, and rebuild + relaunch the daemon when dogfooding a just-landed route. Canonical docs are cited; read them, do not paraphrase from memory.
+These landed on `main` in the last few weeks. Source presence does not prove an
+installed CLI or live daemon. During the current halt, inspect source and hosted
+evidence only; do not run or relaunch the local runtime. After the halt is
+explicitly lifted, verify installed CLI support and the live daemon before
+dogfooding a newly landed route. Canonical docs are cited; read them, do not
+paraphrase from memory.
 
 - **Relay — cross-machine pub/sub** (`docs/adr/0049-relay-architecture.md`). Zero-trust event fabric: a Cloudflare Worker (`apps/relay/`) federates channels across machines; the daemon holds an outbound SSE connection (`lib/relay-client.ts`), routes in `routes/relay.ts`. CLI: `pd relay url <url> | --clear`, `pd relay status`, `pd relay exchange --oidc-token <t>` (CI OIDC → PD card). MCP: `relay_status()` (read-only).
 - **Dispatch — autonomous feature-dev queue** (ADR-0035; `cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`, `lib/dispatch/spawn-adapter.ts`, `docs/proposals/pd-nightshift.md`). `pd dispatch propose|queue|list|show|run|cancel`. `run` is **dry-run by default**; `--really-run` spawns a backend (default `cli:codex`) in an isolated worktree under `~/coding/tmp/port-daddy-dispatch-<id>` and opens a **draft PR**. Per-dispatch `--budget` (default 5 USD, max 25) and `--timeout` (default 3h, max 6h). `pd nightshift` is a **deprecated alias** for one minor version — `pd dispatch` is the verb.
@@ -99,7 +129,11 @@ refuses a second claim and tells you who holds the first; it cannot stop an
 agent that never asks. The enforcement point is your own harness reading this
 file. Behave as though it could stop you.
 
-## Port Daddy First
+## Port Daddy First (only after the local-runtime halt is explicitly lifted)
+
+Until then, the top-level halt rule applies and ordinary Git, hosted CI,
+tool-native subagents, PR review, and offline skill reading replace this section's
+commands.
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
@@ -178,7 +212,9 @@ file. Behave as though it could stop you.
 - Stale symbol indexes are coordination hazards. If claim resolution says a `symbolPath` is missing or stale, refresh the symbol index before widening to a file claim.
 - File claims remain advisory. Locks are stronger and should be rarer: use them for non-mergeable resources, not as a substitute for symbol-level edit intent.
 
-## Canonical Runtime
+## Canonical Runtime (only after the local-runtime halt is explicitly lifted)
+
+Until then, do not use these commands or inspect/repair local runtime state.
 
 - **Full topology map: [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md)** — the TWO `pd` installs (Homebrew runs the live daemon + is your default `pd`; the repo is dev-only), every supervisor/watchdog (`homebrew.mxcl.port-daddy`, `com.portdaddy.bosun`, the rival `com.bosun.daemon`), and the ONLY correct redeploy path. Read it before any daemon surgery — it exists because agents keep re-discovering this the hard way.
 - Do not assume the live daemon is running the current checkout.
@@ -199,6 +235,10 @@ file. Behave as though it could stop you.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
 ## Agent Operating Expectations
+
+The local-runtime commands in this section are conditional on an explicit lift of
+the halt. During the halt, retain the worktree, validation, hosted-CI, and PR
+discipline while using the offline alternatives stated above.
 
 How you are expected to *work* a slice here — the standing posture, not a per-task
 checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintenance
@@ -278,18 +318,19 @@ Documents`.
   model, or built something a paper should now describe? They need not be 1:1 — the
   papers are the lofty theory, the code is what we actually shipped — but each
   should correct the other. Note drift in the PR.
-- **Work at maximal tool + skill access, and pause to find the right skill.** Start
-  with the broadest toolset you can reach. If you catch yourself working without a
-  matching skill, stop and run `pd jury-rig query "<task>"` before improvising
-  what a skill already encodes. Jury-rig is Port Daddy's native hybrid discovery
-  surface: it ranks the local, explicitly configured catalog and reads requested
-  references through the guarded `pd jury-rig reference` path. A third-party skill
-  remains provenance-labelled catalog input; its scripts, hooks, MCP servers,
-  subagents, and planning pipelines never become executable authority merely
-  because Jury-rig selected it. Planning authority remains this guide plus the
-  session's `pd plan`. **Seamanship** is the planned native planning/orchestration
-  module and is not yet a shipped verb; until it lands, do not register or invoke
-  an external planning runtime as a substitute.
+- **Graft the right skill before you improvise.** Jury-rig is Port Daddy's native
+  catalog and guarded reference reader. When the local runtime is expressly
+  enabled, query it before a meaningful task:
+  `pd jury-rig query "<task>"`, then use `pd jury-rig reference` only for the
+  returned material you need. While the runtime is halted, do not invoke `pd`, its
+  MCP server, hooks, or a substitute runtime. Instead, inspect the checked-in
+  project skill directories and their `SKILL.md` files read-only, state which
+  skill is being applied, and preserve its provenance. That offline lookup is
+  useful preparation; it is not a native Jury-rig graft or proof of live catalog
+  state. Catalog selection never authorizes execution of scripts, hooks, MCP servers,
+  subagents, or planning pipelines. This guide and the task's
+  explicit instructions remain the authority. **Seamanship** is planned and is
+  not yet a shipped verb.
 - **Launch other agents *through* Port Daddy.** When you need more hands, spawn
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
@@ -315,14 +356,20 @@ Documents`.
 
 ## Pull Request Operating Procedure
 
-**This lifecycle is autonomous — never gated on operator confirmation.**
-Once you open a PR, you drive it all the way to merge without pausing to
-ask "should I push?" or "should I merge?". Solicit bot reviews, run the
-adversarial agent review, respond to every comment, add unit tests wired
-into CI, get CI green the right way, and merge. The only legitimate pause
-is a real red you cannot fix unilaterally (missing secrets, infra outage).
-Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
-every Claude this?" — don't be the Claude that has to be told.
+**Operator update, 2026-09-24: own the PR finish line within the authorized
+goal.** Immediately after creating a PR and after every push, inspect the
+current head's reviews, every review thread, required and advisory GitHub
+checks, and attached CI/CD or deploy statuses and logs. Recheck while pending;
+delegate polling and log triage to a tool-native non-Astra, lower-cost agent by
+default. Astra plans, coordinates, and reviews its findings rather than doing
+routine status checks. Fix branch-caused failures, answer and resolve review
+threads, and document proven external blockers with an owner and next action.
+Keep an active follow-up or accepting handoff until the authorized goal is
+verified; a pending check or open PR is not completion. Do not infer merge
+authorization from a request for a review PR. When merge is authorized, use the
+protected path and verify the actual merged receipt. While the local Port Daddy
+runtime is halted, use ordinary Git, hosted checks, and tool-native agents;
+the older `pd` coordination steps below are suspended.
 
 ### Base `main`. Do not stack PRs onto feature branches.
 
@@ -434,9 +481,13 @@ digests read the file on **disk**, so a restored Book reproduces the committed
 values and `check-whitepaper-metadata` stays green (it compares the record
 against the artifact, never against the `.tex`).
 
-Per-chapter PDFs are deliberately still committed per PR: they are chapter-
-scoped, so two PRs collide on one only by editing the same chapter — a real
-conflict a person should see, not a derived-artifact race.
+The Book is the only published whitepaper edition (ADR-0143). Do not restore
+the retired per-chapter PDFs, thumbnails, or catalog entries in a chapter PR.
+Keep the chapter sources and their independent compilation paths for scoped
+validation; attach resulting local or CI proofs without publishing a separate
+chapter edition. Source validation and accepted Book publication remain separate
+steps, with the committed Book and its metadata refreshed together through the
+reviewed artifact path above.
 
 Two corollaries when you hit a stuck whitepaper PR:
 - **`mergeable: true` does not mean it will land.** That field reports a
@@ -805,10 +856,10 @@ These bite every contributor session; they are not theoretical.
 
 - **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
 - Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
-- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries on the tag; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula. Hold `pd lock release-publish` for the duration of the brew-tap roll — the formula is shared state.
+- The release boundary is a git tag plus a GitHub Release. The authorized release train opens a separate version PR, then tags and publishes from its merged version transition. The Homebrew tap discovers the stable feed through its own workflow; the source release workflow does not write the formula. See [`docs/RELEASING.md`](docs/RELEASING.md) for the current authority and recovery path.
 - Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
 - User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
-- **A DAEMON OR CLI-SURFACE CHANGE AND ITS RELEASE ARE ONE ATOMIC UNIT.** If a change alters the shipped `pd` — a new, renamed, or removed verb; a change to what the single binary registers; anything an operator would observe after `brew upgrade` — then the version bump, the embedded-version sync, and the Homebrew formula roll land *with* it, not in a follow-up. Shipping the daemon change alone leaves a binary that disagrees with the formula, which is precisely the drift `version-drift-guard` and `tests/unit/embedded-version-sync.test.js` exist to catch — do not make them the thing that discovers it. Before finishing such a change, state plainly whether the shipped surface actually changed: correcting a stale test expectation or harness wiring does NOT require a release, and claiming it does is its own kind of noise. If part of the release genuinely cannot run from your environment (a tag push the git proxy blocks, a tarball SHA that does not exist yet), do every part that can be done and report the exact remaining command instead of skipping it silently.
+- **Feature PRs do not cut a release.** For daemon, route, server, or MCP changes, use the binary smoke test in [`docs/RELEASING.md`](docs/RELEASING.md) §3 when local runtime execution is authorized; during the operator halt, use compile-only evidence and authorized hosted checks, and mark local runtime proof unverified. Submit the review PR with any required changelog fragment. The release train handles version surfaces and publication in its separate protected flow; the Homebrew tap updates from the stable feed. A review-PR request does not authorize a tag, Release, formula roll, or merge. Report source, hosted CI, merged, and released states separately.
 
 ## Fleet Identity
 

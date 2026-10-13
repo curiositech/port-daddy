@@ -1,242 +1,134 @@
 ---
 name: wave-by-wave-parley
-version: 0.1.0
 description: >
-  After each execution wave completes, inspect the DAG's commitment landscape and premortem risk score. If any
-  surviving nodes carry `commitment_level: TENTATIVE`, or if the premortem `recommendation` is `ACCEPT_WITH_MONITORING`
-  or `ESCALATE_TO_HUMAN`, pause execution and run a structured parley: re-evaluate TENTATIVE nodes against the evidence
-  produced by the just-completed wave, update risk severity where warranted, and either promote nodes to COMMITTED,
-  demote them to EXPLORATORY, or prune them before launching the next wave. Parley is a scheduled operation triggered by
-  wave completion — not an ad-hoc intervention — making wave boundaries the natural formation-break point where plans
-  meet reality.
-author: soma-jury_rig-graft
-tags:
-  - jury_rig
-  - dag-execution
-  - wave-management
-  - parley
-  - premortem
-  - tentative-nodes
-  - commitment-level
-  - adaptive-planning
-pairs-with:
-  - jury_rig-premortem
-  - jury_rig-resilience
-  - jury_rig-decomposer
-  - jury_rig-architect
-  - dag-mutation-strategist
+  Run a declared checkpoint after a whole DAG wave returns, joining node evidence
+  to dependencies, risks, approvals, and a new graph revision before launching
+  a later wave. Use to hold, revise, escalate, or admit a planned next wave when
+  evidence is missing, partial, failed, stale, or changes a predecessor contract.
+  NOT for interrupting a running wave, treating a local RCP-3 sketch as FIPA
+  conformance, or assigning work without authority and resource checks.
 license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
+  category: Agent & Orchestration
+  tags: [dag, checkpoint, evidence, graph-revision, risk, approval]
   provenance:
-    kind: imported
-    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
+    kind: first-party
+    source: repaired imported wave-by-wave-parley bundle
 ---
 
 # Wave-by-Wave Parley
 
-## When to Use
+A parley is a checkpoint between completed wave N and proposed wave N+1. It
+does not establish that a plan is correct; it makes the evidence, risk decision,
+approval and graph revision inspectable before a later side effect is admitted.
 
-- Any multi-wave Jury-rig execution where the decomposer emitted at least one subtask with
-  `commitment_level: TENTATIVE` or `EXPLORATORY` — those nodes were uncertain at plan time and
-  must be re-evaluated after each wave delivers new evidence.
-- The premortem returned `recommendation: ACCEPT_WITH_MONITORING` or `ESCALATE_TO_HUMAN` before
-  execution began — standing parley checkpoints convert that intent into a concrete gate.
-- Long-horizon DAGs (3+ waves, estimated_total_minutes > 20) where assumptions embedded in wave N+1
-  can be falsified by wave N outputs before expensive work begins.
-- Manager-led implementation waves where multiple agents may have opened,
-  updated, merged, or superseded PRs. Pair the parley with `session-pr-audit`
-  before the next wave so plan truth and GitHub/accounting truth move together.
+## Method 1 — distinguish the two evidence sets
 
-NOT for:
-- Single-wave DAGs or tasks where all subtasks are `COMMITTED` and premortem returned `PROCEED` —
-  there is nothing to negotiate; proceed directly.
-- Ad-hoc mid-wave interruptions — parley fires at wave completion, not at agent completion; do not
-  interrupt a running wave.
-- Replacing `dag-mutation-strategist` when a node has actually failed — parley is a proactive
-  commitment-level review on success, not a failure recovery protocol.
+Let allCompleted be every node output returned before the checkpoint and
+justFinished be only the IDs in wave N. Do not substitute one for the other.
 
-## Core Concepts
+1. Require an outcome record for every justFinished node: success, partial,
+   failed, missing, or untrusted. Missing and partial are non-success outcomes.
+2. For each upcoming node, join every declared dependency to an evidence record
+   by exact node ID and graph revision. Never use a truthiness filter that turns
+   absent output into a shorter successful list.
+3. Reassess only a risk whose affectedNodes intersects justFinished. Retain the
+   evidence hash, provenance, and previous severity.
+4. Hold when any dependency lacks valid evidence, a high or unknown risk remains,
+   a stale record is used, or a required approval is absent.
 
-**Wave Boundary as Formation Break.** A wave in `metaDAGPredict` is a set of subtask IDs that share
-the same `wave_number` and can run in parallel (`parallelizable: true` when `subtask_ids.length > 1`).
-Wave completion is deterministic: all nodes in `waves[N].nodes` have produced outputs. The boundary
-between wave N and wave N+1 is the only moment where the full output of the parallel formation is
-available for inspection before the next formation launches. Parley treats this boundary as a
-natural, scheduled formation break.
-
-**Commitment Level as Plan Uncertainty.** The decomposer (`buildDecomposerPrompt`) assigns each
-subtask one of three `commitment_level` values:
-- `COMMITTED` — high confidence, well-defined, proceed without parley.
-- `TENTATIVE` — likely needed but approach may change; parley-required before the wave containing
-  this node executes.
-- `EXPLORATORY` — might be needed depending on what earlier waves reveal; parley determines whether
-  to promote, demote to COMMITTED, or prune entirely.
-
-**Premortem Risk Threshold.** `PreMortemOutput.recommendation` has three values:
-- `PROCEED` — parley is optional (run it only if TENTATIVE nodes exist).
-- `ACCEPT_WITH_MONITORING` — parley is required at every wave boundary.
-- `ESCALATE_TO_HUMAN` — parley gate must surface to the human operator before proceeding past the
-  boundary; autonomous continuation is forbidden.
-
-Individual risks carry `severity: 'low' | 'medium' | 'high'` and `affected_nodes: string[]`. After
-each wave, re-evaluate severity of risks whose `affected_nodes` intersect the just-completed wave's
-`subtask_ids`. Evidence from completed nodes can either resolve or escalate a risk.
-
-**Parley as Scheduled Operation.** Parley is not triggered by anomaly detection or a human command.
-It is scheduled by the presence of TENTATIVE nodes or a non-PROCEED premortem before execution
-begins. The executor inserts a parley checkpoint into the run plan between every consecutive pair of
-waves. The checkpoint runs zero or minimal LLM calls when all conditions are green (no TENTATIVE in
-upcoming wave, all risks resolved or low). It runs a structured re-evaluation only when conditions
-are not green.
-
-**Swarm Silence vs. DAG Parley.** The swarm topology (`executeSwarm` in `topologies/swarm.ts`)
-converges by idle-timeout, vote, or quality-threshold — reactive convergence driven by message bus
-drain. Parley is the structural complement: it operates between scheduled waves in a DAG topology,
-uses the decomposer's commitment model rather than a message bus, and results in a plan mutation
-(node promotion, demotion, or pruning) rather than swarm termination.
-
-## Implementation Pattern
-
-```
-function shouldParley(
-  upcomingWave: Wave,
-  premortem: PreMortemOutput,
-  waveOutputs: Map<string, NodeOutput>,  // outputs from all completed waves
-): boolean {
-  // 1. Check if any upcoming node is TENTATIVE or EXPLORATORY
-  const hasUncertain = upcomingWave.nodes.some(
-    n => n.commitment_level === 'TENTATIVE' || n.commitment_level === 'EXPLORATORY'
-  );
-
-  // 2. Check premortem standing recommendation
-  const requiresByPremortem = (
-    premortem.recommendation === 'ACCEPT_WITH_MONITORING' ||
-    premortem.recommendation === 'ESCALATE_TO_HUMAN'
-  );
-
-  return hasUncertain || requiresByPremortem;
-}
-
-async function parley(
-  upcomingWave: Wave,
-  premortem: PreMortemOutput,
-  completedWaveOutputs: Map<string, NodeOutput>,
-  provider: LLMProvider,
-  model: string,
-): Promise<ParleyDecision> {
-  // Step 1: Collect evidence from completed nodes that are dependencies
-  //         of TENTATIVE/EXPLORATORY nodes in the upcoming wave.
-  const relevantOutputs = upcomingWave.nodes
-    .filter(n => n.commitment_level !== 'COMMITTED')
-    .flatMap(n => extractDependencyIds(n.input_contract))
-    .map(depId => completedWaveOutputs.get(depId))
-    .filter(Boolean);
-
-  // Step 2: Re-evaluate risk severity for risks whose affected_nodes
-  //         intersect the just-completed wave.
-  const resolvedRisks: string[] = [];
-  const escalatedRisks: Risk[] = [];
-  for (const risk of premortem.risks) {
-    const hasEvidence = risk.affected_nodes.some(
-      id => completedWaveOutputs.has(id)
-    );
-    if (hasEvidence) {
-      const updated = await reassessRisk(risk, completedWaveOutputs, provider, model);
-      if (updated.severity === 'low') resolvedRisks.push(risk.description);
-      else if (updated.severity === 'high') escalatedRisks.push(updated);
-    }
-  }
-
-  // Step 3: For each uncertain node, promote / demote / prune.
-  const mutations: NodeMutation[] = [];
-  for (const node of upcomingWave.nodes) {
-    if (node.commitment_level === 'COMMITTED') continue;
-
-    const decision = await evaluateNodeCommitment(
-      node,
-      relevantOutputs,
-      escalatedRisks,
-      provider,
-      model,
-    );
-    // decision.action: 'promote' | 'demote' | 'prune'
-    // decision.new_commitment_level: 'COMMITTED' | 'EXPLORATORY' | null (null = pruned)
-    mutations.push(decision);
-  }
-
-  // Step 4: If ESCALATE_TO_HUMAN and any risk remains high, surface to operator.
-  if (
-    premortem.recommendation === 'ESCALATE_TO_HUMAN' &&
-    escalatedRisks.some(r => r.severity === 'high')
-  ) {
-    return { action: 'escalate', mutations, resolvedRisks, escalatedRisks };
-  }
-
-  // Step 5: Return updated wave plan. Pruned nodes removed. Promoted nodes
-  //         proceed as COMMITTED. Demoted nodes pushed to a later wave.
-  return { action: 'proceed', mutations, resolvedRisks, escalatedRisks };
-}
-
-// Execution loop with parley:
-async function executeWithParley(dag: PredictedDAG, ...) {
-  for (let i = 0; i < dag.waves.length; i++) {
-    const wave = dag.waves[i];
-
-    // Execute wave N in parallel (as dag-runtime does)
-    const waveOutputs = await executeWaveParallel(wave, ...);
-    completedOutputs.mergeAll(waveOutputs);
-
-    // Parley before wave N+1
-    if (i + 1 < dag.waves.length) {
-      const nextWave = dag.waves[i + 1];
-      if (shouldParley(nextWave, dag.premortem, completedOutputs)) {
-        const decision = await parley(
-          nextWave, dag.premortem, completedOutputs, provider, model
-        );
-        if (decision.action === 'escalate') {
-          await notifyOperator(decision);
-          return;  // halt until operator responds
-        }
-        applyMutations(dag.waves[i + 1], decision.mutations);
-      }
-    }
-  }
-}
+```mermaid
+flowchart TD
+  A[Wave N node outcome records] --> B{All justFinished records present and successful?}
+  B -->|no: absent or non-success| H[Hold: request evidence or recovery]
+  B -->|yes| C[Join exact dependency IDs and revision]
+  C --> D{Any partial, failed, stale, or absent dependency?}
+  D -->|yes| H
+  D -->|no| E[Reassess risks affected by justFinished]
+  E --> F{High or unknown risk remains?}
+  F -->|yes| H
+  F -->|no| G[Propose validated graph revision]
 ```
 
-Key invariants:
-- Parley never interrupts a running wave. It fires exactly once per completed wave, before the next.
-- A COMMITTED node is never re-evaluated in parley. Commitment is monotonic downward (TENTATIVE can
-  promote to COMMITTED or demote to EXPLORATORY; EXPLORATORY can promote to COMMITTED or be pruned;
-  COMMITTED cannot be demoted).
-- Parley on a wave where all nodes are COMMITTED and premortem is PROCEED is a no-op (`shouldParley`
-  returns false and the checkpoint is skipped entirely).
-- `ESCALATE_TO_HUMAN` + a surviving high-severity risk halts the executor and surfaces a human gate.
-  This maps to the premortem `recommendation` semantics in `meta-dag-predict.ts` lines 542-550.
-- Parley decides whether the next wave should run; `session-pr-audit` decides
-  whether the completed wave's code is accounted for. Run both before a manager
-  launches the next implementation wave.
+## Method 2 — supersede rather than rewrite history
 
-## Key References
+A prior decision is immutable historical evidence. New information can change a
+future action only by creating a graph revision with: parent revision, changed
+node/edge/contract list, evidence references, decision rationale, and validator
+result. The old decision remains visible as superseded; no field is silently
+demoted from committed to exploratory.
 
-1. **`packages/core/src/context/meta-dag-predict.ts`** — `DecomposerOutput.Subtask.commitment_level`
-   (lines 23-28), `PreMortemOutput.recommendation` (lines 57-64), wave assembly in the Synthesizer
-   (lines 558-586). The `commitment_level` enum and premortem thresholds are the source of truth for
-   parley trigger conditions.
+For a prune, find every descendant that consumes the removed output. Either
+revalidate a replacement contract for each successor or prune/hold that
+successor too. Removing a predecessor from an input list is not valid evidence
+that the successor still has its required input.
 
-2. **`packages/core/src/topologies/swarm.ts`** — `executeSwarm` (lines 162-327). Contrast: swarm
-   convergence is reactive (idle-timeout, vote, quality-threshold on a message bus); parley is
-   structural (scheduled at wave boundaries in a DAG). Both are coordination mechanisms but operate
-   at different abstraction levels and on different topologies.
+```mermaid
+flowchart TD
+  P[Revision 4: scan then patch then publish] --> E[scan evidence h1: API break]
+  E --> H[Hold R7 high; inspect call sites]
+  H --> R[Revision 5 proposal]
+  R --> V{Validate DAG, contracts, authority, resources}
+  V -->|invalid or approval absent| H
+  V -->|valid| I[inspect-call-sites]
+  I --> T{Evidence resolves R7?}
+  T -->|no or partial| H
+  T -->|yes| A{Required approval present?}
+  A -->|no| H
+  A -->|yes| L[Admit next eligible wave]
+```
 
-3. **Klein, G. (1993). "A recognition-primed decision (RPD) model of rapid decision making."**
-   In G. Klein et al. (Eds.), *Decision Making in Action: Models and Methods*. The formation-break
-   model in military planning (after each maneuver element reports in, commanders reassess and
-   re-issue orders) is the direct analogue to wave-by-wave parley.
+## Method 3 — preserve approvals and assignment gates
 
-4. **Kahneman, D. & Klein, G. (2009). "Conditions for intuitive expertise: A failure to disagree."**
-   *American Psychologist*, 64(6), 515–526. COMMITTED vs. TENTATIVE vs. EXPLORATORY maps to the
-   spectrum from high-validity environments (pattern recognition, commit) to low-validity environments
-   (uncertainty, parley required). Parley is the mechanism that converts low-validity planning nodes
-   into high-validity execution nodes before they run.
+Risk policy is local. A high or unknown risk holds until the named policy or
+human decision resolves it; ACCEPT_WITH_MONITORING is not an automatic waiver.
+A required approval branch remains present even when no high risk is found.
+
+Before assignment, separately validate the current graph, task contract,
+authority/capability, and available resource/capacity. A valid plan mutation
+does not assign a task and a successful evidence check does not authorize a
+side effect.
+
+## Constructed checkpoint trace
+
+Wave 1 returns scan with evidence h1: package X has a major-version API break.
+Patch-X is tentative and publish also requires approval. Revision 4 records
+R7 high and holds. Revision 5 adds inspect-call-sites after scan. If its evidence
+is partial or fails, retain hold. If it proves the break isolated and the tests
+cover it, a policy or human decision may revise patch-X. Publish still cannot
+run until its explicit approval is present. This is a constructed state trace,
+not a measured risk model.
+
+## Custom protocol boundary
+
+RCP-3 actions such as broadcast, CFP, proposal/refusal, award/reject and prune
+are a local protocol sketch. FIPA-like performative names do not make it FIPA
+Contract Net conformant. Smith and FIPA do not require selection by a
+self-reported confidence estimate or make such a report truthful. A renewed CFP
+after scope change belongs conceptually nearer Iterated Contract Net; base FIPA
+CNP leaves cancellation and several abnormal paths unaddressed. Count actual
+calls in a concrete implementation; do not promise a fixed call budget.
+
+## Verify the supplied checkpoint
+
+Run node scripts/parley_checkpoint_audit.mjs --input examples/checkpoint-valid.json.
+The audit compiles its Draft 2020 schema before domain checks. `pass` and
+`declarationValid` mean the supplied graph/evidence declaration is coherent;
+`eligibleToAdmit` additionally requires approval, authority, resources, and no
+unresolved high/unknown risk; the CLI exits nonzero unless it is true. It does not run agents, verify an external receipt,
+allocate resources, or prove FIPA conformance. See
+[Schema enforcement](references/schema-enforcement.md).
+
+## References
+
+- [Smith, Contract Net Protocol (1980)](https://cse-robotics.engr.tamu.edu/dshell/cs631/papers/smith80contract.pdf)
+- [FIPA Contract Net SC00029H (2002)](https://citeseerx.ist.psu.edu/document?doi=e560bbf29d1af433792fb5419845db1ab29bf7fc&repid=rep1&type=pdf)
+- [FIPA Iterated Contract Net SC00030](https://citeseerx.ist.psu.edu/document?doi=549b7fcda2d0b05ced04776ae38ba4f835921f6a&repid=rep1&type=pdf)
+- [Method boundaries](references/method-boundaries.md)
+
+A reported partial, failed, missing, or untrusted outcome is still an outcome record. If it is in `justFinished`, the local checkpoint policy holds admission for recovery review even when the next proposed branch is independent. This alone does not make the declaration malformed. A claimed successful descendant with an absent or failed prerequisite remains inconsistent, and a proposed next wave whose prerequisites are not successful remains invalid.
+
+## Bundle navigation
+
+[diagrams index](diagrams/INDEX.md), [schemas index](schemas/INDEX.md), [tests index](tests/INDEX.md).

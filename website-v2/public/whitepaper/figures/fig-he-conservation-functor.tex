@@ -1,57 +1,36 @@
-% Figure IV.5 --- accounting quantities, not architecture boxes.
-\begin{figure}[H]
-\centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. native unit closes exactly};
-  \node[pd panel title,anchor=west] at (.65,3.0) {B. conversion introduces priced terms};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-.30,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-6.35,2.25);
-  \draw[pd caution rule,line width=8pt] (-5.45,0)--(-5.45,-1.10);
-  \draw[pd focus rule,line width=8pt] (-3.95,-1.10)--(-3.95,.15);
-  \draw[pd focus rule,line width=8pt] (-2.45,.15)--(-2.45,.55);
-  \draw[pd rule,line width=8pt] (-.95,.55)--(-.95,0);
-  \draw[pd guide] (-5.45,-1.10)--(-3.95,-1.10);
-  \draw[pd guide] (-3.95,.15)--(-2.45,.15);
-  \draw[pd guide] (-2.45,.55)--(-.95,.55);
-  \node[pd axis label,anchor=north] at (-5.45,-1.82) {$\Delta W$};
-  \node[pd axis label,anchor=north] at (-3.95,-1.82) {$\Delta E$};
-  \node[pd axis label,anchor=north] at (-2.45,-1.82) {$\Delta C$};
-  \node[pd axis label,anchor=north] at (-.95,-1.82) {net};
-  \node[pd direct label,text=hhteal,anchor=south] at (-.95,.18) {$0$};
-  \node[pd note] at (-3.65,2.00) {$\Delta W+\Delta E+\Delta C=0$};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(7.05,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(1.15,2.25);
-  \draw[pd caution rule,line width=8pt] (2.00,0)--(2.00,-1.10);
-  \draw[pd focus rule,line width=8pt] (3.35,-1.10)--(3.35,.35);
-  \draw[pd caution rule,line width=8pt] (4.70,.35)--(4.70,.05);
-  \draw[pd caution rule,line width=8pt] (5.75,.05)--(5.75,-.15);
-  \draw[pd caution rule,dashed,line width=2pt] (6.60,-.15)--(6.60,.75);
-  \draw[pd guide] (2.00,-1.10)--(3.35,-1.10);
-  \draw[pd guide] (3.35,.35)--(4.70,.35);
-  \draw[pd guide] (4.70,.05)--(5.75,.05);
-  \node[pd axis label,anchor=north] at (2.00,-1.82) {$-a u_1$};
-  \node[pd axis label,anchor=north] at (3.35,-1.82) {$v_t(a)u_2$};
-  \node[pd axis label,anchor=north] at (4.70,-1.82) {fee};
-  \node[pd axis label,anchor=north] at (5.75,-1.82) {slip.};
-  \node[pd axis label,anchor=north] at (6.60,-1.82) {risk};
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (5.05,1.35)
-    {valuation passport\\$v_t$, source, instant};
-  \draw[pd caution arrow] (5.22,1.15)--(3.55,.55);
-
-  \draw[pd focus rule] (-6.15,-2.60)--(-.55,-2.60);
-  \node[pd note,text=hhteal] at (-3.35,-2.86) {conserved by construction};
-  \draw[pd caution rule] (1.35,-2.60)--(6.85,-2.60);
-  \node[pd note,text=hhamber] at (4.10,-2.86)
-    {conserved per unit; portfolio value is assumed and time-indexed};
+% Book-native replacement for fig:he-conservation-functor. Shared Swiss language is preloaded.
+\newcommand{\AccConservationDiagram}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (3,0) {one native unit};
+  \node[anchor=north east,text=sgTeal] at (318,0) {$-100+80+20=0\ U_A$};
+  \SGDocument{accWallet}{(4,27)}{74}{43}{sgViolet!9}{wallet $W$\\$100\ U_A$}
+  \SGDocument{accEscrow}{(123,27)}{77}{43}{sgBlue!7}{escrow $E$\\$+80\ U_A$}
+  \SGDocument{accCommons}{(238,27)}{77}{43}{sgTeal!8}{commons $C$\\$+20\ U_A$}
+  \draw[sg/arrow,draw=sgBlue] (accWallet.east)--node[above,text=sgBlue] {$80\ U_A$}(accEscrow.west);
+  \draw[sg/arrow,draw=sgTeal] (accWallet.east)--(96,78)--(96,96)--(276,96)--(276,70);
+  \node[anchor=south,text=sgTeal] at (187,92) {$20\ U_A$};
+  \node[sg/check,minimum width=307pt,minimum height=25pt,draw=sgTeal,fill=sgTeal!7] at (159,121)
+    {$\Delta W=-100\ U_A,\quad\Delta E=+80\ U_A,\quad\Delta C=+20\ U_A$};
+  \draw[sgInk,line width=.75pt] (3,143)--(318,143);
+  \node[anchor=north west,font=\SGType\bfseries] at (3,154) {quoted conversion};
+  \SGDocument{accSource}{(4,181)}{65}{42}{sgViolet!9}{source\\$100\ U_A$}
+  \SGDocument{accQuote}{(87,174)}{99}{56}{sgAmber!10}{quote record\\$r_t=0.50\ U_B/U_A$\\source + time $t$}
+  \node[sg/check,minimum width=105pt,draw=sgBlue,fill=sgBlue!7] (accGross) at (260,202)
+    {quoted gross\\$50\ U_B$};
+  \draw[sg/arrow,draw=sgAmber] (accSource.east)--(accQuote.west);
+  \draw[sg/arrow,draw=sgBlue] (accQuote.east)--(accGross.west);
+  \SGDocument{accNet}{(214,263)}{101}{40}{sgBlue!7}{recipient net\\$47\ U_B$}
+  \SGDocument{accFee}{(90,263)}{69}{40}{sgTeal!8}{fee account\\$+1\ U_B$}
+  \draw[sg/arrow,draw=sgTeal] (accGross.south)--(260,245)--(124,245)--(124,263);
+  \draw[sg/arrow,draw=sgBlue] (accGross.south)--(260,263);
+  \node[draw=sgAmber,fill=sgAmber!9,line width=.9pt,minimum width=145pt,minimum height=31pt,align=center] at (245,329)
+    {$50-47-1=2\ U_B$\\execution shortfall vs quote};
+  \node[anchor=north west,text=sgAmber] at (171,349) {not a literal ledger account};
+  \node[anchor=north west,text=sgRed,text width=150pt,align=left] at (4,315)
+    {Later exchange rates are not fixed by this quote.};
 \end{tikzpicture}}
-\caption{\textbf{Conservation closes inside a native unit; conversion requires a
-named valuation boundary.} Panel A is an accounting waterfall: wallet, escrow,
-and commons deltas return exactly to zero. Panel B cannot close by adding unlike
-units. It must record the valuation function and instant, plus fee, slippage, and
-open exposure. Composition preserves native-unit balances; notation does not
-manufacture a unit-free portfolio total.}
+\begin{figure}[H]
+\centering\SGMeasuredFigure{fig-he-conservation-functor}{\AccConservationDiagram}
+\caption{Within $U_A$, the illustrated wallet, escrow, and commons deltas sum to zero. A conversion records its rate, time, recipient amount, fee, and the execution shortfall relative to its quote; later rate movement remains an open exposure. [internal; illustrative values]}
 \label{fig:he-conservation-functor}
 \end{figure}

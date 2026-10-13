@@ -210,7 +210,7 @@ describe('delivery instruction contract', () => {
     expect(text).toContain('This verifier runs even when the branch is fully pushed');
   });
 
-  test('GitHub mutation instructions require the App actuator and reject personal credentials', () => {
+  test('GitHub mutation instructions preserve the App boundary and scope an explicit bootstrap override', () => {
     const agents = source('AGENTS.md');
     const skill = source('skills/github-app-actuator/SKILL.md');
     const compactSkill = skill.replace(/\s+/g, ' ');
@@ -223,7 +223,11 @@ describe('delivery instruction contract', () => {
       "operator's PAT, OAuth token, `pdu_` account bearer",
       'separate OS identity or remote service',
       'Local `gh auth logout` alone is not remote revocation',
-      "does **not** satisfy this skill's boundary",
+      'does **not** satisfy the protected actuator boundary',
+      'Without an explicit applicable operator override',
+      'does not authorize unrelated work, merges, gate bypasses or credential export',
+      'Never claim an App receipt or bot authorship',
+      'a separately attributed fallback, never App-publication evidence',
     ]) expect(compactSkill).toContain(phrase);
   });
 

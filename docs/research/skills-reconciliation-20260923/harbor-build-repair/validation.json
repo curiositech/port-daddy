@@ -1,0 +1,37 @@
+{
+  "baseCommit": "b1e838012ee9257557e47dd06c8689d25b4ec772",
+  "inputSha256": {
+    ".github/workflows/harbor-research-build.yml": "58806bec4f359deb8ceeea980a12a9d4dd55b511482bad3b53a47c5a10e46cb1",
+    "docs/harbor-research/Makefile": "421652d5b9bbc57703494719effe6b4ebb32929573ff154f5706bcf2f69b4a98",
+    "docs/harbor-research/tex/preamble.tex": "6e8d98e7c69e4996d5860181f5c713c1657c2c5f78fbaf9d3bce2a6477f99c2f",
+    "docs/harbor-research/figures/fig-b1-frontier.tex": "1a1d6aa746937f657140b224c22d1a654c9b6b1f6c320f70749123565fbb8d43",
+    "tests/harbor-research/test_build_reproducibility.py": "6d0066fa27ad196488b6efa5fc46a7a541b00cc37c52df5ba603e15585bf17db"
+  },
+  "localChecks": {
+    "researchLibraryTests": 460,
+    "focusedBuildRegressions": 4,
+    "actionlint": "pass",
+    "sourceCoverage": {
+      "entries": 755,
+      "problems": 0
+    },
+    "attributionTests": 23,
+    "citations": {
+      "files": 43,
+      "orphan": 0,
+      "dangling": 0,
+      "duplicate": 0,
+      "advisories": 2
+    }
+  },
+  "render": {
+    "engine": "local TeX Live 2026 Basic",
+    "compiledThrough": "exec5",
+    "stoppedAt": "review.tex: missing titlesec.sty in local installation",
+    "hostedFullCorpus": "pending publication at this checkpoint",
+    "image": "exec2-page-2.png",
+    "imageSha256": "3a5a3a7cb7197dcb8e73e3d4f113cccf41d4def2e6a31f985852dc7cc872aae3",
+    "inspection": "Parent inspected actual exec2 page 2; panel C retains logarithmic ticks 10^0 through 10^3. No chart data or axis-scale semantics changed."
+  },
+  "runtime": "Local Port Daddy remains halted."
+}

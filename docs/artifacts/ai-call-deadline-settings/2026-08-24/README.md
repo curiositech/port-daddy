@@ -16,13 +16,13 @@ Chromium. The HTML pixels are real; the data feeding them is a fixture.
 
 ## Files
 
-- `settings-normal-light.png` / `settings-normal-dark.png` — the rendered
+- `https://media.portdaddy.dev/sha256/cf/cf03db68274f277fcf32023f3282a0cc4eaac92ea25fd60cb4bea2f849268310.png` / `https://media.portdaddy.dev/sha256/32/323d7ec103a5ed939af47d650712293486e4774a85716ddd7a85aa59e51a2860.png` — the rendered
   control for two repositories: `curiositech/port-daddy` at the untouched
   default (5 minutes, `settings_json: '{}'`) and `acme/widgets` showing the
   **resulting live receipt field** after an admin set it to 10 minutes
   (`settings_json: '{"aiCallDeadlineMs":600000}'`) — i.e. what a real save
   by an authorized admin actually persists and renders back.
-- `settings-error-light.png` — the validation/error state: the notice a
+- `https://media.portdaddy.dev/sha256/b5/b5240c96bb9c52cae83ea719fbd45bd7e735acd2e29ad147e736b99564cd082f.png` — the validation/error state: the notice a
   non-admin sees when `handleRepoSettingsSet` rejects an attempt to change
   `acme/widgets`'s already-admin-set deadline (the admin-authority gate
   added in response to finding 3 of the same review).

@@ -1,0 +1,130 @@
+% fig-ch0-bbl-vision-cones.tex
+% Dynamic Epistemic Observation Cones in Big Brother Logic
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    gridline/.style={draw=pdslate!20,line width=0.4pt},
+    shadowregion/.style={fill=pdslate!12,draw=none},
+    cardbox/.style={draw=pdslate!30,line width=0.55pt,fill=white,rounded corners=2.5pt,inner sep=3pt}
+  }
+
+  % =========================================================================
+  % TOP: 2D COORDINATE PLOT & VISION CONES (x in [0.5, 13.2], y in [1.5, 5.1])
+  % =========================================================================
+
+  % Epistemic Shadow regions (unobservable background)
+  \fill[pdslate!10,rounded corners=2pt] (1.3, 1.8) rectangle (12.8, 4.9);
+
+  % Observer Agent a1 Vision Cone V(a1) (Teal wedge spreading from x=2.0)
+  \fill[pdteal!22] (2.0, 3.35) -- (12.8, 4.75) -- (12.8, 1.95) -- cycle;
+  \draw[line width=0.8pt,pdteal!80!black] (2.0, 3.35) -- (12.8, 4.75);
+  \draw[line width=0.8pt,pdteal!80!black] (2.0, 3.35) -- (12.8, 1.95);
+
+  % Worker Agent a2 Vision Cone V(a2) (Darker teal/cobalt wedge spreading from x=8.8)
+  \fill[pdcobalt!25] (8.8, 3.35) -- (12.8, 4.55) -- (12.8, 2.15) -- cycle;
+  \draw[line width=0.8pt,pdcobalt!85!black] (8.8, 3.35) -- (12.8, 4.55);
+  \draw[line width=0.8pt,pdcobalt!85!black] (8.8, 3.35) -- (12.8, 2.15);
+
+  % Coordinate Grid lines
+  % Vertical grid lines: -7 to 10 (step = 0.65cm)
+  % x=-7 -> 1.35, x=-6 -> 2.0, x=0 -> 6.1, x=4 -> 8.8, x=8 -> 11.45, x=10 -> 12.8
+  \foreach \i/\xval in {
+    1.35/-7, 2.0/-6, 2.68/-5, 3.36/-4, 4.05/-3, 4.73/-2, 5.41/-1,
+    6.1/0, 6.78/1, 7.46/2, 8.14/3, 8.8/4, 9.49/5, 10.17/6, 10.85/7, 11.45/8, 12.13/9, 12.8/10
+  } {
+    \draw[gridline] (\i, 1.8) -- (\i, 4.9);
+    \node[anchor=north,font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!80!black}] at (\i, 1.8) {\xval};
+  }
+
+  % Horizontal grid lines: y = -3, -2, -1, 0, 1, 2, 3 (step = 0.5cm)
+  \foreach \j/\yval in {
+    1.85/-3, 2.35/-2, 2.85/-1, 3.35/0, 3.85/1, 4.35/2, 4.85/3
+  } {
+    \draw[gridline] (1.35, \j) -- (12.8, \j);
+    \node[anchor=east,font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!80!black}] at (1.35, \j) {\yval};
+  }
+
+  % Main Axes
+  \draw[line width=0.7pt,hhink] (1.35, 3.35) -- (12.8, 3.35); % X axis
+  \draw[line width=0.7pt,hhink] (6.1, 1.8) -- (6.1, 4.9);    % Y axis
+
+  % Shadow Labels
+  \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{hhgray!90!black}] at (4.0, 4.6) {Epistemic Shadow};
+  \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhgray!90!black}] at (8.5, 2.1) {Epistemic Shadow region};
+
+  % Vision Cone Labels
+  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdteal!90!black}] at (3.8, 3.55) {$\mathbf{V(a_1)}$};
+  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdcobalt}] at (7.8, 3.8) {$\mathbf{V(a_2)}$};
+  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdcobalt}] at (9.8, 4.3) {$\mathbf{V(a_2)}$};
+
+  % Observer Agent a1 (Robot at x=-6, y=0 -> (2.0, 3.35))
+  \pdrobotbase[0.65]{(2.0, 3.35)}{pdcobalt}
+  \node[anchor=north,font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhink},align=center] at (2.0, 2.65) {%
+    Observer\\Agent $a_1$%
+  };
+
+  % Worker Agent a2 (Robot at x=4, y=0 -> (8.8, 3.35))
+  \pdrobotbase[0.65]{(8.8, 3.35)}{pdteal}
+  \node[anchor=north,font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhink},align=center] at (8.8, 2.7) {%
+    Worker\\Agent $a_2$%
+  };
+
+  % Objective phi (Target task property at x=8, y=2 -> (11.45, 4.35))
+  \fill[white,draw=pderror,line width=1.0pt] (11.45, 4.35) circle (0.16);
+  \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pderror}] at (11.45, 4.35) {$\phi$};
+  \node[anchor=west,font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{pderror},align=left] at (11.75, 4.45) {Objective};
+  \node[anchor=west,font=\fontsize{4.6}{5.4}\selectfont\color{hhink},align=left] at (11.75, 4.15) {Target task\\property};
+  \draw[pd arrow,line width=0.6pt,pderror] (11.7, 4.35) -- (11.62, 4.35);
+
+  % =========================================================================
+  % BOTTOM: THREE VERIFICATION CARDS (x in [0.4, 13.1], y in [0.15, 1.35])
+  % =========================================================================
+
+  % --- Card 1: Higher-order verification ---
+  \begin{scope}[shift={(0.4, 0.2)}]
+    \draw[cardbox] (0, 0) rectangle (3.9, 1.05);
+    % Red Star Badge
+    \draw[fill=pdrust!90!black,draw=none,rounded corners=1.5pt] (3.4, 0.72) rectangle (3.75, 0.95);
+    \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{white}] at (3.575, 0.83) {+};
+    % Content
+    \node[anchor=west,font=\fontsize{7.0}{8.5}\selectfont\bfseries\color{hhink}] at (0.2, 0.65) {%
+      $\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$%
+    };
+    \node[anchor=west,font=\fontsize{5.0}{6.0}\selectfont\color{hhgray!90!black}] at (0.2, 0.25) {%
+      Higher-order verification%
+    };
+  \end{scope}
+
+  % --- Card 2: Agent 1 knows Agent 2 knows phi ---
+  \begin{scope}[shift={(4.5, 0.2)}]
+    \draw[cardbox] (0, 0) rectangle (3.9, 1.05);
+    % Red Star Badge
+    \draw[fill=pdrust!90!black,draw=none,rounded corners=1.5pt] (3.4, 0.72) rectangle (3.75, 0.95);
+    \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{white}] at (3.575, 0.83) {+};
+    % Content
+    \node[anchor=west,font=\fontsize{7.0}{8.5}\selectfont\bfseries\color{hhink}] at (0.2, 0.65) {%
+      $\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$%
+    };
+    \node[anchor=west,font=\fontsize{5.0}{6.0}\selectfont\color{hhgray!90!black}] at (0.2, 0.25) {%
+      Agent 1 knows Agent 2 knows $\phi$%
+    };
+  \end{scope}
+
+  % --- Card 3: Invariant verification ---
+  \begin{scope}[shift={(8.6, 0.2)}]
+    \draw[draw=pdhealth!80,line width=0.6pt,fill=pdhealth!5,rounded corners=2.5pt] (0, 0) rectangle (4.5, 1.05);
+    % Shield Icon
+    \pdiconshieldcheck[0.75]{(0.55, 0.52)}
+    % Content
+    \node[anchor=west,font=\fontsize{5.6}{6.8}\selectfont\bfseries\color{pdhealth!90!black}] at (1.05, 0.68) {%
+      Invariant verification%
+    };
+    \node[anchor=west,font=\fontsize{4.6}{5.6}\selectfont\color{hhink},text width=3.2cm] at (1.05, 0.32) {%
+      Successful system property verification in the logic%
+    };
+  \end{scope}
+
+\end{tikzpicture}

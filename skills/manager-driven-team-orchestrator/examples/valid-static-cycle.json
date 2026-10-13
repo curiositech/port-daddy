@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "2.0.0",
+  "mode": "DESIGN_AUDIT_ONLY",
+  "runId": "convention:example:1",
+  "status": "SUBMIT_FOR_INDEPENDENT_REVIEW",
+  "objective": "Produce a bounded static architecture candidate.",
+  "packet": {"packetId": "packet:1", "repositoryAnchor": "abc123", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "fileCount": 12, "truthState": "T0_STATIC", "runtimeAuthority": "NONE", "includedClasses": ["positions", "reviews"], "excludedClasses": ["runtime"]},
+  "criteriaDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "authorityBoundary": {"managerMaySpawn": false, "managerMayApprove": false, "recursiveDelegationAllowed": false, "externalGateRequired": true},
+  "bounds": {"maxRounds": 2, "maxConcurrentContributors": 8, "maxTotalBirths": 8, "maxSpawnDepth": 0, "maxAttemptsPerArtifact": 2, "maxCorrectionAttemptsPerTicket": 1, "deadline": "2026-09-17T00:00:00.000Z", "nativeCapacityCeilings": [{"resource": "review-slots", "unit": "participants", "ceiling": 8}]},
+  "participants": [
+    {"participantId": "p1", "role": "POSITION_AUTHOR", "admissionEvidenceRef": "admit:p1"}, {"participantId": "p2", "role": "POSITION_AUTHOR", "admissionEvidenceRef": "admit:p2"},
+    {"participantId": "r1", "role": "RECIPROCAL_REVIEWER", "admissionEvidenceRef": "admit:r1"}, {"participantId": "r2", "role": "RECIPROCAL_REVIEWER", "admissionEvidenceRef": "admit:r2"},
+    {"participantId": "m1", "role": "MANAGER", "admissionEvidenceRef": "admit:m1"}, {"participantId": "e1", "role": "ENGINEERING_BEAT", "admissionEvidenceRef": "admit:e1"},
+    {"participantId": "pm1", "role": "PRODUCT_BEAT", "admissionEvidenceRef": "admit:pm1"}, {"participantId": "d1", "role": "DESIGN_BEAT", "admissionEvidenceRef": "admit:d1"}
+  ],
+  "positions": [
+    {"positionId": "pos1", "authorId": "p1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "artifactDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "falsifier": "A crash permits duplicate authority."},
+    {"positionId": "pos2", "authorId": "p2", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "artifactDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "falsifier": "The operator cannot distinguish assent from execution."}
+  ],
+  "reviews": [
+    {"reviewId": "rev1", "reviewerId": "r1", "positionId": "pos2", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "steelman": {"thesisMechanism": "Separate assent from execution.", "evidenceFalsifier": "A launch path bypasses review.", "protectedOutcome": "Informed operator control."}, "unresolvedTension": "More states can create fatigue.", "critique": "The review contract lacks a substitution test.", "critiqueFalsifier": "All critical substitutions invalidate assent.", "narrowAmendment": "Add exact critical-field diff.", "ownConcession": "The separation is necessary.", "retainedDissent": "Comprehension remains unproved."},
+    {"reviewId": "rev2", "reviewerId": "r2", "positionId": "pos1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "steelman": {"thesisMechanism": "Atomically consume reservation before lease.", "evidenceFalsifier": "A crash creates two leases.", "protectedOutcome": "Capacity conservation."}, "unresolvedTension": "A shared store concentrates writes.", "critique": "Recovery ownership is unspecified.", "critiqueFalsifier": "Every crash converges under one owner.", "narrowAmendment": "Name the recovery owner.", "ownConcession": "A local transaction is the simplest first proof.", "retainedDissent": "Distributed admission remains open research."}
+  ],
+  "corrections": [],
+  "realityBeats": [
+    {"beat": "ENGINEERING", "authorId": "e1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "artifactDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "decision": "BUILD_STATIC", "falsifiers": ["Crash suite violates conservation."]},
+    {"beat": "PRODUCT", "authorId": "pm1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "artifactDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "decision": "TEST_WEDGE", "falsifiers": ["Buyers prefer native controls."]},
+    {"beat": "DESIGN", "authorId": "d1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "artifactDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "decision": "PROTOTYPE_ONLY", "falsifiers": ["Operators mistake assent for execution."]}
+  ],
+  "dissent": [{"dissentId": "dis1", "originatorId": "r2", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "statementDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "status": "RETAINED", "evidenceRefs": ["rev2"]}],
+  "managerSubmission": {"managerId": "m1", "packetSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidateDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "referencedDissentIds": ["dis1"], "decision": "SUBMIT_FOR_INDEPENDENT_REVIEW"},
+  "externalDecisionRef": null,
+  "claims": [{"claimId": "c1", "truthLabel": "BLOCKED_BY_HALT", "statement": "Live containment works.", "evidenceRefs": [], "missingDynamicEvidence": ["independent bypass suite"]}]
+}

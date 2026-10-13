@@ -20,7 +20,7 @@ flowchart TD
     C --> E["Read form + shape items first"]
     D --> E
     E --> F{"Finding family?"}
-    F -->|residue| G["Report high. Machine artifact,<br/>near-zero human source"]
+    F -->|residue| G["Verify context and repair<br/>unconverted artifacts"]
     F -->|form / shape| H["Report as written. Humans do this too"]
     F -->|rhythm| I["Cue only. Never quote as evidence"]
 ```
@@ -179,13 +179,15 @@ Abstractions with no concrete instance. The piece defines, categorises and quali
 
 **False positive when:** Reference pages, API listings and conceptual overviews that explicitly hand off to a tutorial.
 
+**Evidence:** General instructional evidence for worked examples, not evidence of AI prevalence: https://ies.ed.gov/ncee/wwc/PracticeGuide/1
+
 **Before**
 
 > Exponential backoff increases the delay between retries to reduce contention.
 
 **After**
 
-> Exponential backoff increases the delay between retries: 1s, then 2s, then 4s. Our third retry lands at 4s, by which point the dogpile that caused the failure has usually cleared.
+> With waits of 1s, 2s and 4s after consecutive failures, retry attempts begin at elapsed times 1s, 3s and 7s, ignoring request duration. The third wait is 4s; the third attempt is not at elapsed time 4s.
 
 <a id="nothing-at-stake"></a>
 ### `nothing-at-stake`  ·  high · generic-llm · prose · llm-judge · family: form

@@ -1,0 +1,32 @@
+% TEMPLATE: timeline with epochs (one axis, named intervals, marked instants).
+% The epochs are bands with drawn edges on one baseline; instants are datums on
+% the axis; nothing floats.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdindigo}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{0.35}  \def\xe{10.70}  \def\y{0.00}  \def\h{0.34}
+  % ---- the epochs, edged and named -----------------------------------------
+  \foreach \a/\b/\name/\s in {0.00/3.10/{issued}/{pd focus fill},
+                              3.10/6.90/{in force}/{pd ready fill},
+                              6.90/10.35/{revoked}/{pd breach fill}}{
+    \draw[\s] ({\x0+\a},{\y-\h}) rectangle ({\x0+\b},{\y+\h});
+    \node[pd label] at ({\x0+(\a+\b)/2},\y) {\name};}
+  % ---- the axis, with the instants that separate them ----------------------
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}] (\x0,-1.05) -- (\xe,-1.05);
+  \node[pd label,anchor=west] at (\xe,-1.05) {time};
+  \foreach \a/\l in {0.00/{\texttt{t0}}, 3.10/{first use}, 6.90/{\texttt{tr}}}{
+    \draw[pd guide] ({\x0+\a},{\y-\h-.10}) -- ({\x0+\a},-0.95);
+    \draw[pd tick] ({\x0+\a},-0.95) -- ({\x0+\a},-1.15);
+    \node[pd focus datum] at ({\x0+\a},-1.05) {};
+    \node[pd label,anchor=north] at ({\x0+\a},-1.28) {\l};}
+  \node[pd note,anchor=north west,text width=10.3cm] at (\x0,-1.85)
+    {an epoch ends only at a named instant; nothing is admissible between two of them};
+\end{tikzpicture}
+\caption{A credential's three epochs on one axis, each an interval with a drawn
+edge rather than a tint: issued at \texttt{t0}, in force from first use, revoked
+at \texttt{tr}. The instants that separate the epochs are marked on the axis
+itself, so the reader reads the boundary off a position rather than off a
+colour. [internal]}
+\label{fig:tpl-timeline-epochs}
+\end{figure}

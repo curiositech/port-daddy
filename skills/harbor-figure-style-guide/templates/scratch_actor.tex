@@ -1,0 +1,173 @@
+% Brief (actor-concurrency)
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  baseBox/.style={
+    draw=pdink, line width=0.8pt, fill=pdpage, text=pdink,
+    inner xsep=6pt, inner ysep=5pt, align=left, font=\pdfiglabelsize
+  },
+  gridBox/.style={
+    baseBox, text width=3.8cm, minimum height=1.30cm
+  },
+  ingressBox/.style={
+    gridBox, fill=pdlime!25, text width=4.0cm
+  },
+  activeBox/.style={
+    gridBox, draw=pdcobalt, fill=pdcobalt, text=pdpage
+  },
+  remedyBox/.style={
+    gridBox, fill=pdteal!12, draw=pdteal, text width=4.0cm, minimum height=1.30cm
+  },
+  sectionFrame/.style={
+    draw=pdink!60, line width=0.8pt
+  },
+  secHeader/.style={
+    font=\pdfiglabelbold, text=pdink, anchor=north west
+  }
+]
+  \useasboundingbox (0, 0.2) rectangle (15.5, 18.8);
+
+  % ================= DOCUMENT HEADER & SEMANTIC LEGEND =================
+  \node[anchor=west, font=\pdfiglabelbold\large, text=pdink] at (0.2, 18.45) {HEWITT--AGHA ACTOR ARCHITECTURE};
+  \node[anchor=east, font=\pdfiglabel, text=pdink!70] at (15.3, 18.45) {Hewitt (1973) \textperiodcentered\ Agha (1986)};
+  \node[anchor=west, font=\pdfiglabel, text=pdink!80] at (0.2, 17.95) {Asynchronous Mailbox Queue \textperiodcentered\ Capability-Attenuated Seatbelt Confinement};
+  \draw[line width=1.0pt, pdink] (0.2, 17.65) -- (15.3, 17.65);
+
+  % Semantic Legend
+  \node[anchor=west, font=\pdfiglabelbold, text=pdink] at (0.2, 17.20) {SEMANTIC KEY:};
+  
+  \node[anchor=west, draw=pdink, fill=pdlime!25, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (2.8, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (3.25, 17.20) {External Ingress};
+
+  \node[anchor=west, draw=pdcobalt, fill=pdcobalt, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (5.9, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (6.35, 17.20) {Active Execution};
+
+  \node[anchor=west, draw=pdteal, fill=pdteal!15, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (9.4, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (9.85, 17.20) {Supervisory Remedy};
+
+  \node[anchor=west, draw=pdink, fill=pdpage, line width=0.6pt, minimum width=0.35cm, minimum height=0.25cm] at (13.0, 17.20) {};
+  \node[anchor=west, font=\pdfiglabel, text=pdink] at (13.45, 17.20) {Evidence Log};
+
+  % ================= SECTION 1: INGRESS & DISPATCH =================
+  \draw[sectionFrame] (0.2, 14.40) rectangle (15.3, 16.85);
+  \node[secHeader] at (0.45, 16.70) {1. INGRESS \& CAPABILITY-ATTENUATED DISPATCH};
+
+  \node[gridBox, text width=3.6cm, anchor=north] (peer) at (2.2, 16.15) {
+    \textbf{Peer Actor} $\alpha_{\text{orch}}$ \\[2pt]
+    \texttt{claim\_port(9876)} \\[1pt]
+    Capability $\mathcal{C}$
+  };
+
+  \node[ingressBox, anchor=north] (ingress) at (7.75, 16.15) {
+    \textbf{Task Ingress Queue} $Q_{\text{in}}$ \\[2pt]
+    Task: \texttt{"refactor"} $\cdot$ Cap $\mathcal{C}$ \\[1pt]
+    \$5 Budget $\cdot$ 300s Lease
+  };
+
+  \node[gridBox, text width=3.6cm, anchor=north] (heartbeat) at (13.3, 16.15) {
+    \textbf{Supervisory Heartbeat} \\[2pt]
+    Telemetry: $\langle\text{ping}, 30\text{s}\rangle$ \\[1pt]
+    Dead-man channel
+  };
+
+  \draw[pd arrow] (peer.east) -- (ingress.west)
+    node[midway, above=1pt, font=\pdfiglabelbold, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {send($m$)};
+
+  % ================= SECTION 2: MAILBOX QUEUE =================
+  \draw[sectionFrame] (0.2, 12.55) rectangle (15.3, 14.35);
+  \node[secHeader] at (0.45, 14.20) {2. BOUNDED FIFO MAILBOX QUEUE $Q_\alpha$};
+  \node[anchor=north east, font=\pdfiglabel, text=pdink!70] at (15.1, 14.20) {$|Q_\alpha| \le N_{\max}$, Backpressure Active};
+
+  \node[font=\pdfiglabelbold, text=pdink] (tail) at (1.2, 13.15) {TAIL};
+  \node[baseBox, text width=2.4cm, fill=pdink!5, draw=pdink!30, align=center] (m3) at (3.6, 13.15) {$m_3$: \texttt{ping}};
+  \node[baseBox, text width=3.2cm, fill=pdink!5, draw=pdink!30, align=center] (m2) at (7.75, 13.15) {$m_2$: \texttt{dispatch\_task}};
+  \node[baseBox, text width=2.7cm, fill=pdcobalt, draw=pdcobalt, text=pdpage, align=center] (m1) at (11.8, 13.15) {\textbf{$m_1$: claim\_port}};
+  \node[font=\pdfiglabelbold, text=pdink] at (14.2, 13.15) {HEAD $\to$};
+
+  % Clean vertical Enqueue Path from Ingress to m2
+  \draw[pd arrow] (ingress.south) -- (m2.north)
+    node[midway, font=\pdfiglabelbold, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {enqueue};
+
+  % ================= SECTION 3: SEATBELT SANDBOX =================
+  \draw[sectionFrame, draw=pdcobalt, line width=1.1pt, fill=pdcobalt!5] (0.2, 6.60) rectangle (15.3, 12.35);
+  \node[secHeader, text=pdcobalt] at (0.45, 12.20) {3. ISOLATED ACTOR ENCLAVE ($\alpha_{42}$)};
+
+  % Private state vector
+  \node[baseBox, text width=14.0cm, align=center, anchor=north] (state) at (7.75, 11.45) {
+    \textbf{Private Internal State Vector $S_t$ (Encapsulated in Seatbelt Sandbox)} \\[2pt]
+    \texttt{$\langle$actor\_id: $\alpha_{42}$ $\vert$ status: PROCESSING $\vert$ budget: \$4.82 $\vert$ lease: $t+30$s $\vert$ locks: \{port:9876\}$\rangle$}
+  };
+
+  % Dequeue Arrow (label placed cleanly inside Section 3)
+  \draw[pd focus arrow] (m1.south) -- (state.north -| m1.south)
+    node[pos=0.60, fill=pdpage, inner xsep=4.5pt, inner ysep=4.0pt, font=\pdfiglabelbold, text=pdcobalt] {atomic pop $(m_1)$};
+
+  % Three Atomic Capabilities
+  \node[gridBox, anchor=north] (send) at (2.4, 9.40) {
+    \textbf{1. Send Message} \\[2pt]
+    \texttt{send(}$\alpha_{\text{relay}}, \text{port}\rangle$\texttt{)} \\[1pt]
+    Asynchronous dispatch
+  };
+
+  \node[gridBox, anchor=north] (spawn) at (7.75, 9.40) {
+    \textbf{2. Create New Actor} \\[2pt]
+    \texttt{spawn(}$\alpha_{\text{sub}}, \text{Seatbelt}, \mathcal{C}'$\texttt{)} \\[1pt]
+    Attenuates cap: $\mathcal{C}' \subset \mathcal{C}$
+  };
+
+  \node[activeBox, anchor=north] (become) at (13.1, 9.40) {
+    \textbf{3. Become Next State} \\[2pt]
+    \texttt{become(}$S_{t+1}: \text{AWAIT}$\texttt{)} \\[1pt]
+    \textbf{Atomic replacement}
+  };
+
+  % Capability dispatch arrows
+  \draw[pd arrow] (state.south -| send.north) -- (send.north)
+    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=4.5pt, font=\pdfiglabelbold] {$M_{\text{out}}$};
+  \draw[pd arrow] (state.south -| spawn.north) -- (spawn.north)
+    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=4.5pt, font=\pdfiglabelbold] {$A_{\text{spawn}}$};
+  \draw[pd focus arrow] (state.south -| become.north) -- (become.north)
+    node[midway, fill=pdpage, inner xsep=5.0pt, inner ysep=5.5pt, font=\pdfiglabelbold, text=pdcobalt] {$S_{t+1}$};
+
+  % Sequential Invariant Note
+  \node[baseBox, anchor=north, align=center, text width=14.0cm, inner ysep=5.5pt] at (7.75, 7.75) {
+    \textbf{Sequential Invariant $\mathcal{I}_{\text{seq}}$:} $\forall \alpha_i$, state transitions $\langle S_t, m_k \rangle \xrightarrow{\tau} S_{t+1}$ are strictly totally ordered; concurrent execution occurs exclusively across distinct identities $\alpha_i \neq \alpha_j$.
+  };
+
+  % ================= SECTION 4: SUPERVISION HIERARCHY =================
+  \draw[sectionFrame] (0.2, 3.80) rectangle (15.3, 6.35);
+  \node[secHeader] at (0.45, 6.20) {4. SUPERVISION HIERARCHY \& FAULT ISOLATION (``LET IT CRASH'')};
+
+  \node[gridBox, text width=3.8cm, minimum height=1.30cm, anchor=north] (sup) at (2.4, 5.65) {
+    \textbf{Supervisor} $\alpha_{\text{sup}}$ \\[2pt]
+    \texttt{trap(}$\alpha_{\text{err}}$\texttt{)} $\to$ recover \\[1pt]
+    Dead-man telemetry
+  };
+
+  \node[gridBox, text width=4.3cm, minimum height=1.30cm, anchor=north] (crash) at (7.75, 5.65) {
+    \textbf{Fault Classification} $\mathcal{F}$ \\[2pt]
+    $\blacksquare$ \textbf{OOM} $\lor$ \textbf{SeatbeltFault} \\[1pt]
+    $\blacksquare$ \textbf{SpendCap} $\lor$ \textbf{LeaseExpiry}
+  };
+
+  \node[remedyBox, text width=4.0cm, minimum height=1.30cm, anchor=north] (recovery) at (13.1, 5.65) {
+    \textbf{Supervisory Remedy} $\mathcal{R}$ \\[2pt]
+    $\blacksquare$ \texttt{salvage} to Graveyard \\[1pt]
+    $\blacksquare$ \texttt{restart} $\lor$ Attenuate
+  };
+
+  \draw[pd arrow] (sup.east) -- (crash.west);
+  \draw[pd focus arrow, draw=pdteal] (crash.east) -- (recovery.west);
+
+  % ================= SECTION 5: APPEND-ONLY WAL LEDGER =================
+  \draw[sectionFrame] (0.2, 0.50) rectangle (15.3, 3.65);
+  \node[secHeader] at (0.45, 3.50) {5. APPEND-ONLY DURABLE EVIDENCE LOG (SQLITE WAL / SHA-256 WITNESS)};
+
+  \node[baseBox, fill=pdpage, draw=pdink!40, text width=14.0cm, align=left, anchor=north] at (7.75, 2.95) {
+    \texttt{entry(seq=49182, actor="worker:42", msg="claim\_port", port=9876, lease=30s,}\\[1pt]
+    \texttt{\quad prev="7f9a1b...", hash="c3d4e5...")}
+  };
+
+  \node[baseBox, anchor=north, align=center, text width=14.0cm, inner ysep=5.5pt] at (7.75, 1.70) {
+    \textbf{Durable Lineage Invariant $\mathcal{I}_{\text{WAL}}$:} $\forall \tau \in \mathcal{T}$, $\text{WAL}.\mathtt{append}(\tau) \prec_{\text{commit}} \text{effectuate}(\tau)$. Crash recovery restores $\sup_t S_t$ with zero amnesiac replay.
+  };
+
+\end{tikzpicture}

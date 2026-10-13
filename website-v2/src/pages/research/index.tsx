@@ -7,15 +7,15 @@ import { WHITE_PAPERS } from '@/data/whitePapers'
 /**
  * /research — the research program, on one screen.
  *
- * Same shape as /whitepaper and for the same reason: the method, the seven
+ * Same shape as /whitepaper and for the same reason: the method, the eight
  * standalone papers, the prior-art dives and the mechanised estate were a
  * single column that had to be scrolled through in the order it happened to
  * be written in. They are four panels now, and a reader who came for one of
  * them reaches it in one click.
  *
  * The relationship to the Book matters and is stated on every paper rather
- * than assumed: these are the submission-form write-ups of results the Book
- * folds into its chapters. Same author, same results, two forms.
+ * than assumed: these are the submission-form research artifacts. Some results are folded
+ * into the Book; newer or bounded findings are marked by their own evidence.
  */
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -55,7 +55,7 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-          Folded into {chapterTitleFor(paper.chapterRef)}
+          {paper.number === '8' ? 'Related to' : 'Folded into'} {chapterTitleFor(paper.chapterRef)}
         </span>
         <span className="font-mono text-[11px] text-[var(--text-ghost)]">
           {paper.resultTags.join(' · ')}
@@ -66,6 +66,14 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
         >
           PDF · {paper.pages} pp
         </a>
+        {paper.id === 'active-sheaf-cohomology-for-swarms' && (
+          <a
+            href="/research/sheaf-visualizer/"
+            className="text-[14px] font-semibold text-[var(--brand-primary)] underline underline-offset-2"
+          >
+            Explore the synthetic observability fixture
+          </a>
+        )}
       </div>
     </article>
   )
@@ -75,10 +83,9 @@ function PapersPanel() {
   return (
     <div>
       <p className="mb-3 max-w-[76ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
-        Seven papers in submission form. Every result in them is folded into a chapter of
-        the Book, in the Book's own voice and with the worked examples a chapter needs —
-        these are the versions you would send to a referee, kept byte-stable so a citation
-        to one still resolves.
+        Eight papers in research form. They include proved results, bounded studies, and
+        open questions. Each paper states its own evidence and limits; the Book draws on
+        some of these results.
       </p>
       {RESEARCH_PAPERS.map((paper) => (
         <PaperRow key={paper.id} paper={paper} />
@@ -227,9 +234,9 @@ export default function ResearchProgramPage() {
         meaning: 'Papa — about to proceed to sea',
         color: 'var(--brand-primary)',
         onColor: 'var(--brand-primary-foreground)',
-        headline: 'Seven papers, in the form a referee would want them.',
+        headline: 'Eight papers, with the evidence a referee can inspect.',
         standfirst:
-          'Every one of these results is also in the Book, folded into a chapter with the worked examples a reader needs — these are the same results with the pedagogy taken out and the apparatus left in.',
+          'The papers state the assumptions, proofs, checks, and limits behind the research program. Some results are used in the Book; newer bounded work is presented on its own terms.',
         render: () => <PapersPanel />,
       },
       {

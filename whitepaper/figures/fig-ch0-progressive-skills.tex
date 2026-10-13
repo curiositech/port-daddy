@@ -1,0 +1,284 @@
+% fig-ch0-progressive-skills.tex
+% Progressive Disclosure of Skills Across Logarithmic Decades
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    decbox1/.style={draw=pderror!90!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox2/.style={draw=pdteal!85!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox3/.style={draw=pdcobalt!90!black,line width=0.9pt,fill=white,rounded corners=4pt},
+    decbox4/.style={draw=pdslate!90!black,line width=0.9pt,fill=white,rounded corners=4pt}
+  }
+
+  % =========================================================================
+  % TOP RIGHT: CONTEXT PRESERVATION INVARIANT PROSE (Exact match to prototype)
+  % =========================================================================
+  \node[anchor=north west,text width=4.3cm,align=left] at (8.3, 7.3) {%
+    {\fontsize{7.5}{9.2}\selectfont\bfseries\color{hhink} Context Preservation Invariant:}\\[2pt]
+    {\fontsize{6.8}{8.2}\selectfont\color{hhink}%
+    99\% of operational code executes on the host substrate with \textbf{0 LLM context footprint}.}%
+  };
+
+  % =========================================================================
+  % FOUR PROGRESSIVE DECADE CARDS (x in [0.2, 9.35])
+  % =========================================================================
+
+  % --- CARD 1: Decade 10^0 (Frontmatter Metadata) ---
+  \begin{scope}[shift={(0.2, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 5.55) {%
+      Decade $\mathbf{10^0}$\\Always Resident\\{\fontsize{5.5}{6.5}\selectfont 100\% of turns}%
+    };
+    % Card Body (Red border)
+    \draw[decbox1] (0, 0) rectangle (2.1, 5.5);
+    % Top Header Pill (Red)
+    \draw[fill=pderror!90!black,draw=none,rounded corners=3pt] (0.05, 4.50) rectangle (2.05, 5.45);
+    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{white},align=center] at (1.05, 4.95) {%
+      Frontmatter\\Metadata%
+    };
+    % Token pill
+    \node[draw=pderror!70,fill=pderror!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pderror!90!black}] at (1.05, 4.05) {%
+      $\sim$100 tokens%
+    };
+    % Icons: Upper Browser with Gear/Key, Lower Gear with Key
+    \begin{scope}[shift={(1.05, 2.85)}]
+      % Upper browser window with upload arrow
+      \draw[fill=hhpaper,draw=pdslate!70,line width=0.5pt,rounded corners=1.5pt] (-0.45, 0.25) rectangle (0.45, 0.70);
+      \fill[pdslate!60] (-0.35, 0.60) circle (0.035);
+      \fill[pdslate!60] (-0.25, 0.60) circle (0.035);
+      \fill[pdslate!60] (-0.15, 0.60) circle (0.035);
+      \pdicongear[0.35]{(-0.2, 0.40)}
+      \pdiconkey[0.35]{(0.2, 0.40)}
+      \draw[pd arrow,line width=0.8pt,pderror] (0, 0.70) -- (0, 0.90);
+
+      % Lower large gear with diagonal key
+      \pdicongear[0.75]{(0.0, -0.45)}
+      \begin{scope}[shift={(0.0, -0.45)},rotate=-45]
+        \pdiconkey[0.65]{(0, 0)}
+      \end{scope}
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.35) {%
+      System prompt,\\tool signatures,\\quick triggers.%
+    };
+  \end{scope}
+
+  % --- CARD 2: Decade 10^-1 (Operational Manual) ---
+  \begin{scope}[shift={(2.55, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 5.05) {%
+      Decade $\mathbf{10^{-1}}$\\On Intent Match\\{\fontsize{5.5}{6.5}\selectfont 10\% of turns}%
+    };
+    % Card Body (Green border)
+    \draw[decbox2] (0, 0) rectangle (2.1, 5.0);
+    % Top Header Pill (Green)
+    \draw[fill=pdteal!85!black,draw=none,rounded corners=3pt] (0.05, 4.05) rectangle (2.05, 4.95);
+    \node[font=\fontsize{7.0}{8.3}\selectfont\bfseries\color{white},align=center] at (1.05, 4.50) {%
+      Operational\\Manual {\fontsize{5.2}{6.2}\selectfont(SKILL.md)}%
+    };
+    % Token pill
+    \node[draw=pdteal!80,fill=pdteal!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdteal!90!black}] at (1.05, 3.60) {%
+      $\sim$1,000 tokens%
+    };
+    % Flowchart Document Icon
+    \begin{scope}[shift={(1.05, 2.55)}]
+      \draw[fill=hhpaper,draw=pdslate!80,line width=0.6pt,rounded corners=1.5pt] (-0.50, -0.65) rectangle (0.50, 0.65);
+      % 3 header dots
+      \fill[pdslate!60] (-0.35, 0.52) circle (0.035);
+      \fill[pdslate!60] (-0.22, 0.52) circle (0.035);
+      \fill[pdslate!60] (-0.09, 0.52) circle (0.035);
+      % Start circle
+      \draw[fill=pdteal!30,draw=pdteal,line width=0.4pt] (0, 0.35) circle (0.08);
+      \draw[pd arrow,line width=0.4pt,pdteal] (0, 0.27) -- (0, 0.14);
+      % Decision Diamond
+      \draw[fill=pdteal!20,draw=pdteal,line width=0.4pt] (0, 0.14) -- (0.18, 0) -- (0, -0.14) -- (-0.18, 0) -- cycle;
+      % Action boxes
+      \draw[pd arrow,line width=0.4pt,pdteal] (-0.18, 0) -- (-0.30, 0) -- (-0.30, -0.30);
+      \draw[pd arrow,line width=0.4pt,pdteal] (0.18, 0) -- (0.30, 0) -- (0.30, -0.30);
+      \draw[fill=pdteal!40,draw=pdteal,line width=0.4pt] (-0.40, -0.46) rectangle (-0.20, -0.30);
+      \draw[fill=pdteal!40,draw=pdteal,line width=0.4pt] (0.20, -0.46) rectangle (0.40, -0.30);
+      % Feedback loop
+      \draw[line width=0.35pt,pdteal] (-0.30, -0.46) -- (-0.30, -0.56) -- (0.30, -0.56) -- (0.30, -0.46);
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.35) {%
+      Workflow decision\\tree, anti-patterns,\\core process.%
+    };
+  \end{scope}
+
+  % --- CARD 3: Decade 10^-2 (Reference Catalog & Schemas) ---
+  \begin{scope}[shift={(4.9, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 4.55) {%
+      Decade $\mathbf{10^{-2}}$\\On Subtask Dispatch\\{\fontsize{5.5}{6.5}\selectfont 1\% of turns}%
+    };
+    % Card Body (Blue border)
+    \draw[decbox3] (0, 0) rectangle (2.1, 4.65);
+    % Top Header Pill (Vibrant Cobalt)
+    \draw[fill=pdcobalt,draw=none,rounded corners=3pt] (0.05, 3.55) rectangle (2.05, 4.60);
+    \node[text=white,font=\fontsize{7.0}{8.3}\selectfont\bfseries,align=center] at (1.05, 4.07) {%
+      Reference\\Catalog \& Schemas%
+    };
+    % Token pill
+    \node[draw=pdcobalt!80,fill=pdcobalt!8,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdcobalt}] at (1.05, 3.15) {%
+      $\sim$5,000 tokens%
+    };
+    % Open Book Icon
+    \begin{scope}[shift={(1.05, 2.30)}]
+      \draw[fill=hhpaper,draw=pdcobalt!90,line width=0.7pt,rounded corners=1pt] (-0.55, -0.45) rectangle (0.55, 0.45);
+      \draw[line width=0.6pt,pdcobalt!90] (0, -0.45) -- (0, 0.45);
+      % Left page: square block and lines
+      \draw[fill=pdcobalt!30,draw=none] (-0.45, 0.12) rectangle (-0.22, 0.35);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.05) -- (-0.1, -0.05);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.18) -- (-0.1, -0.18);
+      \draw[line width=0.4pt,pdcobalt!70] (-0.45, -0.32) -- (-0.2, -0.32);
+      % Right page: table grid
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.32) -- (0.45, 0.32);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.16) -- (0.45, 0.16);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, 0.0) -- (0.45, 0.0);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, -0.16) -- (0.45, -0.16);
+      \draw[line width=0.4pt,pdcobalt!70] (0.1, -0.32) -- (0.45, -0.32);
+      \draw[line width=0.4pt,pdcobalt!70] (0.27, -0.38) -- (0.27, 0.38);
+    \end{scope}
+    % Description
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 1.45) {%
+      Specialized subagent\\system prompts, API\\full guides%
+    };
+  \end{scope}
+
+  % --- CARD 4: Decade 10^-4 (Deterministic Host Scripts) ---
+  \begin{scope}[shift={(7.25, 0.4)}]
+    % Subheader above card
+    \node[anchor=south,font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center] at (1.05, 4.05) {%
+      Decade $\mathbf{10^{-4}}$\\Zero Context Cost\\{\fontsize{5.5}{6.5}\selectfont 0.01\% of turns}%
+    };
+    % Card Body (Dark navy border)
+    \draw[decbox4] (0, 0) rectangle (2.1, 4.0);
+    % Top Header Pill (Dark Navy)
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=3pt] (0.05, 3.05) rectangle (2.05, 3.95);
+    \node[text=white,font=\fontsize{7.0}{8.3}\selectfont\bfseries,align=center] at (1.05, 3.50) {%
+      Deterministic\\Host Scripts%
+    };
+    % Token pill (Zero Context!)
+    \node[draw=pdhealth!80!black,fill=pdhealth!12,line width=0.5pt,rounded corners=2pt,font=\fontsize{6.2}{7.4}\selectfont\bfseries\color{pdhealth!90!black}] at (1.05, 2.65) {%
+      \textbf{0 context tokens!}%
+    };
+    % Description
+    \node[anchor=north,font=\fontsize{5.2}{6.2}\selectfont\color{hhink},align=center,text width=2.0cm] at (1.05, 2.0) {%
+      Python/Bash scripts,\\test oracles, and\\compilers executing\\on host OS%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % RIGHT: COMPUTER TERMINAL AND BIG ROBOT WITH TOKEN METER
+  % =========================================================================
+
+  % Arrow from Card 4 to Host Terminal
+  \draw[pd arrow,line width=1.3pt,hhink] (9.45, 2.3) -- (10.05, 2.3);
+
+  % Host Terminal Station (x=10.65, y=2.3)
+  \begin{scope}[shift={(10.65, 2.3)}]
+    % Monitor
+    \draw[fill=hhpaper,draw=pdslate!90!black,line width=0.9pt,rounded corners=2pt] (-0.50, -0.22) rectangle (0.50, 0.60);
+    \draw[fill=pdslate!90!black,draw=none,rounded corners=1.5pt] (-0.44, -0.16) rectangle (0.44, 0.44);
+    % 3 dots top bar
+    \fill[pdslate!60] (-0.38, 0.52) circle (0.028);
+    \fill[pdslate!60] (-0.29, 0.52) circle (0.028);
+    \fill[pdslate!60] (-0.20, 0.52) circle (0.028);
+    % Terminal prompt
+    \node[font=\fontsize{7.5}{8.5}\selectfont\bfseries\color{white}] at (-0.1, 0.16) {\texttt{>\_}};
+
+    % Base unit / keyboard underneath
+    \draw[fill=hhpaper,draw=pdslate!90!black,line width=0.9pt,rounded corners=1.5pt] (-0.55, -0.60) rectangle (0.55, -0.32);
+    \fill[pdslate!60] (-0.38, -0.46) circle (0.035);
+    \fill[pdslate!60] (-0.24, -0.46) circle (0.035);
+    \fill[pdslate!60] (-0.10, -0.46) circle (0.035);
+    \draw[line width=0.9pt,pdslate!70] (0.12, -0.46) -- (0.40, -0.46);
+
+    % Label below terminal
+    \node[anchor=north,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (0, -0.72) {%
+      Host\\operating system\\substrate%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % BIG VECTOR ROBOT WITH INTEGRATED TOKEN METER (x=12.4, y=2.8)
+  % =========================================================================
+  \begin{scope}[shift={(12.4, 2.8)}]
+    % Head: rounded rectangle with antennas, glowing eyes, mouth
+    \draw[fill=pdcobalt!90!black,draw=pdcobalt!95!black,line width=1.1pt,rounded corners=3.5pt] (-0.60, 1.55) rectangle (0.60, 2.45);
+    % Antennas with ball tips
+    \draw[line width=1.1pt,pdcobalt!90!black] (-0.38, 2.45) -- (-0.38, 2.85);
+    \fill[pdcobalt!90!black] (-0.38, 2.85) circle (0.09);
+    \draw[line width=1.1pt,pdcobalt!90!black] (0.38, 2.45) -- (0.38, 2.85);
+    \fill[pdcobalt!90!black] (0.38, 2.85) circle (0.09);
+    % Ears / Bolts
+    \fill[pdcobalt!70!black] (-0.72, 1.88) rectangle (-0.60, 2.12);
+    \fill[pdcobalt!70!black] (0.60, 1.88) rectangle (0.72, 2.12);
+    % Glowing Eyes
+    \fill[white] (-0.28, 2.0) circle (0.10);
+    \fill[white] (0.28, 2.0) circle (0.10);
+    % Mouth line
+    \draw[line width=1.4pt,white,line cap=round] (-0.28, 1.72) -- (0.28, 1.72);
+
+    % Neck joint
+    \fill[pdslate!60!black] (-0.20, 1.45) rectangle (0.20, 1.55);
+
+    % Arms on hips (symmetric, clean, matching prototype)
+    % Left Arm
+    \fill[pdcobalt!70!black] (-0.80, 1.15) circle (0.13);
+    \draw[line width=3.5pt,pdcobalt!90!black,line cap=round,line join=round] (-0.80, 1.15) -- (-1.15, 0.45) -- (-0.80, -0.15);
+    \draw[line width=1.6pt,pdcobalt!95!black] (-0.80, -0.15) to[out=-135,in=90] (-0.95, -0.40);
+    \draw[line width=1.6pt,pdcobalt!95!black] (-0.80, -0.15) to[out=-45,in=90] (-0.65, -0.40);
+
+    % Right Arm
+    \fill[pdcobalt!70!black] (0.80, 1.15) circle (0.13);
+    \draw[line width=3.5pt,pdcobalt!90!black,line cap=round,line join=round] (0.80, 1.15) -- (1.15, 0.45) -- (0.80, -0.15);
+    \draw[line width=1.6pt,pdcobalt!95!black] (0.80, -0.15) to[out=-45,in=90] (0.95, -0.40);
+    \draw[line width=1.6pt,pdcobalt!95!black] (0.80, -0.15) to[out=-135,in=90] (0.65, -0.40);
+
+    % TORSO: INTEGRAL TOKEN METER (Chest)
+    \draw[fill=pdcobalt!95!black,draw=pdcobalt!95!black,line width=1.1pt,rounded corners=4.5pt] (-0.80, -0.90) rectangle (0.80, 1.45);
+
+    % Token Meter Header
+    \node[text=white,font=\fontsize{7.0}{8.2}\selectfont\bfseries] at (0, 1.22) {Token Meter};
+
+    % Rainbow Gauge / Semi-Circle Arc
+    \begin{scope}[shift={(0, 0.58)}]
+      % Background white dial
+      \fill[white] (-0.58, 0) arc (180:0:0.58) -- cycle;
+      % Green section (left)
+      \fill[pdhealth!90!black] (-0.58, 0) arc (180:90:0.58) -- (0, 0) -- cycle;
+      % Red section (right)
+      \fill[pderror!90!black] (0, 0) arc (90:0:0.58) -- (0, 0) -- cycle;
+      % Inner white cutout
+      \fill[white] (-0.36, 0) arc (180:0:0.36) -- cycle;
+      % Needle pointing into green savings zone
+      \draw[line width=1.5pt,pdslate!90!black,line cap=round] (0, 0) -- (-0.34, 0.38);
+      \fill[pdslate!90!black] (0, 0) circle (0.08);
+    \end{scope}
+
+    % MASSIVE CONTEXT SAVINGS Banner
+    \node[text=white,font=\fontsize{6.5}{7.6}\selectfont\bfseries,align=center] at (0, -0.42) {%
+      MASSIVE\\CONTEXT\\SAVINGS%
+    };
+
+    % LEGS & FEET
+    % Left Leg with Knee Joint
+    \draw[line width=3.8pt,pdcobalt!90!black] (-0.42, -0.90) -- (-0.42, -1.95);
+    \draw[fill=white,draw=pdcobalt!90!black,line width=1.3pt] (-0.42, -1.45) circle (0.15);
+    \fill[pdcobalt!90!black] (-0.42, -1.45) circle (0.07);
+    % Left Foot
+    \fill[pdcobalt!95!black,rounded corners=1.5pt] (-0.68, -2.12) rectangle (-0.16, -1.90);
+
+    % Right Leg with Knee Joint
+    \draw[line width=3.8pt,pdcobalt!90!black] (0.42, -0.90) -- (0.42, -1.95);
+    \draw[fill=white,draw=pdcobalt!90!black,line width=1.3pt] (0.42, -1.45) circle (0.15);
+    \fill[pdcobalt!90!black] (0.42, -1.45) circle (0.07);
+    % Right Foot
+    \fill[pdcobalt!95!black,rounded corners=1.5pt] (0.16, -2.12) rectangle (0.68, -1.90);
+  \end{scope}
+
+\end{tikzpicture}

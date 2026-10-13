@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper 8 rendered proof pages</title>
+<style>
+  :root { color-scheme: light; font: 16px/1.4 system-ui, sans-serif; color: #182230; background: #eef2f6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: #fff; border-bottom: 1px solid #d5dce5; }
+  h1 { margin: 0; font-size: 18px; font-weight: 650; }
+  nav { display: flex; gap: 8px; }
+  button { border: 1px solid #aebaca; border-radius: 5px; padding: 7px 12px; background: #fff; color: inherit; font: inherit; cursor: pointer; }
+  button[aria-current="page"] { color: #fff; background: #244d75; border-color: #244d75; }
+  #description { margin-left: auto; color: #49576a; font-size: 14px; }
+  main { padding: 20px; }
+  #page-image { display: block; width: min(100%, 1241px); height: auto; margin: 0 auto; background: white; box-shadow: 0 2px 12px #17212d24; }
+  footer { padding: 0 24px 18px; text-align: center; color: #637084; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Paper 8 · rendered proof pages</h1>
+  <nav aria-label="Choose rendered source page">
+    <button type="button" data-page="13" aria-current="page">Page 13</button>
+    <button type="button" data-page="23">Page 23</button>
+    <button type="button" data-page="24">Page 24</button>
+  </nav>
+  <div id="description" aria-live="polite">Conditional analytical figure and solver claim</div>
+</header>
+<main><img id="page-image" src="page-13.png" alt="Rendered page 13 from the final Paper 8 PDF"></main>
+<footer>Actual 150 dpi page renders from the final source-bound Paper 8 PDF.</footer>
+<script>
+const descriptions = {
+  13: 'Conditional analytical figure and solver claim',
+  23: 'Qualified comparison and bounded conclusions',
+  24: 'Nine cited sources in the bibliography'
+};
+for (const button of document.querySelectorAll('button[data-page]')) {
+  button.addEventListener('click', () => {
+    const page = button.dataset.page;
+    const image = document.getElementById('page-image');
+    image.src = `page-${page}.png`;
+    image.alt = `Rendered page ${page} from the final Paper 8 PDF`;
+    document.getElementById('description').textContent = descriptions[page];
+    for (const item of document.querySelectorAll('button[data-page]')) item.removeAttribute('aria-current');
+    button.setAttribute('aria-current', 'page');
+    window.scrollTo(0, 0);
+  });
+}
+</script>
+</body>
+</html>

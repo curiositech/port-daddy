@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "2.0.0",
+  "mode": "ACTIVE_SET_PARTITION",
+  "sourceRootDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "policyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "result": "FEASIBLE",
+  "targets": [
+    {"targetRef": "body:reviewer:g2", "type": "ADMITTED_BODY", "scope": "repo:example", "capacityTokens": 8000, "capabilityDigests": ["sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"], "admissionEvidenceRef": "admission:reviewer:g2"}
+  ],
+  "items": [
+    {"itemId": "guidance:1", "kind": "GUIDANCE", "trustClass": "CURRENT_GUIDANCE", "directiveChannel": true, "droppable": false, "tokenEstimate": 900, "scope": "repo:example", "causalParents": [], "retrievalSpace": null, "obligationState": "NONE", "effectState": "NONE", "capabilityRequirements": [], "authority": {"status": "CURRENT", "audience": ["body:reviewer:g2"], "guidanceEnvelopeRef": "guidance-envelope:1", "verificationReceiptRef": "verify:guidance:1", "revocationWitnessRef": "revocation:current:1"}, "contentDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+    {"itemId": "obligation:1", "kind": "OBLIGATION", "trustClass": "PRIMARY_EVIDENCE", "directiveChannel": false, "droppable": false, "tokenEstimate": 600, "scope": "repo:example", "causalParents": ["guidance:1"], "retrievalSpace": null, "obligationState": "OPEN", "effectState": "NONE", "capabilityRequirements": ["sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"], "authority": {"status": "NOT_APPLICABLE", "audience": [], "guidanceEnvelopeRef": null, "verificationReceiptRef": "verify:obligation:1", "revocationWitnessRef": null}, "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
+  ],
+  "semanticComparisons": [],
+  "dispositions": [
+    {"itemId": "guidance:1", "disposition": "ASSIGNED", "sourceTargetRef": null, "targetRefs": ["body:reviewer:g2"], "reasonCode": "DIRECTIVE_REQUIRED", "proofRefs": ["scope:proof:1"]},
+    {"itemId": "obligation:1", "disposition": "ASSIGNED", "sourceTargetRef": null, "targetRefs": ["body:reviewer:g2"], "reasonCode": "OPEN_OBLIGATION", "proofRefs": ["coverage:proof:1"]}
+  ],
+  "transfers": [],
+  "gaps": [],
+  "coverageDigest": "sha256:23276a9607a69c2ee040b801660ddbbaf3015bf7a60629c3ec8738c96092067e",
+  "truthEffect": "NONE",
+  "authorityEffect": "NONE"
+}

@@ -1,0 +1,81 @@
+{
+  "created": "2026-09-19",
+  "model": "OpenAI image generation via image_gen; exact model identifier not exposed by the tool.",
+  "post": "None. Original generated PNG copied without cropping, resizing, or resampling.",
+  "purpose": "Wordless reflective illustrations, not documentary photographs, measured data, or protocol diagrams.",
+  "print_status": "Digital/layout proof. Native output is 1024 by 1536 pixels: about 171 ppi at the 6 by 9 inch placement. A higher native resolution pass is required for a 300 ppi print master.",
+  "plates": {
+    "the-controlled-opening": {
+      "file": "the-controlled-opening.png",
+      "sha256": "77baa68de90c4aa5c0d0342256202bb93d959fc1a92e5c7c7719b29a20f8ded9",
+      "model": "OpenAI image generation via image_gen; exact model identifier not exposed.",
+      "post": "Original PNG copied unchanged. LaTeX overlays a solid dark lower field and selectable white text, without editing the image file.",
+      "prompt": "One portrait 2:3 full-page Swiss Modern philosophical editorial plate for a technical book: the major idea is NONINTERFERENCE, information concealed except through a controlled opening. Surreal but precise physical parallel: a massive sealed black laboratory specimen cabinet stands at an impossible dock on a white salt sea. Its single narrow horizontal mail slot releases one small folded ivory paper slip. Nothing inside the cabinet is visible; absolutely no glowing internals, wires, readable text, labels, arrows, numbers or pseudocharts. Cabinet is a sharply cut vintage photographic halftone object, paper slip crisp engraved contour, sea as sparse black ruled horizontal lines only in lower-right quarter. Strong International Typographic Style composition: cabinet occupies upper-left to central vertical mass, asymmetrical broad mineral-teal square partly behind it, one small ochre circle like the sun, restrained vermilion seal on cabinet seam. A flat dark teal rectangle occupies the entire BOTTOM 25 percent with absolutely no pattern, texture or object entering it, reserved for later white typeset prose. Upper background pure pale neutral paper, no amber wash. Huge negative space, hard cropping of geographic context not cabinet, tactile woodcut/collage craft, quiet mysterious gravity, NOT a realistic room and not generic sci-fi. No text anywhere. The image is a contemplative metaphor and should not pretend to prove information security.",
+      "final_aspect": "2:3",
+      "native_pixels": [1024, 1536],
+      "generation_output": "exec-c3f33ebd-432a-423a-9fec-5af9953deb5e.png",
+      "book_anchor": "sealed:sec:sealed-noninterference",
+      "idea": "Noninterference with a declared release channel",
+      "overlay": {
+        "title": "The controlled opening",
+        "body": "A closed cabinet still has a slot. A confined agent still has an output. The noninterference claim must name what that output may reveal and which other channels the model excludes.",
+        "panel_height_inches": 2.45
+      },
+      "placement": "Swiss edition, before the noninterference section at a paragraph boundary. Facing spread pending full reflow. Authored text in lower panel."
+    },
+    "the-waiting-body": {
+      "file": "the-waiting-body.png",
+      "sha256": "b38b6d00b4faec88b663a36c5d6b5364c52f62876e71ee5294d74d2fc4bb4276",
+      "prompt": "Create ONE finished vertical 2:3 full-page Swiss-modern editorial art plate for a philosophical technical book, high resolution suitable for print. Use the attached images as the book's style references, not as content to reproduce: warm uncoated cream #FBF7EF, dense black-and-white photographic halftone, sparse visible construction rules, hard cropped planes of deep ink color, haunting surreal photographic montage. This is a new illustration, no text anywhere. SUBJECT: an unmistakably EMPTY old-fashioned deep-sea diving suit suspended by a taut rope and lifting harness descending from beyond the top of the image, hovering above a dark rectangular pool in a silent dry dock. A large real brass-and-copper diving helmet with black empty circular face glass, creased heavy canvas sleeves hanging slack, empty gloves, weighted boots; no person inside, no skin, no skeleton, no human figure, no noose, harness attaches to the shoulder rig not a neck. The suit is the one principal photographic object, tactile and worn, hanging slightly off-center right; the rope remains continuous and visible, suggesting continuity while bodies are replaceable. Impossible deep vertical black sea beneath it; a small reflection of the circular helmet port appears far below as a quiet echo, not another suit. One substantial flat geometric plane of muted dark violet #582C83 on the left, subtle cream margins and a few precise ruled divisions. Keep authentic halftone photographic detail, not line-drawing, not watercolor, not glossy CGI. Restrained, unnerving, dignified, meaningful negative space but not an mostly empty poster. No letters, numbers, captions, labels, logo, border title blocks, speech, diagrams, decorative badges, or arbitrary grid noise. Single plate only; no multiple panels or contact sheet. The thematic question is whether the apparatus that carries someone is the same thing as their identity. Do not print that question.",
+      "final_aspect": "2:3",
+      "native_pixels": [
+        1024,
+        1536
+      ],
+      "generation_output": "exec-de9301ed-bce0-454b-ae50-3f7d7cf2b8bf.png",
+      "book_anchor": "stp:sec:continuity",
+      "idea": "From Spawn to Person: continuity beyond a replaceable body",
+      "placement": "Swiss edition only; inserted at a selected paragraph boundary, facing related text on the preceding or following page. No blank parity filler and no mid-paragraph insertion.",
+      "style_references": [
+        "../swiss/chapter-ls.jpg",
+        "../swiss/chapter-stp.jpg"
+      ]
+    },
+    "the-unseen-boat": {
+      "file": "the-unseen-boat.png",
+      "sha256": "2e582ea7472f67099ecb4987653fc1d4fcbe0b7d9bca5e0907192b232b3b3d91",
+      "prompt": "Create ONE finished vertical 2:3 full-page Swiss-modern editorial art plate, high-resolution print composition, for a philosophical book about accountable autonomous work. Match the attached book plate references: warm uncoated cream #FBF7EF, photographic black-and-white halftone, deep flat spot ink, visible sparse grid rules, hard square crops, impossible but physically recognizable objects. A haunting surreal maritime photomontage, restrained, not a diagram. SUBJECT: a real, immense circular Fresnel lighthouse lens hangs in the upper left above a harbor. Behind and through it, hundreds of tiny irregular piers and workboats are compressed into a few perfect parallel bars: the lens makes an exquisitely neat and seductive image. But beneath its hard-edged cone of visibility a single tiny boat at the lower right remains entirely outside the bright field in deep black sea. Make the lens itself tactile photographic glass, concentric prisms, mechanical brass rim, no eye or human face; the image should suggest seeing can conceal as well as reveal. One large dark teal #006B5F plane frames the optical instrument; warm cream and charcoal carry the remaining composition. The cone's boundary is precise, one restrained red square or buoy at the almost-missed boat, less than 0.5% area. Coherent bold composition, one physical lens, one small overlooked vessel, active negative space. No words, numbers, letters, labels, logos, title, caption, checkmarks, charts, or legend. Not watercolor, not glossy CGI, not random geometric pattern. This is a new image, not an edit of the existing marina illustration. Single plate, no multi-panel contact sheet.",
+      "final_aspect": "2:3",
+      "native_pixels": [
+        1024,
+        1536
+      ],
+      "generation_output": "exec-1db9fe71-49d3-4680-89f2-48474844389d.png",
+      "book_anchor": "ls:sec:zoom",
+      "idea": "The Legible Swarm: what an orderly view leaves unseen",
+      "placement": "Swiss edition only; inserted at a selected paragraph boundary, facing related text on the preceding or following page. No blank parity filler and no mid-paragraph insertion.",
+      "style_references": [
+        "../swiss/chapter-ls.jpg",
+        "../swiss/chapter-stp.jpg"
+      ]
+    },
+    "the-paper-crossing": {
+      "file": "the-paper-crossing.png",
+      "sha256": "d925fc2cbd6c6a3e1b8142e11e5fd652c89983729a8e6621be1551f077f96d56",
+      "prompt": "Create ONE finished vertical 2:3 Swiss-modern full-page editorial art plate in the visual family of the attached book images. Print-ready high-resolution, warm uncoated cream #FBF7EF, black-and-white photographic halftone, spare construction rules, asymmetric grid, hard-cropped photographic reality and deep flat olive #666A00 ink. Haunting philosophical photomontage. SUBJECT: two monumental concrete breakwaters, each with a different heavy mooring bollard, face one another across an impossibly narrow but bottomless vertical channel of dark sea. A single small, sharply folded off-white paper document spans the gap as a fragile bridge between the massive shores. The document has a folded corner and a small dark impressed round seal, but absolutely no writing. The paper bridge is the only connection; the two shores remain visibly separate, with no hidden solid bridge or shared platform. Extreme scale contrast, tactile worn concrete, stark empty black water below, hard daylight shadow, quiet tension rather than action. A large controlled rectangle of olive ink partly occludes the far shore; two or three fine hairline rules align with the gap, not a busy grid. The central image must read as an obligation carried between independent places, not a fantasy city, not a generic bridge photograph. No people, robots, glowing networks, decorative gears, letters, numbers, caption, title, logo, or any text. No watercolor, no line-drawing, no slick 3D. One plate only, no panels.",
+      "final_aspect": "2:3",
+      "native_pixels": [
+        1024,
+        1536
+      ],
+      "generation_output": "exec-424f4afe-2edf-4c43-a899-3b50d32434fd.png",
+      "book_anchor": "fh:sec:fh-xfer",
+      "idea": "Federation: a limited commitment crossing independent authorities",
+      "placement": "Swiss edition only; inserted at a selected paragraph boundary, facing related text on the preceding or following page. No blank parity filler and no mid-paragraph insertion.",
+      "style_references": [
+        "../swiss/chapter-ls.jpg",
+        "../swiss/chapter-stp.jpg"
+      ]
+    }
+  }
+}

@@ -1,48 +1,21 @@
-# Two-Phase Planning Architecture: Structure → Content
+# Two-Phase Planning Architecture: outline then content
+
+This is a proposed operating procedure, not a transcription of HTP Algorithm 1. It makes explicit the review gates that an implementation must supply. The HTP source establishes an outline `O` followed by self-guided content `C`; it does not establish branch independence, a scheduler, or automatic acceptance.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> InputProblem
-    
-    InputProblem: Input Problem<br/>(Complex Multi-Constraint Task)
-    InputProblem --> AnalyzeStructure: Identify decomposition patterns
-    
-    AnalyzeStructure: Analyze Problem Structure<br/>(Constraint & Complexity Assessment)
-    AnalyzeStructure --> DecisionPoint1{Can decompose<br/>hierarchically?}
-    
-    DecisionPoint1 -->|No| LinearApproach: Use sequential reasoning
-    DecisionPoint1 -->|Yes| StructurePhase
-    LinearApproach --> [*]
-    
-    StructurePhase: STRUCTURE PHASE<br/>Generate Planning Outline
-    StructurePhase --> ApplyRules: Apply decomposition rules<br/>(abstract patterns)
-    
-    ApplyRules: Apply Hierarchical Rules<br/>(Task → Independent Sub-tasks)
-    ApplyRules --> GenerateSkeleton: Generate hypertree skeleton<br/>(multi-level decomposition)
-    
-    GenerateSkeleton: Hypertree Skeleton Generated<br/>(Outline with parent-child structure)
-    GenerateSkeleton --> ReviewStructure{Structure<br/>valid?}
-    
-    ReviewStructure -->|Needs revision| ReviseStructure: Revise decomposition<br/>(adjust levels/branches)
-    ReviseStructure --> ApplyRules
-    ReviewStructure -->|Valid| OutlineGenerated
-    
-    OutlineGenerated: Planning Outline Complete<br/>(Structure encodes all constraints)
-    OutlineGenerated --> ContentPhase: Proceed to detail work
-    
-    ContentPhase: CONTENT PHASE<br/>Fill Leaf Node Details
-    ContentPhase --> PopulateLeaves: Populate leaf node solutions<br/>(guided by outline structure)
-    
-    PopulateLeaves: Fill Details at Leaf Nodes<br/>(independent parallel sub-tasks)
-    PopulateLeaves --> IterativeRefinement: Iterative refinement<br/>(adjust per constraint)
-    
-    IterativeRefinement: Details Refined<br/>(coordinate via outline structure)
-    IterativeRefinement --> ValidationCheck{All constraints<br/>satisfied?}
-    
-    ValidationCheck -->|Constraint conflict| BackToContent: Refine conflicting nodes
-    BackToContent --> IterativeRefinement
-    ValidationCheck -->|All satisfied| CompletePlan
-    
-    CompletePlan: Complete Plan Generated<br/>(Hierarchical structure + detailed content)
-    CompletePlan --> [*]
+flowchart TD
+    I[Input problem q] --> A[Assess whether a rule applies]
+    A -->|no applicable rule| L[Keep node as a leaf for content work]
+    A -->|applicable rule| R[Instantiate a child-set rule]
+    R --> V{Outline O meets local review criteria?}
+    V -->|no| A
+    V -->|yes| C[Self-guided content work C at leaves]
+    L --> C
+    C --> E[Record evidence and constraints]
+    E --> Q{Integration checks pass?}
+    Q -->|no| F[Revise the affected outline or leaf]
+    F --> A
+    Q -->|yes| P[Return completed plan P]
 ```
+
+A rejection only identifies work for revision; it does not authorize an effect or prove an action succeeded.

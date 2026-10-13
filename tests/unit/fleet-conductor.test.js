@@ -1290,3 +1290,29 @@ describe('ADR-0060 dispatch fold-in — mintWorktree + publishArtifact', () => {
     expect(seen[1]).toEqual(['agent', 'agent-live-7', 'transcript-live-7']);
   });
 });
+
+
+test.each(['resolved', 'thrown'])('late %s outcome after an observed halt preserves another lineage reservation', async outcome => {
+  const ends = [];
+  let count = 0;
+  const spawner = {
+    kill: jest.fn(),
+    spawn: jest.fn(spec => new Promise((resolve, reject) => {
+      const agentId = `known-${++count}`;
+      spec.onStarted?.({ agentId, transcriptId: `tx-${agentId}`, backend: 'claude', model: 'fixture', startedAt: 1 });
+      ends.push(() => outcome === 'thrown' ? reject(new Error('late spawn failure')) : resolve({ agentId, status: 'killed', output: null, error: null }));
+    })),
+  };
+  const { conductor, breaker } = makeConductor({ spawner, defaultBondUsd: 2 });
+  const starts = [];
+  const a = conductor.launch({ ...ROOT_INTENT, onAdmitted: launch => starts.push(launch.id), onAgentStarted: () => {} });
+  const b = conductor.launch({ ...ROOT_INTENT, onAdmitted: launch => starts.push(launch.id), onAgentStarted: () => {} });
+  await tick();
+  breaker.registerScope(GLOBAL_SCOPE, 4);
+  conductor.halt({ rootId: starts[0] });
+  ends[0](); await a;
+  expect(conductor.get(starts[0]).state).toBe('halted');
+  // The second launch still holds $2. An extra $3 must be refused.
+  expect(breaker.reserve(GLOBAL_SCOPE, 3)).toBe(false);
+  ends[1](); await b;
+});

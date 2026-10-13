@@ -14,6 +14,7 @@
  *   POST /account/publisher-grants/create     (same-origin browser; fresh GitHub authority)
  *   POST /account/publisher-grants/revoke     (same-origin browser; immediate revocation)
  *   GET  /v1/fleetbot/publisher-grants/:id    (signed workload; current grant snapshot)
+ *   POST /v1/fleetbot/publisher-receipts/recover (signed workload; finalized receipt only)
  *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
  *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
  *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
@@ -171,7 +172,7 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
-import { handleFleetbotPublisher } from './github-publisher.js';
+import { handleFleetbotPublisher, handleFleetbotPublisherReceiptRecovery } from './github-publisher.js';
 import { handleRepoShips } from './repo-ships-page.js';
 import { handlePublisherGrantsPage } from './publisher-grants-page.js';
 import { handlePublisherGrantSnapshot } from './publisher-grants.js';
@@ -513,6 +514,9 @@ export default {
     // ── Governed GitHub App publication ────────────────────────────────────
     else if (pathname === '/v1/fleetbot/publish' && method === 'POST') {
       response = await handleFleetbotPublisher(request, env);
+    }
+    else if (pathname === '/v1/fleetbot/publisher-receipts/recover' && method === 'POST') {
+      response = await handleFleetbotPublisherReceiptRecovery(request, env);
     }
     else if (method === 'GET' && /^\/v1\/fleetbot\/publisher-grants\/pdg_[0-9a-f]{32}$/.test(pathname)) {
       response = await handlePublisherGrantSnapshot(request, env.DB, pathname.slice(pathname.lastIndexOf('/') + 1));

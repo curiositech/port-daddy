@@ -1,27 +1,65 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["output"],
-  "properties": {
-    "output": {
-      "type": "object",
-      "description": "Agent output to score"
-    },
-    "taskType": {
+  "additionalProperties": true,
+  "$defs": {
+    "nonBlank": {
       "type": "string",
-      "enum": ["analysis", "research", "creative", "code", "unknown"],
-      "default": "unknown"
-    },
-    "historicalAccuracy": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1,
-      "description": "Prior accuracy rate of this agent"
-    },
-    "isSafetyCritical": {
-      "type": "boolean",
-      "default": false
+      "minLength": 1,
+      "pattern": "\\S"
     }
   },
-  "additionalProperties": false
+  "required": [
+    "forecastId",
+    "outputArtifact",
+    "event",
+    "forecastTime",
+    "resolutionDeadline",
+    "cohortId",
+    "status",
+    "probability"
+  ],
+  "properties": {
+    "forecastId": { "$ref": "#/$defs/nonBlank" },
+    "outputArtifact": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "digest", "version"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonBlank" },
+        "digest": { "$ref": "#/$defs/nonBlank" },
+        "version": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "predicate", "evaluatorId", "evaluatorVersion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonBlank" },
+        "predicate": { "$ref": "#/$defs/nonBlank" },
+        "evaluatorId": { "$ref": "#/$defs/nonBlank" },
+        "evaluatorVersion": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "forecastTime": { "type": "string", "format": "date-time" },
+    "resolutionDeadline": { "type": "string", "format": "date-time" },
+    "cohortId": { "$ref": "#/$defs/nonBlank" },
+    "status": { "enum": ["forecast", "declined"] },
+    "probability": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonBlank" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "forecast" } } },
+      "then": { "properties": { "probability": { "type": "number" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "declined" } } },
+      "then": { "properties": { "probability": { "type": "null" } } }
+    }
+  ]
 }

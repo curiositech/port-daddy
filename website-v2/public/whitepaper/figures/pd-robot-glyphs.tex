@@ -1,0 +1,382 @@
+% pd-robot-glyphs.tex
+% Authentic vector robot glyphs and system iconography for Port Daddy architectural figures.
+% Provides 100% vector replacements matching the AI-generated diagram prototypes.
+
+\ifdefined\pdrobotglyphsloaded\else
+\def\pdrobotglyphsloaded{1}
+
+% -----------------------------------------------------------------------------
+% 1. Standard Standing Agent Robot (Base Model)
+% Args: shift (x,y), color, scale
+% -----------------------------------------------------------------------------
+\newcommand{\pdrobotbase}[3][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Head
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.28, 0.22) rectangle (0.28, 0.58);
+    % Dual Antennae
+    \draw[line width=0.65pt, draw=#3!95!black] (-0.12, 0.58) -- (-0.16, 0.72);
+    \draw[line width=0.65pt, draw=#3!95!black] (0.12, 0.58) -- (0.16, 0.72);
+    \fill[pdamber!90!orange] (-0.16, 0.72) circle (0.038);
+    \fill[pdamber!90!orange] (0.16, 0.72) circle (0.038);
+    % Screen / Visor
+    \draw[fill=hhink!90, draw=none, rounded corners=1.2pt] (-0.22, 0.28) rectangle (0.22, 0.52);
+    % Eyes
+    \fill[pdteal!35!white] (-0.11, 0.40) circle (0.04);
+    \fill[pdteal!35!white] (0.11, 0.40) circle (0.04);
+    % Mouth bar
+    \draw[pdteal!35!white, line width=0.4pt] (-0.07, 0.33) -- (0.07, 0.33);
+    % Ear bolts
+    \draw[fill=pdslate!60, draw=#3!95!black, line width=0.4pt] (-0.32, 0.35) rectangle (-0.28, 0.45);
+    \draw[fill=pdslate!60, draw=#3!95!black, line width=0.4pt] (0.28, 0.35) rectangle (0.32, 0.45);
+    % Neck
+    \draw[fill=pdslate!70, draw=#3!95!black, line width=0.4pt] (-0.08, 0.16) rectangle (0.08, 0.22);
+    % Body / Torso
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.32, -0.28) rectangle (0.32, 0.16);
+    % Chest panel
+    \draw[fill=pdpage, draw=#3!70!black, line width=0.35pt, rounded corners=1pt] (-0.22, -0.12) rectangle (0.22, 0.10);
+    \fill[pdhealth] (-0.13, -0.01) circle (0.03);
+    \fill[pdamber] (0.0, -0.01) circle (0.03);
+    \fill[pderror] (0.13, -0.01) circle (0.03);
+    % Arms
+    \draw[fill=#3!75, draw=#3!95!black, line width=0.45pt, rounded corners=1.2pt] (-0.44, -0.20) rectangle (-0.32, 0.10);
+    \draw[fill=#3!75, draw=#3!95!black, line width=0.45pt, rounded corners=1.2pt] (0.32, -0.20) rectangle (0.44, 0.10);
+    % Legs & Feet
+    \draw[fill=pdslate!80, draw=#3!95!black, line width=0.45pt] (-0.24, -0.46) rectangle (-0.09, -0.28);
+    \draw[fill=pdslate!80, draw=#3!95!black, line width=0.45pt] (0.09, -0.46) rectangle (0.24, -0.28);
+    \draw[fill=pdslate!90!black, draw=#3!95!black, line width=0.45pt, rounded corners=1pt] (-0.28, -0.52) rectangle (-0.05, -0.44);
+    \draw[fill=pdslate!90!black, draw=#3!95!black, line width=0.45pt, rounded corners=1pt] (0.05, -0.52) rectangle (0.28, -0.44);
+  \end{scope}
+}
+
+% -----------------------------------------------------------------------------
+% 2. Robot Holding Voting / Lease Token Tablet
+% -----------------------------------------------------------------------------
+\newcommand{\pdrobottoken}[3][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Head
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.28, 0.22) rectangle (0.28, 0.58);
+    % Antenna
+    \draw[line width=0.65pt, draw=#3!95!black] (0, 0.58) -- (0, 0.73);
+    \fill[pdamber!90!orange] (0, 0.73) circle (0.04);
+    % Screen / Visor
+    \draw[fill=hhink!90, draw=none, rounded corners=1.2pt] (-0.22, 0.28) rectangle (0.22, 0.52);
+    \fill[pdteal!35!white] (-0.11, 0.40) circle (0.04);
+    \fill[pdteal!35!white] (0.11, 0.40) circle (0.04);
+    \draw[pdteal!35!white, line width=0.4pt] (-0.07, 0.33) -- (0.07, 0.33);
+    % Neck
+    \draw[fill=pdslate!70, draw=#3!95!black, line width=0.4pt] (-0.08, 0.16) rectangle (0.08, 0.22);
+    % Body
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.32, -0.28) rectangle (0.32, 0.16);
+    % Legs & Feet
+    \draw[fill=pdslate!80, draw=#3!95!black, line width=0.45pt] (-0.24, -0.46) rectangle (-0.09, -0.28);
+    \draw[fill=pdslate!80, draw=#3!95!black, line width=0.45pt] (0.09, -0.46) rectangle (0.24, -0.28);
+    \draw[fill=pdslate!90!black, draw=#3!95!black, line width=0.45pt, rounded corners=1pt] (-0.28, -0.52) rectangle (-0.05, -0.44);
+    \draw[fill=pdslate!90!black, draw=#3!95!black, line width=0.45pt, rounded corners=1pt] (0.05, -0.52) rectangle (0.28, -0.44);
+    % Arms holding tablet
+    \draw[fill=#3!75, draw=#3!95!black, line width=0.45pt] (-0.42, -0.08) -- (-0.22, 0.05) -- (-0.18, 0.0) -- (-0.35, -0.13) -- cycle;
+    \draw[fill=#3!75, draw=#3!95!black, line width=0.45pt] (0.42, -0.08) -- (0.22, 0.05) -- (0.18, 0.0) -- (0.35, -0.13) -- cycle;
+    % Tablet
+    \draw[fill=pdpage, draw=pdcobalt, line width=0.55pt, rounded corners=1.2pt] (-0.24, -0.18) rectangle (0.24, 0.18);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdcobalt}] at (0, 0.06) {VOTING};
+    \node[font=\fontsize{3.5}{4.2}\selectfont\bfseries\color{hhink}] at (0, -0.06) {TOKEN};
+  \end{scope}
+}
+
+% -----------------------------------------------------------------------------
+% 3. Robot at Laptop / Deliberation
+% -----------------------------------------------------------------------------
+\newcommand{\pdrobotlaptop}[3][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Head (Tilted slightly forward)
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.26, 0.22) rectangle (0.26, 0.56);
+    % Dual Antennae
+    \draw[line width=0.65pt, draw=#3!95!black] (-0.10, 0.56) -- (-0.14, 0.70);
+    \draw[line width=0.65pt, draw=#3!95!black] (0.10, 0.56) -- (0.14, 0.70);
+    \fill[pdteal] (-0.14, 0.70) circle (0.038);
+    \fill[pdteal] (0.14, 0.70) circle (0.038);
+    % Visor
+    \draw[fill=hhink!90, draw=none, rounded corners=1.2pt] (-0.20, 0.28) rectangle (0.20, 0.50);
+    \fill[pdteal!40!white] (-0.10, 0.38) circle (0.038);
+    \fill[pdteal!40!white] (0.10, 0.38) circle (0.038);
+    % Body
+    \draw[fill=#3!85, draw=#3!95!black, line width=0.6pt, rounded corners=2pt] (-0.30, -0.26) rectangle (0.30, 0.18);
+    % Legs (Seated)
+    \draw[fill=pdslate!80, draw=#3!95!black, line width=0.45pt] (-0.25, -0.38) rectangle (0.25, -0.26);
+    % Desk surface
+    \draw[line width=1.0pt, pdslate!80!black] (-0.6, -0.38) -- (0.7, -0.38);
+    % Laptop Base
+    \draw[fill=pdslate!40, draw=pdslate!90!black, line width=0.45pt] (-0.05, -0.38) -- (0.50, -0.38) -- (0.46, -0.33) -- (-0.02, -0.33) -- cycle;
+    % Laptop Screen
+    \draw[fill=pdcobalt!90!black, draw=pdslate!90!black, line width=0.5pt, rounded corners=1pt] (0.42, -0.33) -- (0.52, 0.05) -- (0.15, 0.05) -- (0.08, -0.33) -- cycle;
+    % Glowing Screen Text
+    \draw[pdteal!50!white, line width=0.4pt] (0.18, -0.03) -- (0.42, -0.03);
+    \draw[pdteal!50!white, line width=0.4pt] (0.16, -0.12) -- (0.38, -0.12);
+    \draw[pdteal!50!white, line width=0.4pt] (0.14, -0.21) -- (0.34, -0.21);
+    % Arms on keyboard
+    \draw[fill=#3!75, draw=#3!95!black, line width=0.45pt] (-0.22, 0.05) to[out=-20,in=160] (0.12, -0.30) -- (0.18, -0.33) -- (-0.18, -0.05) -- cycle;
+  \end{scope}
+}
+
+% -----------------------------------------------------------------------------
+% 4. Red-and-White Disablement Barrier
+% -----------------------------------------------------------------------------
+\newcommand{\pdbarrierline}[4]{% (x1, y1) to (x2, y2)
+  \draw[line width=4.5pt, white] (#1,#2) -- (#3,#4);
+  \draw[line width=4.5pt, pderror, dashed, dash pattern=on 6pt off 6pt] (#1,#2) -- (#3,#4);
+  \draw[line width=0.6pt, pderror!80!black] (#1,#2) -- (#3,#4);
+}
+
+% -----------------------------------------------------------------------------
+% 5. Vector Iconography Definitions
+% -----------------------------------------------------------------------------
+% Crossed Tools (Wrench + Screwdriver)
+\newcommand{\pdicontools}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=1.4pt, pdslate!80!black, line cap=round] (-0.25,-0.25) -- (0.25,0.25);
+    \draw[line width=1.4pt, pdrust!90!black, line cap=round] (-0.25,0.25) -- (0.25,-0.25);
+    \draw[fill=pdslate!90!black, line width=0.4pt] (0.18,0.18) circle (0.10);
+    \fill[white] (0.20,0.20) circle (0.04);
+    \draw[fill=pdrust!90!black, line width=0.4pt] (0.20,-0.22) rectangle (0.26,-0.16);
+  \end{scope}
+}
+
+% Git Branch
+\newcommand{\pdicongit}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=1.1pt, pdteal!90!black] (0,-0.32) -- (0,0.32);
+    \draw[line width=1.1pt, pdteal!90!black] (0,-0.08) to[out=45,in=180] (0.24,0.16);
+    \fill[pdteal!90!black] (0,-0.24) circle (0.06);
+    \fill[pdteal!90!black] (0,0.24) circle (0.06);
+    \fill[pdteal!90!black] (0.24,0.16) circle (0.06);
+  \end{scope}
+}
+
+% Network Globe
+\newcommand{\pdiconglobe}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=0.7pt, pdcobalt!85!black] (0,0) circle (0.28);
+    \draw[line width=0.5pt, pdcobalt!70] (0,0) ellipse (0.13 and 0.28);
+    \draw[line width=0.5pt, pdcobalt!70] (-0.28,0) -- (0.28,0);
+    \draw[line width=0.5pt, pdcobalt!70] (-0.24,0.14) -- (0.24,0.14);
+    \draw[line width=0.5pt, pdcobalt!70] (-0.24,-0.14) -- (0.24,-0.14);
+  \end{scope}
+}
+
+% Host OS Gear / Process
+\newcommand{\pdicongear}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \fill[pdslate!75!black] (0,0) circle (0.22);
+    \foreach \a in {0,45,90,135,180,225,270,315} {
+      \fill[pdslate!75!black] (\a:0.26) circle (0.055);
+    }
+    \fill[white] (0,0) circle (0.09);
+  \end{scope}
+}
+
+% Stopwatch / Timer
+\newcommand{\pdicontimer}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=0.75pt, pdamber!90!black] (0,0) circle (0.25);
+    \draw[line width=0.8pt, pdamber!90!black] (0,0.25) -- (0,0.33);
+    \draw[line width=1.0pt, pdamber!90!black] (-0.06,0.33) -- (0.06,0.33);
+    \draw[line width=0.75pt, pdamber!90!black] (0,0) -- (0,0.14);
+    \draw[line width=0.75pt, pdamber!90!black] (0,0) -- (0.11,0.05);
+    \fill[pdamber!90!black] (0,0) circle (0.035);
+  \end{scope}
+}
+
+% Hardware Crash / Lightning Burst
+\newcommand{\pdiconcrash}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \fill[pderror!90!black] (0.06,0.32) -- (-0.12,0.04) -- (-0.02,0.04) -- (-0.14,-0.32) -- (0.12,-0.02) -- (0.02,-0.02) -- cycle;
+  \end{scope}
+}
+
+% Shield with Checkmark
+\newcommand{\pdiconshieldcheck}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \fill[pdcobalt!90!black] (0,0.32) -- (0.26,0.20) to[out=-70,in=45] (0,-0.32) to[out=135,in=-110] (-0.26,0.20) -- cycle;
+    \draw[line width=1.1pt, white, line cap=round, line join=round] (-0.11,-0.02) -- (-0.03,-0.12) -- (0.13,0.10);
+  \end{scope}
+}
+
+% Padlock
+\newcommand{\pdiconlock}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Shackle
+    \draw[line width=0.9pt, pdslate!80!black] (-0.12,0.05) -- (-0.12,0.18) arc (180:0:0.12) -- (0.12,0.05);
+    % Body
+    \draw[fill=pderror!85!black, draw=pderror!95!black, line width=0.5pt, rounded corners=1pt] (-0.18,-0.20) rectangle (0.18,0.06);
+    % Keyhole
+    \fill[white] (0,-0.04) circle (0.035);
+    \draw[line width=0.6pt, white] (0,-0.04) -- (0,-0.13);
+  \end{scope}
+}
+
+% Speedometer / Spend Cap
+\newcommand{\pdiconspeedometer}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=1.0pt, pdteal!90!black] (-0.28,-0.04) arc (180:40:0.28);
+    \draw[line width=1.0pt, pderror] (40:0.28) arc (40:0:0.28);
+    \draw[line width=0.8pt, hhink, line cap=round] (0,-0.04) -- (0.12,0.14);
+    \fill[hhink] (0,-0.04) circle (0.05);
+  \end{scope}
+}
+
+% Sparkle Broom / Hygiene Wand
+\newcommand{\pdiconbroom}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=1.2pt, pdteal!90!black, line cap=round] (-0.2,-0.2) -- (0.15,0.15);
+    % Sparkles
+    \fill[pdamber!90!orange] (0.22,0.22) circle (0.04);
+    \fill[pdteal] (0.05,0.26) circle (0.03);
+    \fill[pdteal] (0.26,0.05) circle (0.03);
+  \end{scope}
+}
+
+% Host Terminal Substrate
+\newcommand{\pdiconterminal}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[fill=hhink!95, draw=pdslate!80, line width=0.6pt, rounded corners=1.5pt] (-0.35,-0.25) rectangle (0.35,0.25);
+    \draw[fill=pderror] (-0.26,0.18) circle (0.025);
+    \fill[pdamber] (-0.18,0.18) circle (0.025);
+    \fill[pdhealth] (-0.10,0.18) circle (0.025);
+    \node[font=\fontsize{4.5}{5}\selectfont\ttfamily\color{pdhealth}] at (0,-0.05) {>\_};
+  \end{scope}
+}
+
+% Coins Stack
+\newcommand{\pdiconcoins}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \foreach \y in {-0.24, -0.12, 0.0, 0.12} {
+      \draw[fill=pdamber!80!orange, draw=pdamber!95!black, line width=0.45pt] (0,\y) ellipse (0.24 and 0.07);
+    }
+  \end{scope}
+}
+
+% Tall Coins Stack
+\newcommand{\pdiconcoinstall}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \foreach \y in {-0.30, -0.18, -0.06, 0.06, 0.18, 0.30} {
+      \draw[fill=pdamber!80!orange, draw=pdamber!95!black, line width=0.45pt] (0,\y) ellipse (0.24 and 0.07);
+    }
+  \end{scope}
+}
+
+% Slashed Coins (Stake Slashed)
+\newcommand{\pdiconcoinslashed}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \foreach \y in {-0.20, -0.08, 0.04, 0.16} {
+      \draw[fill=pdamber!70!white, draw=pdamber!80!black, line width=0.45pt] (0,\y) ellipse (0.22 and 0.065);
+    }
+    \draw[line width=1.5pt, pderror, line cap=round] (-0.26,-0.24) -- (0.26,0.24);
+  \end{scope}
+}
+
+% Magnifying Glass (Audit Inspection)
+\newcommand{\pdiconmagnifier}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=0.9pt, pdteal!90!black] (0,0.06) circle (0.16);
+    \draw[line width=1.4pt, pdteal!90!black, line cap=round] (0.12,-0.06) -- (0.26,-0.20);
+    \fill[white] (-0.04,0.10) circle (0.04);
+  \end{scope}
+}
+
+% Arbitration Gavel & Scales of Justice
+\newcommand{\pdiconarbitration}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Central post
+    \draw[line width=0.8pt, pdrust!90!black] (0.15,-0.20) -- (0.15,0.22);
+    \draw[line width=0.8pt, pdrust!90!black] (-0.05,0.18) -- (0.35,0.18);
+    \draw[line width=0.5pt, pdrust!80] (-0.05,0.18) -- (-0.12,0.02) -- (0.02,0.02) -- cycle;
+    \draw[line width=0.5pt, pdrust!80] (0.35,0.18) -- (0.28,0.02) -- (0.42,0.02) -- cycle;
+    % Gavel
+    \draw[line width=1.4pt, pdrust!95!black, line cap=round] (-0.30,-0.18) -- (-0.10,0.05);
+    \draw[fill=pdrust!90!black, draw=pdrust!95!black, line width=0.5pt, rounded corners=1pt] (-0.22,0.0) -- (-0.12,0.12) -- (-0.02,0.04) -- (-0.12,-0.08) -- cycle;
+  \end{scope}
+}
+
+% Cash Bill / Liquidated Damages
+\newcommand{\pdiconcash}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[fill=white, draw=pdslate!90!black, line width=0.6pt, rounded corners=1.5pt] (-0.35,-0.20) rectangle (0.35,0.20);
+    \draw[line width=0.5pt, pdteal!80!black] (-0.28,-0.14) rectangle (0.28,0.14);
+    \fill[pdteal!90!black] (0,0) circle (0.08);
+    \fill[pdteal!90!black] (-0.22,0) circle (0.035);
+    \fill[pdteal!90!black] (0.22,0) circle (0.035);
+  \end{scope}
+}
+
+% Group of People / Remedy
+\newcommand{\pdicongrouppeople}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Center person
+    \fill[hhink] (0,0.12) circle (0.09);
+    \fill[hhink] (-0.15,-0.20) to[out=70,in=180] (0,-0.02) to[out=0,in=110] (0.15,-0.20) -- cycle;
+    % Left person
+    \fill[hhgray!90!black] (-0.22,0.06) circle (0.075);
+    \fill[hhgray!90!black] (-0.34,-0.20) to[out=70,in=180] (-0.22,-0.06) to[out=0,in=110] (-0.10,-0.20) -- cycle;
+    % Right person
+    \fill[hhgray!90!black] (0.22,0.06) circle (0.075);
+    \fill[hhgray!90!black] (0.10,-0.20) to[out=70,in=180] (0.22,-0.06) to[out=0,in=110] (0.34,-0.20) -- cycle;
+  \end{scope}
+}
+
+% Database Cylinder
+\newcommand{\pdicondatabase}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[fill=pdslate!20, draw=pdslate!90!black, line width=0.6pt] (-0.25,-0.15) rectangle (0.25,0.15);
+    \draw[fill=pdslate!30, draw=pdslate!90!black, line width=0.5pt] (0,0.15) ellipse (0.25 and 0.08);
+    \draw[draw=pdslate!90!black, line width=0.5pt] (-0.25,0) arc (180:360:0.25 and 0.08);
+    \draw[draw=pdslate!90!black, line width=0.5pt] (-0.25,-0.15) arc (180:360:0.25 and 0.08);
+  \end{scope}
+}
+
+% Signed Document / Witness Receipts
+\newcommand{\pdicondocument}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[fill=white, draw=pdslate!90!black, line width=0.55pt] (-0.18,-0.24) -- (0.10,-0.24) -- (0.18,-0.16) -- (0.18,0.24) -- (-0.18,0.24) -- cycle;
+    \draw[draw=pdslate!80, line width=0.45pt] (0.10,-0.24) -- (0.10,-0.16) -- (0.18,-0.16);
+    \draw[pdslate!70, line width=0.4pt] (-0.12,0.16) -- (0.12,0.16);
+    \draw[pdslate!70, line width=0.4pt] (-0.12,0.08) -- (0.12,0.08);
+    \draw[pdslate!70, line width=0.4pt] (-0.12,0.00) -- (0.06,0.00);
+    % Feather / quill
+    \draw[line width=0.7pt, pdcobalt!80!black] (0.08,-0.12) to[out=45,in=-45] (0.24,0.06);
+  \end{scope}
+}
+
+% Merkle Inclusion Proof Tree
+\newcommand{\pdiconmerkle}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    % Root
+    \draw[line width=0.5pt, pdslate!80] (0,0.20) -- (-0.16,0.04);
+    \draw[line width=0.5pt, pdslate!80] (0,0.20) -- (0.16,0.04);
+    \draw[line width=0.5pt, pdslate!80] (-0.16,0.04) -- (-0.24,-0.14);
+    \draw[line width=0.5pt, pdslate!80] (-0.16,0.04) -- (-0.08,-0.14);
+    \draw[line width=0.5pt, pdslate!80] (0.16,0.04) -- (0.08,-0.14);
+    \draw[line width=0.5pt, pdslate!80] (0.16,0.04) -- (0.24,-0.14);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (-0.05,0.16) rectangle (0.05,0.24);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (-0.20,0.0) rectangle (-0.12,0.08);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (0.12,0.0) rectangle (0.20,0.08);
+    \draw[fill=pdteal!80!white, draw=pdteal!95!black, line width=0.5pt] (-0.28,-0.18) rectangle (-0.20,-0.10);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (-0.12,-0.18) rectangle (-0.04,-0.10);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (0.04,-0.18) rectangle (0.12,-0.10);
+    \draw[fill=white, draw=pdslate!90!black, line width=0.4pt] (0.20,-0.18) rectangle (0.28,-0.10);
+  \end{scope}
+}
+
+% Key (Cryptographic Key / Capability Key)
+\newcommand{\pdiconkey}[2][1.0]{%
+  \begin{scope}[shift={#2},scale=#1]
+    \draw[line width=0.8pt, pdamber!95!black] (0, 0.12) circle (0.14);
+    \fill[white] (0, 0.12) circle (0.06);
+    \draw[line width=0.85pt, pdamber!95!black] (0, -0.02) -- (0, -0.26);
+    \draw[line width=0.7pt, pdamber!95!black] (0, -0.14) -- (0.10, -0.14);
+    \draw[line width=0.7pt, pdamber!95!black] (0, -0.22) -- (0.08, -0.22);
+  \end{scope}
+}
+
+\def\pdiconclock{\pdicontimer}
+\def\pdiconlightning{\pdiconcrash}
+
+\fi

@@ -31,7 +31,7 @@ items, sources = cat["items"], cat["sources"]
 # actionable instead of a grep exercise.
 _SCRIPTS = "".join(
     p.read_text(encoding="utf-8")
-    for p in sorted((ROOT / "scripts").glob("*.py")) if p.name != Path(__file__).name)
+    for p in sorted((ROOT / "scripts").glob("*.py")) if p.name != Path(__file__).name and not p.name.startswith("test_"))
 IMPLEMENTED = {i["name"] for i in items if f'"{i["name"]}"' in _SCRIPTS}
 
 PROSE_GENERIC = {"prose"}
@@ -56,7 +56,7 @@ DIAGRAMS = {
     C --> E["Read form + shape items first"]
     D --> E
     E --> F{"Finding family?"}
-    F -->|residue| G["Report high. Machine artifact,<br/>near-zero human source"]
+    F -->|residue| G["Verify context and repair<br/>unconverted artifacts"]
     F -->|form / shape| H["Report as written. Humans do this too"]
     F -->|rhythm| I["Cue only. Never quote as evidence"]""",
     "gptisms-codexisms.md": """flowchart TD
@@ -321,7 +321,7 @@ GROUPS = {
     },
     "marketing-and-platform-tells.md": {
         "title": "Marketing copy and platform posts \u2014 written to a template",
-        "intro": "Landing-page copy, social posts, cold email, listings and r\u00e9sum\u00e9s. One thing separates this file from document structure: these are venues with a HOUSE FORM, and the tell is the form arriving complete rather than any individual sentence. Severity here should be read against the venue's base rate \u2014 measured generation runs around 40% for LinkedIn long-form and about 2% for Reddit replies, so the same finding means different things in each.",
+        "intro": "Landing-page copy, social posts, cold email, listings and r\u00e9sum\u00e9s. One thing separates this file from document structure: these are venues with a HOUSE FORM, and the tell is the form arriving complete rather than any individual sentence. Severity follows demonstrated reader harm, not estimated AI prevalence. Check the genre before changing a familiar form.",
         "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
                           and i["name"] not in WEB_DEFECT_CLAIMED
                           and i["medium"] in {"marketing-copy", "social-post", "email",
@@ -406,6 +406,53 @@ GROUPS = {
         "pick": lambda i: i.get("lane") == "latex",
     },
 }
+
+# Education and title chrome are independent review lanes, not model dialects.
+GROUPS.update({
+    "educational-exposition.md": {
+        "title": "Educational exposition and concept progression",
+        "intro": "Audit what a reader can do with an idea before later material depends on it. These are pedagogical and editorial checks, not authorship tests. General learning research supports many repairs; evidence specific to AI tutoring is labeled and bounded in education-and-chrome-research.md. Learning-map checks validate reviewer annotations rather than learner mastery.",
+        "pick": lambda i: i.get("lane") == "educational-exposition",
+    },
+    "content-chrome.md": {
+        "title": "Title layers and content chrome",
+        "intro": "Count visible layers, then ask what each contributes. A caption, heading and subtitle can all be useful. The defect is repeated meaning or lost orientation, not a particular font, number of lines or fashionable palette. The structural scanner emits candidates only; inspect the rendered page or PDF before editing.",
+        "pick": lambda i: i.get("lane") == "content-chrome",
+    },
+    "instructional-media-and-notes.md": {
+        "title": "Instructional media and source-bound notes",
+        "intro": "Review generated diagrams, video, audio, notebooks and notes against the task they claim to serve. Visual polish, smooth motion and fluent narration do not establish factual fidelity. These checks require source comparison or actual playback; this bundle does not automate OCR, audio analysis or notebook execution.",
+        "pick": lambda i: i.get("lane") == "instructional-media",
+    },
+})
+DIAGRAMS.update({
+    "educational-exposition.md": """flowchart TD
+    A[State target task and prior knowledge] --> B{Prerequisites established?}
+    B -->|no| C[Teach or explicitly declare them]
+    B -->|yes| D{Hard decision visible in example?}
+    D -->|no| E[Work the step and explain why]
+    D -->|yes| F{Independent changed case available?}
+    F -->|no| G[Add or link practice and feedback]
+    F -->|yes| H[Assess retrieval later; do not infer mastery]""",
+    "content-chrome.md": """flowchart TD
+    A[Title stack candidate] --> B{Required by venue or useful taxonomy?}
+    B -->|yes| C[Preserve its distinct function]
+    B -->|no| D{What does deleting each layer lose?}
+    D -->|scope or orientation| C
+    D -->|nothing| E[Merge or remove the repeated layer]
+    E --> F[Check rendered hierarchy and accessibility]
+    C --> F""",
+    "instructional-media-and-notes.md": """flowchart TD
+    A[Identify teaching or source fidelity claim] --> B{Which medium?}
+    B -->|diagram| C[Verify nodes edges and link meanings]
+    B -->|video or audio| D[Play and compare labels sequence and narration]
+    B -->|notes| E[Trace decisions and omissions to source spans]
+    B -->|notebook| F[Check declared state and execution evidence]
+    C --> G[Report observed mismatch and limitations]
+    D --> G
+    E --> G
+    F --> G""",
+})
 
 # Which axis each generated reference sits on. The files are VIEWS over one
 # catalog, not a partition: by model dialect, and by artifact medium. An item
@@ -542,7 +589,8 @@ for fname, g in GROUPS.items():
     print(f"{fname}: {len(picked)} items")
 
 HANDWRITTEN = {"fairness-and-false-positives.md", "five-minute-manual-pass.md",
-               "performance-budget-and-folklore.md", "INDEX.md"}
+               "performance-budget-and-folklore.md", "education-and-chrome-research.md",
+               "review-decisions.md", "INDEX.md"}
 _on_disk = {p.name for p in REF.glob("*.md")}
 _orphan_files = sorted(_on_disk - set(GROUPS) - HANDWRITTEN - {"sources.md"})
 if _orphan_files:

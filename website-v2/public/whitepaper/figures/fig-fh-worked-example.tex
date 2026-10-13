@@ -1,0 +1,122 @@
+% Worked incident: one concrete run across the four governing primitives.
+%
+% Reader question: in what order do admission, transfer, settlement, and
+%   revocation matter during Controller-7's staging-schema failure?
+% Claim: admission is a prerequisite; the incident then has six ordered steps
+%   in which each primitive performs one narrow job and no participant becomes
+%   another harbor's root authority.
+% Evidence: the chapter's A/S/B scene, Controller-7, the float32/float64
+%   mismatch, B_alpha with 24h TTL, Beta's six-month probation, and the
+%   illustrative three-round expectation for eight harbors.
+% Must distinguish: local events from boundary messages and the two-hour delay.
+% Grammar chosen: five-party sequence with one admission precondition strip.
+%   Rejected: a Gantt, because every operative step is discrete and ordered.
+% Five-second test: Beta finds the damage two hours later; escrow clears it;
+%   Acme then publishes the revocation root.
+\pdfigurehue{pdgold}%
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
+  \tikzset{
+    incident head/.style={pd artifact,minimum width=1.8cm,minimum height=.72cm,
+      inner xsep=5pt,inner ysep=4pt,align=center},
+    incident event/.style={pd state,minimum width=3.10cm,minimum height=.82cm,
+      inner xsep=6pt,inner ysep=5pt,align=center}
+  }
+  \def\xA{.85} \def\xS{4.15} \def\xB{7.45} \def\xE{10.75} \def\xW{14.05}
+
+  \node[pd title,anchor=west,text width=9.5cm] at (0,7.75)
+    {one admitted federation, one delayed failure, six ordered steps};
+
+  % Admission is a prerequisite, not a message improvised during the incident.
+  \draw[pd panel] (0,5.92) rectangle (15.20,6.90);
+  \node[pd kind,anchor=west,text width=2.5cm] at (.20,6.42) {Admission prerequisite};
+  \node[pd label,anchor=west,text width=6.6cm,align=left] at (4.40,6.42)
+    {$A$, $S$, and $B$ enrolled; Beta: six months, zero forfeitures};
+
+  \node[incident head] (hA) at (\xA,4.95) {Harbor $A$\\Acme};
+  \node[incident head] (hS) at (\xS,4.95) {Harbor $S$\\staging};
+  \node[incident head] (hB) at (\xB,4.95) {Harbor $B$\\Beta};
+  \node[incident head] (hE) at (\xE,4.95) {escrow};
+  \node[incident head] (hW) at (\xW,4.95) {witness log};
+  % Lifelines stop at opaque events. This matters in the Technical edition,
+  % whose patterned states must not leave a construction line through text.
+  \draw[pd uml lifeline] (hA.south) -- (\xA,-.12);
+  \draw[pd uml lifeline] (\xA,-.72) -- (\xA,-7.05);
+  \draw[pd uml lifeline] (hS.south) -- (\xS,1.35);
+  \draw[pd uml lifeline] (\xS,.20) -- (\xS,-.12);
+  \draw[pd uml lifeline] (\xS,-.72) -- (\xS,-7.05);
+  \draw[pd uml lifeline] (hB.south) -- (\xB,-.12);
+  \draw[pd uml lifeline] (\xB,-.72) -- (\xB,-.84);
+  \draw[pd uml lifeline] (\xB,-1.92) -- (\xB,-7.05);
+  \draw[pd uml lifeline] (hE.south) -- (\xE,-.12);
+  \draw[pd uml lifeline] (\xE,-.72) -- (\xE,-3.05);
+  \draw[pd uml lifeline] (\xE,-4.65) -- (\xE,-7.05);
+  \draw[pd uml lifeline] (hW.south) -- (\xW,-.12);
+  \draw[pd uml lifeline] (\xW,-.72) -- (\xW,-7.05);
+
+  % Bond precondition: funded before Controller-7 receives the risky capability.
+  \node[pd value datum] at (\xA,3.55) {};
+  \node[pd value datum] at (\xE,3.30) {};
+  \draw[pd value arrow] (\xA,3.55) -- (\xE,3.30);
+  \node[pd tag,anchor=south,text width=5.0cm,align=center] at (5.80,3.62)
+    {bond posted: $B_\alpha$, TTL 24h};
+
+  % 1. Cross-harbor transfer.
+  \node[pd focus badge] (m1) at (2.50,2.15) {1};
+  \draw[pd protocol arrow,pd to badge] (\xA,2.34) -- (m1);
+  \draw[pd protocol arrow,pd from badge] (m1) -- (\xS,1.96);
+  \node[pd label,anchor=south west,text width=5.2cm,align=left] at (0,2.48)
+    {$\mathsf{xfer\_offer}\langle C_A,\mathsf{att}_A,R_A{}^{(e)}\rangle$};
+
+  % 2. Destination-local verification and migration.
+  \node[pd focus state,minimum width=3.3cm,minimum height=.92cm,
+    inner xsep=6pt,inner ysep=5pt,align=center] (localS) at (\xS,.78)
+    {verify destination card\\snapshot; run migration};
+  \node[pd focus badge,anchor=east] at ([xshift=-6pt]localS.west) {2};
+  \draw[pd focus arrow] (\xS,1.96) -- (localS.north);
+
+  % The delayed consequence is the fact the worked example exists to expose.
+  \draw[pd guide] (0,-.10) -- (15.20,-.10);
+  \node[pd note,anchor=west] at (.20,-.42) {$+2$ hours --- Controller-7 has moved on};
+
+  % 3. Beta observes the concrete schema mismatch locally.
+  \node[pd breach state,minimum width=3.65cm,minimum height=1.00cm,
+    inner xsep=6pt,inner ysep=5pt,align=center] (damage) at (\xB,-1.38)
+    {integration test fails\\\texttt{float32} $\neq$ \texttt{float64}};
+  \node[pd badge,anchor=east] at ([xshift=-6pt]damage.west) {3};
+
+  % 4. The claim crosses from B to escrow with proof-bound evidence.
+  \node[pd badge] (m4) at (9.10,-2.86) {4};
+  \draw[pd protocol arrow,pd to badge] (\xB,-2.66) -- (m4);
+  \draw[pd protocol arrow,pd from badge] (m4) -- (\xE,-3.05);
+  \node[pd tag,anchor=south,text width=5.2cm,align=center] at (9.10,-2.54)
+    {damage claim + Merkle proof};
+
+  % 5. One clearance decision fans out to the payer and beneficiary.
+  \node[pd terminal,pd climax state,minimum width=2.20cm,minimum height=.82cm,
+    inner xsep=6pt,inner ysep=5pt,text width=1.60cm,align=center]
+    (clear) at (\xE,-4.18) {5\quad clear};
+  \draw[pd focus arrow] (\xE,-3.05) -- (clear.north);
+  \node[pd focus datum] (split) at (9.10,-4.82) {};
+  \draw[pd focus arrow] (clear.west) -- (split);
+  \draw[pd focus arrow] (split) -- (\xB,-5.08);
+  \draw[pd focus arrow] (split) -- (\xA,-5.28);
+  \node[pd focus label,anchor=north east] at (\xB,-5.20) {pay Beta};
+  \node[pd focus label,anchor=south] at (5.55,-5.02) {refund Acme};
+
+  % 6. Revocation is a later publication, then asynchronous gossip.
+  \node[pd focus badge] (m6) at (7.45,-7.34) {6};
+  \draw[pd focus arrow,pd to badge] (\xA,-7.15) -- (m6);
+  \draw[pd focus arrow,pd from badge] (m6) -- (\xW,-7.53);
+  \node[pd tag,anchor=south,text width=7.0cm,align=center] at (7.45,-7.00)
+    {publish new epoch root; expect three reliable gossip rounds};
+  \foreach \x in {\xA,\xS,\xB,\xE,\xW}
+    \draw[pd uml lifeline] (\x,-7.1) -- (\x,-7.75);
+\end{tikzpicture}
+
+\caption{Beta's bound claim settles against Acme's bond. Revocation follows;
+the three-round estimate assumes reliable rounds, not a guaranteed deadline.
+[internal]}
+\label{fig:fh-worked-example}
+\end{figure*}

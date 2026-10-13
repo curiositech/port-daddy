@@ -41,7 +41,7 @@ are projections:
 
 | Document | What it is | What it is not |
 |---|---|---|
-| [`whitepaper-research-program.md`](whitepaper-research-program.md) | the Book's forward plan and its status | a place work becomes real |
+| [`../harbor-research/OMNI-LEDGER.md`](../harbor-research/OMNI-LEDGER.md) | the operator-authorized research work ledger and its generated view | a place work becomes real |
 | [`../grand-harbor/`](../grand-harbor/README.md) | what each architectural noun means, what each boundary guarantees, which questions are open | a schedule |
 
 Each is single-writer, and neither schedules anything. A row does.
@@ -126,3 +126,14 @@ and implemented by the roadmapprog + migration lanes (it rides the migration
 lane's schema epoch, `PRAGMA user_version`; it is not a competing source). This
 note deliberately touches **no** roadmap code (`lib/roadmap-*.ts`,
 `routes/roadmap.ts`) and does **not** regenerate the snapshot.
+
+## Research consolidation — operator directive, 2026-09-30
+
+The operator designated `docs/harbor-research/omni-ledger.json` as the single
+research work ledger. Its generated [Omni view](../harbor-research/OMNI-LEDGER.md)
+combines results, open work, adjudications, dependencies and exact source evidence.
+The loose research plans and supporting documents are retired after checksum-checked
+retention in the ledger's source archive. The eight papers remain publication artifacts.
+This is research record authority; it neither writes the scheduling registry nor
+reactivates the halted local runtime. Website program data and critique inventories
+are projections from the ledger, not independent work plans.

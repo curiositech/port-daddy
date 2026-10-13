@@ -1,35 +1,66 @@
-% Regime diagram for Sec. sealed-conservation ("Which composition bound to quote"): the basic bound k*epsilon and the advanced bound sqrt(2 k ln(1/delta')) epsilon + k epsilon (e^epsilon - 1) at epsilon=0.1, delta'=1e-6, plotted from the closed forms the chapter states. The k=32 mark and both bound values are copied from website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-conservation, "Numbers by hand" [verified].
+% Book redraw of VIII/fig:sealed-composition-crossover.
+%
+% Reader question: when does the advanced composition bound first pay?
+% Claim: with epsilon=0.1 and delta'=10^-6, the advanced curve is still
+% above basic at k=32 and first becomes lower at the positive integer k=35.
+% Representation: one analytical common-axis plot; direct labels carry the
+% delta distinction; only the focal integer is marked.
+% The advanced curve is .1*sqrt(2*k*ln(1e6)) + k*.1*expm1(.1); PGFPlots
+% spells expm1(.1) as exp(.1)-1 in the plotted expression below.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure]
-  \begin{axis}[pd axis,
-    width=13.8cm,height=7.0cm,
-    axis lines=left,
-    title={which bound to quote, as the engagement grows longer},
-    xmin=0,xmax=64,ymin=0,ymax=7,
-    xlabel={releases $k$ (per-release $\varepsilon=0.1$)},
-    ylabel={spent-budget bound},
-    xtick={0,16,32,48,64},
+\pdfigurehue{pdcobalt}%
+\SGMeasuredFigure{VIII/fig:sealed-composition-crossover}{%
+\begin{tikzpicture}[pd figure,font=\SGType,
+  pd axis label/.append style={font=\SGType},
+  pd direct label/.append style={font=\SGType},
+  pd focus label/.append style={font=\SGType}]
+  \begin{axis}[
+    pd axis,
+    width=250pt,
+    height=150pt,
+    xmin=0,xmax=64,
+    ymin=0,ymax=7,
+    xlabel={release count $k$},
+    ylabel={bound $\varepsilon$},
+    xtick={0,16,35,48,64},
     ytick={0,2,4,6},
+    xticklabel style={pd axis label},
+    yticklabel style={pd axis label},
+    xlabel style={pd axis label},
+    ylabel style={pd axis label},
+    axis background/.style={fill=pdinkmuted!4},
     clip=false,
-    legend style={pd legend,at={(0.03,0.97)},anchor=north west,
-      row sep=1pt,inner sep=2pt},
-    legend cell align=left,
+    % The formulas are analytic; no sample markers imply measurements.
+    candidate basic/.style={draw=pdink,line width=1.05pt,mark=none},
+    candidate advanced/.style={draw=pdfocus,line width=1.45pt,mark=none},
   ]
-    \addplot[pd rule,domain=0:64,samples=120,line width=.9pt] {0.1*x};
-    \addlegendentry{basic: $k\varepsilon$}
-    \addplot[pd focus rule,domain=0:64,samples=120,line width=.9pt] {sqrt(2*x*ln(1/0.000001))*0.1 + x*0.1*(exp(0.1)-1)};
-    \addlegendentry{advanced: $\sqrt{k}$-scaled}
-    \addplot[pd rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.20)};
-    \addplot[pd focus rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.3101)};
-    \draw[pd guide] (axis cs:32,0) -- (axis cs:32,3.3101);
-    % Raised clear of the axis: this three-line block grew when pd direct label
-    % gained the inner ysep its descenders needed, and its last line came to
-    % rest on the x axis rule. anchor=west on the block's own middle keeps it
-    % centred on the k=32 read instead of hanging from it.
-    \node[pd direct label,align=left,text width=3.0cm,anchor=west] at (axis cs:34.5,2.1) {$k=32$:\\basic $3.20$\\advanced $3.31$};
+    \addplot[candidate basic,domain=0:64,samples=2]
+      {0.1*x};
+    \addplot[candidate advanced,domain=0:64,samples=160]
+      {0.1*sqrt(2*x*ln(1000000)) + x*0.1*(exp(0.1)-1)};
+
+    % The only marked integer is the first positive k where advanced is lower.
+    \addplot[only marks,mark=*,mark size=2.8pt,draw=pdfocus,fill=pdfocus]
+      coordinates {(35,3.47789843)};
+    \draw[pd guide] (axis cs:35,0) -- (axis cs:35,3.47789843);
+
+    % The basic label is above both curves. The advanced label is two short
+    % lines below both curves; its north-east anchor keeps its full box inside
+    % the plot without masking either path.
+    \node[pd direct label,anchor=east,align=left,text=pdink]
+      at (axis cs:63.5,6.90)
+      {basic $(\delta=0)$};
+    \node[pd focus label,anchor=north east,align=right]
+      at (axis cs:63.5,4.0)
+      {advanced\\$\delta'=10^{-6}$};
+
+    % Short focal note, entirely inside the plot box and below both curves.
+    \node[pd direct label,anchor=west,align=left,text=pdfocus!85!pdink]
+      at (axis cs:38,1.78)
+      {first lower $\varepsilon$:\\$k=35$};
   \end{axis}
-\end{tikzpicture}
-\caption{The basic and advanced $\varepsilon$-composition bounds on cumulative spend as functions of the number of releases $k$, at the per-release $\varepsilon=0.1$ the chapter uses for this comparison. At $k=32$, the chapter's reported comparison, basic composition ($3.20$) is still smaller than the advanced bound ($3.31$): below the crossover a contract should quote the exact, $\delta$-free basic bound, and only past it the square-root-scaled advanced bound -- the same rule at $\varepsilon=0.05$ gives $k=128$: basic $6.40$ versus advanced $3.30$, where the advanced bound has come to pay.}
+\end{tikzpicture}}
+\caption{Analytical comparison for per-release $\varepsilon=0.1$ and a fixed maximum horizon; queries may adapt. At $k=32$, basic is 3.20 versus advanced 3.31. Advanced first has lower $\varepsilon$ at $k=35$, but allows $\delta'=10^{-6}$; basic keeps $\delta=0$. Lower epsilon therefore trades guarantees, not uniformly stronger privacy.}
 \label{fig:sealed-composition-crossover}
 \end{figure}

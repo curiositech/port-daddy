@@ -29,7 +29,7 @@
   harbor curve,
   width=0.92\textwidth,height=6.6cm,
   xlabel={effective resistance $R^{K_c}_{\mathrm{eff}}(e)$ of the lied-on edge in its \emph{visible} coordinate subgraph $K_c$},
-  ylabel={certified residual per unit lie, $r/|s|$},
+  ylabel={residual per unit edge perturbation, $r/|s|$},
   xmin=-0.02,xmax=1.05,ymin=-0.05,ymax=1.08,
   xtick={0,0.2,0.4,0.6,0.8,1.0},
   ytick={0,0.2,0.4,0.6,0.8,1.0},
@@ -40,7 +40,7 @@
   % opaque white plate/border must stay or legend text sits bare on the
   % axis again.
   legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
-  title={CR-1 closed form: the lie the residual certifies, by topology\\{\scriptsize [verified; \texttt{sheaf\_consistency\_radius.py}]}},
+  title={One-edge residual sensitivity by visible topology\\{\scriptsize [verified; \texttt{sheaf\_consistency\_radius.py}]}},
 ]
 \addplot[harborblue,thick,no markers,domain=0:1,samples=100] {sqrt(1-x)};
 \addlegendentry{$r/|s|=\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$}
@@ -57,13 +57,13 @@
 % collided directly. Moved further right and down, past C_8's marker along
 % the curve, matching the up-right offset used for the other three labels.
 \node[seagreen,font=\scriptsize] at (axis cs:0.935,0.330) {$C_{12}$};
-\node[seagreen,font=\scriptsize,align=left,text width=4.2cm] at (axis cs:0.20,0.75) {$C_6$: the plotted ordinate is\\ $r/|s|=\sqrt{1-5/6}=0.4082$,\\ so a lie of $s=3$ certifies\\ $r=3\times0.4082=1.2247$};
+\node[seagreen,font=\scriptsize,align=left,text width=4.2cm] at (axis cs:0.20,0.75) {$C_6$: the plotted ordinate is\\ $r/|s|=\sqrt{1-5/6}=0.4082$,\\ so an edge perturbation $s=3$ gives\\ $r=3\times0.4082=1.2247$};
 \draw[seagreen,->] (axis cs:0.30,0.62) -- (axis cs:0.80,0.44);
 \node[shipred,font=\scriptsize,align=center,text width=3.3cm] at (axis cs:0.55,0.24) {bridge / cut edge:\\ full leverage, zero residual};
 \draw[shipred,->] (axis cs:0.60,0.14) -- (axis cs:0.97,0.015);
 \end{axis}
 \end{tikzpicture}
-\caption{Conviction strength is set by topology alone. The CR-1 closed form plots certified residual \emph{per unit lie},
+\caption{One-edge residual sensitivity is set by the visible topology and chosen Euclidean feature metric. The closed form plots residual \emph{per unit edge perturbation},
 $r/|s|=\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$, against the effective resistance of the lied-on edge in its \emph{visible}
 coordinate subgraph $K_c$ --- compared-plus-relayed links only, so severing a link on the edge's cycle moves the point
 right, toward silence. The cycle family $C_n$ sits at $R^{K_c}_{\mathrm{eff}}=\tfrac{n-1}{n}$; the marked $C_6$ point is

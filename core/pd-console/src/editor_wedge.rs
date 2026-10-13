@@ -453,11 +453,11 @@ impl GuardVerdict {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
     use crate::editor_claims::RegionClaim;
 
     fn region(peer_ident: &str, id: u32, start: u32, end: u32, label: &str, granted: u64) -> RegionClaim {
-        RegionClaim::new(peer_id_for_identity(peer_ident), id, start, end, label, granted)
+        RegionClaim::new(fixture_peer_id(peer_ident), id, start, end, label, granted)
     }
 
     /// A region claim maps to the daemon's `{ filePath, symbolPath, type }` shape: the

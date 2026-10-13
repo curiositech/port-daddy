@@ -1,93 +1,507 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://port-daddy.dev/schemas/reputation-plan.schema.json",
-  "title": "Agent Identity / Continuity / Reputation Design Plan",
-  "description": "A structured claim-set describing a proposed or existing identity->continuity->reputation design, in the shape reputation_soundness_audit.mjs audits for the chain-breaks named in the skill's Failure Modes table.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reputation-plan.schema.json",
+  "title": "Declared identity, continuity, and reputation plan",
   "type": "object",
+  "additionalProperties": true,
   "required": [
-    "identityNonForgeable",
-    "continuityPersists",
-    "outcomesCloseAgainstOracle",
-    "sampledAdversarialAuditor",
+    "designVersion",
+    "identity",
+    "continuity",
+    "outcome",
     "estimator",
-    "representsUncertainty",
-    "scoreIsTelemetryGatesArePredicates",
     "newcomerPolicy",
     "judge",
-    "sanctionsStakedGraduated"
+    "sanctions",
+    "representsUncertainty"
   ],
-  "additionalProperties": true,
   "properties": {
-    "identityNonForgeable": {
-      "type": "boolean",
-      "description": "True only if the agent id is minted by a trusted substrate (daemon/server) and bound to a credential the agent cannot cheaply re-pick. False if the agent can self-assert or choose its own id string."
+    "designVersion": {
+      "const": "2026-09-24"
     },
-    "continuityPersists": {
+    "identity": {
       "type": "object",
-      "description": "What the continuity mechanism actually persists across process/context death.",
-      "required": ["memory", "checkpoint", "outcomeLedger"],
+      "additionalProperties": true,
+      "required": [
+        "issuerNamespace",
+        "actorId",
+        "credentialId",
+        "sessionId",
+        "authentication",
+        "recovery",
+        "revocation"
+      ],
       "properties": {
-        "memory": {
-          "type": "boolean",
-          "description": "An episodic record of what happened survives (e.g. episodic-memory-algorithms output)."
+        "issuerNamespace": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
-        "checkpoint": {
-          "type": "boolean",
-          "description": "A restorable execution/belief state survives, not just a text note."
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
         },
-        "outcomeLedger": {
-          "type": "boolean",
-          "description": "An append-only, externally-witnessed record of what was delivered survives. Reputation keys on this field specifically."
+        "credentialId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "authentication": {
+          "enum": [
+            "key-control-declared",
+            "account-control-declared",
+            "not-established"
+          ]
+        },
+        "recovery": {
+          "enum": [
+            "issuer-authorized",
+            "new-or-unattributed",
+            "not-established"
+          ]
+        },
+        "revocation": {
+          "enum": [
+            "checked-before-session-use",
+            "not-checked",
+            "not-established"
+          ]
         }
       }
     },
-    "outcomesCloseAgainstOracle": {
-      "type": "boolean",
-      "description": "True only if outcomes close against ground truth the agent cannot author (merged SHA, passing test id, released claim, satisfied monitor) rather than free-text self-report."
+    "continuity": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "memory",
+        "checkpoint",
+        "outcomeLedger",
+        "successorRule"
+      ],
+      "properties": {
+        "memory": {
+          "enum": [
+            "declared-persistent",
+            "note-only",
+            "absent",
+            "not-established"
+          ]
+        },
+        "checkpoint": {
+          "enum": [
+            "declared-restorable",
+            "note-only",
+            "absent",
+            "not-established"
+          ]
+        },
+        "outcomeLedger": {
+          "enum": [
+            "declared-attributed-record",
+            "absent",
+            "not-established"
+          ]
+        },
+        "successorRule": {
+          "enum": [
+            "issuer-rebind-required",
+            "new-or-unattributed",
+            "not-established"
+          ]
+        }
+      }
     },
-    "sampledAdversarialAuditor": {
-      "type": "boolean",
-      "description": "True if a random + risk-weighted fraction of cleared outcomes is re-opened and re-validated by an independent process."
+    "outcome": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "oracleRef",
+        "evaluatorRef",
+        "receiptRef",
+        "observationStatus"
+      ],
+      "properties": {
+        "oracleRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "evaluatorRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "receiptRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "observationStatus": {
+          "enum": [
+            "declared-not-observed",
+            "observed-with-receipt"
+          ]
+        }
+      }
     },
     "estimator": {
-      "type": "string",
-      "enum": ["elo", "trueskill", "bandit", "none"],
-      "description": "The reputation estimator consolidating outcome/pairwise signal into a score. 'none' means no estimator exists yet."
-    },
-    "representsUncertainty": {
-      "type": "boolean",
-      "description": "True if the estimator represents calibrated uncertainty (e.g. TrueSkill variance) or budgets exploration (e.g. bandit exploration bonus), so a new backend/agent is neither trusted blindly nor starved."
-    },
-    "scoreIsTelemetryGatesArePredicates": {
-      "type": "boolean",
-      "description": "True if the learned scalar reputation score is exposed as telemetry only, and any kill/spend/routing gate is wired to concrete predicates instead (e.g. clean exits >= N, no open overdue obligations)."
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "kind",
+        "inputTopology",
+        "uncertaintyStatus",
+        "calibrationStatus"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "elo",
+            "trueskill",
+            "bandit",
+            "none"
+          ]
+        },
+        "inputTopology": {
+          "enum": [
+            "pairwise",
+            "team-or-draw",
+            "context-action-reward",
+            "none"
+          ]
+        },
+        "uncertaintyStatus": {
+          "enum": [
+            "separate-exploration-policy",
+            "model-posterior",
+            "not-established",
+            "not-applicable"
+          ]
+        },
+        "calibrationStatus": {
+          "enum": [
+            "not-estimated",
+            "held-out-evaluated",
+            "not-applicable"
+          ]
+        }
+      }
     },
     "newcomerPolicy": {
-      "type": "boolean",
-      "description": "True if a newcomer floor exists: full ability to work, reduced economic ceiling, until clean-exit history accrues. Absence risks whitewashing/Sybil-reset."
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "kind",
+        "objective",
+        "resetRisk",
+        "exclusionRisk"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "probation",
+            "limited-exposure",
+            "entry-fee",
+            "dues",
+            "unreplaceable-pseudonym",
+            "none"
+          ]
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "resetRisk": {
+          "enum": [
+            "analyzed",
+            "not-established"
+          ]
+        },
+        "exclusionRisk": {
+          "enum": [
+            "analyzed",
+            "not-established"
+          ]
+        }
+      }
     },
     "judge": {
       "type": "object",
-      "description": "Whether an LLM-as-judge is in the reputation loop, and whether it is de-biased.",
-      "required": ["present", "deBiased"],
+      "additionalProperties": true,
+      "required": [
+        "present",
+        "protocol",
+        "calibrationStatus"
+      ],
       "properties": {
         "present": {
-          "type": "boolean",
-          "description": "True if any LLM-as-judge review participates in closing outcomes or scoring reputation."
+          "type": "boolean"
         },
-        "deBiased": {
-          "type": "boolean",
-          "description": "True if the judge is blinded, order-swapped/averaged, pairwise (not absolute), and excluded from judging its own family. Irrelevant (should be true or omitted-as-true) when present is false."
+        "protocol": {
+          "enum": [
+            "not-applicable",
+            "pairwise-order-swap",
+            "other-declared"
+          ]
+        },
+        "calibrationStatus": {
+          "enum": [
+            "not-estimated",
+            "human-labeled-evaluated",
+            "not-applicable"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": [
+              "present"
+            ],
+            "properties": {
+              "present": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "protocol": {
+                "const": "pairwise-order-swap"
+              },
+              "calibrationStatus": {
+                "enum": [
+                  "not-estimated",
+                  "human-labeled-evaluated"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": [
+              "present"
+            ],
+            "properties": {
+              "present": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "protocol": {
+                "const": "not-applicable"
+              },
+              "calibrationStatus": {
+                "const": "not-applicable"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sanctions": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "authority",
+        "appeal",
+        "incentiveStatus"
+      ],
+      "properties": {
+        "authority": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "appeal": {
+          "enum": [
+            "declared",
+            "absent",
+            "not-established"
+          ]
+        },
+        "incentiveStatus": {
+          "enum": [
+            "not-estimated",
+            "setting-specific-analysis"
+          ]
         }
       }
     },
-    "sanctionsStakedGraduated": {
+    "representsUncertainty": {
       "type": "boolean",
-      "description": "True if sanctions for audit-failed/fake compliance are staked and graduated such that getting caught costs strictly more than honest non-completion."
-    },
-    "notes": {
-      "type": "string",
-      "description": "Free-text context for a human reviewer; not consumed by the auditor."
+      "description": "True only for an active estimator with its detailed model-posterior or separate-exploration-policy state; false only for kind none."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "estimator": {
+            "properties": {
+              "kind": {
+                "const": "elo"
+              }
+            },
+            "type": "object",
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "representsUncertainty": {
+            "const": true
+          },
+          "estimator": {
+            "properties": {
+              "inputTopology": {
+                "const": "pairwise"
+              },
+              "uncertaintyStatus": {
+                "const": "separate-exploration-policy"
+              },
+              "calibrationStatus": {
+                "enum": [
+                  "not-estimated",
+                  "held-out-evaluated"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estimator": {
+            "properties": {
+              "kind": {
+                "const": "trueskill"
+              }
+            },
+            "type": "object",
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "representsUncertainty": {
+            "const": true
+          },
+          "estimator": {
+            "properties": {
+              "inputTopology": {
+                "const": "team-or-draw"
+              },
+              "uncertaintyStatus": {
+                "const": "model-posterior"
+              },
+              "calibrationStatus": {
+                "enum": [
+                  "not-estimated",
+                  "held-out-evaluated"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estimator": {
+            "properties": {
+              "kind": {
+                "const": "bandit"
+              }
+            },
+            "type": "object",
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "representsUncertainty": {
+            "const": true
+          },
+          "estimator": {
+            "properties": {
+              "inputTopology": {
+                "const": "context-action-reward"
+              },
+              "uncertaintyStatus": {
+                "const": "separate-exploration-policy"
+              },
+              "calibrationStatus": {
+                "enum": [
+                  "not-estimated",
+                  "held-out-evaluated"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estimator": {
+            "properties": {
+              "kind": {
+                "const": "none"
+              }
+            },
+            "type": "object",
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "representsUncertainty": {
+            "const": false
+          },
+          "estimator": {
+            "properties": {
+              "inputTopology": {
+                "const": "none"
+              },
+              "uncertaintyStatus": {
+                "const": "not-applicable"
+              },
+              "calibrationStatus": {
+                "const": "not-applicable"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

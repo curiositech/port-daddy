@@ -1,0 +1,21 @@
+{
+  "farina2024correlated": "Farina 2024, \\textit{Setting and Equilibria: The Correlated Equilibrium}",
+  "halpernmoses1990": "Halpern \\& Moses 1990, \\textit{Knowledge and Common Knowledge in a Distributed Environment}",
+  "consul": "HashiCorp, \\textit{Consul Service Discovery and DNS Interface}",
+  "sep-hobbes": "Lloyd \\& Sreedhar 2022, \\textit{Hobbes's Moral and Political Philosophy}",
+  "cciso15408": "ISO/IEC 15408-1:2022, \\textit{Evaluation criteria}",
+  "arbitrum-fraud-proofs": "Offchain Labs, \\textit{Interactive Fraud Proofs}",
+  "matrixspec": "The Matrix.org Foundation, \\textit{The Matrix Specification}",
+  "harbor3": "Port Daddy Harbor 2026, \\textit{Reputation is Amortized Verification}",
+  "dartmouth1819": "U.S. Supreme Court 1819, \\textit{Trustees of Dartmouth College v.\\ Woodward}",
+  "aws2022kani": "AWS Automated Reasoning Group 2022, \\textit{Kani Rust Verifier}",
+  "ucp2026": "Universal Commerce Protocol 2026, \\textit{Specification}",
+  "ap2mandates2026": "AP2 2026, \\textit{Mandates}",
+  "fipa00023": "FIPA 2002, \\textit{Agent Management}",
+  "harborpaper3": "Port Daddy Harbor 2026, \\textit{Reputation is Amortized Verification}",
+  "harborpaper5": "Port Daddy Harbor 2026, \\textit{Continuity Without Metaphysics}",
+  "acp2025": "OpenAI \\& Stripe 2025, \\textit{Agentic Commerce Protocol}",
+  "ucan2024": "UCAN Working Group 2024, \\textit{UCAN 1.0}",
+  "hedberg2024openidfed": "Hedberg (ed.) et al. 2024, \\textit{OpenID Federation 1.0}",
+  "rdc": "Nguyen et al. 2026, \\textit{Rate-Distortion-Classification Representation Theory}"
+}

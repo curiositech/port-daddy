@@ -1,0 +1,67 @@
+% Presentation only. Official Lucide assets: figures/lucide/LICENSE.
+\makeatletter
+\definecolor{pdblockProof}{HTML}{B33F35}
+\definecolor{pdblockProperty}{HTML}{7048A5}
+\definecolor{pdblockHypothesis}{HTML}{427A26}
+\definecolor{pdblockCalculation}{HTML}{946000}
+\definecolor{pdblockInvariant}{HTML}{233A76}
+\definecolor{pdblockDefinition}{HTML}{3D454B}
+\definecolor{pdblockChecked}{HTML}{006EA0}
+\definecolor{pdblockProtocol}{HTML}{007D73}
+\definecolor{pdblockNeutral}{HTML}{363B40}
+\newcommand{\pdblockfamily}[1]{%
+  \def\pdblock@family{#1}%
+  \ifdefstring{\pdblock@family}{Conjecture}{\def\pdblock@family{Empirical hypothesis}}{}%
+  \def\pdblock@color{pdblockNeutral}\def\pdblock@icon{file-text}%
+  \ifdefstring{\pdblock@family}{Theorem}{\def\pdblock@color{pdblockProof}\def\pdblock@icon{scroll-text}}{}%
+  \ifdefstring{\pdblock@family}{Lemma}{\def\pdblock@color{pdblockProof}\def\pdblock@icon{scroll-text}}{}%
+  \ifdefstring{\pdblock@family}{Proposition}{\def\pdblock@color{pdblockProof}\def\pdblock@icon{scroll-text}}{}%
+  \ifdefstring{\pdblock@family}{Corollary}{\def\pdblock@color{pdblockProof}\def\pdblock@icon{scroll-text}}{}%
+  \ifdefstring{\pdblock@family}{Property}{\def\pdblock@color{pdblockProperty}\def\pdblock@icon{key-round}}{}%
+  \ifdefstring{\pdblock@family}{Definition}{\def\pdblock@color{pdblockDefinition}\def\pdblock@icon{book-open}}{}%
+  \ifdefstring{\pdblock@family}{Empirical hypothesis}{\def\pdblock@color{pdblockHypothesis}\def\pdblock@icon{flask-conical}}{}%
+  \ifdefstring{\pdblock@family}{Numbers by hand}{\def\pdblock@color{pdblockCalculation}\def\pdblock@icon{calculator}}{}%
+  \ifdefstring{\pdblock@family}{Design invariant}{\def\pdblock@color{pdblockInvariant}\def\pdblock@icon{lock-keyhole}}{}%
+  \ifdefstring{\pdblock@family}{Model-checked property}{\def\pdblock@color{pdblockChecked}\def\pdblock@icon{list-checks}}{}%
+  \ifdefstring{\pdblock@family}{Protocol}{\def\pdblock@color{pdblockProtocol}\def\pdblock@icon{workflow}}{}%
+}
+\newcommand{\pdblock@inlinebegin}{%
+  \ifcsname pd@typesetpicturebox\endcsname
+    \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+  \fi}
+\newcommand{\pdblockglyph}[1]{\begingroup
+  \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
+  \raisebox{-2.2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/\pdblock@icon.pdf}}%
+  \endgroup\hspace{.45em}}
+% Every split segment keeps a full-strength 0.5pt perimeter for the Book inks.
+% The retained 2% field and corner geometry are specific to this protocol slice.
+% The colored upper-left cap
+% is longer than its upright; the lower-right upright is longer than its cap.
+\newcommand{\pdblock@frame}{%
+  \draw[draw=\pdblock@color,line width=.5pt]
+    (frame.south west) rectangle (frame.north east);
+  \fill[\pdblock@color] (frame.north west) rectangle
+    ([xshift=32pt,yshift=-3pt]frame.north west);
+  \fill[\pdblock@color] (frame.north west) rectangle
+    ([xshift=3pt,yshift=-16pt]frame.north west);
+  \fill[\pdblock@color] (frame.south east) rectangle
+    ([xshift=-16pt,yshift=3pt]frame.south east);
+  \fill[\pdblock@color] (frame.south east) rectangle
+    ([xshift=-3pt,yshift=28pt]frame.south east);}
+\newcommand{\pdblockbefore}[1]{%
+  \par\if@nobreak\else\Needspace{5\baselineskip}\fi
+  \begingroup
+  \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
+  \pdblock@inlinebegin
+  \begin{tcolorbox}[enhanced,breakable,sharp corners,frame hidden,
+    colback=\pdblock@color!2!white,boxrule=.45pt,boxsep=0pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    before skip=8pt plus 2pt,after skip=8pt plus 2pt,
+    pad at break*=7pt,lines before break=6,
+    overlay unbroken={\pdblock@frame},overlay first={\pdblock@frame},
+    overlay middle={\pdblock@frame},overlay last={\pdblock@frame}]
+    \clubpenalty=9000 \widowpenalty=9000
+    \displaywidowpenalty=9000 \brokenpenalty=9000
+}
+\newcommand{\pdblockafter}[1]{\par\end{tcolorbox}\endgroup}
+\makeatother

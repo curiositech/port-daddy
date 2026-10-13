@@ -1,499 +1,141 @@
-# Compositional Communication: Building Complex Coordination from Primitive Acts
+# Compose FIPA communication with action expressions
 
-## The Compositionality Principle
+XC00037H uses action expressions to define composite and macro communicative acts. Apply this reference when interpreting or documenting CAL semantics, not when inventing runtime dispatch, retries, streaming, correlation, or cancellation rules. The source is the archived experimental **H** PDF, fully read on 2026-09-24; the later J edition was not accessible.
 
-The FIPA specification demonstrates a profound design principle: **you don't need a vast library of pre-defined communication acts; you need a small set of primitives and composition operators**. This is analogous to how programming languages work—you don't have a built-in command for every possible task, you have primitives (assignment, conditionals, loops) and composition mechanisms (sequencing, nesting, functions).
+## Operator glossary
 
-The FIPA model defines ~4 primitive acts (inform, request, confirm, disconfirm) and builds dozens of useful composite acts through action expression operators:
+| Form | Meaning in the source model |
+| --- | --- |
+| `⟨i, act(j,C)⟩` | Agent `i` performs named act `act` toward `j` with semantic/propositional content `C`. |
+| `a` | A schematic action expression that can be substituted into a directive. |
+| `a_1 \| a_2` | A disjunctive action expression: when carried out, exactly one disjunctive component is performed. It is not a broadcast to both branches. |
+| `a_1 ; a_2` | A sequence used in an inter-agent plan. The source calls such plans sequences of acts using the composition operators; it does not give an application scheduler. |
+| `Done(a)` | A formal model predicate, not a transport-level acknowledgement or independently verified effect. |
+| `inform-if` | A macro-shaped alternative between informing `φ` and informing `¬φ`. |
+| `query-if` | A request that the recipient perform `inform-if`. |
+| `inform-ref` | A macro-shaped alternative over `inform` acts that identify a referent. |
+| `query-ref` | A request that the recipient perform `inform-ref`. |
 
-- **Sequential (;)**: a₁ ; a₂ means do a₁ then do a₂
-- **Disjunctive (|)**: a₁ | a₂ means do either a₁ or a₂ (non-deterministic choice)
-- **Conditional**: Done(a, φ) means do a when φ holds
+The semantic notation needs an agreed content language and ontology in operational use. That requirement does not supply an implementation's serializer, identifier format, authorization model, or an exactly-once rule.
 
-From these, the specification derives acts like query-if, query-ref, inform-if, inform-ref, and entire interaction protocols.
+## Procedure: expand only one semantic layer at a time
 
-## The Primitive Acts
+1. Copy the outer act exactly, including sender, recipient, content, and the actor embedded in an action expression.
+2. Identify whether its source definition is a primitive act, a composite act, or a macro act.
+3. Expand one named definition into the action expression the source gives. Keep `|` as choice and `;` as sequence; do not translate either into a queue or callback API.
+4. Check the embedded act's FP and RE under the source notation. Mark a missing mental-attitude fact as an assumption, not an observed runtime fact.
+5. Stop at the first primitive act that would actually be sent. Record application-specific correlation, retries, deadlines, authority, and evidence in a separate layer.
 
-### 1. INFORM (Assertive)
-
-```
-<i, INFORM(j, φ)>
-  FP: Bᵢφ ∧ ¬Bᵢ(Bᵢfⱼφ ∨ Uᵢfⱼφ)
-  RE: Bⱼφ
-```
-
-"i tells j that φ is true (i believes it, i doesn't think j already knows)"
-
-### 2. REQUEST (Directive)
-
-```
-<i, REQUEST(j, a)>
-  FP: FP(a)[i\j] ∧ Bᵢ Agent(j, a) ∧ ¬Bᵢ Iⱼ Done(a)
-  RE: Done(a)
-```
-
-"i asks j to perform action a (a is feasible from i's perspective, j is the agent, j doesn't already intend to do a)"
-
-### 3. CONFIRM (Assertive, specialized)
-
-```
-<i, CONFIRM(j, φ)>
-  FP: Bᵢφ ∧ BᵢUⱼφ
-  RE: Bⱼφ
+```mermaid
+flowchart TD
+    Q[query-if from i to j about phi] --> R[request j to perform inform-if]
+    R --> C{j has an enabled source-model branch?}
+    C -->|believes phi| T[inform i that phi]
+    C -->|believes not phi| F[inform i that not phi]
+    C -->|neither branch justified| X[No inform branch; inspect source refusal rule]
+    T --> O[Observed response is a separate record]
+    F --> O
+    X --> O
 ```
 
-"i tells j that φ is true when i knows j is uncertain about it"
+Section 3.9 says that if the inform-if plan cannot be performed (for example, the respondent lacks the relevant belief or will not disclose it), the respondent sends `refuse`. This is source prose, separate from the successful inform-branch expansion. It does not prescribe a retry policy, authenticated transport, or proof of refusal delivery.
 
-### 4. DISCONFIRM (Assertive, specialized)
+## Closed question method: `inform-if` and `query-if`
 
-```
-<i, DISCONFIRM(j, φ)>
-  FP: Bᵢ¬φ ∧ Bᵢ(Uⱼφ ∨ Bⱼφ)
-  RE: Bⱼ¬φ
-```
-
-"i tells j that φ is false when j believes or is uncertain that it's true"
+The annex characterises a yes/no question using an action-expression choice:
 
-Everything else is built from these through composition.
+\[
+\langle j,\operatorname{INFORM}(i,\varphi)\rangle
+\;|\;\langle j,\operatorname{INFORM}(i,\neg\varphi)\rangle.
+\]
 
-## Derived Acts Through Disjunction
+It defines the outer question as:
 
-### INFORM-IF: The Basic Disjunctive Pattern
+\[
+\langle i,\operatorname{query\hbox{-}if}(j,\varphi)\rangle
+\equiv\langle i,\operatorname{request}(j,\langle j,\operatorname{inform\hbox{-}if}(i,\varphi)\rangle)\rangle.
+\]
 
-The inform-if macro act illustrates the power of disjunction:
+The main act definition (§3.15) gives the query-if FP as:
 
-```
-<i, INFORM-IF(j, φ)> ≡
-  <i, INFORM(j, φ)> | <i, INFORM(j, ¬φ)>
-```
+\[
+\neg Bif_i\varphi \land \neg Uif_i\varphi
+\land \neg B_i I_j\operatorname{Done}(\langle j,\operatorname{inform\hbox{-}if}(i,\varphi)\rangle).
+\]
 
-**Meaning**: "i will inform j whether φ is true or false—whichever i believes"
+Use it as a formal check that the questioner does not already have a belief or uncertainty attitude for either truth value, and does not believe the respondent already intends to complete that macro act. The informative annex (§5.5.2) instead prints `B_i ¬PG_j Done(...)` as the last conjunct. This is a source discrepancy, also present between the main and annex request definitions; no equivalence is assumed here. The hand checks below use the §3.15 form only. It is not a generic “no information at all” predicate, an API eligibility rule, or a proof that the respondent knows the answer.
 
-**FPs and RE for disjunctive acts**:
+### Worked interpretation
 
-```
-FP: FP(inform(j, φ)) ∨ FP(inform(j, ¬φ))
-  = (Bᵢφ ∧ ¬Bᵢ(Bᵢfⱼφ ∨ Uᵢfⱼφ)) ∨ (Bᵢ¬φ ∧ ¬Bᵢ(Bᵢfⱼ¬φ ∨ Uᵢfⱼ¬φ))
-  = Bᵢfᵢφ ∧ ¬Bᵢ(Bᵢfⱼφ ∨ Uᵢfⱼφ)
+Let `φ = registered(d1,j)`.
 
-RE: RE(inform(j, φ)) ∨ RE(inform(j, ¬φ))
-  = Bⱼφ ∨ Bⱼ¬φ
-  = Bᵢfⱼφ
-```
+1. `i` sends `query-if(j, φ)`.
+2. Expand it to a `request` whose embedded action is `⟨j, inform-if(i, φ)⟩`.
+3. The response-side alternatives are `⟨j, inform(i, φ)⟩` and `⟨j, inform(i, ¬φ)⟩`.
+4. If the observed response is `inform(i, ¬φ)`, it is one selected primitive branch. Record content, observed sender, and any correlation value separately.
+5. If an operator needs to establish actual registration, query the designated registry or preserve another independent record. The CAL response does not independently establish it.
 
-**Practical meaning**: The agent i commits to informing j of φ's truth value (whichever it is), provided i actually has a definite belief about φ and j doesn't already know.
+**Hand check — positive.** Assume the questioner has neither a belief nor uncertainty attitude for `φ` or `¬φ`, and does not believe `j` already intends the response. The outer query-if FP is satisfied in the model. If `j` sends `inform(i, ¬φ)`, exactly one branch was observed, matching the disjunctive form.
 
-**When performed**: Agent i receives this as a request and must choose which branch to execute:
-- If Bᵢφ, execute inform(j, φ)
-- If Bᵢ¬φ, execute inform(j, ¬φ)
-- If neither (¬Bᵢfᵢφ), refuse the request (FPs not satisfied)
+**Hand check — negative.** If `i` already has `B_i φ`, the first FP conjunct fails. A product may still ask the network again for freshness, but it must call that a local policy; it is not a source-supported claim that the CAL `query-if` FP held.
 
-### QUERY-IF: Composed from REQUEST and INFORM-IF
+## Open question method: preserve referential form
 
-Now build query-if by requesting an inform-if:
+For a descriptor `Ref x δ(x)`, the source defines:
 
-```
-<i, QUERY-IF(j, φ)> ≡
-  <i, REQUEST(j, <j, INFORM-IF(i, φ)>)>
-```
+\[
+\langle i,\operatorname{query\hbox{-}ref}(j,Ref\ x\ \delta(x))\rangle
+\equiv\langle i,\operatorname{request}(j,\langle j,\operatorname{inform\hbox{-}ref}(i,Ref\ x\ \delta(x))\rangle)\rangle.
+\]
 
-**Expansion**:
-```
-<i, REQUEST(j, <j, INFORM(i, φ)> | <j, INFORM(i, ¬φ)>)>
-```
+The H text says `Ref` may be a definite description `ι`, `any`, or `all`. Before expanding, write down which quantifier form is actually intended and what its domain is. A description of “all services” is set-valued; it is not a request for an unbounded stream.
 
-**Meaning**: "i asks j to tell i whether φ is true or false"
+The PDF's printed query-ref RE line appears directionally inconsistent with its prose and its defining request: the prose says that `i` asks `j` to inform `i`, and the definition embeds `⟨j, inform-ref(i,...)⟩`. Preserve the definition and prose when explaining the response direction; do not turn that printed line into a new normative transport rule.
 
-**FPs** (applying the request FPs to the inform-if action):
-```
-FP: FP(<j, INFORM-IF(i, φ)>)[i\j] ∧ 
-    Bᵢ Agent(j, <j, INFORM-IF(i, φ)>) ∧
-    ¬Bᵢ Iⱼ Done(<j, INFORM-IF(i, φ)>)
-  = ¬Bᵢfᵢφ ∧ ¬Uᵢfᵢφ ∧ ¬Bᵢ Iⱼ Done(<j, INFORM-IF(i, φ)>)
-```
+### Worked interpretation
 
-Translation: "i can query j about φ if i doesn't know whether φ is true, isn't uncertain (i.e., has no information at all), and doesn't already believe j intends to tell i."
+Use a bounded constructed service vocabulary:
 
-**RE**:
-```
-RE: Done(<j, INFORM(i, φ)> | <j, INFORM(i, ¬φ)>)
-```
+\[
+D = \{\operatorname{reserve}(train),\operatorname{reserve}(plane),\operatorname{reserve}(car)\}.
+\]
 
-The rational effect is that j will have done one of the inform acts, thus i will know φ's truth value.
+`i` asks `j` for `all x available\hbox{-}service(j,x)`. A source-shaped response has content equating that descriptor with a set such as `{reserve(train), reserve(car)}`.
 
-### Practical Implementation Pattern
+**Hand check — positive.** If the intended domain is exactly `D` and the reported set is `{reserve(train), reserve(car)}`, the reader can check inclusion/exclusion against all three members. The result says what `j` informed `i` about that descriptor under the chosen domain.
 
-Your agent system should implement this compositionally:
+**Hand check — negative.** If the domain boundary is omitted, a reader cannot infer that the same set is complete across services outside `D`. Do not call it a complete database result, and do not invent paging or streaming semantics from `query-ref`.
 
-```python
-class Agent:
-    def plan_query_if(self, recipient, proposition):
-        # Construct the composed action
-        inform_true = InformAct(self, recipient, proposition)
-        inform_false = InformAct(self, recipient, NOT(proposition))
-        inform_if = DisjunctiveAct([inform_true, inform_false])
-        query = RequestAct(self, recipient, inform_if)
-        
-        # Check FPs
-        if self.has_belief(proposition) or self.has_belief(NOT(proposition)):
-            return Refuse("I already know the answer")
-        if self.believes(recipient.intends(inform_if)):
-            return Refuse("You're already planning to tell me")
-        
-        # Execute
-        return self.send(query)
+## Composition review checklist
 
-    def handle_request(self, sender, action):
-        if isinstance(action, DisjunctiveAct):
-            # Choose which branch to execute
-            for branch in action.branches:
-                if self.check_fps(branch):
-                    return self.execute(branch)
-            return Refuse("Cannot perform any branch")
-```
+| Question | Required result |
+| --- | --- |
+| Which definition is expanded? | Name the CAL act and show the one-level expansion. |
+| Is the relation choice or sequence? | State `\|` or `;`; do not silently change a choice into multiple required sends. |
+| Which agent is embedded as actor? | Preserve it in every expansion. |
+| Which branch was observed? | Identify the primitive act actually received, or state `none observed`. |
+| What quantifier and domain apply? | State `ι`, `any`, or `all`, plus the constructed or externally governed domain. |
+| What is application policy? | Put correlation, retry, deadline, authorization, and external verification in a separately labelled rule. |
 
-## Referential Expressions and Infinite Disjunctions
+## Original-heading disposition ledger
 
-### The INFORM-REF Challenge
+| Original substantive heading | Retained, corrected, or removed | Destination and source-backed reason |
+| --- | --- | --- |
+| The Compositionality Principle | Corrected and retained | glossary and expansion procedure; the old “about four primitives” count and programming-language analogy are not used as source claims. |
+| The Primitive Acts / INFORM / REQUEST / CONFIRM / DISCONFIRM | Corrected and retained | inform/request are in the FP/RE reference; confirm/disconfirm selection is in the ability/context reference. Main/annex differences remain explicit. |
+| Derived Acts Through Disjunction / INFORM-IF | Retained | “Closed question method”; restores disjunctive action-expression semantics. |
+| QUERY-IF | Corrected and retained | “Closed question method”; restores the source query-if equivalence and FP, without claiming a successful answer. |
+| Practical Implementation Pattern | Removed | Python classes were invented runtime design. The actual §3.9 inform-if refusal rule is retained above; it must not be discarded with the unsourced implementation. |
+| Referential Expressions and Infinite Disjunctions / INFORM-REF | Retained | “Open question method”; quantifier and domain discipline retained. |
+| QUERY-REF | Corrected and retained | “Open question method”; preserves source direction and identifies the printed RE inconsistency. |
+| Practical Implementation | Removed | enumeration/lazy-compute implementation recipes are not specified by the CAL. |
+| Call for Proposal | Relocated and corrected | [Conditional reference](conditional-requests-and-proposal-composition.md) restores single-parameter composition and parameter-value RE. |
+| REQUEST-WHEN / REQUEST-WHENEVER / SUBSCRIBE | Relocated and corrected | [Conditional reference](conditional-requests-and-proposal-composition.md) restores formulas, triggers, cancellation and hand checks. |
+| Building Interaction Protocols from Primitives | Retained | expansion procedure and review checklist; source calls interaction protocols pre-enumerated inter-agent plans. |
+| Design Implications for Jury-rig and four subheadings | Removed | product-specific architecture and dynamic-generation claims are outside the historical source. |
+| The Power of Composition | Retained | the closing checklist preserves the reusable method rather than the unsupported conclusion. |
 
-What if you want to ask "what is X?" where X could be any of infinitely many values?
+## Source and access boundary
 
-Example: "What is the current exchange rate?" The answer could be 1.234, 1.235, 1.236, ...—an infinite set.
-
-The specification handles this with referential expressions:
-
-```
-<i, INFORM-REF(j, ιx δ(x))> ≡
-  <i, INFORM(j, ιx δ(x) = r₁)> | ... | <i, INFORM(j, ιx δ(x) = rₙ)>
-```
-
-Where:
-- ιx δ(x) is the unique x such that δ(x) holds (definite description)
-- r₁, ..., rₙ are all possible referents (potentially infinite)
-
-**Example**:
-```
-<i, INFORM-REF(j, ιx (x = exchange-rate(USD, EUR)))>
-```
-
-Means: "i will inform j of the value v such that v = exchange-rate(USD, EUR)"
-
-This expands to:
-```
-<i, INFORM(j, exchange-rate(USD, EUR) = 1.234)> |
-<i, INFORM(j, exchange-rate(USD, EUR) = 1.235)> |
-...
-```
-
-**FPs**:
-```
-FP: Brefᵢ ιx δ(x) ∧ ¬Bᵢ(Brefⱼ ιx δ(x) ∨ Urefⱼ ιx δ(x))
-```
-
-Where Brefᵢ ιx δ(x) means: (∃y) Bᵢ(ιx δ(x) = y) — "i believes it knows which object is the x that is δ"
-
-Translation: "i can inform-ref j of ιx δ(x) if i knows which object it is, and i doesn't believe j already knows"
-
-### QUERY-REF: Asking for Referents
-
-```
-<i, QUERY-REF(j, ιx δ(x))> ≡
-  <i, REQUEST(j, <j, INFORM-REF(i, ιx δ(x))>)>
-```
-
-**Example**:
-```
-<i, QUERY-REF(j, ιx (x = capital-of(France)))>
-```
-
-"What is the capital of France?"
-
-**FPs**:
-```
-FP: ¬Brefᵢ ιx δ(x) ∧ ¬Urefᵢ ιx δ(x) ∧ 
-    ¬Bᵢ Iⱼ Done(<j, INFORM-REF(i, ιx δ(x))>)
-```
-
-"i can query-ref j if i doesn't know which object δ refers to, and doesn't believe j already intends to tell i"
-
-### Practical Implementation
-
-For finite domains, enumerate possibilities:
-
-```python
-def inform_ref(agent_i, agent_j, description):
-    # description is a function/predicate like "capital_of('France')"
-    possible_referents = agent_i.knowledge_base.query(description)
-    
-    if len(possible_referents) == 0:
-        return Refuse("I don't know any object matching that description")
-    
-    if len(possible_referents) > 1:
-        return Failure("Description is ambiguous")
-    
-    referent = possible_referents[0]
-    return Inform(agent_i, agent_j, description == referent)
-```
-
-For infinite or large domains, use lazy evaluation:
-
-```python
-def inform_ref(agent_i, agent_j, description):
-    # Don't enumerate all possibilities—compute on demand
-    referent = agent_i.compute_referent(description)
-    return Inform(agent_i, agent_j, description == referent)
-```
-
-## Call for Proposal: Complex Composition
-
-CFP shows sophisticated composition:
-
-```
-<i, CFP(j, <j, act>, Ref x φ(x))> ≡
-  <i, QUERY-REF(j, Ref x (Iᵢ Done(<j, act>, φ(x)) ⇒ 
-                            Iⱼ Done(<j, act>, φ(x))))>
-```
-
-**Meaning**: "i asks j: what value x (e.g., price, time, condition) would make you willing to perform act?"
-
-**Example**:
-```
-<buyer, CFP(seller, <seller, sell(widget, 100)>, any x (price(widget) = x ∧ x < 1000))>
-```
-
-"What price would you accept to sell 100 widgets, given that I want a price under 1000?"
-
-**Breakdown**:
-1. The action is: <seller, sell(widget, 100)>
-2. The condition is: φ(x) = price(widget) = x ∧ x < 1000
-3. The query-ref asks: what x satisfies (Ibuyer Done(sell, φ(x)) ⇒ Iseller Done(sell, φ(x)))?
-
-This means: "What x makes it true that if buyer intends the sale at price x, then seller also intends it?"
-
-**Seller's response** (using PROPOSE):
-```
-<seller, PROPOSE(buyer, <seller, sell(widget, 100)>, price(widget) = 500)>
-```
-
-"I will sell at price 500"
-
-## Conditional Execution: REQUEST-WHEN and REQUEST-WHENEVER
-
-### REQUEST-WHEN: One-Time Conditional
-
-```
-<i, REQUEST-WHEN(j, <j, act>, φ)> ≡
-  <i, INFORM(j, (∃e') Done(e') ∧ Unique(e') ∧ 
-         Iᵢ Done(<j, act>, (∃e) Enables(e, Bⱼφ) ∧ 
-              Has-never-held-since(e', Bⱼφ)))>
-```
-
-**Simplified meaning**: "i wants j to do act when j comes to believe φ (once)"
-
-**Example**:
-```
-<orchestrator, REQUEST-WHEN(sensor, 
-    <sensor, INFORM(orchestrator, temperature-reading)>,
-    temperature > 100)>
-```
-
-"When temperature exceeds 100, tell me the reading (once)"
-
-### REQUEST-WHENEVER: Persistent Conditional
-
-```
-<i, REQUEST-WHENEVER(j, <j, act>, φ)> ≡
-  <i, INFORM(j, Iᵢ Done(<j, act>, (∃e) Enables(e, Bⱼφ)))>
-```
-
-**Meaning**: "i wants j to do act whenever φ becomes true (persistently)"
-
-**Example**:
-```
-<orchestrator, REQUEST-WHENEVER(sensor,
-    <sensor, INFORM(orchestrator, temperature-reading)>,
-    temperature > 100)>
-```
-
-"Every time temperature exceeds 100, tell me (not just once—every time it crosses the threshold again)"
-
-### SUBSCRIBE: Combining REQUEST-WHENEVER and INFORM-REF
-
-```
-<i, SUBSCRIBE(j, ιx δ(x))> ≡
-  <i, REQUEST-WHENEVER(j, <j, INFORM-REF(i, ιx δ(x))>,
-                       (∃y) Bⱼ(ιx δ(x) = y))>
-```
-
-**Meaning**: "i wants j to inform i of ιx δ(x) whenever j comes to know it"
-
-**Example**:
-```
-<trader, SUBSCRIBE(market-feed, ιx (x = price(AAPL)))>
-```
-
-"Tell me Apple's stock price whenever it changes"
-
-**Practical implementation**:
-```python
-class Agent:
-    def __init__(self):
-        self.subscriptions = []  # List of (requester, referent, condition)
-    
-    def handle_subscribe(self, sender, referent):
-        # Add persistent watch
-        self.subscriptions.append((sender, referent))
-    
-    def update_knowledge(self, proposition):
-        # Called whenever agent learns something
-        self.knowledge_base.add(proposition)
-        
-        # Check all subscriptions
-        for (requester, referent) in self.subscriptions:
-            if self.knows_referent(referent):
-                self.send(InformRef(self, requester, referent))
-```
-
-## Building Interaction Protocols from Primitives
-
-The FIPA Contract Net protocol can be built entirely from composed acts:
-
-1. **Initiator sends CFP**:
-   ```
-   <initiator, CFP(participants, <participant, task>, Ref x (price = x ∧ x < budget))>
-   ```
-
-2. **Participants respond with PROPOSE or REFUSE**:
-   ```
-   <participant, PROPOSE(initiator, <participant, task>, price = 500)>
-   OR
-   <participant, REFUSE(initiator, <participant, task>, reason)>
-   ```
-
-3. **Initiator selects winner and sends ACCEPT-PROPOSAL**:
-   ```
-   <initiator, ACCEPT-PROPOSAL(winner, <winner, task>, price = 500)>
-   ```
-
-4. **Winner responds with AGREE** or **REFUSE**:
-   ```
-   <winner, AGREE(initiator, <winner, task>, start-date = tomorrow)>
-   ```
-
-5. **Winner later sends INFORM of completion** or **FAILURE**:
-   ```
-   <winner, INFORM(initiator, Done(task))>
-   OR
-   <winner, FAILURE(initiator, task, reason)>
-   ```
-
-Each step is a composition of primitives. You don't need to hardcode the Contract Net protocol—it emerges from agents using composed communicative acts rationally.
-
-## Design Implications for Jury-rig
-
-### 1. Don't Build a Flat Act Library
-
-Avoid:
-```python
-class CommunicativeActs:
-    def inform(...)
-    def request(...)
-    def query_if(...)
-    def query_ref(...)
-    def request_when(...)
-    def request_whenever(...)
-    def subscribe(...)
-    # ... 100 more methods
-```
-
-Instead, build compositionally:
-```python
-class PrimitiveActs:
-    def inform(agent_i, agent_j, proposition): ...
-    def request(agent_i, agent_j, action): ...
-    def confirm(agent_i, agent_j, proposition): ...
-    def disconfirm(agent_i, agent_j, proposition): ...
-
-class ActionExpressions:
-    def sequence(action1, action2): return SequenceExpr(action1, action2)
-    def choice(actions): return DisjunctiveExpr(actions)
-    def conditional(action, condition): return ConditionalExpr(action, condition)
-
-class DerivedActs:
-    def query_if(agent_i, agent_j, prop):
-        inform_if = choice([
-            PrimitiveActs.inform(agent_j, agent_i, prop),
-            PrimitiveActs.inform(agent_j, agent_i, NOT(prop))
-        ])
-        return PrimitiveActs.request(agent_i, agent_j, inform_if)
-```
-
-### 2. Generate Interaction Protocols Dynamically
-
-Don't hardcode protocols—generate them from goals:
-
-```python
-class Orchestrator:
-    def achieve_goal(self, goal):
-        # Goal: Know temperature readings when > 100
-        if goal.type == "monitor-condition":
-            condition = goal.condition  # temperature > 100
-            reading = goal.referent  # temperature reading
-            agent = self.find_agent_with_capability("temperature-sensor")
-            
-            # Compose the appropriate act
-            act = RequestWhenever(
-                self, agent,
-                InformRef(agent, self, reading),
-                condition
-            )
-            
-            return self.send(act)
-```
-
-### 3. Use Referential Expressions for Flexibility
-
-Instead of:
-```python
-request(agent, "get_user_age", user_id="12345")
-```
-
-Use:
-```python
-query_ref(agent, ιx (x = age_of(user("12345"))))
-```
-
-This allows the agent to:
-- Understand you want a specific referent (age value)
-- Respond with inform-ref when it knows
-- Refuse if it doesn't know
-- Subscribe if you want ongoing updates
-
-### 4. Implement FP Checking for Composed Acts
-
-Before executing a disjunctive act, check which branches have satisfied FPs:
-
-```python
-def execute_disjunctive(agent, disjunctive_act):
-    executable_branches = [
-        branch for branch in disjunctive_act.branches
-        if agent.check_fps(branch)
-    ]
-    
-    if not executable_branches:
-        return Refuse(disjunctive_act, "No branch is feasible")
-    
-    # Choose the first feasible branch (could be more sophisticated)
-    return agent.execute(executable_branches[0])
-```
-
-## The Power of Composition
-
-The compositional approach means:
-
-1. **Fewer primitives to implement**: ~4 instead of ~30+
-2. **More flexible agents**: Can construct novel acts for novel situations
-3. **Clearer semantics**: Each composition has precise FPs and RE derived from primitives
-4. **Protocol synthesis**: Interaction patterns emerge from rational act selection rather than hardcoded state machines
-
-The FIPA specification proves that complex multi-agent coordination doesn't require a vast predefined vocabulary—it requires a rich composition algebra over a small set of well-defined primitives.
+- FIPA, *Communicative Act Library Specification*, **XC00037H**, experimental, dated 2001-08-10, archived full 44-page PDF, accessed 2026-09-24: [PDF](https://jmvidal.cse.sc.edu/library/XC00037H.pdf). Relevant material: §§3.15–3.16 and annex §§5.3.6–5.6.
+- No current runtime, database, message broker, or FIPA J implementation was inspected for this reference.

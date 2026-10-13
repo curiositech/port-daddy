@@ -1,0 +1,54 @@
+% Source and evidence boundaries: BOOK-SA-EVIDENCE-PASS-20260920.md.
+% Physical-point ledger. Labels use the existing Book voice, without scaling.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\SGMeasuredFigure{I/fig:sa-levels}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=-1pt,
+  sa text/.style={pd label,anchor=west,inner sep=0pt,outer sep=0pt,align=left},
+  sa head/.style={pd title,anchor=north west,inner sep=0pt,outer sep=0pt,align=left}]
+  % Column and row datums. The rules stop before the shared support cell.
+  \def\saLeft{0}\def\saQuestion{99}\def\saSupport{231}\def\saRight{320}
+  \node[sa head] (levelhead) at (\saLeft,0) {SA level};
+  \node[sa head] (questionhead) at (\saQuestion,0) {Question};
+  \node[sa head,text width=89pt] (supporthead) at (\saSupport,0)
+    {Reported surface support};
+  \draw[pd rule] (0,31)--(320,31);
+  \foreach \yy in {69,107}{\draw[pd hairline] (0,\yy)--(213,\yy);}
+  \draw[pd rule] (0,145)--(320,145);
+
+  \foreach \id/\yy/\level/\question in {
+    perception/50/Perception/{Current state},
+    comprehension/88/Comprehension/Meaning,
+    projection/126/Projection/{Anticipated effects}}{
+    \node[sa text,font=\pdfiglabelbold] (\id) at (\saLeft,\yy) {\level};
+    \node[sa text] (\id-question) at (\saQuestion,\yy) {\question};
+  }
+  % The bracket associates a reported surface with two questions, not scores.
+  \draw[draw=pdteal,line width=1.2pt] (226,41)--(220,41)--(220,97)--(226,97);
+  \node[sa text,text=pdteal] (surface) at (\saSupport,69) {Digest + zoom};
+  % This border denotes a proposal, never achieved or measured performance.
+  \draw[draw=pdamber,line width=.9pt,dash pattern=on 3pt off 2pt]
+    (220,112) rectangle (319,140);
+  \node[sa text] (mode) at (\saSupport,126) {Proposed mode};
+
+  % A distinct evidence-status band applies to every taxonomy row.
+  \node[sa text] (performance) at (0,164)
+    {Human performance: \textbf{untested here}.};
+  % Test procedure has its own reserved band; no arrows or result marks.
+  \draw[draw=pdamber,line width=1.6pt] (0,187)--(0,215);
+  \node[sa text,font=\pdfiglabelbold] (probe) at (10,191) {Proposed freeze-probe};
+  \node[sa text] (procedure) at (10,209)
+    {Pause; predict the next three merges; score accuracy.};
+
+  % Bounded geometric evidence: node extents in TeX points for offline checks.
+  \foreach \name in {levelhead,questionhead,supporthead,perception,
+    comprehension,projection,perception-question,comprehension-question,
+    projection-question,surface,mode,performance,probe,procedure}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{SA-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}%
+}
+\caption{A read surface can expose evidence without establishing the operator's situation awareness.}
+\label{fig:sa-levels}
+\end{figure}

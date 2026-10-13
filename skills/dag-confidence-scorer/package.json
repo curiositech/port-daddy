@@ -1,0 +1,12 @@
+{
+  "name": "dag-confidence-scorer-contract",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "scripts": {
+    "test": "node --test tests/forecast.test.mjs"
+  }
+}

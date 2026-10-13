@@ -14,7 +14,7 @@ It has:
 - optional creation of new roles
 - manager-decided shipping or continuation
 
-That is exactly how the current repo runtime describes `packages/core/src/topologies/team.ts`.
+That description was imported from an external Jury-rig source bundle. Its revision and applicability here are unverified; treat it as a historical source observation, not current runtime proof. Verify a target runtime from its checkout, revision, build, and live status separately.
 
 ## Why this matters
 
@@ -71,4 +71,4 @@ The DRDA work argues that:
 
 - Peter Stone, Manuela Veloso, "Task Decomposition, Dynamic Role Assignment, and Low-Bandwidth Communication for Real-Time Strategic Teamwork", Artificial Intelligence 110(2), 1999. Public abstract: https://www.cs.utexas.edu/~pstone/Papers/99aij/teamwork.html
 - Yu Xia, Junwu Zhu, Liucun Zhu, "Dynamic role discovery and assignment in multi-agent task decomposition", Complex & Intelligent Systems 9, 2023. https://doi.org/10.1007/s40747-023-01071-x
-- Repo runtime source: `packages/core/src/topologies/team.ts`
+- Imported-source pointer: `packages/core/src/topologies/team.ts` (historical/unverified here)

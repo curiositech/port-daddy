@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "2.0.0",
+  "protocolId": "review-v2",
+  "conversationId": "conv-001",
+  "epoch": 1,
+  "scope": "repo:example/path:src/widget.ts",
+  "observedAt": "2026-09-16T18:00:00.000Z",
+  "limits": {
+    "maxMessages": 8,
+    "deadlineAt": "2026-09-16T19:00:00.000Z"
+  },
+  "participants": [
+    {
+      "principalRef": "principal:author",
+      "bodyGeneration": 2,
+      "role": "AUTHOR",
+      "audiences": [
+        "review"
+      ]
+    },
+    {
+      "principalRef": "principal:reviewer",
+      "bodyGeneration": 1,
+      "role": "REVIEWER",
+      "audiences": [
+        "review"
+      ]
+    }
+  ],
+  "gathers": [
+    {
+      "gatherId": "gather:review",
+      "membership": [
+        "principal:reviewer"
+      ],
+      "policy": "ALL",
+      "quorum": null,
+      "inputKind": "CONTRIBUTION",
+      "reducer": "PRESERVE_DISSENT",
+      "deadlineAt": "2026-09-16T18:30:00.000Z"
+    }
+  ],
+  "messages": [
+    {
+      "messageId": "m1",
+      "protocolId": "review-v2",
+      "conversationId": "conv-001",
+      "epoch": 1,
+      "senderPrincipalRef": "principal:author",
+      "senderBodyGeneration": 2,
+      "audience": [
+        "principal:reviewer"
+      ],
+      "scope": "repo:example/path:src/widget.ts",
+      "senderSequence": 1,
+      "kind": "REQUEST",
+      "correlationId": "review-1",
+      "causationId": null,
+      "payloadType": "review-request",
+      "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "observedAt": "2026-09-16T18:01:00.000Z",
+      "expiresAt": "2026-09-16T18:20:00.000Z",
+      "verificationReceiptRef": "verify:m1",
+      "gatherId": null,
+      "audienceLabels": [
+        "review"
+      ]
+    },
+    {
+      "messageId": "m2",
+      "protocolId": "review-v2",
+      "conversationId": "conv-001",
+      "epoch": 1,
+      "senderPrincipalRef": "principal:reviewer",
+      "senderBodyGeneration": 1,
+      "audience": [
+        "principal:author"
+      ],
+      "scope": "repo:example/path:src/widget.ts",
+      "senderSequence": 1,
+      "kind": "CONTRIBUTION",
+      "correlationId": "review-1",
+      "causationId": "m1",
+      "payloadType": "review-findings",
+      "payloadDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "observedAt": "2026-09-16T18:05:00.000Z",
+      "expiresAt": "2026-09-16T18:25:00.000Z",
+      "verificationReceiptRef": "verify:m2",
+      "gatherId": "gather:review",
+      "audienceLabels": [
+        "review"
+      ]
+    },
+    {
+      "messageId": "m3",
+      "protocolId": "review-v2",
+      "conversationId": "conv-001",
+      "epoch": 1,
+      "senderPrincipalRef": "principal:author",
+      "senderBodyGeneration": 2,
+      "audience": [
+        "principal:reviewer"
+      ],
+      "scope": "repo:example/path:src/widget.ts",
+      "senderSequence": 2,
+      "kind": "TERMINAL_FENCE",
+      "correlationId": "review-1",
+      "causationId": "m2",
+      "payloadType": "protocol-terminal",
+      "payloadDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "observedAt": "2026-09-16T18:06:00.000Z",
+      "expiresAt": "2026-09-16T18:26:00.000Z",
+      "verificationReceiptRef": "verify:m3",
+      "gatherId": null,
+      "audienceLabels": [
+        "review"
+      ]
+    },
+    {
+      "messageId": "m4",
+      "protocolId": "review-v2",
+      "conversationId": "conv-001",
+      "epoch": 1,
+      "senderPrincipalRef": "principal:reviewer",
+      "senderBodyGeneration": 1,
+      "audience": [
+        "principal:author"
+      ],
+      "scope": "repo:example/path:src/widget.ts",
+      "senderSequence": 2,
+      "kind": "ACK",
+      "correlationId": "review-1",
+      "causationId": "m3",
+      "payloadType": "terminal-ack",
+      "payloadDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "observedAt": "2026-09-16T18:07:00.000Z",
+      "expiresAt": "2026-09-16T18:27:00.000Z",
+      "verificationReceiptRef": "verify:m4",
+      "gatherId": null,
+      "audienceLabels": [
+        "review"
+      ]
+    }
+  ],
+  "terminal": {
+    "state": "COMPLETED",
+    "fenceMessageId": "m3",
+    "requiredAcknowledgements": [
+      "principal:reviewer"
+    ],
+    "receivedAcknowledgements": [
+      "principal:reviewer"
+    ],
+    "stateDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "unresolvedParticipants": []
+  },
+  "truthEffect": "NONE",
+  "authorityEffect": "NONE"
+}

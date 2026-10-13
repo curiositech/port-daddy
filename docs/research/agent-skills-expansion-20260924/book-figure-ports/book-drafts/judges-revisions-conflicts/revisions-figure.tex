@@ -1,0 +1,29 @@
+% draft/typed-plan-revision; proposed contract, no implementation proof.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd direct label/.append style={inner xsep=0pt}]
+\path[use as bounding box] (0,-8.9) rectangle (11.4,.55);
+\node[pd panel title,anchor=west] at (0,.3) {A revision changes which receipts remain usable};
+\node[pd panel title,anchor=west] at (.1,-.65) {Revision};
+\node[pd panel title,anchor=west] at (3.9,-.65) {Compile};
+\node[pd panel title,anchor=west] at (6.5,-.65) {Accept};
+\node[pd panel title,anchor=west] at (9.0,-.65) {Publish};
+\draw[pd rule] (0,-1.07)--(11.4,-1.07);
+\node[pd direct label,anchor=west,text width=3.2cm,align=left] at (.1,-1.87) {Source input changed};
+\node[pd panel title,anchor=west] at (3.9,-1.87) {STALE};
+\node[pd panel title,anchor=west] at (6.5,-1.87) {STALE};
+\node[pd direct label,anchor=west,text width=2.25cm,align=left] at (9.0,-1.87) {Revalidate};
+\draw[pd hairline] (0,-2.5)--(11.4,-2.5);
+\node[pd direct label,anchor=west,text width=3.2cm,align=left] at (.1,-3.3) {Acceptance policy changed};
+\node[pd direct label,anchor=west] at (3.9,-3.3) {REUSE?};
+\node[pd panel title,anchor=west] at (6.5,-3.3) {STALE};
+\node[pd direct label,anchor=west,text width=2.25cm,align=left] at (9.0,-3.3) {Revalidate};
+\draw[pd hairline] (0,-3.95)--(11.4,-3.95);
+\node[pd direct label,anchor=west,text width=3.2cm,align=left] at (.1,-4.75) {Publication authority revoked};
+\node[pd direct label,anchor=west] at (3.9,-4.75) {REUSE?};
+\node[pd direct label,anchor=west] at (6.5,-4.75) {REUSE?};
+\node[pd panel title,anchor=west] at (9.0,-4.75) {BLOCK};
+\draw[pd rule] (0,-5.4)--(11.4,-5.4);
+\node[pd note,anchor=north west,text width=10.8cm,align=left] at (0,-5.78) {REUSE? requires matching receipt bindings. Revalidate the changed artifact or acceptance evidence and current publication authority.};
+\draw[pd caution rule] (0,-6.95)--(11.4,-6.95);
+\node[pd panel title,anchor=west] at (0,-7.46) {An earlier UNKNOWN effect is still unresolved};
+\node[pd note,anchor=north west,text width=10.8cm,align=left] at (0,-7.9) {Removing a plan node does not undo an external publication.\newline Reconcile its effect key and status before any justified retry.};
+\end{tikzpicture}

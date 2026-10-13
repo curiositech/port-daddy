@@ -23,7 +23,7 @@
 % panel labels now name the unit of each number.
 \begin{figure}[htbp]
 \centering
-{\small\bfseries R6 regime --- detection requires a cycle of \emph{visible} links AND relayed reports; cut edges silent, severed edges dark [internal, \texttt{sheaf\_harness\_v2.py}]}\\[3pt]
+{\small\bfseries One-edge residual sensitivity depends on visible cycles [internal, \texttt{sheaf\_harness\_v2.py}]}\\[3pt]
 {\footnotesize
 \tikz[baseline=-0.5ex]{\draw[harborblue,thick] (0,0) -- (0.5,0);}~\textcolor{harborblue}{compared}\quad
 \tikz[baseline=-0.5ex]{\draw[seagreen,thick,dashed] (0,0) -- (0.5,0);}~\textcolor{seagreen}{relayed}\quad
@@ -54,7 +54,7 @@
 \node[liemark] at ($(n0)!0.5!(n1)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{seagreen}\bfseries\footnotesize the lie edge lies on a\\ cycle of $K_c$: residual\\ $r=1.225$, detected in\\ 200/200 trials}
+{\color{seagreen}\bfseries\footnotesize one-edge fault on a\\ cycle of $K_c$: residual\\ $r=1.225$ for $s=3$}
 \end{minipage}%
 \hfill
 \begin{minipage}{0.32\textwidth}
@@ -85,7 +85,7 @@
 \node[liemark] at ($(n2)!0.5!(n3)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{shipred}\bfseries\footnotesize cut edge (bridge): no\\ cycle of $K_c$ through it,\\ residual $r=0.000$,\\ provably silent}
+{\color{shipred}\bfseries\footnotesize cut edge (bridge): no\\ cycle of $K_c$ through it,\\ residual $r=0.000$}
 \end{minipage}%
 \hfill
 \begin{minipage}{0.32\textwidth}
@@ -112,15 +112,14 @@
 \node[liemark] at ($(n0)!0.5!(n1)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{gray}\bfseries\footnotesize no report crosses, so\\ the edge is absent from\\ $K_c$: provably dark,\\ 0/200 detections}
+{\color{gray}\bfseries\footnotesize no report crosses, so\\ the edge is absent from\\ $K_c$: residual $r=0$}
 \end{minipage}
 \caption{Regime diagram for the mechanism, in one legend with Figure~\ref{fig:vis} (harborblue solid compared, seagreen
 dashed relayed, gray dotted severed; the shipred $\times$ marks the lied-on link, independently of its tier).
-(a) The lie sits on a relayed link that still lies on a cycle of the visible subgraph $K_c$ --- residual $r=1.225$, detected
-in $200/200$ trials, cohomology-only. (b) The same relayed tier but a bridge: no cycle of $K_c$ runs through it, so
-$r=0.000$ and the completion absorbs any lie --- provably silent. (c) The link is severed, absent from $K_c$ entirely, and
-equivocation there is provably dark ($0/200$ detections). Detection needs both clauses --- a cycle the analyst can see
-\emph{and} relayed endpoint reports; deleting either one, as (b) and (c) do, deletes the detection
-[internal, \texttt{sheaf\_harness\_v2.py}].}
+(a) A single-edge fault on a relayed link in a visible cycle gives $r=1.225$ for $s=3$. (b) The same fault on a
+relayed bridge gives $r=0$. (c) A severed edge has no row in $K_c$ and cannot affect this residual.
+The relayed endpoint claims in (a) and (b) also permit direct sender-claim comparison when authenticated and
+snapshot-aligned. The figure states a one-edge residual criterion, not a unique detection advantage or a criterion
+for every split view [internal, \texttt{sheaf\_harness\_v2.py}].}
 \label{fig:r6reg}
 \end{figure}

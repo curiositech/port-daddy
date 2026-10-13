@@ -1,0 +1,19 @@
+% Exact scalar, unit-weight cycle model: r/|s|=1/sqrt(n), integer n=4..24.
+% Source: thm:radius-soundness. Independent grounded-Laplacian checks:
+% tests/harbor-research/test_cycle_radius_spark.py. Not field measurements.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=60pt,y=75pt,font=\fontsize{8}{9}\selectfont]
+  \draw[pdinkmuted!45,line width=.35pt] (0,0)--(1,0);
+  \draw[pdteal,line width=.8pt] plot[domain=4:24,samples=21]
+    ({(\x-4)/20},{1/sqrt(\x)});
+  \foreach \n in {4,6,8,12,16,24}{%
+    \fill[pdteal] ({(\n-4)/20},{1/sqrt(\n)}) circle[radius=1pt];}
+  \node[anchor=east,inner sep=2pt] at (0,.5) {.50};
+  \node[anchor=west,inner sep=2pt] at (1,.204124) {.20};
+  \node[anchor=south,inner sep=2pt] at (.5,.57) {$r/|s|$};
+  \node[anchor=north,inner sep=3pt] at (.5,0) {$n:4\ \longrightarrow\ 24$};
+\end{tikzpicture}
+\makeatother\endgroup

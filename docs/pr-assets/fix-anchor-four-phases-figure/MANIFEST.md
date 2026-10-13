@@ -48,9 +48,9 @@ figure has to live inside stays visible, and no pixel is rescaled.
 
 ---
 
-## Artefact — `anchor-four-phases-before-after-1x-150dpi.png`
+## Artefact — `https://media.portdaddy.dev/sha256/ac/acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1.png`
 
-- File: `docs/pr-assets/fix-anchor-four-phases-figure/anchor-four-phases-before-after-1x-150dpi.png` (664 KiB)
+- File: `https://media.portdaddy.dev/sha256/ac/acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1.png` (664 KiB)
 - What it shows: page 5 of the compiled `anchor-protocol-whitepaper.pdf`,
   BEFORE (table-only, §2 citing only `Table~\ref{tab:anchor-four-phases}`)
   next to AFTER (the new `Figure~\ref{fig:anchor-four-phases}` inserted above

@@ -1,0 +1,24 @@
+[
+  {
+    "actual_page_size": "504 x 720 pts",
+    "embedded_fonts": false,
+    "standalone_size": "331.119 x 260.253 pts",
+    "figure_width_cm": 11.4,
+    "column_width_cm": 11.43
+  },
+  {
+    "actual_page_size": "504 x 720 pts",
+    "embedded_fonts": true,
+    "standalone_size": "331.119 x 260.253 pts",
+    "figure_width_cm": 11.4,
+    "column_width_cm": 11.43
+  },
+  {
+    "edition": "swiss",
+    "actual_page_size": "504 x 720 pts",
+    "embedded_fonts": true,
+    "standalone_size": "331.119 x 260.253 pts",
+    "figure_width_cm": 11.4,
+    "column_width_cm": 11.43
+  }
+]

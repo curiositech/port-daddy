@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: make_copy_and_media_human
-description: Review and rewrite copy, web UI, slides, READMEs, commits, PRs, marketing pages, and generated imagery to strip AI-isms — Claudeisms, GPT-isms, Codexisms, Geminisms, engineering-artifact slop, and the v0/Lovable design look — producing a line-item fix plan as static HTML. Use before shipping any outward-facing text or design, when something "reads like AI", or when auditing a property for machine tells. NOT for grammar/spell checking, SEO optimization, plagiarism detection, or judging whether a third party used AI (this is an editing skill, and the evidence says authorship detection does not work).
+description: Review and rewrite copy, web UI, slides, READMEs, commits, PRs, marketing pages, educational chapters, class materials, notebooks, and generated media to strip AI-isms — Claudeisms, GPT-isms, Codexisms, Geminisms, engineering-artifact slop, and the v0/Lovable design look — producing a line-item fix plan as static HTML. Use before shipping any outward-facing text or design, when something "reads like AI", or when auditing a property for machine tells. NOT for grammar/spell checking, SEO optimization, plagiarism detection, or judging whether a third party used AI (this is an editing skill, and the evidence says authorship detection does not work).
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch
 argument-hint: '[file-or-directory] [--out report.html] [--findings findings.json] [--json findings.json]'
 metadata:
@@ -55,16 +55,12 @@ You are going to find things. Before you act on them, understand what a finding
 means, because the evidence here is uncomfortable and the skill is built around
 it.
 
-AI-text detectors are biased toward calling things human. They miss most machine
-output, and the things they do catch skew heavily toward unusual people: seven
-commercial detectors produced a mean 61.3% false-positive rate on essays by
-non-native English speakers, and 19% of those essays were flagged unanimously by
-all seven. So when a signal fires here, it is more likely to be a second-language
-writer, an autistic writer, or someone who simply loves dashes than a caught
-machine.
+A study of seven detectors found substantial false-positive rates on non-native
+English essays. That result concerns those detectors and that corpus; it does
+not establish the probability that any particular author used AI. Fonts, colors,
+punctuation, and teaching mistakes cannot settle authorship either.
 
-That is why this skill edits and never accuses. Every fix in the catalog makes
-writing better whether a person or a model produced it, which means you never
+That is why this skill edits and never accuses. Each proposed fix must improve the artifact for its intended reader, which means you never
 have to answer the authorship question to do the work. If someone asks you to
 determine whether a colleague or a student used AI, decline and offer to edit the
 text instead. `references/fairness-and-false-positives.md` has the full argument
@@ -75,7 +71,7 @@ and the citations, and you should read it before your first review.
 **No topical keyword lists.** Phrase-level tropes get judged by you against a
 rubric, never by substring matching over free text. Three narrow exceptions are
 allowed because they are not about topic or taste. The first is a closed set of
-<!-- humanize:ignore-start -->machine artifacts that have no human source, such
+<!-- humanize:ignore-start -->closed syntactic residues from metadata or transport, such
 as `oaicite` tokens or a `utm_source=chatgpt.com` parameter.<!-- humanize:ignore-end --> The second is closed sets of grammatical
 forms measured as a rate, like sentence-final participles or nominalization
 suffixes, which carry published effect sizes. The third is the era-versioned
@@ -93,9 +89,7 @@ writing whenever you can get it. Without a baseline the script caps that whole
 family at low severity, on purpose.
 
 **The output has to pass its own review.** The report uses Georgia and Menlo, an
-oxide-red accent, nothing under 14px, no emoji, no indigo. Every file in this
-bundle is checked by `scripts/humanize_review.py` and the checked-in state is
-clean. If this skill's own artifacts looked generated, nothing it says would
+oxide-red accent, nothing under 14px, no emoji, no indigo. Review the bundle with its own scripts and report residual findings explicitly. If this skill's own artifacts looked generated, nothing it says would
 land.
 
 ## The six families
@@ -103,11 +97,11 @@ land.
 Findings carry a `family`, and the family tells you how much to trust the
 finding. This matters more than severity.
 
-`residue` covers machine artifacts with essentially no human source: invisible
-codepoints such as U+202F, vendor citation tokens, chat tracking parameters,
-leaked assistant boilerplate. Act on these with full confidence. They tell you
-text passed through a chat window, which is not the same as telling you nobody
-thought about it.
+`residue` covers unconverted citation tokens, tracking parameters, and leaked
+assistant boilerplate. Verify their context before removing them: examples and
+quotations can contain these deliberately. Unicode spacing belongs to typography,
+not provenance. U+202F is used in French locale formatting; preserve meaningful
+spacing and script joiners unless a concrete rendering defect requires repair.
 
 `form` covers grammatical patterns with measured effect sizes, like participial
 tails at 5.3 times the human rate or nominalizations at roughly twice. Humans do
@@ -134,16 +128,12 @@ A contributor who read the surrounding code passes them automatically.
 
 ### Declared but not wired
 
-One signature inside `defect` deserves naming on its own, because it is the most
-genuinely model-flavoured thing in this catalog and it tells you where to look.
-
-A model reliably emits the recognisable, visible half of a pattern and drops the
-half that only matters under failure or assistive technology. Across roughly
-three thousand browser-driven trials, generated modals carried an Escape handler
-79% of the time and Escape actually closed the dialog 59% of the time. The gap is
-not the interesting part. This is: **1,031 of the 1,032 failures threw no console
-error.** Every non-interactive check reports success, including this skill's
-static pass.
+A useful interaction-risk pattern is a visible affordance whose failure behavior
+was never tested. Static source can contain an Escape handler without proving
+that Escape closes the modal, restores focus, or works in the relevant state.
+The catalog includes a browser-trial study of this gap; its numerical claims
+were not live-verified in this research pass, so they are not a calibrated
+severity threshold here.
 
 So when auditing anything interactive, ask of each affordance whether its label
 is present without its behaviour. A sort caret with no `aria-sort`. A disabled
@@ -154,9 +144,8 @@ one-to-one rendering of the data model rather than a designed view (every column
 a column, every config key a switch), and the content whose cardinality exactly
 equals a layout constant (four cards because the grid has four columns).
 
-These three are what separate "a model wrote this" from "nobody polished this".
-Most of the `defect` family is the second thing, which is worth fixing and not
-worth attributing. This one is the first.
+These patterns locate missing behavior. They do not distinguish a model
+author from a human author who did not test the interface.
 
 `defect` is the odd one out, and the most useful. These are not inferences about
 who built something; they are things that are broken. The page scrolls sideways
@@ -244,17 +233,62 @@ surfaces the first family reliably — altitude lock produces prose a stranger c
 follow and learn nothing from, so for that one ask instead which two things here
 are hard, and whether the piece spends more time on them than on the easy parts.
 
-## Scale severity by the venue's base rate
+## Set severity by reader harm
 
-The same tell deserves different weight in different places, because the prior
-differs by more than an order of magnitude. Measured rates run around 40% fully
-generated for LinkedIn long-form posts and 24% for their comments, roughly 24%
-for posts on X, and about 4% on Reddit overall with replies near 2%.
+Do not convert estimated AI prevalence on a platform into editing severity.
+A broken exercise, fabricated reference, or inaccessible control matters because
+of its effect on the reader. A fashionable font or an unusually tidy paragraph
+is at most a review cue. Findings need a location, an observable consequence,
+a counterexample, and a repair; uncertain authorship adds none of these.
 
-So a formatted, structured, correctly punctuated comment on LinkedIn is worth
-acting on. The same comment on a Reddit reply is firing against a 2% prior and
-will be wrong most of the time. Adjust before you speak, especially anywhere a
-person might feel accused.
+## Teach a concept before spending it
+
+For lessons, academic books, tutorials, research explanations, and study notes,
+load `references/educational-exposition.md` and
+`references/education-and-chrome-research.md`. Record the intended reader's prior
+knowledge and the next task they should be able to do. Then trace each hard
+concept from its definition through a worked instance to an independent attempt.
+A definition alone does not make the concept available for later reasoning.
+
+Use the **close-the-page test**: can a learner explain the key step, distinguish
+an example from a near miss, and solve a changed case without the answer visible?
+Treat that as a proposed assessment until an actual learner attempts it. Readable
+prose, a completed annotation map, and a model's self-review do not prove learning.
+
+The route depends on purpose. A reference manual may point to a prerequisite
+lesson. An expert chapter may omit elementary practice. A novice lesson normally
+needs a complete worked example, reduced guidance, and a later retrieval task.
+Keep the hard step visible; remove repetition of what the learner already knows.
+
+## Give each title layer a job
+
+An eyebrow, title, subtitle, and introductory line are four opportunities to say
+something useful, not four slots that must be filled. For each, name the distinct
+job: locating the reader, naming the subject, narrowing the scope, or supplying a
+constraint. Temporarily remove it. If the reader loses neither information nor
+orientation, cut it. If useful scope is lost, move that scope into the surviving
+heading or opening sentence.
+
+This applies to web heroes, note templates, slide titles, LaTeX chapter openings,
+and repeated figure/title/caption stacks. Three layers is a **local review cue**,
+not a research-derived limit. Keep useful section labels, venue-required titles,
+accessible headings, theorem labels, and captions that explain a figure.
+`references/content-chrome.md` contains the decision tree and counterexamples.
+
+```bash
+python3 scripts/review_learning_structure.py chapter.md page.html chapter.tex \
+    --out structure-findings.json
+python3 scripts/humanize_review.py chapter.md --findings structure-findings.json \
+    --out report.html
+```
+
+The first script finds structural title-stack candidates, not redundant meaning.
+Its optional learning-map mode checks explicit reviewer annotations; it cannot
+infer mastery from chapter text. See its module documentation and
+`templates/learning-map.json` for the input contract. Replace its illustrative
+source path and line numbers with reviewed locations; the validator checks the
+annotation structure, not whether those locations establish learning. A model reviewer must still
+check teaching quality and the rendered page or PDF.
 
 ## Start here: what am I looking at?
 
@@ -270,6 +304,9 @@ flowchart TD
     START --> DOC["Long document<br/>or slide deck"]
     START --> MKT["Landing copy, social post,<br/>listing, resume"]
     START --> PAPER["Paper, preprint,<br/>referee report, .tex"]
+    START --> EDU["Lesson, notes, textbook,<br/>notebook, tutorial"]
+    EDU --> E1["educational-exposition<br/>education-and-chrome-research"]
+    E1 --> RUN
     START --> FIG["Figure, chart,<br/>plotting script"]
     START --> MEDIA["Generated image,<br/>video or audio"]
 
@@ -277,7 +314,7 @@ flowchart TD
     WEB --> W1["web-build-defects FIRST"]
     W1 --> W2["then: visual-design · typographic-craft<br/>interaction-and-motion · forms-and-input<br/>accessibility · performance · product-ux-writing<br/>unopened-surfaces · dark-patterns"]
     CODE --> C1["engineering-artifact-tells"]
-    DOC --> D1["document-and-deck-structure"]
+    DOC --> D1["document-and-deck-structure<br/>content-chrome"]
     MKT --> M1["marketing-and-platform-tells"]
     PAPER --> R1["research-papers · latex-source"]
     FIG --> F1["scientific-figures"]
@@ -494,6 +531,17 @@ Work `templates/rewrite-checklist.md` top-down, highest severity first. Then run
 both layers again. Use `--fail-on high` if you want this in CI. Never call
 something clean without the re-run.
 
+### Validate an update
+
+[README.md](README.md) contains the runnable entry points;
+[CHANGELOG.md](CHANGELOG.md) records revision scope. Read
+[the teaching and title examples](examples/before-after-learning-and-chrome.md)
+when a rubric needs a concrete repair. Run
+`scripts/test_learning_structure.py` for parser and annotation counterexamples,
+and `scripts/test_review_regressions.py` for the Unicode, citation-URL, and
+eyebrow judgment boundaries. These are offline checks; learner outcomes and
+rendered teaching quality still require direct review.
+
 ### Maintaining the catalog
 
 `references/catalog.json` is the source of truth for rubrics, thresholds, false
@@ -517,6 +565,12 @@ rest.
 | Reference | Load when |
 |---|---|
 | `references/fairness-and-false-positives.md` | Before your first review, and any time someone asks you to judge authorship |
+| `references/educational-exposition.md` | Teaching progression, worked examples, retrieval, transfer, research reasoning, and instructional media |
+| `references/content-chrome.md` | Repeated title layers and decorative navigation in HTML, Markdown, slides, and LaTeX |
+| `references/education-and-chrome-research.md` | Evidence strength, study boundaries, source audit, and evaluation plan |
+| `references/review-decisions.md` | Detailed progression and title-layer decision trees, genre exceptions, and medium coverage |
+| `references/instructional-media-and-notes.md` | Video, audio, diagrams, notebooks and notes whose task fidelity needs direct inspection |
+| `references/source-audit-2026-09-19.json` | Dated inventory of source-note review and explicitly bounded live verification |
 | `references/catalog.json` | Always, at judge-pass time; the machine-readable rubric with thresholds and false positives |
 | `references/claudeisms.md` | Text suspected from Claude: staccato, dashes, negation frames, escalating compliments · **39 items** |
 | `references/gptisms-codexisms.md` | READMEs, code comments, service-voice copy, emoji headers · **35 items** |
@@ -548,34 +602,40 @@ rest.
 
 ## Shibboleths
 
-The rate is the crime, never the glyph. Human essayists use em dashes, and some
-use more than the models do. Count, compare against the author, and only then cut.
+- **A concept mentioned is not a concept taught.** Name the learner action that
+  makes it safe to use the concept in the next argument.
+- **An example is worked when the difficult decision is visible.** Showing the
+  answer after "simplifying" is not enough when simplification is the lesson.
+- **Comfort is not mastery.** Ask for an unaided explanation or changed problem;
+  do not use a fluent recap or a confidence rating as the exit criterion.
+- **A heading names content; it does not justify the page's existence.** Keep
+  scope and orientation, cut promotional restatement.
+- **Count title layers, then judge their jobs.** Never infer redundancy from
+  capitalization, a missing digit, or a font choice.
+- **A caption is part of the argument.** Preserve assumptions, scales, and
+  uncertainty when trimming decorative text.
+- **Evidence about learning is not evidence about AI prevalence.** A classic
+  pedagogy experiment supports a repair, not a claim that models uniquely fail.
 
-A quote nobody said is not a pull quote. A real pull quote excerpts the document
-in front of you. An italicized aphorism from nowhere is manufactured gravitas, so
-attribute it or kill it.
 
-Inter at 400 weight on indigo buttons means nobody made a decision. The tell is
-not the font or the hex on its own; it is that they turn up together with
-rounded corners and a gradient headline. Defaults cluster.
+A rate is a cue, not a verdict. Compare punctuation and rhythm against the
+author and genre; change them only when the passage benefits.
 
-Codex narrates and engineers annotate. A comment reading "increment the counter"
-above `count++` is generated. A human comment states the constraint the code
-cannot: "TAO writes dogpile above 50qps, so batch."
+A pull quote should excerpt or accurately attribute something. Preserve a
+clearly labeled original aphorism; repair a falsely attributed quotation.
 
-Perfect parallelism is a tell rather than a virtue. Twelve bullets of identical
-grammatical shape and length were generated. People drift.
+Defaults can cluster in deliberate design systems. Inspect whether the layout,
+type and color serve the content before proposing a change.
 
-The fix for staccato is fewer sentences, not longer ones. Merge the fragments
-back into the thought somebody chopped them out of.
+A comment that repeats an obvious operation adds little. Explain the constraint
+or remove the repetition, regardless of who wrote the code.
 
-The participial tail is the highest-signal grammatical tell there is. When a
-finished sentence grows a clause that says why it matters, delete the clause or
-promote it to a real sentence with a checkable claim.
+Parallel lists can be easier to compare. Break their symmetry only when it
+hides real differences in importance or content.
 
-Absence is evidence too. Copy with no proper nouns, no numbers and no dates is
-confident about nothing, and that is a harder problem than any phrase in the
-catalog.
+A sentence that announces significance should state the mechanism or evidence.
+A number, proper noun or participial clause is neither necessary nor sufficient
+for a useful sentence.
 
 ## Dos and don'ts
 
@@ -635,17 +695,18 @@ launch announcement in machine accent and then edited,
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; from the repository root run `python3 skills/skill-architect/scripts/index_references.py skills/make_copy_and_media_human --fix`.*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Changelog — <!-- humanize:ignore-start A changelog is heading-and-bullet dense by design, which is the documented false positive for heading-spam and bu
-- [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs, marketing pages, and generated imagery before anything outward-fa
+- [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs, marketing pages, lessons, academic books, notebooks, and generate
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
 
 **`examples/`**
 - [`examples/before-after-landing-page.md`](examples/before-after-landing-page.md) — Before / After — Landing Page (the v0 look, token by token) — Verified by running `scripts/humanize_review.py` against the Before block above.
+- [`examples/before-after-learning-and-chrome.md`](examples/before-after-learning-and-chrome.md) — Before / After — Learning, Research, and Title Chrome — These specimens are synthetic teaching data and editorial demonstrations.
 - [`examples/before-after-prose.md`](examples/before-after-prose.md) — Before / After — Launch Announcement — The same announcement, machine accent vs.
 - [`examples/sample-report.html`](examples/sample-report.html)
 
@@ -653,8 +714,11 @@ launch announcement in machine accent and then edited,
 - [`references/accessibility-beyond-the-checklist.md`](references/accessibility-beyond-the-checklist.md) — Accessibility beyond the checklist — Everything in this file is in the part of accessibility that automation cannot reach.
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
+- [`references/content-chrome.md`](references/content-chrome.md) — Title layers and content chrome — Count visible layers, then ask what each contributes.
 - [`references/dark-patterns-the-model-inherits.md`](references/dark-patterns-the-model-inherits.md) — Dark patterns the model inherits — A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive.
 - [`references/document-and-deck-structure.md`](references/document-and-deck-structure.md) — Document and deck structure — how the thing was assembled — Document-shape tells: how generated long-form docs, READMEs and slide decks are put together, independent of any sentence in them.
+- [`references/education-and-chrome-research.md`](references/education-and-chrome-research.md) — Education, semantic progression, and chrome — This memo adds an education and interface-structure lens to the humanization research.
+- [`references/educational-exposition.md`](references/educational-exposition.md) — Educational exposition and concept progression — Audit what a reader can do with an idea before later material depends on it.
 - [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
@@ -662,6 +726,7 @@ launch announcement in machine accent and then edited,
 - [`references/forms-and-input.md`](references/forms-and-input.md) — Forms and input — where the output is the start of the user's work — A form is the one surface where the model's output is the BEGINNING of the user's work rather than the end of it.
 - [`references/generated-media-tells.md`](references/generated-media-tells.md) — Generated images, video and audio — provenance first — A separate file because the REVIEW ORDER is different.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
+- [`references/instructional-media-and-notes.md`](references/instructional-media-and-notes.md) — Instructional media and source-bound notes — Review generated diagrams, video, audio, notebooks and notes against the task they claim to serve.
 - [`references/interaction-and-motion.md`](references/interaction-and-motion.md) — Interaction and motion — the property a generator cannot watch — Motion is the one design property whose entire quality lives in TIME, and a generator emits it as a static string it can never watch run.
 - [`references/latex-source.md`](references/latex-source.md) — LaTeX source — it compiled, and nobody opened the PDF — LaTeX source is a program nobody in the loop has run — and the tell is never that it failed to compile.
 - [`references/marketing-and-platform-tells.md`](references/marketing-and-platform-tells.md) — Marketing copy and platform posts — written to a template — Landing-page copy, social posts, cold email, listings and résumés.
@@ -670,7 +735,9 @@ launch announcement in machine accent and then edited,
 - [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.
 - [`references/product-ux-writing.md`](references/product-ux-writing.md) — UX writing inside the product — The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints.
 - [`references/research-papers.md`](references/research-papers.md) — Research papers — checks that point outward, at the world — A paper's sentences and its checkable commitments come out of the same machinery at the same confidence, and nothing in the finished artifac
+- [`references/review-decisions.md`](references/review-decisions.md) — Review decisions — learning sequence and title chrome — This reference turns two high-confusion findings into editorial decisions.
 - [`references/scientific-figures.md`](references/scientific-figures.md) — Scientific figures — checked in the code that drew them — A figure is produced by code, and the render sits on the other side of a step the author never watched.
+- [`references/source-audit-2026-09-19.json`](references/source-audit-2026-09-19.json) — source audit 2026 09 19 (data/schema)
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
 - [`references/typographic-craft-and-tokens.md`](references/typographic-craft-and-tokens.md) — Typographic craft and design-system structure — **The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consisten
@@ -682,8 +749,12 @@ launch announcement in machine accent and then edited,
 - [`scripts/humanize_review.py`](scripts/humanize_review.py) — humanize_review.py — flag AI-isms in copy/media and emit a static HTML fix plan.
 - [`scripts/regenerate_references.py`](scripts/regenerate_references.py) — Regenerate references/*.md from references/catalog.json. Stdlib only.
 - [`scripts/render_check.py`](scripts/render_check.py) — render_check.py — open a page at real viewports and report what breaks.
+- [`scripts/review_learning_structure.py`](scripts/review_learning_structure.py) — Offline structure and learning-map review for the humanization skill.
+- [`scripts/test_learning_structure.py`](scripts/test_learning_structure.py) — In-memory tests for review_learning_structure.py; no temporary files needed.
+- [`scripts/test_review_regressions.py`](scripts/test_review_regressions.py) — Regressions for semantic overreach; no network, model, or temporary files.
 
 **`templates/`**
+- [`templates/learning-map.json`](templates/learning-map.json) — learning map (data/schema)
 - [`templates/output-template.md`](templates/output-template.md) — Judge-Pass Finding + Delivery Template — Fill this in during step 3 (judge pass) and step 4 (delivery) of the process in `SKILL.md`.
 - [`templates/rewrite-checklist.md`](templates/rewrite-checklist.md) — Rewrite Checklist — run after every humanizing pass — Work the report top-down, highest severity first, then verify each line below.
 

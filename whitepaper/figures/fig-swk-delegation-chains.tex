@@ -1,0 +1,66 @@
+% Stable atlas ID: II/fig:swk-delegation-chains.
+% Required composition, not a claim about today's deployed wire schema.
+% Root/hop/verifier carry signed grants, never private keys.
+% Designed lineage is nested inside signed bytes; equivalence remains open.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{swk-delegation-chains}{%
+\begin{tikzpicture}[x=1pt,y=-1pt,line cap=butt,line join=miter,
+  every node/.style={pd label,inner sep=0pt,align=left},
+  dc authorization/.style={draw=pdteal,line width=.85pt,
+    -{Stealth[length=4.5pt,width=3.6pt]}}]
+  % Geometry is checked independently by the sidecar tests.
+  \def\dcPayloadLeft{18}\def\dcPayloadRight{302}
+  \def\dcPayloadTop{94}\def\dcPayloadBottom{222}
+  \def\dcLineageLeft{30}\def\dcLineageRight{290}
+  \def\dcLineageTop{130}\def\dcLineageBottom{208}
+  \node[anchor=north west,font=\pdfiglabelbold] at (0,0)
+    {Authorization chain};
+  \node[anchor=north east,text=pdteal] at (320,0) {Built};
+
+  % Root and delegate signing keys: role pictograms adapted from SGInclusion.
+  \foreach \x in {24,152}{
+    \draw[pdteal,line width=1pt] (\x,35) circle (3.5pt);
+    \draw[pdteal,line width=1pt] ({\x+3.5},35)--({\x+15},35)
+      ({\x+12},35)--({\x+12},39) ({\x+15},35)--({\x+15},39);
+  }
+  \node[anchor=north,align=center] at (32,49) {root signer};
+  \node[anchor=north,align=center] at (160,49) {attenuating hop};
+  \node[anchor=center] at (284,35) {verifier};
+  \draw[dc authorization] (52,35)--(132,35);
+  \node[anchor=south] at (92,28) {signed grant};
+  \draw[dc authorization] (181,35)--(253,35);
+  \node[anchor=south] at (217,28) {verify};
+
+  % Expansion leader: no arrowhead and no peer lineage path.
+  \draw[pdinkmuted,line width=.6pt] (160,65)--(160,\dcPayloadTop);
+  \node[anchor=west,text=pdinkmuted] at (167,79) {payload detail};
+
+  % Folded record is the signed boundary; it is a design requirement per hop.
+  \path[draw=pdteal,fill=pdteal!3,line width=.85pt]
+    (\dcPayloadLeft,\dcPayloadTop)--({\dcPayloadRight-9},\dcPayloadTop)
+    --(\dcPayloadRight,{\dcPayloadTop+9})
+    --(\dcPayloadRight,\dcPayloadBottom)--(\dcPayloadLeft,\dcPayloadBottom)--cycle;
+  \draw[pdteal,line width=.65pt]
+    ({\dcPayloadRight-9},\dcPayloadTop)--({\dcPayloadRight-9},{\dcPayloadTop+9})
+    --(\dcPayloadRight,{\dcPayloadTop+9});
+  \node[anchor=west,font=\pdfiglabelbold] at (30,112) {Signed payload};
+  \node[anchor=east,text=pdinkmuted] at (283,112) {required at each hop};
+
+  % Designed lineage is visibly INSIDE the signed bytes, not a second chain.
+  \path[draw=pdviolet,fill=pdviolet!5,line width=.8pt,dash pattern=on 4pt off 2pt]
+    (\dcLineageLeft,\dcLineageTop) rectangle (\dcLineageRight,\dcLineageBottom);
+  \node[anchor=west,font=\pdfiglabelbold] at (41,145) {Coordination lineage};
+  \node[anchor=east,text=pdviolet] at (279,145) {Designed};
+  \node[anchor=west] at (41,163) {loop detection \textperiodcentered\ upward block};
+  \path[draw=pdrust,fill=pdrust!6,line width=.65pt]
+    (41,179) rectangle (279,198);
+  \node[anchor=west] at (49,188.5) {task shape};
+  \node[anchor=east,text=pdrust] at (271,188.5) {equivalence open};
+\end{tikzpicture}
+}
+\caption{The designed coordination lineage must be carried inside each signed
+authorization hop. Authenticating its bytes does not establish semantic task
+equivalence.}
+\label{fig:swk-delegation-chains}
+\end{figure}

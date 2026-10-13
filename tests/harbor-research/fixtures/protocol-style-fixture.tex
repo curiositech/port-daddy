@@ -1,0 +1,202 @@
+% Authored layout specimen, not scientific prose or full-Book acceptance.
+\makeatletter
+\newcount\protocolglyphcount
+\let\protocolsavedglyph\pdblockglyph
+\renewcommand{\pdblockglyph}[1]{%
+  \global\advance\protocolglyphcount by 1
+  \protocolsavedglyph{#1}}
+\newcommand{\protocolbodyparagraph}{%
+  \ifvmode\else\PackageError{protocol-fixture}{Protocol heading did not end its paragraph}{}\fi
+  \if@inlabel\PackageError{protocol-fixture}{Deferred protocol heading still pending}{}\fi
+  \ifx\protocolsavedbegin\@begintheorem\else
+    \PackageError{protocol-fixture}{Theorem entry not restored before protocol body}{}\fi
+  \ifx\protocolsavedhead\thmhead\else
+    \PackageError{protocol-fixture}{Theorem heading renderer not restored before body}{}\fi
+  \typeout{PROTOCOL BODY PARAGRAPH}}
+\newcommand{\protocolcount}[2]{%
+  \ifnum\value{#1}=#2\relax\else
+    \PackageError{protocol-fixture}{Counter #1 changed unexpectedly}{Expected #2.}\fi}
+\newcommand{\protocolsavestate}{%
+  \let\protocolsavedbegin\@begintheorem
+  \let\protocolsavedhead\thmhead
+  \let\protocolsavedproof\proof
+  \expandafter\let\expandafter\protocolsavedproofimpl\csname\string\proof\endcsname
+  \let\protocolsavedplain\th@plain
+  \let\protocolsaveddefinition\th@definition
+  \edef\protocolsavedfont{\fontname\font}%
+  \edef\protocolsavedright{\the\rightskip}%
+  \edef\protocolsavedcolor{\csname current@color\endcsname}%
+  \edef\protocolsavedleading{\the\baselineskip}%
+  \edef\protocolsavedclub{\the\clubpenalty}%
+  \edef\protocolsavedwidow{\the\widowpenalty}}
+\newcommand{\protocolcheckstate}{%
+  \ifx\protocolsavedbegin\@begintheorem\else
+    \PackageError{protocol-fixture}{Theorem entry patch leaked}{}\fi
+  \ifx\protocolsavedhead\thmhead\else
+    \PackageError{protocol-fixture}{Theorem heading renderer leaked}{}\fi
+  \ifx\protocolsavedproof\proof\else
+    \PackageError{protocol-fixture}{Proof entry changed}{}\fi
+  \expandafter\ifx\csname\string\proof\endcsname\protocolsavedproofimpl\else
+    \PackageError{protocol-fixture}{Proof implementation changed}{}\fi
+  \ifx\protocolsavedplain\th@plain\else
+    \PackageError{protocol-fixture}{Plain theorem style changed}{}\fi
+  \ifx\protocolsaveddefinition\th@definition\else
+    \PackageError{protocol-fixture}{Definition style changed}{}\fi
+  \edef\protocolcurrentfont{\fontname\font}%
+  \edef\protocolcurrentright{\the\rightskip}%
+  \edef\protocolcurrentcolor{\csname current@color\endcsname}%
+  \edef\protocolcurrentleading{\the\baselineskip}%
+  \edef\protocolcurrentclub{\the\clubpenalty}%
+  \edef\protocolcurrentwidow{\the\widowpenalty}%
+  \ifx\protocolsavedfont\protocolcurrentfont\else
+    \PackageError{protocol-fixture}{Font scope leaked}{}\fi
+  \ifx\protocolsavedright\protocolcurrentright\else
+    \PackageError{protocol-fixture}{Alignment scope leaked}{}\fi
+  \ifx\protocolsavedcolor\protocolcurrentcolor\else
+    \PackageError{protocol-fixture}{Color scope leaked}{}\fi
+  \ifx\protocolsavedleading\protocolcurrentleading\else
+    \PackageError{protocol-fixture}{Line spacing scope leaked}{}\fi
+  \ifx\protocolsavedclub\protocolcurrentclub\else
+    \PackageError{protocol-fixture}{Club penalty leaked}{}\fi
+  \ifx\protocolsavedwidow\protocolcurrentwidow\else
+    \PackageError{protocol-fixture}{Widow penalty leaked}{}\fi
+  \typeout{PROTOCOL SCOPE RESTORED}}
+\makeatother
+\section{Four protocol forms}
+This is an open-font layout specimen, not a claim about a deployed protocol.
+\begin{theorem}[Ordinary theorem before]\label{fixture:before}
+This ordinary theorem has its own counter and no protocol adornment.
+\end{theorem}
+\protocolsavestate
+\begin{lsprotocol}{Required title with a deliberately long subtitle to exercise wrapping inside its own paragraph group}
+\label{fixture:ls}
+\protocolbodyparagraph
+Required-title protocol body. The heading may be ragged right, but this body
+must restore normal paragraph alignment.
+\makeatletter
+\edef\protocolbodyright{\the\rightskip}
+\ifx\protocolsavedright\protocolbodyright\else
+  \PackageError{protocol-fixture}{Heading alignment leaked into body}{}\fi
+\makeatother
+\end{lsprotocol}
+\protocolcheckstate
+\protocolcount{lsprotocol}{1}\protocolcount{protocol}{0}
+\protocolcount{heprotocol}{0}\protocolcount{stpprotocol}{0}
+\begin{stpprotocol}[Optional title]\label{fixture:stp}
+\protocolbodyparagraph
+Optional-title body.
+\end{stpprotocol}
+\protocolcheckstate
+\begin{stpprotocol}\label{fixture:stp-none}
+\protocolbodyparagraph
+Omitted title does not create empty parentheses.
+\end{stpprotocol}
+\protocolcheckstate
+\begin{stpprotocol}[]\label{fixture:stp-empty}
+\protocolbodyparagraph
+Explicitly empty optional title has the same heading grammar.
+\end{stpprotocol}
+\protocolcheckstate
+\begin{protocol}[Generic subtitle]\label{fixture:generic}
+\protocolbodyparagraph
+The generic amsthm protocol retains its own counter and reference anchor.
+\end{protocol}
+\protocolcheckstate
+\begin{heprotocol}[Economic subtitle]\label{fixture:he}
+\protocolbodyparagraph
+The second amsthm protocol has an independent counter.
+\end{heprotocol}
+\protocolcheckstate
+\protocolcount{lsprotocol}{1}\protocolcount{stpprotocol}{3}
+\protocolcount{protocol}{1}\protocolcount{heprotocol}{1}
+\begin{theorem}[Ordinary theorem after]\label{fixture:after}
+This unframed ordinary theorem follows all four protocol families.
+\end{theorem}
+\protocolcount{theorem}{2}
+% Baseline amsthm defers its anchor; reserve this unrelated control as a unit.
+\Needspace{5\baselineskip}
+\begin{definition}[Ordinary definition]\label{fixture:definition}
+An ordinary definition does not inherit the protocol glyph or frame.
+\end{definition}
+\section{Continuous split and counter reset}
+All four protocol counters reset on a new section.
+\protocolcount{lsprotocol}{0}\protocolcount{stpprotocol}{0}
+\protocolcount{protocol}{0}\protocolcount{heprotocol}{0}
+\protocolsavestate
+\begin{lsprotocol}{Long continuous frame}\label{fixture:long}
+\protocolbodyparagraph
+LONG-START. A single protocol now crosses several page boundaries naturally.
+\newcount\protocolparagraph
+\protocolparagraph=0
+\loop\ifnum\protocolparagraph<45
+  \advance\protocolparagraph by 1
+  \par\noindent Segment \the\protocolparagraph.
+  This authored specimen supplies ordinary prose to test continuous framing
+  across page boundaries. Each segment must keep its perimeter and corner
+  marks without shrinking the text. The words make no empirical claim.
+  The reference to Protocol~\ref{fixture:ls} must retain its original anchor.
+\repeat
+\par LONG-END.\label{fixture:long-end}
+\end{lsprotocol}
+\protocolcheckstate
+\begin{protocol}\label{fixture:generic-reset}\protocolbodyparagraph Counter reset without a title.\end{protocol}
+\begin{heprotocol}\label{fixture:he-reset}\protocolbodyparagraph Independent reset without a title.\end{heprotocol}
+\begin{stpprotocol}\label{fixture:stp-reset}\protocolbodyparagraph Custom counter reset.\end{stpprotocol}
+\protocolcheckstate
+\begin{theorem}[Restoration after long frame]\label{fixture:restored}
+RESTORATION. Ordinary theorem prose and references remain intact.
+\end{theorem}
+References: \ref{fixture:before}, \ref{fixture:ls}, \ref{fixture:stp},
+\ref{fixture:stp-none}, \ref{fixture:stp-empty}, \ref{fixture:generic},
+\ref{fixture:he}, \ref{fixture:after}, \ref{fixture:long},
+\ref{fixture:generic-reset}, \ref{fixture:he-reset}, \ref{fixture:stp-reset},
+\ref{fixture:restored}.
+
+\clearpage
+\section{List-first protocol bodies}
+Each list marker and its first body word must start below the whole heading.
+\protocolsavestate
+\newcommand{\protocolfirstlist}[2]{%
+  \protocolbodyparagraph
+  \begin{enumerate}[label={#1},leftmargin=3.4em,nosep]
+    \item #2 body starts with a real list item, not a prefixed paragraph.
+  \end{enumerate}}
+\begin{protocol}[Generic list title]\label{fixture:list-generic}
+\protocolfirstlist{P1.}{GenericListNamed}
+\begin{remark}[Nested]
+NestedSentinel remains run-in even inside a protocol body.
+\end{remark}
+\end{protocol}\protocolcheckstate
+\begin{protocol}\label{fixture:list-generic-none}
+\protocolfirstlist{P2.}{GenericListBare}
+\end{protocol}\protocolcheckstate
+\begin{heprotocol}[Economic list title]\label{fixture:list-he}
+\protocolfirstlist{H1.}{EconomicListNamed}
+\end{heprotocol}\protocolcheckstate
+\begin{heprotocol}\label{fixture:list-he-none}
+\protocolfirstlist{H2.}{EconomicListBare}
+\end{heprotocol}\protocolcheckstate
+\begin{lsprotocol}{Required list title with a deliberately long subtitle to test the complete wrapped heading before the marker}
+\label{fixture:list-ls}\protocolfirstlist{L1.}{RequiredListNamed}
+\end{lsprotocol}\protocolcheckstate
+\begin{lsprotocol}{}\label{fixture:list-ls-empty}
+\protocolfirstlist{L2.}{RequiredListEmpty}
+\end{lsprotocol}\protocolcheckstate
+\begin{stpprotocol}[Optional list title]\label{fixture:list-stp}
+\protocolfirstlist{S1.}{OptionalListNamed}
+\end{stpprotocol}\protocolcheckstate
+\begin{stpprotocol}[]\label{fixture:list-stp-empty}
+\protocolfirstlist{S2.}{OptionalListEmpty}
+\end{stpprotocol}\protocolcheckstate
+\protocolcount{protocol}{2}\protocolcount{heprotocol}{2}
+\protocolcount{lsprotocol}{2}\protocolcount{stpprotocol}{2}
+\begin{theorem}[Unchanged]\label{fixture:list-restored}
+OrdinarySentinel remains run-in in this protocol-only slice.
+\end{theorem}
+\begin{proof}[Proof]
+ProofSentinel also retains the baseline run-in form.
+\end{proof}
+\protocolcheckstate
+\ifnum\protocolglyphcount=18\relax\else
+  \PackageError{protocol-fixture}{Protocol glyph leaked or disappeared}{Expected exactly 18.}\fi
+\typeout{PROTOCOL GLYPH COUNT: \the\protocolglyphcount}

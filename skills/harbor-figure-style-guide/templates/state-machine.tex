@@ -1,0 +1,66 @@
+% TEMPLATE: State Machine / Guarded Automaton
+% Standard: Harbor Figure Language v2 (Swiss typography, standard weight ladder)
+% Clearance Invariants: Exterior edge routing, curved opposite transitions, knockout labels.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 7.6);
+
+  % 1. States (Nodes)
+  % Initial State (Unclaimed)
+  \node[pd state, text width=2.1cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (unclaimed) at (1.4, 5.0) {
+    \textbf{Unclaimed}\\[1pt]
+    {\pdfigsub idle $\cdot$ free}
+  };
+
+  % Active Focus State (Leased)
+  \node[pd focus state, text width=2.2cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (leased) at (5.7, 5.0) {
+    \textbf{\color{pdcobalt}Leased}\\[1pt]
+    {\pdfigsub epoch $e$}
+  };
+
+  % Success Terminal State (Committed)
+  \node[pd state, draw=pdhealth, fill=pdhealth!8, text width=2.1cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (committed) at (10.0, 5.0) {
+    \textbf{\color{pdhealth}Committed}\\[1pt]
+    {\pdfigsub write sealed}
+  };
+
+  % Failure Terminal State (Revoked / Expired)
+  \node[pd state, draw=pderror, fill=pderror!6, text width=2.4cm, minimum height=1.0cm, align=center, inner xsep=4pt, inner ysep=4pt] (revoked) at (5.7, 2.0) {
+    \textbf{\color{pderror}Revoked}\\[1pt]
+    {\pdfigsub fence: $e+1$}
+  };
+
+  % 2. Transitions & Guarded Edges
+  % Entry into Unclaimed
+  \draw[pd rule, -{Stealth[length=3.5pt,width=2.5pt]}] (0.2, 5.0) -- (unclaimed.west);
+
+  % Unclaimed -> Leased (Curved above)
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}] (unclaimed.east) -- (leased.west)
+    node[pos=0.5, above=2pt, font=\pdfiglabelsize, text=pdcobalt, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{acquire}};
+
+  % Leased -> Leased (Renewal Loop)
+  \draw[pd rule, -{Stealth[length=3.5pt,width=2.5pt]}] (leased.north) .. controls +(0.8, 1.8) and +(-0.8, 1.8) .. (leased.north)
+    node[pos=0.5, above=2pt, font=\pdfiglabelsize, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{heartbeat}};
+
+  % Leased -> Committed
+  \draw[pd focus rule, -{Stealth[length=3.5pt,width=2.5pt]}, draw=pdhealth] (leased.east) -- (committed.west)
+    node[pos=0.5, above=2pt, font=\pdfiglabelsize, text=pdhealth, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{commit}};
+
+  % Leased -> Revoked (Timeout / Fence)
+  \draw[pd breach rule, -{Stealth[length=3.5pt,width=2.5pt]}] (leased.south) -- (revoked.north)
+    node[pos=0.5, right=3pt, font=\pdfiglabelsize, text=pderror, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{timeout}};
+
+  % Revoked -> Unclaimed (Clean Recovery)
+  \draw[pd rule, dashed, -{Stealth[length=3.5pt,width=2.5pt]}] (revoked.west) -| (unclaimed.south)
+    node[pos=0.3, below=2pt, font=\pdfiglabelsize, fill=pdpage, inner xsep=4pt, inner ysep=3.5pt] {\texttt{reclaim}};
+
+  % 3. Bottom Invariant Banner
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.45) {
+    \textbf{State Transition Invariant:} Active execution requires an unexpired lease ($TTL > 0$). Transitions to terminal states advance the epoch to prevent ghost revivals.
+  };
+\end{tikzpicture}
+\caption{State machine of resource lease lifecycle. Transitions are strictly guarded by lease TTL and monotonic epoch verification. Terminal transitions seal commits or advance fencing counters to isolate stalled agents. [template, State Machine]}
+\label{fig:template-state-machine}
+\end{figure}

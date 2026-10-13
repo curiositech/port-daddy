@@ -1,0 +1,124 @@
+{
+  "_comment": "Minimal ComfyUI API-format workflow: FLUX.1 dev GGUF Q4_K_M + TeaCache. Loaders set to placeholder model names; replace with your actual filenames. POST this object's value (not the wrapper) to /prompt.",
+  "_recipe": "See ../references/workflow-recipes.md Recipe 1.",
+  "_required_custom_nodes": [
+    "city96/ComfyUI-GGUF",
+    "welltop-cn/ComfyUI-TeaCache"
+  ],
+  "_required_models": {
+    "models/unet/": ["flux1-dev-Q4_K_M.gguf"],
+    "models/clip/": ["t5xxl-Q4_K_M.gguf", "clip_l.safetensors"],
+    "models/vae/": ["ae.safetensors"]
+  },
+  "prompt": {
+    "1": {
+      "class_type": "UnetLoaderGGUF",
+      "inputs": {
+        "unet_name": "flux1-dev-Q4_K_M.gguf"
+      }
+    },
+    "2": {
+      "class_type": "DualCLIPLoaderGGUF",
+      "inputs": {
+        "clip_name1": "t5xxl-Q4_K_M.gguf",
+        "clip_name2": "clip_l.safetensors",
+        "type": "flux"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "ae.safetensors"
+      }
+    },
+    "4": {
+      "class_type": "ApplyTeaCache",
+      "inputs": {
+        "model": ["1", 0],
+        "rel_l1_thresh": 0.4,
+        "max_skip_steps": 3
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": "a cinematic close-up portrait of a woman in soft golden hour light, autumn forest in background, 35mm film, shallow depth of field"
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": ""
+      }
+    },
+    "7": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": ["5", 0],
+        "guidance": 3.5
+      }
+    },
+    "8": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "9": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "10": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": ["4", 0],
+        "scheduler": "simple",
+        "steps": 20,
+        "denoise": 1.0
+      }
+    },
+    "11": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 42
+      }
+    },
+    "12": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": ["4", 0],
+        "conditioning": ["7", 0]
+      }
+    },
+    "13": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["11", 0],
+        "guider": ["12", 0],
+        "sampler": ["9", 0],
+        "sigmas": ["10", 0],
+        "latent_image": ["8", 0]
+      }
+    },
+    "14": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["3", 0]
+      }
+    },
+    "15": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["14", 0],
+        "filename_prefix": "flux_dev"
+      }
+    }
+  }
+}

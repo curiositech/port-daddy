@@ -1,0 +1,595 @@
+{
+  "copied": [
+    {
+      "skill": "nau-au-kuter-2003-shop2",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/decomposer.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/premortem.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/sensemaker.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/skill-selector.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "agents/synthesizer.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "examples/01-feature-delivery-happy-path.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "examples/02-debugging-blackboard-shape.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "examples/03-halt-gate-tripped.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "examples/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/failure-modes.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/halt-gate-discipline.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/modify-vs-restart.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/runtime-honesty.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/skill-narrowing-cascade.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "references/triple-feedback-loop.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/decomposer-output.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/human-feedback.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/predicted-dag.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/premortem-output.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/sensemaker-output.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "schemas/triple.schema.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "scripts/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "scripts/dump-attribution.ts"
+    },
+    {
+      "skill": "next-move",
+      "path": "scripts/replay-triple.sh"
+    },
+    {
+      "skill": "next-move",
+      "path": "scripts/validate-prediction.sh"
+    },
+    {
+      "skill": "next-move",
+      "path": "templates/INDEX.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "templates/halt-gate-response.template.md"
+    },
+    {
+      "skill": "next-move",
+      "path": "templates/modify-record.template.json"
+    },
+    {
+      "skill": "next-move",
+      "path": "templates/predicted-dag.template.json"
+    },
+    {
+      "skill": "olog-construction",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "olog-construction",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "olog-construction",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "olog-construction",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "ongaro-ousterhout-2014-raft",
+      "path": "diagrams/02_sequenceDiagram_log_replication_protocol:_happ.md"
+    },
+    {
+      "skill": "ongaro-ousterhout-2014-raft",
+      "path": "diagrams/03_mindmap_decomposition_hierarchy:_raft'.md"
+    },
+    {
+      "skill": "operad-task-decomposition",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "operad-task-decomposition",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "operad-task-decomposition",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "operad-task-decomposition",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "ostrom-commons-governance",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "ostrom-commons-governance",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "ostrom-commons-governance",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "ostrom-commons-governance",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "park-2023-generative-agents",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "political-philosophy-of-computation",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "productive-discourse-facilitator",
+      "path": "references/playbooks/couples-early-recovery.md"
+    },
+    {
+      "skill": "productive-discourse-facilitator",
+      "path": "references/playbooks/sac.md"
+    },
+    {
+      "skill": "productive-discourse-facilitator",
+      "path": "references/theory/dialog-vs-debate.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "references/INDEX.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "references/deontic-logic-for-agents.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "references/formaljudge-zhou-2026.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "references/lean-agent-pattern.md"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": "references/runtime-vs-offline-verification.md"
+    },
+    {
+      "skill": "proverif-tamarin-protocol-modeling",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "proverif-tamarin-protocol-modeling",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "proverif-tamarin-protocol-modeling",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "proverif-tamarin-protocol-modeling",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "rao-georgeff-1991-modeling-rational-agents-bdi",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "runtime-verification-for-agents",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "runtime-verification-for-agents",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "runtime-verification-for-agents",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "runtime-verification-for-agents",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "references/INDEX.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "references/coordination-integration.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "references/dependency-graph-recipes.md"
+    },
+    {
+      "skill": "semantic-conflict-prediction",
+      "path": "references/tree-sitter-foundations.md"
+    },
+    {
+      "skill": "shoham-leyton-brown-2009-mas-foundations",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "smith-1980-contract-net-protocol",
+      "path": "diagrams/INDEX.md"
+    },
+    {
+      "skill": "steel-man-argument",
+      "path": "references/patterns/relational-usage.md"
+    },
+    {
+      "skill": "steel-man-argument",
+      "path": "references/theory/steelman-vs-strawman.md"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "README.md"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "examples/expected-output.md"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "references/fast-agent-bus.md"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "references/invocation-patterns.md"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "schemas/latency-budget.schema.json"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "scripts/latency_budget.mjs"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": "templates/output-template.md"
+    },
+    {
+      "skill": "swiss-modern-website-design",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "swiss-modern-website-design",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "swiss-modern-website-design",
+      "path": "references/INDEX.md"
+    },
+    {
+      "skill": "tlaplus-practitioner",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "skill": "tlaplus-practitioner",
+      "path": "affordance-scorecard.json"
+    },
+    {
+      "skill": "tlaplus-practitioner",
+      "path": "diagrams/01_flowchart_decision-points.md"
+    },
+    {
+      "skill": "tlaplus-practitioner",
+      "path": "diagrams/INDEX.md"
+    }
+  ],
+  "omitted": [
+    {
+      "skill": "nano-banana-image-gen",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "operator-surface-authority-designer",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "pd-relay-zero-trust",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-agent-skill",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-agent-skill",
+      "path": "scripts/.DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-agent-skill",
+      "path": "scripts/__pycache__/emit_agent_handoff.cpython-314.pyc",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-agent-skill",
+      "path": "scripts/__pycache__/validate_port_daddy_agent_skill.cpython-314.pyc",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-expository-writer",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-internal-dev",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "port-daddy-users",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "premium-deck-builder",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "product-reality-reviewer",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "product-roadmap-focus",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "provable-action-adjudicator",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "redteam-review",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "resilience-wiring-for-load-once-deps",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "responsible-logging",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "rust-code-testing",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "rust-data-structures-advanced",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "rust-debugging-mastery",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "rust-kernel-ffi",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "rust-performance-and-idioms",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "sandboxed-adversarial-test-harness",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "self-monitoring-resource-alarms",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "sheaf-cohomology-multiagent-debug",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "skill-hygiene",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "sqlite-durable-agent-state",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "stigmergic-diffusion-medium",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "swarm-invocation-designer",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "ui-ux-pro-max",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "ui-ux-pro-max",
+      "path": "data/.DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "ui-ux-pro-max",
+      "path": "scripts/__pycache__/core.cpython-312.pyc",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "ui-ux-pro-max",
+      "path": "scripts/__pycache__/design_system.cpython-312.pyc",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "vibe-project-master-plan",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "wave-by-wave-parley",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "whitehat-defense",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    },
+    {
+      "skill": "work-intake-node-shaping",
+      "path": ".DS_Store",
+      "reason": "machine-junk"
+    }
+  ]
+}

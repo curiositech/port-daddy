@@ -1,0 +1,42 @@
+{
+  "boundary": {
+    "root": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924",
+    "branch": "codex/agent-skills-expansion-20260924",
+    "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/agent-skills-expansion-20260924",
+    "status": ""
+  },
+  "manuscript_hashes": [
+    {
+      "path": "whitepaper/single-writer-kernel.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "matches": true
+    },
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "matches": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "matches": true
+    }
+  ]
+}

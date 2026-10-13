@@ -113,6 +113,15 @@ See `diagrams/01_flowchart_decision-points.md` for the companion routing diagram
 7. Use scoped Bash only when a real local scaffolder or validator exists in the active repo or installed skill library.
 8. Use `WebSearch` and `WebFetch` only when the user explicitly needs current external docs or package guidance.
 
+### Consequential capability contract
+
+Before scaffolding a primitive that can cause an external effect, define the effect
+inventory, credential and policy boundary, stable idempotency identity, independent
+verification source, timeout state, and safe termination behavior. An uncertain remote
+commit is a reconciliation state, not permission to retry. Use a crash/retry/duplicate-
+successor matrix before implementation; escalate when the provider cannot reconcile.
+See `references/effect-boundary-contract.md`.
+
 ## Failure Modes and Common Anti-Patterns
 
 - Creating a new primitive before checking whether an existing one already fits.

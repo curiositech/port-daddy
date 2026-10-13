@@ -1,3 +1,7 @@
+## Scope status
+
+This file is retained as descriptive pattern context only. It does not authorize launching, supervising, stopping agents, selecting a live transport, or claiming latency. Current canonical scope is the static controller-owned contract in `SKILL.md`; dynamic operation needs separate authority and evidence. Any numeric latency example is unvalidated until measured locally.
+
 # Swarm Invocation Patterns
 
 Use this when designing the operator-facing "summon agents" action.

@@ -720,3 +720,23 @@ describe('the public-read check needs no credentials and verifies bytes', () => 
     }
   });
 });
+
+
+describe('media LFS hydration is bounded and fail closed', () => {
+  test('fetches only declared review-media roots, overriding inherited exclusions', async () => {
+    const { hydrateMedia } = await import('../../scripts/hydrate-r2-media.mjs');
+    const calls = [];
+    hydrateMedia('/fixture/repo', { run: (...args) => calls.push(args) });
+    expect(calls).toEqual([['git', [
+      'lfs', 'pull', `--include=${OFFLOAD_ROOTS.map((root) => `${root}**`).join(',')}`, '--exclude=',
+    ], { cwd: '/fixture/repo', stdio: 'inherit' }]]);
+    expect(calls[0][1][2]).not.toContain('whitepaper/');
+    expect(calls[0][1][2]).not.toContain('website-v2/public/');
+  });
+
+  test('propagates missing tooling or unavailable objects instead of continuing', async () => {
+    const { hydrateMedia } = await import('../../scripts/hydrate-r2-media.mjs');
+    const failure = new Error('LFS object unavailable');
+    expect(() => hydrateMedia('/fixture/repo', { run: () => { throw failure; } })).toThrow(failure);
+  });
+});

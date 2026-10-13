@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 
 import { buildStoryMatrix } from '../../skills/agentic-coding-product-research/scripts/story_matrix.mjs';
 import { scoreMagicProgression } from '../../skills/agentic-coding-ux-designer/scripts/magic_progression_score.mjs';
-import { evaluateLatencyBudget } from '../../skills/swarm-invocation-designer/scripts/latency_budget.mjs';
 import { evaluateTrajectorySuite } from '../../skills/agent-rl-sandbox-trainer/scripts/trajectory_eval_harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -93,39 +92,6 @@ describe('agentic coding skill helpers', () => {
     });
     expect(noneRollback.pass).toBe(false);
     expect(noneRollback.steps[0].missingSignals).toContain('rollback');
-  });
-
-  test('evaluateLatencyBudget separates IPC hot paths from durable Internet Computer paths', () => {
-    const ipc = evaluateLatencyBudget({
-      name: 'agent-bus',
-      targetP95Ms: 20,
-      icpMeaning: 'ipc',
-      channels: [
-        { name: 'mailbox', role: 'hot', transport: 'unix-socket', p95Ms: 2 },
-        { name: 'receipt-log', role: 'durable', transport: 'sqlite', p95Ms: 8, durable: true },
-      ],
-      messages: [{ name: 'tool-intent', actualBytes: 512, maxBytes: 1024, schema: 'tool-intent.v1' }],
-    });
-    const internetComputer = evaluateLatencyBudget({
-      name: 'settlement',
-      targetP95Ms: 10,
-      icpMeaning: 'internet-computer',
-      channels: [{ name: 'canister', role: 'hot', transport: 'icp-consensus', p95Ms: 2000 }],
-      messages: [{ name: 'full-context', actualBytes: 8192, maxBytes: 1024 }],
-    });
-
-    expect(ipc.pass).toBe(true);
-    expect(ipc.icpGuidance).toContain('lightning-fast');
-    expect(internetComputer.pass).toBe(false);
-    expect(internetComputer.icpGuidance).toContain('poor hot path');
-    expect(() => evaluateLatencyBudget({})).toThrow(/plan.name is required/);
-    expect(() =>
-      evaluateLatencyBudget({
-        name: 'bad-latency',
-        targetP95Ms: 10,
-        channels: [{ name: 'hot', role: 'hot', transport: 'loopback', p95Ms: 'fast' }],
-      }),
-    ).toThrow(/channels\[0\]\.p95Ms/);
   });
 
   test('evaluateTrajectorySuite scores artifact-backed traces and validated unhooks', () => {
@@ -296,15 +262,6 @@ describe('agentic coding skill helpers', () => {
             steps: [{ label: 'Review diff', friction: 1, context: true, visibleProgress: true, rollback: true, humanGate: true, receipt: true }],
           },
           expectKey: 'score',
-        },
-        {
-          script: join(repo, 'skills/swarm-invocation-designer/scripts/latency_budget.mjs'),
-          input: {
-            name: 'bus',
-            targetP95Ms: 25,
-            channels: [{ name: 'hot', role: 'hot', transport: 'unix-socket', p95Ms: 2 }],
-          },
-          expectKey: 'hotP95Ms',
         },
         {
           script: join(repo, 'skills/agent-rl-sandbox-trainer/scripts/trajectory_eval_harness.mjs'),

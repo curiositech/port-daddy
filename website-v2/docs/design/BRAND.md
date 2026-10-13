@@ -50,10 +50,38 @@ for the dogfooded coordination vocabulary.
 | `--story-rust-on-tint` | `#5a3210` | Rust on tinted wells |
 | `--story-gold` | `#666a00` | Gold — L3 economy/value, the market (62°; not the warning amber) |
 | `--story-gold-on-tint` | `#4d5000` | Gold on tinted wells |
+| `--story-slate` | `#384856` | Slate — Foundation / Bedrock, prerequisites (208°, deep mineral slate) |
+| `--story-slate-on-tint` | `#26323c` | Slate on tinted wells |
 | `--print-swiss-blue` | `#001489` | Reflex Blue — the Book's Swiss edition, Part I ink (print only; nearest Pantone Reflex Blue C) |
 | `--print-swiss-violet` | `#582c83` | Konkret Violet — the Book's Swiss edition, Part III ink (print only; nearest Pantone 268 C) |
 | `--print-swiss-red` | `#da291c` | Signal red — the Book's Swiss edition, one reserved mark (print only; Pantone 485 C) |
 | `--print-maritime-gold` | `#805a14` | Antique gold — the Book's maritime edition, trim and rules (print only; a flat stand-in for a metallic gold pass, Pantone 872 C). 5.35:1 on `--surface-base` #f2eee6 and 5.80:1 on the plate paper #fbf7ef, and ΔE2000 15.6 from `--story-gold`, which it never sits beside: gold-the-ink is plate trim and opener ornament, gold-the-story-colour is the market. |
+
+### Book semantic blocks
+
+The semantic-block helper has its own nine-role edge vocabulary. These tokens
+are independent of the Port Daddy brand/story palette and are used only for a
+full-strength perimeter around a block plus the helper's two-percent role tint;
+they never carry body text. The two `pd-semantic-blocks.tex` copies are bound
+to this registry by `check-figure-palette.mjs`, including exact role names,
+values, and byte-identical mirrors.
+
+| Token | Hex | Edge role |
+|---|---|---|
+| `--book-block-proof` | `#b33f35` | Proof, theorem, lemma, proposition, corollary |
+| `--book-block-property` | `#7048a5` | Property |
+| `--book-block-hypothesis` | `#427a26` | Empirical hypothesis |
+| `--book-block-calculation` | `#946000` | Numbers by hand |
+| `--book-block-invariant` | `#233a76` | Design invariant |
+| `--book-block-definition` | `#3d454b` | Definition |
+| `--book-block-checked` | `#006ea0` | Model-checked property |
+| `--book-block-protocol` | `#007d73` | Protocol |
+| `--book-block-neutral` | `#363b40` | Unclassified or neutral block |
+
+The guard measures these as nontext edge inks against the page, white, and the
+actual two-percent role field. Icons, labels, and block geometry remain
+necessary meaning cues; the colors are not a confidence scale and are not a
+print or color-vision certification.
 
 ### Dark theme
 
@@ -84,6 +112,8 @@ for the dogfooded coordination vocabulary.
 | `--story-rust-on-tint` | `#d6b697` | Rust on tinted wells |
 | `--story-gold` | `#d8dd3c` | Luminous gold — economy/value |
 | `--story-gold-on-tint` | `#f5fa78` | Gold on tinted wells |
+| `--story-slate` | `#8fa1b3` | Luminous slate — foundation |
+| `--story-slate-on-tint` | `#b8c8d8` | Slate on tinted wells |
 
 ## Voice + signal vocabulary
 
@@ -117,6 +147,7 @@ truth to a market of trusted persons.
 | 64° lime | `--chart-yellow` `#cad900` | — | highlight tier in diagrams (no semantic role) |
 | 150° sage | `--story-health` `#1f7a4d` | L1 | ready / coordinated — agents in good standing, healthy fleet |
 | 173° teal | `--brand-accent` `#006b5f` | L2 | **legibility** — the product itself; the digest-with-zoom |
+| 208° slate | `--story-slate` `#384856` | Foundation | **prerequisites / bedrock** — the physical and theoretical ground beneath the kernel |
 | 220° cobalt | `--brand-primary` `#003fb8` | L0 | **truth / kernel** — the SQLite source of truth, the daemon |
 | 236° indigo | `--story-indigo` `#353a85` | L1→L3 | protocol / federation — the rules of the road across harbors |
 | 289° violet | `--story-violet` `#933fa5` | L3 | **identity / continuity** — memory → checkpoint → a *person* |
@@ -190,7 +221,7 @@ verify against this doc and `tokens.semantic.css` before acting.
 ## Visual language
 
 - **Flat, not skeuomorphic.** All `--shadow-*` tokens are `none`. Separation comes from 2px borders, alternating surfaces, and spacing — never raised drop-shadows.
-- **Hard borders are load-bearing.** Sections, panels, and cards use `border-2 border-[var(--border-strong)]`. This is the figure-ground mechanism. Don't add rounded corners (`rounded-2xl`/`rounded-full`) unless rendering a system primitive (avatar, badge) that genuinely calls for it.
+- **Hard borders carry the structure.** Sections, panels, and cards use `border-2 border-[var(--border-strong)]`. This is the figure-ground mechanism. Don't add rounded corners (`rounded-2xl`/`rounded-full`) unless rendering a system primitive (avatar, badge) that genuinely calls for it.
 - **Type is editorial.** `--font-display` for headlines, `--font-sans` for body, `--font-mono` for command/code/channel strings. Sizes through `--type-*` tokens.
 - **Illustration is architectural-blueprint.** Crisp linework, hatching for shading, hand-lettered italic labels. Not painterly cinematic. Canonical reference: `public/img/generated/_brand-reference/style-ref-blueprint.png` (not yet shipped — generate and commit when the next blueprint illustration lands).
 

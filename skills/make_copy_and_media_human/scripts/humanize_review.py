@@ -12,9 +12,9 @@ Stdlib only. Two detection layers:
 THREE THINGS THIS SCRIPT BELIEVES, each of which cost someone a false accusation
 to learn:
 
-  (a) Residue is not style. U+202F before an em dash, `utm_source=chatgpt.com`,
-      and `oaicite` are machine artifacts with essentially no human source. They
-      are reported high, absolutely, with no hedging.
+  (a) Unconverted citation tokens are editing defects in ordinary prose.
+      Unicode spaces also have legitimate locale and typography uses; their
+      presence does not establish copying, AI use, or a need for normalization.
 
   (b) Rhythm is not evidence. Em-dash rate, comma rate, contraction rate and
       sentence-length variance all overlap heavily between models and humans.
@@ -100,7 +100,6 @@ DEFAULT_THRESHOLDS = {
     "unfilled-placeholder-residue": {"min_count": 1},
     "model-markup-residue": {"min_count": 1},
     "ai-default-token-repetition": {"min_count": 3},
-    "eyebrow-with-no-information": {"min_count": 2},
     "pull-quote-that-quotes-nothing": {"min_count": 1},
     "hero-with-nothing-to-look-at": {"min_count": 1},
     "undifferentiated-section-padding": {"min_sections": 4},
@@ -348,11 +347,9 @@ EMOJI_RANGES = (
 # made a single ✓ fire at high severity.
 CHECK_GLYPHS = "✅✔✓☑❌✗✖⚠🔴🟢🟡➡▶🎯💡🔥⭐"
 
-# Invisible codepoints that survive a copy-paste out of a chat UI. U+202F is the
-# strongest single countable tell available: no mainstream keyboard produces it,
-# and no word processor inserts it around a dash. This is residue, not taste.
+# Unicode format characters may be intentional. Inspect rendering and language.
 INVISIBLE_CODEPOINTS = {
-    " ": "U+202F narrow no-break space — chat-UI residue, usually around em dashes",
+    " ": "U+202F narrow no-break space",
     "​": "U+200B zero-width space",
     "‌": "U+200C zero-width non-joiner",
     "﻿": "U+FEFF byte-order mark mid-document",
@@ -631,13 +628,14 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             path, where(lambda l: any(c in l for c in invis), 1),
             "; ".join(f"{n}x {lab}" for n, lab in invis.values()),
             "invisible-unicode-artifacts",
-            "high" if " " in invis else "medium",
-            "Invisible codepoints no keyboard emits. U+202F around an em dash in "
-            "particular is chat-UI residue: the text was pasted out of a model's "
-            "output rather than typed.",
-            "Normalize whitespace before judging anything else: U+202F and U+00A0 "
-            "to a plain space, zero-width characters deleted.",
-            "chatgpt", family="residue"))
+            "low",
+            "Unicode spacing or formatting characters are present. These have "
+            "legitimate locale, line-breaking, and script uses; this is only a "
+            "typography inspection cue, not evidence of copying or AI authorship.",
+            "Inspect the rendered text and language before changing anything. "
+            "Preserve meaningful non-breaking spaces and script joiners; repair "
+            "only a demonstrated formatting defect.",
+            "generic-llm", family="form"))
 
     for tok, label in MARKUP_RESIDUE.items():
         if tok in scan.lower():
@@ -1147,42 +1145,9 @@ def analyze_markup(path, text):
             "treatment and reuse that."))
 
 
-    # ---- the eyebrow that says nothing. The slot exists in the template, so the
-    # generator fills it; the test is whether deleting the string removes a fact.
-    eyebrows = []
-    for m in re.finditer(r"<(p|span|div)\b([^>]*)>([^<]{2,40})</\1>", text, re.I):
-        attrs, txt = m.group(2), m.group(3).strip()
-        looks_eyebrow = re.search(r"uppercase|tracking-[\w\[]|letter-spacing", attrs, re.I) \
-            or (txt.isupper() and 2 <= len(txt) <= 40)
-        if not looks_eyebrow or not txt:
-            continue
-        # An eyebrow earns its place by carrying a specific the headline cannot.
-        # Capitalisation is NOT that signal: "For Modern Teams" is title-cased and
-        # says nothing. Use morphology instead \u2014 a digit, a version, or an acronym
-        # or standard name \u2014 plus the research's own discriminator: an eyebrow
-        # that LINKS somewhere resolves to something a reader can verify.
-        has_fact = bool(re.search(r"\d", txt)) or bool(re.search(r"\b[A-Z]{2,}\b", txt))
-        links = "<a " in m.group(0).lower()
-        if not has_fact and not links:
-            eyebrows.append((text[:m.start()].count("\n") + 1, txt[:40]))
-    if len(eyebrows) >= th("eyebrow-with-no-information", "min_count", 2):
-        out.append(finding(
-            path, eyebrows[0][0],
-            f"{len(eyebrows)} information-free eyebrow label(s): "
-            + ", ".join(f'"{t}"' for _, t in eyebrows[:4]),
-            "eyebrow-with-no-information", "medium",
-            "The small label above a headline, carrying no fact. An eyebrow is an "
-            "editorial device that presumes a hierarchy \u2014 a publication, a section, an "
-            "issue. A page with one section has nothing for it to be above, so the slot "
-            "gets filled because it exists rather than because there is something to put "
-            "in it.",
-            "Delete it and raise the headline; if the page reads identically you have "
-            "proved it was decoration. If you keep one, make it carry the specific the "
-            "headline cannot: a date, a version, a licence, a standard. The rule of thumb "
-            "is that an eyebrow must contain a proper noun, a number, a date or a "
-            "licence. Then delete the eyebrow slot from the component, or the next "
-            "generated section will fill it again.",
-            family="form"))
+    # Eyebrow usefulness is a semantic decision, not a digit/acronym test.
+    # review_learning_structure.py emits title-stack candidates; the judge pass
+    # decides whether each label adds orientation or scope.
 
     # ---- the pull quote that quotes nothing. A pull quote is BY DEFINITION an
     # excerpt of the document it sits in, so this is a provenance check, not taste.
@@ -1700,13 +1665,17 @@ def analyze_exposition(path, lines, tags, body):
             family="form"))
 
     # ---- repo artifacts in outward prose
-    toks = REPO_TOKEN.findall(body)
+    # URL path components are source citations, not repository context.
+    def without_urls(value):
+        return re.sub(r"https?://[^\s<>)]+", "", value)
+
+    toks = REPO_TOKEN.findall(without_urls(body))
     rate = len(toks) / words * 1000
     if len(toks) >= th("repo-context-leak", "min_count", 4) \
        and rate > th("repo-context-leak", "cue_per_1000w", 3.0):
         ex = ", ".join(sorted(set(toks))[:4])
         out.append(finding(
-            path, next((i + 1 for i in prose_idx if REPO_TOKEN.search(lines[i])), 1),
+            path, next((i + 1 for i in prose_idx if REPO_TOKEN.search(without_urls(lines[i]))), 1),
             f"{len(toks)} repo artifacts in prose ({rate:.1f}/1000w): {ex}",
             "repo-context-leak", "medium",
             "File paths, function names, ticket ids and branch names outside a code "
@@ -6178,7 +6147,7 @@ def analyze_file(path, base=None):
 # ------------------------------------------------------------------- report
 
 FAMILY_NOTE = {
-    "residue": "machine artifact — near-zero human source",
+    "residue": "possible unconverted artifact — verify context before editing",
     "form": "grammatical form — measured effect sizes, but humans do this too",
     "rhythm": "rhythm cue — weak alone; meaningful only against this author's baseline",
 }
@@ -6539,7 +6508,8 @@ def run_validate():
         return 1
 
     rc = Path(__file__).resolve().parent / "render_check.py"
-    impl_src = src + (rc.read_text(encoding="utf-8") if rc.exists() else "")
+    impl_src = "\n".join(p.read_text(encoding="utf-8") for p in Path(__file__).parent.glob("*.py")
+                         if p.name != "regenerate_references.py" and not p.name.startswith("test_"))
     mech = [i for i in CATALOG.get("items", [])
             if i.get("detection_type") in ("structural", "rendered")]
     todo = [i["name"] for i in mech if f'"{i["name"]}"' not in impl_src]

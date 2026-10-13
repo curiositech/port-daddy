@@ -1,0 +1,183 @@
+% fig-ch0-arrows-consensus.tex
+% Arrow's Impossibility Theorem in Multi-Agent Consensus
+% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pddoc/.style={draw=pdslate!90!black,line width=0.8pt,fill=white,rounded corners=1pt},
+    gatetemple/.style={draw=pdcobalt!95!black,line width=1pt,fill=pdcobalt!90!black},
+    filebadge/.style={draw=pdslate!80!black,line width=0.7pt,fill=white,rounded corners=1.5pt}
+  }
+
+  % =========================================================================
+  % HELPER: FOLDED DOCUMENT ICON MACRO
+  % =========================================================================
+  % #1=center coordinate, #2=icon macro/content
+  \def\pddrawdoc#1#2{
+    \begin{scope}[shift={#1}]
+      \draw[pddoc] (-0.38, -0.48) -- (-0.38, 0.48) -- (0.16, 0.48) -- (0.38, 0.26) -- (0.38, -0.48) -- cycle;
+      \draw[line width=0.6pt,draw=pdslate!90!black,fill=pdslate!20] (0.16, 0.48) -- (0.16, 0.26) -- (0.38, 0.26);
+      #2
+    \end{scope}
+  }
+
+  % =========================================================================
+  % LEFT: FOUR VOTING ROBOTS (Spatial match to prototype)
+  % =========================================================================
+
+  % Robot 1: Top Standing Robot (x=1.1, y=4.2)
+  \pdrobotbase[0.75]{(1.1, 4.2)}{pdcobalt}
+  % Arm token reaching right
+  \node[circle,draw=pdcobalt!90,line width=0.7pt,fill=white,inner sep=2pt,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pdcobalt}] at (1.8, 3.8) {A};
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink}] at (2.4, 4.5) {Voting tokens};
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (1.6, 4.35) -- (4.4, 4.35);
+
+  % Robot 2: Middle Left (x=0.5, y=2.8)
+  \pdrobotbase[0.75]{(0.5, 2.8)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.7pt,fill=white,inner sep=2pt,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pdcobalt}] at (1.1, 3.0) {A};
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (1.3, 3.1) -- (4.4, 4.15);
+
+  % Robot 3: Lower Left (x=1.0, y=1.4)
+  \pdrobotbase[0.75]{(1.0, 1.4)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.7pt,fill=white,inner sep=2pt,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pdcobalt}] at (1.5, 1.7) {A};
+  \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink},align=center] at (1.5, 0.8) {Voting\\token};
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (1.6, 1.8) -- (2.6, 2.6);
+
+  % Robot 4: Bottom Center (x=2.2, y=0.55)
+  \pdrobotbase[0.75]{(2.2, 0.55)}{pdcobalt}
+  \node[circle,draw=pdcobalt!90,line width=0.7pt,fill=white,inner sep=2pt,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pdcobalt}] at (2.7, 0.8) {A};
+  \draw[pd arrow,line width=0.7pt,pdcobalt] (2.9, 0.9) -- (4.5, 1.15);
+
+  % =========================================================================
+  % CENTER: CANDIDATE CODE & CONDORCET CYCLE (x in [3.0, 7.8])
+  % =========================================================================
+  \node[font=\fontsize{8.0}{9.5}\selectfont\bfseries\color{hhink}] at (5.0, 5.15) {Candidate code};
+
+  % Node Left: Database / Candidate (x=3.0, y=2.7)
+  \pddrawdoc{(3.0, 2.7)}{\pdicongit[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},below=15pt] at (3.0, 2.7) {Database};
+
+  % Node Top: Security Patch A (x=5.0, y=4.2)
+  \pddrawdoc{(5.0, 4.2)}{\pdicongit[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center,below=15pt] at (5.0, 4.2) {Security\\Patch A};
+
+  % Node Right: Database B (x=7.0, y=2.7)
+  \pddrawdoc{(7.0, 2.7)}{\pdicondatabase[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center,below=15pt] at (7.0, 2.7) {Database\\B};
+
+  % Node Bottom: API Gateway C (x=5.0, y=1.2)
+  \pddrawdoc{(5.0, 1.2)}{\pdicongit[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{6.5}{7.8}\selectfont\bfseries\color{hhink},align=center,below=15pt] at (5.0, 1.2) {API Gateway\\C};
+
+  % Red Circular Curved Arrows
+  \draw[pd arrow,line width=1.3pt,pderror] (3.0, 3.3) to[out=90,in=180] (4.45, 4.2);
+  \draw[pd arrow,line width=1.3pt,pderror] (5.55, 4.2) to[out=0,in=90] (7.0, 3.3);
+  \draw[pd arrow,line width=1.3pt,pderror] (7.0, 2.1) to[out=-90,in=0] (5.55, 1.2);
+  \draw[pd arrow,line width=1.3pt,pderror] (4.45, 1.2) to[out=180,in=-90] (3.0, 2.1);
+
+  % Warning hash label
+  \draw[line width=0.5pt,hhink] (4.4, 2.0) -- (3.6, 2.0);
+  \node[anchor=west,font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{hhink}] at (4.4, 2.0) {Warning hash};
+
+  % DEADLOCK DIAGONAL BARRIER across horizontal axis (y=2.7)
+  \begin{scope}
+    % Left segment
+    \pdbarrierline{1.6}{2.7}{2.55}{2.7}
+    % Mid-left segment
+    \pdbarrierline{3.45}{2.7}{4.35}{2.7}
+    % Central Deadlock Pill
+    \node[draw=pderror,line width=0.8pt,fill=white,rounded corners=2pt,font=\fontsize{7.0}{8.2}\selectfont\bfseries\color{pderror},inner xsep=6pt,inner ysep=2.5pt] at (4.85, 2.7) {Deadlock};
+    % Mid-right segment
+    \pdbarrierline{5.35}{2.7}{6.55}{2.7}
+    % Right segment
+    \pdbarrierline{7.45}{2.7}{8.45}{2.7}
+  \end{scope}
+
+  % Arrow from Deadlock to Verification Gate
+  \draw[pd arrow,line width=1.4pt,hhink] (8.55, 2.7) -- (9.1, 2.7);
+
+  % =========================================================================
+  % RIGHT: ARCHITECTURAL VERIFICATION GATE (Temple / Classical Portico)
+  % =========================================================================
+  \node[font=\fontsize{8.0}{9.5}\selectfont\bfseries\color{hhink}] at (10.45, 5.15) {Architectural verification gate};
+
+  \begin{scope}[shift={(10.45, 2.7)}]
+    % Temple Pediment / Roof
+    \fill[pdcobalt!95!black] (-1.4, 2.0) -- (1.4, 2.0) -- (1.3, 1.8) -- (-1.3, 1.8) -- cycle;
+    \fill[pdcobalt!90!black] (-1.35, 1.8) rectangle (1.35, 1.65);
+
+    % Main Gate Chamber Body
+    \fill[pdcobalt!85!black] (-1.25, -1.8) rectangle (1.25, 1.65);
+
+    % Columns / Pillars on Sides
+    \fill[pdcobalt!95!black] (-1.35, -1.8) rectangle (-1.15, 1.65);
+    \fill[pdcobalt!95!black] (1.15, -1.8) rectangle (1.35, 1.65);
+
+    % Temple Base Plinth
+    \fill[pdcobalt!90!black] (-1.4, -1.8) rectangle (1.4, -1.95);
+    \fill[pdcobalt!95!black] (-1.45, -1.95) rectangle (1.45, -2.1);
+
+    % Inner Chamber Title
+    \node[font=\fontsize{6.8}{8.2}\selectfont\bfseries\color{white},align=center] at (0, 1.25) {%
+      Immutable\\write-ahead ledger%
+    };
+
+    % Dropdown entries
+    \draw[fill=white,draw=pdslate!60,line width=0.5pt,rounded corners=1.5pt] (-1.0, 0.55) rectangle (0.8, 0.9);
+    \node[anchor=west,font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{hhink}] at (-0.9, 0.725) {Entry 1};
+    \node[anchor=east,font=\fontsize{5.0}{6.0}\selectfont\color{pdslate!80!black}] at (0.75, 0.725) {$\blacktriangledown$};
+
+    \draw[fill=white,draw=pdslate!60,line width=0.5pt,rounded corners=1.5pt] (-1.0, 0.1) rectangle (0.8, 0.45);
+    \node[anchor=west,font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{hhink}] at (-0.9, 0.275) {Entry 2};
+    \node[anchor=east,font=\fontsize{5.0}{6.0}\selectfont\color{pdslate!80!black}] at (0.75, 0.275) {$\blacktriangledown$};
+
+    \draw[fill=white,draw=pdslate!60,line width=0.5pt,rounded corners=1.5pt] (-1.0, -0.35) rectangle (0.8, 0.0);
+    \node[anchor=west,font=\fontsize{6.0}{7.0}\selectfont\bfseries\color{hhink}] at (-0.9, -0.175) {Entry 3};
+    \node[anchor=east,font=\fontsize{5.0}{6.0}\selectfont\color{pdslate!80!black}] at (0.75, -0.175) {$\blacktriangledown$};
+
+    % Bracket connecting the dropdowns
+    \draw[line width=0.6pt,white] (0.85, 0.725) -- (0.95, 0.725) -- (0.95, -0.175) -- (0.85, -0.175);
+    \draw[line width=0.6pt,white] (0.95, 0.275) -- (1.05, 0.275);
+
+    % Scalloped Certificate Ribbon Seal with Padlock
+    \begin{scope}[shift={(0, -1.05)}]
+      % Ribbon tails hanging down
+      \fill[pdcobalt!60!black] (-0.25, -0.2) -- (-0.35, -0.55) -- (-0.15, -0.45) -- (-0.05, -0.2) -- cycle;
+      \fill[pdcobalt!60!black] (0.25, -0.2) -- (0.35, -0.55) -- (0.15, -0.45) -- (0.05, -0.2) -- cycle;
+      % Star/Scallop outer ring
+      \foreach \a in {0,20,...,340} {
+        \fill[white] (\a:0.42) circle (0.08);
+      }
+      \fill[white] (0, 0) circle (0.40);
+      \draw[dashed,line width=0.5pt,pdcobalt] (0, 0) circle (0.32);
+      % Padlock Icon inside
+      \pdiconlock[0.6]{(0, 0)}
+    \end{scope}
+  \end{scope}
+
+  % =========================================================================
+  % OUTPUT DETERMINISTIC LINEAR ORDERING (A, B, C)
+  % =========================================================================
+  % Arrow and Document A
+  \draw[pd arrow,line width=1.2pt,pderror] (11.85, 3.42) -- (12.45, 3.42);
+  \pddrawdoc{(12.9, 3.42)}{\pdicongit[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] at (13.6, 3.42) {A};
+
+  % Arrow and Document B
+  \draw[pd arrow,line width=1.2pt,pderror] (11.85, 2.7) -- (12.45, 2.7);
+  \pddrawdoc{(12.9, 2.7)}{\pdicondatabase[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] at (13.6, 2.7) {B};
+
+  % Arrow and Document C
+  \draw[pd arrow,line width=1.2pt,pderror] (11.85, 1.98) -- (12.45, 1.98);
+  \pddrawdoc{(12.9, 1.98)}{\pdicongit[0.55]{(0, -0.05)}}
+  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] at (13.6, 1.98) {C};
+
+  % Bottom Label: Deterministic linear ordering
+  \node[font=\fontsize{7.0}{8.5}\selectfont\bfseries\color{hhink},align=center] at (12.9, 1.1) {%
+    Deterministic\\linear ordering%
+  };
+
+\end{tikzpicture}

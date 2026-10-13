@@ -127,10 +127,18 @@ describe('proof-estate corpus manifest', () => {
     expect(easycrypt.evidencePolicy).toMatch(/admit/);
   });
 
-  test('the 19 harbor-results R-scripts are one wired research-program entry', () => {
+  test('the 22 harbor-results R-scripts are one wired research-program entry', () => {
     const rScripts = corpus.researchProgramArtifacts.find((a) => a.id === 'harbor-results-r-scripts');
-    expect(rScripts.paths).toHaveLength(19);
+    expect(rScripts.paths).toHaveLength(22);
+    expect(rScripts.paths).toContain('skills/harbor-results/scripts/sheaf_repair_and_2complex.py');
+    expect(rScripts.paths).toContain('skills/harbor-results/scripts/paper7_failure_cases.py');
     expect(rScripts.ci).toEqual({ status: 'wired', job: ['harbor-results-estate'] });
+  });
+
+  test('the CR4 contract test has its own wired research-program entry', () => {
+    const cr4 = corpus.researchProgramArtifacts.find((a) => a.id === 'harbor-results-cr4-contract');
+    expect(cr4.paths).toEqual(['skills/harbor-results/scripts/test_cr4_contract.py']);
+    expect(cr4.ci).toEqual({ status: 'wired', job: ['harbor-results-estate'] });
   });
 
   test('only threat-bands.mjs is wired; the other three Monte Carlo scripts are retired', () => {

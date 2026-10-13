@@ -29,12 +29,9 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
-| [`centered-hero-three-card-skeleton`](#centered-hero-three-card-skeleton) | HIGH | visual | **no** |
-| [`cream-serif-sage-tasteful-default`](#cream-serif-sage-tasteful-default) | HIGH | visual | **no** |
 | [`emoji-as-ui-icons`](#emoji-as-ui-icons) | HIGH | visual | yes |
 | [`hero-with-nothing-to-look-at`](#hero-with-nothing-to-look-at) | HIGH | form | yes |
 | [`pull-quote-that-quotes-nothing`](#pull-quote-that-quotes-nothing) | HIGH | form | yes |
-| [`purple-blue-gradient-text-headline`](#purple-blue-gradient-text-headline) | HIGH | visual | **no** |
 | [`tailwind-indigo-default-palette`](#tailwind-indigo-default-palette) | HIGH | visual | yes |
 | [`ai-default-token-repetition`](#ai-default-token-repetition) | med | visual | yes |
 | [`allcaps-letterspaced-eyebrow`](#allcaps-letterspaced-eyebrow) | med | visual | **no** |
@@ -46,7 +43,6 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`fixed-section-order`](#fixed-section-order) | med | form | n/a |
 | [`glassmorphism-card-stack`](#glassmorphism-card-stack) | med | visual | **no** |
 | [`inter-geist-default-typeface`](#inter-geist-default-typeface) | med | visual | yes |
-| [`invisible-unicode-artifacts`](#invisible-unicode-artifacts) | med | residue | yes |
 | [`measure-past-75-characters`](#measure-past-75-characters) | med | form | yes |
 | [`mixed-icon-sets-one-view`](#mixed-icon-sets-one-view) | med | visual | **no** |
 | [`numerology-of-three`](#numerology-of-three) | med | form | n/a |
@@ -55,10 +51,14 @@ Severity is how loudly the tell announces itself, never how sure you should be a
 | [`sparkle-motif-for-ai`](#sparkle-motif-for-ai) | med | visual | **no** |
 | [`triplicate-grid`](#triplicate-grid) | med | form | yes |
 | [`undifferentiated-section-padding`](#undifferentiated-section-padding) | med | form | yes |
+| [`centered-hero-three-card-skeleton`](#centered-hero-three-card-skeleton) | low | visual | **no** |
+| [`cream-serif-sage-tasteful-default`](#cream-serif-sage-tasteful-default) | low | visual | **no** |
 | [`dark-mode-radial-glow-blobs`](#dark-mode-radial-glow-blobs) | low | visual | **no** |
 | [`debug-residue-in-production`](#debug-residue-in-production) | low | residue | yes |
+| [`invisible-unicode-artifacts`](#invisible-unicode-artifacts) | low | form | yes |
 | [`obligatory-dual-cta`](#obligatory-dual-cta) | low | form | yes |
 | [`one-family-no-contrast`](#one-family-no-contrast) | low | form | yes |
+| [`purple-blue-gradient-text-headline`](#purple-blue-gradient-text-headline) | low | visual | **no** |
 | [`stock-mesh-gradient-background`](#stock-mesh-gradient-background) | low | visual | **no** |
 | [`uncanny-padding-rhythm-uniformity`](#uncanny-padding-rhythm-uniformity) | low | visual | **no** |
 | [`untouched-default-icon-set`](#untouched-default-icon-set) | low | form | yes |
@@ -69,52 +69,6 @@ Severity is how loudly the tell announces itself, never how sure you should be a
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
-
-<a id="centered-hero-three-card-skeleton"></a>
-### `centered-hero-three-card-skeleton`  ·  high · generic-llm · layout · structural · family: visual
-
-**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
-
-The whole-page template: centered badge pill ('Now in beta'), giant centered headline with one gradient word, one-line subhead, two buttons (solid + ghost), then a 3-column grid of icon-title-blurb cards (icons often emoji). Section order and centering are near-identical across generated sites.
-
-**Why it reads AI:** This is the statistical mean of every landing page in the training set; generators reproduce the skeleton verbatim. The giveaway is that the structure, not just the styling, is interchangeable with a thousand other AI sites.
-
-**Detect:** structural: DOM-pattern match a hero with text-align:center, a pill above an h1, an h1 with a gradient span, a subhead, exactly two sibling CTAs, then a grid-cols-3 of 3-4 icon+heading+paragraph cards. The full sequence co-occurring is the tell.
-
-**Fix:** Break the symmetry: asymmetric/left-aligned hero, a product screenshot or demo doing the talking, one primary CTA, and feature sections with varied layouts (alternating media-text rows, a bento grid) rather than a uniform 3-up.
-
-**False positive when:** A centered hero with three feature cards converts well and is genuinely the right layout for a great many products. Flag it where it is the only layout the page knows -- the tell is the whole-page template with no section that breaks it, not the hero.
-
-**Before**
-
-> Centered 'Now in beta' pill -> 'The future of <gradient>work</gradient>' -> subhead -> Get started + Learn more -> 3 identical icon cards.
-
-**After**
-
-> Left-aligned hero with a live product canvas on the right, one CTA (Start building), then an alternating sequence: a wide demo, a 2x2 bento of differentiated capabilities, a metric strip.
-
-<a id="cream-serif-sage-tasteful-default"></a>
-### `cream-serif-sage-tasteful-default`  ·  high · generic-llm · color · structural · family: visual
-
-**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
-
-The SECOND-generation default: what models produce when you ask them not to look AI-generated. A warm off-white ground (#faf8f5, #f5f1e8, bg-stone-50, bg-amber-50), a display serif (Instrument Serif, Fraunces, Playfair Display, Spectral, Cormorant, DM Serif), and a deep sage or forest primary (#15573a, #1a4d3a, emerald-800).
-
-**Why it reads AI:** It is the model's stored idea of taste, the look of a well-funded 2024 DTC brand, applied without reference to what the product is. A payroll API and a meditation app get the same cream-and-Fraunces treatment, so it reads as a costume rather than an identity.
-
-**Detect:** Grep for those grounds, for the serif list in font imports, and for a primary in the emerald 700-900 band. All three together is close to conclusive.
-
-**Fix:** Treat it as a palette you have to earn. If the product has no reason to be warm, don't be warm. Choose the serif for what it does to your longest headline, and don't pair cream with green unless the brand is about growing things.
-
-**False positive when:** Editorial and publishing sites, food and hospitality, wellness and skincare, independent bookshops. Cream, serif and green is a genuinely correct and long-standing set there. Also any brand whose guidelines predate 2023 and happen to land here.
-
-**Before**
-
-> bg-[#faf8f5], Instrument Serif h1, --primary #15573a, one generated photo of hands holding a ceramic mug.
-
-**After**
-
-> White ground, one grotesque at two optical sizes, the brand's actual color, and a real screenshot of the product.
 
 <a id="emoji-as-ui-icons"></a>
 ### `emoji-as-ui-icons`  ·  high · generic-llm · iconography · structural · family: visual
@@ -188,29 +142,6 @@ A styled pull-quote block containing a sentence that appears nowhere else on the
 **After**
 
 > <figure><blockquote>"We cut a 40-minute maintenance window to zero."</blockquote><figcaption>Priya Raman, Staff SRE, Calder</figcaption></figure>
-
-<a id="purple-blue-gradient-text-headline"></a>
-### `purple-blue-gradient-text-headline`  ·  high · generic-llm · color · structural · family: visual
-
-**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
-
-The headline (or one hero word) uses a linear-gradient clipped to text running indigo-to-violet or violet-to-cyan, with the same gradient on hero buttons and blobs. The 'gradient word' in an otherwise solid headline is a signature move.
-
-**Why it reads AI:** Gradient text was a 2021-2023 SaaS trend the models over-learned; combined with indigo-violet stops it screams template. Real brands use gradient text sparingly with custom stops.
-
-**Detect:** structural: look for `background: linear-gradient(...); -webkit-background-clip: text; color: transparent` or `bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent`, with gradient stops in the indigo/violet/blue hue range (H 220-280). Presence on the H1 is the tell.
-
-**Fix:** Make the headline a solid, confident color. If a gradient is truly wanted, use unexpected stops tied to brand and apply it to one deliberate element, not every accent.
-
-**False positive when:** A brand whose actual palette is violet is entitled to use it, and a gradient chosen against a real brand guideline is a decision rather than a default. Flag the indigo-to-violet default arriving with no brand behind it.
-
-**Before**
-
-> <h1>Build <span class='bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent'>faster</span></h1> with a matching gradient CTA.
-
-**After**
-
-> <h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.
 
 <a id="tailwind-indigo-default-palette"></a>
 ### `tailwind-indigo-default-palette`  ·  high · generic-llm · color · structural · family: visual
@@ -483,35 +414,6 @@ AI site builders default to Inter (or Vercel's Geist) for every text role with n
 
 > Headlines in a high-contrast serif (e.g. GT Sectra) at 600; body in Inter at 400 with -0.011em tracking; clear hierarchy between display and text.
 
-<a id="invisible-unicode-artifacts"></a>
-### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
-
-**Automated here:** yes, these scripts implement it.
-
-**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
-
-Invisible or near-invisible codepoints in the text: U+202F narrow no-break space, zero-width space, word joiner, byte-order mark, soft hyphen. Treat this as evidence the text was PASTED from somewhere, which is not the same as evidence about who wrote it.
-
-**Why it reads AI:** It often doesn't any more. U+202F appeared in o3 and o4-mini output in April 2025 and OpenAI removed it within days, calling it a quirk of large-scale reinforcement learning. As of 2026 no mainstream assistant is known to embed hidden characters deliberately.
-
-**Detect:** Count the codepoints. Useful as a normalization step and as a provenance hint, not as an authorship signal.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
-
-**Fix:** Normalize whitespace before judging anything else, then forget about it. The prose problems are the real work.
-
-**False positive when:** Constantly. Microsoft Word emits U+202F and U+00A0 routinely, LaTeX does, French typography requires U+202F before high punctuation by convention, and every web copy-paste carries non-breaking spaces. This was a genuine tell for roughly a week. Treat a hit as 'this was pasted', never as 'a model wrote this'.
-
-**Evidence:** OpenAI removed the U+202F behavior days after it was noticed in April 2025; contemporaneous reporting notes Word as a routine source of the same character.
-
-**Before**
-
-> A sentence — with residue in it.
-
-**After**
-
-> A sentence — with the residue removed.
-
 <a id="measure-past-75-characters"></a>
 ### `measure-past-75-characters`  ·  medium · generic-llm · typography · rendered · family: form
 
@@ -700,6 +602,56 @@ Every section on the page padded identically. Hero, feature grid, testimonial, F
 
 > Hero py-32, feature grid py-20, and eight of those units between a heading and its own paragraph.
 
+<a id="centered-hero-three-card-skeleton"></a>
+### `centered-hero-three-card-skeleton`  ·  low · generic-llm · layout · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
+The whole-page template: centered badge pill ('Now in beta'), giant centered headline with one gradient word, one-line subhead, two buttons (solid + ghost), then a 3-column grid of icon-title-blurb cards (icons often emoji). Section order and centering are near-identical across generated sites.
+
+**Why it reads AI:** This is the statistical mean of every landing page in the training set; generators reproduce the skeleton verbatim. The giveaway is that the structure, not just the styling, is interchangeable with a thousand other AI sites.
+
+**Detect:** structural: DOM-pattern match a hero with text-align:center, a pill above an h1, an h1 with a gradient span, a subhead, exactly two sibling CTAs, then a grid-cols-3 of 3-4 icon+heading+paragraph cards. The full sequence co-occurring is the tell.
+
+**Fix:** Break the symmetry: asymmetric/left-aligned hero, a product screenshot or demo doing the talking, one primary CTA, and feature sections with varied layouts (alternating media-text rows, a bento grid) rather than a uniform 3-up.
+
+**False positive when:** A centered hero with three feature cards converts well and is genuinely the right layout for a great many products. Flag it where it is the only layout the page knows -- the tell is the whole-page template with no section that breaks it, not the hero.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> Centered 'Now in beta' pill -> 'The future of <gradient>work</gradient>' -> subhead -> Get started + Learn more -> 3 identical icon cards.
+
+**After**
+
+> Left-aligned hero with a live product canvas on the right, one CTA (Start building), then an alternating sequence: a wide demo, a 2x2 bento of differentiated capabilities, a metric strip.
+
+<a id="cream-serif-sage-tasteful-default"></a>
+### `cream-serif-sage-tasteful-default`  ·  low · generic-llm · color · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
+The SECOND-generation default: what models produce when you ask them not to look AI-generated. A warm off-white ground (#faf8f5, #f5f1e8, bg-stone-50, bg-amber-50), a display serif (Instrument Serif, Fraunces, Playfair Display, Spectral, Cormorant, DM Serif), and a deep sage or forest primary (#15573a, #1a4d3a, emerald-800).
+
+**Why it reads AI:** It is the model's stored idea of taste, the look of a well-funded 2024 DTC brand, applied without reference to what the product is. A payroll API and a meditation app get the same cream-and-Fraunces treatment, so it reads as a costume rather than an identity.
+
+**Detect:** Grep for those grounds, for the serif list in font imports, and for a primary in the emerald 700-900 band. All three together is close to conclusive.
+
+**Fix:** Treat it as a palette you have to earn. If the product has no reason to be warm, don't be warm. Choose the serif for what it does to your longest headline, and don't pair cream with green unless the brand is about growing things.
+
+**False positive when:** Editorial and publishing sites, food and hospitality, wellness and skincare, independent bookshops. Cream, serif and green is a genuinely correct and long-standing set there. Also any brand whose guidelines predate 2023 and happen to land here.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> bg-[#faf8f5], Instrument Serif h1, --primary #15573a, one generated photo of hands holding a ceramic mug.
+
+**After**
+
+> White ground, one grotesque at two optical sizes, the brand's actual color, and a real screenshot of the product.
+
 <a id="dark-mode-radial-glow-blobs"></a>
 ### `dark-mode-radial-glow-blobs`  ·  low · generic-llm · color · structural · family: visual
 
@@ -747,6 +699,35 @@ console.log, console.debug and debugger statements on a shipped page.
 **After**
 
 > (removed)
+
+<a id="invisible-unicode-artifacts"></a>
+### `invisible-unicode-artifacts`  ·  low · generic-llm · typography · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
+
+**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
+
+Unicode spacing or formatting characters merit inspection only when they cause a concrete layout or text-processing problem.
+
+**Why it reads AI:** It does not establish AI use. Locale formatting and direct keyboard input can produce these characters.
+
+**Detect:** Count codepoints as an inspection cue; do not infer copying, transformation, or authorship.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Inspect language and rendered output; preserve meaningful non-breaking spaces and script joiners. Repair a demonstrated defect rather than normalizing blindly.
+
+**False positive when:** French locale formatting, Mongolian text, deliberate no-break typography, script shaping, and ordinary authored Unicode text use these characters legitimately.
+
+**Evidence:** Unicode CLDR 34 documents U+202F in French number and unit formatting: https://cldr.unicode.org/downloads/cldr-34
+
+**Before**
+
+> A sentence — with residue in it.
+
+**After**
+
+> A sentence — with the residue removed.
 
 <a id="obligatory-dual-cta"></a>
 ### `obligatory-dual-cta`  ·  low · generic-llm · web-ui · structural · family: form
@@ -797,6 +778,31 @@ Display and body set in the same typeface, differentiated only by size and weigh
 **After**
 
 > A display serif at the headline, the grotesque kept for body.
+
+<a id="purple-blue-gradient-text-headline"></a>
+### `purple-blue-gradient-text-headline`  ·  low · generic-llm · color · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
+The headline (or one hero word) uses a linear-gradient clipped to text running indigo-to-violet or violet-to-cyan, with the same gradient on hero buttons and blobs. The 'gradient word' in an otherwise solid headline is a signature move.
+
+**Why it reads AI:** Gradient text was a 2021-2023 SaaS trend the models over-learned; combined with indigo-violet stops it screams template. Real brands use gradient text sparingly with custom stops.
+
+**Detect:** structural: look for `background: linear-gradient(...); -webkit-background-clip: text; color: transparent` or `bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent`, with gradient stops in the indigo/violet/blue hue range (H 220-280). Presence on the H1 is the tell.
+
+**Fix:** Make the headline a solid, confident color. If a gradient is truly wanted, use unexpected stops tied to brand and apply it to one deliberate element, not every accent.
+
+**False positive when:** A brand whose actual palette is violet is entitled to use it, and a gradient chosen against a real brand guideline is a decision rather than a default. Flag the indigo-to-violet default arriving with no brand behind it.
+
+**Evidence:** Practitioner/editorial hypothesis. No calibrated individual-authorship inference or universal quality threshold is established here. Escalate only after demonstrating a reader or task failure.
+
+**Before**
+
+> <h1>Build <span class='bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent'>faster</span></h1> with a matching gradient CTA.
+
+**After**
+
+> <h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.
 
 <a id="stock-mesh-gradient-background"></a>
 ### `stock-mesh-gradient-background`  ·  low · generic-llm · color · structural · family: visual

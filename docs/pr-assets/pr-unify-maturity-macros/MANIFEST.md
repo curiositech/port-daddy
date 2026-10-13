@@ -2,11 +2,11 @@
 
 One artifact. Provenance per the `agent-visual-evidence-manifest` skill.
 
-## Artifact 1 — `legible-swarm-p62-honest-labels-1x-150dpi.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/56/560457f5250bf595bf5ee4967ec9e0ac3008a2ae20b20df1fdf6221b4c0ad139.png`
 
 The Legible Swarm, Appendix "Implementation and status", page 62 — before and after, side by side.
 
-- File: `docs/pr-assets/pr-unify-maturity-macros/legible-swarm-p62-honest-labels-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/56/560457f5250bf595bf5ee4967ec9e0ac3008a2ae20b20df1fdf6221b4c0ad139.png`
 - Shows: **before** = `legible-swarm-whitepaper.pdf` p.62 built from `origin/main` at `47d900a59`;
   **after** = the same page built from this branch merged onto that same `main`. Both halves are
   64-page builds; the page number does not move.

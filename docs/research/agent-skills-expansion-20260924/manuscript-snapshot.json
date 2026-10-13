@@ -1,0 +1,1581 @@
+{
+  "accessed": "2026-09-24T08:47:09.689099+00:00",
+  "source_root": "/Users/erichowens/coding/port-daddy",
+  "source_cleanliness": "not asserted; primary working bytes read only",
+  "files": [
+    {
+      "chapter": "single-writer-kernel",
+      "path": "whitepaper/single-writer-kernel.tex",
+      "sha256": "666473b5ad3db54a40d8386a923ead47a574e55b1a96132dbda8dcae701e6eea",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "anchor-protocol",
+      "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "sha256": "67f7c74dbf48249f04f5904bd1218fddf1360c7386f3b3968d97f2c9345bbe5f",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "sealed-harbor",
+      "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "sha256": "611b99e1096aa78440728001a4855512bc72a88576768ff09409c405573f2664",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "legible-swarm",
+      "path": "whitepaper/legible-swarm.tex",
+      "sha256": "ca2b4dd5b9d91698ee5550b908a0fa8a4bd0d80ea86f938cb2c98289ef27c8a6",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "spawn-to-person",
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "8b629d39d9a24e312ad1c17b1e0bdbcda01b0194fcabb081f7671d4130536684",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "harbor-economy",
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "9fe6ec5d66f848ae05edc863f2eac0036a0445f4cb55ed8b513352bf1153e14f",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "bonded-commons",
+      "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "573b9fc39eb89859a9bd54e927d097b9d0225d388f8d79e05245eb3a0a9b02a5",
+      "same_as_worktree": false
+    },
+    {
+      "chapter": "federated-harbor",
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "4e770b7839cec82fa3be1f34d2405c0bf4beffe397d1c9079be9ec060e99e1a8",
+      "same_as_worktree": false
+    }
+  ],
+  "sections": {
+    "single-writer-kernel": [
+      {
+        "line": 266,
+        "heading": "\\section{Where this paper sits, and what it promises}"
+      },
+      {
+        "line": 297,
+        "heading": "\\subsection{The one-sentence thesis}"
+      },
+      {
+        "line": 317,
+        "heading": "\\subsection{Why ``reference monitor,'' and why \\emph{not} consensus}"
+      },
+      {
+        "line": 361,
+        "heading": "\\subsection{A research-maturity scale, and why the grades matter}"
+      },
+      {
+        "line": 405,
+        "heading": "\\section{Reader's Map}"
+      },
+      {
+        "line": 435,
+        "heading": "\\section{The kernel as seven organs}"
+      },
+      {
+        "line": 480,
+        "heading": "\\section{The substrate organ: one writer, one file}"
+      },
+      {
+        "line": 490,
+        "heading": "\\subsection{The single-writer discipline}"
+      },
+      {
+        "line": 519,
+        "heading": "\\subsection{The configuration \\emph{is} the durability claim}"
+      },
+      {
+        "line": 530,
+        "heading": "\\subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}"
+      },
+      {
+        "line": 554,
+        "heading": "\\subsection{Path and ownership invariants}"
+      },
+      {
+        "line": 564,
+        "heading": "\\subsection{The second writer: institutional truth above the local harbor}"
+      },
+      {
+        "line": 627,
+        "heading": "\\section{Durability, split by fault class}"
+      },
+      {
+        "line": 642,
+        "heading": "\\subsection{Why one label is a lie here}"
+      },
+      {
+        "line": 692,
+        "heading": "\\subsection{Why the trade is defensible --- and where it stops being so}"
+      },
+      {
+        "line": 715,
+        "heading": "\\subsection{A recovery story, not just a durability story}"
+      },
+      {
+        "line": 729,
+        "heading": "\\section{The resource organ: claims, locks, and fair exclusion}"
+      },
+      {
+        "line": 739,
+        "heading": "\\subsection{Claim granularity is richer than ``claims''}"
+      },
+      {
+        "line": 749,
+        "heading": "\\subsection{The claim lifecycle as a finite-state machine}"
+      },
+      {
+        "line": 851,
+        "heading": "\\subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}"
+      },
+      {
+        "line": 897,
+        "heading": "\\section{The communication organ: the bus, stigmergy, and two delegation chains}"
+      },
+      {
+        "line": 925,
+        "heading": "\\subsection{The bus: a durable carrier envelope}"
+      },
+      {
+        "line": 945,
+        "heading": "\\subsection{Stigmergic markers: decay as a provided guarantee}"
+      },
+      {
+        "line": 973,
+        "heading": "\\subsection{Two delegation chains, one dangerous name}"
+      },
+      {
+        "line": 1001,
+        "heading": "\\subsection{A second transport}"
+      },
+      {
+        "line": 1018,
+        "heading": "\\section{The obligation \\& enforcement organ: the sovereign's two arms}"
+      },
+      {
+        "line": 1053,
+        "heading": "\\subsection{The deontic split}"
+      },
+      {
+        "line": 1072,
+        "heading": "\\subsection{The policy monitor is a detector, not a regimenter}"
+      },
+      {
+        "line": 1147,
+        "heading": "\\subsection{The general boundary: regimentation is controllability}"
+      },
+      {
+        "line": 1333,
+        "heading": "\\subsubsection{The compound case: gate the channel, never the token}"
+      },
+      {
+        "line": 1409,
+        "heading": "\\subsubsection{Partial observation: the second boundary}"
+      },
+      {
+        "line": 1522,
+        "heading": "\\subsection{Commitments: obligation with oracle-bound closure}"
+      },
+      {
+        "line": 1595,
+        "heading": "\\subsection{Extending the oracle vocabulary: State-Machine Assertions (OP-5)}"
+      },
+      {
+        "line": 1621,
+        "heading": "\\section{The continuity organ: memory, checkpoint, and the foundation of the economy}"
+      },
+      {
+        "line": 1633,
+        "heading": "\\subsection{Three organs, one weak link}"
+      },
+      {
+        "line": 1684,
+        "heading": "\\subsection{The operation log and tamper-evidence}"
+      },
+      {
+        "line": 1696,
+        "heading": "\\section{The self-attestation organ: honest green}"
+      },
+      {
+        "line": 1724,
+        "heading": "\\section{The invariants, stated as theorems}"
+      },
+      {
+        "line": 1767,
+        "heading": "\\subsection{The work unit, model-checked}"
+      },
+      {
+        "line": 1918,
+        "heading": "\\subsection{The consistency-model theorem}"
+      },
+      {
+        "line": 1954,
+        "heading": "\\subsection{The dual-runtime hazard, and what would make I11 a theorem}"
+      },
+      {
+        "line": 1982,
+        "heading": "\\section{Cross-organ atomicity: a buildable defect, not a frontier}"
+      },
+      {
+        "line": 2010,
+        "heading": "\\section{Threat model and the limits of mediation}"
+      },
+      {
+        "line": 2040,
+        "heading": "\\subsection{Advisory claims are not sandboxing}"
+      },
+      {
+        "line": 2052,
+        "heading": "\\subsection{The enforcement gate proves; it does not yet compel}"
+      },
+      {
+        "line": 2137,
+        "heading": "\\subsection{Partial actor-soul identity bounds every other invariant}"
+      },
+      {
+        "line": 2150,
+        "heading": "\\subsection{Hash-chain tamper-evidence, and the hardening OP-9 would need}"
+      },
+      {
+        "line": 2205,
+        "heading": "\\subsection{Where information-flow control goes, and why it is not here}"
+      },
+      {
+        "line": 2237,
+        "heading": "\\section{Adjacency contract: what the kernel assumes and provides}"
+      },
+      {
+        "line": 2246,
+        "heading": "\\subsection{What the substrate assumes from the machine}"
+      },
+      {
+        "line": 2270,
+        "heading": "\\subsection{What the substrate provides to the coordination layer}"
+      },
+      {
+        "line": 2295,
+        "heading": "\\subsection{The explicit non-provisions}"
+      },
+      {
+        "line": 2316,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 2353,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 2593,
+        "heading": "\\section{Related work}"
+      },
+      {
+        "line": 2600,
+        "heading": "\\subsection{Reference monitors and the trusted computing base}"
+      },
+      {
+        "line": 2633,
+        "heading": "\\subsection{Durable storage and transaction processing}"
+      },
+      {
+        "line": 2657,
+        "heading": "\\subsection{Coordination, stigmergy, and deontic control}"
+      },
+      {
+        "line": 2676,
+        "heading": "\\subsection{Capability security and tamper-evident logs}"
+      },
+      {
+        "line": 2698,
+        "heading": "\\section{Open problems}"
+      },
+      {
+        "line": 2809,
+        "heading": "\\section{Conclusion: solid where local, provisional where it must grow}"
+      },
+      {
+        "line": 2842,
+        "heading": "\\section{Implementation \\& status}"
+      },
+      {
+        "line": 2853,
+        "heading": "\\subsection{The reference implementation}"
+      },
+      {
+        "line": 2864,
+        "heading": "\\subsection{Mechanism-to-artifact map}"
+      },
+      {
+        "line": 2899,
+        "heading": "\\subsection{Status, and the corrections that matter}"
+      },
+      {
+        "line": 2935,
+        "heading": "\\subsection{Nomenclature}"
+      }
+    ],
+    "anchor-protocol": [
+      {
+        "line": 195,
+        "heading": "\\section{What problem this solves}\\label{sec:problem}"
+      },
+      {
+        "line": 227,
+        "heading": "\\section{The Anchor Protocol Architecture}\\label{sec:architecture}"
+      },
+      {
+        "line": 269,
+        "heading": "\\subsection{Phase 1: Symmetric Pinning}"
+      },
+      {
+        "line": 282,
+        "heading": "\\subsection{Phase 2: Asymmetric Identity (Ed25519)}"
+      },
+      {
+        "line": 291,
+        "heading": "\\subsection{Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}"
+      },
+      {
+        "line": 307,
+        "heading": "\\subsection{Withdrawing a card before it expires}\\label{sec:revocation}"
+      },
+      {
+        "line": 387,
+        "heading": "\\section{How we know it is correct}\\label{sec:correct}"
+      },
+      {
+        "line": 415,
+        "heading": "\\subsection{Symbolic Analysis with ProVerif}"
+      },
+      {
+        "line": 464,
+        "heading": "\\subsection{Runtime Enforcement: The Arbiter}"
+      },
+      {
+        "line": 481,
+        "heading": "\\subsection{Implementation Verification}"
+      },
+      {
+        "line": 495,
+        "heading": "\\subsection{The procedures, precisely}\\label{sec:algorithms}"
+      },
+      {
+        "line": 499,
+        "heading": "\\subsubsection{Phase 1: Symmetric HS256 with Algorithm Pinning}"
+      },
+      {
+        "line": 528,
+        "heading": "\\subsubsection{Phase 2: Asymmetric Ed25519}"
+      },
+      {
+        "line": 557,
+        "heading": "\\subsubsection{Phase 3: Multi-hop Delegation}\\label{sec:delegation}"
+      },
+      {
+        "line": 606,
+        "heading": "\\section{The verified code is the running code}\\label{sec:implementation}"
+      },
+      {
+        "line": 613,
+        "heading": "\\subsection{Core Verification Logic}"
+      },
+      {
+        "line": 648,
+        "heading": "\\subsection{FFI Bridge to the Node.js Daemon}"
+      },
+      {
+        "line": 679,
+        "heading": "\\subsection{Kani Verification Harnesses}"
+      },
+      {
+        "line": 733,
+        "heading": "\\section{What the adversary can do, and what it cannot}\\label{sec:adversary}"
+      },
+      {
+        "line": 736,
+        "heading": "\\subsection{Threats this takes seriously}\\label{sec:threat-model}"
+      },
+      {
+        "line": 777,
+        "heading": "\\subsection{Security Properties}"
+      },
+      {
+        "line": 798,
+        "heading": "\\subsection{Where this stops}\\label{sec:limitations}"
+      },
+      {
+        "line": 816,
+        "heading": "\\section{Proofs are leverage, not decoration}\\label{sec:conclusion}"
+      },
+      {
+        "line": 1001,
+        "heading": "\\section{Formal Verification Status}\\label{app:anchor-mech}"
+      },
+      {
+        "line": 1052,
+        "heading": "\\section{Full ProVerif Models}\\label{app:proverif}"
+      },
+      {
+        "line": 1056,
+        "heading": "\\subsection{Phase 1: Symmetric HS256}"
+      },
+      {
+        "line": 1104,
+        "heading": "\\section{Phase 2: Asymmetric Ed25519}\\label{app:phase2}"
+      },
+      {
+        "line": 1161,
+        "heading": "\\section{Phase 3: Multi-hop Delegation}\\label{app:phase3}"
+      },
+      {
+        "line": 1238,
+        "heading": "\\subsection{Soundness of the Attenuation Proof (v5)}\\label{sec:attn-soundness}"
+      },
+      {
+        "line": 1319,
+        "heading": "\\section{Limitations \\& Boundaries}\\label{sec:anchor-limitations-boundaries}"
+      },
+      {
+        "line": 1334,
+        "heading": "\\section{Further reading and prior art}\\label{app:related}"
+      },
+      {
+        "line": 1339,
+        "heading": "\\subsection{Credential Formats in Agentic Commerce}\\label{app:credential-formats}"
+      },
+      {
+        "line": 1361,
+        "heading": "\\subsection{Formal Verification of Security Protocols}"
+      },
+      {
+        "line": 1375,
+        "heading": "\\subsection{Capability-Based Authorization}"
+      },
+      {
+        "line": 1379,
+        "heading": "\\subsection{JWT Security}"
+      },
+      {
+        "line": 1384,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 1399,
+        "heading": "\\section{Exercises}"
+      }
+    ],
+    "sealed-harbor": [
+      {
+        "line": 146,
+        "heading": "\\section{Two owners, one answer}\\label{sec:sealed-problem}"
+      },
+      {
+        "line": 233,
+        "heading": "\\section{One work order, two fences, two gates}\\label{sec:sealed-design}"
+      },
+      {
+        "line": 368,
+        "heading": "\\section{Silence except through the slot}\\label{sec:sealed-noninterference}"
+      },
+      {
+        "line": 501,
+        "heading": "\\section{The gate sits on the only enforceable boundary}\\label{sec:sealed-enforceability}"
+      },
+      {
+        "line": 603,
+        "heading": "\\section{The budget is a ledger, and the ledger conserves}\\label{sec:sealed-conservation}"
+      },
+      {
+        "line": 762,
+        "heading": "\\section{Canaries with a power curve and a clock}\\label{sec:sealed-detection}"
+      },
+      {
+        "line": 872,
+        "heading": "\\section{The leakage budget: $q\\cdot b$ bits, before timing}\\label{sec:sealed-budget}"
+      },
+      {
+        "line": 904,
+        "heading": "\\section{Limitations and boundaries}\\label{sec:sealed-limitations}"
+      },
+      {
+        "line": 976,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 991,
+        "heading": "\\section{Exercises}"
+      }
+    ],
+    "legible-swarm": [
+      {
+        "line": 304,
+        "heading": "\\section*{How to read this paper (Reader's Map)}"
+      },
+      {
+        "line": 368,
+        "heading": "\\section{Introduction: the swarm is a state of nature}\\label{sec:intro}"
+      },
+      {
+        "line": 391,
+        "heading": "\\subsection{The failure taxonomy}\\label{sec:taxonomy}"
+      },
+      {
+        "line": 451,
+        "heading": "\\subsection{Why ``local''}\\label{sec:local}"
+      },
+      {
+        "line": 465,
+        "heading": "\\subsection{A worked afternoon: Mara and the six agents}\\label{sec:mara}"
+      },
+      {
+        "line": 514,
+        "heading": "\\section{Consent to the Leviathan (the normative claim)}\\label{sec:authority}"
+      },
+      {
+        "line": 546,
+        "heading": "\\subsection{The legible-sovereign amendment}\\label{sec:legible-sovereign}"
+      },
+      {
+        "line": 615,
+        "heading": "\\subsection{Consent as a first-class, revocable primitive}\\label{sec:consent}"
+      },
+      {
+        "line": 716,
+        "heading": "\\section{The mechanism: legibility-with-zoom}\\label{sec:zoom}"
+      },
+      {
+        "line": 768,
+        "heading": "\\subsection{What to flatten, what to preserve}\\label{sec:flatten}"
+      },
+      {
+        "line": 802,
+        "heading": "\\subsection{The zoom target must be verifiable, not self-reported}\\label{sec:verifiable}"
+      },
+      {
+        "line": 836,
+        "heading": "\\subsection{The four design questions (a decision procedure)}\\label{sec:four-questions}"
+      },
+      {
+        "line": 904,
+        "heading": "\\section{The Leviathan rules, it does not just watch (the authority half)}\\label{sec:authority-rules}"
+      },
+      {
+        "line": 934,
+        "heading": "\\subsection{The roadmap as a versioned statement of intent}\\label{sec:roadmap}"
+      },
+      {
+        "line": 947,
+        "heading": "\\subsection{Adversarial review: the quality organ}\\label{sec:review}"
+      },
+      {
+        "line": 957,
+        "heading": "\\subsection{Sole-responsibility roles and the specialization boundary}\\label{sec:sole-roles}"
+      },
+      {
+        "line": 1074,
+        "heading": "\\subsection{Completionist obligation: completion as a verifier, not a vibe}\\label{sec:completionist}"
+      },
+      {
+        "line": 1105,
+        "heading": "\\subsection{Thoughtful landing and the regimentation/enforcement split}\\label{sec:landing}"
+      },
+      {
+        "line": 1147,
+        "heading": "\\subsection{Human-in-the-loop escalation as a typed, prioritized interrupt}\\label{sec:escalation}"
+      },
+      {
+        "line": 1219,
+        "heading": "\\section{The operator as a modeled entity}\\label{sec:operator}"
+      },
+      {
+        "line": 1246,
+        "heading": "\\subsection{The attention objective, spined on Signal Detection Theory}\\label{sec:sdt}"
+      },
+      {
+        "line": 1344,
+        "heading": "\\subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\\label{sec:calibration}"
+      },
+      {
+        "line": 1380,
+        "heading": "\\subsection{Situation awareness needs projection, not just perception}\\label{sec:sa}"
+      },
+      {
+        "line": 1398,
+        "heading": "\\subsection{The Bainbridge--Scott convergence and the abdication gradient}\\label{sec:abdication}"
+      },
+      {
+        "line": 1426,
+        "heading": "\\subsection{The operator's instrument}\\label{sec:operator-instrument}"
+      },
+      {
+        "line": 1467,
+        "heading": "\\subsection{Modes of cooperation}\\label{sec:cooperation-modes}"
+      },
+      {
+        "line": 1537,
+        "heading": "\\section{Read-poverty: the binding constraint at scale}\\label{sec:readpoverty}"
+      },
+      {
+        "line": 1576,
+        "heading": "\\subsection{The value curve across $n$ (the wedge must work at $n{=}1$)}\\label{sec:value-curve}"
+      },
+      {
+        "line": 1589,
+        "heading": "\\subsection{A legibility lower bound}\\label{sec:lowerbound}"
+      },
+      {
+        "line": 1881,
+        "heading": "\\section{Discovery: the directory substrate and the split ranker}\\label{sec:discovery}"
+      },
+      {
+        "line": 1888,
+        "heading": "\\subsection{Existence: the yellow pages (a solved shape)}\\label{sec:existence}"
+      },
+      {
+        "line": 1909,
+        "heading": "\\subsection{Relevance: the split ranker (the headline result)}\\label{sec:relevance}"
+      },
+      {
+        "line": 2195,
+        "heading": "\\subsection{The quality gates: refuse-to-route and the costly escalation}\\label{sec:gates}"
+      },
+      {
+        "line": 2212,
+        "heading": "\\subsection{Staleness and decay on every read-surface}\\label{sec:staleness}"
+      },
+      {
+        "line": 2238,
+        "heading": "\\subsection{Ambient legibility: the cross-modal load-balancer}\\label{sec:ambient}"
+      },
+      {
+        "line": 2255,
+        "heading": "\\section{Tokens: the swarm's COGS \\emph{and} its legibility engine}\\label{sec:tokens}"
+      },
+      {
+        "line": 2274,
+        "heading": "\\subsection{Tokens as COGS, and the effective-context trap}\\label{sec:cogs}"
+      },
+      {
+        "line": 2296,
+        "heading": "\\subsection{Compaction is the legibility engine; the digest IS the compaction}\\label{sec:tokens-digest}"
+      },
+      {
+        "line": 2391,
+        "heading": "\\subsection{Context paging: virtual memory for the context window}\\label{sec:context-paging}"
+      },
+      {
+        "line": 2450,
+        "heading": "\\subsection{The context-degradation cascade (the shared failure surface)}\\label{sec:cascade}"
+      },
+      {
+        "line": 2496,
+        "heading": "\\subsection{Single-operator: account, don't auction}\\label{sec:account}"
+      },
+      {
+        "line": 2519,
+        "heading": "\\section{Reconciling the canon: roles, consent, and local knowledge}\\label{sec:consent-canon}"
+      },
+      {
+        "line": 2526,
+        "heading": "\\subsection{Who is the multitude, who is the sovereign?}\\label{sec:roles}"
+      },
+      {
+        "line": 2554,
+        "heading": "\\subsection{Express consent, not tacit; voice \\emph{and} exit}\\label{sec:express}"
+      },
+      {
+        "line": 2568,
+        "heading": "\\subsection{M\\^etis is Hayek, and some of it cannot be made legible}\\label{sec:hayek}"
+      },
+      {
+        "line": 2589,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 2605,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 3022,
+        "heading": "\\section{Related work and prior art}\\label{sec:related}"
+      },
+      {
+        "line": 3141,
+        "heading": "\\section{The time axis and the bridge to the economy}\\label{sec:bridge}"
+      },
+      {
+        "line": 3144,
+        "heading": "\\subsection{Legibility over time, not just the present}\\label{sec:timeaxis}"
+      },
+      {
+        "line": 3155,
+        "heading": "\\subsection{What this layer hands upward (the through-line)}\\label{sec:handoff}"
+      },
+      {
+        "line": 3200,
+        "heading": "\\subsection{The open problems, as a map}\\label{sec:openproblems}"
+      },
+      {
+        "line": 3568,
+        "heading": "\\section{Implementation and status}\\label{app:honest}"
+      },
+      {
+        "line": 3661,
+        "heading": "\\section{Notation and the nomenclature key}\\label{app:notation}"
+      }
+    ],
+    "spawn-to-person": [
+      {
+        "line": 301,
+        "heading": "\\section*{Reader's Map}\\label{sec:readers-map}"
+      },
+      {
+        "line": 352,
+        "heading": "\\section{Introduction: the spawn that cannot be paid}\\label{sec:intro}"
+      },
+      {
+        "line": 355,
+        "heading": "\\subsection{S1 --- the spawn that cannot be paid}"
+      },
+      {
+        "line": 401,
+        "heading": "\\subsection{What this paper claims, and what it refuses to claim}"
+      },
+      {
+        "line": 448,
+        "heading": "\\section{Prior art, and where this paper departs from it}\\label{sec:priorart}"
+      },
+      {
+        "line": 460,
+        "heading": "\\subsection{Personal identity: what makes a later thing the same person}"
+      },
+      {
+        "line": 478,
+        "heading": "\\subsection{Reputation and skill-rating estimators}"
+      },
+      {
+        "line": 511,
+        "heading": "\\subsection{Reputation economics: cheap pseudonyms and limited records}"
+      },
+      {
+        "line": 530,
+        "heading": "\\subsection{LLM-as-judge, and why it cannot be the whole story}"
+      },
+      {
+        "line": 540,
+        "heading": "\\subsection{What is genuinely new here}"
+      },
+      {
+        "line": 579,
+        "heading": "\\section{The role / person distinction, made precise}\\label{sec:role-person}"
+      },
+      {
+        "line": 633,
+        "heading": "\\subsection{Capability is not permission (a nomenclature the series holds)}"
+      },
+      {
+        "line": 674,
+        "heading": "\\section{Continuity is a personal-identity problem}\\label{sec:continuity}"
+      },
+      {
+        "line": 682,
+        "heading": "\\subsection{Locke's memory criterion, and its famous bug}"
+      },
+      {
+        "line": 703,
+        "heading": "\\subsection{Parfit's repair: continuity, not connectedness}"
+      },
+      {
+        "line": 804,
+        "heading": "\\section{The three organs of continuity}\\label{sec:organs}"
+      },
+      {
+        "line": 835,
+        "heading": "\\subsection{Organ 1 --- Memory: the episodic record \\quad\\BUILT}"
+      },
+      {
+        "line": 848,
+        "heading": "\\subsection{Organ 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}"
+      },
+      {
+        "line": 905,
+        "heading": "\\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}"
+      },
+      {
+        "line": 931,
+        "heading": "\\subsection{The canonical seam sentence (stated identically in every paper)}"
+      },
+      {
+        "line": 951,
+        "heading": "\\section{Identity: the root the whole chain hangs from}\\label{sec:identity}"
+      },
+      {
+        "line": 1068,
+        "heading": "\\subsection{S2 --- whitewashing in action}"
+      },
+      {
+        "line": 1086,
+        "heading": "\\subsection{The classic attacks this forecloses}"
+      },
+      {
+        "line": 1335,
+        "heading": "\\subsection{The principal above the actor}"
+      },
+      {
+        "line": 1361,
+        "heading": "\\subsection{The body behind the name: engine swaps and resurrection}\\label{sec:body-behind-name}"
+      },
+      {
+        "line": 1585,
+        "heading": "\\section{The keystone split: local identity vs.\\ cross-operator attestation}\\label{sec:keystone}"
+      },
+      {
+        "line": 1669,
+        "heading": "\\section{Reputation as a substrate, not a score}\\label{sec:substrate}"
+      },
+      {
+        "line": 1687,
+        "heading": "\\subsection{The estimator family (the well-understood part)}"
+      },
+      {
+        "line": 1723,
+        "heading": "\\subsection{Score as telemetry; gate on predicates}"
+      },
+      {
+        "line": 1735,
+        "heading": "\\section{Why reputation is \\emph{not} a bandit problem}\\label{sec:not-bandit}"
+      },
+      {
+        "line": 1780,
+        "heading": "\\subsection{The four broken assumptions}"
+      },
+      {
+        "line": 1809,
+        "heading": "\\subsection{What survives the bandit framing}"
+      },
+      {
+        "line": 1829,
+        "heading": "\\section{The multi-dimensional reputation protocol}\\label{sec:adr0049}"
+      },
+      {
+        "line": 1855,
+        "heading": "\\subsection{Multi-dimensional quality (different axes, different judges)}"
+      },
+      {
+        "line": 1883,
+        "heading": "\\subsection{The neutral-judge market (the harbor's universities and rating agencies)}"
+      },
+      {
+        "line": 1940,
+        "heading": "\\subsection{S3 --- a graded job, end to end}"
+      },
+      {
+        "line": 1973,
+        "heading": "\\subsection{Skill $\\to$ agent helpfulness attribution}"
+      },
+      {
+        "line": 2021,
+        "heading": "\\section{The grading oracle's incentive-compatibility}\\label{sec:oracle}"
+      },
+      {
+        "line": 2242,
+        "heading": "\\section{Revocation, tombstones, and bounded memory}\\label{sec:revoke}"
+      },
+      {
+        "line": 2250,
+        "heading": "\\subsection{Monotone in honest outcomes, individually revocable}"
+      },
+      {
+        "line": 2295,
+        "heading": "\\subsection{S4 --- the fraudulent outcome retracted}"
+      },
+      {
+        "line": 2314,
+        "heading": "\\subsection{Bounded memory is a design parameter, not a virtue to assert away}"
+      },
+      {
+        "line": 2352,
+        "heading": "\\section{What this chapter hands the market}\\label{sec:handoff}"
+      },
+      {
+        "line": 2408,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 2425,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 3008,
+        "heading": "\\section{Open problems (the starred exercises, collected)}\\label{sec:open}"
+      },
+      {
+        "line": 3076,
+        "heading": "\\section{Conclusion}\\label{sec:conclusion}"
+      },
+      {
+        "line": 3105,
+        "heading": "\\section{Implementation status of the reference system}\\label{app:status}"
+      }
+    ],
+    "harbor-economy": [
+      {
+        "line": 285,
+        "heading": "\\section{Reader's map}\\label{sec:readers-map}"
+      },
+      {
+        "line": 351,
+        "heading": "\\section{The thesis: a market, not a payment rail}\\label{sec:thesis}"
+      },
+      {
+        "line": 392,
+        "heading": "\\subsection{The through-line: why a market needs persons, not spawns}"
+      },
+      {
+        "line": 415,
+        "heading": "\\section{What a ``side'' is, and why there are three}\\label{sec:three-sides}"
+      },
+      {
+        "line": 603,
+        "heading": "\\subsection{The rider the canonical statement carries}"
+      },
+      {
+        "line": 617,
+        "heading": "\\subsection*{One ledger, three different reputation keys}"
+      },
+      {
+        "line": 630,
+        "heading": "\\section{The float plan: the built floor}\\label{sec:float-plan}"
+      },
+      {
+        "line": 673,
+        "heading": "\\subsection{The bond ledger conserves value (this is built)}"
+      },
+      {
+        "line": 705,
+        "heading": "\\subsection{Settlement: four terminal states bound to an oracle}"
+      },
+      {
+        "line": 753,
+        "heading": "\\section{Three sides on one escrow}\\label{sec:three-on-one}"
+      },
+      {
+        "line": 975,
+        "heading": "\\subsection{One trade, all three sides, one settlement}\\label{sec:one-settlement}"
+      },
+      {
+        "line": 1027,
+        "heading": "\\section{The keystone the market rests on --- and does not yet have}\\label{sec:keystone}"
+      },
+      {
+        "line": 1047,
+        "heading": "\\subsection{Local non-forgeable identity is the keystone --- for one operator}"
+      },
+      {
+        "line": 1064,
+        "heading": "\\subsection{But its threat model does not reach the market}\\label{sec:0040b}"
+      },
+      {
+        "line": 1093,
+        "heading": "\\subsection{The principal above the actor}"
+      },
+      {
+        "line": 1113,
+        "heading": "\\section{Conservation under composition}\\label{sec:conservation}"
+      },
+      {
+        "line": 1157,
+        "heading": "\\subsection{The Myerson--Satterthwaite corner}\\label{sec:ms}"
+      },
+      {
+        "line": 1217,
+        "heading": "\\section{The Anchor Protocol proper: cross-harbor capability transfer}\\label{sec:anchor}\\label{sec:fh-xfer}"
+      },
+      {
+        "line": 1301,
+        "heading": "\\section{Federation: trading across machines you don't own}\\label{sec:federation}\\label{sec:fh-admission}\\label{sec:fh-authority}"
+      },
+      {
+        "line": 1321,
+        "heading": "\\subsection{No consensus, by design}"
+      },
+      {
+        "line": 1338,
+        "heading": "\\subsection{Settlement and the cross-chain-deals lineage}\\label{sec:fh-settlement}\\label{sec:fh-escrow}"
+      },
+      {
+        "line": 1397,
+        "heading": "\\subsection{Revocation gossip and the equivocation race}\\label{sec:fh-revocation}\\label{sec:revocation}"
+      },
+      {
+        "line": 1482,
+        "heading": "\\section{Reputation: monotone, but revocable}\\label{sec:reputation}\\label{sec:ic}"
+      },
+      {
+        "line": 1487,
+        "heading": "\\subsection{``Never ends'' is not an anti-revocation property}"
+      },
+      {
+        "line": 1506,
+        "heading": "\\subsection{Why Sagas-style compensation does not restore reputation}"
+      },
+      {
+        "line": 1524,
+        "heading": "\\subsection{The grading-oracle keystone}"
+      },
+      {
+        "line": 1574,
+        "heading": "\\section{Hosted trust is the product}\\label{sec:hosted-trust}"
+      },
+      {
+        "line": 1607,
+        "heading": "\\section{Cold start, and the auction question}\\label{sec:cold-start}"
+      },
+      {
+        "line": 1624,
+        "heading": "\\subsection{Static escrow vs.\\ competitive underwriting}\\label{sec:fh-equilibria}\\label{sec:youle:welfare}"
+      },
+      {
+        "line": 1641,
+        "heading": "\\subsection{Cartels and wash-trading}\\label{sec:fh-failure-modes}"
+      },
+      {
+        "line": 1688,
+        "heading": "\\section{A gluing analogy for the open federation problem}\\label{sec:sheaf}"
+      },
+      {
+        "line": 1718,
+        "heading": "\\section{Gaps the design must still close}\\label{sec:gaps}"
+      },
+      {
+        "line": 1783,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 1800,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 2376,
+        "heading": "\\section{Related work}\\label{sec:related}"
+      },
+      {
+        "line": 2489,
+        "heading": "\\section{One further market: adversarial testing and purchased assurance}\\label{sec:adversarial-tests}"
+      },
+      {
+        "line": 2615,
+        "heading": "\\section{Conclusion}\\label{sec:conclusion}"
+      },
+      {
+        "line": 2640,
+        "heading": "\\section{Implementation \\& status}\\label{app:impl}\\label{app:fh-mech}"
+      },
+      {
+        "line": 2704,
+        "heading": "\\section{Proof sketches}\\label{app:proofs}"
+      }
+    ],
+    "bonded-commons": [
+      {
+        "line": 233,
+        "heading": "\\section*{Reader's Map}\\label{sec:readers-map}"
+      },
+      {
+        "line": 270,
+        "heading": "\\section{Introduction: The Trust Problem}"
+      },
+      {
+        "line": 283,
+        "heading": "\\subsection{The Three Failures of Peer-to-Peer Trust}"
+      },
+      {
+        "line": 293,
+        "heading": "\\subsection{Contributions}"
+      },
+      {
+        "line": 306,
+        "heading": "\\subsection{Related Work in Crypto-Economic Bonding}\\label{sec:related-bonding}"
+      },
+      {
+        "line": 360,
+        "heading": "\\section{The Commons Authority}\\label{sec:commons}"
+      },
+      {
+        "line": 385,
+        "heading": "\\subsection{The Daemon as Correlating Device}\\label{sec:correlating-device}"
+      },
+      {
+        "line": 415,
+        "heading": "\\subsection{Why Agents Consent}\\label{sec:why-consent}"
+      },
+      {
+        "line": 440,
+        "heading": "\\section{Layer 1: Structural Prevention}\\label{sec:structural}"
+      },
+      {
+        "line": 445,
+        "heading": "\\subsection{Capability Attenuation}"
+      },
+      {
+        "line": 477,
+        "heading": "\\subsection{Isolation Domains}\\label{sec:isolation}"
+      },
+      {
+        "line": 492,
+        "heading": "\\subsection{Runtime Invariant Enforcement}"
+      },
+      {
+        "line": 506,
+        "heading": "\\section{Layer 2: Immutable Attribution}\\label{sec:attribution}"
+      },
+      {
+        "line": 511,
+        "heading": "\\subsection{The Evidence Chain}"
+      },
+      {
+        "line": 533,
+        "heading": "\\subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\\label{sec:merkle-forest}"
+      },
+      {
+        "line": 565,
+        "heading": "\\subsection{Mutable-Signal Ledger (Pheromone Lineage)}\\label{sec:pheromones}"
+      },
+      {
+        "line": 594,
+        "heading": "\\subsection{Attribution Survives Identity Disposal}\\label{sec:attribution-survives}"
+      },
+      {
+        "line": 606,
+        "heading": "\\section{The Limits of Decisive Allocation}\\label{sec:sen}"
+      },
+      {
+        "line": 611,
+        "heading": "\\subsection{A Sen-Inspired Design Warning}"
+      },
+      {
+        "line": 647,
+        "heading": "\\subsection{Advisory Claims as Resolution}\\label{sec:advisory}"
+      },
+      {
+        "line": 672,
+        "heading": "\\subsection{Governance, Disputes, and Appeals}\\label{sec:governance}"
+      },
+      {
+        "line": 723,
+        "heading": "\\section{Crash Recovery as Social Continuation}\\label{sec:crash-recovery}"
+      },
+      {
+        "line": 740,
+        "heading": "\\subsection{What Morality Means When Death Is Cheap}\\label{sec:morality}"
+      },
+      {
+        "line": 764,
+        "heading": "\\subsection{The Limits of Reputation}"
+      },
+      {
+        "line": 779,
+        "heading": "\\section{Layer 3: Economic Alignment}\\label{sec:economic}"
+      },
+      {
+        "line": 784,
+        "heading": "\\subsection{The Float Plan}"
+      },
+      {
+        "line": 797,
+        "heading": "\\subsection{Settlement}"
+      },
+      {
+        "line": 815,
+        "heading": "\\subsection{Why This Defeats the Three Adversaries}"
+      },
+      {
+        "line": 831,
+        "heading": "\\subsection{Truthful Claim Signaling as Nash Equilibrium}\\label{sec:claim-signaling-ic}"
+      },
+      {
+        "line": 937,
+        "heading": "\\subsection{Pricing the Bond}\\label{sec:pricing}"
+      },
+      {
+        "line": 950,
+        "heading": "\\subsubsection{Cleanup Lower Bound}\\label{sec:cleanup-bound}"
+      },
+      {
+        "line": 968,
+        "heading": "\\subsubsection{Consequential-Scope Multiplier}\\label{sec:scope-multiplier}"
+      },
+      {
+        "line": 976,
+        "heading": "\\subsubsection{Reputation Discount}\\label{sec:rep-discount}"
+      },
+      {
+        "line": 985,
+        "heading": "\\subsubsection{Threat-Class Bond Sizing}\\label{sec:pricing:threats}"
+      },
+      {
+        "line": 1014,
+        "heading": "\\subsubsection{Bootstrap Path}\\label{sec:pricing:bootstrap}"
+      },
+      {
+        "line": 1039,
+        "heading": "\\subsubsection{Settlement and Dispute}\\label{sec:pricing:settlement}"
+      },
+      {
+        "line": 1064,
+        "heading": "\\subsubsection{The Bonded Advisor}\\label{sec:bonded-advisor}"
+      },
+      {
+        "line": 1086,
+        "heading": "\\subsubsection{Competitive-Insurance Pricing Mechanism\\protect\\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \\& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \\S\\ref{sec:youle:mechanism}--\\S\\ref{sec:youle:welfare}.}}\\label{sec:youle}"
+      },
+      {
+        "line": 1120,
+        "heading": "\\subsubsection{A5 --- Sybil deterrence is coverage-bounded}\\label{sec:youle:a5}"
+      },
+      {
+        "line": 1142,
+        "heading": "\\subsubsection{A6 --- Cartel sustainability under the folk theorem}\\label{sec:youle:a6}"
+      },
+      {
+        "line": 1172,
+        "heading": "\\section{Coordination as Substrate: An Expressive-Act Taxonomy}\\label{sec:taxonomy}"
+      },
+      {
+        "line": 1181,
+        "heading": "\\subsection{Five Expressive Classes}"
+      },
+      {
+        "line": 1191,
+        "heading": "\\subsection{Per-Class Bond Profiles}"
+      },
+      {
+        "line": 1205,
+        "heading": "\\section{Semantic Cadence, Agentic Psychosis, and Observability}\\label{sec:vibe}"
+      },
+      {
+        "line": 1244,
+        "heading": "\\section{Formal Model}\\label{sec:tlaplus}"
+      },
+      {
+        "line": 1251,
+        "heading": "\\subsection{State and Actions}"
+      },
+      {
+        "line": 1355,
+        "heading": "\\subsection{Properties}"
+      },
+      {
+        "line": 1386,
+        "heading": "\\subsection{The Conservation Theorem}\\label{sec:conservation}"
+      },
+      {
+        "line": 1447,
+        "heading": "\\section{Related Work}\\label{sec:related}"
+      },
+      {
+        "line": 1486,
+        "heading": "\\section{Discussion and Limitations}\\label{sec:discussion-limitations}"
+      },
+      {
+        "line": 1554,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 1571,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 1758,
+        "heading": "\\section{Conclusion}"
+      },
+      {
+        "line": 1985,
+        "heading": "\\section{Formal Verification Status}\\label{app:mech}"
+      },
+      {
+        "line": 2033,
+        "heading": "\\section{Worked Example: One Agent, All Layers}\\label{app:worked}"
+      },
+      {
+        "line": 2050,
+        "heading": "\\subsubsection*{Phase A: Setup (minutes $0$--$1$)}"
+      },
+      {
+        "line": 2058,
+        "heading": "\\subsubsection*{Phase B: Work begins (minutes $1$--$12$)}"
+      },
+      {
+        "line": 2066,
+        "heading": "\\subsubsection*{Phase C: Crash and recovery (minutes $12$--$13$)}"
+      },
+      {
+        "line": 2074,
+        "heading": "\\subsubsection*{Phase D: Settlement (minute $24$)}"
+      },
+      {
+        "line": 2090,
+        "heading": "\\section{Scope Boundary Checklist}\\label{sec:bonded-limitations-boundaries}"
+      }
+    ],
+    "federated-harbor": [
+      {
+        "line": 203,
+        "heading": "\\section*{Reader's Map}\\label{sec:fh-readers-map}"
+      },
+      {
+        "line": 240,
+        "heading": "\\section{Introduction: The Two-Machine Problem}\\label{sec:fh-intro}"
+      },
+      {
+        "line": 261,
+        "heading": "\\subsection{What this paper is and is not}\\label{sec:fh-scope}"
+      },
+      {
+        "line": 267,
+        "heading": "\\subsection{Contributions}\\label{sec:fh-contributions}"
+      },
+      {
+        "line": 288,
+        "heading": "\\section{The Federated Authority}\\label{sec:fh-authority}"
+      },
+      {
+        "line": 297,
+        "heading": "\\subsection{Harbor sovereignty as a property characterization}\\label{sec:fh-sovereignty}"
+      },
+      {
+        "line": 316,
+        "heading": "\\subsection{Inter-harbor scope}\\label{sec:fh-scope-property}"
+      },
+      {
+        "line": 326,
+        "heading": "\\subsection{The witness log}\\label{sec:fh-witness}"
+      },
+      {
+        "line": 344,
+        "heading": "\\subsection{What the federation is not}\\label{sec:fh-not}"
+      },
+      {
+        "line": 361,
+        "heading": "\\section{Threat Model}\\label{sec:fh-threat-model}"
+      },
+      {
+        "line": 366,
+        "heading": "\\subsection{In-scope attacks}\\label{sec:fh-attacks-in}"
+      },
+      {
+        "line": 384,
+        "heading": "\\subsection{Out-of-scope attacks}\\label{sec:fh-attacks-out}"
+      },
+      {
+        "line": 398,
+        "heading": "\\subsection{Threat-band visualization}\\label{sec:fh-threat-band-viz}"
+      },
+      {
+        "line": 405,
+        "heading": "\\section{Cross-Harbor Capability Transfer}\\label{sec:fh-xfer}"
+      },
+      {
+        "line": 412,
+        "heading": "\\subsection{The four-message ceremony}\\label{sec:fh-xfer-ceremony}"
+      },
+      {
+        "line": 428,
+        "heading": "\\subsection{Why this composes cleanly with Anchor}\\label{sec:fh-xfer-compose}"
+      },
+      {
+        "line": 439,
+        "heading": "\\subsection{Attenuation across the boundary}\\label{sec:fh-xfer-att}"
+      },
+      {
+        "line": 454,
+        "heading": "\\subsection{Threats foreclosed and threats deferred}\\label{sec:fh-xfer-threats}"
+      },
+      {
+        "line": 465,
+        "heading": "\\subsection{Mechanization status}\\label{sec:fh-xfer-mech}"
+      },
+      {
+        "line": 476,
+        "heading": "\\section{Federated Revocation}\\label{sec:fh-revocation}"
+      },
+      {
+        "line": 485,
+        "heading": "\\subsection{Convergence bound}\\label{sec:fh-conv-bound}"
+      },
+      {
+        "line": 516,
+        "heading": "\\subsection{Conflict resolution across harbors}\\label{sec:fh-revocation-conflict}"
+      },
+      {
+        "line": 530,
+        "heading": "\\subsection{Event Log \\& Ephemeral Cuckoo Discipline}\\label{sec:fh-cuckoo}"
+      },
+      {
+        "line": 534,
+        "heading": "\\subsection{Sheaf Laplacian and Abramsky--Brandenburger Contextuality}\\label{sec:fh-sheaf}"
+      },
+      {
+        "line": 760,
+        "heading": "\\section{Cross-Harbor Settlement}\\label{sec:fh-settlement}"
+      },
+      {
+        "line": 773,
+        "heading": "\\subsection{The bounded escrow}\\label{sec:fh-escrow}"
+      },
+      {
+        "line": 810,
+        "heading": "\\subsection{Cross-harbor conservation}\\label{sec:fh-cross-conservation}"
+      },
+      {
+        "line": 837,
+        "heading": "\\subsection{Settlement protocol}\\label{sec:fh-settle-proto}"
+      },
+      {
+        "line": 849,
+        "heading": "\\subsection{Fee structure and economic discipline}\\label{sec:fh-econ}"
+      },
+      {
+        "line": 862,
+        "heading": "\\section{Federation Admission}\\label{sec:fh-admission}"
+      },
+      {
+        "line": 867,
+        "heading": "\\subsection{The bonded-sponsor pattern}\\label{sec:fh-sponsor}"
+      },
+      {
+        "line": 880,
+        "heading": "\\subsection{Cold-start failure modes}\\label{sec:fh-cold-start}"
+      },
+      {
+        "line": 893,
+        "heading": "\\section{Worked Example}\\label{sec:fh-worked-example}"
+      },
+      {
+        "line": 898,
+        "heading": "\\subsection{Setup}\\label{sec:fh-ex-setup}"
+      },
+      {
+        "line": 906,
+        "heading": "\\subsection{The agent task}\\label{sec:fh-ex-task}"
+      },
+      {
+        "line": 912,
+        "heading": "\\subsection{Step 1: Cross-harbor transfer}\\label{sec:fh-ex-xfer}"
+      },
+      {
+        "line": 924,
+        "heading": "\\subsection{Step 2: Damage detection}\\label{sec:fh-ex-damage}"
+      },
+      {
+        "line": 936,
+        "heading": "\\subsection{Step 3: Settlement}\\label{sec:fh-ex-settle}"
+      },
+      {
+        "line": 942,
+        "heading": "\\subsection{Step 4: Revocation propagation}\\label{sec:fh-ex-revocation}"
+      },
+      {
+        "line": 946,
+        "heading": "\\subsection{What this example shows}\\label{sec:fh-ex-shows}"
+      },
+      {
+        "line": 962,
+        "heading": "\\section{Formal Model}\\label{sec:fh-formal}"
+      },
+      {
+        "line": 967,
+        "heading": "\\subsection{ProVerif extensions to Anchor}\\label{sec:fh-proverif-ext}"
+      },
+      {
+        "line": 985,
+        "heading": "\\subsection{TLA+ extension for cross-harbor conservation}\\label{sec:fh-tla-ext}"
+      },
+      {
+        "line": 1007,
+        "heading": "\\subsection{What is mechanized and what is structural}\\label{sec:fh-mech-summary}"
+      },
+      {
+        "line": 1018,
+        "heading": "\\section{Failure Modes}\\label{sec:fh-failure-modes}"
+      },
+      {
+        "line": 1023,
+        "heading": "\\subsection{Centralization gravity}\\label{sec:fh-centralization}"
+      },
+      {
+        "line": 1029,
+        "heading": "\\subsection{Equivocation by a malicious witness}\\label{sec:fh-equiv}"
+      },
+      {
+        "line": 1035,
+        "heading": "\\subsection{Partition tolerance}\\label{sec:fh-partition}"
+      },
+      {
+        "line": 1042,
+        "heading": "\\section{Related Work}\\label{sec:fh-related}"
+      },
+      {
+        "line": 1094,
+        "heading": "\\section{Limitations and Open Questions}\\label{sec:fh-limitations}"
+      },
+      {
+        "line": 1099,
+        "heading": "\\subsection{The multi-principal correlated-equilibrium extension}\\label{sec:fh-lim-correlated}"
+      },
+      {
+        "line": 1110,
+        "heading": "\\subsection{Trustless settlement for non-fungible bonds}\\label{sec:fh-lim-trustless}"
+      },
+      {
+        "line": 1114,
+        "heading": "\\subsection{Cartel formation across federations}\\label{sec:fh-lim-cartel}"
+      },
+      {
+        "line": 1118,
+        "heading": "\\subsection{Cold-start admission and the invitation-only failure mode}\\label{sec:fh-lim-cold-start}"
+      },
+      {
+        "line": 1122,
+        "heading": "\\subsection{Equivocation propagation speed}\\label{sec:fh-lim-equiv}"
+      },
+      {
+        "line": 1126,
+        "heading": "\\subsection{Cost of per-write durability}\\label{sec:fh-lim-overhead}"
+      },
+      {
+        "line": 1130,
+        "heading": "\\subsection{What this means for the reader}\\label{sec:fh-lim-reader}"
+      },
+      {
+        "line": 1139,
+        "heading": "\\section*{Review of the key ideas}"
+      },
+      {
+        "line": 1155,
+        "heading": "\\section{Exercises}"
+      },
+      {
+        "line": 1278,
+        "heading": "\\section{Conclusion}\\label{sec:fh-conclusion}"
+      },
+      {
+        "line": 1499,
+        "heading": "\\section{Verification Status}\\label{app:fh-mech}"
+      },
+      {
+        "line": 1535,
+        "heading": "\\section{ProVerif Models (draft)}\\label{app:fh-proverif}"
+      },
+      {
+        "line": 1539,
+        "heading": "\\section{TLA+ Specification (draft)}\\label{app:fh-tla}"
+      }
+    ]
+  }
+}

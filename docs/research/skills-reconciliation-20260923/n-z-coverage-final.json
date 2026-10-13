@@ -1,0 +1,1522 @@
+[
+  {
+    "name": "nano-banana-image-gen",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "nasa-2017-systems-engineering-handbook",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "national-expungement-expert",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "native-app-designer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "naturalistic-decision-making",
+    "requiredFiles": 13,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "naturalistic-insight",
+    "requiredFiles": 12,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "nau-au-kuter-2003-shop2",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ndm-decision-models",
+    "requiredFiles": 18,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ndm-law-enforcement",
+    "requiredFiles": 18,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "neobrutalist-web-designer",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "neumorphic-web-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "next-move",
+    "requiredFiles": 37,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "next-move-customer-persona",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "next-move-marketing",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "nextjs-app-router-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "nisan-et-al-2007-algorithmic-game-theory",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "node-memory-leak-hunting",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "normative-bdi-agent-architecture",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "normative-bdi-agents",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "nygard-2018-release-it-2nd-edition",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "oauth-oidc-implementer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "oauth2-and-oidc-from-scratch",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "observability-absences-audit",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "observability-apm-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "olog-construction",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ongaro-ousterhout-2014-raft",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "openai-docs",
+    "requiredFiles": 17,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "openapi-spec-writer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "opentelemetry-instrumentation",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "operad-task-decomposition",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "operator-surface-authority-designer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "orchestrator",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ostrom-commons-governance",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "outbox-pattern-implementation",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "output-contract-enforcer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "panic-room-finder",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "park-2023-generative-agents",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "partner-text-coach",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pd-relay-zero-trust",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "performance-profiler",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "performance-profiling",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "personal-finance-coach",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pet-memorial-creator",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "photo-composition-critic",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "photo-content-recognition-curation-expert",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "physics-rendering-expert",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pixel-art-infographic-creator",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pixel-art-scaler",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "playwright-e2e-design",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "playwright-e2e-tester",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "playwright-screenshot-inspector",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "plugin-creator",
+    "requiredFiles": 11,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pnpm-workspace-monorepo",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "political-philosophy-of-computation",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "polya-problem-solving",
+    "requiredFiles": 10,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy",
+    "requiredFiles": 10,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-agent-skill",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-expository-writer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-internal-dev",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-marketing-copy",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-user-surrogate-pm-review",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "port-daddy-users",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "postgres-connection-pooling",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "postgres-explain-analyzer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "postgres-row-level-security",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "postgresql-optimization",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pre-federation-halt-gate",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "premium-deck-builder",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "product-announcement-craft",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "product-appeal-analyzer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "product-reality-reviewer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "product-roadmap-focus",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "productive-discourse-facilitator",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "progressive-enhancement-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "project-management-guru-adhd",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "prompt-engineer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "prompt-template-manager",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "provable-action-adjudicator",
+    "requiredFiles": 8,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "proverif-tamarin-protocol-modeling",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "pwa-expert",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "python-advanced-patterns",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "python-asyncio-pitfalls",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "qa-automation-specialist",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rag-document-ingestion-pipeline",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rag-retrieval-pattern-design",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "railway-render-deployment",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rao-georgeff-1991-modeling-rational-agents-bdi",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rapport-based-elicitation",
+    "requiredFiles": 19,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rapport-intelligence-yield",
+    "requiredFiles": 18,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rate-limiting-strategy",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "react-hook-composer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "react-native-architect",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "react-performance-optimizer",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "react-server-components-boundary",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "react-server-components-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "reactflow-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "reactive-dashboard-performance",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "real-time-collaboration-engine",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-app-legal-terms",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-app-onboarding",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-coach-patterns",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-community-moderator",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-courage-companion",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-education-writer",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recovery-social-features",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "recursive-synthesis",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "redis-patterns-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "redteam-review",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "refactor-architect",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "refactoring-surgeon",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "remote-legal-hiring",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "research-analyst",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "research-craft",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "resilience-wiring-for-load-once-deps",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "resolution-trace-damping",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "resource-bounded-planning",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "responsible-logging",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "responsive-layout-master",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rest-api-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "retrofuturism-web-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "reverse-proxy-for-agents",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "revisiting-interview-data-analysing-turn",
+    "requiredFiles": 20,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "revisiting-interview-data-turn-taking",
+    "requiredFiles": 20,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rpd-klein-calderwood",
+    "requiredFiles": 21,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rpd-knowledge-elicitation",
+    "requiredFiles": 19,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "runtime-task-overlap-detector",
+    "requiredFiles": 8,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "runtime-verification-for-agents",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-app-distribution",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-code-testing",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-data-structures-advanced",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-debugging-mastery",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-gpui-motion",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-kernel-ffi",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-performance-and-idioms",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-tauri-development",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "rust-with-claude-code",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sagas-garcia-molina-salem-1987",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sandbox-sdk",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sandboxed-adversarial-test-harness",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "schema-evolution-manager",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "script-refactorer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "secret-management-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "security-auditor",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "self-adaptive-systems",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "self-monitoring-resource-alarms",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "semantic-conflict-prediction",
+    "requiredFiles": 8,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "senior-coding-interview",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sensemaking-focus-model",
+    "requiredFiles": 11,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "seo-content-blogging",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "seo-visibility-expert",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "server-sent-events-vs-websockets",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "service-mesh-microservices-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "session-pr-audit",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "shadowbox-expertise-transfer",
+    "requiredFiles": 8,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sheaf-cohomology-multiagent-debug",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "shoham-leyton-brown-2009-mas-foundations",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "simon-and-newell-human-problem-solving-theory-1971",
+    "requiredFiles": 11,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "site-concierge-bot",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "site-reliability-engineer",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-architect",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-coach",
+    "requiredFiles": 18,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-creator",
+    "requiredFiles": 23,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-documentarian",
+    "requiredFiles": 10,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-grader",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-hygiene",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-installer",
+    "requiredFiles": 8,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skill-logger",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skillful-node-prompt",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "skillful-subagent-creator",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "smith-1980-contract-net-protocol",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sober-addict-protector",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sobriety-app-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sobriety-tools-guardian",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "socratic-questioning",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "solely-responsible-agent",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "solo-operator-business-site",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "someclaudeskills-strategy",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sound-design-and-audio",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sound-engineer",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "speech-pathology-ai",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "sqlite-durable-agent-state",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "stanton-2006-hierarchical-task-analysis",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "state-machine-designer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "state-of-cognitive-systems-engineering",
+    "requiredFiles": 21,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "status-attestation-split-plane",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "steel-man-argument",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "stigmergic-diffusion-medium",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "streaming-pipeline-architect",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "structured-logging-design",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "supabase-admin",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "supply-chain-defense-for-ml-extensions",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "swarm-invocation-designer",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "swift-executor",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "swiftui-data-flow-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "swiss-modern-website-design",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "systems-thinking",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tacit-expertise-elicitation",
+    "requiredFiles": 19,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tailwind-v4-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "taleb-blyth-2011-black-swan-of-cairo",
+    "requiredFiles": 11,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tanstack-query-server-state",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "task-analysis-of-pier-side-ship-handling",
+    "requiredFiles": 22,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "task-decomposer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "team-builder",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tech-entrepreneur-coach-adhd",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tech-launch-channels",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tech-presentation-interview",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "technical-evangelism-for-formal-systems",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "technical-writer",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "terraform-iac-expert",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "terraform-module-builder",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "terraform-module-design",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "test-automation-expert",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "the-belief-desire-intention-model-of-age",
+    "requiredFiles": 12,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "the-cambridge-handbook-of-expertise-and",
+    "requiredFiles": 13,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "the-impact-of-rapport-on-intelligence-yi",
+    "requiredFiles": 19,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "the-role-of-cognitive-systems-engineerin",
+    "requiredFiles": 19,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "the-state-of-cognitive-systems-engineeri",
+    "requiredFiles": 21,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "thinking-inside-the-box-shadowbox-method",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "thinking-inside-the-box-the-shadowbox-me",
+    "requiredFiles": 9,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "three-sided-agent-labor-market",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tlaplus-practitioner",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "toulmin-argument-analysis",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "towards-a-taxonomy-of-cognitive-task-ana",
+    "requiredFiles": 21,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "towards-a-taxonomy-of-cognitive-task-analysis",
+    "requiredFiles": 21,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "transformers-js-onnx-pipelines",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "tunnels-for-agents",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "turnstile-spin",
+    "requiredFiles": 14,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "typescript-advanced-patterns",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "typescript-narrowing-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "typography-expert",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ui-ux-pro-max",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ultimate-seo-geo-skill",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "ux-friction-analyzer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "values-behavioral-interview",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "van-der-aalst-2003-workflow-patterns",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vaporwave-glassomorphic-ui-designer",
+    "requiredFiles": 6,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vector-database-migration-tool",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vello-parley-rendering",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vercel-deployment",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "very-long-text-summarization",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vibe-coding-background-agent",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vibe-matcher",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vibe-project-master-plan",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "video-frame-extraction-analysis",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "video-processing-editing",
+    "requiredFiles": 12,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "virtualization-specialist",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vite-build-optimizer",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vitest-testing-patterns",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "voice-audio-engineer",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "vr-avatar-engineer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wang-2023-voyager",
+    "requiredFiles": 13,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wang-et-al-2025-tdag",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wave-by-wave-parley",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-cloud-designer",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-design-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-layout-spacing",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-perf",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-sales-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-storefront-creator",
+    "requiredFiles": 24,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-wave-designer",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "web-weather-creator",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "webapp-paywall-implementation",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "webapp-testing",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "webauthn-passkey-implementation",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "webhook-receiver-design",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "websocket-realtime-expert",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "websocket-streaming",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wedding-immortalist",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wei-2022-chain-of-thought",
+    "requiredFiles": 12,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wellness-app-engagement",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "whitehat-defense",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "win31-audio-design",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "win31-pixel-art-designer",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-architect",
+    "requiredFiles": 13,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-avatar",
+    "requiredFiles": 17,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-curator",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-customer-persona",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-decomposer",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-evaluator",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-graft",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-librarian",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-looking-back",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-mutator",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-premortem",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-resilience",
+    "requiredFiles": 14,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-sensemaker",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-skill-cdm-elicitation",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-skill-selector",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windags-synthesizer",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windagszip",
+    "requiredFiles": 2,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windows-3-1-web-designer",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "windows-95-web-designer",
+    "requiredFiles": 5,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wisdom-accountability-coach",
+    "requiredFiles": 4,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wooldridge-multiagent-intro",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "work-intake-node-shaping",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "workers-best-practices",
+    "requiredFiles": 3,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wrangler",
+    "requiredFiles": 1,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "wu-2023-autogen",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "xie-et-al-2025-survey-llm-task-planning",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "yao-2022-react",
+    "requiredFiles": 13,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "yao-2023-tree-of-thoughts",
+    "requiredFiles": 11,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "zero-downtime-database-migration",
+    "requiredFiles": 0,
+    "missingDestinationFiles": []
+  },
+  {
+    "name": "zhou-et-al-2026-formaljudge",
+    "requiredFiles": 7,
+    "missingDestinationFiles": []
+  }
+]

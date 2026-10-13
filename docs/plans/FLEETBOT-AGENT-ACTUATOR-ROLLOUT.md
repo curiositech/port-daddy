@@ -20,7 +20,9 @@ phase, but no phase may accumulate unpublished work behind the next one.
 | Phase | Roadmap item | Mergeable result | Exit evidence |
 | --- | --- | --- | --- |
 | A | `fleetbot-pr-authorship` | The enrolled GitHub Actions workload can post one typed PR comment with explicit responsible-agent provenance. | Hostile request fixtures, operation-specific signed receipt verification, protected manual workflow, exact GitHub readback in staging. |
-| B | `fleetbot-pr-authorship` | Typed review reply, ready-for-review, reviewer request, and enqueue operations share the same bounded client. | Per-operation fixtures, least-privilege grant tests, ambiguous-write readback tests, staging receipts for every operation. |
+| B1 | `fleetbot-pr-authorship` | Typed review reply, ready-for-review, reviewer request, and enqueue operations share the same bounded client. | Per-operation hostile fixtures, strict receipt-result verification, complete reviewer pagination, and proof that steady-state writes do not request OIDC. |
+| B2 | `fleetbot-pr-authorship` | A workload-authenticated receipt-recovery path resolves loss of the final Relay response without redispatching a GitHub mutation. | Recovery authorization and expiry fixtures, exact request-digest lookup, signed receipt readback, and a separate recovery dispatch proving no second GitHub write. |
+| B3 | `fleetbot-pr-authorship` | Relay durably stores the pre-effect manifest, while explicit workload and Relay signing-key lineage lets authorized recovery survive planned rotation without making revocation ineffective. | Relay-manifest readback independent of GitHub reruns, bounded trusted-key history, successor-grant proof, rotation/revocation fixtures, and recovery of an old receipt under a separately authorized successor. |
 | C | `fleetbot-host-workload-enrolment` | A Relay proposal inbox accepts bounded action proposals from admitted host agents without handing them publisher authority. | Agent identity, repository and operation scope, proposal digest, expiry, deduplication, denial fixtures, durable status API. |
 | D | `fleetbot-host-workload-enrolment` | One protected remote executor claims proposals, evaluates the standing grant, and drives the actuator. | Claim fencing, retry/readback behavior, executor recovery, spend/rate ceilings, signed proposal-to-receipt lineage. |
 | E | `fleetbot-pr-authorship` | Codex, Claude Code, Antigravity, Gemini, and Agy adapters submit the same typed proposal and poll the same receipt contract. | Cross-harness conformance fixtures; no adapter receives an App key, installation token, account bearer, or personal token. |
@@ -53,8 +55,9 @@ Conversational effects and state-changing effects have deliberately different
 target policy. A comment or review reply may target an ordinary same-repository
 pull request, but only at the exact repository, PR number, base SHA, and head SHA
 bound into the signed capability and standing operation grant. Readiness,
-reviewer requests, enqueue, update, and publication remain restricted to a
-uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch. This
+reviewer requests, enqueue, and update remain restricted to a
+uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch.
+New publication creates that governed branch from an exact source tree. This
 lets Fleetbot discuss and answer review on existing work without granting it the
 power to advance or merge work it does not own.
 
@@ -66,8 +69,44 @@ signature must distinguish the verified dispatcher from both supplied labels.
 
 Relay resolves GitHub response ambiguity inside one invocation by exact
 readback. Loss of the final Relay response is different: the manual workflow
-does not yet retain a recoverable signed envelope, so operators must not blindly
-re-dispatch it. A signed receipt-read/recovery path is required in Phase B.
+now preserves a signed, sanitized recovery manifest before any mutation. A
+mutation-job rerun is refused because GitHub's upload-artifact tracker records
+attempt-one artifacts becoming unavailable after rerun
+([actions/upload-artifact#585](https://github.com/actions/upload-artifact/issues/585)).
+A separate protected recovery workflow reads
+the original run's immutable artifact and uses a fresh workload-signed read
+proof to recover only a successfully finalized Relay receipt. It cannot mint a
+GitHub token, call GitHub, consume a second mutation capability, lease an
+intent, or fall back to `/publish`.
+`reserved`, `running`, `failed`, `ambiguous`, corrupt, and legacy-unbound states
+all stop. Phase B2 therefore repairs final-response loss without pretending an
+ambiguous external effect is safe to replay.
+
+The recovery manifest binds the repository, workflow run, typed input digest,
+grant epoch, operation, exact base/head, session, request hash, and idempotency
+key. It excludes the action body, reviewer lists, credentials, private keys,
+GitHub tokens, and capability signature. The full action request remains local
+to the first-attempt runner and is checked against the manifest before dispatch.
+
+Phase B2 intentionally requires the original grant and workload identity to
+remain live at the original signing-key generation, and it trusts only the
+currently configured Relay receipt key. Expiry, revocation, workload rotation,
+or Relay receipt-key rotation therefore fails closed. The seven-day artifact
+retention is cleanup policy, not a promise that revoked authority remains
+usable. Phase B3 adds explicit, auditable key lineage and successor authority;
+Phase B2 does not silently weaken revocation to simulate rotation support.
+
+## Phase F publication source boundary
+
+The offline committed-source packager and protected workload now implement
+new ready-for-review PR creation. The package carries bounded file data; the
+runner executes only reviewed main-branch code, signs the exact package, and
+checks the Relay receipt plus GitHub PR and commit tree. See
+[`../operations/fleetbot-source-publication.md`](../operations/fleetbot-source-publication.md)
+for limits, preparation and recovery. This source slice does not implement PR
+updates, the local proposal broker, or standing-grant provisioning. Phase F
+remains incomplete until those lifecycle paths and a real protected publication
+have their required evidence.
 
 ## Phase C and D trust split
 

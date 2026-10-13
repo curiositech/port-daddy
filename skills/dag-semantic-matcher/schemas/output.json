@@ -1,52 +1,366 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["matches"],
   "properties": {
-    "matches": {
+    "status": {
+      "enum": [
+        "SELECTED",
+        "ABSTAINED",
+        "NEEDS_CLARIFICATION"
+      ]
+    },
+    "retrievalMode": {
+      "enum": [
+        "HYBRID",
+        "LEXICAL_DEGRADED"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "authorityScope": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "corpusScope": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "catalogSnapshot": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "selectionPolicyRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "corpusPolicyRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "lexicalProfileRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "denseQueryProfileRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "denseCorpusProfileRef": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "denseSpaceId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "degradedReason": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "authorityScope",
+        "corpusScope",
+        "catalogSnapshot",
+        "selectionPolicyRef",
+        "corpusPolicyRef",
+        "lexicalProfileRef"
+      ],
+      "additionalProperties": false
+    },
+    "candidates": {
       "type": "array",
-      "description": "Ranked skills matching the task",
       "items": {
         "type": "object",
         "properties": {
           "skillId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
           },
-          "fitScore": {
+          "manifestDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "capabilityEvidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "minItems": 1
+          },
+          "rawScore": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Overall match score"
+            "description": "A local ranking feature, not probability; scale defined by selection policy."
           },
           "intentMatch": {
-            "type": "number",
-            "description": "Primary action alignment"
+            "type": "number"
           },
           "capabilityMatch": {
-            "type": "number",
-            "description": "Capability requirement coverage"
+            "type": "number"
           },
           "gaps": {
             "type": "array",
-            "description": "Unmet capability requirements",
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
             }
           },
           "constraintViolations": {
             "type": "array",
-            "description": "Constraint mismatches",
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
             }
+          }
+        },
+        "required": [
+          "skillId",
+          "manifestDigest",
+          "capabilityEvidence",
+          "gaps",
+          "constraintViolations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "disposition": {
+            "enum": [
+              "REJECTED_CONSTRAINT",
+              "GAP",
+              "RUNNER_UP"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "skillId",
+          "disposition",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "selected": {
+      "type": "object",
+      "properties": {
+        "skillId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "manifestDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "capabilityEvidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "hardViolations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "maxItems": 0
+        }
+      },
+      "required": [
+        "skillId",
+        "manifestDigest",
+        "capabilityEvidence",
+        "hardViolations"
+      ],
+      "additionalProperties": false
+    },
+    "abstention": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "clarifyingQuestion": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    }
+  },
+  "required": [
+    "status",
+    "retrievalMode",
+    "provenance",
+    "candidates",
+    "alternatives",
+    "explanation"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "SELECTED"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "selected"
+        ],
+        "properties": {
+          "candidates": {
+            "minItems": 1
+          }
+        },
+        "not": {
+          "required": [
+            "abstention"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "abstention"
+        ],
+        "not": {
+          "required": [
+            "selected"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "NEEDS_CLARIFICATION"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "abstention": {
+            "required": [
+              "clarifyingQuestion"
+            ]
           }
         }
       }
     },
-    "explanation": {
-      "type": "string",
-      "description": "Reasoning for match results"
+    {
+      "if": {
+        "properties": {
+          "retrievalMode": {
+            "const": "HYBRID"
+          }
+        },
+        "required": [
+          "retrievalMode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "provenance": {
+            "required": [
+              "denseQueryProfileRef",
+              "denseCorpusProfileRef",
+              "denseSpaceId"
+            ],
+            "not": {
+              "required": [
+                "degradedReason"
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "provenance": {
+            "required": [
+              "degradedReason"
+            ],
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "denseQueryProfileRef"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "denseCorpusProfileRef"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "denseSpaceId"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
     }
-  },
-  "additionalProperties": false
+  ]
 }

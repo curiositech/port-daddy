@@ -10,8 +10,8 @@ porthole-player capture in `docs/pr-artifacts/porthole-player/`.
 
 | File | Shows |
 |---|---|
-| `demos-section-light.png` | The `#demos` section, light theme, mid-playback. Terminal chrome renders cream (`--surface-raised`/`--surface-strong`) with dark, readable text — this is the fix; before it, this screenshot would have shown the same near-black chrome as the dark screenshot. |
-| `demos-section-dark.png` | Same section, dark theme, same scroll position. Confirms dark mode is visually unchanged — `--ph-*` aliases straight back to the pre-existing `--code-*` dark values. |
+| `https://media.portdaddy.dev/sha256/b8/b85538566db760dc3e58788d7867642217a9f23006365f80bdf75c576093cb4d.png` | The `#demos` section, light theme, mid-playback. Terminal chrome renders cream (`--surface-raised`/`--surface-strong`) with dark, readable text — this is the fix; before it, this screenshot would have shown the same near-black chrome as the dark screenshot. |
+| `https://media.portdaddy.dev/sha256/ba/ba07bfdb454cdbeade5e7df10ddb11bbfd1714ad40c58f2b37fa1644efaaf562.png` | Same section, dark theme, same scroll position. Confirms dark mode is visually unchanged — `--ph-*` aliases straight back to the pre-existing `--code-*` dark values. |
 
 Both captured back-to-back in the same run against the same build; only
 `localStorage['pd-theme']` differs between them.

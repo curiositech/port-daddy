@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Mechanical tide gauge recording drum with float wire and cobalt blue pulley wheel. Analogy for synthesizing continuous noisy telemetry into a legible trend.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

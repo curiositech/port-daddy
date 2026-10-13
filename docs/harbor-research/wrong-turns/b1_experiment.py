@@ -9,10 +9,10 @@ Two deliverables:
        generalized binary splitting inside the flagged set) reduces expected opens
        from f*N to k*log2(fN/k)+O(k), quantifying what "zoom" buys over a flat digest.
 
-Model. Each of N artifacts is load-bearing i.i.d. Bernoulli(p). A digest is B bits
+Model. Each of N artifacts is critical i.i.d. Bernoulli(p). A digest is B bits
 about X^N; the operator opens the flagged set (size ~fN) and may then ZOOM
 adaptively (open groups, drilling only into flagged groups). Costs:
-    total = c_read * B  +  c_open * E[opens]  +  c_miss * E[missed load-bearing].
+    total = c_read * B  +  c_open * E[opens]  +  c_miss * E[missed criticals].
 The digest's job (stage 1) is a lossy description with a FALSE-NEGATIVE constraint
 (misses priced by delta) and a flag-rate constraint (false positives priced by f).
 """
@@ -29,7 +29,7 @@ def h2(x):
 
 # ------------------------------------------------------------------
 # (i) Two-constraint rate-distortion for a Bernoulli(p) source.
-# Test channel: source X in {0,1} (1=load-bearing), reconstruction/flag Xhat in {0,1}
+# Test channel: source X in {0,1} (1=critical), reconstruction/flag Xhat in {0,1}
 # (1=flagged). Constraints:
 #   false negative  Pr(X=1, Xhat=0) <= delta      (misses)
 #   flag rate       Pr(Xhat=1)      <= f          (open budget)
@@ -87,7 +87,7 @@ R_d=[rate_two_constraint(p,d,0.10) for d in dgrid]
 def flat_opens(N,flagged):        return len(flagged)
 def adaptive_opens(N, load_set, flagged_set):
     """Generalized binary splitting inside the flagged set: recursively halve a
-    group; if a group tests 'contains a load-bearing item' (one group query),
+    group; if a group tests 'contains a critical item' (one group query),
     drill in; else discard. Counts GROUP QUERIES (zoom opens)."""
     flagged=sorted(flagged_set)
     if not flagged: return 0

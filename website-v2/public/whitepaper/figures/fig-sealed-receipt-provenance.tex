@@ -1,0 +1,35 @@
+% Book-native replacement for figures/fig-sealed-receipt-provenance.tex.
+% It shows cryptographic binding of recorded fields while keeping correctness
+% of the released output visibly outside what the receipt establishes.
+\begin{figure}[H]
+\centering
+\SGMeasuredFigure{sealed-receipt-provenance}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Bind the reported run};
+  \SGDocument{sbprovwork}{(1,26)}{70}{38}{sgViolet!9}{work order $C$}
+  \node[sg/check,minimum width=70pt] (sbprovatt) at (110,45) {attestation};
+  \node[sg/check,minimum width=70pt] (sbprovinputs) at (196,45) {inputs $I$};
+  \node[sg/check,minimum width=70pt] (sbprovmodel) at (286,45) {model $M$};
+  \node[sg/hash,minimum width=132pt] (sbprovhashes) at (92,111)
+    {$H(C),H(\mathrm{attest.}),H(I),H(M)$};
+  \SGDocument{sbprovout}{(203,78)}{104}{48}{sgRed!7}{output ciphertext\\$H(\mathrm{out})$}
+  \draw[sg/arrow,draw=sgBlue] (sbprovwork.south)--(36,87)--(sbprovhashes.north west);
+  \draw[sg/arrow,draw=sgBlue] (sbprovatt.south)--(110,87)--(sbprovhashes.north);
+  \draw[sg/arrow,draw=sgBlue] (sbprovinputs.south)--(196,87)--(sbprovhashes.north east);
+  \draw[sg/arrow,draw=sgBlue] (sbprovmodel.south)--(286,68)--(158,68)--(sbprovhashes.north east);
+  \node[sg/check,minimum width=132pt] (sbprovstate) at (92,161)
+    {labels, declassifications,\\counters, nonce, epoch};
+  \SGDocument{sbprovreceipt}{(173,150)}{143}{44}{sgTeal!8}{signed receipt $R$\\
+    $\mathrm{Sign}(\ldots)$}
+  \draw[sg/arrow,draw=sgBlue] (sbprovhashes.south)--(174,142)--(sbprovreceipt.north west);
+  \draw[sg/arrow,draw=sgRed] (sbprovout.south)--(255,142)--(sbprovreceipt.north);
+  \draw[sg/arrow,draw=sgTeal] (sbprovstate.east)--(174,161)--(sbprovreceipt.west);
+  \node[draw=sgTeal,fill=sgTeal,text=white,minimum width=143pt,minimum height=29pt,
+    font=\SGType\bfseries] (sbprovreport) at (245,244) {provenance of report};
+  \draw[sg/arrow,draw=sgTeal] (sbprovreceipt.south)--(sbprovreport.north);
+  \node[anchor=east,text=sgRed,align=right] at (307,279)
+    {truth of output\\not proved};
+\end{tikzpicture}}
+\caption{Hashes and the signature bind the recorded work order, evidence, inputs, model, policy state, and released ciphertext. The receipt proves what was reported, not that the output is true.}
+\label{fig:sealed-receipt-provenance}
+\end{figure}

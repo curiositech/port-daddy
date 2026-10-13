@@ -1,0 +1,30 @@
+[
+  {
+    "name": "normative-bdi-agent-architecture",
+    "originalSource": "metadata-only .agy resolved directory",
+    "fallbackResolvedPath": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/io-contract-pile-split/skills/normative-bdi-agent-architecture",
+    "decision": "copied fallback exact-name skill",
+    "reason": "original resolved source contained no SKILL.md; user-install fallback contained a complete entrypoint"
+  },
+  {
+    "name": "resolution-trace-damping",
+    "originalSource": "metadata-only .agy resolved directory",
+    "fallbackResolvedPath": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/io-contract-pile-split/skills/resolution-trace-damping",
+    "decision": "copied fallback exact-name skill",
+    "reason": "original resolved source contained no SKILL.md; user-install fallback contained a complete entrypoint"
+  },
+  {
+    "name": "supply-chain-defense-for-ml-extensions",
+    "originalSource": "metadata-only .agy resolved directory",
+    "fallbackResolvedPath": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/io-contract-pile-split/skills/supply-chain-defense-for-ml-extensions",
+    "decision": "copied fallback exact-name skill",
+    "reason": "original resolved source contained no SKILL.md; user-install fallback contained a complete entrypoint"
+  },
+  {
+    "name": "task-analysis-of-pier-side-ship-handling",
+    "originalSource": "metadata-only .agy resolved directory",
+    "fallbackResolvedPath": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/io-contract-pile-split/skills/task-analysis-of-pier-side-ship-handling",
+    "decision": "copied fallback exact-name skill",
+    "reason": "original resolved source contained no SKILL.md; user-install fallback contained a complete entrypoint"
+  }
+]

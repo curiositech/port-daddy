@@ -54,10 +54,10 @@ every retained pixel is still 150 dpi.
 
 ---
 
-## Artefact 1 — `swk-stack-map-book-1x-150dpi.png`
+## Artefact 1 — `https://media.portdaddy.dev/sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png`
 
-- File: `docs/pr-assets/pr-10184/swk-stack-map-book-1x-150dpi.png` (293 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/b67dde5be1b02c98c80cf47fc0c13f7af38ac658/docs/pr-assets/pr-10184/swk-stack-map-book-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png` (293 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png`
 - What it shows: BEFORE (merge-base c92efaa5c) | AFTER (this PR) of `fig-swk-stack-map` under the **Book** preamble — Palatino 10.5 pt, 7x10 in trim, 4.5 in column. The printed condition.
 - Daemon port: `none` — no daemon; a LaTeX fragment compile, not a running surface
 - Run id: `n/a (render)` — deterministic `tectonic` compile of committed sources
@@ -66,10 +66,10 @@ every retained pixel is still 150 dpi.
 - Commit: `57250bb6153ff0985a665b98684a98294ee5f493` (figure source under review)
 - Source: `live` — these are the real committed fragment sources compiled by the real house preamble; nothing is mocked, seeded or hand-drawn
 
-## Artefact 2 — `swk-stack-map-chapter-1x-150dpi.png`
+## Artefact 2 — `https://media.portdaddy.dev/sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png`
 
-- File: `docs/pr-assets/pr-10184/swk-stack-map-chapter-1x-150dpi.png` (278 KiB)
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/b67dde5be1b02c98c80cf47fc0c13f7af38ac658/docs/pr-assets/pr-10184/swk-stack-map-chapter-1x-150dpi.png`
+- File: `https://media.portdaddy.dev/sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png` (278 KiB)
+  - raw: `https://media.portdaddy.dev/sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png`
 - What it shows: The same pair under the **chapter** preamble taken verbatim from `whitepaper/single-writer-kernel.tex` (11 pt Latin Modern, 16.3 cm column).
 - Daemon port: `none` — no daemon; a LaTeX fragment compile, not a running surface
 - Run id: `n/a (render)` — deterministic `tectonic` compile of committed sources

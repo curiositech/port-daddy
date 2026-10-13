@@ -1,7 +1,5 @@
-# Work Intake Node Shaping — Changelog
+# Changelog
 
-## v1.0.0 (2026-07-03)
-
-- Initial skill creation
-- Core process defined: signal-vector-to-archetype mapping plus legacy-verb compatibility audit
-- Reference files and deterministic node_shaping_audit script added
+## Offline repair 2026-09-24
+- Reframed seven shapes as local judgment, required enum/reason/schema shape,
+  and replaced score/90-point alias behavior with fail-closed supplied evidence.

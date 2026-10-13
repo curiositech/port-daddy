@@ -9,7 +9,11 @@
 4. “Design a zoomable briefing that does not recursively summarize lies.”
 5. “Track subscription capacity even though we cannot price each request.”
 6. “Validate whether two model aliases are double-counting one shared usage
-   window before admitting a successor body.”
+   window before a separate lifecycle authority considers a successor body.”
+7. “Compare a task-conditioned summary with the original trace and see whether
+   it preserves denied actions and constraints used later in the task.”
+8. “Can one route reserve its separately reported five-hour and weekly windows
+   together, without splitting either window?”
 
 ## Should not activate
 
@@ -20,3 +24,5 @@
 3. “Rewrite this one prompt.” Use prompt engineering.
 4. “Implement a vector memory store.” Use memory-storage architecture.
 5. “Prove a VCG auction equilibrium.” Use algorithmic game theory.
+6. “Read live account usage or issue a reservation without separate authority.”
+   This skill's static validator does neither.

@@ -34,3 +34,12 @@ Work the report top-down, highest severity first, then verify each line below.
 - [ ] Read the whole piece aloud once. Anywhere you stumble or cringe, fix it
 - [ ] Report regenerated and archived next to the artifact
 <!-- humanize:ignore-end -->
+
+For lessons and research explanations:
+- [ ] The hard step in each worked example is visible and independently checked.
+- [ ] Prerequisites are taught or explicitly assumed before later use.
+- [ ] At least one appropriate independent task can reveal misunderstanding.
+- [ ] Synthetic data, illustration, empirical evidence, and conjecture remain distinct.
+- [ ] Claims match the source's population, method, result and limits.
+- [ ] Each surviving title layer contributes distinct information or orientation.
+- [ ] No typography or style cue has been converted into an authorship accusation.

@@ -1,0 +1,211 @@
+# A–M skill reconciliation
+
+Scope: 451 source entries whose first lowercase character sorts before `n`, including leading numerics. This report records resolved source directories rather than copying top-level symlinks.
+
+- Copied missing directories: 265
+- Retained identical directories: 82
+- Semantically reconciled divergent directories: 104
+- Unavailable payloads: 0
+- Invalid direct source links recovered through exact-name SKILL.md fallbacks: 12
+- Regular files copied: 2195; omitted nested symlinks: 0
+- Reviewed and resolved non-superset entrypoints: 20; unresolved: 0
+- Hygiene audit: 369/369 touched bundles pass
+
+## Merge reasoning
+
+For divergent skills, destination-only material was retained and non-conflicting source files were added. Each non-superset entrypoint was read against the canonical procedure: redundant decision guidance was integrated through the destination procedure; source-only supporting artifacts remain in their normal references, algorithms, templates, examples, or diagrams paths. Where a source instruction contradicted current authority or safety boundaries, the canonical constraint governs. Provenance is retained per skill through the resolved source path and final aggregate hashes in the inventory; no competing whole SKILL.md appendix was kept.
+
+## Semantic classification
+
+- agent-development-support: 91
+- direct-agent-orchestration: 64
+- general-domain-or-unrelated: 268
+- theory-and-domain-literature: 28
+
+## High-value agentic skills
+
+- 2026-legal-research-agent — agent-development-support; 3 references, 2 scripts, 0 examples/assets; copied-underlying-directory.
+- a-discussion-of-decision-making-applied — agent-development-support; 16 references, 0 scripts, 2 examples/assets; copied-underlying-directory.
+- a-normative-extension-for-the-bdi-agent — agent-development-support; 6 references, 0 scripts, 2 examples/assets; copied-underlying-directory.
+- agent-compliance-conformance — theory-and-domain-literature; 2 references, 1 scripts, 4 examples/assets; retained-identical.
+- agent-context-partitioner — direct-agent-orchestration; 4 references, 3 scripts, 7 examples/assets; semantic-merge-additive.
+- agent-control-command-contract — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- agent-conversation-protocols — direct-agent-orchestration; 2 references, 2 scripts, 1 examples/assets; semantic-merge-additive.
+- agent-creator — direct-agent-orchestration; 4 references, 0 scripts, 2 examples/assets; semantic-merge-additive.
+- agent-discovery-directories-guilds — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- agent-identity-continuity-reputation — direct-agent-orchestration; 1 references, 1 scripts, 3 examples/assets; retained-identical.
+- agent-interchange-formats — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- agent-issue-tracker-workflow — theory-and-domain-literature; 2 references, 1 scripts, 3 examples/assets; semantic-merge-additive.
+- agent-labor-pricing-function — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- agent-pr-authoring — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; semantic-merge-additive.
+- agent-rl-sandbox-trainer — direct-agent-orchestration; 2 references, 2 scripts, 2 examples/assets; retained-identical.
+- agent-visual-evidence-manifest — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- agent-work-receipt-designer — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- agentic-app-architecture — direct-agent-orchestration; 3 references, 1 scripts, 3 examples/assets; retained-identical.
+- agentic-calendar-coordination — direct-agent-orchestration; 1 references, 0 scripts, 1 examples/assets; semantic-merge-additive.
+- agentic-coding-product-research — theory-and-domain-literature; 2 references, 1 scripts, 2 examples/assets; retained-identical.
+- agentic-coding-ux-designer — theory-and-domain-literature; 2 references, 1 scripts, 2 examples/assets; retained-identical.
+- agentic-infrastructure-2026 — direct-agent-orchestration; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- agentic-patterns — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- agentic-skill-discovery — direct-agent-orchestration; 7 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- agentic-software-installation — theory-and-domain-literature; 4 references, 0 scripts, 0 examples/assets; retained-identical.
+- agentic-zero-trust-security — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- agents-sdk — theory-and-domain-literature; 19 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- agentspeak-bdi — theory-and-domain-literature; 19 references, 0 scripts, 1 examples/assets; semantic-merge-additive.
+- agentspeak-l-bdi-agents-speak-out-in-a-logical-computable — theory-and-domain-literature; 20 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- agentspeak-l-bdi-architecture — theory-and-domain-literature; 19 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- agha-actor-model — theory-and-domain-literature; 19 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- ai-engineer — agent-development-support; 0 references, 1 scripts, 3 examples/assets; semantic-merge-additive.
+- ai-introduction-educator — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- ai-video-production-master — agent-development-support; 0 references, 4 scripts, 0 examples/assets; copied-underlying-directory.
+- ai-wiley-wooldridge-an-introduction-to-multi-agent-systems — agent-development-support; 7 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- alphago-deep-rl — theory-and-domain-literature; 8 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- always-on-agent-applications — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- always-on-agent-architecture — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- always-on-agent-inputs — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- always-on-agent-safety — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- anthropic-technical-deep-dive — agent-development-support; 3 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- background-job-orchestrator — agent-development-support; 1 references, 2 scripts, 0 examples/assets; semantic-merge-additive.
+- background-job-queue-design — agent-development-support; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- bdi-agency-model — theory-and-domain-literature; 7 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- bdi-agent-design-mora — theory-and-domain-literature; 8 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- bdi-agents-a-soft-model-for-organisation — theory-and-domain-literature; 7 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- bdi-models-and-systems-reducing-the-gap — theory-and-domain-literature; 8 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- bdi-models-and-systems-reducing-the-gap-paper — theory-and-domain-literature; 7 references, 0 scripts, 3 examples/assets; copied-underlying-directory.
+- bdi-soft-model-for-organisations — theory-and-domain-literature; 6 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- bdi-soft-systems — theory-and-domain-literature; 6 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- belief-desire-intention-model-of-agency — theory-and-domain-literature; 6 references, 0 scripts, 3 examples/assets; copied-underlying-directory.
+- bellifemine-2007-jade-fipa — agent-development-support; 6 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- bordini-hubner-2007-jason — agent-development-support; 7 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- build-coop-ide-gpui — agent-development-support; 4 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- causal-reasoning-klein — agent-development-support; 18 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- charrier-et-al-big-brother-logic — agent-development-support; 16 references, 0 scripts, 4 examples/assets; retained-identical.
+- claude-ecosystem-promoter — agent-development-support; 5 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- clip-aware-embeddings — agent-development-support; 0 references, 1 scripts, 0 examples/assets; copied-underlying-directory.
+- cloudflare — agent-development-support; 320 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- cloudflare-email-service — agent-development-support; 5 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- cognitive-task-analysis — agent-development-support; 19 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- comfyui-mastery — agent-development-support; 6 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- conditions-for-intuitive-expertise — agent-development-support; 18 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- conditions-for-intuitive-expertise-a-fai — agent-development-support; 19 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- context-economics-for-agent-swarms — direct-agent-orchestration; 1 references, 1 scripts, 2 examples/assets; semantic-merge-additive.
+- conway-1968-how-do-committees-invent — agent-development-support; 8 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- cooperative-vibe-coding — agent-development-support; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- coordination-topology-architect — direct-agent-orchestration; 6 references, 0 scripts, 10 examples/assets; semantic-merge-additive.
+- cost-accrual-tracker — agent-development-support; 1 references, 0 scripts, 0 examples/assets; retained-identical.
+- cost-optimizer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- cost-verification-auditor — agent-development-support; 1 references, 0 scripts, 0 examples/assets; retained-identical.
+- cqrs-event-sourcing-architect — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- cryptoeconomic-protocol-security — agent-development-support; 3 references, 3 scripts, 3 examples/assets; semantic-merge-additive.
+- daemon-development — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-capability-ranker — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-chain-decomposition — direct-agent-orchestration; 9 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- dag-confidence-scorer — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-context-bridger — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-convergence-monitor — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-cycle-analysis — direct-agent-orchestration; 9 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- dag-dependency-resolver — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-dynamic-replanner — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-execution-tracer — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-executor — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-failure-analyzer — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-fast-decomposition — direct-agent-orchestration; 7 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- dag-feedback-synthesizer — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-graph-builder — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-hallucination-detector — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-isolation-manager — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-iteration-detector — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-mutation-strategist — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-ops — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-orchestrator — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-output-validator — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-parallel-executor — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-pattern-learner — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-performance-profiler — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-permission-validator — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-planner — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-quality — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-replay-debugger — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-result-aggregator — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-runtime — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-scope-enforcer — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-semantic-matcher — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- dag-skill-registry — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-skills-matcher — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-task-scheduler — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- dag-visual-editor-design — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- data-pipeline-engineer — agent-development-support; 4 references, 1 scripts, 0 examples/assets; copied-underlying-directory.
+- data-quality-guardian — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- data-warehouse-optimizer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- database-connection-pool-manager — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- database-migration-manager — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- dbt-analytics-engineer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- decision-models-from-the-field — agent-development-support; 16 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- decision-models-some-lessons-from-the-fi — agent-development-support; 17 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- decker-lesser-1995-gpgp-taems — agent-development-support; 7 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- destructive-action-policy-matrix — agent-development-support; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- developer-surface-strategist — agent-development-support; 2 references, 1 scripts, 2 examples/assets; retained-identical.
+- devtool-documentation — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- dimensional-modeler — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- drone-inspection-specialist — agent-development-support; 4 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- embedded-agency — agent-development-support; 9 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- empirical-systems-evaluation — agent-development-support; 2 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- episodic-memory-algorithms — theory-and-domain-literature; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- evaluating-rapport-based-approach — agent-development-support; 17 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- face-recognition-system-builder — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- file-upload-storage-expert — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- find-skills — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- fine-tuning-dataset-curator — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- fipa-00023-agent-management — theory-and-domain-literature; 15 references, 0 scripts, 5 examples/assets; semantic-merge-additive.
+- fipa-00025-interaction-protocol-library — theory-and-domain-literature; 17 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- fipa-00037-communicative-act-library — theory-and-domain-literature; 7 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- fipa-00086-ontology-service — theory-and-domain-literature; 9 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- focus-a-model-of-sensemaking — agent-development-support; 7 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- game-theoretic-agent-incentives — theory-and-domain-literature; 0 references, 0 scripts, 2 examples/assets; semantic-merge-additive.
+- generative-music-audio — agent-development-support; 7 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- generative-video-2026 — agent-development-support; 6 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- git-best-practices — agent-development-support; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- gpu-hosted-asset-hardening — agent-development-support; 7 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- grafana-dashboard-builder — agent-development-support; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- helm-liang-2022 — agent-development-support; 9 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- hierarchical-skills-and-skill-based-repr — agent-development-support; 8 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- high-quality-vibe-coding — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- hoare-1978-csp — agent-development-support; 8 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- hong-et-al-2024-metagpt — theory-and-domain-literature; 7 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- huang-et-al-2026-six-sigma-agent — agent-development-support; 8 references, 0 scripts, 5 examples/assets; semantic-merge-additive.
+- human-gate-designer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- hypertree-planning — theory-and-domain-literature; 7 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- image-generation-workflow-engine — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- indie-monetization-strategist — agent-development-support; 4 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- ipc-communication-patterns — agent-development-support; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- jetpack-compose-navigation-expert — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- khattab-2023-dspy — agent-development-support; 9 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- kieras-goms-for-task-analysis — agent-development-support; 6 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- knowledge-distillation-a-survey — agent-development-support; 7 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- knowledge-distillation-deep — agent-development-support; 7 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- knowledge-distillation-in-deep-learning — agent-development-support; 7 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- legibility-for-agentic-systems — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- liaison — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- liu-2023-agentbench — theory-and-domain-literature; 8 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- llm-as-judge-zheng-2023 — agent-development-support; 8 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- llm-cost-optimizer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- llm-evaluation-harness — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- llm-response-caching-layer — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- llm-router — agent-development-support; 0 references, 0 scripts, 0 examples/assets; retained-identical.
+- llm-streaming-response-handler — agent-development-support; 3 references, 2 scripts, 0 examples/assets; copied-underlying-directory.
+- local-first-tenancy-boundary — agent-development-support; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- lora-training-2026 — agent-development-support; 6 references, 9 scripts, 1 examples/assets; semantic-merge-additive.
+- manager-driven-team-orchestrator — direct-agent-orchestration; 1 references, 2 scripts, 1 examples/assets; semantic-merge-additive.
+- mcp-creator — agent-development-support; 5 references, 0 scripts, 3 examples/assets; copied-underlying-directory.
+- mcp-server-design — agent-development-support; 0 references, 1 scripts, 1 examples/assets; semantic-merge-additive.
+- mcp-trust-broker — direct-agent-orchestration; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- mechanism-design-for-agent-labor — direct-agent-orchestration; 3 references, 0 scripts, 4 examples/assets; semantic-merge-additive.
+- media-gen-deployment — agent-development-support; 6 references, 0 scripts, 4 examples/assets; copied-underlying-directory.
+- mermaid-graph-writer — agent-development-support; 2 references, 2 scripts, 0 examples/assets; copied-underlying-directory.
+- ml-system-design-interview — agent-development-support; 4 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- model-serving-api-builder — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+- multi-agent-authoring-product-bar — agent-development-support; 2 references, 1 scripts, 3 examples/assets; retained-identical.
+- multi-agent-coordination — direct-agent-orchestration; 0 references, 0 scripts, 0 examples/assets; semantic-merge-additive.
+- munger-worldly-wisdom — agent-development-support; 0 references, 0 scripts, 0 examples/assets; copied-underlying-directory.
+
+Machine-readable per-skill paths, final source and destination hashes, unfolded frontmatter descriptions, categories, reference counts, omissions, and decisions are in a-m-inventory.json. Hygiene result: a-m-hygiene.json.

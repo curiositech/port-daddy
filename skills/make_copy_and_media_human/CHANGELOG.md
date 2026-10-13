@@ -6,6 +6,26 @@
      false_positive_when in catalog.json). Marked rather than padded with prose.
      -->
 
+## 0.4.0 — 2026-09-19
+
+Added educational exposition, title-chrome and instructional-media review lanes,
+a cross-format title-stack scanner, and validation of explicit reviewer learning
+maps. The research note records evidence boundaries and a dated source audit.
+Before/after examples now cover learning progression and repeated title layers.
+
+Removed the digit/acronym heuristic for supposedly empty eyebrows. Unicode format
+characters now produce a low-severity typography cue without an authorship claim
+or blanket deletion advice. Corrected cumulative time in the backoff example and
+reduced unsupported style-pattern severity. New fixtures cover structural cues,
+legitimate counterexamples and malformed annotation maps.
+
+Fixed missed HTML title stacks inside ordinary `div` layout wrappers, including
+nested hero copy. Wrapper boundaries remain separate so unrelated cards do not
+combine into a title stack; prose and ignored-element regressions are covered.
+Adversarial review also caught false positives for Markdown indented code and
+mixed emphasis, inert HTML templates, media between headings, and declared
+prior knowledge refreshed later in a lesson. Added regressions for each case.
+
 ## 0.3.0 — 2026-09-14
 
 Rebuilt around measured evidence. The skill previously carried thresholds that

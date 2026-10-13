@@ -1,0 +1,219 @@
+% Figure 0.1 --- the one reader's map the Book keeps: five archetypes, drawn as
+% flowing paths of varying width through the Book's four parts, replacing the
+% six per-chapter Reader's Map sections and abstracts this edition used to
+% carry (and promise standalone editions would keep).
+%
+% TWO-PAGE SPREAD, not one full-width figure. The first drawing here squeezed
+% all four parts into one \pgfsys@typesetpicturebox-rescaled figure (about
+% 7.17in of native content resized down to \pdfullwidth, 6in, by the
+% preamble's overflow safety net -- coordination-papers-mega-volume-preamble.tex,
+% "Overflow safety net"). A from-scratch xelatex render of that exact source
+% (both a standalone harness and the real front matter, truncated after the
+% figure) laid the rescaled figure out cleanly, comfortably inside the trim --
+% but the PDF actually committed alongside it (built by CI's whitepaper-build
+% workflow, the one PR #10230 stops from writing PDF bytes onto every PR head)
+% showed Part III's header clipped mid-word ("What Survives the Resta[rt]")
+% with Part IV missing entirely, which is what the author's screenshot caught.
+% That gap between "renders clean from this source" and "the committed PDF is
+% visibly broken" was not resolved here -- the two most likely explanations are
+% a stale/mismatched committed PDF (built from an earlier revision of this
+% file, before the hand-rolled adjustwidth+resizebox wrapper mentioned below
+% was removed) and a font-substitution difference between this container and
+% CI that changes the picture's native width enough to matter -- and it does
+% not need to be resolved, because the fix below does not depend on the
+% rescale hook at all. Four parts at native size do not fit one page's
+% \textwidth (4.5in) without either claiming the margin column or shrinking;
+% two parts at native size do (each half is about 4.2in), so the two-page
+% spread sidesteps the hook, and with it the entire class of bug, rather than
+% trusting the hook harder.
+%
+% The split falls at the Part II / Part III seam, the book's own natural
+% break (Part I-II is the machine and the operator; Part III-IV is the person
+% and the market -- see whitepaper/textbook.json). The first \begin{figure}
+% below carries Parts I-II and is not captioned (no \caption means no
+% \refstepcounter{figure}, so this does not consume a figure number the rest
+% of the book would then have to renumber around); a \clearpage lands it on
+% its own page; the second \begin{figure} carries Parts III-IV, repeats every
+% row's archetype label so a reader opening straight to the second page still
+% knows which lane is which, and carries the one \caption and \label for the
+% pair. The Book root calls \cleartoleftpage before this file, and the class is
+% genuinely twoside, so page one is an even verso and page two its odd recto.
+%
+% At the cut, each lane's line runs a little past the column it belongs to
+% (into the gutter, atlas-style) and a light dotted rule with corner ticks
+% marks the seam on both pages, so the eye has something to hand off to
+% rather than a line that simply stops.
+%
+% Encoding, deliberately, unchanged from the one-page design: position (which
+% lane) and width/line-style (fat solid = read closely; medium solid = read;
+% thin dashed = skim) carry the archetype distinction, and every path is
+% labelled directly on the page -- no legend. Colour is used only for the
+% four PART headers (an axis label, exactly the \pd@chaptercolor already used
+% for the margin glyph elsewhere in this book), never to distinguish one
+% archetype's path from another's: the Book's seven story colours have
+% measured pairs below the legibility floor for full-colour readers (a
+% separate branch, claude/figure-palette-separation, is re-stepping them), so
+% a figure that leaned on hue to tell two paths apart would have to be
+% redrawn once that lands. This one does not depend on it either way.
+
+% The halves are a fixed editorial spread. Locally retain float.sty's real
+% [H] placement: the Book normally translates [H] to a mobile float, which
+% would let a map half leave the guide prose that belongs directly below it.
+\begingroup
+\makeatletter\let\@xfloat\pd@orig@xfloat\makeatother
+% ---- shared lane geometry (both pages use the same row and rule spec) -----
+\def\yTop{11.15}\def\yHead{10.35}\def\ySub{9.50}\def\yBase{0.55}
+\def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
+
+% High-contrast discrete node macros
+\newcommand{\rmnodeDeep}[3]{%
+  \fill[pdink] (#1,#2) circle (4.6pt); \fill[white] (#1,#2) circle (1.8pt);
+  \node[anchor=south,font=\pdcaptionface\bfseries\footnotesize,text=pdink,fill=white,fill opacity=0.92,inner sep=1.5pt,rounded corners=1pt] at (#1,#2+0.24) {#3};
+}
+\newcommand{\rmnodeRead}[3]{%
+  \draw[pdink,line width=1.3pt,fill=white] (#1,#2) circle (4.2pt);
+  \node[anchor=south,font=\pdcaptionface\footnotesize,text=hhgray!90,fill=white,fill opacity=0.90,inner sep=1.2pt] at (#1,#2+0.22) {#3};
+}
+\newcommand{\rmnodeSkim}[2]{%
+  \fill[hhgray!60] (#1,#2) circle (2.4pt);
+  \node[anchor=south,font=\pdcaptionface\scriptsize\itshape,text=hhgray!70] at (#1,#2+0.18) {skim};
+}
+
+% Direct label naming the path on verso
+\newcommand{\rmlabel}[2]{\node[pd direct label,anchor=east,align=right,text width=3.3cm,font=\pdcaptionface\bfseries\footnotesize] at (-0.35,#1) {#2};}
+
+% The gutter mark: a light dotted rule with top/bottom corner ticks, at the cut edge
+\newcommand{\rmgutter}[1]{%
+  \draw[hhgray!55,line width=0.5pt,dash pattern=on 1.4pt off 1.6pt] (#1,\yBase-0.15) -- (#1,\yTop+0.15);
+  \draw[hhgray!55,line width=0.5pt] (#1-0.07,\yBase-0.15) -- (#1+0.07,\yBase-0.15);
+  \draw[hhgray!55,line width=0.5pt] (#1-0.07,\yTop+0.15) -- (#1+0.07,\yTop+0.15);
+}
+
+% ═══════════════════════════════════════════════════════════════════════════
+% Page one (verso): Parts I-II. Spills into left outer margin and right gutter.
+% ═══════════════════════════════════════════════════════════════════════════
+\phantomsection\label{book:reader-left}
+\begin{figure}[H]
+\begin{adjustwidth*}{-1.2cm}{-\dimexpr\marginparsep+\marginparwidth\relax}
+\noindent\hfill
+\begin{tikzpicture}[pd figure,
+  pd panel title/.append style={font=\pdcaptionface\bfseries\small,text width=4.8cm},
+  pd note/.append style={font=\pdcaptionface\footnotesize}]
+  % ---- column geometry: two parts, generous 5.6cm width each -----------
+  \def\bA{0}\def\bB{5.60}\def\bC{11.20}
+  \def\cA{2.80}\def\cB{8.40}
+
+  \fill[pdcobalt!5] (\bA,\yBase) rectangle (\bB,\yTop);
+  \fill[pdteal!5] (\bB,\yBase) rectangle (\bC,\yTop);
+
+  % Top Legend
+  \node[anchor=south west,font=\pdcaptionface\footnotesize] at (\bA-0.2,\yTop+0.20) {%
+    \textbf{Node Key:}\enspace
+    \tikz[baseline=-0.8ex]{\fill[pdink] (0,0) circle (4.2pt); \fill[white] (0,0) circle (1.6pt);}\enspace\textbf{Close Read}\qquad
+    \tikz[baseline=-0.8ex]{\draw[pdink,line width=1.2pt,fill=white] (0,0) circle (3.8pt);}\enspace\textbf{Read}\qquad
+    \tikz[baseline=-0.8ex]{\fill[hhgray!60] (0,0) circle (2.4pt);}\enspace\textit{Skim}%
+  };
+
+  % Continuous quiet lane tracks extending past the seam into the fold
+  \foreach \y in {\yPrac,\yEng,\ySec,\yEcon,\yPhil} {
+    \draw[hhgray!30,line width=0.7pt] (\bA,\y) -- (\bC+0.60,\y);
+  }
+
+  \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
+  \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
+  \draw[pd hairline] (\bA,\yBase) -- (\bC,\yBase);
+  \node[pd panel title,text=pdcobalt,align=center] at (\cA,\yHead) {Part I\\[2pt]\footnotesize\mdseries Ground Truth};
+  \node[pd panel title,text=pdteal,align=center] at (\cB,\yHead) {Part II\\[2pt]\footnotesize\mdseries The Cost of Seeing};
+  \node[pd note] at (\cA,\ySub) {1 \textperiodcentered\ 2 \textperiodcentered\ 3};
+  \node[pd note] at (\cB,\ySub) {4};
+  \rmgutter{\bC}
+
+  % 1. The Practitioner (buyer, solo developer, founder, newcomer) ---------
+  \rmlabel{\yPrac}{THE PRACTITIONER}
+  \rmnodeSkim{\cA}{\yPrac}
+  \rmnodeDeep{\cB}{\yPrac}{digest-with-zoom, consent}
+
+  % 2. The Systems Engineer (builds and verifies the mechanism) -----------
+  \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
+  \rmnodeDeep{\cA}{\yEng}{single-writer proof, attenuation}
+  \rmnodeDeep{\cB}{\yEng}{formal zoom invariant}
+
+  % 3. The Security / Formal-Methods Reviewer ------------------------------
+  \rmlabel{\ySec}{THE SECURITY REVIEWER}
+  \rmnodeDeep{\cA}{\ySec}{threat model, deontic split}
+  \rmnodeSkim{\cB}{\ySec}
+
+  % 4. The Mechanism Designer / Economist ----------------------------------
+  \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
+  \rmnodeSkim{\cA}{\yEcon}
+  \rmnodeRead{\cB}{\yEcon}{attention economics}
+
+  % 5. The Institutional Theorist (legitimacy, personhood, morality) ------
+  \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
+  \rmnodeSkim{\cA}{\yPhil}
+  \rmnodeRead{\cB}{\yPhil}{epistemic dignity}
+\end{tikzpicture}
+\end{adjustwidth*}
+\end{figure}
+
+\pdreaderleftprose
+\clearpage
+
+% ═══════════════════════════════════════════════════════════════════════════
+% Page two (recto): Parts III-IV. Starts at left gutter, continuous tracks.
+% ═══════════════════════════════════════════════════════════════════════════
+\phantomsection\label{book:reader-right}
+\begin{figure}[H]
+\begin{adjustwidth*}{-1.2cm}{-\dimexpr\marginparsep+\marginparwidth\relax}
+\begin{tikzpicture}[pd figure,
+  pd panel title/.append style={font=\pdcaptionface\bfseries\small,text width=4.8cm},
+  pd note/.append style={font=\pdcaptionface\footnotesize}]
+  % ---- column geometry: Parts III & IV, same 5.6cm width matching verso --
+  \def\bA{0}\def\bB{5.60}\def\bC{11.20}
+  \def\cA{2.80}\def\cB{8.40}
+
+  \fill[pdviolet!5] (\bA,\yBase) rectangle (\bB,\yTop);
+  \fill[pdgold!5] (\bB,\yBase) rectangle (\bC,\yTop);
+
+  % Continuous quiet lane tracks starting from gutter edge
+  \foreach \y in {\yPrac,\yEng,\ySec,\yEcon,\yPhil} {
+    \draw[hhgray!30,line width=0.7pt] (\bA-0.60,\y) -- (\bC,\y);
+  }
+
+  \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
+  \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
+  \draw[pd hairline] (\bA,\yBase) -- (\bC,\yBase);
+  \node[pd panel title,text=pdviolet,align=center] at (\cA,\yHead) {Part III\\[2pt]\footnotesize\mdseries What Survives the Restart};
+  \node[pd panel title,text=pdgold,align=center] at (\cB,\yHead) {Part IV\\[2pt]\footnotesize\mdseries Trade Between Strangers};
+  \node[pd note] at (\cA,\ySub) {5};
+  \node[pd note] at (\cB,\ySub) {6 \textperiodcentered\ 7 \textperiodcentered\ 8};
+  \rmgutter{\bA}
+
+  % 1. The Practitioner -----------------------------------------------------
+  \rmnodeDeep{\cA}{\yPrac}{role vs.\ person}
+  \rmnodeRead{\cB}{\yPrac}{clearing, remedy}
+
+  % 2. The Systems Engineer --------------------------------------------------
+  \rmnodeRead{\cA}{\yEng}{recovery ledger, WAL}
+  \rmnodeDeep{\cB}{\yEng}{transfer ceremony, settlement}
+
+  % 3. The Security / Formal-Methods Reviewer -------------------------------
+  \rmnodeSkim{\cA}{\ySec}
+  \rmnodeDeep{\cB}{\ySec}{ProVerif / TLA+ status}
+
+  % 4. The Mechanism Designer / Economist ------------------------------------
+  \rmnodeRead{\cA}{\yEcon}{reserve pricing, bond}
+  \rmnodeDeep{\cB}{\yEcon}{three-sided market, conservation}
+
+  % 5. The Institutional Theorist -------------------------------------------
+  \rmnodeDeep{\cA}{\yPhil}{Locke, Parfit, personhood}
+  \rmnodeRead{\cB}{\yPhil}{federated sovereignty}
+\end{tikzpicture}
+\end{adjustwidth*}
+\pdmargincaption[Reader paths through the four parts]{Five reader paths cross
+the book's four parts on one facing spread. High-contrast bullseye nodes
+indicate close reading, open rings indicate standard reading, and small pips
+indicate skimming; hue identifies the part, not the reader.}
+\label{fig:book-reader-map}
+\end{figure}
+\endgroup

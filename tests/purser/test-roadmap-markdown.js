@@ -53,7 +53,7 @@ describe('Coordination Papers roadmap track', () => {
 
   it('links the canonical research program and all four registry items once', () => {
     assert.equal(
-      count(section, '[`docs/roadmap/whitepaper-research-program.md`](../roadmap/whitepaper-research-program.md)'),
+      count(section, '[the Omni research ledger](../harbor-research/OMNI-LEDGER.md)'),
       1,
     );
 

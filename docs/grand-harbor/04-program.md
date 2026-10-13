@@ -54,3 +54,27 @@ See [GH-CUT-001](program/CUT-001-first-vertical-proof.md). It crosses identity, 
 ## Exit rule
 
 No stream advances because its prose is comprehensive. It advances when the corresponding proof in [11-proof-catalog.md](11-proof-catalog.md) passes at an exact repository and policy revision.
+
+## Cooperative Harbor cut through this graph — 2026-09-27
+
+The [approved Cooperative Harbor ledger](../strategy/cooperative-harbor-implementation.md)
+is a scoped delivery projection over this program, not a new program authority.
+Its CH1 custody contracts and CH2 editor foundation merged in
+[#10132](https://github.com/curiositech/port-daddy/pull/10132) at
+`44915bcbb54ccb8d6c9e5acebc2d99345a8a7938`; exact-head and merge-group
+CI passed, and an independent read-only source review found no actionable
+issue. Native behavior remains unobserved. The
+machine-readable projection is in [dependency-graph.yaml](program/dependency-graph.yaml).
+
+The first independently testable cut is device-local editor saving. Draft
+[#10316](https://github.com/curiositech/port-daddy/pull/10316) carries source and
+headless tests; exact-head hosted CI and native observation remain open. It
+depends on the CH2 document/replica foundation and proceeds
+without shared membership, managed hosting or prediction. Shared acceptance and interrupted
+edit recovery require verified principal/device admission, typed Rust operation
+receipts, canonical replay and atomic claim transfer. Project participation and
+explicit disclosure then precede managed shared custody; a durable journal and
+checked head precede acknowledgements or cold recovery. Consequence analysis
+requires authorized contributions and evaluation against held-out baselines.
+Native and companion delivery depends on each claimed workflow's authority and
+observed task proof. None of these dependencies is satisfied by a green build.

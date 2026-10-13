@@ -1243,21 +1243,24 @@ fn main() {
                             // identity, load its Loro buffer, and force a (re)subscribe so
                             // the drain block below follows its edit-sync + coordination
                             // channels. A fresh pane drops any prior file's buffer/streams.
-                            app::ControlMsg::OpenEditor { path, region } => {
-                                let identity = editor_pane::resolve_operator_identity();
-                                let mut pane = editor_pane::EditorPane::new_with_identity(
-                                    path, region, identity,
-                                );
-                                pane.load();
-                                editor = Some(pane);
+                            app::ControlMsg::OpenEditor { path, region, document, snapshot, viewer_peer } => {
+                                editor = match editor_pane::EditorPane::mirror(path, region, document, &snapshot, viewer_peer) {
+                                    Ok(pane) => Some(pane),
+                                    Err(error) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor mirror unavailable", error.to_string()));
+                                        None
+                                    }
+                                };
                                 editor_stream = None; // resubscribe to the new file's channels
                             }
                             app::ControlMsg::EditorLocalChange {
                                 path,
+                                document,
                                 frame,
                                 presence,
                             } => {
-                                let Some(ed) = editor.as_mut().filter(|ed| ed.path_str() == path) else {
+                                let Some(ed) = editor.as_mut().filter(|ed| ed.document() == &document) else {
                                     let _ = alert_tx.send(pane::Alert::error(
                                         "editor change not mirrored",
                                         format!("live lane is not bound to {path}"),
@@ -1267,14 +1270,16 @@ fn main() {
                                 let mut changed = false;
                                 if let Some(frame) = frame {
                                     changed |= ed.ingest_local_frame(&frame);
-                                    if let Err(error) = client
-                                        .tube_send(ed.channel(), &frame, "editor")
-                                        .await
-                                    {
-                                        let _ = alert_tx.send(pane::Alert::error(
-                                            "editor delta broadcast failed",
-                                            error.to_string(),
-                                        ));
+                                    if ed.subscription().is_some() {
+                                        if let Err(error) = client
+                                            .tube_send(ed.channel(), &frame, "editor")
+                                            .await
+                                        {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                "editor delta broadcast failed",
+                                                error.to_string(),
+                                            ));
+                                        }
                                     }
                                 }
                                 ed.set_local_presence(presence);
@@ -1282,7 +1287,7 @@ fn main() {
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .map(|duration| duration.as_millis() as i64)
                                     .unwrap_or_default();
-                                if let Some(frame) = ed.take_presence_broadcast(now_ms) {
+                                if let Some(frame) = ed.subscription().and_then(|_| ed.take_presence_broadcast(now_ms)) {
                                     if let Err(error) = client.send_presence(ed.channel(), &frame).await {
                                         let _ = alert_tx.send(pane::Alert::error(
                                             "editor presence broadcast failed",
@@ -1293,6 +1298,7 @@ fn main() {
                                 if changed {
                                     let _ = editor_tx.send(app::EditorUpdate {
                                         path: ed.path_str().to_string(),
+                                        document: ed.document().clone(),
                                         blocks: ed.view(),
                                         remote_frames: Vec::new(),
                                     });
@@ -1536,6 +1542,7 @@ fn main() {
                         if editor_dirty {
                             let _ = editor_tx.send(app::EditorUpdate {
                                 path: ed.path_str().to_string(),
+                                document: ed.document().clone(),
                                 blocks: ed.view(),
                                 remote_frames,
                             });
@@ -1598,7 +1605,9 @@ fn main() {
                     bg.timer(Duration::from_millis(500)).await;
                     let _ = async_cx.update(|app| {
                         let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
-                            if view.refresh_local_control() {
+                            let control_changed = view.refresh_local_control();
+                            let save_changed = view.poll_editor_saves();
+                            if control_changed || save_changed {
                                 present_changed_frame(window, cx, &mut size_nudged);
                             }
                         });

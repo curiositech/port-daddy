@@ -1,51 +1,40 @@
-% Semantic contract: a child must stay inside its parent's rights-by-lifetime
-% envelope. Nested geometry carries both inequalities without a prose table.
+% Book-native replacement for figures/fig-anchor-capability-attenuation.tex.
+% Drop-in fragment: preserve its figure label and make both attenuation bounds
+% visible.  Coordinates are TeX points; labels are native 9pt, never scaled.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.15cm,y=1.08cm]
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (63,0);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
-  \node[pd axis label,anchor=north,align=center,text width=4.6cm] at (30,-.75)
-    {remaining lifetime (min)};
-  \node[pd axis label,anchor=south,rotate=90,align=center,text width=3.2cm]
-    at (-4.7,4.15) {capability reach};
-
-  \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
-    \draw[pd lattice] (0,\y) -- (63,\y);
-    \node[pd axis label,anchor=east] at (-.6,\y) {\rightname};
-  }
-  \foreach \x/\tickname in {5/5,15/15,60/60} {
-    \draw[pd tick] (\x,0) -- (\x,-.12);
-    \node[pd axis label,anchor=north] at (\x,-.18) {\tickname};
-  }
-
-  \path[pd neutral fill] (0,0) rectangle (60,3.35);
-  \draw[pd rule] (0,0) rectangle (60,3.35);
-  \path[pd focus fill] (0,0) rectangle (15,2.35);
-  \draw[pd focus rule] (0,0) rectangle (15,2.35);
-  \path[pd focus fill] (0,0) rectangle (5,1.35);
-  \draw[pd focus rule] (0,0) rectangle (5,1.35);
-
-  \node[pd direct label,anchor=north east] at (59.4,2.7)
-    {\textbf{C0} root, 60 min};
-  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.0)
-    {\textbf{C1}, 15 min};
-  \draw[pd hairline] (5,.9) -- (18,1.62);
-  \node[pd direct label,text=hhteal,anchor=west] (c2lab) at (18,1.62)
-    {\textbf{C2}, 5 min};
-
-  \node[pd caution datum] (bad) at (60,3.7) {};
-  \draw[pd caution arrow] (bad) -- ++(-14,.55)
-    node[pd direct label,text=hhamber,align=left,text width=3.3cm,anchor=south east]
-      {attempted re-grant:\\ net:* at 60 min:\\ refused};
-  \node[pd note,anchor=west] at (17,.5)
-    {C2 $\subseteq$ C1 $\subseteq$ C0 and T2 $<$ T1 $<$ T0};
-\end{tikzpicture}
-\caption{Nested rectangles for the capability envelope C0 (root, 60 min), C1
-(15 min) and C2 (5 min): each child rectangle sits strictly inside its parent
-on both axes. The amber datum is an attempted re-grant of \texttt{net:*} at
-the full 60-minute root lifetime, outside C0 on the capability axis; the
-verifier refuses it because attenuation is conjunctive on rights and time
-together, not a trade between them. [internal]}
+\SGMeasuredFigure{capability-attenuation}{\begin{tikzpicture}[sg/base,y=-1pt]
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0)
+    {Compare independent candidates with $C_0$};
+  \SGDocument{sbcapparent}{(95,26)}{126}{52}{sgViolet!9}{\textbf{parent reference $C_0$}\\
+    rights \{\textsf{fs:read}, \textsf{db:write}\}\\expires $t+10$}
+  \node[anchor=north west,font=\SGType\bfseries] at (0,91)
+    {Three distinct candidate paths};
+  \SGDocument{sbcapshort}{(1,111)}{98}{48}{sgTeal!8}{candidate $C_a$\\
+    \{\textsf{db:write}\}\\expires $t+8$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapshortcheck) at (50,181)
+    {rights are a subset\\$t+8\leq t+10$};
+  \SGDocument{sbcapshortok}{(1,207)}{98}{43}{sgTeal!8}{\textbf{issued $C_a$}\\
+    shorter expiry}
+  \draw[sg/arrow,draw=sgTeal] (sbcapshort.south)--(sbcapshortcheck.north);
+  \draw[sg/arrow,draw=sgTeal] (sbcapshortcheck.south)--(sbcapshortok.north);
+  \SGDocument{sbcaplongreq}{(109,111)}{98}{48}{sgViolet!9}{request $C_b$\\
+    \{\textsf{db:write}\}\\requests $t+20$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapclamp) at (158,181)
+    {clamp before\\signing $C_b$};
+  \SGDocument{sbcaplongok}{(109,207)}{98}{43}{sgTeal!8}{\textbf{issued $C_b$}\\
+    expires $t+10$}
+  \draw[sg/arrow,draw=sgViolet] (sbcaplongreq.south)--(sbcapclamp.north);
+  \draw[sg/arrow,draw=sgTeal] (sbcapclamp.south)--(sbcaplongok.north);
+  \SGDocument{sbcapbad}{(217,111)}{98}{48}{sgRed!7}{candidate $C_c$\\
+    \{\textsf{db:write}, \textsf{net:*}\}\\expires $t+8$}
+  \node[sg/check,minimum width=98pt,minimum height=29pt] (sbcapbadcheck) at (266,181)
+    {rights are not a subset\\$t+8\leq t+10$};
+  \SGDocument{sbcapbadout}{(217,207)}{98}{43}{sgRed!7}{\textbf{refused $C_c$}\\
+    added right}
+  \draw[sg/arrow,draw=sgRed] (sbcapbad.south)--(sbcapbadcheck.north);
+  \draw[sg/arrow,draw=sgRed] (sbcapbadcheck.south)--(sbcapbadout.north);
+\end{tikzpicture}}
+\caption{Every hop checks a rights subset and an expiry bound. A child may inherit its parent’s expiry when a longer lifetime is requested; it may never gain a new right.}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

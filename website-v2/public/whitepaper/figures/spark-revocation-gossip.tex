@@ -1,0 +1,24 @@
+% Analytical sparkline: Epidemic gossip convergence F(r) = 1 / (1 + (m-1)e^{-k r}).
+% Fits inside the 93.95pt book margin column.
+% Source: ch2 §revocation, expected Theta(log m) rounds.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[x=15pt,y=25pt,font=\fontsize{7}{8}\selectfont]
+  % Baseline and ceiling
+  \draw[pdinkmuted!45,line width=.35pt] (0,0) -- (4.0,0);
+  \draw[pdinkmuted!30,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,1.0) -- (4.0,1.0);
+  % Convergence curve for m=8 daemons, log2(8)=3 rounds
+  \draw[pdteal,line width=.85pt] plot[domain=0:4.0,samples=31]
+    (\x,{1.0 / (1.0 + 7.0 * exp(-1.2 * \x))});
+  % Points at r=0 and r=3
+  \fill[pdteal] (0,0.125) circle[radius=1.2pt];
+  \fill[pdteal] (3,{1.0 / (1.0 + 7.0 * exp(-3.6))}) circle[radius=1.2pt];
+  % Labels
+  \node[anchor=east,inner sep=1.5pt] at (0,0) {$0$};
+  \node[anchor=west,inner sep=1.5pt] at (4.0,1.0) {$1$};
+  \node[anchor=south,inner sep=1.5pt] at (2.0,0.85) {$F(r)\to 1$};
+  \node[anchor=north,inner sep=2pt] at (2.0,0) {$r \sim \log_2 m$};
+\end{tikzpicture}
+\makeatother\endgroup

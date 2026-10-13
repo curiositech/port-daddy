@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import ViewInspector
 import XCTest
 #if canImport(FleetBar)
 @testable import FleetBar
@@ -26,6 +28,83 @@ final class LocalRuntimeControlTests: XCTestCase {
         try Data(text.utf8).write(to: root.appendingPathComponent(name))
     }
 
+    func testControlPresentationDoesNotCollapseOpenOffAndUnknown() {
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .open), "Local start gate is open")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .off), "Local starts are off")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .unknown), "Start state unknown — blocked")
+    }
+
+    @MainActor
+    func testLocalOffStoreRefreshUsesItsInjectedControl() throws {
+        let canonical = try root("store-refresh")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let store = LocalOffStore(control: control)
+        XCTAssertEqual(store.controlState, .open)
+        XCTAssertNil(store.blockedReason)
+
+        try marker("HALT", canonical)
+        store.refresh()
+
+        XCTAssertEqual(store.controlState, .off)
+        XCTAssertEqual(store.blockedReason, "Local Off is set (HALT).")
+    }
+
+    @MainActor
+    func testLocalOffStoreReportsUnknownAndPersistsFailureWithoutRunningShutdown() throws {
+        let unavailable = fixture.appendingPathComponent("missing/parent/control")
+        let unknownStore = LocalOffStore(control: LocalRuntimeControl(canonicalRoot: unavailable))
+        XCTAssertEqual(unknownStore.controlState, .unknown)
+        XCTAssertNotNil(unknownStore.blockedReason)
+
+        let target = try root("store-failure-target")
+        let linked = fixture.appendingPathComponent("store-failure-link")
+        try fm.createSymbolicLink(at: linked, withDestinationURL: target)
+        let store = LocalOffStore(
+            control: LocalRuntimeControl(canonicalRoot: linked),
+            shutdown: { [] }
+        )
+        store.turnOff()
+
+        XCTAssertEqual(store.controlState, .off)
+        XCTAssertFalse(store.persistenceFailures.isEmpty)
+        XCTAssertTrue(store.hasRequestedOff)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: target.path), [])
+    }
+
+    @MainActor
+    func testLocalOffSectionRendersConfirmedOffAndUnknownControlStates() throws {
+        let offRoot = try root("off-view")
+        try marker("HALT", offRoot)
+        let off = try LocalOffSection(
+            compact: true,
+            control: LocalRuntimeControl(canonicalRoot: offRoot)
+        ).inspect()
+        XCTAssertNoThrow(try off.find(text: "Local starts are off"))
+
+        let unavailable = fixture.appendingPathComponent("missing/view/control")
+        let unknown = try LocalOffSection(
+            compact: true,
+            control: LocalRuntimeControl(canonicalRoot: unavailable)
+        ).inspect()
+        XCTAssertNoThrow(try unknown.find(text: "Start state unknown — blocked"))
+    }
+
+    @MainActor
+    func testCustomNamedStopMarkerPresentsAsConfirmedOff() throws {
+        let canonical = try root("custom-marker-canonical")
+        let custom = fixture.appendingPathComponent("maintenance.stop")
+        try Data("maintenance\n".utf8).write(to: custom)
+        let control = LocalRuntimeControl(
+            canonicalRoot: canonical,
+            environment: ["PD_HALT_FILE": custom.path]
+        )
+        let store = LocalOffStore(control: control)
+
+        XCTAssertEqual(store.controlState, .off)
+        XCTAssertEqual(store.blockedReason, "Local Off is set (maintenance.stop).")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: store.controlState), "Local starts are off")
+    }
+
     func testCanonicalAndSelectedStopsAreAdditiveAndSticky() throws {
         for name in ["HALT", "hooks.disabled"] {
             for location in ["canonical", "selected"] {
@@ -42,6 +121,22 @@ final class LocalRuntimeControlTests: XCTestCase {
         }
     }
 
+    func testConfirmedCustomOffDominatesUnknownSelectedControl() throws {
+        let canonical = try root("off-dominates-unknown-canonical")
+        let custom = fixture.appendingPathComponent("off-dominates-unknown.stop")
+        try Data("maintenance\n".utf8).write(to: custom)
+
+        for selected in [fixture.appendingPathComponent("missing/parent/control").path, "relative"] {
+            let control = LocalRuntimeControl(
+                canonicalRoot: canonical,
+                environment: ["PD_HOME": selected, "PD_HALT_FILE": custom.path]
+            )
+
+            XCTAssertEqual(control.observation.state, .off)
+            XCTAssertEqual(control.blockedReason, "Local Off is set (off-dominates-unknown.stop).")
+        }
+    }
+
     func testBrokenSymlinkAndUnknownControlsDeny() throws {
         let canonical = try root("canonical")
         let markerURL = canonical.appendingPathComponent("HALT")
@@ -53,6 +148,26 @@ final class LocalRuntimeControlTests: XCTestCase {
         let unavailable = fixture.appendingPathComponent("absent/parent/control")
         XCTAssertNotNil(LocalRuntimeControl(canonicalRoot: unavailable).blockedReason)
         XCTAssertNotNil(LocalRuntimeControl(canonicalRoot: try root("relative"), environment: ["PD_HOME": "relative"]).blockedReason)
+    }
+
+    func testConcurrentObservationsRemainConsistentBeforeAndAfterOff() throws {
+        let canonical = try root("concurrent-observation")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let states = ControlStateRecorder()
+
+        DispatchQueue.concurrentPerform(iterations: 64) { _ in
+            states.append(control.observation.state)
+        }
+        XCTAssertEqual(states.snapshot.count, 64)
+        XCTAssertTrue(states.snapshot.allSatisfy { $0 == .open })
+
+        try marker("HALT", canonical)
+        states.removeAll()
+        DispatchQueue.concurrentPerform(iterations: 64) { _ in
+            states.append(control.observation.state)
+        }
+        XCTAssertEqual(states.snapshot.count, 64)
+        XCTAssertTrue(states.snapshot.allSatisfy { $0 == .off })
     }
 
     func testCustomHaltCannotOverrideCanonicalAndUnknownParentDenies() throws {
@@ -302,6 +417,23 @@ final class LocalRuntimeControlTests: XCTestCase {
             do { for try await _ in lines {}; XCTFail("Overflow was silently accepted") }
             catch { XCTAssertEqual((error as? URLError)?.code, .dataLengthExceedsMaximum) }
         }
+    }
+}
+
+private final class ControlStateRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var states: [LocalRuntimeControl.State] = []
+
+    func append(_ state: LocalRuntimeControl.State) {
+        lock.lock(); states.append(state); lock.unlock()
+    }
+
+    func removeAll() {
+        lock.lock(); states.removeAll(); lock.unlock()
+    }
+
+    var snapshot: [LocalRuntimeControl.State] {
+        lock.lock(); defer { lock.unlock() }; return states
     }
 }
 

@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {stressPricingPlan} from '../scripts/pricing_stress.mjs';
+const base=JSON.parse(readFileSync(new URL('../examples/sample-input.json',import.meta.url)));
+const plan=()=>structuredClone(base);
+function single(){const s=plan();s.unitCosts={modelTokenCost:0.1,toolCompute:0.05,overhead:0.05};s.pricePoints=[{tier:'one',basePrice:100,includedUnits:100,overageRatePerUnit:1}];s.personas=[{name:'one',tier:'one',monthlyUnits:100}];return s}
+test('constructed baseline passes and preserves every persona',()=>{const r=stressPricingPlan(plan());assert.equal(r.pass,true);assert.equal(r.marginByPersona.length,3)});
+test('each required guardrail independently blocks',()=>{for(const key of Object.keys(base.guardrails)){const s=plan();s.guardrails[key]=false;assert.equal(stressPricingPlan(s).policyBlocks.requiredGuardrails,true);assert.equal(stressPricingPlan(s).pass,false)}});
+test('thin margins block independently of aggregate risk label',()=>{const s=single();s.pricePoints[0].basePrice=21;const r=stressPricingPlan(s);assert.equal(r.marginByPersona[0].status,'thin');assert.equal(r.pass,false)});
+test('relevant omitted excess treatment blocks; explicit free excess is modeled',()=>{const s=single();s.personas[0].monthlyUnits=101;delete s.pricePoints[0].overageRatePerUnit;assert.equal(stressPricingPlan(s).policyBlocks.explicitExcessTreatment,true);s.pricePoints[0].overageRatePerUnit=0;assert.equal(stressPricingPlan(s).pass,true)});
+test('duplicate trimmed persona names rejected and special keys remain ordinary records',()=>{const s=single();s.personas.push({...s.personas[0],name:' one '});assert.throws(()=>stressPricingPlan(s),/duplicate name/);s.personas=[{...s.personas[0],name:'__proto__'},{...s.personas[0],name:'constructor'}];const r=stressPricingPlan(s);assert.deepEqual(r.marginByPersona.map(x=>x.name),['__proto__','constructor'])});
+test('malformed fields and optional settlement are rejected',()=>{for(const edit of [s=>{s.extra=1},s=>{s.valueMetric.name='  '},s=>{s.outcomeSettlement={verifier:1,unknownResult:'do-not-bill'}},s=>{s.pricePoints[0].overageRatePerUnit=null}]){const s=single();edit(s);assert.throws(()=>stressPricingPlan(s))}});
+test('model enum is exact, matching schema',()=>{const s=single();s.model=' hybrid ';assert.throws(()=>stressPricingPlan(s),/model must be one of/)});
+test('outcome verifier and supported unknown policy are required',()=>{const s=single();s.model='outcome';assert.equal(stressPricingPlan(s).pass,false);s.outcomeSettlement={verifier:'constructed check',unknownResult:'hold-for-review'};assert.equal(stressPricingPlan(s).pass,true);s.outcomeSettlement.unknownResult='charge-anyway';assert.equal(stressPricingPlan(s).pass,false)});
+test('tiny costs preserve raw precision',()=>{const s=single();s.unitCosts={modelTokenCost:0.00165,toolCompute:0,overhead:0};const r=stressPricingPlan(s);assert.equal(r.unitCostFloor.totalUnitCost,0.00165);assert.equal(r.unitCostFloor.display.totalUnitCostUsd,'$0.001650')});
+test('derived arithmetic including percentage scaling cannot emit infinities',()=>{const s=single();s.unitCosts={modelTokenCost:1e207,toolCompute:0,overhead:0};s.pricePoints[0].basePrice=1e-100;s.personas[0].monthlyUnits=1;assert.throws(()=>stressPricingPlan(s),/non-finite derived arithmetic/);s.unitCosts={modelTokenCost:1e308,toolCompute:1e308,overhead:0};assert.throws(()=>stressPricingPlan(s),/non-finite derived arithmetic/)});
+test('CLI rejects unknown or duplicate flags',()=>{const script=fileURLToPath(new URL('../scripts/pricing_stress.mjs',import.meta.url)),input=fileURLToPath(new URL('../examples/sample-input.json',import.meta.url));for(const flags of [['--strcit'],['--strict','--strict']]){const r=spawnSync(process.execPath,[script,'--input',input,...flags],{encoding:'utf8'});assert.equal(r.status,1);assert.match(r.stderr,/usage:/)}});

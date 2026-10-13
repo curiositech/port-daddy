@@ -1,0 +1,38 @@
+{
+  "forecast": {
+    "forecastId": "forecast-current",
+    "outputArtifact": {
+      "id": "artifact-a",
+      "digest": "sha256:abc",
+      "version": "v1"
+    },
+    "event": {
+      "id": "event-pass-v",
+      "predicate": "artifact passes verifier V",
+      "evaluatorId": "verifier-v",
+      "evaluatorVersion": "1"
+    },
+    "forecastTime": "2026-01-01T00:00:00Z",
+    "resolutionDeadline": "2026-01-02T00:00:00Z",
+    "cohortId": "held-out-week-1",
+    "status": "forecast",
+    "probability": 0.7
+  },
+  "status": "evaluated",
+  "evaluation": {
+    "mode": "raw",
+    "cohortId": "held-out-week-1",
+    "samples": [
+      {
+        "forecastId": "forecast-current",
+        "eventId": "event-pass-v",
+        "probability": 0.7,
+        "outcome": 1,
+        "resolvedAt": "2026-01-01T01:00:00Z",
+        "resolutionSource": "receipt:verifier-v:run-7"
+      }
+    ],
+    "denominator": 1,
+    "meanBrier": 0.09
+  }
+}

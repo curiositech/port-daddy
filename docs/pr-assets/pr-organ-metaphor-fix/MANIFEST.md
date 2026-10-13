@@ -2,7 +2,7 @@
 
 ## Part 1 — the metaphor-collision fix (original)
 
-- `before-after-p8.png` — page 8 of `whitepaper/single-writer-kernel.tex`
+- `https://media.portdaddy.dev/sha256/98/9840080aca03e3f1ffe3a2367c865ad70f01558ea26e9a3400e39e81fa68673f.png` — page 8 of `whitepaper/single-writer-kernel.tex`
   compiled standalone with `pdflatex` (the file carries its own
   `\documentclass`, no chapter/book preamble needed), rendered at 150 dpi /
   1.0x via PyMuPDF, before vs. after this PR's two sentence edits. Two
@@ -127,13 +127,13 @@ scope) has no "organ" mentions at all.
 
 ### Renders
 
-- `before-after-p07-seven-subsystems.png` — page 7: §1.3's title, opening
+- `https://media.portdaddy.dev/sha256/aa/aa2d885074b8741102f9b730b0fa8696c40aa8d0a92a6cdc54899581ac048396.png` — page 7: §1.3's title, opening
   paragraph (the "connective tissue" fix), and the Reader's Map row.
-- `before-after-p19-sovereigns-two-levers.png` — page 19: §1.8's title and the
+- `https://media.portdaddy.dev/sha256/2e/2ebef5a80aaab4512be7bcf821b2662207d405ab75e37525656bf4f897178504.png` — page 19: §1.8's title and the
   arm(s)/heart → lever(s)/core body sentence. The heading wraps to a second
   line only because "subsystem"/"levers" run a few characters longer than
   "organ"/"arms" in the same fixed column width — no other layout changed.
-- `before-after-p50-appendix-mapping.png` — page 50: Appendix A.1's
+- `https://media.portdaddy.dev/sha256/53/53f1d24ffc46ae69e466e15648f377bca945c0c10af4ba83eb98b67cf6d76f66.png` — page 50: Appendix A.1's
   "seven organs ... correspond to distinct modules" sentence.
 
 Each is a genuine `pdflatex` compile (three passes: two to resolve

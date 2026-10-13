@@ -2,21 +2,13 @@
 license: MIT
 name: macos-host-security
 description: |
-  Durable research for building a macOS host-safety layer that protects a dev box from
-  any AI agent or downloaded executable running on it — the primitives, prior art, the
-  read-only-vs-privileged trust map, and the no-keyword-NLP secret-detection method behind
-  Port Daddy's `pd safe` ("the AI little sniffer", ADR-0088). Covers Endpoint Security
-  Framework (ESF) + eslogger, Network Extension (NEFilterDataProvider/DNS/transparent
-  proxy), pf forced egress, code-trust CLIs (codesign/spctl/xattr), libproc/nettop/lsof
-  read-only inventory, TCC + Full Disk Access, structured-format + Shannon-entropy secret
-  scanning, and Santa-fronted binary lockdown. Activate on: "macOS host security", "endpoint
-  security framework", "eslogger", "ESF AUTH_EXEC", "NEFilterDataProvider", "network
-  extension", "system extension entitlement", "pf forced egress", "codesign trust",
-  "quarantine xattr", "Full Disk Access", "TCC", "secret scanner", "gitleaks rules",
-  "Shannon entropy detection", "Santa binary lockdown", "pd safe", "AI sniffer", "confine
-  agent on macOS", "block rogue executable". NOT for: the TypeScript daemon's coordination
-  logic, generic Rust/borrow-checker help (use rust-with-claude-code), web/UI security
-  (use agentic-zero-trust-security for crypto/ocap), or prompt-injection defense.
+  Design or review macOS host safety for agents and downloaded executables.
+  Use for Endpoint Security and eslogger, Network Extension and pf egress,
+  codesign/quarantine checks, TCC and Full Disk Access, secret scanning with
+  structured formats and entropy, Santa binary lockdown, or Port Daddy's
+  `pd safe` design. Covers the read-only versus privileged trust boundary.
+  NOT for generic Rust compiler work (use rust-development-workflow), web
+  security (use agentic-zero-trust-security), or prompt-injection defense.
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
   category: Security & Trust

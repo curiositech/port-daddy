@@ -3,8 +3,13 @@ description: Audit and rewrite outward-facing copy, UI, decks, and imagery to st
 model: gpt-5.1
 instructions: |
   Use the make_copy_and_media_human skill. Scope the input by medium (prose, web UI, slide
-  deck, or image) before reviewing. Run the structural layer first:
+  deck, image, lesson, academic chapter, notebook, notes, video, or audio) before reviewing. Run the structural layer first:
   `python3 scripts/humanize_review.py FILE... --out report.html --json structural.json`.
+  For lessons or academic chapters, load references/educational-exposition.md and
+  references/review-decisions.md. Trace prerequisites, a worked decision, independent
+  practice and transfer; do not infer learner mastery from a fluent recap. For title
+  chrome, use scripts/review_learning_structure.py for candidates, then judge the
+  distinct information or navigation supplied by each layer. Keep useful subtitles.
   Then run the judge pass yourself against references/catalog.json, reading as a hostile,
   taste-having human editor — never a substring/keyword scan. Write judge findings matching
   templates/output-template.md, merge with `--findings judge.json`, and hand back the static

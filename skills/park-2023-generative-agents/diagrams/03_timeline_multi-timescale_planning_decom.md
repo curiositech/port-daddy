@@ -5,22 +5,22 @@ timeline
     title Multi-Timescale Planning Decomposition: Exhibition Opening Example
     
     section Day-Level Intention
-        Prepare for exhibition opening : a1, 2023-10-15, 1d
+        2023-10-15 : Prepare for exhibition opening (day-level intention, 1 day)
     
     section Hour-Level Activities
-        Review artwork 2-4pm : a2, 2023-10-15, 2h
-        Setup gallery space : a3, after a2, 2h
-        Greeting preparation : a4, after a3, 1h
+        2-4 pm : Review artwork (2023-10-15, 2 hours)
+        After artwork review : Setup gallery space (2 hours)
+        After gallery setup : Greeting preparation (1 hour)
     
     section Minute-Level Actions
-        Walk to gallery at 2:00pm : a5, 2023-10-15, 5m
-        Unlock gallery doors : a6, after a5, 2m
-        Begin artwork review : a7, after a6, 113m
+        2 pm : Walk to gallery (2023-10-15, 5 minutes)
+        After arrival : Unlock gallery doors (2 minutes)
+        After unlocking : Begin artwork review (113 minutes)
     
     section Observation & Interruption
-        Observation: Gallery entrance blocked : crit, o1, 2023-10-15, 1m
-        Interrupt minute-level plan : crit, i1, after o1, 1m
-        Reassess hour-level activity : i2, after i1, 2m
-        Replan: Find alternate entrance : i3, after i2, 3m
-        Resume minute-level: Enter via side door : i4, after i3, 2m
+        2023-10-15 : Observation - gallery entrance blocked (critical, 1 minute)
+        After observation : Interrupt minute-level plan (critical, 1 minute)
+        After interruption : Reassess hour-level activity (2 minutes)
+        After reassessment : Replan - find alternate entrance (3 minutes)
+        After replanning : Resume minute-level plan through side door (2 minutes)
 ```

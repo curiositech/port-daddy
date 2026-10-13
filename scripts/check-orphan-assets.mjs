@@ -335,8 +335,9 @@ function buildIndex(root, files) {
             if (re) patterns.push({ re, token: t, from: f, stem: true })
             else droppedBroad++
           } else {
-            if (!stems.has(t)) stems.set(t, new Set())
-            stems.get(t).add(f)
+            const stem = extOf(t) === 'tex' ? t.slice(0, -4) : t
+            if (!stems.has(stem)) stems.set(stem, new Set())
+            stems.get(stem).add(f)
           }
         }
       }

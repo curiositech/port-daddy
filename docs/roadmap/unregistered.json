@@ -7,7 +7,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -17,7 +17,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -27,7 +27,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -57,7 +57,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -67,7 +67,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -77,7 +77,12 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
+          "how": "declared"
+        },
+        {
+          "file": "docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md",
+          "line": 144,
           "how": "declared"
         }
       ]
@@ -89,6 +94,11 @@
           "file": "docs/adr/0098-cloud-fleet-operator-surface.md",
           "line": 106,
           "how": "declared"
+        },
+        {
+          "file": "docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md",
+          "line": 144,
+          "how": "declared"
         }
       ]
     },
@@ -97,7 +107,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -107,7 +117,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]
@@ -117,7 +127,7 @@
       "sources": [
         {
           "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
-          "line": 629,
+          "line": 649,
           "how": "declared"
         }
       ]

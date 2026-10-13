@@ -1,0 +1,43 @@
+% Question: Which record supports each market claim, and what changes at release?
+% Claim: payment, authority, evidence, and reputation differ; after release,
+% reversal needs recovery rather than recreating the hold.
+% Evidence: accepted B06 constructed 11.5-credit D17/D18 dispute case.
+% Distinguish: funded buckets, decision authority, observations, reputation signal.
+% Grammar: two-panel worksheet; a wide market graph duplicates fig-he-three-sided.
+% Five-second test: D18 can supersede D17 but cannot recreate paid escrow.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd direct label/.append style={inner sep=0pt,fill=none}]
+\path[use as bounding box] (0,-8.5) rectangle (11.4,.4);
+\node[pd panel title,anchor=west] at (0,.12) {A. Classify the claim};
+\node[pd panel title,anchor=west] at (5.85,.12) {B. Challenge the decision};
+\draw[pd rule] (0,-.25)--(5.45,-.25) (5.85,-.25)--(11.4,-.25);
+\node[pd direct label,anchor=west] at (0,-.65) {Ask for the record behind each claim.};
+\node[pd direct label,anchor=west] at (5.85,-.65) {Same case; different challenge timing.};
+\foreach \yy/\kind/\record in {
+ -1.45/Payment/{Funders + buckets: 8 + 2 + 1 + .5},
+ -2.72/Authority/{Reviewer mandate + decision version},
+ -3.99/Evidence/{Output hash + evaluator revision},
+ -5.26/Reputation/{Identity, signal + correction path}
+}{
+ \draw[pd hairline] (0,{\yy+.44})--(5.45,{\yy+.44});
+ \node[pd panel title,anchor=west] at (.08,\yy) {\kind};
+ \node[pd direct label,anchor=west,text width=3.25cm] at (2.18,\yy) {\record};
+}
+\draw[pd focus rule] (0,-5.84)--(5.45,-5.84);
+\node[pd panel title,anchor=west] at (0,-6.25) {Check the accounting identity};
+\node[pd direct label,anchor=west] at (0,-6.73) {Hold: $8+2+1+0.5=11.5$ credits.};
+\node[pd direct label,anchor=west] at (0,-7.22) {Name each funder; receipt $\neq$ payout.};
+\node[pd panel title,anchor=west] at (5.85,-1.3) {Before release};
+\draw[pd focus rule] (5.85,-1.58)--(11.4,-1.58);
+\node[pd direct label,anchor=west] at (5.85,-2.05) {D17: success used the wrong revision.};
+\node[pd direct label,anchor=west] at (5.85,-2.56) {Challenge: retain all 11.5 credits.};
+\node[pd direct label,anchor=west] at (5.85,-3.07) {D18: authorised review replaces D17.};
+\node[pd direct label,anchor=west] at (5.85,-3.58) {One release under the chosen rule.};
+\node[pd panel title,anchor=west] at (5.85,-4.35) {After release};
+\draw[pd rule] (5.85,-4.63)--(11.4,-4.63);
+\node[pd direct label,anchor=west] at (5.85,-5.10) {D17 transfer paid; record its ID.};
+\node[pd direct label,anchor=west] at (5.85,-5.61) {D18 supersedes decision, not cash.};
+\node[pd direct label,anchor=west] at (5.85,-6.12) {Authorise separate recovery.};
+\node[pd direct label,anchor=west] at (5.85,-6.63) {Record any deficit.};
+\draw[pd hairline] (5.85,-7.05)--(11.4,-7.05);
+\node[pd note,anchor=west] at (5.85,-7.48) {Constructed; escrow not implemented.};
+\end{tikzpicture}

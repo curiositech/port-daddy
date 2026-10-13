@@ -137,7 +137,9 @@ export interface SkillIndex {
 const SKILL_DIR_BLOCKLIST = new Set(['node_modules', '.git', 'dist', 'build', 'target', '.cache', '.scratch']);
 
 /**
- * Walk one or more roots and collect every SKILL.md (case-insensitive).
+ * Walk one or more roots and collect active SKILL.md files (case-insensitive).
+ * A skill's `sources/` directory contains preserved input bundles, not active
+ * entrypoints, and is excluded from discovery.
  * Reads the YAML frontmatter and returns one `SkillEntry` per file. Files
  * with malformed frontmatter or no `name`/`description` are skipped with a
  * warning callback (when provided) — never thrown, so a single bad SKILL.md
@@ -169,8 +171,10 @@ function walkSkillDir(dir: string, sink: Map<string, SkillEntry>, onWarning?: (m
   } catch {
     return;
   }
+  const isSkillBundle = entries.some((entry) => /^skill\.md$/i.test(entry));
   for (const entry of entries) {
     if (SKILL_DIR_BLOCKLIST.has(entry) || entry.startsWith('.')) continue;
+    if (isSkillBundle && entry === 'sources') continue;
     const full = join(dir, entry);
     let stats;
     try { stats = statSync(full); } catch { continue; }

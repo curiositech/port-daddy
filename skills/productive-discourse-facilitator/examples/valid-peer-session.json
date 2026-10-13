@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "2.0.0", "sessionId": "peer-review:1", "topic": "Whether the static prototype should enter usability testing", "objective": "TEST_CLAIMS",
+  "participants": [
+    {"participantId": "alice", "voice": "DIRECT", "consent": "YES", "withdrawal": "FREE", "standing": "DECLARED_PEER"},
+    {"participantId": "bob", "voice": "DIRECT", "consent": "YES", "withdrawal": "FREE", "standing": "DECLARED_PEER"}
+  ],
+  "gate": {"safety": "NO_BLOCKER_DECLARED", "decisionAuthority": "NOT_APPLICABLE", "outcome": "ELIGIBLE", "reasonCodes": []},
+  "mode": {"kind": "DEBATE", "consentParticipantIds": ["alice", "bob"], "modeSwitchCount": 0},
+  "claims": [{"claimId": "c1", "ownerId": "alice", "proposition": "The prototype is ready for static usability testing.", "kind": "EMPIRICAL", "evidenceRefs": ["prototype:1"], "changeCondition": "A critical authority misconception appears in dry-run review.", "status": "REVISED"}],
+  "steelmanCertificates": [{"certificateId": "s1", "claimId": "c1", "holderId": "alice", "restaterId": "bob", "attempt": 1, "restatement": "A static test can probe comprehension without claiming live control.", "strongestObjection": "A polished mock may create false confidence.", "changeCondition": "Label every control as non-live and test teach-back.", "holderVerdict": "ACCEPTED"}],
+  "critiques": [{"critiqueId": "q1", "claimId": "c1", "criticId": "bob", "steelmanCertificateId": "s1", "target": "SCOPE", "statement": "Testing must exclude runtime efficacy claims.", "changeCondition": "The protocol explicitly limits the study to comprehension."}],
+  "exchangeRounds": [{"claimId": "c1", "roundNumber": 1, "critiqueIds": ["q1"], "outcome": "REVISED"}],
+  "integrityEvents": [], "dissent": [],
+  "terminal": {"state": "SYNTHESIS_ACCEPTED", "statement": "Run a static comprehension study that makes no runtime claim.", "assent": [{"participantId": "alice", "status": "ASSENT"}, {"participantId": "bob", "status": "ASSENT"}], "dissentIds": [], "nextStep": "NONE"},
+  "truthEffect": "NONE", "authorityEffect": "NONE"
+}

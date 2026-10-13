@@ -15,13 +15,14 @@ description: >
   the wire protocol of agent messages (use agent-conversation-protocols), or the
   economics of agent labor (use mechanism-design-for-agent-labor).
 license: Apache-2.0
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: critique
-      description: Legibility audit identifying where agent state, intent, or provenance is unreadable to operators
-    - kind: design-doc
-      description: Legibility patterns (receipts, ledgers, status surfaces) for the audited system
+metadata:
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: critique
+        description: Legibility audit identifying where agent state, intent, or provenance is unreadable to operators
+      - kind: design-doc
+        description: Legibility patterns (receipts, ledgers, status surfaces) for the audited system
 ---
 
 # Legibility for Agentic Systems
@@ -242,7 +243,7 @@ Before shipping any read-surface / digest / oversight view:
 - **What agents SAY to each other** (performatives, contract net) → `agent-conversation-protocols`, `smith-1980-contract-net-protocol`.
 - **Consensus / leader election mechanics** → `ongaro-ousterhout-2014-raft`.
 - **The economics of agent labor / reputation pricing** → `mechanism-design-for-agent-labor`, `nisan-et-al-2007-algorithmic-game-theory`.
-- **Durable obligations / commitment monitoring** → `normative-bdi-agents`, ADR-0041.
+- **Durable obligations / commitment monitoring** → `bdi-normative-reasoning`, ADR-0041.
 
 This skill is *only* about the legibility relationship between the swarm and the
 one human operator: what to render, what to preserve, and how to keep the human
@@ -259,4 +260,4 @@ Anchors: Scott 1998 (*Seeing Like a State*); Hobbes 1651 (*Leviathan*); Rao 2010
 Automation*); Endsley & Kiris 1995 (*out-of-the-loop performance problem*);
 Turpin et al. 2023 (*unfaithful chain-of-thought*); Dai et al. 2024 (*Artificial
 Leviathan*, arXiv:2406.14373). Grafted en route: conway-1968, ongaro-ousterhout-2014-raft,
-bdi-agent-design-mora.
+bdi-agent-interpreters.

@@ -1,80 +1,44 @@
-% Semantic contract: lossy filter encodings do not have a safe union operation;
-% authoritative IDs do. A before/after pair, same six-bucket geometry in both
-% panels, so the reader compares bucket occupancy directly, not a metaphor.
+% Bounded bit counterexample; semantic fixture in test_book_pictograph_semantics.py.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-    % A bucket holds a cell id, so its text takes the identifier role.
-    bucket/.style={pd state,minimum width=.82cm,minimum height=.82cm,
-      inner sep=0pt,font=\pdfiglabelmono,rounded corners=1pt},
-    idtext/.style={font=\pdfiglabelmono,text=hhpaper}]
-  \newcommand{\rowlabelnode}[2]{\node[pd row label,anchor=east] at (-.3,#1) {#2};}
+\SGMeasuredFigure{fig-anchor-cuckoo-inline}{%
+\begin{tikzpicture}[sg/base,y=-1pt]
+  \tikzset{slot/.style={draw=sgInk,line width=.8pt,minimum width=47pt,
+    minimum height=30pt,inner sep=3pt,align=center,font=\SGType\ttfamily}}
+  \draw[sg/grid] (161,0)--(161,231);
+  \node[anchor=north west,font=\SGType\bfseries] at (0,0) {OR the encodings};
+  \node[anchor=north west,font=\SGType\bfseries] at (174,0) {Union the records};
+  \node at (70,32) {bucket 0};
+  \node at (125,32) {bucket 1};
+  \node[anchor=east] at (35,61) {A};
+  \node[anchor=east] at (35,103) {B};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (70,61) {001};
+  \node[slot,fill=sgInk!3] at (125,61) {000};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (70,103) {010};
+  \node[slot,fill=sgInk!3] at (125,103) {000};
+  \draw[sgInk,line width=.8pt] (45,128)--(150,128);
+  \node[anchor=east,text=sgRed] at (35,153) {OR};
+  \node[slot,draw=sgRed,fill=sgRed!7] at (70,153) {011};
+  \node[slot,fill=sgInk!3] at (125,153) {000};
+  \node[anchor=north,text=sgRed,align=center,text width=149pt] at (78,182)
+    {neither original\\fingerprint remains};
+  \node[anchor=north west] at (0,217) {\texttt{000}: empty slot};
 
-  % ---------- panel 1: filters do not merge ----------
-  \node[pd panel title,anchor=west] at (-.3,8.85) {filters do not merge};
-
-  \rowlabelnode{7.55}{peer $A$}
-  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.55) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (a2) {c1};
-
-  \rowlabelnode{6.35}{peer $B$}
-  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.35) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (b5) {c1};
-
-  \rowlabelnode{5.15}{$A$ OR $B$}
-  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,5.15) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (o2) {c1};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (o5) {c1};
-
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,4.7) -- (\i-1,4.58);
-    \node[pd axis label,anchor=north] at (\i-1,4.55) {\i};
-  }
-  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,4.05)
-    {two placements, one id: not a filter anyone built};
-
-  % ---------- divider ----------
-  \draw[pd hairline] (-.9,3.3) -- (5.9,3.3);
-
-  % ---------- panel 2: the log merges ----------
-  \node[pd panel title,anchor=west] at (-.3,2.75) {the log merges};
-
-  \node[pd mono label,anchor=west,inner sep=3pt] (lA) at (-.3,1.9)
-    {A: c1 c7 c4};
-  \node[pd mono label,anchor=west,inner sep=3pt] (lB) at (-.3,1.15)
-    {B: c2 c1 c9};
-  \draw[pd focus arrow] (lA.east) ++(2.55,.375) to[out=0,in=160] (5.2,1.9);
-  \draw[pd focus arrow] (lB.east) ++(2.55,-.375) to[out=0,in=200] (5.2,1.9);
-  \node[pd mono label,anchor=west,text=hhteal] at (5.35,1.9)
-    {union: c1 c2 c4 c7 c9};
-
-  \draw[pd focus arrow] (2.5,.65) -- (2.5,-.15);
-  \node[pd note,anchor=north,align=center,text width=5.1cm] at (7.6,1.55)
-    {\hyphenpenalty=10000\exhyphenpenalty=10000
-     set union over IDs is always well defined};
-
-  \rowlabelnode{-.85}{rebuilt}
-  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.85) {};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r1) {c2};
-  \node[bucket,pd focus fill,idtext,text=hhink] at (r2) {c1};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r3) {c4};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r4) {c7};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r5) {c9};
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,-1.3) -- (\i-1,-1.42);
-    \node[pd axis label,anchor=north] at (\i-1,-1.45) {\i};
-  }
-  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,-1.95)
-    {c1 occupies one bucket once: one valid local projection};
-\end{tikzpicture}
-\caption{Two six-bucket cuckoo filters compared before and after the design
-change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
-the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
-and eviction history; bitwise \texttt{OR} keeps both placements, which is a
-state no single filter build could have produced. Bottom: gossiping the
-append-only ID log instead---peer $A$'s \texttt{c1 c7 c4} and peer $B$'s
-\texttt{c2 c1 c9}---and taking the ordinary set union gives \texttt{c1 c2 c4
-c7 c9}; each daemon rebuilds one local filter with \texttt{c1} in a single
-bucket. [internal]}
+  \SGDocument{logA}{(174,34)}{67}{34}{sgViolet!8}{peer A\\ID \texttt{c1}}
+  \SGDocument{logB}{(250,34)}{67}{34}{sgAmber!8}{peer B\\ID \texttt{c2}}
+  \node[sg/check,draw=sgTeal,fill=sgTeal!6,minimum width=116pt,
+    minimum height=32pt] (union) at (246,105) {union IDs\\$\{\mathtt{c1},\mathtt{c2}\}$};
+  \draw[sg/arrow,draw=sgViolet] (logA.south)--(207.5,80)--(union.north west);
+  \draw[sg/arrow,draw=sgAmber] (logB.south)--(283.5,80)--(union.north east);
+  \draw[sg/arrow,draw=sgTeal] (union.south)--(246,162);
+  \node[anchor=east,text=sgTeal,align=right] at (236,141) {local\\rebuild};
+  \node[slot,draw=sgBlue,fill=sgBlue!7] at (218,182) {001};
+  \node[slot,draw=sgAmber,fill=sgAmber!9] at (273,182) {010};
+  \node[anchor=north,text=sgTeal,align=center,text width=145pt] at (246,208)
+    {both fingerprints found};
+\end{tikzpicture}}
+\caption{Bitwise OR corrupts stored fingerprints; set union preserves the
+identifiers needed to rebuild them. Two-bucket example with one three-bit
+slot per bucket.}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

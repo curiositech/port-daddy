@@ -1,0 +1,227 @@
+% fig-ch0-cnp-protocol.tex
+% Contract Net Protocol (CNP) Task Allocation Lifecycle and Settlement Under Kernel Confinement
+% 100% native vector Swiss TikZ layout adhering to Harbor Figure Standard (v2).
+% Strict collision-free geometry, verified badge offsets, and two-phase market architecture.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    phaseframe/.style={
+      draw=pdslate!40,
+      line width=0.75pt,
+      fill=white,
+      rounded corners=3pt
+    },
+    msgcard/.style={
+      draw=pdslate!30,
+      line width=0.55pt,
+      fill=white,
+      rounded corners=2pt
+    },
+    flowarrow/.style={
+      draw=pdcobalt,
+      line width=0.8pt,
+      ->,
+      >=Stealth
+    },
+    retarrow/.style={
+      draw=pdteal!80!black,
+      line width=0.8pt,
+      ->,
+      >=Stealth
+    },
+    refusearrow/.style={
+      draw=pderror,
+      line width=0.75pt,
+      dashed,
+      ->,
+      >=Stealth
+    }
+  }
+
+  % =========================================================================
+  % PHASE 1: CALL & BID (Left: x in [0.1, 7.1], y in [0.75, 5.5])
+  % =========================================================================
+  \draw[phaseframe] (0.1, 0.75) rectangle (7.1, 5.5);
+  % Header (Cobalt)
+  \fill[fill=pdcobalt!90!black, rounded corners=2pt] (0.14, 5.12) rectangle (7.06, 5.46);
+  \node[anchor=center] at (3.6, 5.29) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}PHASE 1: CALL FOR PROPOSALS \& BIDDING%
+  };
+
+  % Manager Agent (Left)
+  \begin{scope}[shift={(0.85, 3.8)}]
+    \pdrobotbase[0.62]{(0, 0)}{pdcobalt}
+    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Manager\\Agent};
+  \end{scope}
+
+  % Broadcast CFP Card
+  \begin{scope}[shift={(3.4, 4.25)}]
+    \draw[msgcard] (-1.7, -0.55) rectangle (1.7, 0.55);
+    % Title bar with CFP badge
+    \fill[fill=pdcobalt!10, rounded corners=1.5pt] (-1.66, 0.22) rectangle (1.66, 0.51);
+    \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdcobalt}] at (-1.55, 0.365) {Call for Proposals};
+    \draw[fill=pdcobalt!90!black, draw=none, rounded corners=1pt] (0.9, 0.26) rectangle (1.55, 0.47);
+    \node[font=\fontsize{3.6}{4.4}\selectfont\bfseries\color{white}] at (1.225, 0.365) {CFP};
+    
+    % Specs
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\color{hhink}] at (-1.55, 0.05) {$\bullet$ \textbf{task}: \texttt{build-kernel-ffi}};
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}] at (-1.55, -0.18) {$\bullet$ \textbf{cap}: \$0.00\ \ \textbar\ \ \textbf{lease}: 15 min};
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}] at (-1.55, -0.40) {$\bullet$ \textbf{tools}: \texttt{cargo, git, seatbelt}};
+  \end{scope}
+
+  % Arrow: Manager -> CFP
+  \draw[flowarrow] (1.45, 4.25) -- (1.7, 4.25);
+  \draw[flowarrow] (5.1, 4.25) -- (5.45, 4.25);
+
+  % Contractor 1 (Top-Right)
+  \begin{scope}[shift={(6.25, 4.25)}]
+    \pdrobotbase[0.58]{(0, 0)}{pdteal}
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdteal!90!black}, align=center] at (0, -0.30) {Contractor 1};
+  \end{scope}
+
+  % Capability Bid Card (From Contractor 1 back to Manager)
+  \begin{scope}[shift={(3.4, 2.85)}]
+    \draw[draw=pdteal!80!black, fill=white, line width=0.55pt, rounded corners=2pt] (-1.7, -0.5) rectangle (1.7, 0.5);
+    % Title bar with BID badge
+    \fill[fill=pdteal!12, rounded corners=1.5pt] (-1.66, 0.20) rectangle (1.66, 0.46);
+    \node[anchor=west, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdteal!90!black}] at (-1.55, 0.33) {Capability Bid};
+    \draw[fill=pdteal!90!black, draw=none, rounded corners=1pt] (0.9, 0.23) rectangle (1.55, 0.43);
+    \node[font=\fontsize{3.6}{4.4}\selectfont\bfseries\color{white}] at (1.225, 0.33) {BID};
+
+    % Specs
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\color{hhink}] at (-1.55, 0.02) {$\bullet$ \textbf{eta}: 12 min\ \ \textbar\ \ \textbf{cost}: \$0.00};
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}] at (-1.55, -0.22) {$\bullet$ \textbf{rep}: 0.98\ \ \textbar\ \ \textbf{workspace}: ready};
+  \end{scope}
+
+  % Arrow: Contractor 1 -> Capability Bid -> Manager
+  \draw[retarrow] (5.7, 3.8) to[out=-160, in=0] (5.1, 2.85);
+  \draw[retarrow] (1.7, 2.85) to[out=180, in=-40] (1.45, 3.4);
+
+  % Contractor 2 (Bottom-Right)
+  \begin{scope}[shift={(6.25, 1.55)}]
+    \pdrobotbase[0.58]{(0, 0)}{pdslate}
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdslate}, align=center] at (0, -0.30) {Contractor 2};
+  \end{scope}
+
+  % Explicit Refusal Card (From Contractor 2 back to Manager)
+  \begin{scope}[shift={(3.4, 1.45)}]
+    \draw[draw=pderror!70, fill=pderror!5, line width=0.55pt, rounded corners=2pt] (-1.7, -0.45) rectangle (1.7, 0.45);
+    % Title bar with REFUSAL badge
+    \fill[fill=pderror!15, rounded corners=1.5pt] (-1.66, 0.16) rectangle (1.66, 0.41);
+    \node[anchor=west, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pderror!90!black}] at (-1.55, 0.285) {Explicit Refusal};
+    \draw[fill=pderror!90!black, draw=none, rounded corners=1pt] (0.75, 0.19) rectangle (1.55, 0.38);
+    \node[font=\fontsize{3.5}{4.2}\selectfont\bfseries\color{white}] at (1.15, 0.285) {REFUSED};
+
+    % Reason with crash icon
+    \begin{scope}[shift={(-1.3, -0.15)}]
+      \pdiconcrash[0.35]{(0, 0)}
+    \end{scope}
+    \node[anchor=west, font=\fontsize{3.6}{4.4}\selectfont\bfseries\color{hhink}] at (-1.05, -0.15) {Lock Contention \textmd{\color{hhgray!80!black}(busy)}};
+  \end{scope}
+
+  % Arrow: Contractor 2 -> Refusal -> Manager
+  \draw[refusearrow] (5.7, 1.55) -- (5.1, 1.55);
+  \draw[refusearrow] (1.7, 1.45) to[out=180, in=-60] (0.85, 3.1);
+
+  % =========================================================================
+  % PHASE 2: AWARD & EXECUTION (Right: x in [7.4, 14.4], y in [0.75, 5.5])
+  % =========================================================================
+  \draw[phaseframe] (7.4, 0.75) rectangle (14.4, 5.5);
+  % Header (Teal)
+  \fill[fill=pdteal!90!black, rounded corners=2pt] (7.44, 5.12) rectangle (14.36, 5.46);
+  \node[anchor=center] at (10.9, 5.29) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}PHASE 2: AWARD, EXECUTION \& SETTLEMENT%
+  };
+
+  % Manager Agent (Phase 2 Left)
+  \begin{scope}[shift={(8.15, 3.8)}]
+    \pdrobotbase[0.62]{(0, 0)}{pdcobalt}
+    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Manager\\Agent};
+  \end{scope}
+
+  % Award Card (Manager -> Contractor 1)
+  \begin{scope}[shift={(10.6, 4.35)}]
+    \draw[msgcard] (-1.55, -0.45) rectangle (1.55, 0.45);
+    \fill[fill=pdcobalt!10, rounded corners=1.5pt] (-1.51, 0.16) rectangle (1.51, 0.41);
+    \node[anchor=west, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdcobalt}] at (-1.4, 0.285) {Contract Award};
+    \draw[fill=pdrust!90!black, draw=none, rounded corners=1pt] (0.8, 0.19) rectangle (1.45, 0.38);
+    \node[font=\fontsize{3.5}{4.2}\selectfont\bfseries\color{white}] at (1.125, 0.285) {LEASE};
+
+    \node[anchor=west, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{hhink}] at (-1.4, -0.02) {Exclusive Worktree Lease};
+    \node[anchor=west, font=\fontsize{3.5}{4.2}\selectfont\color{hhgray!80!black}] at (-1.4, -0.24) {token:\ \texttt{0x09b}\ \textbar\ lock: granted};
+  \end{scope}
+
+  % Arrow: Manager -> Award -> Contractor 1
+  \draw[flowarrow] (8.75, 4.35) -- (9.05, 4.35);
+  \draw[flowarrow] (12.15, 4.35) -- (12.65, 4.35);
+
+  % Contractor 1 (Phase 2 Executing)
+  \begin{scope}[shift={(13.45, 4.35)}]
+    \pdrobotbase[0.58]{(0, 0)}{pdteal}
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdteal!90!black}, align=center] at (0, -0.30) {Contractor 1};
+  \end{scope}
+
+  % Execution Sandbox Box
+  \begin{scope}[shift={(13.45, 2.5)}]
+    \draw[fill=pdteal!8, draw=pdteal, line width=0.6pt, rounded corners=2.5pt] (-0.85, -0.55) rectangle (0.85, 0.55);
+    \node[font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{hhink}, align=center] at (0, 0.22) {%
+      SEATBELT\\SANDBOX%
+    };
+    \draw[fill=pdhealth!90!black, draw=none, rounded corners=1.5pt] (-0.8, -0.45) rectangle (0.8, -0.12);
+    \node[font=\fontsize{3.6}{4.4}\selectfont\bfseries\color{white}] at (0, -0.285) {ZERO SPEND CAP};
+  \end{scope}
+
+  % Arrow: Contractor down to Sandbox
+  \draw[flowarrow, draw=pdteal] (13.45, 3.65) -- (13.45, 3.1);
+
+  % Diff Receipts (3 stacked cards)
+  \begin{scope}[shift={(11.3, 2.5)}]
+    \draw[fill=hhpaper, draw=pdslate!50, rounded corners=1pt] (-0.45, -0.15) rectangle (-0.15, 0.3);
+    \draw[fill=hhpaper, draw=pdslate!50, rounded corners=1pt] (-0.15, -0.15) rectangle (0.15, 0.3);
+    \draw[fill=hhpaper, draw=pdslate!50, rounded corners=1pt] (0.15, -0.15) rectangle (0.45, 0.3);
+    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Diff Receipts\\{\fontsize{3.4}{4.0}\selectfont (content-addressed)}};
+  \end{scope}
+
+  % Arrow: Sandbox -> Diff Receipts
+  \draw[flowarrow, draw=pdslate] (12.55, 2.5) -- (11.85, 2.5);
+
+  % Verified Test Run Receipt Card
+  \begin{scope}[shift={(9.2, 2.5)}]
+    \draw[fill=pdhealth!8, draw=pdhealth!90!black, line width=0.6pt, rounded corners=2pt] (-1.0, -0.45) rectangle (1.0, 0.45);
+    \begin{scope}[shift={(-0.65, 0)}]
+      \pdiconshieldcheck[0.45]{(0, 0)}
+    \end{scope}
+    \node[anchor=west, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdhealth!90!black}, align=left] at (-0.35, 0.12) {%
+      VERIFIED TEST%
+    };
+    \node[anchor=west, font=\fontsize{3.4}{4.2}\selectfont\color{hhink}, align=left] at (-0.35, -0.15) {%
+      Signed Oracle Run%
+    };
+  \end{scope}
+
+  % Arrow: Diff Receipts -> Verified Test
+  \draw[flowarrow, draw=pdhealth!90!black] (10.75, 2.5) -- (10.25, 2.5);
+
+  % Release Escrow Payment Card
+  \begin{scope}[shift={(10.6, 1.25)}]
+    \draw[draw=pdhealth!80!black, fill=white, line width=0.6pt, rounded corners=2pt] (-1.55, -0.38) rectangle (1.55, 0.38);
+    \node[anchor=west, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{hhink}] at (-1.4, 0.12) {Escrow Settlement};
+    \node[anchor=west, font=\fontsize{3.4}{4.2}\selectfont\color{hhgray!90!black}] at (-1.4, -0.14) {Atomic close \textbar\ Rep +0.02};
+    \draw[fill=pdhealth!90!black, draw=none, rounded corners=1pt] (0.82, -0.22) rectangle (1.48, 0.22);
+    \node[font=\fontsize{3.6}{4.4}\selectfont\bfseries\color{white}] at (1.15, 0) {SETTLE};
+  \end{scope}
+
+  % Arrows: Verified Test -> Manager, and Escrow Release
+  \draw[retarrow] (8.2, 2.5) -- (8.15, 3.1);
+  \draw[retarrow] (9.2, 2.05) to[out=-90, in=180] (9.05, 1.25);
+
+  % =========================================================================
+  % BOTTOM FOOTER BANNER (Full width: x in [0.1, 14.4])
+  % =========================================================================
+  \node[draw=pdcobalt!40, line width=0.6pt, fill=pdcobalt!6, rounded corners=2pt, anchor=south, inner xsep=8pt, inner ysep=3.2pt] at (7.25, 0.12) {%
+    \fontsize{4.8}{5.8}\selectfont\color{hhink}\textbf{Contract Net Protocol Settlement:}\ \ Bilateral market bidding enforces capability matching, bounded spend, and atomic test-gated escrow.%
+  };
+
+\end{tikzpicture}

@@ -159,14 +159,14 @@ ITEMS: list[Item] = [
         description=(
             "Super-additivity band '1.05-1.08 across regimes' (contradicted by "
             "the figure's own plotted data reaching 1.39 at k=10) -- must read "
-            "as an unbounded, growing ratio everywhere, not a fixed band."
+            "with its variable-parameter scope, not a fixed band."
         ),
         checks=[
             Check(
                 "docs/harbor-research/tex/paper1.tex",
                 "body/abstract must not restate the retracted 1.05--1.08 band",
                 absent=r"1\.05\s*(--|-|\\text\{--\})\s*1\.08",
-                present=r"grows without bound in \$?k\$?",
+                present=r"(?:grow|grows) without bound.*?families",
             ),
             Check(
                 "docs/harbor-research/figures/fig-r2-regime.tex",
@@ -192,9 +192,9 @@ ITEMS: list[Item] = [
             ),
             Check(
                 "docs/harbor-research/figures/fig-r1-relation.tex",
-                "figure node must tag 0/16 as internal, not verified",
-                absent=r"0/16\$?\s*floor violations[\s\\{]*\[verified",
-                present=r"0/16\$?\s*floor violations[\s\\{]*\[internal",
+                "worked covering figure must not present the separate simulation as a proof",
+                absent=r"0/16",
+                present=r"counting inequality is necessary",
             ),
         ],
     ),
@@ -477,7 +477,7 @@ ITEMS: list[Item] = [
                 "whitepaper/legible-swarm.tex",
                 "prose must not claim the sidecar architecture is already established",
                 absent=r"the architecture establishes two separate pipelines",
-                present=r"the design calls for two separate pipelines",
+                present=r"The design uses two reader-facing heads over evidence that may share a store",
             ),
             Check(
                 "whitepaper/legible-swarm.tex",
@@ -544,18 +544,22 @@ ITEMS: list[Item] = [
                 "website-v2/public/whitepaper/figures/tab-fh-topology.tex",
                 "topology table's settlement row must be conditional, not an unconditional invariant",
                 absent=r"Non-Custodial: Can Refuse, Cannot Redirect",
-                present=r"holds only if the settlement gate holds",
+                present=r"(?:holds only if the settlement gate holds|bound custody unconditionally: the bound needs the settlement gate)",
             ),
             Check(
                 "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
-                "settlement figure's guardbox must be 'Custody Assumption', not 'Authority Invariant'",
+                "settlement figure must name its custody assumptions, not an unconditional authority invariant",
                 absent=r"Authority Invariant",
-                present=r"Custody Assumption",
+                present=r"(?:Custody Assumption|the custody assumption: whitelist, fee cap, one terminal transition)",
             ),
             Check(
                 "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
-                "xfer-ceremony figure's deferred-properties box must call the escrow conditionally bounded",
-                present=r"Conditionally bounded escrow custody",
+                # The revised sequence contains no settlement promise at all.
+                # Keep rejecting the old unconditional claim, but do not
+                # require an unrelated custody box to be added back to it.
+                "transfer sequence must preserve attenuation and avoid unconditional custody claims",
+                absent=r"(?:Non-Custodial: Can Refuse, Cannot Redirect|Authority Invariant|2-of-3 non-custodial settlement)",
+                present=r"(?:Conditionally bounded escrow custody|destination card has no more authority than the source card)",
             ),
         ],
     ),

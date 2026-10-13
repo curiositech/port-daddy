@@ -179,8 +179,12 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
             target = root / "whitepaper/single-writer-kernel.tex"
             original = target.read_text(encoding="utf-8")
             reverted = original.replace(
-                "kernel's authorization chain. If this floor is unsound",
-                "kernel's cryptographic delegation chain. If this floor is unsound", 1)
+                "cryptographic\nauthorization chain this kernel ships",
+                "cryptographic\ndelegation chain this kernel ships", 1)
+            if reverted == original:
+                reverted = original.replace(
+                    "cryptographic authorization chain this kernel ships",
+                    "cryptographic delegation chain this kernel ships", 1)
             self.assertNotEqual(reverted, original, "fixture sentence moved; update this test")
             target.write_text(reverted, encoding="utf-8")
             self.assertEqual(len(dcv.find_bare(paths, ALLOW)), 1)

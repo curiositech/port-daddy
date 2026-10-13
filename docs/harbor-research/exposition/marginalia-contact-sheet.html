@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Harbor, the Person, and the Economy — 40 Marginalia Object Drawings Contact Sheet</title>
+<style>
+  :root {
+    --paper: #fcfbf9;
+    --paper-card: #ffffff;
+    --ink: #111111;
+    --ink-secondary: #555555;
+    --border: #e2dfd8;
+    --border-subtle: #eeece6;
+    --cobalt: #003366;
+    --signal-red: #DA291C;
+    --grid-hairline: rgba(0,0,0,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    line-height: 1.45;
+    padding: 3rem 4rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 2rem;
+    margin-bottom: 3.5rem;
+  }
+  .eyebrow {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: 0.5rem;
+  }
+  h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 0.75rem;
+  }
+  .meta-bar {
+    display: flex;
+    gap: 2.5rem;
+    font-size: 0.95rem;
+    color: var(--ink-secondary);
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .meta-bar strong { color: var(--ink); }
+  .badge-quota {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  
+  .chapter-section {
+    margin-bottom: 4rem;
+  }
+  .chapter-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 0.75rem;
+    margin-bottom: 2rem;
+  }
+  .chapter-num {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--cobalt);
+    letter-spacing: 0.05em;
+  }
+  .chapter-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-left: 0.75rem;
+  }
+  .chapter-count {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink-secondary);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.75rem;
+  }
+  @media (max-width: 1400px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    body { padding: 1.5rem; }
+  }
+
+  .card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border-color: var(--cobalt);
+  }
+  .thumb-wrap {
+    background: #f7f6f2;
+    background-image: 
+      linear-gradient(var(--grid-hairline) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-hairline) 1px, transparent 1px);
+    background-size: 16px 16px;
+    padding: 1.25rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .thumb-wrap img {
+    max-width: 100%;
+    max-height: 210px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+  }
+  .card-body {
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+  .item-slot {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cobalt);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.25rem;
+  }
+  .item-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 0.5rem;
+    color: var(--ink);
+  }
+  .item-concept {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--signal-red);
+    margin-bottom: 0.6rem;
+    line-height: 1.3;
+  }
+  .item-impetus {
+    font-size: 0.85rem;
+    color: var(--ink-secondary);
+    line-height: 1.4;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+  }
+  .card-footer {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.6rem;
+    font-size: 0.72rem;
+    color: #888;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .file-name {
+    color: #333;
+    font-weight: 600;
+    word-break: break-all;
+  }
+  .digest {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">The Harbor, the Person, and the Economy · Textbook Visual Audit</div>
+  <h1>Canonical Marginalia Drawing Contact Sheet</h1>
+  <div class="meta-bar">
+    <div><strong>Total Verified Drawings:</strong> 40 / 40 placed <span class="badge-quota">✓ 100% Complete</span></div>
+    <div><strong>Allocation:</strong> Exactly 5 distinct objects per chapter across Chapters 1–8</div>
+    <div><strong>Art Direction:</strong> Mature scientific engraving, disciplined fine hatching, isolated white/transparent ground, restrained cobalt blue (#003366) spot accent</div>
+    <div><strong>Role:</strong> Physical editorial analogy, not empirical data</div>
+  </div>
+</header>
+
+<section class="chapter-section" id="ch01">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 1</span>
+      <span class="chapter-title">The Single-Writer Kernel</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/one-printing-press.png" alt="One Platen, One Job" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 1 · Object</div>
+        <div class="item-title">One Platen, One Job</div>
+        <div class="item-concept">Single-writer serialization & happen-before causal ordering</div>
+        <div class="item-impetus">Like a manual letterpress where only one forme can rest under the platen at a time, local system mutations must pass through a single serialized SQLite/WAL gate to prevent concurrent commit overwrites and race conditions.</div>
+        <div class="card-footer">
+          <div class="file-name">one-printing-press.png</div>
+          <div class="digest">SHA: 98633d2f170541ff... · 311.1 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch01-fairness-ticket-dispenser.png" alt="Fairness Ticket Dispenser" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 1 · Object</div>
+        <div class="item-title">Fairness Ticket Dispenser</div>
+        <div class="item-concept">Deterministic queueing & starvation-free scheduling</div>
+        <div class="item-impetus">Like a service-counter mechanical ticket dispenser issuing strictly monotonic paper tickets, incoming agent write intentions acquire discrete tickets to guarantee FIFO fairness and eliminate acquisition thrashing.</div>
+        <div class="card-footer">
+          <div class="file-name">ch01-fairness-ticket-dispenser.png</div>
+          <div class="digest">SHA: 6156226a0a48118f... · 2249.6 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch01-flywheel-governor.png" alt="Centrifugal Flyball Governor" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 1 · Object</div>
+        <div class="item-title">Centrifugal Flyball Governor</div>
+        <div class="item-concept">Dynamic rate-limiting & proportional backpressure</div>
+        <div class="item-impetus">Like a Watt steam-engine centrifugal governor whose rotating flyballs automatically throttle the steam valve as speed rises, backpressure regulators throttle agent spawn rates and token emission during fleet surges.</div>
+        <div class="card-footer">
+          <div class="file-name">ch01-flywheel-governor.png</div>
+          <div class="digest">SHA: d821beb1cffe3189... · 938.7 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch01-railway-token-staff.png" alt="Railway Token Staff" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 1 · Object</div>
+        <div class="item-title">Railway Token Staff</div>
+        <div class="item-concept">Physical mutual exclusion & non-forgeable token leases</div>
+        <div class="item-impetus">Like the English single-track railway brass staff that an engineer must physically hold in the cab before entering a section of track, an agent must hold the explicit token lease before mutating a shared critical section.</div>
+        <div class="card-footer">
+          <div class="file-name">ch01-railway-token-staff.png</div>
+          <div class="digest">SHA: f89ba707e8e8ec99... · 331.5 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch01-water-meter-dial.png" alt="Positive-Displacement Water Meter" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 1 · Object</div>
+        <div class="item-title">Positive-Displacement Water Meter</div>
+        <div class="item-concept">Monotonic state accounting & append-only audit trail</div>
+        <div class="item-impetus">Like an oscillating piston water meter that mechanically advances internal gear dials with each discrete stroke of fluid, state machines advance through monotonic append-only state transitions that cannot be rewound.</div>
+        <div class="card-footer">
+          <div class="file-name">ch01-water-meter-dial.png</div>
+          <div class="digest">SHA: f05bee6fc762d4db... · 420.5 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch02">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 2</span>
+      <span class="chapter-title">The Anchor Protocol</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/reduced-key.png" alt="The Reduced Key" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 2 · Object</div>
+        <div class="item-title">The Reduced Key</div>
+        <div class="item-concept">Principle of least privilege & monotonic attenuation</div>
+        <div class="item-impetus">Like filing away the bitting teeth on a physical skeleton key so it can open only outer gates while locking out master vaults, delegated capabilities (Harbor Cards) can only narrow authority at every delegation hop.</div>
+        <div class="card-footer">
+          <div class="file-name">reduced-key.png</div>
+          <div class="digest">SHA: 3f8022c83ade0139... · 245.1 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch02-nested-measuring-spoons.png" alt="Nested Measuring Spoons" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 2 · Object</div>
+        <div class="item-title">Nested Measuring Spoons</div>
+        <div class="item-concept">Hierarchical capability delegation & strict inclusion</div>
+        <div class="item-impetus">Like a graduated set of metal measuring spoons stacked on a single ring where each successive spoon holds strictly less volume than its parent, delegated capability leases strictly nest within parent resource boundaries.</div>
+        <div class="card-footer">
+          <div class="file-name">ch02-nested-measuring-spoons.png</div>
+          <div class="digest">SHA: bc69dd3f2fc28a21... · 377.7 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch02-colander-mesh.png" alt="Analytical Test Sieve" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 2 · Object</div>
+        <div class="item-title">Analytical Test Sieve</div>
+        <div class="item-concept">Caveat attenuation & execution boundary filtering</div>
+        <div class="item-impetus">Like an analytical wire-mesh laboratory sieve that allows fine solvent to pass while trapping granular contaminants, contextual Macaroon caveats intercept and filter forbidden operations before execution.</div>
+        <div class="card-footer">
+          <div class="file-name">ch02-colander-mesh.png</div>
+          <div class="digest">SHA: fe26919099234292... · 759.0 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch02-finite-grant-parking-meter.png" alt="Mechanical Parking Meter" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 2 · Object</div>
+        <div class="item-title">Mechanical Parking Meter</div>
+        <div class="item-concept">Ephemeral lease lifetimes & automated revocation</div>
+        <div class="item-impetus">Like a clockwork parking meter whose red expired flag drops the moment the mechanical dial counts down to zero, capability grants expire automatically when their lease duration elapses, preventing zombie access.</div>
+        <div class="card-footer">
+          <div class="file-name">ch02-finite-grant-parking-meter.png</div>
+          <div class="digest">SHA: 3a9030926a55b7c6... · 692.5 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch02-couriers-dispatch-pouch.png" alt="Diplomatic Courier Pouch" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 2 · Object</div>
+        <div class="item-title">Diplomatic Courier Pouch</div>
+        <div class="item-concept">Third-party caveat discharge & independent witness</div>
+        <div class="item-impetus">Like a sealed diplomatic leather pouch requiring an independent designated consulate official to verify and cut the lead seal, third-party caveats require an independent discharge witness before authority unlocks.</div>
+        <div class="card-footer">
+          <div class="file-name">ch02-couriers-dispatch-pouch.png</div>
+          <div class="digest">SHA: c369922d6ca4b689... · 645.5 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch03">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 3</span>
+      <span class="chapter-title">The Sealed Harbor</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/sealed-specimen.png" alt="The Sealed Specimen Case" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 3 · Object</div>
+        <div class="item-title">The Sealed Specimen Case</div>
+        <div class="item-concept">Information isolation & observable boundary receipts</div>
+        <div class="item-impetus">Like an opaque specimen jar sealed with wax and an exterior ledger tag, an isolated execution room hides internal secret data from the outside world while exposing verifiable receipts at the boundary.</div>
+        <div class="card-footer">
+          <div class="file-name">sealed-specimen.png</div>
+          <div class="digest">SHA: cddaa67d201728cd... · 278.7 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch03-authorized-speaking-tube.png" alt="Acoustic Speaking Tube" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 3 · Object</div>
+        <div class="item-title">Acoustic Speaking Tube</div>
+        <div class="item-concept">Strictly mediated inter-domain communication & quiet boundaries</div>
+        <div class="item-impetus">Like a shipboard brass speaking tube whose whistle plug must be manually removed before sound waves can travel between compartments, communication across sealed clean-room boundaries is silent except through gated slots.</div>
+        <div class="card-footer">
+          <div class="file-name">ch03-authorized-speaking-tube.png</div>
+          <div class="digest">SHA: 06009b0a8713a8ef... · 827.4 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch03-two-shutter-shadowbox.png" alt="Interlocked Transfer Box" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 3 · Object</div>
+        <div class="item-title">Interlocked Transfer Box</div>
+        <div class="item-concept">Noninterference & clean-room airlock isolation</div>
+        <div class="item-impetus">Like a biological containment pass-through box whose mechanical interlock prevents both airtight doors from opening simultaneously, noninterference guarantees secret inputs cannot directly bridge to public outputs.</div>
+        <div class="card-footer">
+          <div class="file-name">ch03-two-shutter-shadowbox.png</div>
+          <div class="digest">SHA: 5b0d4da5a933e25e... · 760.7 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch03-sandglass-flow-orifice.png" alt="Precision Sandglass Orifice" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 3 · Object</div>
+        <div class="item-title">Precision Sandglass Orifice</div>
+        <div class="item-concept">Differential privacy budgeting & metered leakage bounds</div>
+        <div class="item-impetus">Like an hourglass whose precision brass orifice meters the escape of sand grain by grain, the differential privacy ledger meters information release under a strict cumulative epsilon budget.</div>
+        <div class="card-footer">
+          <div class="file-name">ch03-sandglass-flow-orifice.png</div>
+          <div class="digest">SHA: bae7947e853ad1b0... · 569.4 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch03-lead-lined-darkslide.png" alt="Lead-Lined Darkslide" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 3 · Object</div>
+        <div class="item-title">Lead-Lined Darkslide</div>
+        <div class="item-concept">Zero-knowledge attestations & confidential computation</div>
+        <div class="item-impetus">Like a radiographic film cassette with a heavy lead darkslide shielding sensitive emulsion from stray background rays, zero-knowledge proofs expose cryptographic validity without exposing underlying private records.</div>
+        <div class="card-footer">
+          <div class="file-name">ch03-lead-lined-darkslide.png</div>
+          <div class="digest">SHA: 88ee3c8ce740e5cb... · 490.4 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch04">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 4</span>
+      <span class="chapter-title">The Legible Swarm</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/map-and-lens.png" alt="The Map and Lens" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 4 · Object</div>
+        <div class="item-title">The Map and Lens</div>
+        <div class="item-concept">Information theory of supervision & force-zoom invariants</div>
+        <div class="item-impetus">Like an admiralty chart paired with a magnifying reading lens, high-level summaries must preserve an un-obscured navigational path from macro fleet topology down to raw individual line diffs.</div>
+        <div class="card-footer">
+          <div class="file-name">map-and-lens.png</div>
+          <div class="digest">SHA: 7469c7f8f2493535... · 434.1 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch04-selective-attention-annunciator.png" alt="Drop-Flag Annunciator Panel" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 4 · Object</div>
+        <div class="item-title">Drop-Flag Annunciator Panel</div>
+        <div class="item-concept">Exception reporting & attention bottleneck management</div>
+        <div class="item-impetus">Like an engine-room drop annunciator that remains dark and silent until an anomalous pressure drops an electromagnetic flag, attention architectures route human oversight only to high-entropy failure events.</div>
+        <div class="card-footer">
+          <div class="file-name">ch04-selective-attention-annunciator.png</div>
+          <div class="digest">SHA: 091bcc3516fa2e67... · 538.9 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch04-sextant-index-mirror.png" alt="Marine Sextant Split Mirror" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 4 · Object</div>
+        <div class="item-title">Marine Sextant Split Mirror</div>
+        <div class="item-concept">Split-ranker comonotonicity & supervisory alignment</div>
+        <div class="item-impetus">Like a navigation sextant bringing the celestial body and the sea horizon together into a split-field index mirror, comonotonic ranker alignment aligns automated agent scoring with human supervisor priority.</div>
+        <div class="card-footer">
+          <div class="file-name">ch04-sextant-index-mirror.png</div>
+          <div class="digest">SHA: 8823fa6f8670914e... · 687.5 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch04-telegraph-sounder-key.png" alt="Morse Telegraph Sounder" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 4 · Object</div>
+        <div class="item-title">Morse Telegraph Sounder</div>
+        <div class="item-concept">Channel capacity bounds & concise status signalling</div>
+        <div class="item-impetus">Like an electric telegraph sounder clicking out discrete high-density pulses across an ocean cable, compact agent notification cards encode dense multi-agent deliberations through bounded bandwidth.</div>
+        <div class="card-footer">
+          <div class="file-name">ch04-telegraph-sounder-key.png</div>
+          <div class="digest">SHA: 92757944aa776162... · 925.9 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch04-tide-gauge-staff.png" alt="Tide Gauge Drum Recorder" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 4 · Object</div>
+        <div class="item-title">Tide Gauge Drum Recorder</div>
+        <div class="item-concept">Telemetry smoothing & macroscopic trend detection</div>
+        <div class="item-impetus">Like a harbor float gauge with a brass clockwork drum recording tidal harmonic curves while filtering out wave chop, telemetry synthesizers extract macro fleet momentum from noisy transient agent steps.</div>
+        <div class="card-footer">
+          <div class="file-name">ch04-tide-gauge-staff.png</div>
+          <div class="digest">SHA: 7239926dc10265ef... · 598.4 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch05">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 5</span>
+      <span class="chapter-title">From Spawn to Person</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch05-continuity-rope-splice.png" alt="The Overlapping Strand" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 5 · Object</div>
+        <div class="item-title">The Overlapping Strand</div>
+        <div class="item-concept">Identity continuity across process crashes & context compaction</div>
+        <div class="item-impetus">Like a long rope splice where old and new hemp fibers overlap and interweave so tension persists across transitions without any single strand spanning the whole line, agent identity persists across process restarts.</div>
+        <div class="card-footer">
+          <div class="file-name">ch05-continuity-rope-splice.png</div>
+          <div class="digest">SHA: f0893d41e5a42b07... · 527.4 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch05-episodic-card-file.png" alt="Episodic Card Index" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 5 · Object</div>
+        <div class="item-title">Episodic Card Index</div>
+        <div class="item-concept">Durable episodic memory & structured case histories</div>
+        <div class="item-impetus">Like an indexed archival card drawer where each dated index card preserves key operational findings, episodic memory stores durable historical outcomes rather than fragile transient runtime memory.</div>
+        <div class="card-footer">
+          <div class="file-name">ch05-episodic-card-file.png</div>
+          <div class="digest">SHA: dad3d9ecbe42b27c... · 2102.7 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch05-wax-seal-signet.png" alt="Engraved Signet Ring" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 5 · Object</div>
+        <div class="item-title">Engraved Signet Ring</div>
+        <div class="item-concept">Non-repudiation & cryptographic signature binding</div>
+        <div class="item-impetus">Like an engraved signet ring embossing an immutable crest into hot sealing wax, a cryptographic hardware signature permanently binds every executed side-effect to the accountable agent identity.</div>
+        <div class="card-footer">
+          <div class="file-name">ch05-wax-seal-signet.png</div>
+          <div class="digest">SHA: c3b6ee09e65820ba... · 1027.0 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch05-stepped-surveyors-pole.png" alt="Stepped Surveyor Rod" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 5 · Object</div>
+        <div class="item-title">Stepped Surveyor Rod</div>
+        <div class="item-concept">Probation cliffs & graduated autonomous trust</div>
+        <div class="item-impetus">Like a surveyor's leveling staff measuring elevation gain up a sheer cliff, newly spawned agents face a front-loaded probation cliff of intense scrutiny before earning wider autonomous execution rights.</div>
+        <div class="card-footer">
+          <div class="file-name">ch05-stepped-surveyors-pole.png</div>
+          <div class="digest">SHA: 8e96b7d877b2d739... · 450.1 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch05-stagecoach-relay-post.png" alt="Stagecoach Relay Post" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 5 · Object</div>
+        <div class="item-title">Stagecoach Relay Post</div>
+        <div class="item-concept">Model engine hot-swapping & substrate independence</div>
+        <div class="item-impetus">Like unhitching tired horses at a stagecoach relay station while the passengers, luggage, and route continue uninterrupted, an agent can hot-swap its underlying LLM engine without losing its persistent identity.</div>
+        <div class="card-footer">
+          <div class="file-name">ch05-stagecoach-relay-post.png</div>
+          <div class="digest">SHA: eb8ca5d52ec4232e... · 981.9 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch06">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 6</span>
+      <span class="chapter-title">The Harbor Economy</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/movable-type.png" alt="Movable Metal Type" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 6 · Object</div>
+        <div class="item-title">Movable Metal Type</div>
+        <div class="item-concept">Composability & standardized labor interfaces</div>
+        <div class="item-impetus">Like Gutenberg's standardized lead-alloy type sorts that turned idiosyncratic calligraphy into composable, interchangeable printed pages, standardized agent skill schemas turn custom scripts into reusable tools.</div>
+        <div class="card-footer">
+          <div class="file-name">movable-type.png</div>
+          <div class="digest">SHA: a50c3209d61ea09c... · 553.3 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch06-reusable-printing-block.png" alt="Carved Woodcut Printing Block" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 6 · Object</div>
+        <div class="item-title">Carved Woodcut Printing Block</div>
+        <div class="item-concept">Skill reuse, licensing, and capital formation</div>
+        <div class="item-impetus">Like an engraved woodblock that can produce ten thousand book impressions without the engraver having to redraw each sheet, licensed agent skills decouple capital authorship from runtime execution labor.</div>
+        <div class="card-footer">
+          <div class="file-name">ch06-reusable-printing-block.png</div>
+          <div class="digest">SHA: baa8bbc79d4bafeb... · 1508.6 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch06-wharf-steelyard-scale.png" alt="Wharf Steelyard Scale" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 6 · Object</div>
+        <div class="item-title">Wharf Steelyard Scale</div>
+        <div class="item-concept">Price discovery & asymmetric risk balancing</div>
+        <div class="item-impetus">Like a Roman steelyard sliding a heavy counterpoise along notched intervals to balance uneven dockside cargo, market clearing reserve pricing balances compute capacity with task urgency.</div>
+        <div class="card-footer">
+          <div class="file-name">ch06-wharf-steelyard-scale.png</div>
+          <div class="digest">SHA: 2187d47b78013496... · 867.1 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch06-dockyard-cargo-sling.png" alt="Woven Dockyard Cargo Sling" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 6 · Object</div>
+        <div class="item-title">Woven Dockyard Cargo Sling</div>
+        <div class="item-concept">Float plan bundling & multi-resource atomic settlement</div>
+        <div class="item-impetus">Like a heavy woven hemp cargo net gathering disparate barrels, crates, and bundles into a single crane lift, an atomic float plan bundles compute, rented tools, and licensed skills into a single settlement.</div>
+        <div class="card-footer">
+          <div class="file-name">ch06-dockyard-cargo-sling.png</div>
+          <div class="digest">SHA: 568aeff59dffe2c6... · 1243.6 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch06-grain-tally-board.png" alt="Pegged Grain Tally Board" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 6 · Object</div>
+        <div class="item-title">Pegged Grain Tally Board</div>
+        <div class="item-concept">Discrete ledger conservation & double-entry unit accounting</div>
+        <div class="item-impetus">Like a harbor tally master inserting wooden pegs into rows of drilled holes to count each unloaded sack of wheat, discrete ledger accounting conserves compute tokens without synthetic slippage.</div>
+        <div class="card-footer">
+          <div class="file-name">ch06-grain-tally-board.png</div>
+          <div class="digest">SHA: fb6ea05896cf64c5... · 678.9 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch07">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 7</span>
+      <span class="chapter-title">Agent Transactions</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/canal-lock.png" alt="Canal Lock Chamber" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 7 · Object</div>
+        <div class="item-title">Canal Lock Chamber</div>
+        <div class="item-concept">Fault isolation & transactional state boundaries</div>
+        <div class="item-impetus">Like a stone canal lock isolating differential water heads between waterways, two-phase invariant checks isolate state transitions so catastrophic failure in one task cannot breach the rest of the harbor.</div>
+        <div class="card-footer">
+          <div class="file-name">canal-lock.png</div>
+          <div class="digest">SHA: 180cd6d53ec0a235... · 332.9 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/bond-balance.png" alt="The Bond Balance" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 7 · Object</div>
+        <div class="item-title">The Bond Balance</div>
+        <div class="item-concept">Collateralized bonds & rational deterrence criteria</div>
+        <div class="item-impetus">Like an analytical beam balance weighing posted collateral against potential damages, economic deterrence requires that expected financial slashing strictly exceeds the anticipated gain of misbehavior.</div>
+        <div class="card-footer">
+          <div class="file-name">bond-balance.png</div>
+          <div class="digest">SHA: e8947064855a3f7b... · 258.9 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch07-cleanup-repair-kit.png" alt="Marine Cleanup & Repair Kit" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 7 · Object</div>
+        <div class="item-title">Marine Cleanup & Repair Kit</div>
+        <div class="item-concept">Compensating transactions & bounded recovery remedy</div>
+        <div class="item-impetus">Like an emergency shipboard repair kit with spanners, copper gaskets, and packing flax, compensating actions clean up partial failures and restore system invariants when an atomic transaction aborts.</div>
+        <div class="card-footer">
+          <div class="file-name">ch07-cleanup-repair-kit.png</div>
+          <div class="digest">SHA: 03effe4ecc180783... · 1870.8 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch07-shear-pin-fuse.png" alt="Drive-Shaft Shear Pin" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 7 · Object</div>
+        <div class="item-title">Drive-Shaft Shear Pin</div>
+        <div class="item-concept">Sacrificial slashing & catastrophic damage bounds</div>
+        <div class="item-impetus">Like a sacrificial brass shear pin designed to cleanly snap under catastrophic prop torque before the main crankshaft buckles, collateral slashing liquidates bonds to protect the shared host system.</div>
+        <div class="card-footer">
+          <div class="file-name">ch07-shear-pin-fuse.png</div>
+          <div class="digest">SHA: 5209f3860c7ed197... · 1034.0 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch07-dual-control-escrow-box.png" alt="Dual-Control Escrow Chest" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 7 · Object</div>
+        <div class="item-title">Dual-Control Escrow Chest</div>
+        <div class="item-concept">Dual-control escrow & bilateral clearing</div>
+        <div class="item-impetus">Like a reinforced iron treasure chest requiring two distinct keys held by different officers to turn simultaneously, escrowed funds cannot be released until independent verification and completion criteria agree.</div>
+        <div class="card-footer">
+          <div class="file-name">ch07-dual-control-escrow-box.png</div>
+          <div class="digest">SHA: ce07f093860cbf0d... · 665.2 KB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter-section" id="ch08">
+  <div class="chapter-header">
+    <div>
+      <span class="chapter-num">Chapter 8</span>
+      <span class="chapter-title">The Federated Harbor</span>
+    </div>
+    <div class="chapter-count">5 of 5 Objects Placed</div>
+  </div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch08-local-admission-turnstile.png" alt="Admission Turnstile" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 8 · Object</div>
+        <div class="item-title">Admission Turnstile</div>
+        <div class="item-concept">Harbor sovereignty & foreign credential verification</div>
+        <div class="item-impetus">Like a mechanical turnstile at a secure port facility that checks physical entry passes, a foreign harbor credential presented at a local boundary does not compel the host harbor to surrender admission sovereignty.</div>
+        <div class="card-footer">
+          <div class="file-name">ch08-local-admission-turnstile.png</div>
+          <div class="digest">SHA: e5a41d10a672e824... · 1219.3 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch08-transit-customs-seal.png" alt="Tamper-Evident Customs Seal" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 8 · Object</div>
+        <div class="item-title">Tamper-Evident Customs Seal</div>
+        <div class="item-concept">Zero-trust transit & relay non-disclosure</div>
+        <div class="item-impetus">Like a numbered lead customs seal clamped over container latches during rail transit across foreign territory, capability envelopes traverse untrusted relay fabrics without leaking payload data.</div>
+        <div class="card-footer">
+          <div class="file-name">ch08-transit-customs-seal.png</div>
+          <div class="digest">SHA: 47c518b7442341b3... · 433.8 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch08-closed-traverse-compass.png" alt="Closed-Traverse Vernier Compass" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 8 · Object</div>
+        <div class="item-title">Closed-Traverse Vernier Compass</div>
+        <div class="item-concept">Sheaf-theoretic consistency & cycle discrepancy detection</div>
+        <div class="item-impetus">Like a surveyor running a closed polygon traverse where magnetic bearing errors must sum to zero around the complete loop, the sheaf Laplacian computes cycle discrepancies that catch equivocation.</div>
+        <div class="card-footer">
+          <div class="file-name">ch08-closed-traverse-compass.png</div>
+          <div class="digest">SHA: ea1a770e27cf5512... · 747.0 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch08-quarantine-inspection-lantern.png" alt="Port Quarantine Lantern" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 8 · Object</div>
+        <div class="item-title">Port Quarantine Lantern</div>
+        <div class="item-concept">Quarantine isolation & admission verification epochs</div>
+        <div class="item-impetus">Like a yellow quarantine lantern hoisted on the foremast of an incoming ship signaling it must remain at outer anchorage, newly federated harbors undergo probationary quarantine before full peer status.</div>
+        <div class="card-footer">
+          <div class="file-name">ch08-quarantine-inspection-lantern.png</div>
+          <div class="digest">SHA: a2af8be8eb1c27f3... · 1032.4 KB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="../../../website-v2/public/whitepaper/plates/margin-evidence/ch08-interlocking-railway-lever.png" alt="Interlocking Railway Lever" loading="lazy">
+      </div>
+      <div class="card-body">
+        <div class="item-slot">Chapter 8 · Object</div>
+        <div class="item-title">Interlocking Railway Lever</div>
+        <div class="item-concept">Cross-harbor mutual exclusion & deadlock-free consensus</div>
+        <div class="item-impetus">Like a mechanical interlocking ground frame physically preventing opposing switch points from aligning toward an active main line, cross-harbor synchronization enforces distributed mutual exclusion.</div>
+        <div class="card-footer">
+          <div class="file-name">ch08-interlocking-railway-lever.png</div>
+          <div class="digest">SHA: 618cd92276222bbe... · 415.8 KB</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--ink-secondary); text-align: center;">
+  Curiositech · Port Daddy Textbook Edition · Generated autonomously by Antigravity Manager
+</footer>
+
+</body>
+</html>

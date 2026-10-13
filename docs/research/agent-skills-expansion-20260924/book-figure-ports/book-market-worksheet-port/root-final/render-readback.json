@@ -1,0 +1,112 @@
+[
+  {
+    "sha256": "6601235993a305a3a0decfca46d5b630a9b4e6e02bf38bc966bb49870c83b16a",
+    "page_dimensions": {
+      "width": "504.000000",
+      "height": "720.000000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HXVVJG+TeXGyrePagella-Bold           Type 1            Custom           yes yes yes      7  0",
+      "IMKTCU+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0",
+      "ZYSKFI+TeXGyrePagella-Italic         Type 1            Custom           yes yes yes     12  0"
+    ]
+  },
+  {
+    "sha256": "3bfe162acaf3d379c5a26bfd8313735edb75eb98c29ef6665c6895ad358ab96b",
+    "page_dimensions": {
+      "width": "331.119000",
+      "height": "260.253000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HXVVJG+TeXGyrePagella-Bold           Type 1            Custom           yes yes yes      7  0",
+      "CYDHAO+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0",
+      "ZYSKFI+TeXGyrePagella-Italic         Type 1            Custom           yes yes yes     12  0"
+    ]
+  },
+  {
+    "path": "renders/market-worksheet-swiss-page.pdf",
+    "sha256": "88aa05a006b3b84e42d8d61d101bb77bbcd24cd6d142487d819125914f69e662",
+    "page_dimensions": {
+      "width": "504.000000",
+      "height": "720.000000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HWSEKV+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0",
+      "YFWFNQ+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0",
+      "JBXNHJ+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes     12  0"
+    ]
+  },
+  {
+    "path": "renders/market-worksheet-swiss.pdf",
+    "sha256": "9da56634172087b858f8fac8aee73b7d36b05a5aff5b8ef7d8b68140b8560ef3",
+    "page_dimensions": {
+      "width": "331.119000",
+      "height": "260.253000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HWSEKV+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0",
+      "YFWFNQ+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0"
+    ]
+  },
+  {
+    "sha256": "ca049e76ac05b5fdef53b1f342802f7cc58985806f0adcaed8ce5abc6e018b16",
+    "page_dimensions": {
+      "width": "504.000000",
+      "height": "720.000000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HWSEKV+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0",
+      "YFWFNQ+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0",
+      "QJYXMO+TeXGyreHeros-Italic           Type 1            Custom           yes yes yes     12  0",
+      "JBXNHJ+TeXGyrePagella-Regular        Type 1            Custom           yes yes yes     13  0"
+    ]
+  },
+  {
+    "sha256": "5424b59f5b97ec79fb6fae6c195df0781fa190aa5f402fafba81fe80887d1004",
+    "page_dimensions": {
+      "width": "331.119000",
+      "height": "260.253000"
+    },
+    "all_fonts_embedded": true,
+    "warnings": [],
+    "outside_page_column": [],
+    "fonts": [
+      "HWSEKV+TeXGyreHeros-Bold             Type 1            Custom           yes yes yes      7  0",
+      "YFWFNQ+TeXGyreHeros-Regular          Type 1            Custom           yes yes yes      8  0",
+      "FQWJGX+CMR9                          Type 1            Builtin          yes yes yes      9  0",
+      "PQILTH+CMMI9                         Type 1            Builtin          yes yes yes     10  0",
+      "RYEOQG+CMSY9                         Type 1            Builtin          yes yes yes     11  0",
+      "QJYXMO+TeXGyreHeros-Italic           Type 1            Custom           yes yes yes     12  0"
+    ]
+  }
+]

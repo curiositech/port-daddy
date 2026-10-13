@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "ledgerId": "example-source-bound-review",
+  "requestedUse": "RECIPROCAL_REVIEW",
+  "harmGate": {"classification": "SAFE", "rationale": "Architecture disagreement without a harmful persuasion request."},
+  "targetPosition": {
+    "thesis": "A controller-owned recorder should commit the trace before subject execution.",
+    "audience": "Drydock architecture reviewers",
+    "scope": "Static protocol design",
+    "burdenOfProof": "Show that pre-action custody removes a self-witnessing path without claiming complete mediation.",
+    "sourceHolder": "P8 author",
+    "sourceCorpus": ["positions/P8.md", "reviews/P2-reviews-P8.md"]
+  },
+  "propositions": [{
+    "id": "P1",
+    "text": "The recorder must be armed before the subject can act.",
+    "provenance": "explicit",
+    "sourceLocator": "reviews/P2-reviews-P8.md#requested-amendment",
+    "holderWouldEndorse": "UNKNOWN",
+    "confidence": 0.95,
+    "evidence": [
+      {"claim": "A subject-owned trace can omit its own escaped effects.", "locator": "reviews/P2-reviews-P8.md#authority-concentration", "relation": "SUPPORTS"},
+      {"claim": "An external recorder still cannot observe effects outside its boundary.", "locator": "corrections/C-P8.md#retained-dissent", "relation": "CONTRADICTS"}
+    ],
+    "falsifier": "Demonstrate an equally independent, omission-resistant custody mechanism that starts after release without losing pre-action ordering."
+  }],
+  "reciprocity": {"applied": true, "standard": "Both proposals require source locators, counterevidence, and a falsifier."},
+  "verificationState": "SOURCE_BOUND",
+  "unknowns": [],
+  "terminalStatus": "VALID"
+}

@@ -65,6 +65,7 @@ State both. Never collapse them into a single "priority".
 
 ```mermaid
 quadrantChart
+%%{init: {"themeVariables": {"quadrantPointFill": "#345995"}}}%%
     title Absence Priority — Dogfooding vs Multi-Tenant GA
     x-axis Low Dogfood Pain --> High Dogfood Pain
     y-axis Low GA Blocker --> High GA Blocker

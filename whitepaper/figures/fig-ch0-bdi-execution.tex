@@ -1,0 +1,218 @@
+% fig-ch0-bdi-execution.tex
+% BDI Execution Flow and Operational Choice Architecture
+% 100% native vector Swiss TikZ layout adhering to Harbor Figure Standard (v2).
+% Guaranteed collision-free panel architecture with bounded text containers.
+
+\input{figures/pd-robot-glyphs.tex}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    containerbox/.style={
+      draw=pdslate!40,
+      line width=0.75pt,
+      fill=white,
+      rounded corners=3pt
+    },
+    innercard/.style={
+      draw=pdslate!30,
+      line width=0.55pt,
+      fill=hhpaper!30,
+      rounded corners=2pt,
+      inner sep=3pt
+    },
+    flowarrow/.style={
+      draw=pdcobalt,
+      line width=0.8pt,
+      ->,
+      >=Stealth
+    },
+    feedbackarrow/.style={
+      draw=pdteal!80!black,
+      line width=0.8pt,
+      ->,
+      >=Stealth
+    }
+  }
+
+  % =========================================================================
+  % PANEL 1: PARADIGM SPECTRUM (Left: x in [0.1, 4.1], y in [0.4, 5.5])
+  % =========================================================================
+  \draw[containerbox] (0.1, 0.4) rectangle (4.1, 5.5);
+  \fill[fill=pdslate!85!black, rounded corners=2pt] (0.14, 5.12) rectangle (4.06, 5.46);
+  \node[anchor=center] at (2.1, 5.29) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}PARADIGM SPECTRUM%
+  };
+
+  % Card 1.1: Reactive Systems
+  \begin{scope}[shift={(0.3, 3.8)}]
+    \draw[innercard] (0, 0) rectangle (3.5, 1.15);
+    \node[anchor=north west, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}] at (0.15, 1.05) {1. Reactive Systems};
+    % diagram
+    \fill[pdslate!40] (0.45, 0.62) circle (0.11cm);
+    \draw[->, line width=0.6pt, pdslate!80] (0.65, 0.62) -- (1.25, 0.62);
+    \fill[pdslate!80, rounded corners=1pt] (1.35, 0.51) rectangle (1.95, 0.73);
+    \node[anchor=north west, font=\fontsize{3.8}{4.6}\selectfont\color{hhgray!90!black}, text width=3.2cm] at (0.15, 0.42) {%
+      Stateless Condition $\rightarrow$ Action mapping. Fast reflex, blind to future consequences.%
+    };
+  \end{scope}
+
+  % Card 1.2: Classical Planning
+  \begin{scope}[shift={(0.3, 2.3)}]
+    \draw[innercard] (0, 0) rectangle (3.5, 1.35);
+    \node[anchor=north west, font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{hhink}] at (0.15, 1.25) {2. Classical Planning};
+    % graph (lowered to avoid title)
+    \fill[pdteal!70] (0.45, 0.68) circle (0.07cm);
+    \draw[line width=0.5pt, pdteal] (0.45, 0.68) -- (0.95, 0.81) circle (0.06cm);
+    \draw[line width=0.5pt, pdteal] (0.45, 0.68) -- (0.95, 0.55) circle (0.06cm);
+    \draw[line width=0.5pt, pdteal] (0.95, 0.81) -- (1.55, 0.81) circle (0.06cm);
+    \node[anchor=north west, font=\fontsize{3.8}{4.6}\selectfont\color{hhgray!90!black}, text width=3.2cm] at (0.15, 0.46) {%
+      Static state-space search (STRIPS/PDDL). Full precomputation; brittle when state diverges.%
+    };
+  \end{scope}
+
+  % Card 1.3: BDI Architecture
+  \begin{scope}[shift={(0.3, 0.55)}]
+    \draw[draw=pdcobalt!80, line width=0.75pt, fill=pdcobalt!6, rounded corners=2pt] (0, 0) rectangle (3.5, 1.6);
+    \node[anchor=north west, font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{pdcobalt}] at (0.15, 1.48) {3. BDI Cybernetic Agent};
+    % loop icon (lowered to avoid title)
+    \draw[->, line width=0.65pt, pdcobalt] (0.5, 0.95) to[out=50, in=130] (1.5, 0.95);
+    \draw[->, line width=0.65pt, pdcobalt] (1.5, 0.80) to[out=-130, in=-50] (0.5, 0.80);
+    \node[anchor=north west, font=\fontsize{3.8}{4.6}\selectfont\color{hhink}, text width=3.2cm] at (0.15, 0.68) {%
+      Dynamic commitment to intentions, practical reasoning ($S_E, S_O, S_I$), continuous perception, and built-in failure recovery.%
+    };
+  \end{scope}
+
+  % =========================================================================
+  % PANEL 2: THE CORE BDI CYBERNETIC LOOP (Center: x in [4.3, 10.3])
+  % =========================================================================
+  \draw[containerbox] (4.3, 0.4) rectangle (10.3, 5.5);
+  \fill[fill=pdcobalt!90!black, rounded corners=2pt] (4.34, 5.12) rectangle (10.26, 5.46);
+  \node[anchor=center] at (7.3, 5.29) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}THE CORE BDI CYBERNETIC LOOP%
+  };
+
+  % Row 1: Event Queue, Belief Base, Desire Base
+  % Event Queue (Left)
+  \begin{scope}[shift={(5.4, 4.45)}]
+    \draw[draw=pdcobalt, fill=white, line width=0.6pt, rounded corners=2pt] (-0.85, -0.32) rectangle (0.85, 0.32);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{pdcobalt}, align=center] at (0, 0) {Event Queue ($E$)\\{\fontsize{3.6}{4.4}\selectfont external / internal}};
+  \end{scope}
+
+  % Desire Base (Right)
+  \begin{scope}[shift={(9.2, 4.45)}]
+    \draw[draw=pdcobalt, fill=white, line width=0.6pt, rounded corners=2pt] (-0.85, -0.32) rectangle (0.85, 0.32);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{pdcobalt}, align=center] at (0, 0) {Desire Base ($D$)\\{\fontsize{3.6}{4.4}\selectfont candidate goals}};
+  \end{scope}
+
+  % Belief Base (Center Left)
+  \begin{scope}[shift={(5.4, 3.45)}]
+    \draw[draw=pdcobalt, fill=white, line width=0.6pt, rounded corners=2pt] (-0.85, -0.35) rectangle (0.85, 0.35);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{pdcobalt}, align=center] at (0, 0) {Belief Base ($B$)\\{\fontsize{3.6}{4.4}\selectfont world facts \& obs}};
+  \end{scope}
+
+  % Selection Functions Stack (Center Right)
+  \begin{scope}[shift={(8.3, 3.45)}]
+    \draw[draw=pdslate!40, fill=hhpaper!40, rounded corners=2pt] (-1.7, -0.55) rectangle (1.7, 0.55);
+    % SE
+    \draw[fill=pdcobalt!15, draw=pdcobalt, line width=0.45pt, rounded corners=1.5pt] (-1.55, 0.20) rectangle (1.55, 0.46);
+    \node[font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdcobalt}] at (0, 0.33) {$S_E$: Event Selection Function};
+    % SO
+    \draw[fill=pdteal!15, draw=pdteal, line width=0.45pt, rounded corners=1.5pt] (-1.55, -0.13) rectangle (1.55, 0.13);
+    \node[font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdteal!90!black}] at (0, 0) {$S_O$: Option / Plan Selection Function};
+    % SI
+    \draw[fill=pdindigo!15, draw=pdindigo, line width=0.45pt, rounded corners=1.5pt] (-1.55, -0.46) rectangle (1.55, -0.20);
+    \node[font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdindigo!90!black}] at (0, -0.33) {$S_I$: Intention Selection Function};
+  \end{scope}
+
+  % Connections from E, B, D into Selection Functions
+  \draw[flowarrow] (5.4, 4.13) -- (5.4, 3.8);
+  \draw[flowarrow] (6.25, 4.45) -- (6.6, 3.7);
+  \draw[flowarrow] (6.25, 3.45) -- (6.6, 3.45);
+  \draw[flowarrow] (8.5, 4.13) to[out=-90, in=60] (8.3, 4.0);
+
+  % Intention Stack (active executing plans)
+  \begin{scope}[shift={(7.3, 2.15)}]
+    \draw[draw=pdcobalt!90!black, fill=pdcobalt!10, line width=0.75pt, rounded corners=2pt] (-2.2, -0.35) rectangle (2.2, 0.35);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{pdcobalt}, align=center] at (0, 0.10) {Intention Stack ($I$)};
+    \node[font=\fontsize{3.6}{4.4}\selectfont\color{hhink}, align=center] at (0, -0.14) {Active committed plans awaiting execution};
+  \end{scope}
+
+  \draw[flowarrow] (8.3, 2.9) -- (7.8, 2.5);
+
+  % Downward Action Dispatch
+  \draw[flowarrow, line width=0.9pt] (7.3, 1.8) -- (7.3, 1.25);
+  \node[anchor=west, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdcobalt}] at (7.35, 1.55) {Execute Action $a \in \pi$};
+
+  % Robot Worker + Environment Box
+  \begin{scope}[shift={(5.9, 0.85)}]
+    \pdrobotbase[0.55]{(0, 0)}{pdcobalt}
+  \end{scope}
+
+  \begin{scope}[shift={(7.8, 0.85)}]
+    \draw[fill=pdslate!90!black, draw=none, rounded corners=2pt] (-1.1, -0.28) rectangle (1.1, 0.28);
+    \node[font=\fontsize{4.8}{5.8}\selectfont\bfseries\color{white}] at (0, 0) {Host Environment};
+  \end{scope}
+
+  % Perception Feedback Loop: strictly within Center Panel, running up at x=4.6
+  \draw[feedbackarrow] (6.7, 0.85) -- (5.9, 0.85);
+  \draw[feedbackarrow] (5.3, 0.85) to[out=180, in=-90] (4.62, 1.8) -- (4.62, 3.1) to[out=90, in=180] (5.4, 3.45);
+  \node[anchor=center, font=\fontsize{3.5}{4.2}\selectfont\bfseries\color{pdteal!90!black}, fill=white, inner sep=1pt, rotate=90] at (4.62, 2.45) {Perceptions ($P$)};
+
+  % =========================================================================
+  % PANEL 3: FAILURE RECOVERY & INVARIANT GATE (Right: x in [10.5, 14.5])
+  % =========================================================================
+  \draw[containerbox] (10.5, 0.4) rectangle (14.5, 5.5);
+  \fill[fill=pdslate!85!black, rounded corners=2pt] (10.54, 5.12) rectangle (14.46, 5.46);
+  \node[anchor=center] at (12.5, 5.29) {%
+    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}FAILURE RECOVERY \& GATE%
+  };
+
+  % Top: Outcome Evaluator
+  \begin{scope}[shift={(12.5, 4.5)}]
+    \draw[draw=pdslate!60, fill=hhpaper!40, line width=0.6pt, rounded corners=2pt] (-1.5, -0.32) rectangle (1.5, 0.32);
+    \node[font=\fontsize{4.6}{5.5}\selectfont\bfseries\color{hhink}] at (0, 0) {Action Result Evaluator};
+  \end{scope}
+
+  % Link from Center Panel Environment to Right Panel Evaluator via clean vertical channel
+  \draw[flowarrow, dashed] (8.9, 0.85) -- (10.4, 0.85) -- (10.4, 4.5) -- (11.0, 4.5);
+
+  % Branch 1: Action Failure (-!g)
+  \begin{scope}[shift={(11.45, 3.3)}]
+    \draw[fill=pderror, draw=none] (0, 0) circle (0.24cm);
+    \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{white}] at (0, 0) {-!g};
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pderror}, align=center] at (0, -0.28) {%
+      Failure Event\\Trigger%
+    };
+  \end{scope}
+
+  % Branch 2: Invariant Gate (Success)
+  \begin{scope}[shift={(13.55, 3.3)}]
+    \draw[draw=pdhealth!90!black, fill=pdhealth!10, line width=0.75pt, rounded corners=2pt] (-0.55, -0.32) rectangle (0.55, 0.32);
+    \pdiconlock[0.55]{(0, 0)}
+    \node[anchor=north, font=\fontsize{4.0}{4.8}\selectfont\bfseries\color{pdhealth!90!black}, align=center] at (0, -0.36) {%
+      Invariant Gate\\Verification%
+    };
+  \end{scope}
+
+  \draw[->, line width=0.75pt, pderror] (12.0, 4.18) to[out=-120, in=90] (11.45, 3.6);
+  \draw[->, line width=0.75pt, pdhealth!90!black] (13.0, 4.18) to[out=-60, in=90] (13.55, 3.65);
+
+  % Failure Healing Action
+  \begin{scope}[shift={(11.45, 1.4)}]
+    \draw[draw=pderror!60, fill=pderror!6, line width=0.5pt, rounded corners=2pt] (-0.85, -0.55) rectangle (0.85, 0.55);
+    \node[font=\fontsize{3.8}{4.6}\selectfont\color{hhink}, align=center, text width=1.5cm] at (0, 0) {%
+      Pop failed plan\\from stack $\rightarrow$\\invoke alternative\\contingency plan%
+    };
+  \end{scope}
+  \draw[->, line width=0.65pt, pderror] (11.45, 2.3) -- (11.45, 1.95);
+
+  % Success Durable Memory Commit
+  \begin{scope}[shift={(13.55, 1.4)}]
+    \draw[draw=pdhealth!60, fill=pdhealth!6, line width=0.5pt, rounded corners=2pt] (-0.85, -0.55) rectangle (0.85, 0.55);
+    \node[font=\fontsize{3.8}{4.6}\selectfont\bfseries\color{pdhealth!90!black}, align=center, text width=1.5cm] at (0, 0) {%
+      Execution receipt\\cryptographically\\signed \& committed\\to durable memory%
+    };
+  \end{scope}
+  \draw[->, line width=0.65pt, pdhealth!90!black] (13.55, 2.3) -- (13.55, 1.95);
+
+\end{tikzpicture}

@@ -132,6 +132,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import figure_doctrine  # noqa: E402
 import palette_check  # noqa: E402
+import omni_ledger  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -251,6 +252,8 @@ def enumerate_figures(textbook: dict) -> list[dict]:
 
         for m in _SITE_RE.finditer(chapter_tex):
             kind, name = m.group(1), m.group(2)
+            if name.startswith("pd-"):
+                continue
 
             if kind == "includegraphics":
                 fid = name[:-4] if name.lower().endswith(".pdf") else name
@@ -279,7 +282,7 @@ def enumerate_figures(textbook: dict) -> list[dict]:
                 frag = fh.read()
             # A figure fragment is one that actually sets a figure with a
             # caption. Style files (pd-*) and terminal listings are not.
-            if "\\begin{figure}" not in frag or "\\caption" not in frag:
+            if not (r"\begin{figure}" in frag or r"\begin{figure*}" in frag or r"\begin{table}" in frag) or r"\caption" not in frag:
                 continue
             rec = by_id.get(name)
             if rec is None:
@@ -507,6 +510,7 @@ def shape_add_rows(adds: list[dict], figs: list[dict], pins: dict) -> tuple[list
         ("B6 probation cliff", "fig-stp-probation-cliff"),
         ("R12 copy-fork attack", "fig-stp-nomint-lineage"),
         ("R6 consistency radius", "fig-fh-cycle-vs-cut"),
+        ("three-step settlement protocol", "fig-fh-settle-protocol"),
     ]
     fulfilled_by_fig: dict[str, str] = {}
     undrawn: list[dict] = []
@@ -753,11 +757,15 @@ def parse_blockers() -> dict:
 
 def parse_register() -> dict:
     p = abspath(REGISTER_REL)
-    if not os.path.isfile(p):
+    canonical = os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT)
+    if not (omni_ledger.document_exists(REGISTER_REL) if canonical else os.path.isfile(p)):
         note_gap(f"{REGISTER_REL} is missing; the register summary is empty")
         return {"chapters": {}, "totals": {}}
-    with open(p, encoding="utf-8") as fh:
-        text = fh.read()
+    if canonical:
+        text = omni_ledger.document_text(REGISTER_REL)
+    else:
+        with open(p, encoding="utf-8") as fh:
+            text = fh.read()
     start = text.find("## Register summary")
     if start < 0:
         note_gap("FIGURE-REGISTER.md: '## Register summary' not found")
@@ -852,8 +860,12 @@ def build() -> tuple[list[tuple[str, str]], dict]:
     for fid in missing_render:
         note_gap(f"{fid}: no pinned render page in {RENDER_PAGES_REL}; the desk has no page image for it")
 
-    with open(abspath(TRIAGE_REL), encoding="utf-8") as fh:
-        triage_text = fh.read()
+    canonical = os.path.realpath(REPO_ROOT) == str(omni_ledger.ROOT)
+    if canonical:
+        triage_text = omni_ledger.document_text(TRIAGE_REL)
+    else:
+        with open(abspath(TRIAGE_REL), encoding="utf-8") as fh:
+            triage_text = fh.read()
     triage, add_rows, shared = parse_triage(triage_text)
     undrawn_pins = load_curated(UNDRAWN_IDS_REL, "the undrawn candidates' pinned ids")
     undrawn, fulfilled = shape_add_rows(add_rows, figs, undrawn_pins)
@@ -885,9 +897,13 @@ def build() -> tuple[list[tuple[str, str]], dict]:
         }
 
     pixel_path = abspath(PIXEL_REL)
-    if os.path.isfile(pixel_path):
-        with open(pixel_path, encoding="utf-8") as fh:
-            pixel_rows, cross = parse_pixel(fh.read())
+    if (omni_ledger.document_exists(PIXEL_REL) if canonical else os.path.isfile(pixel_path)):
+        if canonical:
+            pixel_text = omni_ledger.document_text(PIXEL_REL)
+        else:
+            with open(pixel_path, encoding="utf-8") as fh:
+                pixel_text = fh.read()
+        pixel_rows, cross = parse_pixel(pixel_text)
     else:
         note_gap(f"{PIXEL_REL} is missing; the pixel voice is empty")
         pixel_rows, cross = {}, {"findings": [], "epigraph": "", "counts": {}, "judged": None, "provenance": {}}
@@ -942,9 +958,16 @@ def build() -> tuple[list[tuple[str, str]], dict]:
 
     fig_ids = {f["id"] for f in figs}
     judged_ids = set(pixel_rows)
+    REPLACED_JUDGED_IDS = {
+        "fig-swk-durability-dramatization": "fig-swk-durability-faultclass",
+        "fig-pareto-dominance-tikz": "fig-pareto-dominance",
+        "fig-bonded-cartel-folk-theorem-tikz": "fig-cartel-folk-theorem",
+        "fig-bonded-sybil-deposit-floor-tikz": "fig-sybil-deposit-floor",
+    }
+    fig_ids_reconciled = fig_ids | {REPLACED_JUDGED_IDS[fid] for fid in fig_ids if fid in REPLACED_JUDGED_IDS}
     recon = {
         "deskOnly": sorted(fig_ids - judged_ids),
-        "judgedOnly": sorted(judged_ids - fig_ids),
+        "judgedOnly": sorted(judged_ids - fig_ids_reconciled),
         "both": sorted(fig_ids & judged_ids),
         "undrawn": [u["id"] for u in undrawn],
         "renderDrift": [

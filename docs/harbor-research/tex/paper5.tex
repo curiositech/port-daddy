@@ -290,6 +290,30 @@ on an identity --- not as a monetary conservation theorem. Continuity witnesses 
 checkpoint restored the agent's ``experience,'' only that the ledger followed the right body.
 \end{boundary}
 
+\paragraph{Unknown-outcome effects after the handoff.}\label{sec:unknown-effect}
+Theorem 3 preserves score attribution; it does not license repetition of an
+external effect whose acknowledgment was lost. For one non-idempotent operation
+$O$, the successor inherits a durable intent, stable remote key $K$, and an
+\emph{unknown} outcome. Its adapter-specific continuation table is:
+\begin{itemize}
+\item \textbf{Atomic remote deduplication plus durable result:} retry $O,K$ or
+fetch the result while the remote record is retained across all admissible
+old and successor attempts.
+\item \textbf{Remote effect-boundary fence plus ordered readback:} install a
+durable fence against the old epoch, then read the exact operation. Persist a
+present result; only an authoritative absent result permits one new-epoch
+attempt. A plain negative read cannot rule out an old call still in flight.
+\item \textbf{Neither:} stop automatic retries and retain the unresolved
+operation for external reconciliation. Safety here is not progress.
+\end{itemize}
+A finite one-operation, two-epoch transition check found no duplicate effect
+under those declared contracts and produced violating traces for an unfenced
+negative read, an altered retry key, and premature dedup-record eviction
+[internal, \texttt{continuation\_observation\_model.py}]. This is a bounded
+adapter decision result, not a deployed exactly-once claim or a proof for
+multiple effects. A replayed prompt or continuity witness cannot replace the
+remote effect receipt.
+
 \section{The front gate: the newcomer ramp is a cliff}\label{sec:cliff}
 
 \onebreath{Among all newcomer-restriction schedules with equal power to deter a short-horizon whitewasher, the one that stacks the

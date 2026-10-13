@@ -1,6 +1,6 @@
 ---
 name: rust-code-testing
-description: Comprehensive Rust testing — unit/integration/doc tests, cargo test & nextest, fixtures, async (tokio::test), property testing (proptest/quickcheck), snapshots (insta), mocking (mockall), coverage (llvm-cov), benchmarks (criterion), fuzzing (cargo-fuzz), miri, mutation testing (cargo-mutants), and FFI/cross-language parity. Use when writing, organizing, debugging, or speeding up Rust tests, choosing a testing crate, or wiring test CI. Triggers — "rust test", "cargo test", "#[tokio::test]", "proptest", "insta snapshot", "mockall", "criterion bench", "cargo-nextest", "llvm-cov coverage", "miri", "cargo-fuzz", "cargo-mutants", "flaky test", "test FFI/cdylib", "doc test". NOT for non-Rust testing, general Rust syntax/borrow-checker help (use rust-with-claude-code), GPUI/pd-console specifics (use gpui-rust-console), or writing production app code.
+description: Comprehensive Rust testing — unit/integration/doc tests, cargo test & nextest, fixtures, async (tokio::test), property testing (proptest/quickcheck), snapshots (insta), mocking (mockall), coverage (llvm-cov), benchmarks (criterion), fuzzing (cargo-fuzz), miri, mutation testing (cargo-mutants), and FFI/cross-language parity. Use when writing, organizing, debugging, or speeding up Rust tests, choosing a testing crate, or wiring test CI. Triggers — "rust test", "cargo test", "#[tokio::test]", "proptest", "insta snapshot", "mockall", "criterion bench", "cargo-nextest", "llvm-cov coverage", "miri", "cargo-fuzz", "cargo-mutants", "flaky test", "test FFI/cdylib", "doc test". NOT for non-Rust testing, general Rust syntax/borrow-checker help (use rust-development-workflow), GPUI/pd-console specifics (use gpui-rust-console), or writing production app code.
 license: Apache-2.0
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 metadata:
@@ -25,7 +25,7 @@ metadata:
   pairs-with:
     - skill: rust-debugging-mastery
       reason: A flaky test or a parity check that passes for the wrong reason needs lldb/tracing/miri to root-cause, not another retry.
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Generic Rust toolchain/workflow (borrow checker, compiler errors, session checklist) lives there; this skill assumes compiling Rust and focuses on testing it well.
     - skill: rust-data-structures-advanced
       reason: "\"Hard to test\" is often an Rc<RefCell>/ownership problem in disguise — extracting a pure, testable core frequently means adopting an arena or generational-index structure from there."
@@ -64,7 +64,7 @@ right tool from the broad Rust testing ecosystem instead of reaching for
 
 ❌ **NOT for**:
 - Non-Rust testing — JS/Python/Go test frameworks
-- General Rust syntax / borrow-checker / toolchain help → `rust-with-claude-code`
+- General Rust syntax / borrow-checker / toolchain help → `rust-development-workflow`
 - GPUI / pd-console-specific testing → `gpui-rust-console`
 - Writing the production feature itself (this skill is about its tests)
 - Designing the kernel/FFI boundary's ABI, ownership, or ffi-safety contract itself

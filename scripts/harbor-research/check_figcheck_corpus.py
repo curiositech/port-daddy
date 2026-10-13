@@ -79,6 +79,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 TEXTBOOK_REL = "whitepaper/textbook.json"
 FIGCHECK_REL = "docs/harbor-research/exposition/figures/figcheck"
+ALLOW_REL = "docs/harbor-research/exposition/figures/figcheck-allow.json"
 
 # Every figures/ directory a chapter source can `\input` from. Derived from
 # the chapter list rather than hard-coded for membership; this tuple only
@@ -170,6 +171,19 @@ def figcheck_records(repo_root: str) -> dict[str, str]:
     return records
 
 
+def figcheck_allow(repo_root: str) -> tuple[dict[str, str], dict[str, str]]:
+    """(allowed_stale, allowed_uncovered) from figcheck-allow.json if present."""
+    path = os.path.join(repo_root, ALLOW_REL)
+    if not os.path.isfile(path):
+        return {}, {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data.get("allowed_stale", {}), data.get("allowed_uncovered", {})
+    except Exception:
+        return {}, {}
+
+
 def compare(corpus: dict[str, dict], records: dict[str, str]) -> tuple[list[str], list[str]]:
     """(records_without_fragment, fragments_without_record), both sorted."""
     return (
@@ -219,6 +233,9 @@ def main(argv=None) -> int:
         return 2
 
     stale, uncovered = compare(corpus, records)
+    allowed_stale, allowed_uncovered = figcheck_allow(repo_root)
+    unwaived_stale = [s for s in stale if s not in allowed_stale]
+    unwaived_uncovered = [u for u in uncovered if u not in allowed_uncovered]
 
     if args.json:
         print(json.dumps({
@@ -226,12 +243,16 @@ def main(argv=None) -> int:
             "record_count": len(records),
             "records_without_fragment": stale,
             "fragments_without_record": uncovered,
+            "unwaived_records_without_fragment": unwaived_stale,
+            "unwaived_fragments_without_record": unwaived_uncovered,
             "orphan_fragments": orphan_fragments(repo_root, corpus),
         }, indent=2, sort_keys=True))
-        return 1 if (stale or uncovered) else 0
+        return 1 if (unwaived_stale or unwaived_uncovered) else 0
 
-    if not stale and not uncovered:
-        print(f"OK: {len(corpus)} live figure fragments, {len(records)} figcheck records, same names.")
+    if not unwaived_stale and not unwaived_uncovered:
+        waived_count = (len(stale) - len(unwaived_stale)) + (len(uncovered) - len(unwaived_uncovered))
+        waived_note = f" ({waived_count} waived via {ALLOW_REL})" if waived_count else ""
+        print(f"OK: {len(corpus)} live figure fragments, {len(records)} figcheck records, same names{waived_note}.")
         if args.verbose:
             orphans = orphan_fragments(repo_root, corpus)
             print(f"  corpus derived from {len(chapter_sources(repo_root))} chapter sources in {TEXTBOOK_REL}")
@@ -240,19 +261,20 @@ def main(argv=None) -> int:
                 print(f"    {path}")
         return 0
 
-    if stale:
-        print(f"{len(stale)} figcheck record(s) describe a fragment that is not in the live corpus:")
-        for stem in stale:
+    if unwaived_stale:
+        print(f"{len(unwaived_stale)} figcheck record(s) describe a fragment that is not in the live corpus:")
+        for stem in unwaived_stale:
             print(f"  {stem}  ({records[stem]})")
-        print("  Either the fragment came back, or the record outlived it: delete the record.")
-    if uncovered:
-        print(f"{len(uncovered)} live fragment(s) have no figcheck record:")
-        for stem in uncovered:
+        print("  Either the fragment came back, or the record outlived it: delete the record or add a waiver.")
+    if unwaived_uncovered:
+        print(f"{len(unwaived_uncovered)} live fragment(s) have no figcheck record:")
+        for stem in unwaived_uncovered:
             print(f"  {stem}  ({corpus[stem]['path']})")
         print("  Compile each under the chapter preamble and write its record:")
         print("    skills/harbor-chartwork/scripts/compile_fragment.sh FRAGMENT --preamble chapter --out DIR")
         print("    python3 skills/harbor-chartwork/scripts/figcheck.py DIR/STEM.pdf --json "
               f"{FIGCHECK_REL}/STEM.json")
+        print("  Or add a temporary waiver to figcheck-allow.json.")
     print(f"\nlive corpus: {len(corpus)} fragment(s); figcheck records: {len(records)}.")
     return 1
 

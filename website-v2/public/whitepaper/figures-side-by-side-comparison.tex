@@ -1,0 +1,1377 @@
+\documentclass[10pt,a4paper,landscape]{article}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+\input{coordination-papers-mega-volume-preamble.tex}
+\makeatletter
+\let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\makeatother
+\geometry{a4paper,landscape,top=0.6cm,bottom=0.6cm,left=1.0cm,right=1.0cm}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.3pt}
+\fancyhead[L]{\pdgrotesk\footnotesize\bfseries PORT DADDY WHITE PAPER \ \textperiodcentered \ \ \textsc{Architectural Figure Reconciliation Audit}}
+\fancyhead[R]{\pdgrotesk\footnotesize\bfseries Visual Proof \& Comparative Verification \ \textperiodcentered \ \ Page \thepage\ of 18}
+\fancyfoot[L]{\pdgrotesk\scriptsize\textbf{Status:} 100\% Reconciled \ \textperiodcentered \ \ Native Vector TikZ/PGF \ \textperiodcentered \ \ Local XeLaTeX Compilation \ \textperiodcentered \ \ \$0.00 Spend}
+\fancyfoot[R]{\pdgrotesk\scriptsize Governing AI Agents: The Harbor, the Person, and the Economy}
+
+\newsavebox{\pdfigbox}
+\newsavebox{\pdscaledbox}
+\newdimen\pdmaxh
+\newdimen\pdmaxw
+\newdimen\pdcurh
+\newdimen\pdcurw
+\newcommand{\pdautoscale}[2]{% #1 max height, #2 max width
+  \pdmaxh=#1\relax
+  \pdmaxw=#2\relax
+  \sbox{\pdscaledbox}{\usebox{\pdfigbox}}%
+  \pdcurh=\dimexpr\ht\pdscaledbox+\dp\pdscaledbox\relax
+  \pdcurw=\wd\pdscaledbox
+  \ifdim\dimexpr\pdcurw * 100 / \pdmaxw\relax > \dimexpr\pdcurh * 100 / \pdmaxh\relax
+    \resizebox{\pdmaxw}{!}{\usebox{\pdscaledbox}}%
+  \else
+    \resizebox{!}{\pdmaxh}{\usebox{\pdscaledbox}}%
+  \fi
+}
+
+\begin{document}
+
+% =========================================================================
+% PAGE 1: Figure 0.1
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.1 \textperiodcentered\ Proposition 1 Mechanics: Serial Write Arbitration}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.1 · Theoretical Foundations of Agency · Single-Writer Mutex}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop1-funnel.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Lossy raster rendering; blurry text on commit blocks and process queues
+        \item Inexact funnels; non-orthogonal connections between writer processes and queue
+        \item Opaque binary blob (78 KB); cannot review or diff structural updates in git
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop1-funnel.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Native vector precision with mathematical bezier funnel curve
+        \item Strict 3-tier hierarchy: Concurrent processes (pdcobalt), Funnel, Commit boundary
+        \item Active WAL highlighted in pdrust; 100\% diffable LaTeX source code
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 2: Figure 0.2
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.2 \textperiodcentered\ Proposition 2 Mechanics: Monotonic Capability Attenuation}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.2 · Security Architecture · The Anchor Protocol \& Macaroons}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop2-attenuation.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Fuzzy badge typography and illegible caveat signatures
+        \item Inconsistent arrow spacing and arbitrary delegation hops
+        \item No formal attenuation constraint check visible in source asset
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop2-attenuation.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Exact chained HMAC signatures with monotonic capability narrowing ($C_0 \supset C_1 \supset C_2$)
+        \item Visual boundary enforcement: Attenuated tokens strictly subset parental scopes
+        \item Systematic color-coding for root issuer, intermediary delegation, and leaf execution
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 3: Figure 0.3
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.3 \textperiodcentered\ Proposition 3 Mechanics: Sealed Room Confinement}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.3 · Execution Isolation · Sandboxing \& Spend Caps}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop3-confinement.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Irregular container boundary with broken corner styling
+        \item Spend meter and canary token indicators suffer from pixel compression artifacts
+        \item Unclear separation between host environment and confined tenant
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop3-confinement.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Mathematically crisp double-walled sealed container boundary
+        \item Explicit single-aperture egress slot with canary token inspection and conserved spend meter
+        \item Complete alignment with macOS Seatbelt SBPL and Linux Landlock security semantics
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 4: Figure 0.4
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.4 \textperiodcentered\ Proposition 4 Mechanics: Information Cost \& Evidence Drilling}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.4 · Supervisory Systems · Attention Budget \& Drilling}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop4-supervision.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Event firehose lines collide with callout panels; illegible JSON text
+        \item FleetBar console window is misaligned with arbitrary text wrapping
+        \item Colliding labels inside optical prism; ambiguous evidence return arrows
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop4-supervision.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Prism geometry with optical facets and central diamond aperture dot
+        \item FleetBar console window widened by 6 characters; clean key/value rows without 'packet' noise
+        \item Evidence pointers cleanly routed beneath information compression layer back to raw streams
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 5: Figure 0.5
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.5 \textperiodcentered\ Proposition 5 Mechanics: Durable Persona vs. Ephemeral Process}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.5 · Identity Architecture · From Spawn to Person}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop5-identity.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Artifacted process crash explosions and blurry skull/restart icons
+        \item Unclear relationship between process lifecycle and durable cryptographic persona
+        \item Binary bitmap fails to convey append-only ledger immutability
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop5-identity.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Clear vertical plane separation: Ephemeral execution realm vs. Durable identity bedrock
+        \item Process crash, kill, and respawn cycles decoupled from persistent Ed25519 identity key
+        \item Append-only debt ledger and reputation history persist across operating system crashes
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 6: Figure 0.6
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.6 \textperiodcentered\ Proposition 6 Mechanics: Four Separated Market Instruments}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.6 · Agent Economics · Market Instruments \& Settlement}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop6-instruments.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Unbalanced instrument columns; indistinct symbols for collateral vs payment
+        \item Settlement flow arrows cross over text boxes illegibly
+        \item Colors lack semantic contrast; text unreadable at standard book sizes
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop6-instruments.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Four distinct architectural pillars: Payment, Collateral, Evidence, and Settlement
+        \item Rigorous contractual state machine preventing moral hazard and adverse selection
+        \item Exact typographic alignment with book data-ink standards
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 7: Figure 0.7
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.7 \textperiodcentered\ Proposition 7 Mechanics: Bonded Execution \& Liquidated Damages}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.7 · Agent Governance · Bonded Commons \& Arbitration}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop7-bonded.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Low-resolution clip-art figures with raster scaling artifacts
+        \item Broken layout margins with blurry text in arbitration and remedy boxes
+        \item Inconsistent line styling between workflow steps and failure branches
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop7-bonded.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item 3-stage pipeline: Bonded Stake Deposit, Randomized Audit, and Contest Arbitration
+        \item Dual-outcome branching: Valid Outcome (Bond Released) vs. Defect/Harm (Stake Slashed)
+        \item Integrated remedy sequence: Automatic liquidation and compensation to affected parties
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 8: Figure 0.8
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.8 \textperiodcentered\ Proposition 8 Mechanics: Cross-Harbor Relay \& Zero-Trust Federation}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.2.8 · Distributed Architecture · Relay Fabric \& Proof Gossip}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-spark-prop8-federation.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Heavy raster compression artifacts on database cylinders and security boundaries
+        \item Illegible Merkle tree leaf labels and blurry cryptographic signature badges
+        \item Disconnected arrows and fuzzy zero-trust relay cylinder boundary
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-spark-prop8-federation.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Bilateral federation: Harbor Host A and Harbor Host B with isolated security boundaries
+        \item Central zero-trust relay fabric with cryptographic witness receipts and Merkle proofs
+        \item Zero shared database and zero global sovereign invariant strictly enforced
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 9: Figure 0.9
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.9 \textperiodcentered\ BDI Execution Flow and Operational Choice Architecture}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.3 · Classical Multi-Agent Theory · AgentSpeak(L) Semantics}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-bdi-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Cluttered feedback loops with unreadable mathematical operators ($S_E, S_O, S_I$)
+        \item Messy box corners, inconsistent padding, and illegible code snippets
+        \item Non-standard color palette clashing with the rest of the volume
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-bdi-execution.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item 3 clear architectural swimlanes: 1. Perception \& Events, 2. Plan Deliberation, 3. Intention Execution
+        \item Formal AgentSpeak(L) selection functions ($S_E, S_O, S_I$) with recovery event ($-!g$)
+        \item Strict Swiss styling using pdcobalt, pdteal, and pdindigo with 4pt inner padding
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 10: Figure 0.10
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.10 \textperiodcentered\ Concurrency Foundations: Virtual Actors vs. CSP Rendezvous}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.4 · Concurrency \& Message Passing · Hewitt-Agha vs. Hoare CSP}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-concurrency-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Asymmetric lifelines with wavy paths and distorted mailbox queues
+        \item Rendezvous barrier rendered as a fuzzy blob rather than an instantaneous synchronization
+        \item Lack of formal notation for actor replacement behaviors (become)
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-concurrency-actors-csp.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Side-by-side comparison of asynchronous Actor mailboxes vs. synchronous CSP rendezvous
+        \item Explicit zero-duration synchronization barrier ($\Delta t = 0$) with lease timeout guards
+        \item Formal state transitions: $\mathtt{become}(B')$, unbuffered channels, and external choice
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 11: Figure 0.11
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.11 \textperiodcentered\ FIPA-00037 Communicative Speech Act State Machine}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.5 · Agent Communication Languages · Speech Acts \& Performatives}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-fipa-speech-acts.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Speech bubble shapes look like comic illustrations rather than formal protocols
+        \item Performative labels (inform, request, propose) are blurry and unsearchable
+        \item Protocol branching logic is incomplete and missing error return paths
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-fipa-speech-acts.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Formal state machine covering Directive (request), Assertive (inform), and Commissive (propose)
+        \item Production payloads grounded in database migrations, belief updates, and deployment SLAs
+        \item Cryptographic sender verification, capability tokens, and conversation correlation IDs
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 12: Figure 0.12
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.12 \textperiodcentered\ Contract Net Protocol (CNP) Task Allocation Lifecycle}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.6 · Task Allocation \& Market Protocols · Smith (1980) CNP}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-cnp-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Contractor evaluation nodes have overlapping text lines and clipped margins
+        \item Bidding and award lifecycle lacks explicit timing cues and escrow binding
+        \item Two separate raster files were required (bidding vs settlement) causing visual fragmentation
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-cnp-protocol.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Unified two-phase sequence: Phase 1 (CFP \& Bidding) and Phase 2 (Award, Sandbox \& Settlement)
+        \item Explicit worktree lease tokens, spend caps, and cryptographic test run receipts
+        \item Crisp sequence arrows with clear contractor state alternatives (Bid vs Refusal)
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 13: Figure 0.13
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.13 \textperiodcentered\ Dynamic Epistemic Observation Cones in Big Brother Logic}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.7 · Epistemic Logic · Charrier et al. (2014) BBL}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-bbl-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Vision cones are rendered as muddy gradient wedges with jagged edges
+        \item Coordinate grid numbers and formulas have pixelated compression artifacts
+        \item Observer and worker agent icons suffer from raster scaling blur
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-bbl-vision-cones.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Exact geometric vision cones with angular field-of-view and sightline vectors
+        \item Mathematically shaded epistemic shadows preventing side-channel data exfiltration
+        \item Rigorous epistemic status badges: Supervised, Isolated, Blind, and Shadowed
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 14: Figure 0.14
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.14 \textperiodcentered\ Arrow's Impossibility Theorem in Multi-Agent Consensus}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.1.8 · Social Choice \& Game Theory · Arrow (1951)}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-arrows-impossibility.png}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Condorcet cycle triangle has jagged pixelated arrows
+        \item Ordinal ranking tables suffer from raster compression blur
+        \item Font weights and sizes do not match the surrounding textbook
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-arrows-consensus.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Clean geometric cycle ($A \succ B \succ C \succ A$) with circular cyclic arcs
+        \item Crisp preference profile matrix comparing voter rankings across candidates
+        \item Formal proof annotations showing why Port Daddy replaces ordinal voting with cardinal VCG clearing
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 15: Figure 0.15
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.15 \textperiodcentered\ Progressive Disclosure of Skills Across Logarithmic Decades}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.3.3 · Tool Calling \& Extensibility · Skill Architecture}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-skills-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Raster diagram suffers from non-vector text pixelation at standard book scale
+        \item Token counts (~100, ~1,000, ~5,000) blur when resized to two-page spread width
+        \item Robot token meter icon and decade pill borders show compression ringing
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-progressive-skills.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Mathematically exact logarithmic scale ($10^0, 10^{-1}, 10^{-2}, 10^{-4}$)
+        \item Four progressive tiers: Discovery Metadata (100 B), Instructions (2 KB), Scripts (0 B context), Schemas
+        \item Shows exponential context savings achieved by keeping procedural code outside the LLM window
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 16: Figure 0.16
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.16 \textperiodcentered\ The Agent Lifecycle Hook Cross-Section}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.3.4 · Hooks \& Interception · Claude Code \& Giant Squid}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-lifecycle-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Raster loop text and arrow labels show blurry compression halos
+        \item Interception hook labels (PreToolUse, PostToolUse) suffer from low contrast
+        \item Production trace callout boxes (Cases A-C) lose crispness at high print resolutions
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-lifecycle-hooks.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Two distinct supervisory loops: Outer Session/Turn Lifecycle vs. Inner Agentic Tool Loop
+        \item High-contrast hook interceptors: SessionStart, UserPromptSubmit, PreCompact, PreToolUse, PostToolUse, Stop
+        \item Three real-world enforcement traces: Case A (Veto), Case B (Sanitization), Case C (Clean Commit)
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 17: Figure 0.17
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.17 \textperiodcentered\ Ramadge-Wonham Discrete-Event Supervisory Control}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.3.5 · Supervisory Control Theory · Discrete-Event Systems}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-wonham-supervisory.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Automata state nodes are distorted ellipses with unreadable transition labels
+        \item Controllable vs uncontrollable event sets ($\Sigma_c$ vs $\Sigma_u$) are visually indistinguishable
+        \item Mathematical notation for supervisory feedback control is blurry
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-wonham-supervisory.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Formal Moore-automata state machine with controllable events ($\Sigma_c$) and uncontrollable events ($\Sigma_u$)
+        \item Closed-loop supervisor $S$ dynamically disabling unsafe transitions to enforce language $K \subset L(G)$
+        \item Direct application to sandboxed agent tool execution and mutual exclusion invariants
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+
+% =========================================================================
+% PAGE 18: Figure 0.18
+% =========================================================================
+\noindent
+\begin{minipage}[t]{\linewidth}
+  \noindent{\pdgrotesk\large\bfseries Figure 0.18 \textperiodcentered\ The Closed Agentic Architecture Loop}\hfill
+  {\pdgrotesk\footnotesize\color{hhgray} Section 0.4.1 · Closed-Loop Governance · Three-Tier Operating Architecture}\\
+  \vspace*{0.03cm}
+  \noindent{\color{hhgray!40}\rule{\linewidth}{0.5pt}}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdslate!4,colframe=pdslate!70!black,arc=1.5pt,
+    boxrule=0.6pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} A. AI-Generated Raster Prototype (Diffusion / Nano Banana) \hfill \texttt{.jpg / .png}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=8.0cm,keepaspectratio]{figures/fig-ch0-closed-loop-diagram.jpg}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{\color{pderror!90!black} Artifact \& Limitation Audit:}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Raster icons (chip, terminal, lock) blur and degrade at print resolution
+        \item Layer text boxes show edge fringing and JPEG compression artifacts
+        \item Sanitized observation feedback arrow text suffers from raster blur
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \begin{tcolorbox}[
+    colback=pdcobalt!3,colframe=pdcobalt!85!black,arc=1.5pt,
+    boxrule=0.7pt,top=1.5pt,bottom=1.5pt,left=4pt,right=4pt,
+    title={\pdgrotesk\footnotesize\bfseries \color{white} B. Authoritative Native Vector Replacement \hfill \texttt{.tex / TikZ / PGF}}
+  ]
+    \begin{minipage}[c][8.3cm][c]{\linewidth}
+      \centering
+      \sbox{\pdfigbox}{\input{figures/fig-ch0-closed-loop-diagram.tex}}
+      \pdautoscale{8.0cm}{\linewidth}
+    \end{minipage}
+    \tcblower
+    \begin{minipage}[t][2.0cm][t]{\linewidth}
+      \pdgrotesk\scriptsize
+      \textbf{{\color{pdcobalt} Engineering \& Typography Guarantees:}}\\
+      \begin{itemize}[leftmargin=9pt,itemsep=0pt,topsep=0.5pt,parsep=0pt]
+        \item Three clean architectural strata: 1. Probabilistic Deliberation, 2. Confined Execution, 3. Deterministic Governance
+        \item Rigorous separation of powers: LLMs reason, Sandboxes execute, Kernels arbitrate and persist
+        \item Cryptographic attestation and immutable receipts closing the loop back to operator oversight
+      \end{itemize}
+    \end{minipage}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace*{0.05cm}
+\noindent
+\begin{tcolorbox}[
+  colback=hhpaper,colframe=hhgray!35,arc=1.5pt,boxrule=0.4pt,
+  top=1.5pt,bottom=1.5pt,left=6pt,right=6pt
+]
+  \pdgrotesk\scriptsize
+  \noindent
+  \textbf{Visual Substrate:} Lossy Bitmap Raster $\rightarrow$ \textbf{\color{pdcobalt}Native PDF / PostScript Vector}\hfill
+  \textbf{Text Engine:} Pixelated Approximations $\rightarrow$ \textbf{\color{pdcobalt}Book Typography (OpenType)}\hfill
+  \textbf{Resolution:} Fixed DPI Limit $\rightarrow$ \textbf{\color{pdcobalt}Infinite Resolution ($\infty$)}\hfill
+  \textbf{Status:} \textbf{\color{pdteal}RECONCILED \& VERIFIED}
+\end{tcolorbox}
+\clearpage
+\end{document}
