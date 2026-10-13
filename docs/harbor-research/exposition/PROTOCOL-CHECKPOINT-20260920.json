@@ -63,8 +63,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "86f0751662f70e4b68636f9e7390fcdba9773b47b1d7f34b6741fa1ae09794ca",
-      "bytes": 63750,
+      "sha256": "a178bec01197ad8c6bb9cbdf3d91b09115b2fdacd2c2025f2f56d22165c06b00",
+      "bytes": 63938,
       "change": "modified"
     },
     {
@@ -357,8 +357,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "86f0751662f70e4b68636f9e7390fcdba9773b47b1d7f34b6741fa1ae09794ca",
-      "bytes": 63750
+      "sha256": "a178bec01197ad8c6bb9cbdf3d91b09115b2fdacd2c2025f2f56d22165c06b00",
+      "bytes": 63938
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
