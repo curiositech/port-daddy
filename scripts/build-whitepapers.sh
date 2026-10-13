@@ -158,6 +158,7 @@ paper_sources() {
         "$srcdir/coordination-papers-mega-volume-chapter-0.tex" \
         "$srcdir/coordination-papers-mega-volume-appendices.tex" \
         "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
+        "$srcdir/coordination-papers-mega-volume-epigraph-review-spreads.tex" \
         "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
       # The Book preamble imports this helper, whose glyph path is assembled
       # from explicit icon-family assignments rather than a literal \input.
