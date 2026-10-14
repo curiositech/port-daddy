@@ -424,7 +424,10 @@ Every act of authority --- a claim denial, an anomaly detection, an
 escalation, an ``all good'' attestation --- must be a logged, named, zoomable event
 whose reason the operator can reconstruct.
 Consent is renewable only while the
-sovereign is inspectable.
+sovereign is inspectable. This is a \textbf{Design invariant} in the honesty
+ledger's sense: it is a discipline the reference daemon is built to keep, not a
+theorem about the world, and it is \Built{} today as honest attestation
+(\texttt{lib/attest.ts}; ADR-0045, \S\ref{app:honest}), not merely designed.
 \end{pdclaim}
 This is the inversion that rescues the design from despotism, and it is the move a
 political theorist would press hardest (\S\ref{sec:consent-canon}). In Hobbes the
@@ -505,7 +508,11 @@ first-class, legible object: it appears in the digest, it has an audit trail, an
 expires.
 
 The authority's legitimate action set at any moment is exactly the union of
-its active grants.
+its active grants. This is a \textbf{Design invariant} in the honesty ledger's
+sense: the schema is fixed by the lifecycle protocol below, not derived from a
+formal model. It is \Vision{} in the reference implementation today
+(\S\ref{app:honest}): argued here with no design document yet, not code the daemon
+already enforces.
 \end{pdclaim}
 
 Consent so defined gives the design something Hume's critique cannot reach: a
@@ -573,7 +580,11 @@ that \emph{no autonomy level can suppress}.
 If the system reserves a highest-priority
 \emph{distress} lane for the daemon to interrupt the operator, the override is its
 dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feature:
-it preempts every grant, every in-flight landing, every coordinator decision.
+it preempts every grant, every in-flight landing, every coordinator decision. This is
+a \textbf{Design invariant} in the honesty ledger's sense --- a right the design
+commits to preserving, not a derived theorem --- and it is \Vision{} today
+(\S\ref{app:honest}): argued here alongside the consent grant, with no
+implementation yet.
 \end{pdclaim}
 
 \ifpdmargincolumn\pdconsentregion\fi
@@ -654,7 +665,12 @@ lie.
 Formally, a read-surface is a pair $(\sigma, \zeta)$ where $\sigma$ is a
 projection (the summary) and $\zeta$ is a total \emph{zoom} function mapping every
 summarized claim to a verifiable artifact; a surface with a partial or absent
-$\zeta$ is a Potemkin digest.
+$\zeta$ is a Potemkin digest. This is a \textbf{Design invariant} in the honesty
+ledger's sense: it is a discipline the read-surfaces are built to keep, not a
+theorem. Its strongest live instance is \Built{} (the briefing projection,
+\texttt{lib/briefing.ts}, \S\ref{app:honest}); the digest layer that unifies every
+read-surface under one law is \Designed{} rather than uniformly built, since
+several surfaces in Table~\ref{tab:honest-state} do not yet carry a total $\zeta$.
 \end{pdclaim}
 
 \input{figures/legible-swarm-zoom-vs-potemkin}
@@ -726,7 +742,11 @@ The agent's self-narration is a \emph{secondary} lens, always
 labeled as such.
 
 Two LLMs agreeing (an agent acting and an LLM summarizing it) is
-not two checks; it may be one error reported twice.
+not two checks; it may be one error reported twice. This sharpens
+Def.~\ref{def:zoom} and inherits its status: a \textbf{Design invariant}, backed
+where it is strongest by \Built{} honest attestation (\texttt{lib/attest.ts},
+\S\ref{app:honest}) rather than by any formal model of what an LLM's self-report
+can or cannot be trusted to say.
 \end{pdclaim}
 
 This is why the source of truth must be the durable substrate --- the coordination
@@ -800,13 +820,20 @@ authority; refuse to ship it.
 \end{enumerate}
 \end{protocol}
 
-\scene{Mira, 3:32 p.m.}{She opens the digest for the five-PR pile. Each row reads
+\begin{pdexample}{Mira, 3:32 p.m.: the one law on one row}
+She opens the digest for the five-PR pile. Each row reads
 ``\textsc{api-2} $\cdot$ charge handler $\cdot$ merged $\cdot$ 1 critique round'' ---
 state only, six words. The ``fix tests'' PR's row is flagged \emph{force-zoom},
 because merging it is irreversible; she presses one key and the 600-line diff and
 the verbatim test log open side by side. The diff deletes a migration test. The
 digest did not paraphrase that away --- it linked her straight to it, and the lie is
-caught in ten seconds instead of slipping through. This is the one law doing its job.}
+caught in ten seconds instead of slipping through. Run the four design questions of
+\S\ref{sec:four-questions} against this one row and every answer is yes: the merge
+is irreversible (forced zoom fires); the diff is m\^etis, so it is linked verbatim,
+not flattened; the claim resolves to the diff and test log, not the agent's own
+narration; and the merge itself, once the flag fires, carries a named reason in the
+audit trail. This is the one law doing its job.
+\end{pdexample}
 
 \pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
 
@@ -1181,7 +1208,10 @@ silently pass.
 
 This is the authority-side analog of discovery's
 \emph{refuse-to-route} (\S\ref{sec:gates}): ``I don't know'' must beat a confident
-wrong answer.
+wrong answer. This is a \textbf{Design invariant} in the honesty ledger's sense: a
+discipline the authority is meant to enforce, not a derived result. It is \Vision{}
+in the reference implementation (\S\ref{app:honest}): argued here, with no design
+document yet.
 \end{pdclaim}
 
 \input{figures/legible-swarm-completion-verifier}
@@ -1507,13 +1537,24 @@ Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoo
 \label{tab:sdt-numbers}
 \end{table}
 
-\emph{Now you try:} at what base rate does a $C_{\text{miss}}/C_{\text{fa}}=50$
-action class cross from auto-land to forced zoom? (Set $50\pi = (1-\pi)+0.2$, giving
-$\pi \approx 0.024$ --- roughly one dangerous action in forty.) The boundary:
-this collapse assumes the operator either zooms an entire class or none of it, which
-is the policy Eq.~\ref{eq:sdt} would produce only if $P_{\text{miss}}$ and
-$P_{\text{fa}}$ were degenerate. A fitted detector with a real criterion $\beta$ does
-better than both columns; the table is a floor on the decision, not the decision.
+\begin{pdexample}{Where a fiftyfold miss/false-alarm ratio crosses over}
+At what base rate does a $C_{\text{miss}}/C_{\text{fa}}=50$ action class cross from
+auto-land to forced zoom? Set the two crude costs equal: never-zoom's
+$\pi\,C_{\text{miss}}$ against always-zoom's $(1-\pi)C_{\text{fa}}+c_{\mathrm{att}}$,
+i.e.\ $50\pi = (1-\pi)+0.2$ at $C_{\text{fa}}=1$, $c_{\mathrm{att}}=0.2$. Expanding,
+$50\pi+\pi = 1.2$, so $\pi = 1.2/51 \approx 0.024$ --- roughly one dangerous action
+in forty. \emph{Now you try:} redo this at $C_{\text{miss}}/C_{\text{fa}}=500$ (the
+migration-dropping-a-foreign-key class of Table~\ref{tab:sdt-numbers}, whose own
+$\pi=0.2$ sits far above this crossover). $501\pi=1.2$ gives $\pi\approx0.0024$ ---
+about one dangerous action in four hundred, roughly ten times more of a hair
+trigger than the fiftyfold class above.
+\end{pdexample}
+
+The boundary: this collapse assumes the operator either zooms an entire class or
+none of it, which is the policy Eq.~\ref{eq:sdt} would produce only if
+$P_{\text{miss}}$ and $P_{\text{fa}}$ were degenerate. A fitted detector with a real
+criterion $\beta$ does better than both columns; the table is a floor on the
+decision, not the decision.
 
 \subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
 
@@ -1798,7 +1839,14 @@ regime where the source rate exceeds it.
 \label{def:readpoverty}
 \textbf{Read-poverty} is a regime in which legible state accumulates faster than it
 can be consulted, so participants fall back to $O(n)$ eyeball search over the
-population, or, worse, act blind.
+population, or, worse, act blind. That real swarms actually enter this regime at
+the population sizes this paper discusses is an \textbf{Empirical hypothesis} in
+the honesty ledger's sense, not a Design invariant or a Theorem: it is a claim
+about the world, argued here from the Mara scene (\S\ref{sec:mara}) and from
+Miller's information-processing literature~\pdcite{miller1956}, and it awaits
+telemetry from deployed fleets rather than a proof. \Vision{} in
+\S\ref{app:honest}'s sense: no instrumentation yet measures where a real fleet
+sits on the value curve below.
 
 Naming the regime costs nothing; the claim that
 carries weight --- and that wants measurement rather than assent --- is that real
@@ -2724,7 +2772,12 @@ dead-session claim must decay out of ``current,'' not persist as misleading trut
 
 This is not a new mechanism but a uniform application of the decay primitive that
 already governs the pheromone layer, and it is the production discipline of every
-health-checked, TTL-expiring service registry~\pdcite{consul}.
+health-checked, TTL-expiring service registry~\pdcite{consul}. This is a
+\textbf{Design invariant}, \BuiltWeak{}: the decay primitive itself is \Built{}
+(episodic memory and pheromone decay, \S\ref{app:honest}), but the word
+``universal'' is asserted ahead of the code, since several read-surfaces this
+property names --- the discovery router is only \Designed{}, the operator console
+is \BuiltWeak{} --- do not yet carry it in the shipped implementation.
 \end{pdclaim}
 
 The dead-claim case is the worked instance: had the resurrection handoff and the
@@ -3764,8 +3817,8 @@ information-theoretic floor (Thm.~\ref{thm:lowerbound}).
 
 \paragraph{Authority, consent, and the social contract.}
 The authority argument is Hobbesian~\pdcite{hobbes1651,sep-hobbes}, amended by the
-liberal consent tradition --- \textbf{Locke}~\pdcite{locke1689},
-\textbf{Hume}~\pdcite{hume1748}, \textbf{Pateman}~\pdcite{pateman1979} --- and by
+liberal consent tradition --- \textbf{Locke},
+\textbf{Hume}, and \textbf{Pateman}~\pdcite{locke1689,hume1748,pateman1979} --- and by
 \textbf{Hirschman}'s exit/voice framework~\pdcite{hirschman1970}. Strikingly, the
 state-of-nature-to-sovereign arc has been observed as an \emph{emergent} dynamic of
 LLM populations (\textbf{Dai et al.}~\pdcite{dai2024}, building on \textbf{Park et
@@ -3780,7 +3833,7 @@ The operator model draws on the automation literature:
 \textbf{Lee \& See} on trust calibration~\pdcite{leesee2004},
 \textbf{Endsley} on situation awareness and the out-of-the-loop
 problem~\pdcite{endsley1995,endsleykiris1995}, the vigilance-decrement results of
-\textbf{Mackworth}~\pdcite{mackworth1948} and \textbf{Warm et al.}~\pdcite{warm2008},
+\textbf{Mackworth} and \textbf{Warm et al.}~\pdcite{mackworth1948,warm2008},
 \textbf{Wickens}' multiple-resource theory~\pdcite{wickens2002},
 \textbf{Treisman \& Gelade}'s feature-integration theory~\pdcite{treisman1980}, and
 \textbf{Miller}'s capacity limit~\pdcite{miller1956}.
@@ -3788,10 +3841,10 @@ problem~\pdcite{endsley1995,endsleykiris1995}, the vigilance-decrement results o
 \noindent\textbf{Alarm decisions.} The forced-zoom decision is
 modeled with \textbf{Green \& Swets}' Signal Detection Theory~\pdcite{greenswets1966}
 (Invariant~\ref{def:sdt}); the alarm discipline follows process-control
-practice~\pdcite{isa182} and the clinical alarm-fatigue evidence~\pdcite{cvach2012}.
+practice and the clinical alarm-fatigue evidence~\pdcite{isa182,cvach2012}.
 
 \noindent\textbf{Limits of the objective.}
-\textbf{Campbell}~\pdcite{campbell1979} and \textbf{Strathern}~\pdcite{strathern1997}
+\textbf{Campbell} and \textbf{Strathern}~\pdcite{campbell1979,strathern1997}
 (Goodhart's law) bound any metered governor. To our knowledge the operator-attention
 objective spined explicitly on SDT miss-cost (Eq.~\ref{eq:sdt}) is new to agent
 supervision.
@@ -3802,7 +3855,7 @@ Read-poverty (Hypothesis~\ref{def:readpoverty}) is the agent-coordination instan
 information-seekers follow ``information scent'' and abandon a patch when its expected
 yield falls below the cost of foraging --- and of the long-context degradation
 results that make reading expensive even for machines (\textbf{Liu et
-al.}~\pdcite{liu2024}; \textbf{Anthropic}~\pdcite{anthropic2025}). The remedy is the
+al.}; \textbf{Anthropic})~\pdcite{liu2024,anthropic2025}. The remedy is the
 classical database remedy --- an index --- recast as a directory over agents.
 
 \paragraph{Agent discovery, naming, and trust.}
@@ -4390,6 +4443,20 @@ O & Consent grant + inalienable override & \Vision & Invariant~\ref{def:consent}
 O & Time-axis legibility (replay, provenance) & \Designed & Event log \Built; interactive replay and provenance navigation proposed \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
 \end{xltabular}}
+
+\begin{pdexample}{Counting the wedge's own honesty ledger}
+Table~\ref{tab:honest-state} grades twenty-four mechanisms across the four labels
+this appendix defines. Counting the Status column by hand: \Built\ appears $4$
+times (attention composer, briefing projection, honest attestation, and the
+episodic-memory/pheromone/skill-index row), \BuiltWeak\ appears $8$ times,
+\Designed\ appears $6$ times, and \Vision\ appears $6$ times. These sum to
+$4+8+6+6=24$, matching the table's own row count, so every mechanism named in this
+paper is graded and none is left silently unassessed. Read as fractions:
+$4/24\approx17\%$ of the paper's named mechanisms are fully coded today; adding the
+partial \BuiltWeak\ row brings at-least-some-code to $12/24=50\%$; the other half is
+designed or argued with no merged implementation --- the same split the caption
+above states in words (``more than half-designed'').
+\end{pdexample}
 
 Three points about the reference implementation are important enough to restate:
 \begin{enumerate}[leftmargin=1.5em]
