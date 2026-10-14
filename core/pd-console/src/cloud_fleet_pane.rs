@@ -18,13 +18,13 @@
 //! paint the same blocks in the locked maritime theme.
 
 use crate::agent::DaemonClient;
+#[cfg(test)]
+use crate::interruptions_pane::resolve_relay_credentials;
+use crate::interruptions_pane::{load_relay_credentials, RelayCredentials};
 use crate::pane::{Block, Pane, Tone};
 use crate::util::{age_short, arr, b, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
-use std::path::PathBuf;
-
-const DEFAULT_RELAY_URL: &str = "https://port-daddy-relay.erich-owens.workers.dev";
 
 /// One remote fleet run (a GitHub PR review the cloud executor performed).
 #[derive(Debug, Clone)]
@@ -398,58 +398,6 @@ fn step_tone(step: &FleetStep) -> Tone {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
-struct RelayCredentials {
-    url: String,
-    token: String,
-    login: String,
-}
-
-fn resolve_relay_credentials(
-    env_url: Option<String>,
-    env_token: Option<String>,
-    account_json: Option<&str>,
-) -> RelayCredentials {
-    let account = account_json
-        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-        .unwrap_or(Value::Null);
-    let stored_token = s(&account, "token");
-    let stored_url = s(&account, "relayUrl");
-    let login = s(&account, "login");
-
-    let token = env_token
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or(stored_token);
-    let url = env_url
-        .map(|value| value.trim().trim_end_matches('/').to_string())
-        .filter(|value| !value.is_empty())
-        .or_else(|| {
-            let value = stored_url.trim().trim_end_matches('/').to_string();
-            (!value.is_empty()).then_some(value)
-        })
-        .unwrap_or_else(|| {
-            if token.is_empty() {
-                String::new()
-            } else {
-                DEFAULT_RELAY_URL.into()
-            }
-        });
-
-    RelayCredentials { url, token, login }
-}
-
-fn load_relay_credentials() -> RelayCredentials {
-    let account_path: Option<PathBuf> =
-        dirs::home_dir().map(|home| home.join(".port-daddy").join("account.json"));
-    let account_json = account_path.and_then(|path| std::fs::read_to_string(path).ok());
-    resolve_relay_credentials(
-        std::env::var("PD_CONSOLE_RELAY_URL").ok(),
-        std::env::var("PD_CONSOLE_RELAY_TOKEN").ok(),
-        account_json.as_deref(),
-    )
-}
-
 pub struct CloudFleetPane {
     relay_url: String,
     relay_token: String,
@@ -534,12 +482,10 @@ impl CloudFleetPane {
         !self.relay_url.trim().is_empty() && !self.relay_token.trim().is_empty()
     }
 
-    fn credentials_need_reload(&self) -> bool {
-        !self.is_configured()
-            || self
-                .last_error
-                .as_deref()
-                .is_some_and(|error| error.contains("session rejected"))
+    fn credentials_rejected(&self) -> bool {
+        self.last_error
+            .as_deref()
+            .is_some_and(|error| error.contains("session rejected"))
             || self
                 .detail_error
                 .as_deref()
@@ -1049,12 +995,16 @@ impl Pane for CloudFleetPane {
                 }
             }
 
-            if self.credentials_need_reload() {
-                self.apply_credentials(load_relay_credentials());
-            }
+            // Sign-in and token rotation happen outside the console. Reload on
+            // every producer tick, but keep a rejected unchanged credential
+            // parked so the UI does not hammer the operator endpoint.
+            let credentials_changed = self.apply_credentials(load_relay_credentials());
 
             // Unconfigured → no-op; view() shows the actionable hint instead.
             if !self.is_configured() {
+                return Ok(());
+            }
+            if self.credentials_rejected() && !credentials_changed {
                 return Ok(());
             }
             let base = self.relay_url.trim_end_matches('/').to_string();
@@ -1578,23 +1528,28 @@ mod tests {
 
     #[test]
     fn credentials_default_to_signed_in_account_and_allow_explicit_overrides() {
-        let stored = r#"{
-            "token":"pdu_stored",
+        let stored_token = format!("pdu_{}", "a".repeat(64));
+        let stored = format!(
+            r#"{{
+            "token":"{stored_token}",
             "login":"operator",
             "relayUrl":"https://stored.example/"
-        }"#;
-        let stored_only = resolve_relay_credentials(None, None, Some(stored));
+        }}"#
+        );
+        let stored_only = resolve_relay_credentials(None, None, Some(&stored));
         assert_eq!(stored_only.url, "https://stored.example");
-        assert_eq!(stored_only.token, "pdu_stored");
+        assert_eq!(stored_only.token, stored_token);
         assert_eq!(stored_only.login, "operator");
 
+        let override_token = format!("pdu_{}", "b".repeat(64));
         let overridden = resolve_relay_credentials(
             Some("https://dev.example/".into()),
-            Some("pdu_dev".into()),
-            Some(stored),
+            Some(override_token.clone()),
+            Some(&stored),
         );
         assert_eq!(overridden.url, "https://dev.example");
-        assert_eq!(overridden.token, "pdu_dev");
+        assert_eq!(overridden.token, override_token);
+        assert!(overridden.login.is_empty());
     }
 
     #[test]
@@ -1604,7 +1559,7 @@ mod tests {
             Some("Cloud Fleet session rejected — renew it from FleetBar Credentials".into());
         pane.loaded_detail_id = Some("run-old".into());
         pane.ship_config_attempted = true;
-        assert!(pane.credentials_need_reload());
+        assert!(pane.credentials_rejected());
 
         assert!(pane.apply_credentials(RelayCredentials {
             url: "https://relay.example.dev".into(),
@@ -1615,7 +1570,7 @@ mod tests {
         assert!(pane.last_error.is_none());
         assert!(pane.loaded_detail_id.is_none());
         assert!(!pane.ship_config_attempted);
-        assert!(!pane.credentials_need_reload());
+        assert!(!pane.credentials_rejected());
     }
 
     #[test]
