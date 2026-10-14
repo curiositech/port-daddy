@@ -551,6 +551,19 @@ private struct ApprovedFilterBinding {
     let runtimeIdentity: RunningApplicationIdentity
 }
 
+private struct AutomationRecordingRequest {
+    let outputDirectory: URL
+    let durationSeconds: Double
+}
+
+private struct AutomationRecordingSeed {
+    let outputDirectory: URL
+    let approval: SourceApproval
+    let lease: CaptureLeaseIdentity
+    let firstFrame: FrameMetadata
+    let lastFrame: FrameMetadata
+}
+
 public enum ProofArtifactWriter {
     public static func write(
         manifest: PortholeProofManifest,
@@ -611,6 +624,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     )
     @Published public private(set) var cursors: [CursorEvent] = []
     @Published public private(set) var proofReceipt: PortholeProofReceipt?
+    @Published public private(set) var automationArtifactReceipt: PortholeAutomationArtifactReceipt?
 
     public let proofConfiguration: ProofConfiguration?
 
@@ -625,6 +639,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private var stream: SCStream?
     private var output: FrameOutput?
     private var proofRecorder: ApprovedProofRecorder?
+    private var automationRecordingRequest: AutomationRecordingRequest?
     private var safeFixtureAttestation: SafeFixtureAttestation?
     private var ring: MonotonicFrameRing<CapturedFrame>
     private var cursorStore = CursorStore()
@@ -695,7 +710,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         guard let selectedApprovalID,
               let approval = approvedSources.first(where: { $0.approvalID == selectedApprovalID })
         else { return false }
-        return approvedFilters[selectedApprovalID] != nil
+        return isApprovalReady(selectedApprovalID)
             && SourceApprovalPolicy.permits(.preview, approval: approval)
             && lifecycle != .live
     }
@@ -706,7 +721,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func isApprovalReady(_ approvalID: String) -> Bool {
-        approvedFilters[approvalID] != nil
+        guard let binding = approvedFilters[approvalID],
+              let approval = approvedSources.first(where: { $0.approvalID == approvalID })
+        else { return false }
+        return validateRuntimeBinding(binding, approval: approval)
     }
 
     public func bootstrap() async {
@@ -762,6 +780,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             return
         }
         let review = pickerSelection.review
+        guard SourceApprovalPolicy.supports(scope: scope, capabilities: capabilities) else {
+            statusMessage = "Persistence requires this exact window. Review the scope and capabilities again."
+            return
+        }
         var proofAttestation: SafeFixtureAttestation?
         if let proofConfiguration {
             guard ledger.approvedSources.isEmpty,
@@ -778,19 +800,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             }
             proofAttestation = attestation
         }
-        let approval = SourceApproval(
-            approvalID: UUID().uuidString.lowercased(),
-            scope: scope,
-            sourceKind: scope == .exactWindow ? .window : review.sourceKind,
-            displayTitle: scope == .exactWindow ? review.displayTitle : review.programDisplayTitle,
-            capabilities: capabilities,
-            program: review.program,
-            runningInstance: scope == .signedProgram ? nil : review.runningInstance,
-            exactWindow: scope == .exactWindow ? review.exactWindow : nil,
-            createdAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
-        )
         do {
-            try SourceApprovalPolicy.validate(approval)
+            let approval = try SourceApprovalPolicy.reviewedApproval(
+                review: review, scope: scope, capabilities: capabilities,
+                approvalID: UUID().uuidString.lowercased(),
+                createdAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds)
             if approval.scope == .signedProgram {
                 try keychainStore.save(approval)
             }
@@ -895,6 +909,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         clearLiveState()
         proofInvalidated = false
         proofReceipt = nil
+        automationArtifactReceipt = nil
 
         let lease = CaptureLeaseIdentity(
             leaseID: UUID().uuidString.lowercased(),
@@ -918,12 +933,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 assessedAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
             )
             : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
-        persistenceGate = SourcePersistencePolicy.evaluate(
-            approval: approval, sourceIsCurrent: true,
-            assessment: privacyAssessment,
-            explicitOperatorApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
-            isSyntheticSafeFixture: attestation?.verified == true
-        ).gate
+        persistenceGate = PortholeAutomationPersistencePolicy.evaluateActiveMode(
+            automationRecording: automationRecordingRequest != nil, approval: approval,
+            sourceIsCurrent: isApprovalReady(approval.approvalID), assessment: privacyAssessment,
+            explicitFixtureApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
+            verifiedFixture: attestation?.verified == true)
 
         let filter = binding.filter
         let width = Self.evenDimension(filter.contentRect.width * CGFloat(filter.pointPixelScale))
@@ -938,6 +952,23 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             {
                 recorder = try ApprovedProofRecorder(
                     outputURL: proofConfiguration.outputDirectory.appendingPathComponent("stage-source.mov"),
+                    width: width,
+                    height: height
+                )
+            } else if let automationRecordingRequest {
+                guard persistenceGate.allowed else {
+                    self.automationRecordingRequest = nil
+                    clearLiveState()
+                    lifecycle = .ready
+                    statusMessage = persistenceGate.reason
+                    return
+                }
+                try PortholeAutomationOutputDirectory.createNew(
+                    automationRecordingRequest.outputDirectory
+                )
+                recorder = try ApprovedProofRecorder(
+                    outputURL: automationRecordingRequest.outputDirectory
+                        .appendingPathComponent("stage-source.mov"),
                     width: width,
                     height: height
                 )
@@ -987,11 +1018,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             }
             lifecycle = .live
             statusMessage = persistenceGate.allowed
-                ? "Recording · one approved fixture window · mic and audio off"
+                ? "Recording · one approved exact window · mic and audio off"
                 : "Live preview · approved source · memory-only"
             startLeaseMonitor(binding: binding, approval: approval, lease: lease)
-            if recorder != nil, let proofConfiguration {
-                scheduleProofStop(after: proofConfiguration.durationSeconds)
+            if recorder != nil,
+               let duration = proofConfiguration?.durationSeconds ?? automationRecordingRequest?.durationSeconds {
+                scheduleProofStop(after: duration)
             }
         } catch {
             guard activeCaptureLease == lease else { return }
@@ -1022,7 +1054,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         operationGate.beginStop()
         defer { operationGate.finishStop() }
         await stopStream(finalState: .stopped, finalizeProof: true)
-        let didWriteReceipt = proofReceipt != nil
+        let didWriteReceipt = proofReceipt != nil || automationArtifactReceipt != nil
         clearLiveState()
         if lifecycle != .failed {
             lifecycle = .stopped
@@ -1293,12 +1325,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                     )
                     : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
                 self.privacyAssessment = assessment
-                self.persistenceGate = SourcePersistencePolicy.evaluate(
-                    approval: approval, sourceIsCurrent: valid,
-                    assessment: assessment,
-                    explicitOperatorApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
-                    isSyntheticSafeFixture: self.safeFixtureAttestation?.verified == true
-                ).gate
+                self.persistenceGate = PortholeAutomationPersistencePolicy.evaluateActiveMode(
+                    automationRecording: self.automationRecordingRequest != nil, approval: approval,
+                    sourceIsCurrent: valid, assessment: assessment,
+                    explicitFixtureApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
+                    verifiedFixture: self.safeFixtureAttestation?.verified == true)
                 if !self.persistenceGate.allowed, self.proofRecorder != nil {
                     self.proofRecorder?.suspend()
                     self.statusMessage = "Live preview continues · persistence synchronously paused for privacy uncertainty"
@@ -1326,7 +1357,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             launchIdentity: observedIdentity.launchIdentity,
             openWindowIDs: openWindowIDs
         )
-        return SourceApprovalValidity.remainsValid(approval, observation: observation)
+        return SourceApprovalValidity.pickerBindingIsCurrent(
+            approval, sourceWindowID: binding.source.windowID, sourceOwnerPID: binding.source.ownerPID,
+            boundIdentity: binding.runtimeIdentity, observation: observation)
     }
 
     private func invalidateActiveLease(reason: String) async {
@@ -1371,14 +1404,35 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         let recorder = proofRecorder
         let manifest = finalizeProof && !proofInvalidated ? proofManifest(recorder: recorder) : nil
         let proofOutput = proofConfiguration?.outputDirectory
+        let automationSeed: AutomationRecordingSeed? = if finalizeProof,
+            !proofInvalidated,
+            let request = automationRecordingRequest,
+            let approval = activeApproval,
+            let lease = activeCaptureLease,
+            let firstFrame = firstProofFrame,
+            let lastFrame = lastProofFrame,
+            approval.scope == .exactWindow,
+            lease.matches(firstFrame),
+            lease.matches(lastFrame)
+        {
+            AutomationRecordingSeed(
+                outputDirectory: request.outputDirectory,
+                approval: approval,
+                lease: lease,
+                firstFrame: firstFrame,
+                lastFrame: lastFrame
+            )
+        } else { nil }
         var work = CaptureShutdownWork(
-            approval: manifest?.sourceApproval,
+            approval: manifest?.sourceApproval ?? automationSeed?.approval,
             closeDelivery: {}, // Real outputs were synchronously retired above.
             stop: { deadline in
                 if let stoppingStream { try await Self.stop(stoppingStream, deadline: deadline) }
             },
             finalize: { deadline in
-                if manifest != nil, let recorder { try await recorder.finish(deadline: deadline) }
+                if manifest != nil || automationSeed != nil, let recorder {
+                    try await recorder.finish(deadline: deadline)
+                }
                 else { recorder?.cancel() }
             },
             publish: {
@@ -1399,11 +1453,13 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         stream = nil
         output = nil
         proofRecorder = nil
+        automationRecordingRequest = nil
         safeFixtureAttestation = nil
         activeSource = nil
         activeApproval = nil
         activeCaptureLease = nil
         proofReceipt = nil
+        automationArtifactReceipt = nil
         if !preservePreview { clearLiveState() }
         do {
             try await work.stop(deadline)
@@ -1417,6 +1473,16 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             if finalizeProof, !proofInvalidated,
                work.approval.map({ approvedSources.contains($0) }) ?? true {
                 proofReceipt = try work.publish()
+                if let automationSeed, let recorder {
+                    automationArtifactReceipt = try PortholeAutomationArtifactWriter.writeRecordingReceipt(
+                        outputDirectory: automationSeed.outputDirectory,
+                        approval: automationSeed.approval,
+                        lease: automationSeed.lease,
+                        firstFrame: automationSeed.firstFrame,
+                        lastFrame: automationSeed.lastFrame,
+                        frameCount: min(receivedProofFrames, recorder.recordedFrameCount)
+                    )
+                }
             } else { work.cancel() }
             if let finalState, lifecycle != .failed { lifecycle = finalState }
         } catch {
@@ -1558,5 +1624,205 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private static func evenDimension(_ value: CGFloat) -> Int {
         let clamped = max(Int(value.rounded()), 2)
         return clamped.isMultiple(of: 2) ? clamped : clamped - 1
+    }
+}
+
+extension StageCaptureController: PortholeAutomationControlling {
+    public func automationStatus() -> PortholeAutomationStatus {
+        PortholeAutomationStatus(
+            processID: runtime.processID,
+            lifecycle: lifecycle,
+            frameCount: latestMetadata.map { Int(clamping: $0.sequence) } ?? 0,
+            selectedApprovalID: selectedApprovalID,
+            activeApprovalID: activeCaptureLease?.approvalID,
+            hasPendingReview: pendingApprovalReview != nil,
+            approvedSourceCount: approvedSources.count,
+            persistenceAllowed: persistenceGate.allowed,
+            artifact: automationArtifactReceipt
+        )
+    }
+
+    public func automationPendingReview() -> PortholeAutomationPendingReview? {
+        pendingApprovalReview.map {
+            PortholeAutomationPendingReview(
+                reviewID: $0.reviewID,
+                displayTitle: $0.displayTitle,
+                programDisplayTitle: $0.programDisplayTitle,
+                sourceKind: $0.sourceKind,
+                supportedScopes: $0.supportedScopes
+            )
+        }
+    }
+
+    public func automationApprovedSources() -> [PortholeAutomationApprovedSource] {
+        approvedSources.map {
+            PortholeAutomationApprovedSource(
+                approvalID: $0.approvalID,
+                displayTitle: $0.displayTitle,
+                sourceKind: $0.sourceKind,
+                scope: $0.scope,
+                capabilities: $0.capabilities,
+                selected: selectedApprovalID == $0.approvalID,
+                pickerBindingCurrent: isApprovalReady($0.approvalID)
+            )
+        }
+    }
+
+    public func automationOpenPicker(_ sourceKind: ApprovedSourceKind) async {
+        await presentSystemPicker(for: sourceKind)
+    }
+
+    public func automationApprove(
+        reviewID: String,
+        scope: SourceApprovalScopeKind,
+        capabilities: SourceCapabilities
+    ) throws {
+        guard let review = pendingApprovalReview, review.reviewID == reviewID else {
+            throw PortholeAutomationError.authorityRequired(
+                "That review is not the current operator-selected picker source."
+            )
+        }
+        guard review.supportedScopes.contains(scope) else {
+            throw PortholeAutomationError.authorityRequired(
+                "Requested scope is not supported by the current picker selection."
+            )
+        }
+        if !SourceApprovalPolicy.supports(scope: scope, capabilities: capabilities) {
+            throw PortholeAutomationError.authorityRequired(
+                "Persistence requires the exact picker-selected window and at least one capability."
+            )
+        }
+        let before = approvedSources.count
+        approvePending(scope: scope, capabilities: capabilities)
+        guard pendingApprovalReview == nil, approvedSources.count == before + 1,
+              let granted = approvedSources.first(where: { $0.approvalID == selectedApprovalID }),
+              granted.scope == scope, granted.capabilities == capabilities else {
+            throw PortholeAutomationError.authorityRequired(statusMessage)
+        }
+    }
+
+    public func automationCancelReview() {
+        cancelPendingApproval()
+    }
+
+    public func automationSelect(_ approvalID: String) async throws {
+        guard approvedSources.contains(where: { $0.approvalID == approvalID }) else {
+            throw PortholeAutomationError.authorityRequired("Approval is unknown or revoked.")
+        }
+        await selectApproval(approvalID)
+        guard selectedApprovalID == approvalID else {
+            throw PortholeAutomationError.invalidState(statusMessage)
+        }
+    }
+
+    public func automationRevoke(_ approvalID: String) async throws {
+        guard approvedSources.contains(where: { $0.approvalID == approvalID }) else {
+            throw PortholeAutomationError.authorityRequired("Approval is unknown or already revoked.")
+        }
+        await revokeApproval(approvalID)
+        guard !approvedSources.contains(where: { $0.approvalID == approvalID }) else {
+            throw PortholeAutomationError.invalidState("Approval revocation did not complete.")
+        }
+    }
+
+    public func automationStart() async throws {
+        guard [.ready, .stopped].contains(lifecycle) else {
+            throw PortholeAutomationError.invalidState("Start requires ready or stopped lifecycle state.")
+        }
+        automationRecordingRequest = nil
+        await startCapture()
+        guard lifecycle == .live else { throw PortholeAutomationError.invalidState(statusMessage) }
+    }
+
+    public func automationPause() async throws {
+        guard canPauseCapture else {
+            throw PortholeAutomationError.invalidState("Pause requires a live memory-only preview.")
+        }
+        await pauseCapture()
+        guard lifecycle == .paused else { throw PortholeAutomationError.invalidState(statusMessage) }
+    }
+
+    public func automationResume() async throws {
+        guard lifecycle == .paused else {
+            throw PortholeAutomationError.invalidState("Resume requires paused lifecycle state.")
+        }
+        await startCapture()
+        guard lifecycle == .live else { throw PortholeAutomationError.invalidState(statusMessage) }
+    }
+
+    public func automationStop() async {
+        await stopCapture()
+    }
+
+    public func automationWriteStill(
+        to outputDirectory: URL
+    ) throws -> PortholeAutomationArtifactReceipt {
+        guard lifecycle == .live,
+              let approval = activeApproval,
+              approvedSources.contains(approval),
+              let lease = activeCaptureLease,
+              lease.approvalID == approval.approvalID,
+              lease.sourceWindowID == approval.exactWindow?.windowID,
+              lease.sourceKind == .window,
+              let image = latestImage,
+              let metadata = latestMetadata,
+              lease.matches(metadata)
+        else {
+            throw PortholeAutomationError.invalidState(
+                "A live complete frame from one current exact-window approval is required."
+            )
+        }
+        let gate = PortholeAutomationPersistencePolicy.evaluate(
+            approval: approval,
+            sourceIsCurrent: isApprovalReady(approval.approvalID),
+            assessment: privacyAssessment
+        )
+        guard gate.allowed else { throw PortholeAutomationError.authorityRequired(gate.reason) }
+        let receipt = try PortholeAutomationArtifactWriter.writeStill(
+            image: image,
+            metadata: metadata,
+            approval: approval,
+            lease: lease,
+            outputDirectory: outputDirectory
+        )
+        automationArtifactReceipt = receipt
+        return receipt
+    }
+
+    public func automationStartRecording(
+        to outputDirectory: URL,
+        durationSeconds: Double
+    ) async throws {
+        guard proofConfiguration == nil else {
+            throw PortholeAutomationError.invalidState(
+                "Interactive automation recording cannot be combined with safe-fixture proof mode."
+            )
+        }
+        guard [.ready, .stopped].contains(lifecycle) else {
+            throw PortholeAutomationError.invalidState("Recording requires ready or stopped lifecycle state.")
+        }
+        guard let selectedApprovalID,
+              let approval = approvedSources.first(where: { $0.approvalID == selectedApprovalID }),
+              approval.scope == .exactWindow,
+              approval.capabilities.persistRecording,
+              isApprovalReady(selectedApprovalID)
+        else {
+            throw PortholeAutomationError.authorityRequired(
+                "Recording requires a current exact-window picker approval with persistence capability."
+            )
+        }
+        guard durationSeconds.isFinite, (2 ... 30).contains(durationSeconds) else {
+            throw PortholeAutomationError.invalidRequest("Recording duration must be between 2 and 30 seconds.")
+        }
+        automationArtifactReceipt = nil
+        automationRecordingRequest = AutomationRecordingRequest(
+            outputDirectory: outputDirectory.standardizedFileURL,
+            durationSeconds: durationSeconds
+        )
+        await startCapture()
+        guard lifecycle == .live, proofRecorder != nil else {
+            automationRecordingRequest = nil
+            throw PortholeAutomationError.authorityRequired(statusMessage)
+        }
     }
 }

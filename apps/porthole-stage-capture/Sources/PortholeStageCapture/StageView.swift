@@ -122,6 +122,8 @@ struct StageView<Model: StagePresentationModel>: View {
                                 selected: controller.selectedApprovalID == approval.approvalID,
                                 ready: controller.isApprovalReady(approval.approvalID),
                                 live: controller.activeCaptureLease?.approvalID == approval.approvalID,
+                                persistenceGate: controller.activeCaptureLease?.approvalID == approval.approvalID
+                                    ? controller.persistenceGate : nil,
                                 onSelect: {
                                     Task { await controller.selectApproval(approval.approvalID) }
                                 },
@@ -432,6 +434,7 @@ private struct ApprovalCard: View {
     let selected: Bool
     let ready: Bool
     let live: Bool
+    let persistenceGate: PersistenceGate?
     let onSelect: () -> Void
     let onRevoke: () -> Void
 
@@ -466,7 +469,11 @@ private struct ApprovalCard: View {
             HStack(spacing: 6) {
                 CapabilityBadge(label: "Preview", granted: approval.capabilities.preview)
                 CapabilityBadge(label: "Share", granted: approval.capabilities.liveShare)
-                CapabilityBadge(label: "Persist", granted: approval.capabilities.persistRecording)
+                Label(persistence.label, systemImage: persistence.allowed ? "checkmark.shield.fill" : "lock.shield")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(persistence.allowed ? Color.green : Color.secondary)
+                    .help(persistence.reason)
+                    .accessibilityLabel(persistence.label + ". " + persistence.reason)
             }
 
             HStack {
@@ -489,9 +496,13 @@ private struct ApprovalCard: View {
     }
 
     private var statusLabel: String {
-        if live { return approval.capabilities.persistRecording ? "Live · persistence eligible" : "Live · memory-only" }
+        if live { return persistence.allowed ? "Live · persistence eligible" : "Live · memory-only" }
         if ready { return "Approved · ready" }
         return "Approved · choose again to activate"
+    }
+
+    private var persistence: PersistenceCapabilityPresentation {
+        .evaluate(approval: approval, activeGate: persistenceGate)
     }
 
     private var statusIcon: String {
@@ -578,6 +589,9 @@ private struct ApprovalReviewSheet: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+                .onChange(of: scope) { _, newScope in
+                    if newScope != .exactWindow { persist = false }
+                }
                 Text(scopeDetail(scope))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -592,6 +606,12 @@ private struct ApprovalReviewSheet: View {
                 Toggle("Preview in Porthole", isOn: $preview)
                 Toggle("Share live Stage output", isOn: $liveShare)
                 Toggle("Allow recording persistence", isOn: $persist)
+                    .disabled(scope != .exactWindow)
+                if scope != .exactWindow {
+                    Text("Recording persistence requires This exact window.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
                 if persist {
                     Label(
                         "Persistence still fails closed on protected-field uncertainty and needs an explicit destination.",
@@ -621,7 +641,8 @@ private struct ApprovalReviewSheet: View {
                     )
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!preview && !liveShare && !persist)
+                .disabled(!SourceApprovalPolicy.supports(scope: scope, capabilities: SourceCapabilities(
+                    preview: preview, liveShare: liveShare, persistRecording: persist)))
                 .keyboardShortcut(.defaultAction)
             }
         }
