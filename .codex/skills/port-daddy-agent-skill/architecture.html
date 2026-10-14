@@ -148,7 +148,7 @@ sequenceDiagram
     A->>D: pd salvage claim &lt;dead-id&gt;
     D-->>A: inherits session, notes, file claims
   else fresh start
-    A->>D: pd begin --identity myapp:api:feat-x --purpose "..."
+    A->>D: pd begin --identity myapp:api:feat-x --purpose "..." --lifecycle durable --roadmap ROADMAP_SLUG
     D->>S: INSERT session, agent
     D-->>A: session_id, agent_id
   end
@@ -211,7 +211,7 @@ flowchart TD
 
 <div class="mermaid">
 stateDiagram-v2
-  [*] --> alive: pd begin
+  [*] --> alive: pd begin + lifecycle + rent
   alive --> alive: heartbeat (5m)
   alive --> stale: no heartbeat (10m)
   stale --> alive: heartbeat returns

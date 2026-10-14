@@ -81,8 +81,10 @@ sweeping up someone's WIP is not hypothetical, it has happened, and the
 recovery is destructive.
 
 ```bash
-wt="../port-daddy-$(date +%s)-$WORK_SLUG"
-git worktree add "$wt" origin/main
+stamp="$(date +%s)"
+wt="$HOME/coding/tmp/port-daddy-$stamp-$WORK_SLUG"
+branch="codex/$WORK_SLUG-$stamp"
+git worktree add -b "$branch" "$wt" origin/main
 cd "$wt"
 ```
 

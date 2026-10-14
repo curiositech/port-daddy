@@ -35,7 +35,7 @@ flowchart TD
     Start[I'm about to act] --> Q1{Will this take<br/>more than a<br/>30-second action?}
     Q1 -- "no" --> JustDo[Just do it]
     Q1 -- "yes" --> Q2{Will I edit files?}
-    Q2 -- "no" --> Session1[pd begin only]
+    Q2 -- "no" --> Session1[pd begin + lifecycle + rent only]
     Q2 -- "yes" --> Q3{Is the work<br/>partitionable<br/>by symbol?}
     Q3 -- "yes" --> RegionClaim[Session + region/symbol claims]
     Q3 -- "no" --> Q4{"Is this work<br/>EXCLUSIVE?<br/>(promote, migrate,<br/>generate artifact)"}
@@ -48,7 +48,7 @@ flowchart TD
 ### Example 1: Adding a feature to one file
 
 ```bash
-pd begin "Add /examples/leader-election to website-v2 examples list" --lifecycle durable
+pd begin "Add /examples/leader-election to website-v2 examples list" --lifecycle durable --roadmap <slug>
 pd note "Scope: website-v2/src/data/examples.ts"
 pd session files claim website-v2/src/data/examples.ts
 # edit
@@ -61,7 +61,7 @@ Session ✓, claim ✓, no lock needed (no exclusive resource).
 ### Example 2: Promote-stable
 
 ```bash
-pd begin "Promote main@<sha> to stable" --lifecycle durable
+pd begin "Promote main@<sha> to stable" --lifecycle durable --roadmap <release-slug>
 pd lock acquire stable-promotion --ttl 600     # exclusive
 pd session files claim port-daddy-stable/CURRENT-SHA
 # build, test, install
@@ -76,7 +76,7 @@ Session ✓, claim ✓, lock ✓ — because two simultaneous promotions would c
 
 ```bash
 # Parent:
-pd begin "Add 3 endpoints to routes/fleet.ts" --lifecycle durable
+pd begin "Add 3 endpoints to routes/fleet.ts" --lifecycle durable --roadmap <slug>
 pd session files claim routes/fleet.ts        # broad parent claim
 
 # Spawn 3 sub-agents, each with symbol-scoped claim:

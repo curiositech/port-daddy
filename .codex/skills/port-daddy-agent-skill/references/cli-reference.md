@@ -69,7 +69,7 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose" --lifecycle durable
+pd begin "purpose" --lifecycle durable --roadmap <slug>
 pd done "summary"
 pd whoami
 pd session <command>
@@ -87,6 +87,23 @@ pd salvage
 pd salvage claim <agent>
 pd salvage complete
 ```
+
+Parley protocol inspection and debugging:
+
+```bash
+pd parley --help
+pd parley call --surface <path|symbol> --reason <text> --with <actor-a,actor-b>
+pd parley propose|critique|revise|agree|refuse|say <id> <content...>
+pd parley show <id>
+```
+
+On an older installed CLI, use `pd parley help`; `pd parley --help` is reliable
+only after the handler-help repair reaches that installed binary. These raw
+verbs are protocol/debug drill-down, not the ordinary experience. When the
+installed daemon exposes the Sugar-first v1 capability, ordinary interactive
+`pd begin` and `pd attention` surface the bounded card; JSON, quiet, export,
+piped, CI, and explicit non-interactive modes remain deterministic and
+prompt-free.
 
 Messaging, tube, inbox, tuples, webhooks, and tunnels:
 
