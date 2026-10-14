@@ -14,8 +14,12 @@ import { randomHex } from './crypto.js';
 const OPERATIONS = [
   'pull-request.publish', 'pull-request.update', 'pull-request.ready',
   'pull-request.request-reviewers', 'pull-request.comment',
-  'pull-request.review-reply', 'pull-request.enqueue', 'pull-request.inspect',
+  'pull-request.review-reply', 'pull-request.resolve-review-thread',
+  'pull-request.enqueue', 'pull-request.inspect',
 ] as const;
+// The persisted grant CHECK deliberately caps a single authority at eight
+// operations. Adding an operation does not silently widen existing grants.
+const MAX_GRANT_OPERATIONS = 8;
 const EXPIRY_DAYS = new Set([1, 7, 30, 90]);
 const MAX_FORM_BYTES = 16_384;
 // 8 * at most 5 repository pages + metadata + installation list = 42 GitHub
@@ -177,7 +181,7 @@ async function grantsForAccount(env: Env, userId: string, repo: string): Promise
       if (!operations || !branchAllow || !baseAllow
           || !/^pdg_[0-9a-f]{32}$/.test(String(row.grant_id))
           || !validFingerprint(String(row.subject_fingerprint))
-          || operations.length === 0 || operations.length > OPERATIONS.length
+          || operations.length === 0 || operations.length > MAX_GRANT_OPERATIONS
           || new Set(operations).size !== operations.length
           || operations.some((operation) => !(OPERATIONS as readonly string[]).includes(operation))
           || !storedBranchList(branchAllow, 'prefix') || !storedBranchList(baseAllow, 'base')
@@ -263,7 +267,7 @@ export async function handlePublisherGrantsPage(request: Request, env: Env): Pro
     const mutations = Number(form!.get('mutations_per_day'));
     const expiryDays = Number(form!.get('expires_days'));
     if (!validFingerprint(fingerprint) || !identities.some((item) => item.fingerprint === fingerprint)
-        || operations.length === 0 || operations.length > OPERATIONS.length
+        || operations.length === 0 || operations.length > MAX_GRANT_OPERATIONS
         || new Set(operations).size !== operations.length || operations.some((operation) => !(OPERATIONS as readonly string[]).includes(operation))
         || !branchAllow || !baseAllow || !Number.isInteger(mutations) || mutations < 1 || mutations > 100
         || !EXPIRY_DAYS.has(expiryDays)) return html('Invalid publisher grant scope.', 400);
