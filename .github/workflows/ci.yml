@@ -629,6 +629,11 @@ jobs:
       - name: Auditor unit tests
         run: python3 -m unittest discover -s skills/skill-hygiene/tests -p 'test_*.py' -v
 
+      - name: Verify candidate-controlled interview bundles
+        run: |
+          python3 scripts/check-interview-bundles.py
+          python3 -m unittest discover -s tests -p 'test_interview_bundle_guard.py' -v
+
       - name: Verify agent-surface skill mirrors are in sync
         # Mirrors under .codex/.claude/.agents/.gemini must stay byte-identical
         # to their canonical skills/<name>. If this fails, run:
