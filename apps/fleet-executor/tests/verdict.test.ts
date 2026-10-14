@@ -227,6 +227,18 @@ describe('reviewablePatchesFromUnifiedDiff', () => {
 
     expect(patches.map(patch => patch.filename)).toEqual(['docs/café.md']);
   });
+
+  it('preserves trailing spaces before a tab header separator in unquoted paths', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git a/src/trail  b/src/trail ',
+      '--- a/src/trail \t',
+      '+++ b/src/trail \t',
+      '@@ -0,0 +1 @@',
+      '+new',
+    ].join('\n'));
+
+    expect(patches.map(patch => patch.filename)).toEqual(['src/trail ']);
+  });
 });
 
 describe('aggregateConclusion', () => {

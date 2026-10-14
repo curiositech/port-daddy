@@ -153,8 +153,10 @@ function rightSidePatchLines(patch: string): Set<number> {
 
 /** Decode one Git path token, including core.quotePath C-style escapes. */
 function decodeGitPathToken(value: string): string | null {
-  const token = value.trim();
-  if (!token.startsWith('"')) return token || null;
+  const withoutHeaderSuffix = value.replace(/\r$/, '').replace(/\t.*$/, '');
+  const trimmedStart = withoutHeaderSuffix.trimStart();
+  if (!trimmedStart.startsWith('"')) return withoutHeaderSuffix || null;
+  const token = trimmedStart.trimEnd();
   if (!token.endsWith('"') || token.length < 2) return null;
 
   const bytes: number[] = [];
@@ -209,7 +211,7 @@ function postImagePath(section: string): string | null {
     if (!line.startsWith('diff --git a/')) continue;
     const remainder = line.slice('diff --git a/'.length);
     const boundary = remainder.lastIndexOf(' b/');
-    if (boundary !== -1) return remainder.slice(boundary + 3).trim() || null;
+    if (boundary !== -1) return remainder.slice(boundary + 3).replace(/\r$/, '') || null;
   }
   return null;
 }
