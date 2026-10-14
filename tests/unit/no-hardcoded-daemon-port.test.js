@@ -20,8 +20,14 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
+import {
+  DAEMON_ENDPOINT_ENFORCED_FILES,
+  DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES,
+  LEGACY_ENDPOINT_DEBT_FILES,
+} from '../helpers/daemon-endpoint-guard-contract.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
@@ -30,43 +36,16 @@ const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 const ALLOWED_FILES = new Set([
   // THE definition. `DEFAULT_DAEMON_PORT = 9876` lives here and nowhere else.
   'shared/daemon-discovery.ts',
-  // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
-  'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
-  'core/pd-timeline-proto/src/main.rs',
-  // Web dashboard config UI's intentional fallback constant when env discovery fails.
-  'fleet-config-ui/src/api.ts',
-  // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
-  'website-v2/src/lib/daemon-url.ts',
   // Daemon installer probes for the running listener via lsof — this IS the port number.
   'install-daemon.ts',
   // JSDoc @example lines only (probePortOwner usage samples); runtime takes a port arg.
   'lib/port-takeover.ts',
-  // routes/sitrep.ts: literal appears only in a JSDoc curl example.
-  'routes/sitrep.ts',
   // Rust console berth picker mirrors the canonical daemon port as a Rust const.
   'core/pd-console/src/berths.rs',
+  // Purser's isolated cloud-peer sandbox explicitly assigns its private daemon port.
+  'apps/fleet-executor/src/sandbox-runner.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-port.test.js',
-]);
-
-// Enforce only on production runtime source paths + the single server.ts file.
-const ENFORCED_PATH_PREFIXES = [
-  'lib/',
-  'routes/',
-  'cli/',
-  'bin/',
-  'mcp/',
-  'shared/',
-  'scripts/',
-  'apps/FleetBar/FleetBar/',
-  'fleet-config-ui/src/',
-  'website-v2/src/lib/',
-  'core/',
-];
-
-const ENFORCED_FILES = new Set([
-  'server.ts',
 ]);
 
 // Match the bare port literal `9876` not glued to other digits (so 19876 /
@@ -76,15 +55,21 @@ const FORBIDDEN_PATTERN = /(?<!\d)9876(?!\d)/;
 const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs']);
 
 const EXCLUDE_DIRS = new Set([
-  'node_modules', '.build', 'dist', '.git', '.serena', '.gemini',
+  // `target` is excluded by name, not by crate-specific path prefix, so every
+  // Rust crate's generated build output is skipped, not just pd-bosun's.
+  'node_modules', '.build', 'dist', '.git', '.serena', '.gemini', 'target',
 ]);
 
 const EXCLUDE_PATH_PREFIXES = [
+  // Generated dashboard bundles are rebuilt from checked source; guard source,
+  // not content-hashed build artifacts that cannot be edited atomically.
+  'public/fleet/',
+  'public/fleet-ui/',
   'website-v2/dist/',
   'website-v2/node_modules/',
   'tests/',
+  'apps/FleetBar/Tests/',
   'port-daddy-stable/',
-  'core/pd-bosun/target/',
 ];
 
 function isTestFile(name) {
@@ -112,15 +97,17 @@ function* walk(dir) {
 }
 
 function isEnforced(rel) {
-  if (ENFORCED_FILES.has(rel)) return true;
-  return ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
+  if (DAEMON_ENDPOINT_ENFORCED_FILES.has(rel)) return true;
+  return DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
 }
 
-export function findHardcodedPortOffenders() {
+export function findHardcodedPortOffenders(root = REPO_ROOT) {
   const offenders = [];
-  for (const { path, rel } of walk(REPO_ROOT)) {
+  for (const { path } of walk(root)) {
+    const rel = relative(root, path);
     if (!isEnforced(rel)) continue;
     if (ALLOWED_FILES.has(rel)) continue;
+    if (LEGACY_ENDPOINT_DEBT_FILES.has(rel)) continue;
     let content;
     try { content = readFileSync(path, 'utf-8'); }
     catch { continue; }
@@ -158,5 +145,38 @@ describe('no-hardcoded-daemon-port', () => {
     const defPath = join(REPO_ROOT, 'shared', 'daemon-discovery.ts');
     const content = readFileSync(defPath, 'utf-8');
     expect(FORBIDDEN_PATTERN.test(content)).toBe(true);
+  });
+
+  test('excludes generated target/ dirs in every crate, not just pd-bosun (PR 5802 reviewer residual)', () => {
+    // Regression guard: the walker used to skip target/ output via the
+    // crate-specific prefix `core/pd-bosun/target/`. A fabricated crate under
+    // `core/` proves the exclusion now applies by directory name everywhere,
+    // not just to pd-bosun.
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const fixtureRoot = mkdtempSync(join(scratchRoot, 'endpoint-port-guard-'));
+    const crateRoot = join(fixtureRoot, 'core', 'fixture-crate');
+    const targetDir = join(crateRoot, 'target');
+    const fixturePath = join(targetDir, 'generated.ts');
+    mkdirSync(targetDir, { recursive: true });
+    writeFileSync(fixturePath, 'const PORT = 9876;\n');
+    try {
+      const offenders = findHardcodedPortOffenders(fixtureRoot);
+      expect(offenders).toEqual([]);
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('every legacy endpoint-debt exemption is exact and still necessary', () => {
+    const stale = [];
+    for (const rel of LEGACY_ENDPOINT_DEBT_FILES) {
+      const path = join(REPO_ROOT, rel);
+      let content = '';
+      try { content = readFileSync(path, 'utf-8'); }
+      catch { stale.push(`${rel} (missing)`); continue; }
+      if (!FORBIDDEN_PATTERN.test(content)) stale.push(rel);
+    }
+    expect(stale).toEqual([]);
   });
 });
