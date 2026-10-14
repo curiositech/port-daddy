@@ -4,7 +4,7 @@ Authorized by Erich on 2026-10-14. This program executes the proposed review; it
 
 ## Sources of authority
 
-Read the current root AGENTS.md, docs/harbor-research/OMNI-LEDGER.md, critique-ledger.json, mega-volume-epistemic-manifest.yaml, and applicable authoring/build instructions before editing. Preserve the local-runtime halt. The hosted Register owns occupancy; the existing research ledgers own accepted research work and dispositions; Git owns retained source revisions. This directory is the execution dossier and navigation layer, not a replacement authority.
+Read the current root AGENTS.md, docs/harbor-research/OMNI-LEDGER.md, critique-ledger.json, mega-volume-epistemic-manifest.yaml, and applicable authoring/build instructions before editing. Preserve the local-runtime halt. The hosted **Harbor Register** (`apps/relay/src/work-register.ts`, the relay-hosted occupancy board that records which agent currently holds or salvages a work slug rather than defining canonical roadmap items) owns occupancy; the existing research ledgers own accepted research work and dispositions; Git owns retained source revisions. This directory is the execution dossier and navigation layer, not a replacement authority.
 
 ## Wave 1: four bounded tasks
 

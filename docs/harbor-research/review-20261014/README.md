@@ -29,7 +29,7 @@ A requested task is not a running task. A running task is not a completed review
 
 ## Shared history
 
-[Program](PROGRAM.md) · [Shared protocol](COMMON-PROTOCOL.md) · [19 specialist contracts](skills/) · [26 seed findings](SEED-FINDINGS.md) · [All workboard revisions](https://github.com/curiositech/port-daddy/commits/review%2Fbook-multispecialty-20261014/docs/harbor-research/review-20261014) · [Changes since baseline](https://github.com/curiositech/port-daddy/compare/33347de46c4bd70ecd2445a071648431a345c91c...review%2Fbook-multispecialty-20261014)
+[Program](PROGRAM.md) · [Shared protocol](COMMON-PROTOCOL.md) · [19 specialist contracts](skills/) · [26 seed findings](SEED-FINDINGS.md) · [All workboard revisions on main](https://github.com/curiositech/port-daddy/commits/main/docs/harbor-research/review-20261014) · [Branch workboard revisions (retained ref)](https://github.com/curiositech/port-daddy/commits/review%2Fbook-multispecialty-20261014/docs/harbor-research/review-20261014) · [Baseline commit `33347de46c`](https://github.com/curiositech/port-daddy/commit/33347de46c4bd70ecd2445a071648431a345c91c)
 
 Each retained Git commit opens its exact before/after diff and Browse files snapshot. Compare any two retained commit SHAs for arbitrary-revision comparison. This is Git-backed navigation, not a deployed collaboration service. The preceding chat-only HTML packet remains a separate artifact; its historical events have not been imported or fabricated as prior Git commits. The seed findings are an explicit import summary, not independent-agent output.
 
