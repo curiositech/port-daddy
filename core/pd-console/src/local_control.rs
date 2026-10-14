@@ -8,10 +8,22 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static DENIED: AtomicBool = AtomicBool::new(false);
+static INSPECT_OFF: AtomicBool = AtomicBool::new(false);
+
+/// One-way process latch. The inspection window has no path back to live mode.
+pub fn enter_inspection_mode() {
+    INSPECT_OFF.store(true, Ordering::SeqCst);
+    DENIED.store(true, Ordering::SeqCst);
+}
+
+pub fn inspection_mode() -> bool {
+    INSPECT_OFF.load(Ordering::SeqCst)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum State {
     Available,
+    Inspection,
     Off(String),
     Unknown(String),
 }
@@ -24,6 +36,7 @@ impl State {
     pub fn detail(&self) -> &str {
         match self {
             Self::Available => "Local automation is available; hosting controls are separate.",
+            Self::Inspection => "Inspection window is sealed: no console daemon connection, shell, control socket, or agent admission. Host daemon absence and future starts are unverified.",
             Self::Off(reason) | Self::Unknown(reason) => reason,
         }
     }
@@ -199,6 +212,9 @@ fn observable_directory(path: &Path, allow_absent: bool) -> io::Result<()> {
 }
 
 pub fn current_state() -> State {
+    if inspection_mode() {
+        return State::Inspection;
+    }
     let state = match ControlPaths::from_environment() {
         Ok(paths) => paths.state(),
         Err(error) => State::Unknown(error.to_string()),

@@ -445,15 +445,19 @@ fn main() {
         eprintln!("{warning}");
     }
 
+    let cli_args = parse_console_args(std::env::args());
+    if cli_args.inspect_off {
+        local_control::enter_inspection_mode();
+    }
     // The Off button and local editor must exist without a discoverable daemon.
     // An empty endpoint is disconnected, never guessed startup authority.
-    let daemon_url = DaemonClient::discover()
+    let daemon_url = (!cli_args.inspect_off).then(DaemonClient::discover).and_then(Result::ok)
         .map(|client| client.base().to_string())
         .unwrap_or_default();
 
-    let cli_args = parse_console_args(std::env::args());
     let initial_pane = cli_args.initial_pane.clone();
-    let control_sock = cli_args.control_sock.clone();
+    let control_sock = if cli_args.inspect_off { None } else { cli_args.control_sock.clone() };
+    let inspect_off = cli_args.inspect_off;
 
     // `--display <selector>` opens the window on a specific display instead of the
     // primary one. `selector` is a 0-based index into the display list (see
@@ -510,21 +514,32 @@ fn main() {
         // window. Launch failure stays visible in the drawer; it never aborts the
         // operator console or degrades into a fake command dispatcher.
         let shell_cwd = shell_drawer::default_cwd();
-        let (shell, mut shell_rx) = match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
-            Ok(session) => session,
-            Err(error) => {
-                let failure = shell_drawer::ShellFailure::new(
-                    "PTY_LAUNCH_FAILED",
-                    "The CLI shell could not be launched.",
-                    format!("{error:#}"),
-                    "Choose a valid login shell, then relaunch pd-console.",
-                );
-                eprintln!("{}", failure.operator_message());
-                let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
-                (
-                    shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
-                    event_rx,
-                )
+        let (shell, mut shell_rx) = if inspect_off {
+            let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+            (
+                shell_drawer::ShellTerminal::disconnected(
+                    shell_cwd,
+                    "Inspection mode has no CLI shell.",
+                ),
+                event_rx,
+            )
+        } else {
+            match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
+                Ok(session) => session,
+                Err(error) => {
+                    let failure = shell_drawer::ShellFailure::new(
+                        "PTY_LAUNCH_FAILED",
+                        "The CLI shell could not be launched.",
+                        format!("{error:#}"),
+                        "Choose a valid login shell, then relaunch pd-console.",
+                    );
+                    eprintln!("{}", failure.operator_message());
+                    let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+                    (
+                        shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
+                        event_rx,
+                    )
+                }
             }
         };
 
@@ -546,12 +561,12 @@ fn main() {
                 },
                 |window, cx| {
                     window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
-                    let control_tx = control_tx.clone();
+                    let control_tx = (!inspect_off).then(|| control_tx.clone());
                     let view = cx.new(|cx| {
                         ConsoleView::with_control(
                             daemon_url.clone(),
                             initial_pane.clone(),
-                            Some(control_tx),
+                            control_tx,
                             shell,
                             cx,
                         )
@@ -637,7 +652,7 @@ fn main() {
             }
         }
         let url = daemon_url.clone();
-        std::thread::spawn(move || {
+        if !inspect_off { std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -1593,7 +1608,7 @@ fn main() {
                     }
                 }
             });
-        });
+        }); }
 
         // Consumer: GPUI foreground task — drains channel every 500ms on main thread.
         let bg = cx.background_executor().clone();
