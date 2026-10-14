@@ -251,6 +251,9 @@
   \input{coordination-papers-mega-volume-swiss-plates}
 \fi
 \input{figures/pd-reflection-plates}
+\newif\ifpdcopyreview
+\pdcopyreviewtrue
+\input{coordination-papers-mega-volume-epigraph-review-spreads}
 
 % The maturity, guarantee, proof-obligation and claim-evidence vocabularies --
 % \Built, \BuiltWeak, \Designed, \Vision, their uppercase aliases, \NotGuar,
@@ -680,7 +683,11 @@
 \newsavebox{\pdepigraphbox}\newsavebox{\pdopenerplatebox}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
-  \clearpage
+  \ifpdcopyreview
+    \cleartoleftpage
+    \pdepigraphreviewspread{#1}%
+  \fi
+  \cleartoleftpage
   \renewcommand{\pdcurrentchapter}{#1}%
   \renewcommand{\pdchapterprefix}{#3}%
   \renewcommand{\pdcurrentchaptercolor}{#4}%

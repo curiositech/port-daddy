@@ -1,0 +1,335 @@
+% coordination-papers-mega-volume-epigraph-review-spreads.tex
+% Editorial 2-page review spreads presenting incumbent and contender epigraphs
+% immediately preceding each chapter opener plate page (Chapters 0 through 8).
+% Every spread clearly marks header and footer:
+% "COPY REVIEW NOTES ONLY, NOT FOR PUBLICATION"
+
+\makeatletter
+
+% ---------------------------------------------------------------------------
+% Page Style for Copy Review Spreads
+% ---------------------------------------------------------------------------
+\newcommand{\pdreviewchapnum}{0}
+
+\fancypagestyle{pdcopyreview}{%
+  \fancyhf{}%
+  \fancyhfoffset[LE,RO]{0.9in}%
+  \fancyhead[C]{\small\bfseries\color{pderror}\textsf{COPY REVIEW NOTES ONLY, NOT FOR PUBLICATION}}%
+  \fancyhead[LE,RO]{\small\sffamily\bfseries\color{hhgray}\thepage}%
+  \fancyhead[RE,LO]{}%
+  \fancyfoot[C]{\small\bfseries\color{pderror}\textsf{COPY REVIEW NOTES ONLY, NOT FOR PUBLICATION}}%
+  \fancyfoot[LE,RO]{\small\sffamily\bfseries\color{hhgray}\thepage}%
+  \fancyfoot[RE,LO]{}%
+  \renewcommand{\headrulewidth}{0.5pt}%
+  \renewcommand{\footrulewidth}{0.5pt}%
+  \renewcommand{\headrule}{\hbox to\headwidth{\color{pderror}\leaders\hrule height \headrulewidth\hfill}}%
+  \renewcommand{\footrule}{\hbox to\headwidth{\color{pderror}\leaders\hrule height \footrulewidth\hfill}}%
+}
+
+% ---------------------------------------------------------------------------
+% Spread Layout Building Blocks
+% ---------------------------------------------------------------------------
+\newcommand{\pdreviewheader}[5]{%
+  \renewcommand{\pdreviewchapnum}{#1}%
+  \noindent{\pdgrotesk\footnotesize\bfseries\color{pderror}\textsc{Copy Review Notes \textbullet\ Alternative Epigraphs Dossier}}\hfill{\pdgrotesk\footnotesize\color{hhgray}Facing Verso / Page 1 of 2}\par
+  \vspace{4pt}
+  \noindent{\pddisplayface\LARGE\bfseries Chapter #1: #2\par}
+  \vspace{2pt}
+  \noindent{\pdgrotesk\small\bfseries\color{#5}Theme: #3\par}
+  \vspace{1pt}
+  \noindent{\pdgrotesk\footnotesize\color{hhgray}Core Question: \emph{#4}}\par
+  \vspace{3pt}\noindent{\color{#5}\rule{\linewidth}{1.2pt}}\par
+  \vspace{5pt}
+}
+
+\newcommand{\pdreviewboxincumbent}[5]{%
+  \begin{tcolorbox}[colback=hhpaper,colframe=#5,arc=2pt,boxrule=0.8pt,top=5pt,bottom=5pt,left=7pt,right=7pt]
+  {\pdgrotesk\footnotesize\bfseries\color{#5}\textsc{Incumbent Epigraph \textbullet\ Currently Bound in Volume}}\hfill{\pdgrotesk\scriptsize\color{hhgray}Word Count: #3 words}\par\vspace{3pt}
+  \noindent{\normalsize\itshape ``#1''}
+  \par\vspace{3pt}
+  \noindent\hfill{\pdgrotesk\footnotesize\bfseries --- #2}\par\vspace{4pt}
+  \noindent{\pdgrotesk\scriptsize\bfseries\color{hhgray}EDITORIAL VERDICT:}\par
+  {\pdgrotesk\footnotesize #4\par}
+  \end{tcolorbox}
+}
+
+\newcommand{\pdreviewboxcontender}[5]{%
+  \begin{tcolorbox}[colback=hhpaper,colframe=hhgray!50,arc=2pt,boxrule=0.6pt,top=5pt,bottom=5pt,left=7pt,right=7pt]
+  {\pdgrotesk\footnotesize\bfseries\color{hhink}\textsc{Contender #1 \textbullet\ Alternative Option}}\hfill{\pdgrotesk\scriptsize\color{hhgray}Word Count: #4 words}\par\vspace{3pt}
+  \noindent{\normalsize\itshape ``#2''}
+  \par\vspace{3pt}
+  \noindent\hfill{\pdgrotesk\footnotesize\bfseries --- #3}\par\vspace{4pt}
+  \noindent{\pdgrotesk\scriptsize\bfseries\color{hhgray}SYSTEMS \& ECONOMIC RESONANCE:}\par
+  {\pdgrotesk\footnotesize #5\par}
+  \end{tcolorbox}
+}
+
+\newcommand{\pdreviewboxrubric}[2]{%
+  \begin{tcolorbox}[colback=hhpaper,colframe=pderror!70,arc=2pt,boxrule=0.6pt,top=5pt,bottom=5pt,left=7pt,right=7pt]
+  {\pdgrotesk\footnotesize\bfseries\color{pderror}\textsc{Editorial Synthesis \textbullet\ Reviewer Decision Rubric}}\par\vspace{3pt}
+  {\pdgrotesk\footnotesize
+  \textbf{Recommendation:} #1\par\vspace{3pt}
+  \textbf{Backup Choice:} #2\par}
+  \end{tcolorbox}
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 0 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@zero{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{0}{Foundations and Prerequisites}{Classical Multi-Agent Theory, Modern LLM Physics, and the Kernel Gap}{What physical and theoretical ground must an agent operating kernel stand on?}{pdslate}
+  \pdreviewboxincumbent{There are two ways of constructing a software design: One way is to make it so simple that there are obviously no deficiencies, and the other way is to make it so complicated that there are no obvious deficiencies. The first method is far more difficult.}{C.\,A.\,R. Hoare, \emph{The Emperor's Old Clothes} (1980 Turing Award Lecture)}{38}{Sets up the core thesis of Chapter 0: autonomous swarms relying on prompt cajoling create architectures so complicated there are no obvious deficiencies until production fails. A formal single-writer kernel achieves the first, more difficult method: obvious simplicity.}{pdslate}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{The hard problems are ancient; the easy problems are new.}{Hans Moravec, \emph{Mind Children: The Future of Robot and Human Intelligence} (1988), Chapter 1, p.\ 15}{10}{The canonical statement of Moravec's Paradox. Fluent syntactic generation is new and easy; memory durability, process continuity, and physical synchronization are ancient and difficult. Striking and pithy, but previously overused across earlier drafts.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{The Analytical Engine has no pretensions whatever to originate any thing. It can do whatever we know how to order it to perform.}{Ada Lovelace, \emph{Notes upon the Memoir by L. F. Menabrea} (1843), Note G}{23}{The ultimate foundational observation on algorithmic computation. Autoregressive language models do not originate volition or intentionality; they sample token distributions. Real agentic governance requires an external operating system to order and constrain execution.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{The competent programmer is fully aware of the strictly limited size of his own skull; therefore he approaches the programming task in full humility, and among other things he avoids clever tricks like the plague.}{Edsger W. Dijkstra, \emph{The Humble Programmer} (1972 Turing Award Lecture)}{33}{Dijkstra's rebuke to ungrounded complexity directly targets the fragility of multi-agent prompt chains. Swarms fail when developers substitute clever prompt tricks for humble, verifiable kernel primitives.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{C.\,A.\,R. Hoare (1980)} as the canonical Chapter 0 epigraph. It frames the entire book's technical contrast between brittle prompt engineering (``no obvious deficiencies'') and mathematical kernel invariants (``obviously no deficiencies'').}{Retain \textbf{Ada Lovelace (1843)} as backup if philosophical demarcation between generative fluency and mechanical agency is preferred.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 1 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@one{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{1}{The Single-Writer Kernel}{SQLite WAL, Serial Mutation, Crash Durability, and the Single-Writer Horizon}{Where can a rule be made real?}{pdcobalt}
+  \pdreviewboxincumbent{There is no fundamental need to keep a database at all; the log is all the information there is. The only reason for storing the database is performance of retrieval operations.}{Jim Gray and Andreas Reuter, \emph{Transaction Processing: Concepts and Techniques} (1993), Section 10.1, p.\ 493}{29}{Jim Gray (1998 Turing Award winner and father of ACID/WAL) provides the architectural manifesto for Chapter 1: the write-ahead log is the ultimate reality; database tables and indexes are mere disposable projections.}{pdcobalt}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Log updates to record the truth about the state of an object\dots\ Since the log is append-only, it is easy to write reliably to stable storage that survives a crash.}{Butler W. Lampson, ``Hints for Computer System Design'', \emph{ACM Operating Systems Review}, SOSP '83 (1983), Section 3.3, p.\ 39}{28}{Lampson's classic hint crystallizes the transition from volatile in-memory claims to durable local truth. It strips away academic hand-waving and identifies stable, sequential disk writes as the bedrock of fault tolerance.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable.}{Leslie Lamport, message to a DEC SRC bulletin board, 28 May 1987}{21}{The universally recognized definition of distributed dread. Chapter 1 deliberately avoids multi-machine consensus protocols by grounding serialization in a local, crash-proof single-writer disk log.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Covenants, without the sword, are but words and of no strength to secure a man at all.}{Thomas Hobbes, \emph{Leviathan: Or the Matter, Forme and Power of a Commonwealth} (1651), Part II, Chapter XVII, p.\ 85}{18}{A political philosophy parallel that answers the chapter question with razor precision: coordination protocols and contracts are meaningless without an enforcement mechanism. The local durable disk is the sword that gives weight to the rule.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Jim Gray \& Andreas Reuter (1993)}. It defines the physical primacy of the write-ahead log as ground truth.}{Retain \textbf{Butler Lampson (1983)} for systems-design perspective; \textbf{Leslie Lamport (1987)} if humorous cynicism regarding distributed consensus is desired.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 2 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@two{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{2}{The Anchor Protocol}{Attenuation Frontier, Least Privilege, Cryptographic Capabilities, and Macaroons}{How may authority travel without silently growing?}{pdcobalt}
+  \pdreviewboxincumbent{Every program and every user of the system should operate using the least set of privileges necessary to complete the job.}{Jerome H. Saltzer and Michael D. Schroeder, \emph{The Protection of Information in Computer Systems}, Proceedings of the IEEE (1975), Section 1.4, p.\ 1282}{17}{The canonical, historical definition of the Principle of Least Privilege (PoLP). Authoritative and historically unassailable, though describes administrative policy rather than dynamic cryptographic delegation.}{pdcobalt}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Target services can verify credentials without communicating with the issuing service, and clients can freely attenuate credentials by adding caveats.}{Arnar Birgisson et al., ``Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud'', \emph{NDSS '14} (2014), Section 1, p.\ 1}{19}{The exact technical mechanism of the Anchor Protocol. Authority travels without phone-home verification, and each intermediary can only monotonically reduce (attenuate) rights by chaining cryptographic caveats.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{A capability is an unforgeable ticket, which when presented can be taken as incontestable proof that the presenter is authorized to have access to the object.}{Butler W. Lampson, ``Protection'', \emph{ACM Operating Systems Review}, Vol.\ 8, No.\ 1 (1974), Section 1, p.\ 20}{26}{Lampson's definition of an object capability replaces ambient authority and identity lookups with bearer tickets, establishing the formal baseline for unforgeable delegated rights.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Constant experience shows us that every man invested with power is apt to abuse it, and to carry his authority as far as it will go.}{Montesquieu, \emph{The Spirit of the Laws} (1748), Book XI, Chapter 4 (trans.\ Thomas Nugent, 1752)}{26}{Explains why the attenuation frontier must be enforced by mathematics rather than goodwill: authority inherently expands to fill all available space unless structural constraints actively bind it.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Jerome Saltzer \& Michael Schroeder (1975)} for historical bedrock, OR promote \textbf{Arnar Birgisson et al. (2014)} for direct cryptographic mechanism alignment.}{Retain \textbf{Butler Lampson (1974)} for pure object capability semantics.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 3 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@three{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{3}{The Sealed Harbor}{Sandbox Confinement, Information Flow Lattices, and Leakage Budgets}{What can a sealed agent leak, and how would we know?}{pdteal}
+  \pdreviewboxincumbent{The problem is to confine an arbitrary program, which may have been written by someone else, so that it cannot transmit information to any other program except its caller.}{Butler W. Lampson, ``A Note on the Confinement Problem'', \emph{Communications of the ACM}, Vol.\ 16, No.\ 10 (1973), Section 1, p.\ 613}{27}{The landmark paper that formally introduced the ``confinement problem'' and ``covert channels'' to computer science. Describes the sealed harbor verbatim: executing untrusted third-party code where every egress path is bounded and observed.}{pdteal}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Information flow from storage class A to storage class B is permissible only if the flow relation holds: $A \le B$.}{Dorothy E. Denning, ``A Lattice Model of Secure Information Flow'', \emph{Communications of the ACM}, Vol.\ 19, No.\ 5 (1976), Section 2, p.\ 238}{21}{Provides the formal information-flow lattice underlying secure isolation. It models leakage not as good intentions, but as an invariant over ordered security classes.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{Any logically irreversible manipulation of information, such as the erasure of a bit or the merging of two computation paths, must be accompanied by a corresponding entropy increase.}{Rolf Landauer, ``Irreversibility and Heat Generation in the Computing Process'', \emph{IBM Journal of Research and Development} (1961), Section 1, p.\ 183}{27}{Reflects the chapter's core physical insight: ``the budget of what can leak is a ledger that conserves.'' Compute leaves observable thermodynamic entropy across physical boundaries.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Whereof one cannot speak, thereof one must be silent.}{Ludwig Wittgenstein, \emph{Tractatus Logico-Philosophicus}, proposition 7 (1921), trans.\ C.\,K. Ogden (1922)}{8}{Poetic and evocative of complete isolation, though philosophically about the limits of language rather than covert microarchitectural side channels.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Butler W. Lampson (1973)}. It is the canonical foundation of confinement in operating systems.}{Retain \textbf{Dorothy Denning (1976)} for information lattice flow precision; \textbf{Rolf Landauer (1961)} for physical conservation laws.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 4 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@four{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{4}{The Legible Swarm}{Read-Poverty, Stigmergy, Cognitive Load, and Human Attention Economics}{What must remain visible, and what does seeing cost?}{pdteal}
+  \pdreviewboxincumbent{In an information-rich world, the wealth of information means a dearth of something else: a scarcity of whatever it is that information consumes. What information consumes is rather obvious: it consumes the attention of its recipients.}{Herbert A. Simon, ``Designing Organizations for an Information-Rich World'' (1971), pp.\ 40--41}{35}{The definitive formulation of attention economics by Nobel laureate Herbert Simon. An autonomous swarm generates limitless telemetry; the scarce resource is never log volume, but the operator's attention.}{pdteal}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Certain forms of knowledge and control require a narrowing of vision. The great advantage of such tunnel vision is that it brings into sharp focus certain limited aspects of an otherwise far more complex and unwieldy reality.}{James C. Scott, \emph{Seeing Like a State} (1998), Introduction, p.\ 11}{36}{Scott's concept of ``legibility'' inspired the chapter title and explains how administrative abstractions simplify complex realities at the risk of losing tacit local context.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{The capacity of any regulator is limited by its capacity as a channel of communication.}{W. Ross Ashby, \emph{An Introduction to Cybernetics} (1956), Chapter 11, Section 13, p.\ 211}{15}{Origin of the Law of Requisite Variety. An operator cannot govern or regulate an autonomous fleet whose variety exceeds the supervisory channel capacity.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{The fundamental problem of communication is that of reproducing at one point either exactly or approximately a message selected at another point.}{Claude E. Shannon, ``A Mathematical Theory of Communication'', \emph{Bell System Technical Journal} (1948), Section 1, p.\ 379}{21}{Prices supervision directly in bits. Summaries that discard raw entropy without verifiable links back to primary evidence create catastrophic operator blindness.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Herbert A. Simon (1971)}. Attention economics is the exact problem of swarm telemetry.}{Retain \textbf{James C. Scott (1998)} for organizational legibility; \textbf{W. Ross Ashby (1956)} for cybernetic regulator limits.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 5 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@five{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{5}{From Spawn to Person}{Identity Continuity, Episodic Memory, Forensic Personhood, and Accountability Across Restarts}{What remains long enough to owe anything?}{pdamber}
+  \pdreviewboxincumbent{We are but whirlpools in a river of ever-flowing water. We are not stuff that abides, but patterns that perpetuate themselves.}{Norbert Wiener, \emph{The Human Use of Human Beings: Cybernetics and Society} (1950), Chapter 5, p.\ 96}{21}{Norbert Wiener captures the essence of agentic continuity: processes, threads, and tokens are ephemeral, but identity is an informational pattern that perpetuates across restarts.}{pdamber}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Person, as I take it, is the name for this self. It is a forensic term, appropriating actions and their merit; and so belongs only to intelligent agents, capable of a law, and happiness, and misery.}{John Locke, \emph{An Essay Concerning Human Understanding} (1690), Book II, Chapter xxvii, Section 26}{33}{A monumental philosophical definition. Locke identifies personhood not as biological substance, but as a forensic accounting construct that appropriates actions and responsibility over time.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{To breed an animal with the right to make promises---is not this the paradoxical task that nature has set itself with regard to man?}{Friedrich Nietzsche, \emph{On the Genealogy of Morals} (1887), Second Essay, Section 1 (trans.\ Walter Kaufmann)}{22}{Electrifying resonance with the chapter's core dilemma: turning ephemeral processes into durable entities capable of binding themselves to future commitments and contracts.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{A person is not a separately existing entity, distinct from his experiences\dots\ What matters is psychological continuity and connectedness.}{Derek Parfit, \emph{Reasons and Persons} (1984), Part 3, Chapter 12, p.\ 215}{19}{Demystifies identity. Personal identity is not a mystical soul, but overlapping chains of cause, memory, and intention---the exact role of append-only event logs in agent systems.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Norbert Wiener (1950)}. It speaks directly to cybernetic patterns surviving physical resets.}{Retain \textbf{John Locke (1690)} for forensic accountability; \textbf{Friedrich Nietzsche (1887)} for binding promises.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 6 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@six{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{6}{The Harbor Economy}{Labor vs Capital, Token Economics, Asset Rental, and Conservation Laws}{What makes cooperation rational without making loss unbounded?}{pdamber}
+  \pdreviewboxincumbent{The main reason why it is profitable to establish a firm would seem to be that there is a cost of using the price mechanism.}{Ronald H. Coase, ``The Nature of the Firm'', \emph{Economica}, Vol.\ 4, No.\ 16 (1937), Section 2, p.\ 390}{24}{Ronald Coase's Nobel Prize-winning insight explains why harbors exist: market transactions have coordination, contract, and discovery costs. The harbor is an institutional firm for agents.}{pdamber}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{Virtually every commercial transaction has within itself an element of trust, certainly any transaction conducted over a period of time.}{Kenneth J. Arrow, ``Gifts and Exchanges'', \emph{Philosophy \& Public Affairs}, Vol.\ 1, No.\ 4 (1972), p.\ 357}{20}{Nobel laureate Kenneth Arrow highlights trust as an invisible economic input. In agent swarms, verifiable cryptographic receipts replace human social trust.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{We must look at the price system as such a mechanism for communicating information if we want to understand its real function.}{Friedrich A. Hayek, ``The Use of Knowledge in Society'', \emph{The American Economic Review}, Vol.\ 35, No.\ 4 (1945), Section VI, p.\ 527}{21}{Prices in an agent economy are compressed information signals that coordinate scarce compute, token allocations, and GPU time across autonomous entities without central control.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Like all systems involving goals, resources, and actions, computation can be viewed in economic terms.}{Mark S. Miller and K. Eric Drexler, ``Markets and Computation: Agoric Open Systems'' (1988), Section 1, p.\ 133}{15}{The founding paper of agoric computation. It treats processes not as passive code, but as economic actors trading scarce compute and services under conserving budget rules.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Ronald H. Coase (1937)}. It provides the exact theoretical justification for why harbors are organized as institutions rather than pure spot markets.}{Retain \textbf{Mark Miller \& Eric Drexler (1988)} for agoric systems; \textbf{Friedrich Hayek (1945)} for pricing signals.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 7 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@seven{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{7}{The Bonded Commons}{Sacrificial Slashing, Bonded Escrow, Tripwires, and Self-Enforcing Institutions}{Who may decide, on what evidence, with what consequence?}{pdviolet}
+  \pdreviewboxincumbent{The power to constrain an adversary may depend on the power to bind oneself.}{Thomas C. Schelling, \emph{The Strategy of Conflict} (1960), Chapter 2, p.\ 22}{14}{Diamond-hard game theory by Nobel laureate Thomas Schelling. Explains the exact mechanism of bonded collateral and slashing: by making defection fatal to itself, an agent makes its promises credible.}{pdviolet}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.}{James Madison, \emph{Federalist No.\ 51} (1788)}{25}{The classic American maxim on institutional checks and balances. Autonomous agents are not angels; their governance requires cryptographic controls and verifiable separation of powers.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{Monitoring and graduated sanctions are necessary to keep the rate of rule-following high enough to avoid triggering a process in which higher rates of rule infractions fuel subsequent increases.}{Elinor Ostrom, \emph{Governing the Commons: The Evolution of Institutions for Collective Action} (1990), Chapter 3, p.\ 98}{28}{Nobel laureate Elinor Ostrom's core design principle for self-governing common-pool resources. The Bonded Commons operationalizes community monitoring and graduated slashing as code.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Credible commitments are supported by reciprocal exposure; the exchange of hostages serves to align incentives and support trade.}{Oliver E. Williamson, ``Credible Commitments: Using Hostages to Support Exchange'', \emph{The American Economic Review} (1983), Section 1, p.\ 519}{18}{Bonded collateral functions as a digital hostage. In an untrusted agent commons, posting economic collateral aligns incentives and makes agreements self-enforcing without judicial litigation.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{Thomas C. Schelling (1960)}. It is the cleanest game-theoretic distillation of bonded commitments.}{Retain \textbf{Elinor Ostrom (1990)} for institutional commons governance; \textbf{Oliver Williamson (1983)} for the hostage model.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Chapter 8 Spread
+% ---------------------------------------------------------------------------
+\def\pdepigraphreviewspread@eight{%
+  % Page 1 (Verso)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewheader{8}{The Federated Harbor}{Mutual Distrust, Zero-Trust Gossip, Sheaf Laplacians, and Sovereign Boundaries}{What can cross a trust boundary without moving authority itself?}{pdviolet}
+  \pdreviewboxincumbent{We reject: kings, presidents and voting. We believe in: rough consensus and running code.}{David D. Clark, IETF Plenary Presentation, Baltimore, MD, July 1992}{14}{David Clark's historic IETF creed captures the decentralized, empirical philosophy of open federation: governance across sovereign administrative domains relies on protocol consensus and operational verification.}{pdviolet}
+  \vspace{6pt}
+  \pdreviewboxcontender{A}{We do not assume that all the nodes in a distributed system trust each other, or that there is a central authority trusted by everyone.}{Butler W. Lampson, Martin Abadi, Michael Burrows, and Edward P. Wobber, ``Authentication in Distributed Systems: Theory and Practice'', \emph{ACM TOCS} (1992), Section 1, p.\ 266}{26}{The founding principle of zero-trust distributed architecture. Cross-harbor federation assumes mutual suspicion and refuses central arbiters.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+  % Page 2 (Recto)
+  \begin{adjustwidth*}{0pt}{-0.9in}
+  \pdreviewboxcontender{B}{Sheaves provide a natural language for data that are distributed, heterogeneous, and constrained by local relations.}{Jakob Hansen and Robert Ghrist, ``Toward a Spectral Theory of Cellular Sheaves'', \emph{Journal of Applied and Computational Topology} (2019), Section 1, p.\ 315}{16}{Captures the algebraic topology underlying Chapter 8's multi-machine state verification: cellular sheaves and Laplacians measure local consistency without global centralized synchronization.}
+  \vspace{6pt}
+  \pdreviewboxcontender{C}{Good fences make good neighbours.}{Robert Frost, ``Mending Wall'' (1914)}{5}{Memorable and iconic, though Frost's poem is an ironic critique of blind boundary-keeping rather than an affirmative design for federated evidence exchange.}
+  \vspace{6pt}
+  \pdreviewboxrubric{Retain \textbf{David D. Clark (1992)}. It captures the operational ethos of Internet federation.}{Retain \textbf{Jakob Hansen \& Robert Ghrist (2019)} for mathematical topology; \textbf{Butler Lampson et al. (1992)} for zero-trust systems.}
+  \vfill
+  \end{adjustwidth*}
+  \clearpage
+}
+
+% ---------------------------------------------------------------------------
+% Top-Level Dispatcher
+% ---------------------------------------------------------------------------
+\newcommand{\pdepigraphreviewspread}[1]{%
+  \begingroup
+  \setlength{\headheight}{24pt}%
+  \addtolength{\topmargin}{-10pt}%
+  \pagestyle{pdcopyreview}%
+  \ifcase#1\relax
+    \pdepigraphreviewspread@zero
+  \or
+    \pdepigraphreviewspread@one
+  \or
+    \pdepigraphreviewspread@two
+  \or
+    \pdepigraphreviewspread@three
+  \or
+    \pdepigraphreviewspread@four
+  \or
+    \pdepigraphreviewspread@five
+  \or
+    \pdepigraphreviewspread@six
+  \or
+    \pdepigraphreviewspread@seven
+  \or
+    \pdepigraphreviewspread@eight
+  \fi
+  \setlength{\headheight}{14pt}%
+  \addtolength{\topmargin}{10pt}%
+  \fancyhfoffset[LE,RO]{0pt}%
+  \pagestyle{fancy}%
+  \endgroup
+}
+
+\makeatother
