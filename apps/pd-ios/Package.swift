@@ -16,8 +16,7 @@ import PackageDescription
 //     A library target is what xcodebuild can build and test for a simulator
 //     without an Xcode project existing.
 //
-//  2. No dependencies. FleetBar pulls ViewInspector for SwiftUI assertions;
-//     this package keeps the gate hermetic and puts the testable logic in
+//  2. Only a local shared media dependency. This package puts testable logic in
 //     plain value types (ControlVerbs, MaritimeSignals, RoadmapProjection)
 //     instead of asserting against view trees.
 //
@@ -36,9 +35,11 @@ let package = Package(
     products: [
         .library(name: "PortDaddyKit", targets: ["PortDaddyKit"]),
     ],
+    dependencies: [.package(path: "../PortholeMediaKit")],
     targets: [
         .target(
             name: "PortDaddyKit",
+            dependencies: ["PortholeMediaKit"],
             path: "PortDaddy",
             resources: [.process("Resources")]
         ),

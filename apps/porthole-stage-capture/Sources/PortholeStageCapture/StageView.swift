@@ -18,6 +18,8 @@ protocol StagePresentationModel: ObservableObject {
     var cursors: [CursorEvent] { get }
     var proofReceipt: PortholeProofReceipt? { get }
     var proofConfiguration: ProofConfiguration? { get }
+    var lastSavedRecordingURL: URL? { get }
+    var lastSavedScreenshotURL: URL? { get }
     var statusMessage: String { get }
     var selectedApprovalCanEnterStage: Bool { get }
     var canPauseCapture: Bool { get }
@@ -30,6 +32,13 @@ protocol StagePresentationModel: ObservableObject {
     func startCapture() async
     func pauseCapture() async
     func stopCapture() async
+    var effectiveRecordingsDirectory: URL { get }
+    var effectiveScreenshotsDirectory: URL { get }
+    func setCustomRecordingsDirectory(_ url: URL, persist: Bool)
+    func setCustomScreenshotsDirectory(_ url: URL, persist: Bool)
+    func resetOutputDirectoriesToDefault()
+    @discardableResult
+    func captureScreenshot() -> URL?
 }
 
 extension StageCaptureController: StagePresentationModel {}
@@ -390,9 +399,76 @@ struct StageView<Model: StagePresentationModel>: View {
             }
 
             Button {
+                controller.captureScreenshot()
+            } label: {
+                Label("Screenshot", systemImage: "camera.fill")
+            }
+            .buttonStyle(.bordered)
+            .disabled(controller.latestImage == nil)
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            .help("Save PNG to ~/Pictures/Porthole and copy to clipboard (Cmd+Shift+S)")
+
+            if let savedRec = controller.lastSavedRecordingURL {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([savedRec])
+                } label: {
+                    Label("Show Video", systemImage: "film")
+                }
+                .buttonStyle(.bordered)
+                .help("Reveal saved recording in Finder: \(savedRec.path)")
+            }
+
+            if let savedShot = controller.lastSavedScreenshotURL {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([savedShot])
+                } label: {
+                    Label("Show Shot", systemImage: "photo")
+                }
+                .buttonStyle(.bordered)
+                .help("Reveal saved screenshot in Finder: \(savedShot.path)")
+            }
+
+            Menu {
+                Button {
+                    chooseFolder(title: "Choose Folder for Video Recordings", initial: controller.effectiveRecordingsDirectory) { url in
+                        controller.setCustomRecordingsDirectory(url, persist: true)
+                    }
+                } label: {
+                    Label("Set Video Folder...", systemImage: "film")
+                }
+
+                Button {
+                    chooseFolder(title: "Choose Folder for Screenshots", initial: controller.effectiveScreenshotsDirectory) { url in
+                        controller.setCustomScreenshotsDirectory(url, persist: true)
+                    }
+                } label: {
+                    Label("Set Screenshot Folder...", systemImage: "camera")
+                }
+
+                Divider()
+
+                Button("Reset Folders to Default") {
+                    controller.resetOutputDirectoriesToDefault()
+                }
+
+                Divider()
+
+                Button("Show Video Folder in Finder") {
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: controller.effectiveRecordingsDirectory.path)
+                }
+                Button("Show Screenshot Folder in Finder") {
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: controller.effectiveScreenshotsDirectory.path)
+                }
+            } label: {
+                Label("Folders", systemImage: "folder")
+            }
+            .buttonStyle(.bordered)
+            .help("Configure video and screenshot output locations.\nVideo: \(controller.effectiveRecordingsDirectory.path)\nScreenshots: \(controller.effectiveScreenshotsDirectory.path)")
+
+            Button {
                 Task { await controller.stopCapture() }
             } label: {
-                Label("Stop & Clear", systemImage: "stop.fill")
+                Label(controller.persistenceGate.allowed ? "Stop & Save" : "Stop & Clear", systemImage: "stop.fill")
             }
             .buttonStyle(.bordered)
             .disabled(![.live, .paused].contains(controller.lifecycle))
@@ -401,6 +477,19 @@ struct StageView<Model: StagePresentationModel>: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .background(panel)
+    }
+
+    private func chooseFolder(title: String, initial: URL, onSelected: @escaping (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.title = title
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = initial
+        if panel.runModal() == .OK, let url = panel.url {
+            onSelected(url)
+        }
     }
 
     private var stateColor: Color {

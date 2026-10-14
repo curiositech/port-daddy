@@ -9,7 +9,7 @@ import Foundation
 /// 404 in front of an operator.
 final class RelayClientTests: XCTestCase {
 
-    private func client(base: String = "https://relay.portdaddy.dev", token: String? = "pdu_testtoken") -> RelayClient {
+    private func client(base: String = "https://relay.portdaddy.dev", token: String? = "pdu_" + String(repeating: "a", count: 64)) -> RelayClient {
         let store = InMemoryRelayTokenStore(credential: token.map { RelayCredential(token: $0) })
         return RelayClient(baseURL: URL(string: base)!, tokenStore: store)
     }
@@ -69,7 +69,7 @@ final class RelayClientTests: XCTestCase {
     func testRequestsCarryTheBearerTokenAndNoOriginHeader() throws {
         let request = try client().makeRequest(path: RelayRoute.harbors)
         XCTAssertEqual(request.url?.absoluteString, "https://relay.portdaddy.dev/v1/harbors")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pdu_testtoken")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pdu_" + String(repeating: "a", count: 64))
         // isSameOrigin() treats a request with neither Origin nor Referer as
         // same-origin. Setting an Origin that is not the relay's turns 200s
         // into 403 CROSS_ORIGIN on every route that checks.
@@ -118,7 +118,7 @@ final class RelayClientTests: XCTestCase {
     }
 
     func testCredentialShapeIsChecked() {
-        XCTAssertTrue(RelayCredential(token: "pdu_abcdefghij").looksWellFormed)
+        XCTAssertTrue(RelayCredential(token: "pdu_" + String(repeating: "a", count: 64)).looksWellFormed)
         XCTAssertFalse(RelayCredential(token: "ghp_abcdefghij").looksWellFormed, "only pdu_ tokens are relay device tokens")
         XCTAssertFalse(RelayCredential(token: "pdu_").looksWellFormed)
     }
