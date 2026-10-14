@@ -69,8 +69,12 @@ export class EpistemologyMergeVerifier {
     for (const claim of candidateClaims) {
       const l0Error = this.validateL0(claim);
       if (l0Error) {
+        const safeClaimId =
+          claim && typeof claim === 'object' && typeof claim.claimId === 'string' && claim.claimId
+            ? claim.claimId
+            : 'unknown';
         rejectedClaims.push({
-          claimId: claim.claimId || 'unknown',
+          claimId: safeClaimId,
           reason: l0Error,
           ladderLevel: 0
         });
@@ -161,7 +165,7 @@ export class EpistemologyMergeVerifier {
    * @returns An error message string if validation fails, or null if valid.
    */
   private validateL0(claim: ClaimEnvelope): string | null {
-    if (!claim || typeof claim !== 'object') {
+    if (!claim || typeof claim !== 'object' || Array.isArray(claim)) {
       return 'Claim payload is not an object';
     }
     if (claim.schema !== 'pd.epistemology.claim-envelope.v0') {
@@ -176,23 +180,67 @@ export class EpistemologyMergeVerifier {
     if (!claim.subject || typeof claim.subject !== 'string') {
       return 'Missing or invalid subject';
     }
-    if (!claim.proposition || typeof claim.proposition !== 'object') {
-      return 'Missing or invalid proposition';
+    if (
+      !claim.proposition ||
+      typeof claim.proposition !== 'object' ||
+      Array.isArray(claim.proposition) ||
+      !['type_constraint', 'contract_behavior', 'state_invariant', 'custom'].includes(claim.proposition.type)
+    ) {
+      return 'Missing or invalid proposition (supported proposition.type required)';
     }
-    if (!claim.scope || !claim.scope.repository || !Array.isArray(claim.scope.paths)) {
-      return 'Invalid scope: repository and paths[] required';
+    if (
+      !claim.scope ||
+      typeof claim.scope !== 'object' ||
+      typeof claim.scope.repository !== 'string' ||
+      !claim.scope.repository ||
+      !Array.isArray(claim.scope.paths) ||
+      !claim.scope.paths.every((p) => typeof p === 'string')
+    ) {
+      return 'Invalid scope: repository and string paths[] required';
     }
-    if (!Array.isArray(claim.assumptions)) {
-      return 'Missing assumptions array';
+    if (!Array.isArray(claim.assumptions) || !claim.assumptions.every((a) => typeof a === 'string')) {
+      return 'Missing or invalid assumptions array';
     }
-    if (!Array.isArray(claim.evidence)) {
-      return 'Missing evidence array';
+    if (
+      !Array.isArray(claim.evidence) ||
+      !claim.evidence.every(
+        (ev) =>
+          ev &&
+          typeof ev === 'object' &&
+          !Array.isArray(ev) &&
+          ['witnessed', 'derived', 'asserted', 'porthole_capture'].includes(ev.witnessClass) &&
+          typeof ev.digest === 'string' &&
+          ev.digest.length > 0 &&
+          typeof ev.uri === 'string' &&
+          ev.uri.length > 0
+      )
+    ) {
+      return 'Missing or invalid evidence array';
     }
-    if (!claim.issuer || !claim.issuer.principalId || !claim.issuer.agentId) {
+    if (
+      !claim.issuer ||
+      typeof claim.issuer !== 'object' ||
+      typeof claim.issuer.principalId !== 'string' ||
+      !claim.issuer.principalId ||
+      typeof claim.issuer.agentId !== 'string' ||
+      !claim.issuer.agentId
+    ) {
       return 'Missing or incomplete issuer (principalId and agentId required)';
     }
-    if (!claim.observationTime || isNaN(Date.parse(claim.observationTime))) {
+    if (!claim.observationTime || typeof claim.observationTime !== 'string' || isNaN(Date.parse(claim.observationTime))) {
       return 'Invalid observationTime (ISO 8601 expected)';
+    }
+    if (
+      claim.ttlSeconds !== undefined &&
+      (typeof claim.ttlSeconds !== 'number' || Number.isNaN(claim.ttlSeconds) || claim.ttlSeconds < 0)
+    ) {
+      return 'Invalid ttlSeconds (non-negative number required)';
+    }
+    if (
+      claim.confidence !== undefined &&
+      (typeof claim.confidence !== 'number' || Number.isNaN(claim.confidence) || claim.confidence < 0 || claim.confidence > 1)
+    ) {
+      return 'Invalid confidence (number between 0 and 1 required)';
     }
     if (!['draft', 'proposed', 'principal_approved', 'revoked'].includes(claim.authority)) {
       return `Invalid authority status: ${claim.authority}`;
@@ -210,6 +258,28 @@ export class EpistemologyMergeVerifier {
     }
 
     return null;
+  }
+
+  /**
+   * Serializes a JSON-compatible value into a canonical key-sorted string for structural comparison.
+   *
+   * Purpose: Ensures object and array `state_invariant` values are compared by content rather
+   * than reference identity or key insertion order.
+   *
+   * @param value - The value to canonicalize.
+   * @returns A deterministic JSON string representation.
+   */
+  private canonicalizeValue(value: unknown): string {
+    if (value === null || typeof value !== 'object') {
+      return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.canonicalizeValue(item)).join(',')}]`;
+    }
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${this.canonicalizeValue((value as Record<string, unknown>)[key])}`);
+    return `{${entries.join(',')}}`;
   }
 
   /**
@@ -261,14 +331,18 @@ export class EpistemologyMergeVerifier {
       propB.type === 'state_invariant' &&
       propA.property === propB.property
     ) {
-      if (propA.value !== undefined && propB.value !== undefined && propA.value !== propB.value) {
-        return {
-          reason: `Contradictory state invariant on '${a.subject}.${propA.property}': Claim ${a.claimId} requires value=${JSON.stringify(propA.value)}, while Claim ${b.claimId} requires value=${JSON.stringify(propB.value)}`,
-          unsatisfiableCore: [
-            `${a.claimId}:value=${JSON.stringify(propA.value)}`,
-            `${b.claimId}:value=${JSON.stringify(propB.value)}`
-          ]
-        };
+      if (propA.value !== undefined && propB.value !== undefined) {
+        const canonicalA = this.canonicalizeValue(propA.value);
+        const canonicalB = this.canonicalizeValue(propB.value);
+        if (canonicalA !== canonicalB) {
+          return {
+            reason: `Contradictory state invariant on '${a.subject}.${propA.property}': Claim ${a.claimId} requires value=${canonicalA}, while Claim ${b.claimId} requires value=${canonicalB}`,
+            unsatisfiableCore: [
+              `${a.claimId}:value=${canonicalA}`,
+              `${b.claimId}:value=${canonicalB}`
+            ]
+          };
+        }
       }
     }
 
@@ -315,7 +389,7 @@ export class EpistemologyMergeVerifier {
     _reason: string,
     unsatisfiableCore: string[]
   ): ParleyPacket {
-    const packetId = `parley-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const packetId = `parley-L${ladderLevel}-${claimA.claimId}-${claimB.claimId}`;
     const incidentId = `inc-${claimA.claimId}-${claimB.claimId}`;
 
     const propSummaries: IncompatiblePropositionSummary[] = [

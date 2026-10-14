@@ -177,5 +177,87 @@ describe('EpistemologyMergeVerifier & Contradiction Ladder', () => {
       expect(portholeReceipt?.portholeTimestampMs).toBe(14250);
       expect(portholeReceipt?.uri).toContain('session-anon-auth.mp4');
     });
+
+    it('gracefully rejects null or malformed candidate claims at L0 without throwing', () => {
+      const result = verifier.verifyMerge([], [null as unknown as ClaimEnvelope]);
+      expect(result.success).toBe(false);
+      expect(result.ladderLevelTrapped).toBe(0);
+      expect(result.rejectedClaims[0].claimId).toBe('unknown');
+      expect(result.rejectedClaims[0].reason).toContain('Claim payload is not an object');
+    });
+
+    it('rejects malformed proposition, evidence, or out-of-range confidence at L0', () => {
+      const badConfidenceClaim: ClaimEnvelope = {
+        schema: 'pd.epistemology.claim-envelope.v0',
+        claimId: 'claim-bad-confidence',
+        kind: 'hypothesis',
+        subject: 'Auth.token',
+        proposition: { type: 'type_constraint' },
+        scope: { repository: 'repo', paths: ['auth.ts'] },
+        assumptions: [],
+        evidence: [{ witnessClass: 'witnessed', digest: 'd1', uri: 'file:///auth' }],
+        issuer: { principalId: 'p1', agentId: 'a1' },
+        observationTime: new Date().toISOString(),
+        confidence: 1.5,
+        authority: 'proposed'
+      };
+
+      const result = verifier.verifyMerge([], [badConfidenceClaim]);
+      expect(result.success).toBe(false);
+      expect(result.ladderLevelTrapped).toBe(0);
+      expect(result.rejectedClaims[0].reason).toContain('Invalid confidence (number between 0 and 1 required)');
+    });
+
+    it('admits structurally equal object state_invariant claims and generates deterministic packetId on conflict', () => {
+      const baseClaim: ClaimEnvelope = {
+        schema: 'pd.epistemology.claim-envelope.v0',
+        claimId: 'claim-obj-1',
+        kind: 'obligation',
+        subject: 'Policy.retryConfig',
+        proposition: {
+          type: 'state_invariant',
+          property: 'retryConfig',
+          value: { maxRetries: 3, backoffMs: 500 }
+        },
+        scope: { repository: 'infra', paths: ['retry.ts'] },
+        assumptions: [],
+        evidence: [{ witnessClass: 'witnessed', digest: 'd1', uri: 'file:///retry' }],
+        issuer: { principalId: 'p1', agentId: 'a1' },
+        observationTime: new Date().toISOString(),
+        authority: 'principal_approved'
+      };
+
+      const matchingCandidate: ClaimEnvelope = {
+        ...baseClaim,
+        claimId: 'claim-obj-2',
+        proposition: {
+          type: 'state_invariant',
+          property: 'retryConfig',
+          // Reordered keys, distinct object reference, identical canonical structure
+          value: { backoffMs: 500, maxRetries: 3 }
+        }
+      };
+
+      const cleanResult = verifier.verifyMerge([baseClaim], [matchingCandidate]);
+      expect(cleanResult.success).toBe(true);
+      expect(cleanResult.admittedClaims).toHaveLength(2);
+
+      const conflictingCandidate: ClaimEnvelope = {
+        ...baseClaim,
+        claimId: 'claim-obj-3',
+        proposition: {
+          type: 'state_invariant',
+          property: 'retryConfig',
+          value: { maxRetries: 5, backoffMs: 500 }
+        }
+      };
+
+      const conflict1 = verifier.verifyMerge([baseClaim], [conflictingCandidate]);
+      const conflict2 = verifier.verifyMerge([baseClaim], [conflictingCandidate]);
+      expect(conflict1.success).toBe(false);
+      expect(conflict1.parleyPacket?.packetId).toBe('parley-L1-claim-obj-1-claim-obj-3');
+      expect(conflict1.parleyPacket?.packetId).toBe(conflict2.parleyPacket?.packetId);
+    });
   });
 });
+
