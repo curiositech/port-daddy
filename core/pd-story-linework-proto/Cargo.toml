@@ -1,0 +1,24 @@
+# Own workspace + lockfile, EXCLUDED from core/Cargo.toml so Linux CI and the
+# regular console checks do not compile wgpu/Metal experiments by default.
+[workspace]
+
+[package]
+name = "pd-story-linework-proto"
+version = "0.1.0"
+edition = "2021"
+description = "Headless wgpu/WGSL Story Linework sandbox for pd-console color blocking, dithering, and operator-state motion."
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "pd-story-linework-proto"
+path = "src/main.rs"
+
+[dependencies]
+wgpu = "22"
+pollster = "0.4"
+png = "0.17"
+
+[profile.release]
+opt-level = 3
+
