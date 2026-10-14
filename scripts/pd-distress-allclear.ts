@@ -18,6 +18,11 @@
  * ADR-0119). `verify` and `status` never need the private key and are safe for
  * any listener to run.
  *
+ * The public key the build trusts is the one pinned in
+ * `lib/distress-allclear-pins.ts`, not whatever sits in `~/.port-daddy`
+ * (same-user-writable). `keygen` prints the pin entry to commit; until it is
+ * merged the key is inert and `status` says so.
+ *
  * Under the halt this repo is in as this is written, this script is the
  * operator's path to lift it. It does not talk to the daemon, `pd`, the relay,
  * or the network — A0 floor only.
@@ -28,17 +33,34 @@ import { Writable } from 'node:stream';
 import {
   applyAllClear,
   defaultDistressPaths,
+  formatPinEntry,
   liftHalt,
-  loadOperatorPublicKey,
-  publicKeyFingerprint,
   readHaltState,
+  resolveOperatorPublicKey,
   verifyAllClear,
   writeOperatorKeyFiles,
+  type OperatorKeyResolution,
 } from '../lib/distress-allclear.js';
+
+const PIN_FILE = 'lib/distress-allclear-pins.ts';
+
+/** One line for `status`: which key this build trusts, and whether the on-disk one is it. */
+function describeKey(r: OperatorKeyResolution): string {
+  switch (r.status) {
+    case 'pinned':
+      return `${r.trustedFingerprint} (on disk, pinned in ${PIN_FILE})`;
+    case 'committed':
+      return `${r.trustedFingerprint} (from ${PIN_FILE}; no .pub on disk)`;
+    case 'unpinned':
+      return `NONE TRUSTED — on-disk .pub fingerprint ${r.onDiskFingerprint ?? 'unreadable'} is NOT in ${PIN_FILE}; the key is inert and the halt cannot be lifted`;
+    case 'absent':
+      return 'NONE (run keygen, then commit the printed pin entry)';
+  }
+}
 
 function usage(code: number): never {
   const text = `usage:
-  pd-distress-allclear keygen
+  pd-distress-allclear keygen [--as <operator-id>]
   pd-distress-allclear status
   pd-distress-allclear all-clear --as <operator-id> [--repo <repo-root>]
   pd-distress-allclear verify '<register line>'`;
@@ -79,17 +101,24 @@ async function main(argv: string[]): Promise<number> {
       const p1 = await promptSecret('ALL-CLEAR passphrase (min 8 chars): ');
       const p2 = await promptSecret('again: ');
       if (p1 !== p2) { console.error('passphrases differ'); return 2; }
-      const { fingerprint } = writeOperatorKeyFiles(paths, p1);
+      const holder = arg('--as', argv) ?? 'operator';
+      const { fingerprint, pin } = writeOperatorKeyFiles(paths, p1, { holder: holder.startsWith('operator:') ? holder : `operator:${holder}` });
       console.log(`wrote ${paths.privateKeyFile} (0600) and ${paths.publicKeyFile}`);
       console.log(`operator ALL-CLEAR key fingerprint: ${fingerprint}`);
-      console.log('record that fingerprint somewhere agents cannot edit (the incident runbook, a note on paper).');
+      console.log('');
+      console.log(`This key is INERT until its pin is committed. Add this entry to OPERATOR_ALLCLEAR_PINNED_KEYS in ${PIN_FILE},`);
+      console.log('open the PR yourself and merge it yourself; then echo the fingerprint on the pinned status issue and in the incident runbook:');
+      console.log('');
+      console.log(formatPinEntry(pin));
+      console.log('');
+      console.log(`then: chflags uchg ${paths.publicKeyFile}   # speed bump only; the committed pin is the boundary`);
       return 0;
     }
 
     case 'status': {
-      const pub = loadOperatorPublicKey(paths);
-      const ev = readHaltState({ paths, publicKey: pub, removeSentinelOnLift: false });
-      console.log(`key: ${pub ? publicKeyFingerprint(pub) : 'NONE (run keygen)'}`);
+      const resolution = resolveOperatorPublicKey(paths);
+      const ev = readHaltState({ paths, removeSentinelOnLift: false });
+      console.log(`key: ${describeKey(resolution)}`);
       console.log(`state: ${ev.status.state}`);
       if (ev.status.halt) console.log(`halt: ${ev.status.halt.raw}`);
       if (ev.status.state !== 'clear') console.log(`sentinel: ${ev.status.sentinelPresent ? 'present' : 'ABSENT'}`);
@@ -122,8 +151,9 @@ async function main(argv: string[]): Promise<number> {
     case 'verify': {
       const line = argv[1];
       if (!line) usage(2);
-      const pub = loadOperatorPublicKey(paths);
-      if (!pub) { console.error('no operator public key pinned; nothing can verify'); return 1; }
+      const resolution = resolveOperatorPublicKey(paths);
+      const pub = resolution.key;
+      if (!pub) { console.error(`no trusted operator public key: ${describeKey(resolution)}`); return 1; }
       const ev = readHaltState({ paths, publicKey: pub, removeSentinelOnLift: false, forensics: null });
       const expected = ev.status.state === 'hoisted' ? ev.status.halt.ts : undefined;
       const verdict = verifyAllClear(line, pub, expected);
