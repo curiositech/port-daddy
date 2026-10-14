@@ -1310,7 +1310,6 @@ describe('CLI Integration Tests', () => {
       ]);
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
-      const mintedContext = readTestCurrentContext(defaultContextSlot);
 
       // `pd begin --json` no longer prints the credential (it is a private,
       // one-time-mint admission secret — see begin-output-sanitization.test.js);
