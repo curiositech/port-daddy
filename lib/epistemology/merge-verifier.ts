@@ -20,9 +20,25 @@ export interface VerifierOptions {
   enforceTtl?: boolean;
 }
 
+/**
+ * Deterministic in-memory merge verifier that enforces epistemic consistency across candidate claims.
+ *
+ * Motivation: Multi-agent workspaces can introduce silent cross-branch or cross-repository
+ * assumption drift when structural or behavioral contracts change. This verifier provides a
+ * fail-closed, deterministic Contradiction Ladder (L0 schema -> L1 typed constraints -> L2 behavioral contracts)
+ * before candidate claims are admitted, emitting a structured ParleyPacket when human governance is needed.
+ */
 export class EpistemologyMergeVerifier {
   private options: VerifierOptions;
 
+  /**
+   * Initializes a new EpistemologyMergeVerifier instance.
+   *
+   * Purpose: Allows callers and deterministic unit tests to inject a fixed reference clock
+   * and toggle TTL enforcement for reproducible verification runs.
+   *
+   * @param options - Configuration options governing clock reference and TTL enforcement.
+   */
   constructor(options: VerifierOptions = {}) {
     this.options = {
       enforceTtl: true,
@@ -31,8 +47,16 @@ export class EpistemologyMergeVerifier {
   }
 
   /**
-   * Evaluates candidate claims against existing admitted claims.
-   * Traverses the Contradiction Ladder from L0 to L2.
+   * Evaluates candidate claims against existing admitted claims across the Contradiction Ladder.
+   *
+   * Design rationale: Separates syntactic schema/TTL checks (L0) from propositional/constraint
+   * contradiction detection (L1) and behavioral contract preconditions (L2), ensuring that
+   * incompatible assumptions are trapped deterministically and escalated with an explicit
+   * unsatisfiable core rather than silently merged.
+   *
+   * @param admittedClaims - Currently accepted ClaimEnvelope records forming the baseline truth set.
+   * @param candidateClaims - Incoming ClaimEnvelope records proposed for merge admission.
+   * @returns A MergeVerificationResult indicating admission success, any rejected claims, and an optional ParleyPacket on conflict.
    */
   public verifyMerge(
     admittedClaims: ClaimEnvelope[],
@@ -128,7 +152,13 @@ export class EpistemologyMergeVerifier {
   }
 
   /**
-   * L0 Validator: syntactic structure, required properties, and freshness TTL.
+   * Validates Level 0 syntactic structure, required envelope fields, and TTL freshness.
+   *
+   * Purpose: Ensures malformed, untyped, or stale claims fail closed at the outer gate
+   * before expensive pairwise constraint comparisons are performed.
+   *
+   * @param claim - The candidate ClaimEnvelope to validate.
+   * @returns An error message string if validation fails, or null if valid.
    */
   private validateL0(claim: ClaimEnvelope): string | null {
     if (!claim || typeof claim !== 'object') {
@@ -183,7 +213,15 @@ export class EpistemologyMergeVerifier {
   }
 
   /**
-   * L1 Conflict Detector: detects propositional, typing, and constraint contradictions.
+   * Detects Level 1 propositional, type-constraint, and state-invariant contradictions between two claims.
+   *
+   * Design motivation: Identifies mutually incompatible claims over the same subject and property
+   * (such as opposing nullability constraints or conflicting state invariant values) and extracts
+   * a minimal unsatisfiable core for human review.
+   *
+   * @param a - The first ClaimEnvelope in the comparison pair.
+   * @param b - The second ClaimEnvelope in the comparison pair.
+   * @returns An object describing the contradiction reason and unsatisfiableCore, or null if compatible.
    */
   private detectL1Conflict(
     a: ClaimEnvelope,
@@ -238,9 +276,16 @@ export class EpistemologyMergeVerifier {
   }
 
   /**
-   * L2 Contract Checker: interface and behavioral contracts.
+   * Checks Level 2 interface and behavioral contract preconditions.
+   *
+   * Rationale: Even when structural types match at L1, a candidate claim can violate
+   * behavioral preconditions established by admitted contracts.
+   *
+   * @param candidate - The candidate ClaimEnvelope being evaluated.
+   * @param _admitted - The currently admitted ClaimEnvelope set for contract context.
+   * @returns A failure description string if a contract precondition is breached, or null if satisfied.
    */
-  private checkL2Contract(candidate: ClaimEnvelope, admitted: ClaimEnvelope[]): string | null {
+  private checkL2Contract(candidate: ClaimEnvelope, _admitted: ClaimEnvelope[]): string | null {
     if (candidate.proposition.type === 'contract_behavior') {
       const expr = candidate.proposition.expression;
       if (expr && expr.includes('VIOLATES_PRECONDITION')) {
@@ -251,13 +296,23 @@ export class EpistemologyMergeVerifier {
   }
 
   /**
-   * Formulates a structured ParleyPacket for human governance escalation.
+   * Formulates a structured ParleyPacket for human governance escalation when two claims conflict.
+   *
+   * Intent: Packages the minimal unsatisfiable core, consequence matrix, and authorized decision
+   * makers so operators can resolve cross-branch contradictions while unrelated tasks continue safely.
+   *
+   * @param ladderLevel - The Contradiction Ladder level that trapped the conflict.
+   * @param claimA - The first conflicting ClaimEnvelope.
+   * @param claimB - The second conflicting ClaimEnvelope.
+   * @param _reason - Human-readable summary of the detected contradiction.
+   * @param unsatisfiableCore - Minimal list of conflicting proposition atoms.
+   * @returns A populated ParleyPacket ready for governance escalation.
    */
   private generateParleyPacket(
     ladderLevel: LadderLevel,
     claimA: ClaimEnvelope,
     claimB: ClaimEnvelope,
-    reason: string,
+    _reason: string,
     unsatisfiableCore: string[]
   ): ParleyPacket {
     const packetId = `parley-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -328,9 +383,13 @@ export class EpistemologyMergeVerifier {
 }
 
 /**
- * Creates the canonical cross-project contradiction fixture:
- * Project A updates API field to nullable (string | null).
- * Project B client assumes field is non-null (string).
+ * Creates the canonical cross-project contradiction fixture for deterministic tests.
+ *
+ * Purpose: Models the benchmark scenario where one branch updates an API field (`UserAccount.email`)
+ * to nullable while an existing admitted obligation requires it to remain non-null, alongside an
+ * orthogonal clean claim (`UserAccount.displayName`).
+ *
+ * @returns An object containing `admittedClaim`, `conflictingCandidateClaim`, and `cleanCandidateClaim`.
  */
 export function createSyntheticContradictionFixture(): {
   admittedClaim: ClaimEnvelope;
