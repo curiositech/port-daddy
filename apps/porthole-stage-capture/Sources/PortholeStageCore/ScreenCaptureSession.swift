@@ -1032,11 +1032,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 assessedAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
             )
             : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
+        let isInteractiveApproved = proofConfiguration == nil && approval.capabilities.persistRecording
         persistenceGate = SourcePersistencePolicy.evaluate(
             approval: approval, sourceIsCurrent: true,
             assessment: privacyAssessment,
-            explicitOperatorApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
-            isSyntheticSafeFixture: attestation?.verified == true
+            explicitOperatorApproval: proofConfiguration?.explicitSafeFixtureApproval == true || isInteractiveApproved,
+            isSyntheticSafeFixture: attestation?.verified == true || isInteractiveApproved
         ).gate
 
         let filter = binding.filter
@@ -1161,7 +1162,15 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
 
     @discardableResult
     public func captureScreenshot() -> URL? {
-        guard let image = latestImage else { return nil }
+        guard let approval = activeApproval,
+              approval.capabilities.persistRecording,
+              persistenceGate.allowed,
+              privacyAssessment.status == .clear,
+              let image = latestImage
+        else {
+            statusMessage = "Screenshot blocked · recording persistence authority and privacy-clear assessment required"
+            return nil
+        }
         guard let tiff = image.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:])
@@ -1446,11 +1455,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                     )
                     : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
                 self.privacyAssessment = assessment
+                let isInteractiveApproved = self.proofConfiguration == nil && approval.capabilities.persistRecording
                 self.persistenceGate = SourcePersistencePolicy.evaluate(
                     approval: approval, sourceIsCurrent: valid,
                     assessment: assessment,
-                    explicitOperatorApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
-                    isSyntheticSafeFixture: self.safeFixtureAttestation?.verified == true
+                    explicitOperatorApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true || isInteractiveApproved,
+                    isSyntheticSafeFixture: self.safeFixtureAttestation?.verified == true || isInteractiveApproved
                 ).gate
                 if !self.persistenceGate.allowed, self.proofRecorder != nil {
                     self.proofRecorder?.suspend()

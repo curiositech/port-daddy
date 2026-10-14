@@ -29,7 +29,7 @@ Porthole solves this across two tightly integrated planes:
 During recent manual testing of `Porthole.app`, stopping an active screen recording wiped/deleted the video file from disk instead of preserving it.
 
 ### Code Investigation & Root Cause
-In `apps/porthole-stage-capture/Sources/PortholeStageCore/ScreenCaptureSession.swift` (lines 1370–1425), the shutdown and finalization sequence was authored specifically for the automated CI synthetic proof harness (`SafeFixtureAttestor`), with a fail-closed gate that inadvertently destroys interactive recordings:
+In `apps/porthole-stage-capture/Sources/PortholeStageCore/ScreenCaptureSession.swift` (lines 1370–1425), the shutdown and finalization sequence was authored specifically for the automated CI synthetic proof harness (`SafeFixtureAttestor`), with a **fail-closed** (Saltzer & Schroeder, 1975 — *defaulting to denial or termination whenever an authorization or safety invariant cannot be positively verified*) gate that inadvertently destroys interactive recordings:
 
 ```swift
 // ScreenCaptureSession.swift lines 1372-1383:
