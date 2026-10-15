@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "archive": {
+    "path": ".scratch/visual-atlas/book-visual-atlas.zip",
+    "sha256": "3790b2bfdb15f56967b11c0d9057e94a0cc32f7401ea94ac3c63bc8619215bf4",
+    "bytes": 133750912,
+    "crc": "all2384entries passed",
+    "paths": "no absolute or parent traversal entries"
+  },
+  "relocatedPackage": ".scratch/visual-atlas-portable-check/book-visual-atlas",
+  "uiRegression": "PASS tracked scripts/book-visual-atlas/test.cjs on relocated site",
+  "inventoryRecords": 723,
+  "activeScored": 405,
+  "sourceSnapshots": 372,
+  "portableSourceReferencesChecked": 1331,
+  "machineSpecificEvidenceLinks": 0,
+  "sourceSnapshotHashes": "all match",
+  "inspectedLinks": [
+    {
+      "id": "v00210",
+      "path": ".scratch/visual-atlas-portable-check/book-visual-atlas/site/source-files/proofs/bonded/pareto/simulation.mjs",
+      "portable": true
+    },
+    {
+      "id": "v00716",
+      "path": ".scratch/visual-atlas-portable-check/book-visual-atlas/site/source-files/proofs/bonded/conservation/Conservation.run.log",
+      "portable": true
+    }
+  ],
+  "limits": [
+    "This bounded package smoke verifies portability and interactions; it does not certify research claims, rights, or physical print quality."
+  ],
+  "atlasSourceCommit": "91ac8e18442f411bffb8fa2ae04b307ff493f6f8",
+  "publicationStatus": "Local committed source and portable artifact. No push, PR, merge or deployment occurred; agent publication authority has not been established."
+}
