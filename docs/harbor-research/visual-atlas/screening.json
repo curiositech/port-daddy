@@ -1,0 +1,3052 @@
+{
+  "records": [
+    {
+      "id": "v00265",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00267",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00268",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00286",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00291",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00295",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00300",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00301",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00302",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00303",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00304",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00305",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00307",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00310",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00311",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "WAL commit and sync timeline",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00312",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "WAL timing bracket",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00313",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00316",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00318",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00320",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00321",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00322",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00323",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00324",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00325",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00326",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00327",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00328",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00329",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Possible sampling pulses",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00331",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00332",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00333",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00334",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00335",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00336",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00337",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00338",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00339",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00340",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00341",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00342",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00343",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00345",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00346",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00348",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00349",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00350",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00352",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00354",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00355",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00357",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00358",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00360",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00361",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00362",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00363",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00364",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00365",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Gossip convergence sketch",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00366",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00367",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00368",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00369",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00370",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00371",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00372",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00373",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00374",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00375",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00376",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00377",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00378",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00379",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00380",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00381",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00383",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00384",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00385",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00386",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00387",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00388",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00390",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00391",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00392",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00394",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00397",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00398",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00399",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00400",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00401",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00402",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00404",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00405",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00406",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00407",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00408",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00409",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00410",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Canary detection power",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00411",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00412",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00413",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Sequential likelihood-ratio trace",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00414",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Canary operating curve",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00416",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00417",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00418",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00419",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00420",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00421",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00422",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00425",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00426",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00427",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00428",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00429",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00430",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00431",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00432",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00433",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00434",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00435",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Consent admissibility region",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00437",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00438",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00439",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00441",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00442",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00443",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00444",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00445",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00446",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00447",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00448",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00449",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00450",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00451",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Survival comparison",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00452",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00453",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00454",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00455",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00456",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00457",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00458",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Escalation threshold",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00459",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00460",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00461",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00462",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00463",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00465",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00468",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00469",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00470",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00471",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00472",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00473",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00475",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00476",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00477",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00478",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00480",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00481",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00482",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00483",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00484",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00485",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00486",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00487",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00488",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00489",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00490",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00491",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00492",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00493",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00494",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00495",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00496",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00498",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00499",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00500",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00501",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00502",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00503",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00504",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00505",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00506",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00507",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Layer-ladder component is retained by complete margin exhibit v00702."
+    },
+    {
+      "id": "v00508",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00509",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00513",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00514",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00515",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Parent reputation split",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00516",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Reputation outcome A",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00517",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Reputation outcome B",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00518",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00519",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00520",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00523",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00524",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00525",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00526",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00527",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00528",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00530",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00531",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00532",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00533",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00534",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00537",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00538",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00539",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00540",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00541",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00542",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00543",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00544",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00545",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00546",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00547",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00548",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00549",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00550",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00551",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00552",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00553",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00554",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Auditor tower C=8",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00555",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Auditor tower C=2",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00556",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Auditor tower C=1",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00557",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00558",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00560",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00561",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00562",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00563",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00564",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Vector page furniture surrounding independently inventoried raster art; part-spread layout occurrence remains auditable."
+    },
+    {
+      "id": "v00565",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00567",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00568",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00571",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00573",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00574",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Naive succession allocation",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00575",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Corrected succession allocation",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00576",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00577",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00578",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00580",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00582",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00583",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00584",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00585",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00586",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00587",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00588",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "uncaptioned-table",
+      "purpose": "Partial settlement ledger",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00589",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00590",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00591",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00592",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00593",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00594",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00595",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00596",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00597",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00598",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00599",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00600",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00601",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00602",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00603",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00604",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00605",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00606",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00607",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00608",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00609",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00610",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00611",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00613",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00614",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00615",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00616",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00617",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00618",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00619",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00620",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00621",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00622",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00625",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00626",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00627",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00628",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00629",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00630",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00631",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00633",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00634",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Leak probability curve",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00635",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00636",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00639",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00640",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Discount threshold curve",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00641",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00642",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00643",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00644",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00646",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00650",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00651",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00652",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00653",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00654",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00655",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "chapter-title-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Large chapter numerals and restrained part color establish a consistent opening rhythm. This is navigation art and carries no quantitative evidence.",
+      "nextAction": "Review the family once with all9chapter-opening occurrences."
+    },
+    {
+      "id": "v00657",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00658",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00659",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00660",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00661",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00662",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00663",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00664",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00665",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00667",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00668",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00670",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00671",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00673",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00674",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00675",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00676",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Consistency radius curve",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00677",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00678",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00679",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00680",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00681",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00682",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00683",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00684",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00685",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00686",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00687",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00688",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00689",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Escrow payout split",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00690",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00691",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00692",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Card epoch and policy clocks",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00694",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00696",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "excluded": true,
+      "rationale": "Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration."
+    },
+    {
+      "id": "v00697",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Two-source contradiction certificate",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00698",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Path offsets counterexample",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00699",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Unsynced WAL vulnerability window",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00700",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Two-agent SQL admission sequence",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00701",
+      "evidence": "Visually inspected actual crop on all18vector contact sheets; every occurrence retained in atlas.",
+      "type": "margin-chart-or-diagram",
+      "purpose": "Continuity evidence pipeline",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "Rendered marks convey the named comparison; source/data lineage and legibility at actual margin size require verification. Small component crop is incomplete when it belongs to a larger panel.",
+      "nextAction": "Inspect full page, recover source, label assumptions and combine adjacent components before final design approval."
+    },
+    {
+      "id": "v00264",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00266",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00269",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00270",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00271",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00272",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00273",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00274",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00275",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00276",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00277",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00278",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00279",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00280",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00281",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00282",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00283",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00284",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00285",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00287",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00288",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00289",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00290",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00292",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00293",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00294",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00296",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00297",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00298",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00299",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00306",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00308",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00309",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00314",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00315",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00317",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00319",
+      "type": "portrait-or-historical-reference",
+      "score": 5,
+      "verdict": "revise",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00330",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00344",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00347",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00351",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00353",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00356",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00359",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00382",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00389",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00393",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00395",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00396",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00403",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00415",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00423",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00424",
+      "type": "object-analogy-illustration",
+      "score": 5,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00436",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00440",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00464",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00466",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00467",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00474",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00479",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00497",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00510",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00511",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00512",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00521",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00522",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00529",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00535",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00536",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00559",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00566",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00569",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00570",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00572",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00579",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00581",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00612",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00623",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00624",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00632",
+      "type": "portrait-or-historical-reference",
+      "score": 5,
+      "verdict": "revise",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00637",
+      "type": "portrait-or-historical-reference",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Photographic/historical credit supports attribution, but scale and tonal quality vary; inspect the full source licence and actual printed size.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00638",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00645",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00647",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00648",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00649",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00656",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00666",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00669",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00672",
+      "type": "cover-or-chapter-art",
+      "score": 7,
+      "verdict": "retain",
+      "rationale": "Consistent geometric grid, photographic texture and part color provide a deliberate visual family; repeated black slabs and narrow slivers deserve an editorial economy pass.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00693",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    },
+    {
+      "id": "v00695",
+      "type": "object-analogy-illustration",
+      "score": 6,
+      "verdict": "revise",
+      "rationale": "The object analogy has a coherent limited palette and distinct silhouette. It introduces no measured evidence; the adjacent prose must earn its space.",
+      "nextAction": "Verify matched asset provenance and examine full-size occurrence; these family-level contact-sheet scores are provisional.",
+      "evidence": "Visually inspected all6raster contact sheets; repeated assets share one family judgment with all occurrences retained."
+    }
+  ],
+  "scope": "Visual screening and provisional family judgments; no final publication approval."
+}

@@ -1,0 +1,33 @@
+{
+  "pass": true,
+  "counts": {
+    "items": 723,
+    "active": 405,
+    "excluded": 318
+  },
+  "sourceSnapshotsChecked": [
+    "file://.scratch/visual-atlas/site/source-files/.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+    "file://.scratch/visual-atlas/site/source-files/.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+    "file://.scratch/visual-atlas/site/source-files/whitepaper/figures/fig-swk-stack-map.tex",
+    "file://.scratch/visual-atlas/site/source-files/website-v2/public/whitepaper/figures/pd-swiss-evidence.tex",
+    "file://.scratch/visual-atlas/site/source-files/whitepaper/figures/fig-swk-stack-map.tex",
+    "file://.scratch/visual-atlas/site/source-files/website-v2/public/whitepaper/figures/pd-swiss-evidence.tex"
+  ],
+  "tests": [
+    "initial family",
+    "layer membership",
+    "8dimension table",
+    "human provenance",
+    "source snapshots exist",
+    "score overrides",
+    "storage reload",
+    "export/import roundtrip",
+    "compare",
+    "manual button/keyboard/drag",
+    "type override",
+    "excluded toggle",
+    "pagination",
+    "desktop/mobile overflow"
+  ],
+  "pageErrors": []
+}

@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "pdfSha256": "5c467da4e10998ba9bb59a18f54b8038e80e588c453f1d12082ccb489e5867e7",
+  "inventoryRecords": 723,
+  "rankedObjects": 405,
+  "scoredObjects": 405,
+  "excludedAuditRecords": 318,
+  "previewAndContextAssets": 1984,
+  "sourceSnapshots": 372,
+  "families": {
+    "Allocation and accounting": 12,
+    "Authority and containment": 6,
+    "Chapter panels": 9,
+    "Code and proof exhibits": 42,
+    "Comparison matrices": 77,
+    "Concept illustrations": 39,
+    "Decision flows": 20,
+    "Editorial plates": 38,
+    "Evidence and dependency graphs": 20,
+    "Layer systems": 5,
+    "Margin plots": 10,
+    "Message sequences": 15,
+    "Numerical result tables": 13,
+    "Portraits": 16,
+    "Quantitative plots": 30,
+    "Specification ledgers": 25,
+    "State machines": 8,
+    "Timelines and concurrency": 20
+  },
+  "provenanceStatuses": {
+    "source_located": 405
+  },
+  "errors": [],
+  "limits": [
+    "This verifies coverage, lineage and review structure, not aesthetic truth, external rights, or theorem correctness."
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "pdfSha256": "5c467da4e10998ba9bb59a18f54b8038e80e588c453f1d12082ccb489e5867e7",
+  "purpose": "Frozen editorial judgments and source census; operator overrides are separate exported JSON.",
+  "reviewSummary": {
+    "inventoryRecords": 723,
+    "reviewedRecords": 415,
+    "rankedObjects": 405,
+    "excludedRecords": 318,
+    "unreviewedRankedIds": [],
+    "sourceSnapshots": 372
+  },
+  "files": [
+    {
+      "path": "coverage.json",
+      "sha256": "779fde00dd34136ab5911576feb92f239f3e3a1e4fc0bd338341ace05df1f5da"
+    },
+    {
+      "path": "final-layout-report.json",
+      "sha256": "f593b64171c3905b552bba62efc328060e9e1f0ea9349c992a12ac0db973c260"
+    },
+    {
+      "path": "final-qa-result.json",
+      "sha256": "6dcb57a9f1bb3adff82296127c3628e4b0f0f92fd046c5a2b3830e6f2f0e5e82"
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "98a31ceac8bbe6b6b63c69b2ddec13a67f5ffcb4d04b7230623cd4db105b7351"
+    },
+    {
+      "path": "reproduction.json",
+      "sha256": "19366f917fcc4893a661258f3b0e6c91fff05051719eb6bde8bb2caa7d07c75f"
+    },
+    {
+      "path": "reviews/art.json",
+      "sha256": "bd82098fe642abbc71018e0bd4fdd01f4a3cc1f8fd58a62900c3d442150aad91"
+    },
+    {
+      "path": "reviews/figures-early.json",
+      "sha256": "8bd903d3e8fb99a5c0b672096f1c618e0d8d79f199ae6b9610d0485031740c1b"
+    },
+    {
+      "path": "reviews/figures-later.json",
+      "sha256": "c52d4e0e5ca8dd7ee48c0e2c99a297f46749a8242ff3089f4f2747ebaf37b703"
+    },
+    {
+      "path": "reviews/supplemental.json",
+      "sha256": "a42537704c055302dd8314bfa8c2808d9542b98faf42c97f5f632e26c0e8bb19"
+    },
+    {
+      "path": "reviews/tables.json",
+      "sha256": "cb3e51028b6c803d105c60cc42580c6845b2aa16897ccda408fe85b1f017ceda"
+    },
+    {
+      "path": "screening.json",
+      "sha256": "101701e8080127575f11871bd201aa0d6f59664d2f2fd3d632d5d1b7c743c24f"
+    },
+    {
+      "path": "validation.json",
+      "sha256": "4653f0b7701711eadaeed202173e9d9c3c3bc8a123055f6b7ab24fa4770d264d"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "light@1280": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "light@1100": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "light@860": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "light@720": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "light@390": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "dark@1280": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "dark@1100": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "dark@860": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "dark@720": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  },
+  "dark@390": {
+    "violations": [],
+    "counts": {
+      "collisions": 0,
+      "overflow": 0,
+      "escape": 0,
+      "pageScroll": 0
+    }
+  }
+}

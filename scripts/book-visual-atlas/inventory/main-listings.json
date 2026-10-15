@@ -1,0 +1,7 @@
+[
+ {"proposedId":"v00719","pdfDestination":"lstlisting.0.-1","page":76,"sourcePath":"whitepaper/chapter-0-prerequisites.tex","sourceLine":1056,"title":"Unsafe checkout/reset command example","classification":"Source example only; do not execute these commands"},
+ {"proposedId":"v00720","pdfDestination":"lstlisting.1.-2","page":110,"sourcePath":".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex","sourceLine":975,"title":"Claim-ticket SQL schema"},
+ {"proposedId":"v00721","pdfDestination":"lstlisting.1.-3","page":112,"sourcePath":".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex","sourceLine":986,"title":"Select oldest claim-ticket query"},
+ {"proposedId":"v00722","pdfDestination":"lstlisting.7.-4","page":583,"sourcePath":".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex","sourceLine":24382,"title":"Commons claim-ticket SQL schema"},
+ {"proposedId":"v00723","pdfDestination":"lstlisting.8.-5","page":672,"sourcePath":".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex","sourceLine":27799,"title":"Cycle versus cut-edge residual trace"}
+]
