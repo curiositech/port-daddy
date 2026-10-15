@@ -396,7 +396,7 @@ what the load ceiling protects. [internal]
 Let $R_t$ denote the authoritative Append-Only Event Log of revoked Harbor Card IDs at time $t$. Each daemon $d$ maintains a local, ephemeral cuckoo filter index $F_d \approx R_t$. Every Harbor Card verification additionally:
 \begin{enumerate}[nosep]
   \item Looks up the card's \texttt{kid} in $F_d$. If absent, admit.
-  \item If present, query the local \texttt{revocations} table (authoritative). If genuinely revoked, reject with \texttt{revoked}; otherwise the filter is in the false-positive regime and the caller is admitted, with an asynchronous reconciliation job repopulating the filter.
+  \item If present, query the local \texttt{revocations} table (authoritative). If genuinely revoked, reject with \texttt{revoked}; otherwise the \mbox{filter} is in the false-positive regime and the caller is admitted, with an asynchronous reconciliation job repopulating the filter.
 \end{enumerate}
 
 The two steps are an implementation discipline the daemon is built to keep --- the filter is only ever an index, never the authority --- and it is what makes a false positive a slower answer rather than a wrong one.
@@ -560,7 +560,7 @@ For the modeled delegation phase, ProVerif confirmed the correspondence:
 & \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
 
-The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled issuance/delegation event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
+The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled \mbox{issuance/delegation} event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
 \end{pdclaim}
 
 The three baseline protocol phases were independently verified in ProVerif 2.05.
