@@ -198,24 +198,19 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \vspace{0.3cm}
 \begin{table}[H]
 \centering
-\caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
+\caption{The system as four strata rather than four products. The final column lists the capabilities each layer provides to the layer above. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
 \label{tab:ls-stack-map}
 \footnotesize
-% 2pt, not the table's earlier 3.5pt: the seven rotated capability headers
-% (60 degrees each) plus nine column gaps at 3.5pt still overflowed the
-% measure by 14.7pt even after the Stratum column below became tabularx's
-% X -- the intercolumn padding, not the prose column, was the rest of it.
-\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{1.6pt}
-% seven capability columns at the width of a mark; their heads stand at 60 degrees
-\newcommand{\lscaphead}[1]{\rotatebox[origin=l]{60}{\textbf{#1}}}
-\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l *{7}{c}@{}}
+\renewcommand{\arraystretch}{1.22}\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}p{.24\linewidth}
+  >{\raggedright\arraybackslash}p{.20\linewidth} >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \lscaphead{state} & \lscaphead{order} & \lscaphead{identity} & \lscaphead{reason} & \lscaphead{outcome} & \lscaphead{reputation} & \lscaphead{exchange} \\
+\textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \textbf{Capabilities} \\
 \midrule
-L3 & economy \& federation & the market & & & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ \\
-L2 & legibility \& authority (this chapter) & the operator & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & & \\
-L1 & coordination protocol & the agents & $\bullet$ & $\bullet$ & $\bullet$ & & & & \\
-L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
+L3 & Economy and federation & The market & Identity, reason, outcome, reputation, exchange \\
+L2 & Legibility and authority & The operator & State, order, identity, reason, outcome \\
+L1 & Coordination protocol & The agents & State, order, identity \\
+L0 & Daemon kernel & The machine & State, order \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1576,12 +1571,12 @@ distribution and the catch-rate is one signal among several, never the sole gate
 \subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
 
 Digest-with-zoom can organize current state and its supporting evidence; it does
-not establish what an operator understands. Endsley distinguishes perception,
-comprehension, and projection of future states, and treats situation awareness,
-decision-making, and performance as distinct stages.\pdcite{endsley1995}
-In Endsley and Kiris's navigation experiment, fully automated control produced
-poorer comprehension than manual control, but no significant perception
-difference.\pdcite{endsleykiris1995} That result motivates caution about passive
+not establish what an operator understands. Endsley\pdcite{endsley1995}
+distinguishes perception, comprehension, and projection of future states, and
+treats situation awareness, decision-making, and performance as distinct stages.
+In Endsley and Kiris's navigation experiment,\pdcite{endsleykiris1995}
+fully automated control produced poorer comprehension than manual control, but
+no significant perception difference. That result motivates caution about passive
 supervision; it does not show that every present-focused digest destroys awareness.
 
 Our \emph{design hypothesis} is that an explicit projection mode would help an
@@ -2548,9 +2543,9 @@ against burnt toast waking you at three in the morning. Three relations transfer
 Expected loss is magnitude times probability, so the alarm must weigh what it would
 cost to be wrong, not merely how unusual the reading is. Raising the cost of the
 fire \emph{lowers} the threshold at which the alarm should sound; the dial moves
-toward hair-trigger, not away from it. And a detector that cries wolf is not
-miscalibrated in sensitivity but in probability, because the number it reports is
-not the chance of a fire. The misread to preempt: a better sensor does not remove
+toward hair-trigger, not away from it. A false alarm alone does not establish miscalibration: even a calibrated
+posterior can cross a low decision threshold when fires are costly. Calibration
+and the choice of threshold need separate checks. The misread to preempt: a better sensor does not remove
 the trade-off. A perfect sensor still needs the cost ratio to know where to trip.
 
 \begin{pdclaim}{Theorem}{The Regret Head}
@@ -2561,6 +2556,10 @@ For an unreviewed item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot
 $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior,
 $c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the
 non-attention cost of inspecting a good item, with all costs nonnegative.
+Assume inspection completely averts the bad item's loss, passing a good item
+has zero loss, and inspection has no costs beyond those stated. If inspection
+can miss or only partly remedy a fault, its remaining expected loss must also
+enter the comparison. Use inspect-on-tie throughout.
 
 The expected unrecoverable loss of
 passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and, among all policies that
@@ -2577,11 +2576,25 @@ a(x)&\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}
 where the second line assumes $C_{\mathrm{miss}}(x)+C_{\mathrm{fa}}>0$.
 
 This is the Bayes cost threshold. If both loss terms are zero, inspect only
-when attention is also free, using the stated inspect-on-tie rule. The product form
-$\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$ of Eq.~\ref{eq:regret}
-is the exact ranking key iff $\mathrm{anomaly}=a$; any other anomaly scalar $s$
-requires the correction $C_{\mathrm{miss}}\cdot g(s)$ with $g$ the empirical
-calibration map fit from the audit log.
+when attention is also free, using the stated inspect-on-tie rule. When
+$\mathrm{anomaly}=a$, the product in Eq.~\ref{eq:regret} equals the expected
+loss of passing. Equality of numerical risk estimates is stronger than
+agreement of rankings: multiplying every anomaly by the same positive
+constant preserves this product's ordering. An uncalibrated score alone does
+not determine the Bayes threshold; its posterior interpretation must be
+established separately.
+
+For a finite batch with additive expected losses and at most $k$ equal-cost
+inspection slots, define the benefit of inspecting item $i$ by
+\[
+  b_i=C_{\mathrm{miss},i}a_i-c_{\mathrm{att},i}
+       -C_{\mathrm{fa},i}(1-a_i).
+\]
+Under the same inspection model, an optimal allocation selects up to $k$
+items with the largest positive $b_i$. Items with zero benefit may be included
+without changing expected loss. This allocation assumes that inspecting one
+item does not change another item's costs or evidence. Unequal resource
+requirements lead to a separate constrained allocation problem.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2590,22 +2603,22 @@ inspecting is $c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a(x))$. Collect the terms in $
 to obtain $(C_{\mathrm{miss}}(x)+C_{\mathrm{fa}})a(x)\ge
 c_{\mathrm{att}}+C_{\mathrm{fa}}$.
 
-Gating on the product with $\mathrm{anomaly}=a$ against the threshold
-$\tau=c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a)$ reproduces the inequality; with any
-other $s$ the same inequality holds only after $s$ is mapped back to $a$, which is
-what $g$ does.
+For the batch, the expected loss without inspection is fixed, and inspecting
+a set $A$ reduces it by $\sum_{i\in A}b_i$. A negative-benefit inspection can
+be removed; replacing a selected lower-benefit item by an unselected
+higher-benefit item improves the objective. Repeated exchanges give the
+stated allocation. No independence between item outcomes is needed for this
+additive expectation, but the no-cross-effect assumption is essential.
 \end{proof}
 
 Note the direction the inequality runs: raising the miss-to-false-alarm cost ratio
 \emph{lowers} the bar to inspect, the formal version of ``when a mistake is
 unrecoverable, look at more things.'' Raising that bar instead would reverse the
-intended response to costly misses. The theorem is single-shot
-(Neyman--Pearson); operator oversight is a stream of items, and the natural
-sequential extension --- optimal expected sample size under fixed error-rate
-constraints, time-varying thresholds included --- is Wald's Sequential
-Probability Ratio Test~\pdcite{wald1947}, which the Inception Canary and escalation
-designs (\S\ref{sec:escalation}) already resemble structurally without invoking
-it by name.
+intended response to costly misses. The per-item rule is a single-shot Bayesian decision rule. Sequential
+oversight needs its own observation and stopping model. Wald's sequential
+probability ratio test~\pdcite{wald1947} supplies a classical benchmark under
+specified simple hypotheses and sampling assumptions; its optimality does
+not automatically transfer to adaptive or dependent agent telemetry.
 
 \begin{pdexample}{The Inspection Bar, at the Chapter's Running Costs}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2636,54 +2649,56 @@ operator's right to pass.)
 
 \noindent\textbf{What this does not say.} The theorem does not say the operator
 should inspect more. It says the \emph{threshold} moves; whether a moving threshold
-means more opens depends entirely on where the posterior mass sits, and an
-uncalibrated $a$ moves the threshold without moving the decision it was supposed
-to move. Nor does it license tuning: with a miscalibrated anomaly score the product
-form is wrong by precisely the miscalibration, and a confidently ranked queue is
-worse than an unranked one because it has borrowed the authority of a proof.
+means more opens depends entirely on where the posterior mass sits. An uncalibrated anomaly score does not justify treating its numerical
+value as $a$. Miscalibration changes the estimated passing loss by
+$C_{\mathrm{miss}}(\mathrm{anomaly}-a)$ and can change the selected actions.
 Fitting $g$ from the audit log is a measured obligation of the design.
 
-\begin{pdclaim}{Theorem}{Reputation Enters Only through the Posterior}
+\begin{pdclaim}{Theorem}{Reputation under Fixed Inspection Costs}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:reputation-posterior}
-If agent reputation $r$ is admitted to the attention queue, it enters as
-$a(x)=\Pr(\mathsf{bad}\mid\text{evidence},r)$ and never as a free multiplier on the
-score.
-
-High reputation lowers surfacing frequency only where the calibrated
-posterior actually falls, and it cannot zero a term: with $\mathrm{irrev}(x)=1$ and
-catastrophic stakes, $C_{\mathrm{miss}}(x)\,a(x)$ stays above threshold for any
-$a(x)$ bounded away from zero.
+Under Theorem~\ref{thm:regret-head}'s inspection model, suppose reputation
+$r$ changes only the posterior $a(e,r)=\Pr(\mathsf{bad}\mid e,r)$; costs are
+fixed. Its contribution to the optimal decision is through
+\[
+ b(e,r)=C_{\mathrm{miss}}a(e,r)-c_{\mathrm{att}}
+            -C_{\mathrm{fa}}(1-a(e,r)):
+ \qquad\text{inspect iff }b(e,r)\ge0.
+\]
+If $a(e,r)\ge\epsilon>0$, inspection follows whenever
+\[
+ C_{\mathrm{miss}}\ge
+ \frac{c_{\mathrm{att}}+C_{\mathrm{fa}}(1-\epsilon)}{\epsilon}.
+\]
+The large-stakes conclusion assumes the other costs stay bounded
+independently of the stakes.
 \end{pdclaim}
 \begin{proof}
-\setlength{\parskip}{4pt plus 1pt}
-Theorem~\ref{thm:regret-head} admits exactly one channel for evidence, the
-posterior $a$; a multiplier outside it would change the ranking key away from
-expected loss, which is what the theorem shows the key must be.
-
-The second claim is
-the inequality read at fixed $a>0$ with $C_{\mathrm{miss}}$ large.
+Substitute the reputation-conditioned posterior into the Bayes rule.
+The benefit is increasing in $a$ because $C_{\mathrm{miss}}+C_{\mathrm{fa}}
+\ge0$; substituting its lower bound proves the second inequality.
 \end{proof}
-This is the formal content of ``reputation must not defeat hard stakes gates,'' and
-it is the reason the reputation layer of the next part hands this chapter a
-posterior, not a discount.
+The optimal decision does not have a unique numerical representation: positive
+rescaling of $b$ preserves its sign and ordering. A model in which reputation
+also changes inspection costs must state those costs. A mandatory stakes gate
+is a separate policy constraint when no positive posterior lower bound is
+available.
 
-\begin{protocol}{Attention-queue ranking with miss-cost}
-On each refresh, given the live set of items and the operator's per-class trust
-history:
+\begin{protocol}{Attention allocation under the stated loss model}
+On each refresh, for the current candidate set:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
-\item \textbf{Generate.} Pull candidate items from the shared substrate, each tagged
-with a recency weight $\propto e^{-\lambda\,\text{hoursAgo}}$ (Invariant~\ref{prop:decay}).
-\item \textbf{Score by regret.} For each item $x$ compute
-$\mathrm{regret}(x)=\mathrm{stakes}(x)\cdot\mathrm{irreversibility}(x)\cdot\mathrm{anomaly}(x)$
-(Eq.~\ref{eq:regret}).
-\item \textbf{Apply the cost matrix.} Convert regret to a forced-zoom probability via
-the Signal-Detection criterion of Invariant~\ref{def:sdt}: the higher
-$C_{\text{miss}}/C_{\text{fa}}$ for the item's action class, the more aggressively it
-is surfaced --- the miss-cost term, not raw rank, decides what interrupts.
-\item \textbf{Lane and emit.} Place items above the distress threshold on the reserved
-high-priority lane; emit the rest in regret order. Log what was \emph{not} surfaced
-and why (the suppression counter-surface of \S\ref{sec:consent-canon}).
+\item \textbf{Assemble evidence.} Record provenance and freshness; use them
+in a calibrated posterior. A recency weight alone is not a probability.
+\item \textbf{Compute loss and benefit.} Display expected passing loss
+$C_{\mathrm{miss}}a$ and compute the inspection benefit
+$b=C_{\mathrm{miss}}a-c_{\mathrm{att}}-C_{\mathrm{fa}}(1-a)$.
+\item \textbf{Allocate.} For at most $k$ equal-resource inspection slots,
+select the largest positive benefits. With unequal resource requirements,
+solve the corresponding constrained allocation problem.
+\item \textbf{Apply declared overrides.} Mandatory review or distress-lane
+rules are additional policy constraints. Record their resource use and the
+reason for every suppressed item; do not credit an override to the
+unconstrained Bayes theorem.
 \end{enumerate}
 \end{protocol}
 
@@ -3592,7 +3607,17 @@ State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function
 each head optimizes.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-split-ranker-statement}
-No monotone scalar transform can identify collaborator fit and operator regret on a domain containing both high-fit/low-risk and low-fit/high-risk items, so one ranker cannot serve both jobs. Discovery minimizes routing loss (or maximizes capability fit); the attention head minimizes expected loss from \emph{not} inspecting, and its rank is the ratio of expected loss avoided by inspecting to the operator-seconds inspection costs, with Theorem~\ref{thm:regret-head} fixing the numerator per item; raw stakes times anomaly is not that quantity.
+No monotone scalar transform can identify collaborator fit and operator regret
+on a domain containing both high-fit/low-risk and low-fit/high-risk items, so
+one ranker cannot serve both jobs. Discovery minimizes routing loss (or
+maximizes capability fit). The attention head minimizes total expected loss
+including inspection costs. Under Theorem~\ref{thm:regret-head}'s additive,
+no-cross-effect assumptions, at most $k$ equal-resource slots go to the largest
+positive inspection benefits $b_i$. Unequal inspection times require a
+constrained allocation. Benefit-per-second ranking alone is not generally
+optimal for indivisible inspections: benefits $(3,4)$, times $(2,3)$ seconds,
+and a three-second budget make ratio-greedy select benefit~$3$, while the
+second item alone yields~$4$.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-goodhart-exposure}
 Why is the attention queue more Goodhart-exposed than the

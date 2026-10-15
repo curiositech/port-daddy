@@ -34,14 +34,9 @@ b_dep	sybilCount	mean_sybil_wins	mean_sybil_premium	mean_sybil_deposit_lost	mean
 # - attack_profitable_rate: fraction of trials with sybilNet > 0
 # - commons_deficit: under-compensation suffered by commons when sybil wins
 
-# Closed-form check (single-class, expected-value):
-#   B_dep* = q* · (1 − P_loss) / P_loss
-#   low-risk  (P=0.05, q*≈1):    B_dep* ≈ 19.0
-#   med-risk  (P=0.10, q*≈10):   B_dep* ≈ 90.0
-#   high-risk (P=0.20, q*≈100):  B_dep* ≈ 400.0
-# Empirical breakeven from the sweep should bracket the mixed-class
-# average between med and high (since high-risk dominates expected loss).
-
-# Headline: protocol must enforce B_dep ≥ ~200 USD per insurer
-# identity to make Sybil unprofitable across the full risk mix.
-# This is the empirical lower bound that closes A5.
+# Fixed-class check, premium retained on default:
+#   E[profit] = q - p * min(B_dep, coverage)
+#   If q > p * coverage, no capped deposit deters this attack.
+# Full forfeiture is a different contract: E[profit] = q - p*B_dep.
+# Example q=10, p=.1, coverage=20, B_dep=110: capped +8, full -1.
+# This sweep does not prove a composite Sybil policy sufficient.

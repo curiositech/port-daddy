@@ -10,29 +10,25 @@
  *   posts the protocol-mandated deposit B_dep, then bids aggressively
  *   (1 − epsilon below honest cost) to win auctions. On loss, the
  *   Sybil defaults: pays nothing, forfeits its deposit, the protocol
- *   slashes B_dep to the commons.
+ *   slashes min(B_dep, coverage) to the commons.
  *
- * What we want
- *   The deposit lower bound B_dep* below which Sybil attacks are
- *   net-profitable. Above B_dep*, the expected forfeited-deposit cost
- *   exceeds the expected premium revenue, so a rational adversary
- *   does not run the attack.
- *
- *   Sybil attacker profit per round (one Sybil winning):
- *     E[profit] = q*(1 − P_loss) − B_dep · P_loss
- *
- *   where q* is the Vickrey premium and P_loss is the realized loss
- *   probability for the covered transaction. The Sybil is net-zero at
- *
- *     B_dep* = q* · (1 − P_loss) / P_loss
- *
- *   This sim measures B_dep* empirically across risk classes and
- *   shows the floor protocols must enforce to make Sybil unprofitable.
+ * Contract and interpretation
+ *   Premium is retained on every winning transaction, including default.
+ *   Default forfeits min(B_dep, coverage). Capital is replenished for each
+ *   transaction; funding and entry costs are zero. For fixed q, p, coverage:
+ *     E[profit] = q - p * min(B_dep, coverage).
+ *   Increasing deposit cannot deter the attack when q > p * coverage.
+ *   Under a DIFFERENT full-forfeiture contract, E[profit] = q - p * B_dep,
+ *   whose break-even is B_dep = q / p. This sweep tests the capped rule only.
+ *   Bids use mu (conditional loss scale), not actuarially fair payouts, so
+ *   these inputs do not establish a competitive-insurance equilibrium.
  *
  * Run:
  *   node proofs/bonded/pareto/simulation-sybil.mjs \
  *     > proofs/bonded/pareto/simulation-sybil.run.log
  */
+
+import { pathToFileURL } from 'node:url';
 
 const TRIALS_PER_CONFIG = 2000;
 const TXNS_PER_TRIAL = 50;
@@ -81,11 +77,11 @@ function realizedLoss(txn, rng) {
  * Returns { winnerIsSybil, premium, payout, deposit_at_risk }.
  *
  * Sybil bids honestlyMin * (1 − epsilon), guaranteed-undercut. On
- * loss, Sybil defaults — payout to commons is zero and the protocol
- * slashes the Sybil's deposit (B_dep). On no-loss, the Sybil pockets
- * the premium and the deposit stays parked.
+ * loss, the protocol transfers min(B_dep, coverage) to the commons.
+ * The Sybil keeps the premium in either outcome; unslashed capital remains
+ * its property. Deposits are replenished for every transaction.
  */
-function runAuction(txn, honestInsurers, sybilCount, b_dep, rng) {
+export function runAuction(txn, honestInsurers, sybilCount, b_dep, rng) {
   const coverage = txn.mu * (1 + SAFETY_FACTOR);
   const honestBids = honestInsurers.map((ins) => ({
     id: `h${ins.id}`,
@@ -182,9 +178,7 @@ function runTrial({ seed, n_honest, sybilCount, b_dep }) {
 }
 
 function runSweep() {
-  // Sweep deposit B_dep across a range that brackets the breakeven
-  // for each risk class. At low B_dep, Sybil is profitable; we want
-  // the smallest B_dep where attack-profit goes negative.
+  // Sweep capped deposits; saturation does not imply deterrence.
   const depositSweep = [0.5, 1, 2, 5, 10, 25, 50, 100, 200, 500, 1000];
   const configs = [];
   for (const b_dep of depositSweep) {
@@ -250,17 +244,13 @@ function runSweep() {
   console.log('# - attack_profitable_rate: fraction of trials with sybilNet > 0');
   console.log('# - commons_deficit: under-compensation suffered by commons when sybil wins');
   console.log('');
-  console.log('# Closed-form check (single-class, expected-value):');
-  console.log('#   B_dep* = q* · (1 − P_loss) / P_loss');
-  console.log('#   low-risk  (P=0.05, q*≈1):    B_dep* ≈ 19.0');
-  console.log('#   med-risk  (P=0.10, q*≈10):   B_dep* ≈ 90.0');
-  console.log('#   high-risk (P=0.20, q*≈100):  B_dep* ≈ 400.0');
-  console.log('# Empirical breakeven from the sweep should bracket the mixed-class');
-  console.log('# average between med and high (since high-risk dominates expected loss).');
-  console.log('');
-  console.log('# Headline: protocol must enforce B_dep ≥ ~200 USD per insurer');
-  console.log('# identity to make Sybil unprofitable across the full risk mix.');
-  console.log('# This is the empirical lower bound that closes A5.');
+  console.log('# Fixed-class check, premium retained on default:');
+  console.log('#   E[profit] = q - p * min(B_dep, coverage)');
+  console.log('#   If q > p * coverage, no capped deposit deters this attack.');
+  console.log('# Full forfeiture is a different contract: E[profit] = q - p*B_dep.');
+  console.log('# Example q=10, p=.1, coverage=20, B_dep=110: capped +8, full -1.');
+  console.log('# This sweep does not prove a composite Sybil policy sufficient.');
+
 }
 
-runSweep();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) runSweep();

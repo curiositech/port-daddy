@@ -3,7 +3,7 @@
 % results; edit every listed home or the drift checker fails.
 %   Standalone paper : docs/harbor-research/tex/paper2.tex (S5 the theorem)
 %   Chapter          : whitepaper/single-writer-kernel.tex (this file;
-%                       "Synchronous State Decidability -- closing OP-2")
+%                       "Synchronous guard sufficiency")
 %   Index ids        : R5
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %                       python3 scripts/harbor-research/check_propagated_corrections.py
@@ -537,44 +537,41 @@ Let a write return success under the default WAL configuration.
   \item \textbf{I1b (power-loss durability).} If the \emph{operating system}
   crashes or power is lost \emph{before the next checkpoint}, the most recent
   committed writes may roll back. \NotGuar{} under the normal synchronization
-  level; it would require full synchronization or a checkpoint on the commit path.
+  level. A stronger acknowledgement must wait for the required synchronization
+  and verify its completion under the storage fault model.
 \end{itemize}
 \end{property}
 \paragraph{Worked dramatization: \texttt{claude:editor} crashes mid-write.}
-$\alpha_{\text{editor}}$ (\texttt{claude:editor}) is an autonomous agent editing \texttt{src/auth.ts}. At $t_0$ it commits a claim on port~7421 and a note recording its edit (\texttt{POST /notes \{"text":"Refactoring JWT verification"\}}); the daemon returns success. At $t_0+5\,\mathrm{ms}$ its host operating system kills the daemon process outright --- a forced termination, no clean shutdown. \emph{What survives?} Both writes. The committed pages live in the operating system's page cache, which the daemon process does not own and does not take with it when it dies; when the supervisor restarts the daemon, SQLite finds a dirty log, replays it, and \texttt{claude:editor}'s claim and note are intact. This is I1a, and it is the fault class the design actually targets: agents die constantly, and the record must outlive them. Now change one detail. At $t_0+5\,\mathrm{ms}$, instead of the daemon dying, \emph{the power fails}. The committed pages were in the page cache but had not yet reached stable storage, because under the normal synchronization level the log is fsync'd only at the next checkpoint. On reboot, the database is uncorrupted --- but \texttt{claude:editor}'s last claim and note may simply be gone, rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. The two faults differ only in whether the page cache survived; conflating them is the single most common over-claim about WAL-backed storage.
+$\alpha_{\text{editor}}$ (\texttt{claude:editor}) is an autonomous agent editing \texttt{src/auth.ts}. At $t_0$ it commits a claim on port~7421 and a note recording its edit (\texttt{POST /notes \{"text":"Refactoring JWT verification"\}}); the daemon returns success. At $t_0+5\,\mathrm{ms}$ its host operating system kills the daemon process outright --- a forced termination, no clean shutdown. \emph{What survives?} Both writes. The committed pages live in the operating system's page cache, which the daemon process does not own and does not take with it when it dies; when the supervisor restarts the daemon, SQLite recovers the committed log state, and \texttt{claude:editor}'s claim and note are intact. This is I1a, and it is the fault class the design actually targets: agents die constantly, and the record must outlive them. Now change one detail. At $t_0+5\,\mathrm{ms}$, instead of the daemon dying, \emph{the power fails}. The committed pages were in the page cache but had not yet reached stable storage, because under the normal synchronization level the log is fsync'd only at the next checkpoint. On reboot, the database is uncorrupted --- but \texttt{claude:editor}'s last claim and note may simply be gone, rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. The two faults differ only in whether the page cache survived; conflating them is the single most common over-claim about WAL-backed storage.
 \input{figures/fig-swk-durability-dramatization}
 \pitfall[Power loss can erase commits]{The seductive misconception is ``the normal sync level is safe in WAL mode
 because WAL already guarantees crash safety.'' This conflates crash-\emph{consistency}
-(true: the database is never corrupt) with \emph{durability} (false for power loss).
-The two are different ACID guarantees, and only the first is unconditional here. A
-systems paper cannot ship the unqualified claim. We split it.}
+(the documented crash-consistency property) with \emph{durability} (which
+NORMAL does not guarantee under power loss). Both depend on SQLite's filesystem
+and storage assumptions. A successful process-crash recovery does not establish
+power-loss durability.}
 \subsection{Why the trade is defensible --- and where it stops being so}
-Trading power-loss durability for throughput is a reasonable default for a
-local-first developer tool: the failure (lose the last few hundred milliseconds of
-claims after a power cut) is benign and self-correcting --- agents re-claim,
-heartbeats resume. What is \emph{not} defensible is letting the prose imply the
-stronger guarantee --- and for the few paths that genuinely need I1b, the right fix
-is a per-write-path selector rather than a global change of synchronization level.
-The design, \textbf{Selective Checkpointing} (\Designed, OP-10), is small: a
-high-stakes, money-bearing write path --- a settlement-ledger entry, say --- appends
-\texttt{PRAGMA wal\_checkpoint(FULL);} to its commit path, forcing a synchronous
-flush to disk, while claim, marker, and note writes keep the fast default. Two
-things must be said plainly about it. First, \emph{no write path in the reference
-implementation opts in today}: the only checkpoints it issues are the bounded
-auto-checkpoint, a passive checkpoint on the maintenance path, and the
-clean-shutdown truncate (Appendix~\ref{app:status}). Second, even once a path opts
-in, the guarantee it buys is \emph{per path}: Property~\ref{prop:durability}
-continues to govern every path that does not, so I1b remains \NotGuar{} for the
-kernel as a whole, and a table row or a figure that says otherwise is wrong. OP-10
-stays \Open{} until both the selector and an interface that stops a \emph{new} write
-path from silently defaulting into the fast lane exist. Table~\ref{tab:swk-selective-checkpoint}
-states the selector's shape, not a status report.
+The acceptable fault class is a policy choice. Ordinary claims may tolerate
+loss after a host failure; financial settlement may not. The loss interval under
+\texttt{NORMAL} is not a fixed number of milliseconds.
+
+OP-10 proposes a typed durability selector. A money-bearing transaction uses
+a connection configured with \texttt{synchronous=FULL} before the transaction
+begins, and success is returned only after commit succeeds. In WAL mode, this
+requests per-commit synchronization, subject to the storage stack honoring it.
+Ordinary coordination writes may retain \texttt{NORMAL}.
+
+\texttt{wal\_checkpoint(FULL)} names a checkpoint mode, not the connection's
+synchronization setting. It is not a substitute for a typed commit contract;
+checkpoint completion, errors, and concurrent readers must be handled explicitly.
+The reference implementation has no per-write durability selector today. OP-10
+remains \Open{} pending an interface that requires each path to name its fault
+class, configuration checks, and host-failure tests. Table~\ref{tab:swk-selective-checkpoint}
+states this proposed interface rather than deployed behavior.
 \begin{table}[H]
 \centering
-\caption{Selective Checkpointing (OP-10, \Designed): the write-path selector
-it specifies, not a status report. \emph{No path opts in today} --- this is
-the design's shape, not the reference implementation's current behavior.
-[internal]}
+\caption{Typed durability selection (OP-10, \Designed). Connection settings
+are established before opening the transaction. No per-write selector is deployed. [internal]}
 \label{tab:swk-selective-checkpoint}
 \small
 \renewcommand{\arraystretch}{1.2}
@@ -583,13 +580,13 @@ the design's shape, not the reference implementation's current behavior.
 \textbf{write-path kind} & \textbf{sync level it would opt into} \\
 \midrule
 claim, marker, note (ordinary) & \texttt{NORMAL} (the fast default; unchanged) \\
-settlement-ledger entry (money-bearing) & \texttt{FULL} on that commit (\texttt{PRAGMA wal\_checkpoint(FULL)}) \\
+settlement-ledger entry (money-bearing) & \texttt{synchronous=FULL} on the transaction's connection; acknowledge after successful commit \\
 \bottomrule
 \end{tabularx}
 \end{table}
 \subsection{A recovery story, not just a durability story}
 Durability is about what survives; recovery is about what happens next. On daemon
-restart with a dirty WAL, SQLite replays the log to a consistent state (I1a's
+restart with a WAL, SQLite recovers the valid committed state (I1a's
 mechanism). But the kernel-level questions are larger: who validates the audit
 chain on boot, and what becomes of a half-applied cross-subsystem operation
 (\S\ref{sec:atomicity}) after a crash? The hook exists --- the boot-admission gate
@@ -678,7 +675,6 @@ chapter calls the number an \emph{epoch} because it is kept per resource and
 survives reallocation, but the protocol shape is the same one: acquire, receive
 a monotone number, present it with every effect, get refused when it is stale.
 
-\pdmarginanalogy{swk-railway-token-staff}{}{ch01-railway-token-staff}{Like an English railway token staff, possession of the token is the sole physical authority to occupy the single track, preventing collision without distributed consensus.}%
 \begin{theorem}[Atomic Mutual Exclusion and Fenced Leases]\label{thm:exclusion}
 \setlength{\parskip}{4pt plus 1pt}
 Within a canonical conflict domain (exact normalized key, transactional interval overlap $[a, b] \cap [c, d] \neq \emptyset$, or path prefix hierarchy), at most one holder can hold an active lease at any logical instant.
@@ -700,6 +696,8 @@ Upon grant or reallocation, the daemon increments the resource's fencing epoch $
 Figure~\ref{fig:swk-fencing-epoch} isolates that guard as a four-step
 sequence: the epoch, not the lock, is what a paused holder's late effect
 cannot get past.
+
+\pdmarginanalogy{swk-railway-token-staff}{}{ch01-railway-token-staff}{Like an English railway token staff, possession of the token is the sole physical authority to occupy the single track, preventing collision without distributed consensus.}%
 
 What differs from Chubby is the setting, and it is worth being exact about how
 much smaller our problem is. Chubby's sequencer and Raft's leader term fence
@@ -1084,19 +1082,37 @@ window, then halted or compensated'' for the rest. Crediting double-claim
 prevention to the monitor \emph{double-counts} --- the uniqueness constraint
 already did it; the monitor merely logs it.}
 
-\begin{theorem}[Synchronous State Decidability --- closing OP-2]\label{thm:decidability}
-\setlength{\parskip}{4pt plus 1pt}
-A safety invariant $\phi$ is \textbf{regimentable} (strictly preventable pre-commit, making violation states physically unreachable) if and only if $\phi(S, \Delta)$ is a pure, deterministic boolean predicate decidable solely over the daemon's local, synchronous, committed database state $S$ and the incoming transaction payload $\Delta$. 
-
-Conversely, any invariant requiring external I/O, asynchronous wall-clock verification, distributed consensus, or non-deterministic grading oracles is strictly \textbf{enforceable} (post-commit, detect-and-compensate).
+\begin{theorem}[Synchronous guard sufficiency]\label{thm:decidability}
+Let $I(S)$ be an invariant of the committed database state, initially true.
+Assume every relevant transition $S\mapsto T(S,\Delta)$ passes through a
+serialized transaction that evaluates a terminating deterministic guard on
+that transaction's state and payload. If the guard admits $\Delta$ only when
+$I(T(S,\Delta))$ holds, and rejection has no relevant external effect, then
+$I$ holds after every committed transition.
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-\setlength{\parskip}{4pt plus 1pt}
-In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation.
-
-If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}.
+\begin{proof}[Proof idea and proof]
+The guard checks the state that the transaction will actually commit, rather
+than a stale state read outside the transaction. Induct on the number of
+commits. The initial state satisfies $I$. An admitted transaction preserves
+$I$ by hypothesis; a rejected transaction leaves the committed state
+unchanged. Serialization orders these steps, so the induction applies to
+every committed state. The conclusion concerns only effects inside this
+mediated transition system: writing a receipt does not make an arbitrary
+filesystem or remote effect atomic with the database transaction.
 \end{proof}
+
+This is a sufficient condition for a synchronous admission guard, not a
+necessary condition for prevention. An operation may remain pending while
+an external authority issues a permit bound to its identifier and payload;
+the executor can verify the permit and admit the effect only afterwards.
+Timeout can refuse admission. When permission depends on mutable external
+state, the protocol must additionally specify freshness, reservation or
+fencing so that the checked permission still authorizes the actual effect.
+External I/O can therefore increase latency or reduce availability without
+forcing a forbidden effect to occur before its check. The general boundary
+is controllability and observation, as developed next.
+
 
 % ---------------------------------------------------------------------------
 % Wave 2 fold: research paper 2 (R5, "Regimented or Enforced") into the kernel
@@ -1106,7 +1122,8 @@ If $\phi$ depends on external network I/O or asynchronous delays, holding the ex
 \subsection{The general boundary: regimentation is controllability}
 \label{sec:controllability}
 
-\noindent\emph{Express lane: a governance rule can be enforced by prevention exactly when no
+\noindent\emph{Express lane: a runtime can realize the whole permitted safety
+language exactly when no
 \pdmarginfigure{wonham}{Wonham's supervisory-control theory, built for factory floors, is why a software policy can be proved enforceable rather than hoped.}%
 event the runtime cannot refuse can carry a legal history out of the rule; that is
 Ramadge--Wonham controllability with the model's own steps as the uncontrollable alphabet.
@@ -1119,16 +1136,18 @@ network egress from sandboxed jobs. No writes outside the granted scope.} And th
 confident falsehoods in status reports.} She asks the question every practitioner senses the
 answer to: which of these does the runtime \emph{guarantee}, and which does it merely
 \emph{watch for}? The first three feel airtight. The daemon holds the remote credential, so a
-push that never happens needs no forgiveness. The fourth is not airtight and never will be:
-the falsehood is composed inside the model's forward pass, and by the time any mediator sees
-tokens the falsehood already exists. Theorem~\ref{thm:decidability} settled this for one
+push that never happens needs no forgiveness. The fourth needs a more precise event boundary. A mediator cannot prevent
+an unobserved internal model event in this plant. It may nevertheless refuse
+to publish an unverified report, or allow only registered facts with checked
+evidence. Generating a false candidate and delivering it are different events. Theorem~\ref{thm:decidability} settled this for one
 door, the database commit. This section settles it for every door a runtime can stand at,
 and the instinct turns out to be an instance of a theorem from 1987.
 
 \paragraph{The idea in one breath.}
 \emph{Split the agent's events into what the runtime can refuse and what it cannot; a safety
-rule is preventable if and only if no unrefusable event can carry a legal history out of the
-rule.}
+language is exactly realizable if and only if no unrefusable event can carry
+a permitted history out of it. A stricter supervisor may preserve safety while
+sacrificing some permitted histories.}
 
 \paragraph{Intuition: the bouncer at the one door.}
 A club has one door and a bouncer. The bouncer can refuse \emph{entry}: entry is mediated by
@@ -1238,8 +1257,11 @@ The proof is structured; each numbered step can be checked on its own.
     completes before the mediation boundary sees it.
   \item[$\langle 2\rangle 3.$] \textsc{Q.E.D.} The closed loop under $M$ reaches $s\sigma
     \notin \overline{K}$, contradicting the assumption that $M$'s closed loop is contained in
-    $\overline{K}$. Any enforcement of $K$ must therefore tolerate the reachable violation
-    $s\sigma$ and respond to it afterwards, which is detect-and-compensate by definition.
+    $\overline{K}$. This rules out realizing \emph{all} of $K$ exactly.
+    A supervisor may instead exclude $s$ by restricting earlier controllable
+    behavior, thereby realizing a smaller safe language. Post-violation
+    response may remain available if the design insists on admitting that
+    history, but the theorem neither guarantees nor requires a remedy.
   \end{description}
 \item[$\langle 1\rangle 3.$] The existence, uniqueness, and computability of
   $\sup\mathcal{C}(K)$ are imported from Ramadge and Wonham~\pdcite{rw87}: controllable
@@ -1255,12 +1277,12 @@ costs no legal behavior. The governance rule and the agent's freedom are not in 
 the rule is controllable at all. The reverse direction used nothing about the mechanism
 except its type. No cleverness inside the runtime, no better prompt, faster monitor, or
 smarter policy engine, escapes the theorem, because the obstruction is that $\sigma$ finishes
-before any decision point the runtime owns. Theorem~\ref{thm:decidability} is the special
-case $\Sigma_c = \{\text{synchronous database commits}\}$: when the only mediated channel is
-the commit, the regimentable policies are exactly those expressible over committed state.
-The general statement strictly dominates it. The slogan cannot say why a force-push is
-preventable by a runtime that also owns the credential channel, nor why a confident falsehood
-stays unpreventable however much state is committed.
+before any decision point the runtime owns. Theorem~\ref{thm:decidability} gives a sufficient
+construction for a mediated database invariant. The controllability theorem
+instead characterizes exact realization of a specified prefix-closed language
+under full observation. It distinguishes owning the credential channel for a
+push from observing an internal model event after it has happened. Neither
+statement makes local database computability necessary for every safe protocol.
 
 \begin{pdexample}{The Policy Table, Checked by Hand}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1798,13 +1820,22 @@ viewed from two ends.
 
 \subsection{The operation log and tamper-evidence}
 
-\pdwrapanalogy[r][0.40\textwidth]{swk-water-meter-dial}{Monotonic Operation Log}{ch01-water-meter-dial}{Like a rotary water flow meter whose dials advance with each volume, an append-only operation log records state monotonically without running backward.}%
 The append-only operation log is the kernel's audit subsystem --- the stream the policy
 monitor subscribes to and the thing that makes ``what actually happened''
 answerable. Hash-chained tamper-evidence over it --- the digital-timestamping
 pattern of Haber and Stornetta~\pdcite{haberstornetta1991} that predates blockchains,
 itself building on Merkle's hash trees~\pdcite{merkle1987} --- exists but is
 re-scoped (see \S\ref{sec:merkle}).
+
+% The nearby first-use bibliography occupies the lower outside margin.
+% Let this small illustration take the next page's top rather than detach
+% its caption from the pictured instrument.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.40\textwidth]{plates/margin-evidence/ch01-water-meter-dial.png}
+\caption{\textbf{Monotonic Operation Log.} The dials advance as an append-only record grows.}
+\label{fig:swk-water-meter-dial}
+\end{figure}
 
 \pdexercisepointer{\ref{ex:swk-notes-vs-work}}{\ref{ex:swk-op4-capsule}}{\pageref{ex:swk-notes-vs-work}}
 
@@ -2776,7 +2807,9 @@ Note monotonicity: the prohibited event is a write the daemon mediates and the t
 Classify ``forbid \texttt{api\_call} after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt{fs\_write}'' using Theorem~\ref{thm:regimentation-controllability}.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-classify-two}
-The first gates a controllable event on a controllable trigger: both \texttt{api\_call} and \texttt{spawn\_child} lie in $\Sigma_c$, the policy never disables an uncontrollable event, and it is regimentable. The second must disable \texttt{internal\_plan}, an uncontrollable event, in its post-trigger state, and the plant enables it there; the history \texttt{fs\_write} followed by \texttt{internal\_plan} witnesses the failure of controllability, so the rule is detect-only.
+The first gates a controllable event on a controllable trigger: both \texttt{api\_call} and \texttt{spawn\_child} lie in $\Sigma_c$, the policy never disables an uncontrollable event, and it is regimentable. The second must disable \texttt{internal\_plan}, an uncontrollable event, in its post-trigger state, and the plant enables it there; the history \texttt{fs\_write} followed by \texttt{internal\_plan} witnesses failure of exact controllability. The supervisor can still preserve
+safety by forbidding the earlier \texttt{fs\_write}; that restriction sacrifices
+legal histories rather than realizing the entire specified language.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-synthesis}
 Add $P_4$, ``no \texttt{spawn\_child} after \texttt{git\_push},'' to the sandboxed review job and write the new disablement map by hand.
@@ -3057,14 +3090,15 @@ ticket-lock that would do it for cooperatively released claims and leaves the la
 TTL-sweep path --- the one that matters when an agent dies --- unfair. Nothing of it
 ships. Is a FIFO wait-list of time-to-live'd reservations enough once the sweep is
 included?
-\item[$\bigstar$ OP-2 --- Regimentation vs.\ enforcement boundary.] Status: \Closed{} by
-Theorem~\ref{thm:decidability}: an invariant is regimentable iff it is a pure,
-deterministic predicate over committed local state and the incoming payload;
-everything else is post-commit detection under Theorem~\ref{thm:schneider}.
-Theorem~\ref{thm:regimentation-controllability} places that result inside Ramadge--Wonham
-controllability~\pdcite{rw87,rw89}, of which it is the commit-only instance, and a
-companion formal chapter carries the general theorem. The remaining work is
-classification, not proof.
+\item[$\bigstar$ OP-2 --- Regimentation vs.\ enforcement boundary.] Status: \Closed{} under the stated models.
+Theorem~\ref{thm:decidability} supplies a synchronous database-guard
+construction. Theorem~\ref{thm:regimentation-controllability} gives the exact
+realization criterion under full observation: a prefix-closed safety language
+must be controllable~\pdcite{rw87,rw89}. External authorization may precede
+an effect; post-commit monitoring alone cannot prevent that effect
+(Theorem~\ref{thm:schneider}). Concrete boundaries still require an explicit
+plant, event alphabet, observation model, and admission protocol.
+
 \item[$\bigstar$ OP-3 --- Cross-runtime soundness.] Status: \Open. A seeded differential
 fuzz --- $10^6$ concurrent operations against both the test and deployment SQLite
 bindings, asserting hash-equivalence of the resulting state --- is specified
@@ -3297,8 +3331,8 @@ Peter J. Ramadge and W. Murray Wonham.
 \newblock Supervisory Control of a Class of Discrete Event Processes.
 \newblock \textit{SIAM Journal on Control and Optimization}, 25(1):206--230, 1987.
 \newblock (Controllability and the supremal controllable sublanguage --- the general
-boundary of which this chapter's Synchronous State Decidability theorem is the
-commit-only instance.)
+boundary used here to distinguish exact realization from safe restriction;
+the synchronous guard theorem gives a separate sufficient implementation condition.)
 
 \bibitem{rw89}
 Peter J. Ramadge and W. Murray Wonham.

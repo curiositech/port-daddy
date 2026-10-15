@@ -27,6 +27,17 @@ Port Daddy workflow below apply only after Erich explicitly lifts this halt. The
 hosted Harbor Register remains separately available through its browser-approved,
 repository-scoped pairing bearer.
 
+## Book publication checks
+
+The canonical Book uses `whitepaper/textbook.json` plus the authored Chapter 0.
+For mathematical corrections, inspect the corresponding figure, worked example,
+exercise solution, and summary; these retellings can contradict a corrected theorem.
+The build must converge before copying its PDF. Run
+`scripts/harbor-research/run_pdf_checks.py` on the exact candidate, inspect facing
+spreads for all chapter openers and repaired pages, and record its hash. Publication
+uses `\pdcopyreviewfalse`; editorial review sheets must not appear. Source review,
+local rendered acceptance, and the authorized hosted PDF refresh are distinct gates.
+
 ## Recently Shipped Surfaces (verify before you depend on them)
 
 These landed on `main` in the last few weeks. Source presence does not prove an

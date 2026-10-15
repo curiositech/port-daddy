@@ -5,7 +5,7 @@
 \makeatletter
 \expandafter\def\csname pdchapterpartlabelofprereq\endcsname{Prerequisites \textperiodcentered\ Foundations}
 \expandafter\def\csname pdchapterpartindexofprereq\endcsname{0}
-\expandafter\def\csname pdchapterepigraphofprereq\endcsname{There are two ways of constructing a software design: One way is to make it so simple that there are obviously no deficiencies, and the other way is to make it so complicated that there are no obvious deficiencies. The first method is far more difficult.}
+\expandafter\def\csname pdchapterepigraphofprereq\endcsname{I conclude that there are two ways of constructing a software design: One way is to make it so simple that there are obviously no deficiencies and the other way is to make it so complicated that there are no obvious deficiencies. The first method is far more difficult.}
 \expandafter\def\csname pdchapterepigraphsourceofprereq\endcsname{C.\,A.\,R. Hoare, \emph{The Emperor's Old Clothes} (1980 Turing Award Lecture)}
 \expandafter\def\csname pdchapterquestionofprereq\endcsname{What physical and theoretical ground must an agent operating kernel stand on?}
 \expandafter\def\csname pdchapteronelineofprereq\endcsname{Classical multi-agent theory, contemporary coding agent harnesses, transformer KV-cache limits, and the kernel gap.}
@@ -14,14 +14,14 @@
   \pdbookrail{Theoretical Foundations}{Before constructing an operating kernel for autonomous systems,
     we must establish the physical and theoretical ground upon which modern AI agents stand:
     classical intentional agency, the actor model, transformer KV-cache memory scaling, the closed-loop harness,
-    and why generative models cannot act as their own operating system.}%
+    and which guarantees require mediated effects and retained evidence.}%
 }
 
 \providecommand{\pdchapterhandoffprereq}{%
   \pdbookrail{What \pdchapref{swk}{The Single-Writer Kernel} receives}{%
     The theoretical foundations of intentional agency, protocol mechanisms, and the physical
-    limits of autoregressive inference establish why statistical models cannot mediate their own
-    concurrency. Part I now builds the physical substrate: the minimal deterministic
+    limits of autoregressive inference identify the assumptions needed to mediate
+    conflicting effects and recover obligations after a crash. Part I now builds the physical substrate: the minimal deterministic
     single-writer SQLite/WAL kernel that serializes local mutation and survives process crashes.}%
 }
 
@@ -36,8 +36,7 @@
   \pdbookreference{birgisson2014macaroons}{288}{Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner. \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud. \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014. \newblock \href{https://doi.org/10.14722/ndss.2014.23212}{Online source}}{Birgisson et al. 2014}
   \pdbookreference{bordini2007agentspeak}{289}{R.~H. Bordini, J.~F. H{\"u}bner, and M.~Wooldridge. \newblock \emph{Programming Multi-Agent Systems in AgentSpeak using Jason}. \newblock John Wiley \& Sons, 2007.}{Bordini et al. 2007}
   \pdbookreference{bratman1987intention}{290}{M.~E. Bratman. \newblock \emph{Intention, Plans, and Practical Reason}. \newblock Harvard University Press, Cambridge, MA, 1987.}{Bratman 1987}
-  \pdbookreference{burrows2006chubby}{291}{Mike Burrows. \newblock The Chubby Lock Service for Loosely-Coupled Distributed Systems. \newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, 2006.}{Burrows 2006}
-  \pdbookreference{charrier2014bigbrother}{292}{T.~Charrier, F.~Ouchet, and F.~Schwarzentruber. \newblock \emph{Big Brother logic: Reasoning about agents equipped with surveillance cameras in the plane}. \newblock In \emph{Proc. 13th International Conference on Autonomous Agents and Multiagent Systems (AAMAS)}, pages 421--428, 2014.}{Charrier et al. 2014}
+  \pdbookreference{charrier2014bigbrother}{292}{T.~Charrier, F.~Ouchet, and F.~Schwarzentruber. \newblock \emph{Big Brother Logic: Reasoning about Agents Equipped with Surveillance Cameras in the Plane (Demonstration)}. \newblock In \emph{Proc. AAMAS}, pages 1633--1634, 2014. \newblock \href{https://aamas.csc.liv.ac.uk/Proceedings/aamas2014/aamas/p1633.pdf}{Primary record}.}{Charrier et al. 2014}
   \pdbookreference{clarke1971multipart}{293}{E.~H. Clarke. \newblock \emph{Multipart pricing of public goods}. \newblock \emph{Public Choice}, 11(1):17--33, 1971.}{Clarke 1971}
   \pdbookreference{fipa2002acl}{294}{FIPA. \newblock \emph{FIPA ACL Communicative Act Library Specification}. \newblock Technical Report SC00037J, Foundation for Intelligent Physical Agents, 2002.}{FIPA 2002}
   \pdbookreference{gibbard1973manipulation}{295}{A.~Gibbard. \newblock \emph{Manipulation of voting schemes: A general result}. \newblock \emph{Econometrica}, 41(4):587--601, 1973.}{Gibbard 1973}
@@ -54,17 +53,17 @@
   \pdbookreference{saltzer1975protection}{306}{Jerome H. Saltzer and Michael D. Schroeder. \newblock The Protection of Information in Computer Systems. \newblock \textit{Proceedings of the IEEE}, 63(9):1278--1308, 1975.}{Saltzer \& Schroeder 1975}
   \pdbookreference{satterthwaite1975strategy}{307}{M.~A. Satterthwaite. \newblock \emph{Strategy-proofness and Arrow's conditions: Existence and correspondence theorems for voting procedures and social welfare functions}. \newblock \emph{Journal of Economic Theory}, 10(2):187--217, 1975.}{Satterthwaite 1975}
   \pdbookreference{searle1969speech}{308}{J.~R. Searle. \newblock \emph{Speech Acts: An Essay in the Philosophy of Language}. \newblock Cambridge University Press, 1969.}{Searle 1969}
-  \pdbookreference{shinn2023reflexion}{309}{Shinn et al. 2023. \emph{Reflexion: Language agents with verbal reinforcement learning}.}{Shinn et al. 2023}
+  \pdbookreference{shinn2023reflexion}{309}{N.~Shinn, F.~Cassano, E.~Berman, A.~Gopinath, K.~Narasimhan, and S.~Yao. \newblock \emph{Reflexion: Language Agents with Verbal Reinforcement Learning}. \newblock In \emph{Proc. NeurIPS}, 2023. \newblock \href{https://arxiv.org/abs/2303.11366v4}{Primary record}.}{Shinn et al. 2023}
   \pdbookreference{shoham2009multiagent}{310}{Y.~Shoham and K.~Leyton-Brown. \newblock \emph{Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations}. \newblock Cambridge University Press, 2009.}{Shoham \& Leyton-Brown 2009}
   \pdbookreference{smith1980cnp}{311}{R.~G. Smith. \newblock \emph{The Contract Net Protocol: High-level communication and control in a distributed problem solver}. \newblock \emph{IEEE Transactions on Computers}, C-29(12):1104--1113, 1980.}{Smith 1980}
   \pdbookreference{vickrey1961counterspeculation}{312}{W.~Vickrey. \newblock \emph{Counterspeculation, auctions, and competitive sealed tenders}. \newblock \emph{The Journal of Finance}, 16(1):8--37, 1961.}{Vickrey 1961}
   \pdbookreference{yao2022react}{313}{Yao et al. 2023. \emph{ReAct: Synergizing reasoning and acting in language models}.}{Yao et al. 2023}
   \pdbookreference{yao2023tree}{314}{Yao et al. 2023. \emph{Tree of Thoughts: Deliberate problem solving with large language models}.}{Yao et al. 2023}
-  \pdbookreference{chen2025hypertree}{315}{Chen et al. 2025. \emph{Hypertree Planning: Scalable Deliberate Search over Language Model Reasoning Spaces}.}{Chen et al. 2025}
+  \pdbookreference{gui2025hypertree}{315}{R.~Gui, Z.~Wang, J.~Wang, C.~Ma, H.~Zhen, M.~Yuan, J.~Hao, D.~Lian, E.~Chen, and F.~Wu. \newblock \emph{HyperTree Planning: Enhancing LLM Reasoning via Hierarchical Thinking}. \newblock arXiv:2505.02322v2, 2025. \newblock \href{https://arxiv.org/abs/2505.02322v2}{Primary record}.}{Gui et al. 2025}
   \pdbookreference{conway1968}{316}{M.~E. Conway. \newblock \emph{How do Committees Invent?} \newblock \emph{Datamation}, 14(4):28--31, 1968.}{Conway 1968}
   \pdbookreference{dao2022flashattention}{317}{T.~Dao, D.~Y. Fu, S.~Ermon, A.~Rudra, and C.~R{\'e}. \newblock \emph{FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness}. \newblock In \emph{Proc. 36th Conference on Neural Information Processing Systems (NeurIPS)}, 2022.}{Dao et al. 2022}
   \pdbookreference{hong2024metagpt}{318}{S.~Hong, M.~Zhuge, J.~Chen, X.~Zheng, Y.~Cheng, C.~Zhang, J.~Wang, Z.~Wang, S.~K.~S. Yau, Z.~Lin, et al. \newblock \emph{MetaGPT: Meta Programming for Multi-Agent Collaborative Framework}. \newblock In \emph{Proc. International Conference on Learning Representations (ICLR)}, 2024.}{Hong et al. 2024}
-  \pdbookreference{huang2026sixsigma}{319}{Y.~Huang, J.~Tan, K.~Wang, and L.~Chen. \newblock \emph{Six Sigma Agent Swarms: Defect-Free Software Engineering via Statistical Process Control}. \newblock In \emph{Proc. 48th International Conference on Software Engineering (ICSE)}, 2026.}{Huang et al. 2026}
+  \pdbookreference{patel2026sixsigma}{319}{K.~Patel, S.~Surendira, J.~George, and S.~Kapale. \newblock \emph{The Six Sigma Agent: Achieving Enterprise-Grade Reliability in LLM Systems Through Consensus-Driven Decomposed Execution}. \newblock arXiv:2601.22290v1, 2026. \newblock \href{https://arxiv.org/abs/2601.22290v1}{Primary record}.}{Patel et al. 2026}
   \pdbookreference{kwon2023vllm}{320}{W.~Kwon, Z.~Li, S.~Zhuang, Y.~Sheng, L.~Zheng, C.~H. Yu, J.~E. Gonzalez, H.~Zhang, and I.~Stoica. \newblock \emph{Efficient Memory Management for Large Language Model Serving with PagedAttention}. \newblock In \emph{Proc. 29th ACM Symposium on Operating Systems Principles (SOSP)}, pages 611--626, 2023.}{Kwon et al. 2023}
   \pdbookreference{liang2022helm}{321}{P.~Liang, R.~Bommasani, T.~Lee, D.~Tsipras, D.~Soylu, M.~Yasunaga, Y.~Zhang, D.~Narayanan, Y.~Wu, A.~Kumar, et al. \newblock \emph{Holistic Evaluation of Language Models}. \newblock \emph{Transactions on Machine Learning Research (TMLR)}, 2023.}{Liang et al. 2023}
   \pdbookreference{liu2023agentbench}{322}{X.~Liu, H.~Yu, H.~Zhang, Y.~Xu, X.~Lei, H.~Lai, Y.~Gu, H.~Ding, K.~Men, K.~Yang, et al. \newblock \emph{AgentBench: Evaluating LLMs as Agents}. \newblock In \emph{Proc. International Conference on Learning Representations (ICLR)}, 2024.}{Liu et al. 2024}
@@ -72,9 +71,10 @@
   \pdbookreference{rafailov2023dpo}{324}{R.~Rafailov, A.~Sharma, E.~Mitchell, S.~Ermon, C.~D. Manning, and C.~Finn. \newblock \emph{Direct Preference Optimization: Your Language Model is Secretly a Reward Model}. \newblock In \emph{Proc. 37th Conference on Neural Information Processing Systems (NeurIPS)}, 2023.}{Rafailov et al. 2023}
   \pdbookreference{vaswani2017attention}{325}{A.~Vaswani, N.~Shazeer, N.~Parmar, J.~Uszkoreit, L.~Jones, A.~N. Gomez, L.~Kaiser, and I.~Polosukhin. \newblock \emph{Attention Is All You Need}. \newblock In \emph{Proc. 31st Conference on Neural Information Processing Systems (NeurIPS)}, pages 5998--6008, 2017.}{Vaswani et al. 2017}
   \pdbookreference{wang2023voyager}{326}{Wang et al. 2023. \emph{Voyager: An Open-Ended Embodied Agent with Large Language Models}.}{Wang et al. 2023}
-  \pdbookreference{wang2025tdag}{327}{Wang et al. 2025. \emph{TDAG: A Dynamic Topological Directed Acyclic Graph Framework for Multi-Agent Planning}.}{Wang et al. 2025}
-  \pdbookreference{xie2025survey}{328}{Y.~Xie, K.~Kawaguchi, Y.~Zhao, X.~Shen, M.~Ding, and Q.~Gao. \newblock \emph{A Survey on Large Language Model Based Autonomous Agents}. \newblock \emph{Frontiers of Computer Science}, 19(5):195301, 2025.}{Xie et al. 2025}
-  \pdbookreference{zhou2026formaljudge}{329}{X.~Zhou, R.~Zhang, Y.~Tian, and M.~Zhang. \newblock \emph{FormalJudge: Provably Sound Verification and Evaluation of Agentic Trajectories}. \newblock In \emph{Proc. 40th AAAI Conference on Artificial Intelligence}, 2026.}{Zhou et al. 2026}
+  \pdbookreference{wang2024tdag}{327}{Y.~Wang, Z.~Wu, J.~Yao, and J.~Su. \newblock \emph{TDAG: A Multi-Agent Framework based on Dynamic Task Decomposition and Agent Generation}. \newblock arXiv:2402.10178, 2024; revised 2025. \newblock \href{https://arxiv.org/abs/2402.10178v2}{Primary record}.}{Wang et al. 2024}
+  \pdbookreference{wang2023agentsurvey}{328}{L.~Wang, C.~Ma, X.~Feng, Z.~Zhang, H.~Yang, J.~Zhang, Z.~Chen, J.~Tang, X.~Chen, Y.~Lin, W.~X. Zhao, Z.~Wei, and J.-R. Wen. \newblock \emph{A Survey on Large Language Model based Autonomous Agents}. \newblock arXiv:2308.11432, 2023; revised 2025. \newblock \href{https://arxiv.org/abs/2308.11432v7}{Primary record}.}{Wang et al. 2023}
+  \pdbookreference{zhou2026formaljudge}{329}{J.~Zhou, Y.~Sheng, H.~Lou, Y.~Yang, and J.~Fu. \newblock \emph{FormalJudge: A Neuro-Symbolic Paradigm for Agentic Oversight}. \newblock arXiv:2602.11136v2, 2026. \newblock \href{https://arxiv.org/abs/2602.11136v2}{Primary record}.}{Zhou et al. 2026}
+  \pdbookreference{anthropic2026hooks}{330}{Anthropic. \newblock \emph{Hooks reference}. \newblock Claude Code documentation, accessed 15 October 2026. \newblock \href{https://code.claude.com/docs/en/hooks}{Official documentation}.}{Anthropic 2026}
 \fi
 \makeatother
 \pdchapter{0}{Foundations and\\[2pt]Prerequisites}{prereq}{pdslate}
@@ -94,12 +94,12 @@
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
   \item \textbf{Dual Lineage of Agency:} Connecting classical symbolic multi-agent systems to generative connectionism (\S\ref{sec:prereq-lineage}).
   \item \textbf{Classical Multi-Agent Theory:} Bratman practical rationality, Rao--Georgeff $BDI_{CTL^*}$ temporal logic, AgentSpeak(L) operational semantics, normative deontic reasoning, Hewitt--Agha actor concurrency versus Hoare CSP, FIPA-00037 speech acts, Smith's Contract Net Protocol, Big Brother dynamic epistemic logic, and game-theoretic mechanism design (\S\ref{sec:prereq-classical-mas}).
-  \item \textbf{The Physics of Modern LLM Execution:} Scaled dot-product attention mechanics, $O(L^2)$ quadratic complexity, KV-cache memory economics, training regimes (pretraining, SFT, RLHF/DPO), the Alignment Trap, sampling temperature entropy ($1 - (1-\epsilon)^N \to 1$), and externalized state in SQLite (\S\ref{sec:prereq-llm-physics}).
-  \item \textbf{Modern Coding Agent Architectures, Planning, and Search:} Closed-loop POMDP deliberation (ReAct, Tree of Thoughts, Reflexion), lifelong skill acquisition (Voyager), topological DAG execution (TDAG), Hypertree Planning, PRMs, and multi-agent formal verification (\S\ref{sec:prereq-coding-agents}).
+  \item \textbf{The Physics of Modern LLM Execution:} Scaled dot-product attention mechanics, $O(L^2)$ quadratic complexity, KV-cache memory economics, training regimes (pretraining, SFT, RLHF/DPO), the Alignment Trap, conditional failure hazards and sampling temperature, and externalized state in SQLite (\S\ref{sec:prereq-llm-physics}).
+  \item \textbf{Modern Coding Agent Architectures, Planning, and Search:} Closed-loop POMDP deliberation (ReAct, Tree of Thoughts, Reflexion), lifelong skill acquisition (Voyager), dynamic task decomposition and agent generation (TDAG), Hypertree Planning, PRMs, and multi-agent formal verification (\S\ref{sec:prereq-coding-agents}).
   \item \textbf{Tool Execution Hypervisors and Supervisory Hooks:} Model Context Protocol (MCP) substrate, progressive skill disclosure, and Ramadge--Wonham supervisory control hooks ($L(S/G) \subseteq K$) (\S\ref{sec:prereq-hypervisors}).
   \item \textbf{Swarm Topologies, Coordination, and Multi-Agent Economics:} Stigmergic coordination, Conway's Law in agent swarms, MetaGPT SOP roles, Six Sigma defect minimization, durable personas, and zombie salvage (\S\ref{sec:prereq-swarms}).
-  \item \textbf{The Kernel Gap:} Mathematical proof of why generative autoregressive policies cannot act as their own operating kernel (\S\ref{pre:sec:kernel-gap}).
-  \item \textbf{Chapter Map and Architectural Plates Portfolio:} Structural map of the volume and curated Swiss plates coda (\S\ref{sec:prereq-map}).
+  \item \textbf{The Kernel Gap:} Conditional guarantees for effect mediation, concurrency control, and durable recovery (\S\ref{pre:sec:kernel-gap}).
+  \item \textbf{Chapter Map and Architectural Plates Portfolio:} Structural map of the volume and architectural plates (\S\ref{sec:prereq-map}).
 \end{enumerate}
 
 \section{Introduction: The Unit of Account, Agency, and the Kernel Gap}
@@ -147,7 +147,12 @@ Modern artificial intelligence did not begin with autoregressive transformers, n
 
 \subsection{The Structural Deficit of Generative Models}
 
-Table~\ref{tab:lineage-comparison} contrasts these two traditions. The core thesis of this volume is that \textbf{neither lineage alone can achieve safe autonomous engineering}. An LLM without an operating kernel is a chaotic, non-deterministic generator that will inevitably induce data corruption, race conditions, and security leaks. A symbolic system without an LLM cannot interact with the messiness of production codebases.
+Table~\ref{tab:lineage-comparison} contrasts these two traditions. Generative
+models provide flexible proposals; explicit protocols can constrain their effects
+and retain evidence. Neither stochastic generation nor symbolic representation
+alone determines safety. A model confined to harmless outputs can be safe, and
+a symbolic tool can process production code without an LLM. The useful design
+question is which guarantees the combined system establishes at each boundary.
 
 \begin{table}[H]
 \centering
@@ -173,57 +178,54 @@ Therefore, functionally, mathematically, and architecturally, a persistent super
 
 \subsection{Eight Propositions of Accountable Coordination}
 
-This book develops that claim in eight foundational propositions, one per chapter. Each proposition establishes a structural guarantee enforced by the operating kernel at the application and multi-agent coordination plane:
+This book develops that claim in eight foundational propositions, one per chapter. Each proposition states a design goal and the assumptions under which a mechanism can support it:
 
 \subsubsection*{Proposition 1: Prevention Begins at the Effect Boundary (\pdchapref{swk}{The Single-Writer Kernel})}
-Rules can be enforced before an act only when the system controls the unbypassable channel through which the act occurs. An operating system cannot rely on probabilistic language models to self-police or respect advisory prompt instructions such as ``please do not edit simultaneously.'' Without an authoritative mediator, concurrent uncoordinated agents inevitably induce the classic lost-update anomaly~\pdcite{lamport1978,burrows2006chubby}: Agent~$A$ reads version $v_0$, Agent~$B$ reads $v_0$, Agent~$A$ writes $v_A$, and Agent~$B$ subsequently overwrites with $v_B$, silently destroying Agent~$A$'s work with zero compiler or runtime warning.
+Preventing a forbidden effect requires control over every path that can produce it. Advisory instructions alone do not provide that control. For example, if two agents can read the same value $x=0$ and later write their independently computed value $x+1$, the schedule read--read--write--write ends at $x=1$, losing one increment. This is a permitted counterexample, not an inevitable outcome of concurrency: disjoint updates and correctly implemented transactions can be safe.
 
-To guarantee mutual exclusion and crash resilience, all local mutations across shared repositories, lock registries, and port assignments must funnel through one serial write authority: an append-only write-ahead log (WAL) operating in SQLite. By serializing parallel mutation requests into a single monotonically ordered causal sequence, the kernel guarantees strict serializability ($t_1 \prec t_2 \prec t_3$) and crash-stop consistency. Semantic failures that no gate can decide remain matters of detection and remedy, but physical race conditions are prevented structurally at the effect boundary.
+The Single-Writer Kernel checks a request's authorization and state preconditions at the same boundary that commits its ledger transition. A complete read--modify--write transaction, or an atomic version check followed by the write, rejects the stale update. Serializing only the final writes is insufficient. SQLite's \href{https://www.sqlite.org/isolation.html}{transaction isolation} covers its database operations; making a filesystem or network effect atomic with a receipt requires a separate actuator and crash-recovery protocol. Strict serializability additionally requires that the operation order respect real-time completion.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop1-funnel.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 1 Mechanics: Serial Write Arbitration.} Parallel, uncoordinated writer attempts from independent agent processes ($P_1, P_2, P_3$) funnel through an unbypassable commit boundary into a single serialized write-ahead log (WAL). Mutations receive a strict total causal order ($T_1 \to T_2 \to T_3$), eliminating physical race conditions and lost updates at the effect boundary.}[fig:spark-prop1]
+  \centering
+  \input{figures/fig-spark-prop1-funnel.tex}%
+  \pdwidecaption{\textbf{Serial admission with version validation.} Two proposals based on version 7 cannot both replace it. The gate commits one and rejects the stale request. The guarantee requires validation and effect to share one indivisible boundary.}[fig:spark-prop1]
 \end{figure}
 
-Formally, let $\tau = (e_1, e_2, \dots, e_n)$ be a concurrent execution trace of tool invocations generated by independent agent processes. Under Lamport's happened-before relation $\prec$~\pdcite{lamport1978}, if two state-mutating events $e_i, e_j$ access a shared resource $R$ with $\neg(e_i \prec e_j) \land \neg(e_j \prec e_i)$, the execution contains an unmediated race. The Single-Writer Kernel introduces an out-of-band arbitration function $\mathcal{K}_{\text{WAL}}: \mathcal{E} \to \mathbb{N}$ that assigns a strict total order $\sigma(e) \in \mathbb{N}$ to every admitted mutation. Any write attempt that lacks a valid lock ticket is refused at the effect boundary with an explicit conflict receipt ($\mathtt{409\ Conflict}$), preventing silent corruption.
+Formally, let $e_i$ and $e_j$ be concurrent events under Lamport's happened-before relation~\pdcite{lamport1978}. Their incomparability alone does not imply an error. A conflict arises when their resource accesses interfere and at least one writes. An admission gate assigns admitted operations a commit order $\sigma(e)$, checks each operation against the current version, and makes the check and state transition indivisible. Under complete mediation and correct recovery, this preserves any invariant maintained by each admitted transition. Locks, compare-and-swap and transactional validation are alternative ways to implement that boundary.
 
 \subsubsection*{Proposition 2: Delegation Only Narrows (\pdchapref{anchor}{The Anchor Protocol})}
 In classical security engineering, authority must obey Saltzer and Schroeder's fundamental Principle of Least Privilege~\pdcite{saltzer1975protection}: every process must operate using the least set of privileges necessary to complete its assigned task. In naive multi-agent architectures where agents delegate subtasks by synthesizing unconstrained prompts, authority frequently inflates due to broad, ambiguous system instructions, leading to catastrophic privilege escalation.
 
-Under the Anchor Protocol, every child capability is a strict, verifiable subset of its parent's authority and validity lifetime ($C_0 \supset C_1 \supset C_2$ and $T_0 > T_1 > T_2$). Authentication proves who signed the credential; attenuation specifies what the signature is permitted to authorize. Chained cryptographic capability tokens (such as macaroons~\pdcite{birgisson2014macaroons} and Harbor Cards) enforce monotonic restriction at every delegation hop: an intermediate delegate cannot widen permissions, extend deadlines, or remove sandbox constraints when dispatching subordinate workers.
+Under the Anchor Protocol, every child capability has authority and expiry no greater than its parent's ($C_0 \supseteq C_1 \supseteq C_2$ and $T_0 \ge T_1 \ge T_2$). Authentication proves who signed the credential; attenuation specifies what the signature is permitted to authorize. Chained cryptographic capability tokens (such as macaroons~\pdcite{birgisson2014macaroons} and Harbor Cards) enforce monotonic restriction at every delegation hop: an intermediate delegate cannot widen permissions, extend deadlines, or remove sandbox constraints when dispatching subordinate workers.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop2-attenuation.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 2 Mechanics: Monotonic Capability Attenuation.} Chained cryptographic capability tokens enforce monotonic restriction at every delegation hop. An intermediate delegate can append attenuating caveats (narrowing path scopes, reducing budgets, and shortening TTLs), but can never widen authority or extend parent lifetimes ($C_0 \supset C_1 \supset C_2$).}[fig:spark-prop2]
+  \centering
+  \input{figures/fig-spark-prop2-attenuation.tex}%
+  \pdwidecaption{\textbf{Capability attenuation.} Child scope and expiry do not exceed the parent's. Chain verification and conjunctive caveat checks enforce this relation; they do not revoke a broader ancestor token already held by a delegate.}[fig:spark-prop2]
 \end{figure}
 
 Mathematically, a capability token $M_k$ at delegation depth $k$ is constructed as an HMAC chain:
 \begin{equation}
 s_k \;=\; \mathrm{HMAC}(s_{k-1}, c_k)
 \end{equation}
-where $s_0$ is the root signing secret held exclusively by the supervisory kernel and $c_k$ represents a contextual restriction (e.g., $\mathtt{path\_prefix} \subseteq \mathtt{/src/lib}$, $\mathtt{max\_spend} \le \$0.50$, $\mathtt{expires} \le t_0 + 300\text{s}$). Because HMAC is a one-way cryptographic function, a delegate cannot strip existing caveats $c_1, \dots, c_k$ to restore wider authority without knowing the root key $s_0$. Monotonic narrowing is thus cryptographically guaranteed across arbitrary delegation depths.
+Here $s_0$ denotes the authenticated root tag derived with the issuer's secret, and $c_k$ is an added caveat. Under HMAC unforgeability, a holder of the final tag cannot manufacture a valid tag for a less restricted chain it was never issued. The verifier must authenticate the complete chain and conjoin every caveat. A holder that retained a broader ancestor token can still use that token until it expires or is revoked; attenuation does not revoke previously issued authority.
 
 \subsubsection*{Proposition 3: Confinement Is a Property of the Room, Not of the Tenant (\pdchapref{sealed}{The Sealed Harbor})}
 In multi-tenant, multi-principal systems, mutual distrust is the necessary default. Two owners who trust neither each other nor the hosting venue can still take a verified computation out of a sealed room, provided the execution chamber guarantees non-bypassable physical isolation. Confinement cannot be promised by the tenant model: an LLM process is vulnerable to prompt injection, memory corruption, or adversarial jailbreaking.
 
-Confinement must therefore be an invariant of the room itself, enforced by the operating system kernel (macOS Seatbelt, Linux Landlock and Bubblewrap). The sealed harbor severs all ambient network sockets and shared disk access, leaving a single, strictly metered egress slot: silence except through the slot, an unbypassable gate on the only enforceable boundary, a conserved spend budget that fails closed, and synthetic canary tokens planted to detect and prove any covert side-channel data exfiltration. What the room cannot promise is stated as an explicit boundary, at the same prominence as the claims.
+Confinement is supplied by a specified host policy and its trusted computing base. The intended room closes unauthorized network and filesystem paths and meters the admitted egress channel. Its guarantee covers the modeled channels only. Timing, termination, shared hardware and other side channels need separate analysis. Canary tokens provide evidence of particular monitored disclosures; they cannot establish that no other secret or encoding escaped.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop3-confinement.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 3 Mechanics: Sealed Room Confinement.} Operating system sandbox profiles (Seatbelt SBPL / Linux Landlock) enclose untrusted agent subprocesses, severing ambient network and shared disk paths. All outbound communication must traverse a single metered egress slot governed by canary token inspection and conserved spend caps.}[fig:spark-prop3]
+  \centering
+  \input{figures/fig-spark-prop3-confinement.tex}%
+  \pdwidecaption{\textbf{Mediated egress.} The room closes unauthorized modeled paths and admits traffic through a checked channel. Canary matching supplies evidence of particular disclosures. Timing and other unmodeled side channels require separate analysis.}[fig:spark-prop3]
 \end{figure}
 
 The confinement policy is expressed as a non-bypassable sandbox profile $P_{\text{room}}$ compiled into the kernel:
 \begin{equation}
 \forall \sigma \in \Sigma_{\text{syscall}}, \quad \mathrm{Permit}(\sigma \mid P_{\text{room}}) \iff \sigma \in \Sigma_{\text{confined}}
 \end{equation}
-where $\Sigma_{\text{confined}}$ explicitly excludes socket creation, non-leased filesystem writes, and child process execution outside leased worktrees. Canary tokens $\kappa \sim \mathcal{U}(\{0,1\}^{256})$ are embedded in local test environments; if a hash of $\kappa$ is observed traversing the metered egress gateway, the tenant's execution lease is instantly revoked and its security deposit slashed.
+Here $\Sigma_{\text{confined}}$ is shorthand for the allowed syscall-and-argument cases in a stated sandbox policy; executable identity, paths and inherited descriptors matter as well as syscall names. A canary $\kappa\sim\mathcal{U}(\{0,1\}^{256})$ may be registered with an egress matcher. Observing its registered representation is a disclosure witness under the matcher's attribution assumptions. An adversary that leaks a different secret or an unrecognized encoding may evade it. Revocation and any financial penalty therefore follow the declared evidence and contestation rules.
 
 \subsubsection*{Proposition 4: Supervision Has an Information Cost (\pdchapref{ls}{Attention and Supervision})}
 Human oversight is constrained by fundamental cognitive and information-theoretic limits. As Bainbridge observed in \emph{Ironies of Automation}~\pdcite{bainbridge1983}, automating routine operations does not eliminate human responsibility; it concentrates attention on rare, high-consequence failure modes. A human operator cannot parse a raw firehose of millions of agent telemetry tokens without suffering cognitive saturation and supervisory fatigue.
@@ -231,24 +233,22 @@ Human oversight is constrained by fundamental cognitive and information-theoreti
 Yet naive LLM-generated summaries are actively dangerous: they hallucinate away subtle test failures, sanitize errors, and declare false victories. A digest cannot guarantee that a supervisor will notice any one of many relevant events unless it expends sufficient bits and attention to distinguish them. In an accountable architecture, a summary is therefore an index into evidence, not a substitute for it. The supervisory dashboard presents low-entropy summaries backed by cryptographic pointers directly into the underlying Merkle event log, allowing instant drilling down from high-level status to raw syscall traces.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop4-supervision.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 4 Mechanics: Information Cost and Evidence Drilling.} Supervisory digests operate as reversible, low-entropy projections indexed into an immutable Merkle evidence log. An operator can drill down with zero friction from high-level fleet status down to exact execution receipts and byte-level syscall traces.}[fig:spark-prop4]
+  \centering
+  \input{figures/fig-spark-prop4-supervision.tex}%
+  \pdwidecaption{\textbf{An index into retained evidence.} A status claim links to receipt R42 and its retained artifacts. The digest does not reconstruct omitted data; the evidence store must retain it.}[fig:spark-prop4]
 \end{figure}
 
-Let $H(X)$ be the entropy of the agent's raw execution trajectory and let $D$ be a compressed supervisory digest. By the Data Processing Inequality, $I(X; Y) \le H(D) \ll H(X)$, meaning information is unavoidably lost in any summary. To prevent supervisory blindness, the kernel constructs digests not as narrative text, but as a directed acyclic graph of cryptographic content digests $\mathcal{H}(e_i)$. The operator inspects a bounded view of complexity $O(\log N)$, with mathematical guarantees that any contested claim links directly to its underlying execution receipt $\rho_i$.
+Let $X$ be a finite discrete execution history and $D=f(X)$ its digest. Then $I(X;D)=H(D)\le H(X)$. If $H(D)<H(X)$, the digest alone cannot reconstruct the history: $H(X\mid D)=H(X)-H(D)>0$. Retained receipts are the additional information that makes drill-down possible. A balanced binary Merkle tree over $N$ retained receipts supplies an inclusion path with $O(\log N)$ hashes. That bound concerns proof size and verification work under a trusted root and collision-resistant hashing. It gives no logarithmic bound on discovering every relevant event or on the human effort needed to understand it.
 
 \subsubsection*{Proposition 5: Accountability Must Outlive the Process (\pdchapref{stp}{From Spawn to Person})}
 Operating system processes are inherently mortal: they can be terminated by out-of-memory killers, abort on unhandled exceptions, or be restarted intentionally. If an agent's identity, reputation, debt ledger, and liabilities exist only in the volatile RAM of a running Python or Node process, a defecting agent can escape consequences simply by crashing and rebooting under a new process ID.
 
-An Agent Operating Kernel decouples ephemeral execution bodies from durable agent personas. A task acquires a durable cryptographic principal (Ed25519 keypair), an append-only capability history, a Merkle-backed evidence record, active normative obligations, and ultimate liability for physical outcomes. Restarting a crashed process or leasing a fresh container does not wipe the case file clean or replenish consumed token budgets: the durable persona resumes execution from the exact checkpoint recorded in the persistent ledger.
+An Agent Operating Kernel decouples ephemeral execution bodies from durable agent personas. A task acquires a durable cryptographic principal (Ed25519 keypair), an append-only capability history, a Merkle-backed evidence record, active normative obligations, and ultimate liability for physical outcomes. Restarting a crashed process or leasing a fresh container does not wipe the case file clean or replenish consumed token budgets: a successor reconstructs recorded obligations from the durable ledger. Resuming the exact execution state additionally requires a valid execution checkpoint and a recovery protocol.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop5-identity.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 5 Mechanics: Durable Persona vs. Ephemeral Process.} Ephemeral container processes (PIDs) can crash, abort, or be recycled, but the durable agent persona (Ed25519 keypair, capability history, and debt ledger) persists in the append-only kernel database, resuming state seamlessly across failures.}[fig:spark-prop5]
+  \centering
+  \input{figures/fig-spark-prop5-identity.tex}%
+  \pdwidecaption{\textbf{Identity across process replacement.} A stable principal links successive execution instances. Epochs distinguish current authority from stale credentials, while committed obligations remain in durable storage.}[fig:spark-prop5]
 \end{figure}
 
 Formally, an agent persona is defined as a persistent state tuple:
@@ -260,45 +260,42 @@ where $\mathrm{pk}_{\text{agent}}$ is the public signing identity, $\mathcal{L}_
 \subsubsection*{Proposition 6: Exchange Requires Separated Instruments (\pdchapref{he}{The Harbor Economy})}
 When autonomous agents trade compute, task assignments, and data access, economic coordination requires robust market design. In classical economics, Akerlof~\pdcite{akerlof1970} demonstrated that asymmetric information and unseparated incentives degrade markets into a ``market for lemons.'' Conflating multiple financial functions into a single scalar reputation score or omnibus utility token creates acute moral hazard.
 
-A trustworthy harbor economy strictly separates four distinct coordination instruments: (1)~\textbf{Payment}, which compensates delivered labor; (2)~\textbf{Collateral}, which bonds and prices bounded failure; (3)~\textbf{Evidence}, which provides cryptographic proof of task completion; and (4)~\textbf{Settlement}, which atomically and irrevocably closes obligations. Combining these functions into a single score undermines trust and invites strategic manipulation; separating them guarantees that claims can be audited independently of the currencies used to clear them.
+A trustworthy harbor economy strictly separates four distinct coordination instruments: (1)~\textbf{Payment}, which compensates delivered labor; (2)~\textbf{Collateral}, which bonds and prices bounded failure; (3)~\textbf{Evidence}, which authenticates specified completion artifacts whose semantic adequacy depends on the verifier; and (4)~\textbf{Settlement}, which atomically and irrevocably closes obligations. Combining these functions into a single score undermines trust and invites strategic manipulation; separating them makes their contracts and conservation checks independently inspectable. Audit quality still depends on the evidence and verifier.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-spark-prop6-instruments.tex}%
-  }
-  \pdwidecaption{\textbf{Proposition 6 Mechanics: Four Separated Market Instruments.} To eliminate moral hazard and adverse selection in multi-agent trading, the kernel strictly separates Payment (labor compensation), Collateral (failure bonding), Evidence (execution proofs), and Settlement (atomic obligation closure).}[fig:spark-prop6]
+  \centering
+  \input{figures/fig-spark-prop6-instruments.tex}%
+  \pdwidecaption{\textbf{Four contract roles.} Payment, collateral, evidence and settlement have distinct functions. Separating them exposes accounting and verification obligations; incentive compatibility additionally depends on payoffs, detection and enforceable remedies.}[fig:spark-prop6]
 \end{figure}
 
-Under this separated architecture, an agent offering a service must post collateral $C \ge \mathcal{V}(\text{risk})$ into escrow. When the task completes, the contractor produces evidence $\mathcal{E}$ (test logs, diff hashes). Only when $\mathcal{E}$ satisfies the verifier contract does settlement $\mathcal{S}$ execute, simultaneously disbursing payment $P$, returning collateral $C$, and updating the reputation ledger. Conflating payment and collateral into a single balance allows defaulting agents to consume resources without recourse; separating them enforces incentive compatibility.
+Under this separated architecture, an agent offering a service must post collateral $C \ge \mathcal{V}(\text{risk})$ into escrow. When the task completes, the contractor produces evidence $\mathcal{E}$ (test logs, diff hashes). Only when $\mathcal{E}$ satisfies the verifier contract does settlement $\mathcal{S}$ execute, simultaneously disbursing payment $P$, returning collateral $C$, and updating the reputation ledger. Conflating payment and collateral into a single balance allows defaulting agents to consume resources without recourse; separating them exposes the quantities needed for an incentive analysis; it does not by itself make honest behavior optimal.
 
 \subsubsection*{Proposition 7: Uncertainty Needs an Institution (\pdchapref{bonded}{The Bonded Commons})}
 In complex software engineering, deterministic formal verification cannot decide every semantic property, and static type checkers cannot foresee every runtime interaction. Managing residual uncertainty requires institutional governance, grounded in Ostrom's governing of shared commons~\pdcite{ostrom1990governing} and Becker's economics of deterrence~\pdcite{becker1968}.
 
-Some harms cannot be prevented upfront, and some outcomes cannot be judged purely by mechanical test suites. To govern this irreducible uncertainty, the kernel constructs institutional procedures: bonded stake deposits, randomized spot audits by independent witness verifiers, neutral contestation and appeal arbitration, and strict conservation rules. By turning uncertainty into an inspectable, contested process backed by financial slashing, the commons deters defection while providing due process for false positives.
+Some harms cannot be prevented upfront, and some outcomes cannot be judged purely by mechanical test suites. To govern this irreducible uncertainty, the kernel constructs institutional procedures: bonded stake deposits, randomized spot audits by independent witness verifiers, neutral contestation and appeal arbitration, and strict conservation rules. By turning uncertainty into an inspectable, contested process backed by financial slashing, the commons can deter modeled deviations when expected sanctions exceed gains, while providing a procedure for contesting false positives.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop7-bonded.jpg}%
-  }
-  \pdwidecaption{\textbf{Proposition 7 Mechanics: Bonded Commons Governance.} Shared host resources are governed as Common-Pool Resources (CPRs). Agents post bonded stake, undergo randomized independent verification audits, and face automated slashing upon invariant breach, balancing deterrence with due process.}[fig:spark-prop7]
+  \centering
+  \input{figures/fig-spark-prop7-bonded.tex}%
+  \pdwidecaption{\textbf{Contestation and settlement.} Evidence enters a declared decision and appeal procedure. A final ruling authorizes settlement under the contract; its reliability depends on adjudication and enforcement assumptions.}[fig:spark-prop7]
 \end{figure}
 
-Following Becker's economic model of deterrence~\pdcite{becker1968}, the expected utility of defection $\mathbb{E}[U_{\text{defect}}]$ must be strictly negative:
+A one-shot deterrence calculation makes the assumptions explicit~\pdcite{becker1968}. Normalize honest utility to zero. Suppose a deviation gains $G\ge0$ when undetected, loses that gain and pays a slash $S\ge0$ when detected, and is detected with probability $p>0$. Then its expected incremental utility is
 \begin{equation}
-\mathbb{E}[U_{\text{defect}}] \;=\; (1 - p_{\text{audit}}) \cdot G \;-\; p_{\text{audit}} \cdot S \;<\; 0
+\Delta U=(1-p)G-pS.
 \end{equation}
-where $G$ is the gain from unauthorized shortcutting (e.g., skipping tests), $p_{\text{audit}}$ is the probability of a randomized spot audit by a witness agent, and $S$ is the financial stake slashed upon discovery. By tuning $p_{\text{audit}}$ and $S$ such that $S > \frac{1 - p_{\text{audit}}}{p_{\text{audit}}} G$, the kernel sustains cooperation as a subgame-perfect Nash equilibrium.
+Thus $S\ge(1-p)G/p$ deters this deviation for a risk-neutral agent. For example, $G=10$, $p=0.1$, and $S=100$ give $\Delta U=-1$. Here $p$ includes both audit selection and successful detection. If the gain survives detection, the expression is $G-pS$ instead. A repeated-game equilibrium additionally needs a discount factor, monitoring model, continuation strategies and credible enforcement; this single-period inequality alone does not prove one.
 
 \subsubsection*{Proposition 8: Federation Relays Evidence, Not Sovereignty (\pdchapref{fh}{The Federated Harbor})}
-When autonomous fleets scale across distinct physical workstations, cloud tenancies, and organizational boundaries, centralizing all state into a single global database is both physically and politically impossible. Distributed machines operating under separate organizational ownership cannot submit to a single sovereign master.
+When autonomous fleets scale across distinct physical workstations, cloud tenancies, and organizational boundaries, a shared central database requires an explicit agreement about authority, availability and disclosure. This book studies hosts that retain independent admission authority.
 
 Cross-machine federation must therefore exchange cryptographically verifiable evidence rather than shared state. Mutually distrustful hosts communicate across untrusted zero-trust relays, exchanging signed capability attestations, revocation gossips, Merkle inclusion proofs, and settlement receipts without sharing a database. Transport carries non-repudiable evidence; the receiving host's local kernel retains complete sovereignty over whether to admit, execute, or reject the requested operation.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop8-federation.jpg}%
-  }
-  \pdwidecaption{\textbf{Proposition 8 Mechanics: Federated Evidence Relay.} Cross-machine federation connects independent host kernels across zero-trust relays. Hosts exchange cryptographic proofs, witness receipts, and revocation gossips, retaining complete local sovereignty over resource admission without sharing a database.}[fig:spark-prop8]
+  \centering
+  \input{figures/fig-spark-prop8-federation.tex}%
+  \pdwidecaption{\textbf{Federated evidence.} A sender transmits signed evidence. The receiver checks identity, scope, freshness and local policy before admission. Authentication does not itself confer permission to act.}[fig:spark-prop8]
 \end{figure}
 
 In this federated topology, host kernels $H_A, H_B$ maintain private, independent SQLite WAL databases. When Agent~$\alpha$ on host $H_A$ requests execution on host $H_B$, it transmits a signed credential package $\Pi = \langle \mathrm{sig}_A(\alpha), \mathrm{cap}_{\alpha}, \mathcal{M}_{\text{proof}} \rangle$. Host $H_B$'s local kernel independently verifies $\Pi$ against its local trust anchor, checking revocation state without querying $H_A$'s internal database. If valid, $H_B$ admits the task under local sandboxing rules. Sovereignty remains local; evidence crosses the wire.
@@ -438,10 +435,9 @@ When an action $a$ in plan $p$ fails during host execution, AgentSpeak semantics
 Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architecture, illustrating how autonomous systems select between reactive rules, static classical planning, and dynamic BDI execution.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-bdi-execution.tex}%
-  }
-  \pdwidecaption{\textbf{BDI Execution Flow and Operational Choice Architecture.} Grounded in real-world software engineering workflows, adapted from AgentSpeak(L) semantics (Bordini et al., 2007). Contrasting reactive rule triggers, static STRIPS-style planners, and dynamic BDI agents. The three core selection functions ($S_E$ for events, $S_O$ for applicable plans, and $S_I$ for intention stacks) arbitrate runtime goal scheduling, with explicit plan failure handling via the $-!g$ recovery event.}[fig:bdi-execution-flow]
+  \centering
+  \input{figures/fig-ch0-bdi-execution.tex}%
+  \pdwidecaption{\textbf{BDI selection flow.} Event, applicable-plan and intention selection determine the next action. A failed plan produces a recovery event. The diagram illustrates operational control flow; successful execution still depends on environment feedback.}[fig:bdi-execution-flow]
 \end{figure}
 
 \subsubsection{Normative Extensions: Deontic Constraints and Regret Minimization}
@@ -489,7 +485,7 @@ When multiple agents deliberate and execute concurrently on a developer's workst
   \item \textbf{Hoare's Communicating Sequential Processes (CSP) (1978)~\pdcite{hoare1978csp}:}\enspace
   CSP formalizes concurrent computation around \textbf{processes} communicating over synchronous, unbuffered \textbf{channels}. The core principles of CSP are:
   \begin{enumerate}[leftmargin=1.5em,itemsep=1.5pt]
-    \item \emph{Synchronous Rendezvous:} Communication is an unbuffered handshake. The output event $c!v$ on channel $c$ and the input event $c?x$ must occur simultaneously ($\Delta t = 0$). Whichever process reaches the communication point first blocks until the other process arrives.
+    \item \emph{Synchronous Rendezvous:} Communication is an unbuffered handshake. The output event $c!v$ on channel $c$ and the input event $c?x$ constitute one joint communication event in the abstract semantics. Whichever process reaches the communication point first blocks until the other process arrives.
     \item \emph{Guarded Choice (Alternative):} A process can wait on multiple communication events simultaneously using the alternative construct ($\mathtt{alt}$), proceeding with whichever channel becomes ready first.
   \end{enumerate}
 \end{itemize}
@@ -497,10 +493,9 @@ When multiple agents deliberate and execute concurrently on a developer's workst
 Figure~\ref{fig:actor-concurrency} details the dual concurrency architecture: Hewitt--Agha virtual actor isolation for stochastic deliberation, and Hoare's Communicating Sequential Processes (CSP) synchronous rendezvous for physical state mutations.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-concurrency-actors-csp.tex}%
-  }
-  \pdwidecaption{\textbf{Concurrency Foundations for Multi-Agent Operating Kernels.} Synthesizing Hewitt--Agha virtual actor isolation (asynchronous mailboxes, capability tokens, and $\mathtt{become}$ state transitions) with Hoare's Communicating Sequential Processes (synchronous rendezvous barriers, $\Delta t = 0$, and guarded external choice with lease timeouts). Sovereign actors deliberate in isolated sandboxes, while physical host resource contention (TCP ports, SQLite WAL writes, git locks) is arbitrated via synchronous CSP rendezvous.}[fig:actor-concurrency]
+  \centering
+  \input{figures/fig-ch0-concurrency-actors-csp.tex}%
+  \pdwidecaption{\textbf{Two communication patterns.} Buffered task delivery separates sender and receiver timing. An admission exchange couples a request to its resource decision. Either actors or synchronous processes can implement safe resource ownership with the appropriate protocol.}[fig:actor-concurrency]
 \end{figure}
 
 \subsection{From Asynchronous Isolation to Synchronous Rendezvous}
@@ -508,22 +503,17 @@ Figure~\ref{fig:actor-concurrency} details the dual concurrency architecture: He
 The fundamental divergence between Hewitt's Actor model and Hoare's Communicating Sequential Processes reflects an architectural trade-off between \emph{isolation} and \emph{synchronization}:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
-  \item \textbf{Asynchronous Mailboxes vs.\ Unbuffered Barriers:}\enspace In the Actor model, communication is non-blocking and decoupled in time. An agent posts a message to a peer's mailbox and immediately resumes local execution. This temporal decoupling is indispensable for long-running neural inference loops: if an orchestrator were forced to block synchronously while a worker generated hundreds of tokens across a remote API, the entire supervisory loop would freeze. However, unbounded asynchronous mailboxes introduce severe hazards: message ordering is non-deterministic, queue backpressure is difficult to meter, and an agent can be flooded with stale context deltas.
+  \item \textbf{Asynchronous Mailboxes vs.\ Unbuffered Barriers:}\enspace In the Actor model, communication is non-blocking and decoupled in time. An agent posts a message to a peer's mailbox and immediately resumes local execution. This temporal decoupling helps keep a supervisory loop responsive while workers perform long-running inference. A synchronous design can achieve similar responsiveness by separating those waits into worker processes. However, unbounded asynchronous mailboxes introduce severe hazards: message ordering is non-deterministic, queue backpressure is difficult to meter, and an agent can be flooded with stale context deltas.
   
-  \item \textbf{Synchronous Rendezvous for Scarce Resources:}\enspace Conversely, Hoare's CSP enforces synchronous rendezvous: a send operation on an unbuffered channel cannot complete until a corresponding receive operation simultaneously executes. While synchronous rendezvous is prohibitive for stochastic agent inference, it is the mathematically optimal primitive for arbitrating scarce, physical, and non-fungible host resources: acquiring exclusive TCP port leases, linearizing commits in the SQLite write-ahead log (WAL), and locking git branch heads.
-  
-  \item \textbf{The Synthesis in an Agent Operating Kernel:}\enspace Modern agent operating kernels synthesize both lineages. As illustrated in Figure~\ref{fig:actor-concurrency}, workers execute as sovereign actors within seatbelted processes, receiving tasks through capability-attenuated mailboxes and recording state transitions via $\mathtt{become}$. Yet, whenever an actor attempts to alter shared reality, its request is arbitrated through Hoare-style synchronous barriers, guaranteeing mutual exclusion, preventing circular wait deadlocks through explicit lease timeouts, and ensuring deterministic linearizability.
+  \item \textbf{Synchronous Rendezvous for Scarce Resources:}\enspace An unbuffered send waits for a corresponding receive. This can express an admission handshake, but does not itself establish mutual exclusion, durability or deadlock freedom. Those properties depend on the protocol surrounding the handshake.
+
+  \item \textbf{The Synthesis in an Agent Operating Kernel:}\enspace Buffered task delivery separates deliberation from resource admission. A resource manager can serialize conflicting operations, validate versions and issue fencing tokens. It may itself be implemented as an actor or a synchronous process; correctness is a property of its transition rules and actuator, not of the concurrency model's name.
 \end{enumerate}
 
-\subsubsection{Why Concurrency Lineages Matter: The Dual-Plane Operating Synthesis}
+\subsubsection{Why Concurrency Lineages Matter: Protocol Obligations}
 \label{sec:why-concurrency-matters}
 
-Why should an autonomous agent infrastructure combine two historically competing concurrency models rather than adopting one exclusively? The answer is dictated by the physical constraints of developer machines and neural inference:
-\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Why Pure CSP Fails for AI Agent Fleets:}\enspace If we built our multi-agent system purely on Hoare's Communicating Sequential Processes (as in Go channels or Occam), communication requires synchronous rendezvous ($\Delta t = 0$). Autoregressive token generation across frontier APIs is highly stochastic, with latencies ranging from 500 milliseconds to tens of seconds. Under pure CSP, an orchestrator process that sends a message to a worker is paralyzed until the worker consumes it. If two agents simultaneously attempt to query each other, or if a child process hangs on a remote API timeout, the entire swarm freezes in an irrecoverable circular rendezvous deadlock.
-  \item \textbf{Why Pure Actors Fail on Local Workstations:}\enspace Conversely, if we built our system purely on Hewitt--Agha actors (as in Erlang/OTP or Akka), all communication is asynchronous and all state is private. But a developer workstation is not an abstract cluster: it possesses scarce, non-fungible, shared physical resources. There is only one TCP port 3000, one SQLite database file on disk, and one \texttt{.git/index} lock file. If five autonomous actors concurrently execute bash tool calls attempting to bind port 3000 or mutate the git repository without a synchronous arbitration barrier, the result is catastrophic: silent port squatting, broken working directories, and corrupted transaction logs.
-  \item \textbf{What We Adopt in Port Daddy:}\enspace We implement a strict \textbf{Dual-Plane Architecture}. In the Deliberation Plane, agents are Hewitt--Agha actors: each subagent runs in an isolated OS process with private memory, communicating asynchronously over buffered mailbox queues and updating its internal state machine via $\mathtt{become}$. In the Physical Actuation Plane, all interactions with scarce host resources pass through Hoare CSP rendezvous barriers enforced by the supervisory daemon: atomic mutexes, lease timeouts, and single-writer commit gates that guarantee mutual exclusion and linearizability.
-\end{itemize}
+An actor can safely own a shared resource and process requests in order. A CSP network can avoid deadlock through its protocol structure and suitable timeout or cancellation behavior. Conversely, either model can contain an erroneous resource protocol. In the design studied here, workers deliberate asynchronously and request authority at an explicit admission boundary. Leases need fencing so that an expired holder cannot later act; a timeout by itself does not prevent a stale write.
 
 \subsection{Communicative Action and Speech Acts (FIPA-00037)}
 
@@ -553,10 +543,9 @@ In a developer's autonomous coding environment, speech acts are not abstract phi
 \end{table}
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-fipa-speech-acts.tex}%
-  }
-  \pdwidecaption{\textbf{FIPA-00037 Communicative Speech Act State Transition Machine.} Grounded in practical software engineering payloads. Top: Directive \texttt{request} lifecycle executing an atomic database migration under lock arbitration. Middle: Assertive \texttt{inform} directly mutating an agent's belief base. Bottom: Commissive \texttt{propose} negotiating an SLA for canary deployment routing. Every envelope carries cryptographic sender/receiver verification, monotonic capability tokens, and explicit conversation correlation IDs.}[fig:fipa-speech-acts]
+  \centering
+  \input{figures/fig-ch0-fipa-speech-acts.tex}%
+  \pdwidecaption{\textbf{Message intent and protocol state.} A request asks for action, an inform message asserts a proposition, and a proposal offers terms. Authentication identifies the sender; it does not make an assertion true or a proposal binding.}[fig:fipa-speech-acts]
 \end{figure}
 
 \subsubsection{Why Speech Acts Matter: From Conversational Fluff to Cryptographic Envelopes}
@@ -587,10 +576,9 @@ Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp
 \end{enumerate}
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-cnp-protocol.tex}%
-  }
-  \pdwidecaption{\textbf{Contract Net Protocol (CNP) Task Allocation Lifecycle and Settlement Under Kernel Confinement.} Grounded in Reid Smith's (1980) bilateral market protocol and drawn as a message ladder, read top to bottom: the Manager broadcasts a Call for Proposals with the task specification and spend cap~(1); eligible contractors evaluate tool capacity and submit a bid~(2) or return an explicit refusal under lock contention~(3); the award~(4) is an exclusive worktree lease ($\mathtt{0x09b}$), executed inside a Seatbelt sandbox under a zero-spend cap; signed git commit hashes and cryptographic test receipts~(5) unlock escrow at settlement~(6).}[fig:cnp-protocol]
+  \centering
+  \input{figures/fig-ch0-cnp-protocol.tex}%
+  \pdwidecaption{\textbf{Contract-net task allocation.} A manager announces a task, evaluates bids and awards work. A contractor returns evidence for contract-specific acceptance and settlement. Allocation, execution authority and payment verification are separate obligations.}[fig:cnp-protocol]
 \end{figure}
 
 \vspace{10pt}
@@ -618,10 +606,24 @@ In any multi-agent engineering swarm, allocating tasks across workers presents a
   \item \textbf{The Chaos of Greedy Contention:} Conversely, if workers greedily claim tasks from an uncoordinated queue, multiple agents race to modify the same files, squandering token budgets on overlapping AST diffs and inducing git merge conflicts.
 \end{enumerate}
 
-Reid Smith's Contract Net Protocol (CNP)~\pdcite{smith1980cnp} provides the decentralized market-clearing mechanism that solves this coordination dilemma:
+Reid Smith's Contract Net Protocol (CNP)~\pdcite{smith1980cnp} supplies a
+negotiation pattern for allocating tasks. Applying it to a coding workflow
+requires separate contracts for resource ownership and settlement:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{What We Adopt (Bilateral Market Clearing):}\enspace We adopt CNP's four-phase protocol: (1)~Call for Proposals (CFP) broadcast with explicit task specifications and spend caps; (2)~Capability self-assessment and bidding by candidate workers; (3)~Exclusive lease award to the optimal bid; and (4)~Escrow settlement upon verified delivery. In Port Daddy, this protocol directly powers autonomous dispatch (\texttt{pd dispatch}) and the Harbor Work Register: tasks are announced across the fleet, candidate subagents evaluate their own context capacity and tool availability before bidding, and the winning contractor is awarded an exclusive worktree branch.
-  \item \textbf{What We Improve (Zero-Trust Confinement and Cryptographic Verification):}\enspace Classical 1980s CNP assumed honest, cooperative agents operating in academic simulation. In a real-world developer environment with stochastic LLMs, agents can suffer hallucinations, attempt unauthenticated network egress, or introduce breaking bugs. We therefore harden CNP with modern systems security: the winning contractor executes strictly inside an isolated OS sandbox (macOS Seatbelt, Linux Landlock) under a strict spend cap (\$0.00 external spend). Crucially, settlement is dual-controlled: payment and task closure are released only upon cryptographic proof of passing test runs and signed git commit digests.
+  \item \textbf{Proposed task-allocation ceremony.} Broadcast a task and budget;
+  receive capability statements and bids; select a bid under a declared rule;
+  reserve the required resources; and settle against specified delivery evidence.
+  Bidding alone does not establish that the winner can safely execute the work.
+  The checked-in dispatch runner plans queued work for a selected backend,
+  budget, and isolated worktree. The Harbor Work Register records cooperative
+  claims and refuses a second live holder. Those components do not by themselves
+  implement competitive bidding or escrow settlement.
+  \item \textbf{Confinement and evidence obligations.} Execution confinement and
+  spend controls depend on the selected execution path. A settlement contract
+  may require authenticated test receipts and commit digests, but these bind
+  an identified run and artifact to a signer; they do not prove every semantic
+  property of the work. Resource reservation, verifier trust, payment authority,
+  and the conditions for refusing settlement must each be specified.
 \end{itemize}
 
 \vspace{10pt}
@@ -635,24 +637,23 @@ Reid Smith's Contract Net Protocol (CNP)~\pdcite{smith1980cnp} provides the dece
   {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
     Architectural Plate 0.B\enspace\textperiodcentered\enspace Bilateral Escrow Settlement}\par\vspace{4pt}%
   {\pdgrotesk\itshape\fontsize{9.5}{13}\selectfont\color{hhink}%
-    ``Dual-control settlement guarantees that escrow payments unlock strictly upon cryptographic proof of passing test runs and signed git commit digests.}\par\vspace{6pt}%
+    ``A settlement contract can require signed test receipts and commit digests; those receipts attest to a run, not to every property of the delivered software.''}\par\vspace{6pt}%
   {\color{hhgray!30}\rule{\linewidth}{0.4pt}}
 \end{minipage}
 \vspace{10pt}
 
 \subsection{Dynamic Epistemic Logic and Big Brother Logic}
 
-In multi-agent swarms, coordination requires reasoning about higher-order knowledge: what agent $i$ knows about what agent $j$ knows. In modal epistemic logic ($S5_n$), Kripke relations $R_i$ represent epistemic indistinguishability.
+In multi-agent swarms, coordination requires reasoning about higher-order knowledge: what agent $i$ knows about what agent $j$ knows. In modal epistemic logic ($S5_n$), Kripke relations $R_i$ represent epistemic indistinguishability. Charrier et al.~\pdcite{charrier2014bigbrother} demonstrate \textbf{Big Brother Logic (BBL)} with cameras whose fixed locations and fields of view permit asymmetric observations.
 
-Public Announcement Logic (PAL) models communication as epistemic model restriction: when proposition $\psi$ is announced, worlds where $\psi$ is false are eliminated ($W' = \{ w \in W \mid \mathcal{M}, w \models \psi \}$), establishing common knowledge $C_G \psi$.
+Public Announcement Logic (PAL) models a truthful public announcement of $\psi$ by restricting the model to $W'=\{w\in W:\mathcal M,w\models\psi\}$ and restricting each accessibility relation accordingly. For a propositional fact whose valuation is unchanged, a public announcement establishes common knowledge of that fact. Arbitrary epistemic formulas need care: announcing $p\land\neg K_i p$ can make its second conjunct false after the update.
 
-Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Logic (BBL)}, formalizing epistemic reasoning over embodied agents equipped with directed observation cones (vision sets $V(a)$). If agent $a_1$ observes agent $a_2$ ($a_2 \in V(a_1)$), $a_1$ knows what $a_2$ observes, yielding $K_{a_1} K_{a_2}(\phi)$. By inverting verification into a planning problem, BBL proves that multi-agent systems can achieve target epistemic goals $\Phi$ by autonomously reconfiguring observation cones and network routes.
+The BBL system checks epistemic properties and searches camera orientations for specified epistemic goals. Seeing another agent does not by itself establish $K_iK_j\phi$; that formula must follow from the model's indistinguishability relations and observation assumptions.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-bbl-vision-cones.tex}%
-  }
-  \pdwidecaption{\textbf{Dynamic Epistemic Observation Cones in Big Brother Logic (BBL)~(Charrier et al., 2014).} Directed vision cones formalize asymmetric visibility, epistemic shadows, and higher-order knowledge verification ($K_{a_1} K_{a_2} \phi$) in autonomous multi-agent systems. The supervisor maintains epistemic dominance over worker mutations, while sandboxed tenants operate within strict epistemic shadows, preventing side-channel data exfiltration.}[fig:big-brother-logic]
+  \centering
+  \input{figures/fig-ch0-bbl-vision-cones.tex}%
+  \pdwidecaption{\textbf{Asymmetric visibility.} The observation graph records who sees which modeled object. Visibility is not automatically transitive: seeing an agent does not establish knowledge of everything it knows. Host confidentiality needs an additional channel model.}[fig:big-brother-logic]
 \end{figure}
 
 \vspace{10pt}
@@ -666,7 +667,7 @@ Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Lo
   {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
     Architectural Plate 0.C\enspace\textperiodcentered\enspace Dynamic Epistemic Cones \& Confinement}\par\vspace{4pt}%
   {\pdgrotesk\itshape\fontsize{9.5}{13}\selectfont\color{hhink}%
-    ``Asymmetric observation cones guarantee supervisory dominance over worker mutations while confining tenants within strict epistemic shadows.''}\par\vspace{6pt}%
+    ``Observation models specify who can distinguish which states; confinement must justify the correspondence to actual host channels.''}\par\vspace{6pt}%
   {\color{hhgray!30}\rule{\linewidth}{0.4pt}}
 \end{minipage}
 \vspace{10pt}
@@ -676,11 +677,11 @@ Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Lo
 
 In multi-agent systems research, information sharing is often naively treated as an unalloyed good: the more agents communicate, the better they coordinate. In production systems engineering, this assumption is catastrophic. Unrestricted visibility leaks proprietary credentials, inflates context windows with irrelevant chatter, and enables prompt-injection side-channels.
 
-Charrier et al.'s Big Brother Logic~\pdcite{charrier2014bigbrother} provides the formal epistemic apparatus required to model \emph{asymmetric visibility} in security-critical environments:
+Observation models help separate three engineering obligations:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{The Supervisory Epistemic Invariant:}\enspace In an Agent Operating Kernel, the supervisor must maintain complete epistemic dominance over worker side effects ($K_{\text{kernel}} \text{action}_i$ holds for all admitted tool calls). Every command execution, file modification, and network attempt must fall strictly within the kernel's directed observation cone.
-  \item \textbf{Epistemic Shadows for Tenant Privacy:}\enspace Conversely, sandboxed workers must operate within strictly bounded epistemic shadows: worker $a_i$ must not observe the private working memory, active credentials, or uncommitted diffs of peer worker $a_j$ ($K_{a_i} \phi_j = \bot$). Furthermore, worker observation cones must never penetrate the host's privileged secrets (e.g., system keychains, master API tokens).
-  \item \textbf{What We Operationalize in Port Daddy:}\enspace We implement BBL's observation cones through OS-level sandbox profiles (macOS Seatbelt, Linux Landlock). The kernel configures filesystem and network visibility cones dynamically per task: a security review agent is granted read-only visibility over repository source trees, but zero visibility over deployment credentials or local network sockets. By framing confinement as an epistemic geometry problem, the kernel guarantees that agents can collaborate effectively while strictly preserving organizational confidentiality boundaries.
+  \item \textbf{Recorded effects:} A supervisor needs authentic receipts for the events it claims to observe. Recording a tool-call request is not a complete observation of every effect of its subprocess.
+  \item \textbf{Indistinguishability:} To model secrecy of a proposition $\phi$ at a world, require accessible alternatives with $\phi$ true and false, yielding $\neg K_i\phi\land\neg K_i\neg\phi$. Hidden files alone do not prove this if another observation reveals the same fact.
+  \item \textbf{Confinement:} A sandbox controls specified host channels. Proving noninterference requires relating those channels and observations to the epistemic model. BBL's camera geometry is an explanatory model, not a proof of operating-system confidentiality.
 \end{itemize}
 
 \subsection{Game-Theoretic Foundations and Mechanism Design}
@@ -693,16 +694,23 @@ When agents have independent objective functions, coordination cannot assume alt
   \forall i \in N, \quad \forall s_i \in S_i, \quad u_i(s_i^*, s_{-i}^*) \;\ge\; u_i(s_i, s_{-i}^*)
   \end{equation}
 
-  \item \textbf{Mechanism Design and the Revelation Principle:}\enspace Mechanism design inverts game theory: given desired social outcomes (e.g., allocative efficiency, pareto optimality), the designer creates the game rules (action spaces and payment functions) such that rational agents truthfully reveal their private types $\theta_i$. By the \textbf{Revelation Principle}, any social choice function implementable in Bayes--Nash or dominant-strategy equilibrium can be implemented by a \emph{direct-revelation mechanism} where truth-telling is an equilibrium:
-  \begin{equation}
-  u_i(v_i(t_i, \theta_i) - p_i(t_i)) \;\ge\; u_i(v_i(\hat{\theta}_i, \theta_i) - p_i(\hat{\theta}_i)), \quad \forall \hat{\theta}_i \neq \theta_i
-  \end{equation}
+  \item \textbf{Mechanism Design and the Revelation Principle:}\enspace A mechanism specifies allocations and transfers. The revelation principle says that an outcome implementable in dominant strategies, or in Bayes--Nash equilibrium, has a direct mechanism with truthful reporting in the corresponding equilibrium sense. It does not say that every desired outcome is implementable. For quasi-linear private values, dominant-strategy truthfulness requires, for every $i$, $\theta_i$, $\hat\theta_i$ and $\hat\theta_{-i}$,
+  \begin{align}
+  v_i(k(\theta_i,\hat\theta_{-i});\theta_i)-p_i(\theta_i,\hat\theta_{-i})
+  &\ge v_i(k(\hat\theta_i,\hat\theta_{-i});\theta_i)\nonumber\\
+  &\quad-p_i(\hat\theta_i,\hat\theta_{-i}).
+  \end{align}
+  Bayesian incentive compatibility instead compares the corresponding expected utilities over other types under the stated prior.
 
-  \item \textbf{Vickrey--Clarke--Groves (VCG) Mechanisms:}\enspace For allocating discrete resources (e.g., exclusive GPU reservation slots, compile worker nodes), VCG~\pdcite{vickrey1961counterspeculation,clarke1971multipart,groves1973incentives} enforces dominant-strategy incentive compatibility (DSIC) by charging each agent the \emph{externality} its presence imposes on all other agents:
+  \item \textbf{Vickrey--Clarke--Groves (VCG) Mechanisms:}\enspace Assume quasi-linear private values, a report-independent feasible set $\mathcal K$, enforceable transfers without binding budget constraints, and exact maximization of reported total value. With a fixed tie rule, the Clarke pivot payment is~\pdcite{vickrey1961counterspeculation,clarke1971multipart,groves1973incentives}
   \begin{equation}
-  p_i(\hat{\theta}) \;=\; \max_{k \in \mathcal{K}} \sum_{j \neq i} \hat{v}_j(k) \;-\; \sum_{j \neq i} \hat{v}_j(k^*(\hat{\theta}))
+  p_i(\hat\theta)=\max_{k\in\mathcal K}\sum_{j\ne i}\hat v_j(k)
+  -\sum_{j\ne i}\hat v_j(k^*(\hat\theta)).
   \end{equation}
-  Under VCG, truthful bidding ($\hat{\theta}_i = \theta_i$) is a strictly dominant strategy regardless of peer agent behavior. Furthermore, while the Myerson--Satterthwaite theorem~\pdcite{myerson1983efficient} proves that no bilateral trade mechanism can simultaneously guarantee incentive compatibility, individual rationality, and budget balance without external subsidies, VCG achieves dominant-strategy truthfulness by accepting budget surplus (or pivot taxes).
+  Truthful reporting is \emph{weakly} dominant: the agent's utility is total reported welfare with its own value reported truthfully, minus a term independent of its report. A truthful report selects a welfare maximizer; another report cannot improve it. Equality is possible. In a second-price auction, value 10 and highest rival bid 5 give utility 5 when bidding either 9 or 10.
+
+  \item \textbf{The bilateral-trade boundary:}\enspace Under independent private buyer and seller values with positive densities on intervals whose interiors overlap, Myerson--Satterthwaite rules out simultaneous Bayesian incentive compatibility, interim individual rationality, ex-post efficient trade and expected budget balance without outside subsidy~\pdcite{myerson1983efficient}. Efficiency is essential: no trade and no transfers satisfy the other requirements. VCG does not generally solve budget balance; in bilateral trade it can require a subsidy.
+
 \end{enumerate}
 
 \subsection{Social Choice Theory and Arrow's Impossibility Theorem}
@@ -715,7 +723,7 @@ F: \mathcal{L}(A)^n \;\to\; \mathcal{L}(A)
 \end{equation}
 that maps a profile of individual rankings $(\succ_1, \dots, \succ_n)$ into a collective ranking $\succ$.
 
-In 1951, Kenneth Arrow proved that no rank-order voting system can simultaneously satisfy four minimal criteria of fair aggregation~\pdcite{arrow1951social}:
+In 1951, Kenneth Arrow proved that a social welfare function on an unrestricted domain cannot satisfy the following criteria together with non-dictatorship~\pdcite{arrow1951social}:
 
 \begin{theorem}[Arrow's Impossibility Theorem (1951)]\label{thm:arrow}
 If $|A| \ge 3$, any Social Welfare Function $F: \mathcal{L}(A)^n \to \mathcal{L}(A)$ that satisfies:
@@ -728,27 +736,22 @@ is necessarily a \textbf{Dictatorship (D)}: $\exists i \in N$ such that $\forall
 \end{theorem}
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-arrows-consensus.tex}%
-  }
-  \pdwidecaption{\textbf{Arrow's Impossibility Theorem in Autonomous Multi-Agent Consensus.} Kenneth Arrow (1951) demonstrated that with $|A| \ge 3$, no ordinal preference aggregation function can simultaneously satisfy Unrestricted Domain (U), Weak Pareto (P), and Independence of Irrelevant Alternatives (IIA) without degenerating into a Dictatorship (D). In multi-agent systems, naive voting induces Condorcet cycles ($A \succ B \succ C \succ A$). Port Daddy avoids ordinal voting cycles by using cardinal utilities, bonded escrow, and VCG clearing.}[fig:arrows-impossibility]
+  \centering
+  \input{figures/fig-ch0-arrows-consensus.tex}%
+  \pdwidecaption{\textbf{A majority-cycle witness.} Three individually consistent rankings yield pairwise majorities $A\succ B$, $B\succ C$, and $C\succ A$. This is one possible profile. Arrow's theorem separately requires unrestricted domain, Pareto and IIA for complete and transitive collective rankings.}[fig:arrows-impossibility]
 \end{figure}
 
-\subsubsection{Why Arrow's Theorem Matters: Why Multi-Agent Swarms Cannot Simply ``Vote''}
+\subsubsection{What Aggregation Theorems Require}
 \label{sec:why-arrows-matters}
 
-In naive multi-agent architectures, consensus is often implemented as a simple ``agent vote'': three subagents generate proposed solutions, and a majority vote decides which code to commit. Arrow's Impossibility Theorem~\pdcite{arrow1951social} mathematically proves why this naive voting model is fatally flawed:
+Preference aggregation and safety certification answer different questions. Arrow's theorem~\pdcite{arrow1951social} constrains how complete rankings are combined. It does not prohibit choosing a candidate by voting or prove that every vote deadlocks.
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Condorcet Cycles and Deadlock:} In the presence of three or more candidate solutions ($A, B, C$), ordinal majority voting inevitably generates cyclic preference loops ($A \succ B \succ C \succ A$). The swarm falls into an infinite deadlock, unable to pick a winner without arbitrarily breaking ties.
-  \item \textbf{Strategic Manipulation (Gibbard--Satterthwaite):} By the Gibbard--Satterthwaite theorem~\pdcite{gibbard1973manipulation,satterthwaite1975strategy}, any non-dictatorial ordinal voting scheme is vulnerable to strategic misrepresentation: an agent can achieve a preferred outcome by dishonestly ranking candidates.
-  \item \textbf{The Inevitability of Dictatorship:} If an ordinal voting system eliminates cycles and satisfies Pareto efficiency, it mathematically degenerates into a dictatorship: one agent's ranking unilaterally dictates the swarm's decisions, rendering the remaining agents superfluous.
+  \item \textbf{Cycles are possible:} The three rankings $A\succ B\succ C$, $B\succ C\succ A$ and $C\succ A\succ B$ produce the majority cycle $A\succ B\succ C\succ A$. Unanimous rankings do not. A procedure can still return a winner by a declared agenda or tie rule, while giving up other properties.
+  \item \textbf{Strategy-proof choice has hypotheses:} Gibbard--Satterthwaite applies to deterministic, onto, single-winner choice rules over at least three alternatives, with unrestricted strict preferences. A rule satisfying these conditions is either dictatorial or manipulable at some profile~\pdcite{gibbard1973manipulation,satterthwaite1975strategy}. It does not say every agent can manipulate every profile.
+  \item \textbf{The missing condition matters:} Pareto and a transitive collective ranking alone do not imply dictatorship. A Borda ranking with a fixed tie rule satisfies both on strict preferences but violates IIA. Arrow's impossibility requires IIA as well as unrestricted domain and Pareto.
 \end{enumerate}
 
-To circumvent Arrow's impossibility, an Agent Operating Kernel must reject ordinal rank-order voting:
-\begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Cardinal Utility and Bonded Bidding:}\enspace Arrow's theorem applies strictly to \emph{ordinal} preference rankings (rank-order lists). By transitioning to \emph{cardinal utility} backed by verifiable economic stake (bonded escrow tokens), the kernel bypasses Arrow's conditions. Agents do not simply vote; they express bounded utility bids priced in verifiable compute and escrow balances.
-  \item \textbf{Objective Test Oracles:}\enspace Crucially, code correctness is not a political consensus. A pull request that fails the test suite cannot be redeemed by a majority vote of three sycophantic language models. In Port Daddy, arbitration relies on objective deterministic test oracles and Clarke pivot taxes (VCG clearing), guaranteeing incentive compatibility without voting deadlocks.
-\end{itemize}
+An agent system must state which aggregation properties its task needs. Restricted preference domains, randomized choice, cardinal reports with transfers, and ordinary voting rules have different guarantees. Cardinal bids and collateral alone do not establish truthful elicitation; VCG needs the assumptions just stated. For mechanically specified admission predicates, a test or proof checks that predicate. Passing a finite test suite does not establish all semantic correctness, and subjective judgments need an explicit decision and appeal rule.
 
 \subsection{The Ostrom Institutional Commons}
 
@@ -784,42 +787,42 @@ The core Scaled Dot-Product Attention operator is defined as:
 \end{equation}
 
 \subsubsection{The Quadratic Attention Wall}
-The matrix product $Q K^T$ forms an $L \times L$ attention matrix representing the pairwise affinity between every token in the sequence. Computing and storing this matrix imposes fundamental asymptotic costs:
+The matrix product $Q K^T$ forms an $L \times L$ attention matrix representing the pairwise affinity between every token in the sequence. For dense attention that materializes the score matrix, the asymptotic costs are:
 \begin{equation}
 \mathrm{Compute} \;=\; O(L^2 \cdot d), \qquad \mathrm{Memory} \;=\; O(L^2 + L \cdot d)
 \end{equation}
 While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoid materializing the full $L \times L$ matrix in High-Bandwidth Memory (HBM), the underlying FLOP count remains quadratic in context length $L$. For an agent maintaining an uncompacted context of $L = 128{,}000$ tokens, a single attention pass requires evaluating $\approx 1.63 \times 10^{10}$ token-pair affinities per attention head.
 
 \subsubsection{The Key-Value (KV) Cache and Memory Bandwidth Bottlenecks}
-In autoregressive text generation, the model predicts one token at a time: $x_{t} \sim P_\theta(x_t \mid x_{<t})$. Because previous tokens do not change, recomputing their Key and Value representations at every decoding step would result in $O(L^3)$ aggregate compute. Production inference engines (such as vLLM~\pdcite{kwon2023vllm}) therefore cache Key and Value vectors in high-bandwidth GPU memory (HBM).
+In autoregressive text generation, consider a dense decoder generating one token at a time: $x_{t} \sim P_\theta(x_t \mid x_{<t})$. Because previous tokens do not change, recomputing their Key and Value representations at every decoding step would result in $O(L^3)$ aggregate compute. Production inference engines (such as vLLM~\pdcite{kwon2023vllm}) therefore cache Key and Value vectors in high-bandwidth GPU memory (HBM).
 
 For a transformer with $N_l$ layers, $N_h$ key-value heads, dimension $d_h$, sequence length $L$, and precision $b_p$ bytes (typically 2 for FP16/BF16), the KV-cache memory consumption per active agent sequence is:
 \begin{equation}\label{eq:kv-cache-full}
 \mathrm{Memory}_{\mathrm{KV}} \;=\; 2 \times N_l \times N_h \times d_h \times L \times b_p \quad \text{bytes}
 \end{equation}
 
-Consider a frontier 70-billion parameter model ($N_l = 80$, $N_h = 8$ using Grouped-Query Attention, $d_h = 128$, $b_p = 2$). At context length $L = 128{,}000$:
+Consider an illustrative 70-billion parameter model configuration ($N_l = 80$, $N_h = 8$ using Grouped-Query Attention, $d_h = 128$, $b_p = 2$). At context length $L = 128{,}000$:
 \begin{align}
 \mathrm{Memory}_{\mathrm{KV}} &\;=\; 2 \times 80 \times 8 \times 128 \times 128{,}000 \times 2 \;\text{bytes} \notag \\
 &\;\approx\; 41.94\text{ GB per sequence}
 \end{align}
-A fleet of 8 concurrent agent workers requires $\approx 335.5\text{ GB}$ of high-bandwidth memory solely to store the KV-cache, exceeding four 80~GB NVIDIA H100 GPUs before allocating a single byte for model weights.
+A fleet of 8 concurrent agent workers requires $\approx 335.5\text{ GB}$ of high-bandwidth memory solely to store the KV-cache, exceeding a nominal 320~GB memory budget before allocating a single byte for model weights.
 
 \subsubsection{Arithmetic Intensity: Compute-Bound Prefill vs. Memory-Bound Decoding}
 A critical physical reality of GPU execution is \textbf{Arithmetic Intensity}: the ratio of floating-point operations (FLOPs) to memory access (bytes transferred):
 \begin{equation}
 I \;=\; \frac{\text{FLOPs}}{\text{Bytes Transferred}}
 \end{equation}
-Transformer execution is bifurcated into two radically distinct physical regimes:
+Prefill and decoding often have different bottlenecks:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Prefill Phase (Prompt Processing):} The prompt of length $L_{\text{prompt}}$ is evaluated in parallel. Matrix multiplications ($Q K^T$ and $A V$) execute across all tokens concurrently, achieving high arithmetic intensity ($I \gg 100\text{ FLOPs/byte}$). Prefill is strictly \textbf{compute-bound}, saturating GPU tensor cores.
-  \item \textbf{Decoding Phase (Token Generation):} Generation is strictly sequential: generating token $x_{t+1}$ requires loading all model weights ($\sim 140\text{ GB}$ for 70B FP16) and the entire historical KV-cache from HBM to compute a single matrix-vector multiplication. The arithmetic intensity drops to $I \approx 1\text{ FLOP/byte}$. Decoding is strictly \textbf{memory-bandwidth bound}.
+  \item \textbf{Prefill:} Processing many prompt tokens uses matrix multiplications and can achieve high arithmetic intensity. Whether it is compute-bound depends on batch size, sequence length, hardware and the attention implementation.
+  \item \textbf{Decoding:} Single-sequence dense decoding often spends substantial bandwidth reading weights and the KV cache. A dense 70-billion-parameter model stored at two bytes per parameter has 140~GB of weights before sharding or compression. Batching, quantization, sparse architectures and speculative decoding change the balance.
 \end{enumerate}
-This physical bottleneck means that verbose agent prompts and long execution logs directly choke generation throughput. If an agent pollutes its prompt context with raw binary files or repetitive test output, it forces the inference server into massive memory-bandwidth stalls, driving latency from milliseconds to tens of seconds per token.
+Long contexts therefore have a measurable memory and compute cost. The cache formula provides a capacity estimate for the stated configuration; latency and throughput require measurements of the actual inference system.
 
 \subsection{Training Regimes and the Alignment Illusion}
 
-Modern coding models undergo a three-stage training pipeline, each stage imparting distinct behavioral properties:
+A common training pipeline has three stages; individual systems may omit or combine stages:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
   \item \textbf{Self-Supervised Pretraining:} The base model is trained on multi-trillion-token corpora of open-source repositories, documentation, and web data, optimizing next-token predictive likelihood:
@@ -828,11 +831,11 @@ Modern coding models undergo a three-stage training pipeline, each stage imparti
   \end{equation}
   Pretraining instills syntactic fluency, programming language grammars, algorithmic patterns, and broad world knowledge. However, base models cannot follow instructions reliably; they simply predict statistically probable text continuations.
 
-  \item \textbf{Supervised Fine-Tuning (SFT) with Loss Masking:} SFT trains the model to act as an assistant, following instruction schemas and executing tool calls~\pdcite{ouyang2022instruct}. Crucially, modern tool-use SFT employs \textbf{loss masking}: gradients are computed strictly over assistant tokens and tool call arguments, masking prompt templates and system instructions:
+  \item \textbf{Supervised Fine-Tuning (SFT) with Loss Masking:} SFT trains the model to act as an assistant, following instruction schemas and executing tool calls~\pdcite{ouyang2022instruct}. One common tool-use SFT convention employs \textbf{loss masking}: gradients are computed strictly over assistant tokens and tool call arguments, masking prompt templates and system instructions:
   \begin{equation}
   \mathcal{L}_{\mathrm{SFT}}(\theta) \;=\; -\sum_{t \in \mathcal{T}_{\mathrm{assistant}}} \log P_\theta(y_t \mid x, y_{<t})
   \end{equation}
-  SFT enables models to emit valid JSON-Schema tool invocations and parse structured API responses.
+  SFT can improve schema-following behavior. A parser or constrained decoder must enforce any promised syntactic validity.
 
   \item \textbf{Preference Alignment (RLHF and DPO):} Reinforcement Learning from Human Feedback (RLHF) and Direct Preference Optimization (DPO)~\pdcite{rafailov2023dpo} align model outputs with human judgments of helpfulness, harmlessness, and conciseness:
   \begin{align}
@@ -841,34 +844,32 @@ Modern coding models undergo a three-stage training pipeline, each stage imparti
   \end{align}
 \end{enumerate}
 
-\subsubsection{The Alignment Trap: Conversational Compliance \texorpdfstring{$\neq$}{!=} Execution Invariants}
-A fatal misconception among software engineers is assuming that an aligned model (trained via RLHF/DPO) will respect security boundaries and system rules. Alignment optimizes for \emph{conversational agreeableness} and \emph{plausible compliance}, not \emph{formal invariant enforcement}.
+\subsubsection{Alignment Objectives and Execution Invariants}
+Preference training can improve observed behavior. Its objective alone is not a proof that every permitted action preserves a host invariant. An apology or instruction remains evidence about the policy's behavior; an admission rule constrains which effects can occur. The distinction depends on the action interface and the verified controller, not on whether the proposer is neural or symbolic.
 
-When a human evaluator provides feedback during RLHF, an apology is rewarded as polite and constructive. Consequently, when an aligned agent encounters a permission denial or invariant failure, it reflexively generates contrite natural language: ``\emph{I apologize for the oversight. I will not modify that protected file again.}'' But because autoregressive generation lacks physical state commitment, the model conditioned on its own apology has a non-zero probability of generating the exact same forbidden file mutation on the very next turn. Conversational alignment creates the dangerous illusion of safety while providing zero structural guarantees. True safety requires external, non-bypassable operating kernel gates.
+\subsection{Sampling and Conditional Failure Hazards}
 
-\subsection{Sampling Entropy, Temperature, and the Non-Determinism Hazard}
+For finite logits $z$ and temperature $T>0$, softmax assigns
+\begin{equation}
+P(w_i\mid x_{<t})=\frac{\exp(z_i/T)}{\sum_j\exp(z_j/T)}.
+\end{equation}
+Greedy decoding at $T=0$ is a separate argmax rule with a specified tie policy. For nucleus sampling, order tokens so $P(w_1)\ge\cdots\ge P(w_m)$, fix a tie order, and let $0<p\le1$. Following \href{https://arxiv.org/abs/1904.09751}{Holtzman et al.'s nucleus rule}, retain the shortest prefix reaching probability $p$ and renormalize:
+\begin{equation}
+k_p=\min\left\{k:\sum_{j=1}^{k}P(w_j)\ge p\right\},\qquad
+V^{(p)}=\{w_1,\ldots,w_{k_p}\}.
+\end{equation}
+With probabilities $(0.95,0.05)$ and $p=0.9$, the nucleus is $\{w_1\}$. Truncation, action masks and tool validation can exclude unsafe actions even when token generation is stochastic.
 
-During generation, logit vector $z \in \mathbb{R}^{|V|}$ is transformed into a token probability distribution via softmax with temperature parameter $T \ge 0$:
+\begin{theorem}[Survival under conditional failure hazards]\label{thm:non-determinism}
+Let $S_t$ mean that execution has remained safe through step $t$, with $S_0$ certain. Assume that after every reachable safe history before step $t$, the probability that the \emph{admitted effect} violates the invariant is at least $\epsilon_t\in[0,1]$. Then
 \begin{equation}
-P(w_i \mid x_{<t}) \;=\; \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}
+\Pr(S_N)\le\prod_{t=1}^{N}(1-\epsilon_t).
 \end{equation}
-To prevent degenerate text loops while truncating low-probability tail tokens, inference engines apply \textbf{Nucleus (Top-$p$) Sampling}:
-\begin{equation}
-V^{(p)} \;=\; \left\{ w \in V \;\middle|\; \sum_{w' \in V, P(w') \ge P(w)} P(w') \;\le\; p \right\}
-\end{equation}
-
-\begin{theorem}[Non-Determinism of Autonomous Execution]\label{thm:non-determinism}
-Let $\mathcal{I}$ be a safety invariant over execution environment $\mathcal{S}$. For any autoregressive policy $\pi_\theta(a_t \mid h_t)$ evaluated at temperature $T > 0$, the single-step probability of generating an invariant-violating action $a_t \notin \mathcal{A}_{\mathrm{safe}}$ is strictly positive:
-\begin{equation}
-\exists \epsilon > 0 \quad \text{such that} \quad \Pr[a_t \notin \mathcal{A}_{\mathrm{safe}} \mid h_t] \;\ge\; \epsilon
-\end{equation}
-Consequently, over an autonomous multi-turn workflow of length $N$, the cumulative probability of safe execution decays exponentially:
-\begin{equation}
-\Pr[\text{Safe Execution over } N \text{ steps}] \;\le\; (1 - \epsilon)^N \;\xrightarrow{N \to \infty}\; 0
-\end{equation}
+If one constant $\epsilon>0$ lower-bounds every $\epsilon_t$, then $\Pr(S_N)\le(1-\epsilon)^N\to0$. No independence assumption is required.
 \end{theorem}
+\noindent\textit{Proof idea.} Bound survival at the next step conditional on having survived so far. Averaging the history-wise bound gives $\Pr(S_t\mid S_{t-1})\le1-\epsilon_t$. Multiply these conditional probabilities. If any $S_t$ already has probability zero, the conclusion is immediate.\hfill$\square$
 
-Theorem~\ref{thm:non-determinism} proves that an operating system cannot rely on prompt instructions or model self-policing for invariant preservation. As an agent's task length $N$ increases, catastrophic failure is mathematically guaranteed. Furthermore, even at $T = 0$ (greedy decoding), non-deterministic floating-point reduction order across GPU CUDA threads can yield divergent token traces for identical prompts. System determinism must therefore be supplied entirely by the external host kernel.
+The hazard assumption must be measured or otherwise justified; positive temperature does not imply it. A policy restricted to safe actions has zero failure probability. Even positive hazards at every step need not force eventual failure: independent hazards $\epsilon_t=2^{-t-2}$ have total at most $1/4$, so the union bound leaves survival probability at least $3/4$. This theorem explains how persistent admitted risk accumulates. It neither proves that every model must fail nor equates a proposed unsafe token with an executed unsafe effect.
 
 \subsection{The Context Window as Volatile, Lossy RAM}
 
@@ -937,7 +938,7 @@ where $\mathcal{S}$ is the true environment state (filesystem, git index, runnin
 
 \subsection{Deliberation, Planning, and Search Frameworks}
 
-Modern agents employ structured search and planning algorithms across candidate execution paths~\pdcite{xie2025survey}:
+Modern agents employ structured search and planning algorithms across candidate execution paths~\pdcite{wang2023agentsurvey}:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
   \item \textbf{ReAct (Reasoning and Acting)~\pdcite{yao2022react}:}\enspace Interleaves natural language reasoning traces (``Thoughts'') with structured tool executions (``Actions'') and environment feedback (``Observations''). When factual uncertainty is encountered, reasoning halts and an exploratory tool is invoked.
@@ -948,18 +949,18 @@ Modern agents employ structured search and planning algorithms across candidate 
 
   \item \textbf{Voyager Lifelong Skill Learning~\pdcite{wang2023voyager}:}\enspace Implements open-ended lifelong learning by accumulating an \textbf{executable skill library}. When an agent solves a complex programming task, it synthesizes a self-contained, parameter-validated script and stores it in a vector-indexed codebase. Subsequent tasks retrieve and compose existing skills, transforming complex multi-step reasoning into atomic tool calls.
 
-  \item \textbf{TDAG: Topological Task DAG Execution~\pdcite{wang2025tdag}:}\enspace Formalizes task planning as a Directed Acyclic Graph (DAG) of interdependent subgoals. TDAG dynamically decomposes complex software workflows into parallel execution chains, resolves circular dependencies at runtime, and linearizes task dispatch across specialized worker subagents.
+  \item \textbf{TDAG: Task Decomposition and Agent Generation~\pdcite{wang2024tdag}:}\enspace Dynamically decomposes a task and generates specialized subagents. Wang et al. evaluate it on ItineraryBench, a travel-planning benchmark. This supports an adaptive planning pattern; it is not a theorem about eliminating dependency cycles or serializing software mutations.
 
-  \item \textbf{Hypertree Planning~\pdcite{chen2025hypertree}:}\enspace Hierarchical task network planning that recursively decomposes macro-objectives (e.g., ``implement OAuth authentication'') into hyperedges connecting subgoals, preventing agent fleets from becoming trapped in localized code modifications.
+  \item \textbf{HyperTree Planning~\pdcite{gui2025hypertree}:}\enspace Gui et al. construct and iteratively refine hierarchical planning outlines, evaluated on TravelPlanner. The structure supports decomposition of constrained plans. Its reported benchmark gains do not establish that software agents avoid local minima or produce correct repository changes.
 \end{enumerate}
 
 \subsection{Cognitive Control, Test-Time Compute, and Process Reward Models}
 
-Frontier coding models increasingly shift computational budget from training to inference time. Instead of sampling greedily from $\pi_\theta(a \mid h)$, inference search trees explore alternative reasoning chains scored by \textbf{Process Reward Models (PRMs)} that evaluate correctness at each logical derivation step:
+Inference search can explore alternative reasoning chains scored by \textbf{Process Reward Models (PRMs)}. One possible ranking heuristic multiplies step scores:
 \begin{equation}
 \mathrm{Score}(\tau) \;=\; \prod_{t=1}^T \mathrm{PRM}(c_t \mid c_{<t}, x)
 \end{equation}
-When an intermediate verification score falls below a threshold $\tau_{\mathrm{cut}}$, the search beam backtracks to a previous checkpoint.
+This product is a joint correctness probability only when its factors are the appropriate calibrated conditional probabilities. Otherwise it is a heuristic score. A search policy may backtrack when a score falls below a chosen threshold.
 
 \subsection{Multi-Agent Formal Verification and Benchmarking}
 
@@ -967,7 +968,7 @@ Evaluating multi-agent software engineering requires moving beyond synthetic sta
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{AgentBench~\pdcite{liu2023agentbench}:} A multi-dimensional benchmark evaluating LLMs as autonomous agents across operating system bash environments, databases, web browsing, and multi-agent coordination games.
   \item \textbf{HELM (Holistic Evaluation of Language Models)~\pdcite{liang2022helm}:} Standardized multi-metric evaluation across accuracy, calibration, robustness, fairness, and toxicity.
-  \item \textbf{FormalJudge (Zhou et al., 2026)~\pdcite{zhou2026formaljudge}:} Combines neural LLM proposals with symbolic SMT solvers (Z3) and model checkers to verify formal code invariants at compile time, eliminating hallucinated test assertions.
+  \item \textbf{FormalJudge~\pdcite{zhou2026formaljudge}:} Zhou et al. translate natural-language requirements into atomic constraints and use Dafny specifications with Z3 to assess compliance. Their agent-oversight benchmarks report improved detection. A proof concerns the encoded specification; correctness of its translation and of its connection to observed behavior remains a separate obligation.
 \end{itemize}
 
 \section{Tools, Protocols, Skills, and Hooks}\label{sec:prereq-hypervisors}
@@ -985,19 +986,18 @@ Anthropic's \textbf{Model Context Protocol (MCP)} standardizes client-server int
 
 \subsection{Context Economics and Progressive Skill Disclosure}
 
-A major vulnerability of early tool-use architectures was schema bloat: injecting hundreds of complex tool definitions into the prompt exhausted the context window before execution began. Modern agent harnesses resolve this dilemma via \textbf{Three-Tier Progressive Disclosure}:
-
+Progressive disclosure keeps an index in context and loads detailed instructions when needed. Its benefit depends on actual retrieval and task frequency:
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
-  \item \textbf{Tier 1 (Surface Frontmatter Index):} The system prompt contains only lightweight index entries: the skill's unique identifier and a concise 1-to-2 sentence description ($10^1$--$10^2$ tokens per skill). Across a library of 500 skills, this consumes a static footprint of $\approx 15{,}000$ tokens ($\approx 7.5\%$ of a 200k context window). Because Tier~1 is static across all turns, modern inference providers cache this prompt prefix in HBM, reducing input costs by up to $90\%$. The probability of inclusion in the prompt is $P = 1.0$.
-  \item \textbf{Tier 2 (On-Demand Instruction Activation):} When the agent's semantic classifier or planning policy determines that a task requires a specific capability, it invokes a read tool to load the corresponding \path{SKILL.md} into its working context ($10^3$--$10^4$ tokens). Tier~2 contains operational instructions, parameter constraints, decision tables, and error recovery protocols. Its activation probability is conditionally sparse ($P \approx 10^{-1}$), loaded only for the duration of the subtask and purged or compacted when the goal is achieved.
-  \item \textbf{Tier 3 (Deep Reference and Subprocess Execution):} Beneath the instruction manual lies the deepest architectural layer: specialized executable scripts (\path{scripts/}), schemas, and large reference manuals (\path{references/}), spanning $10^4$--$10^5$ tokens. Crucially, the agent \emph{does not load Tier~3 assets into its language context}. Instead, Tier~2 instructs the agent to execute Tier~3 scripts in an isolated host subshell or query specific byte offsets on demand. Because invoking a specialized script or deep reference is needed only for esoteric domain edge-cases, its execution probability is orders of magnitude lower ($P \approx 10^{-3}$ to $10^{-4}$).
+  \item \textbf{Index:} A concise name and description identify each skill. For illustration, 500 descriptions averaging 30 tokens consume 15,000 tokens, or $7.5\%$ of a 200,000-token window. This is a sizing example, not a measured activation rate.
+  \item \textbf{Instructions:} A selected skill supplies operational guidance, parameters and recovery rules. Its context cost is the number of instruction tokens actually loaded.
+  \item \textbf{References and execution:} The harness reads relevant reference excerpts or runs a script without loading all its source into the model. Tool arguments, outputs and errors still consume context. Executing a script is not a zero-token interaction.
 \end{enumerate}
+If the index costs $b_0$ tokens and asset $i$ costs $b_i$ when loaded with probability $p_i$, one loading round has expected cost $b_0+\sum_i p_i b_i$. This follows by linearity of expectation without requiring independence. It gives no exponential saving unless a measured access distribution justifies one.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-progressive-skills.tex}%
-  }
-  \pdwidecaption{\textbf{Progressive Disclosure of Skills Across Contracting Logarithmic Decades.} Capability activation frequency contracts across decades ($10^0$ to $10^{-4}$). By partitioning capabilities from static frontmatter metadata down to host-executed scripts and formal schemas consuming zero LLM context tokens, context consumption contracts exponentially with task specialization.}[fig:progressive-skills-iceberg]
+  \centering
+  \input{figures/fig-ch0-progressive-skills.tex}%
+  \pdwidecaption{\textbf{Staged loading.} Keep an index, load selected instructions, then retrieve references or execute scripts as needed. Savings depend on actual access patterns and returned output; the tiers imply no universal activation frequencies.}[fig:progressive-skills-iceberg]
 \end{figure}
 
 \vspace{10pt}
@@ -1011,7 +1011,7 @@ A major vulnerability of early tool-use architectures was schema bloat: injectin
   {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
     Architectural Plate 0.D\enspace\textperiodcentered\enspace Progressive Skill Disclosure Economics}\par\vspace{4pt}%
   {\pdgrotesk\itshape\fontsize{9.5}{13}\selectfont\color{hhink}%
-    ``Contracting logarithmic tiers of capability activation preserve working memory, executing deep scripts on host substrates with zero token footprint.}\par\vspace{6pt}%
+    ``A compact index directs selective loading; script outputs and reference excerpts determine the context actually consumed.''}\par\vspace{6pt}%
   {\color{hhgray!30}\rule{\linewidth}{0.4pt}}
 \end{minipage}
 \vspace{10pt}
@@ -1024,43 +1024,59 @@ Let unconstrained agent execution be modeled as a discrete-event generator $G = 
 \begin{equation}
 L(S / G) \;\subseteq\; K \;\subset\; L(G)
 \end{equation}
-where $K$ is the formal language of safe execution traces (e.g., preventing writes to protected branches, restricting filesystem mutations to leased workspaces, or halting when spending caps are exceeded).
+where $K$ is a prefix-closed language of safe traces. This inclusion is a design requirement, not an automatic property of a hook. For full observation, enforcing exactly $K$ requires controllability: $K\Sigma_u\cap L(G)\subseteq K$. Otherwise one must find an enforceable sublanguage, or report that the initial state has no safe continuation. Partial observation adds observability requirements; completion adds a separate nonblocking obligation.
 
-Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section of modern production agent lifecycle hooks, modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution proceeds through two nested supervisory loops:
+Figure~\ref{fig:lifecycle-hooks-engines} illustrates pre-effect admission and
+post-effect observation. The event names follow Claude Code's hook
+reference~\pdcite{anthropic2026hooks}; the drawing is a teaching model, not a
+complete implementation map. Two useful levels are:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{The Outer Session \& Turn Loop:} Encompasses initial context injection (\texttt{SessionStart}), prompt interception (\texttt{UserPromptSubmit}), context pressure management (\texttt{PreCompact}), turn-level invariant verification (\texttt{Stop}/\texttt{StopFailure}), and session teardown (\texttt{SessionEnd}).
   \item \textbf{The Inner Agentic Tool Loop:} Governs the iterative reasoning-action cycle: pre-tool interception and deterministic vetoes (\texttt{PreToolUse}), sandboxed execution, and reactive post-tool sanitization (\texttt{PostToolUse}).
 \end{enumerate}
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-lifecycle-hooks.tex}%
-  }
-  \pdwidecaption{\textbf{The Agent Lifecycle Hook Cross-Section.} Modeled after the production architecture of Anthropic's Claude Code and the Port Daddy Giant Squid Harness. Execution is partitioned into two nested supervisory loops: the outer Session and Turn lifecycle manages user context, memory compaction (\texttt{PreCompact}), and test verification (\texttt{Stop}), while the inner \texttt{AGENTIC TOOL LOOP} supervises iterative tool invocations, pre-execution security vetoes (\texttt{PreToolUse}), sandbox execution, and reactive post-tool sanitization (\texttt{PostToolUse}). Concrete production traces (Cases A--C) illustrate deterministic enforcement at binary interception points.}[fig:lifecycle-hooks-engines]
+  \centering
+  \input{figures/fig-ch0-lifecycle-hooks.tex}%
+  \pdwidecaption{\textbf{Hook ordering.} A pre-execution gate can refuse a controllable action. Post-execution checks inspect effects and evidence. Closeout records the result. Prevention requires every relevant effect path to cross the gate before it occurs.}[fig:lifecycle-hooks-engines]
 \end{figure}
 
-\subsubsection{Case Studies in Lifecycle Hook Enforcement}
+\subsubsection{Illustrative Hook Designs}
 \label{sec:lifecycle-hook-cases}
-
-In production harnesses, lifecycle hooks replace conversational model instructions with deterministic binary gates. The following three scenarios illustrate how the inner and outer supervisory loops enforce system invariants:
+The following constructed scenarios separate prevention, recovery, and retained
+context. They specify design obligations; they are not measured production runs.
 
 \begin{description}[leftmargin=1.5em,style=sameline,font=\normalfont]
-\item[\textbf{Case A (Pre-Tool Security Veto):}] \emph{Destructive Command Interception.}
-An agent attempting to resolve a git merge conflict synthesizes a destructive tool invocation:
-\[
-\mathtt{bash}(\text{``}\mathtt{git\ checkout\ main\ \&\&\ git\ reset\ --hard\ origin/main}\text{''}).
-\]
-Before the command reaches the operating system shell, the \texttt{PreToolUse} hook executes an AST regex and flag parser. Detecting an unleased mutation targeting the protected branch \texttt{main}, the supervisor aborts the syscall with exit code 1, returning an explicit veto envelope:
-\[
-\langle \mathtt{status:}\ \mathtt{REJECTED},\ \mathtt{reason:}\ \text{``Direct destructive reset of main branch forbidden. Work must occur on leased branch.''} \rangle
-\]
-The destructive act is prevented at the effect boundary; the workspace remains pristine.
+\item[\textbf{Case A: Pre-tool refusal.}]
+An agent proposes a destructive command:
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\small,breaklines=true]
+git checkout main &&
+  git reset --hard origin/main
+\end{lstlisting}
+A configured admission hook identifies a forbidden protected-branch mutation
+and refuses the tool call. In Claude Code, a blocking \texttt{PreToolUse}
+command hook can return exit code~2 with a reason on standard error; a plain
+exit code~1 is not this veto contract~\pdcite{anthropic2026hooks}. A short
+reason is sufficient: ``Protected branch mutation refused.'' A shell-pattern
+check by itself does not establish complete mediation: alternate executables,
+indirect effects, and other write channels must also be controlled.
 
-\item[\textbf{Case B (Post-Tool Diff Analysis):}] \emph{Unintended Mutation Rollback.}
-An agent executes a build script (\texttt{"npm run build"}) that inadvertently compiles release binaries into the source tree, mutating untracked files outside its leased directory. Upon process termination, the \texttt{PostToolUse} hook executes \texttt{git status --porcelain}. Detecting untracked modifications in forbidden paths, the hook automatically invokes a sandbox rollback, cleans the unleased artifacts, and injects a sanitized warning into the prompt context.
+\item[\textbf{Case B: Post-tool recovery.}]
+A build writes unexpected generated files. A post-tool observer can compare
+the resulting paths with a recorded baseline, report the deviation, and invoke
+a separately authorized recovery procedure for recoverable files. This happens
+after the write; it cannot undo a disclosure or arbitrary remote effect.
+Untracked files are not automatically disposable: ownership and recovery
+scope must be established before cleanup.
 
-\item[\textbf{Case C (Pre-Compact Memory Preservation):}] \emph{Critical Invariant Retention.}
-During a 40-turn refactoring session, context window consumption crosses 85\% capacity, triggering the outer loop's \texttt{PreCompact} hook. Rather than allowing naive model summarization to discard crucial diagnostic data, the hook intercepts the compaction routine. It extracts active symbol claims, open file locks, failing unit test stack traces, and active capability tokens, serializing them into an immutable structured JSON header that is prepended to the compacted summary.
+\item[\textbf{Case C: Compaction preparation.}]
+Before context compaction, a configured handler records current obligations,
+claim identifiers, failing checks, and source locators in a durable checkpoint.
+The successor loads and validates that record. The contract must define which
+fields are mandatory and how freshness is checked; neither a summary nor a
+hook name guarantees their preservation. Secrets remain in the credential
+store, with references in the checkpoint. No turn-count or context-percentage
+threshold is assumed here.
 \end{description}
 
 \vspace{10pt}
@@ -1074,7 +1090,7 @@ During a 40-turn refactoring session, context window consumption crosses 85\% ca
   {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
     Architectural Plate 0.E\enspace\textperiodcentered\enspace Dual-Loop Supervisory Interception}\par\vspace{4pt}%
   {\pdgrotesk\itshape\fontsize{9.5}{13}\selectfont\color{hhink}%
-    ``Deterministic lifecycle hooks intercept unconstrained generation at binary boundaries, replacing conversational advice with discrete supervisory vetoes.}\par\vspace{6pt}%
+    ``Deterministic lifecycle hooks intercept unconstrained generation at binary boundaries, replacing conversational advice with discrete supervisory vetoes.''}\par\vspace{6pt}%
   {\color{hhgray!30}\rule{\linewidth}{0.4pt}}
 \end{minipage}
 \vspace{10pt}
@@ -1085,7 +1101,7 @@ When scaling from a single agent to a collaborative collective, coordination mus
 
 \subsection{Stigmergic Communication: Environmental Coordination}
 
-Why do multi-agent chat systems fail to scale past three or four concurrent participants? The answer lies in the physics of communication channels. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \textbf{Stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) to explain how social insects construct intricate, cathedral-like termite mounds without central leadership or point-to-point communication.
+Communication cost depends on who publishes, who consumes each update, and what state they need. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \textbf{Stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) to explain how social insects construct intricate, cathedral-like termite mounds without central leadership or point-to-point communication.
 
 \pdmarginfigure{termites}{Cathedral termite mound (\emph{Nasutitermes triodiae}) in Litchfield National Park, Australia. Social insects construct massive architectural edifices through stigmergic environmental modification without central coordination or peer-to-peer communication.}%
 In a stigmergic coordination architecture, agents do not broadcast conversational natural-language messages to one another ($O(N^2)$ communication complexity). Instead, \textbf{the environment itself is the communication medium}:
@@ -1094,7 +1110,7 @@ In a stigmergic coordination architecture, agents do not broadcast conversationa
   \item \textbf{Decoupled Sensing:} When Agent~$A$ claims an AST symbol or edits a function, it writes a tuple into the shared kernel tuple space. When Agent~$B$ inspects the repository, it senses Agent~$A$'s trace and autonomously diverts its own planning policy away from the contested file.
 \end{enumerate}
 
-Stigmergy eliminates conversational token saturation, reduces communication complexity from $O(N^2)$ to $O(N)$, and decouples agent execution in time.
+If $N$ agents each send one update to all peers, there are $N(N-1)$ deliveries. Publishing each update once to shared storage uses $N$ writes, but if every agent then reads every update, the reads still number $N(N-1)$. Total traffic is linear only under a bounded-read or suitably aggregated subscription policy. Shared traces decouple execution in time; they do not remove the cost of distributing information.
 
 \subsection{Conway's Law in Multi-Agent Swarms and Role-Based SOPs}
 
@@ -1102,19 +1118,25 @@ In 1968, computer scientist Melvin Conway formulated the foundational law of sof
 \begin{quote}
 ``Organizations which design systems are constrained to produce designs which are copies of the communication structures of these organizations.''
 \end{quote}
-In multi-agent engineering swarms, Conway's Law holds with absolute mathematical force:
+Conway's observation motivates a design hypothesis for agent swarms; it is not a universal mathematical theorem:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{The Broadcast Chat Pathology:} If a swarm communicates via unconstrained broadcast chat (every agent talking to every other agent), the resulting software architecture is inevitably an unmaintainable, tightly coupled, circular-dependent monolith.
+  \item \textbf{The coupling hypothesis:} Unstructured all-to-all communication can make responsibility and interfaces harder to track. It does not logically force a monolithic software design. Evaluate the resulting dependency structure and maintenance outcomes rather than inferring them from the communication graph alone.
   \item \textbf{MetaGPT Role-Based Standard Operating Procedures (SOPs)~\pdcite{hong2024metagpt}:}\enspace Hong et al. demonstrated that multi-agent swarms achieve dramatic error reduction by encoding human software engineering Standard Operating Procedures into strictly partitioned roles: Product Managers generate PRDs, Architects synthesize system design diagrams, Engineers write modular code, and QA Reviewers run test suites. Communication flows unidirectionally through structured documents (PRDs, OpenAPI specs, git diffs) rather than unconstrained chat.
 \end{itemize}
 
 \subsection{Six Sigma Defect Minimization in Agent Swarms}
 
-Huang et al. (2026)~\pdcite{huang2026sixsigma} demonstrated that as autonomous multi-agent pipelines scale across dozens of sequential tool steps, defect rates compound exponentially:
+Patel et al.~\pdcite{patel2026sixsigma} propose task decomposition, redundant micro-agent sampling, and consensus with dynamic sample counts. Their reliability calculation relies on independence of the sampled errors. For odd $n$, independent votes with common error probability $q<1/2$ yield the binary-majority error
 \begin{equation}
-\mathrm{Yield}_{\mathrm{total}} \;=\; \prod_{k=1}^K (1 - \mathrm{DefectRate}_k)
+P_{\mathrm{maj}}=\sum_{j=(n+1)/2}^{n}{n\choose j}q^j(1-q)^{n-j}.
 \end{equation}
-To achieve high process yield, swarms must implement \textbf{Six Sigma error-dampening gates}: every handoff between subagents must be verified by a deterministic oracle (compiler check, static analyzer, or formal test suite) before work is admitted to downstream stages. An unverified handoff is rejected back to the upstream agent, preventing errors from propagating through the swarm.
+For $n=5$ and $q=0.05$, this is $0.001158125$, about $0.116\%$. Perfectly correlated errors instead leave error probability $q$, regardless of $n$. These calculations do not certify arbitrary semantic clustering of open-ended answers.
+
+For a sequential pipeline, define $d_k$ as the conditional probability that stage $k$ fails given that all preceding stages passed. Then the chain rule gives
+\begin{equation}
+\Pr(\text{all stages pass})=\prod_{k=1}^{K}(1-d_k).
+\end{equation}
+Using unconditional stage error rates in that product would require an independence assumption. Deterministic checks are useful when an admission predicate is available, but this is a separate design choice: a test pass establishes only the tested condition, and consensus alone does not supply a formal oracle.
 
 \subsection{Runtime Task Overlap Detection, Solely Responsible Agent Patterns, and Sandboxing}
 
@@ -1126,10 +1148,9 @@ To eliminate race conditions across concurrent workers, an operating kernel enfo
 \end{enumerate}
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-wonham-supervisory.tex}%
-  }
-  \pdwidecaption{\textbf{Ramadge--Wonham Discrete-Event Supervisory Control in Multi-Agent Swarms.} Uncontrolled swarm execution $G$ is restricted by supervisory controller $S$ to enforce safe language $K \subset L(G)$. Controllable tool events $\Sigma_c$ (file writes, process spawns, network requests) that violate mutual exclusion or spend caps are disabled by the supervisor, guaranteeing system-wide safety invariants.}[fig:wonham-supervisory]
+  \centering
+  \input{figures/fig-ch0-wonham-supervisory.tex}%
+  \pdwidecaption{\textbf{Control has a boundary.} A supervisor may disable a controllable write, but cannot simply disable a crash. A safe language must accommodate its permitted uncontrollable extensions; otherwise the supervisor must restrict earlier choices or report infeasibility.}[fig:wonham-supervisory]
 \end{figure}
 
 \subsection{Zombie Detection, Heartbeats, and State Salvage}
@@ -1148,10 +1169,9 @@ The kernel implements a \textbf{Zombie Salvage Protocol}:
 Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified into three architectural tiers: the probabilistic Deliberation Layer, the confined Execution Layer, and the deterministic Governance Layer.
 
 \begin{figure}[tp]
-  \pdpagecentered[\pdfullwidth]{%
-    \input{figures/fig-ch0-closed-loop-diagram.tex}%
-  }
-  \pdwidecaption{\textbf{The Closed Agentic Architecture Loop.} Three architectural tiers separating probabilistic deliberation from deterministic kernel coordination: (1)~Probabilistic Deliberation Layer (LLM reasoning and planning); (2)~Confined Execution Layer (sandboxed host containers and tool execution); and (3)~Deterministic Governance Layer (single-writer SQLite WAL, capability verification, and tamper-evident Merkle attestation).}[fig:pre-agent-loop]
+  \centering
+  \input{figures/fig-ch0-closed-loop-diagram.tex}%
+  \pdwidecaption{\textbf{Proposal, admission, execution and evidence.} The model proposes an action. The host checks and executes admitted effects, then records observations for the next decision. Correctness depends on complete mediation and the stated recovery protocol.}[fig:pre-agent-loop]
 \end{figure}
 
 \vspace{10pt}
@@ -1165,7 +1185,7 @@ Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified 
   {\pdgrotesk\bfseries\scshape\fontsize{9}{11}\selectfont\color{hhink}%
     Architectural Plate 0.F\enspace\textperiodcentered\enspace Closed-Loop Attestation \& Governance}\par\vspace{4pt}%
   {\pdgrotesk\itshape\fontsize{9.5}{13}\selectfont\color{hhink}%
-    ``Stratifying probabilistic deliberation from deterministic kernel attestation provides the authoritative bedrock for autonomous software engineering.}\par\vspace{6pt}%
+    ``Stratifying probabilistic deliberation from deterministic kernel attestation provides the authoritative bedrock for autonomous software engineering.''}\par\vspace{6pt}%
   {\color{hhgray!30}\rule{\linewidth}{0.4pt}}
 \end{minipage}
 \vspace{10pt}
@@ -1181,19 +1201,21 @@ The harness operates as a deterministic finite-state machine driving an indeterm
   \item \textbf{Observation Injection:} Raw output is sanitized, truncated to preserve token budget, and appended to the context buffer for the next deliberation step.
 \end{enumerate}
 
-\section{The Kernel Gap: Why LLMs Cannot Be Their Own OS}\label{pre:sec:kernel-gap}
+\section{The Kernel Gap: Effects and Recovery}\label{pre:sec:kernel-gap}
 
-We conclude this foundational survey by establishing the formal impossibility theorem that motivates the entire volume:
+Consider an agent with permission to propose any tool call. A useful guarantee must survive both an adverse proposal and a process crash. The following elementary result locates those proof obligations without assuming that stochastic generation always fails.
 
-\begin{pdclaim}{Theorem}{Non-Sovereignty of Autoregressive Generation}\label{thm:kernel-gap}
-Let $\mathcal{M}$ be a generative autoregressive language model and let $\mathcal{S}$ be a shared physical environment state space subject to concurrent mutation. For any sequence policy $\pi_\theta(a_t \mid C_t)$ operating over context buffer $C_t$:
+\begin{pdclaim}{Theorem}{Mediation and durable recovery boundaries}\label{thm:kernel-gap}
+Let $I$ be a state invariant, $s_0\in I$, and $f(s,a)$ the effect of admitted action $a$.
 \begin{enumerate}[leftmargin=1.5em,itemsep=1.5pt]
-  \item \textbf{Advisory Boundary:} The probability of invariant violation under open-loop generation is strictly positive: $\Pr[\mathtt{violate}(\mathcal{I}) \mid \pi_\theta] > 0$, rendering prompt-level safety constraints insufficient for kernel-level security guarantees.
-  \item \textbf{Mutual Exclusion Incompleteness:} In the absence of an out-of-band serialized physical mutex $\mathcal{K}_{\text{TCB}}$, concurrent independent autoregressive streams $\pi^A, \pi^B$ cannot guarantee serializability: $\exists \tau: \mathrm{LostUpdate}(\tau) = \mathtt{true}$.
-  \item \textbf{Amnesiac Irresponsibility:} The process state $\mathcal{M}_t$ vanishes upon SIGKILL or context eviction. Liability, capability attenuation, and resource conservation cannot be maintained endogenously by the model, but must be enforced by an external, crash-durable supervisory kernel.
+  \item \textbf{Complete mediation:} Suppose every state transition is checked at an indivisible admission-and-effect boundary against its current state, and every admitted pair satisfies $f(s,a)\in I$ whenever $s\in I$. Then every execution remains in $I$, regardless of the proposal policy. Conversely, if a reachable safe state has an unmediated admissible action leading outside $I$, universal safety over the admissible executions fails.
+  \item \textbf{Conflicting updates:} If two actors may each implement an increment by a separate read and unconditional write, with no validation of the read version, their allowed interleavings include a lost update. Serializing the writes alone does not exclude that trace.
+  \item \textbf{Crash recovery:} Suppose two pre-crash histories require different recovered obligation states, but erasure leaves identical surviving state and observations. No recovery procedure using only that information can recover the correct obligation state with certainty in both cases.
 \end{enumerate}
-Therefore, generative models cannot act as their own operating system kernel; an authoritative, out-of-band coordination substrate is strictly required.
 \end{pdclaim}
+\noindent\textit{Proof.} For (1), induction on the admitted transitions preserves $I$; the converse follows by appending the specified unsafe transition to its reachable prefix. For (2), both actors read 0 and then each writes 1, whereas two serial increments give 2. For (3), the recovery procedure receives identical input in the two cases, so its output distribution is identical; it cannot concentrate on two different required states.\hfill$\square$
+
+Complete mediation may be implemented by a local gate, an authenticated remote permit checked before the effect, a verified controller, or another mechanism satisfying (1). A single-writer kernel is the construction developed here, not a unique mathematical solution. Disjoint or commuting operations need not share a mutex. Retained receipts or other distinguishing state are necessary for the recovery task in (3); refusing all further work can preserve some safety properties but does not recover the lost obligations. These distinctions are the basis for the chapters that follow.
 
 \section{Chapter Map and Architectural Codas}\label{sec:prereq-map}
 
@@ -1202,7 +1224,7 @@ Therefore, generative models cannot act as their own operating system kernel; an
 The remainder of this textbook is organized into eight cumulative chapters across four distinct operational levels:
 
 \begin{itemize}[leftmargin=1.8em,itemsep=1.5pt,topsep=1.5pt,parsep=0pt]
-  \item \textbf{Chapter 1: The Single-Writer Kernel (Ground Truth).} We construct the minimal deterministic local kernel using SQLite WAL mode, establishing serializability, synchronous state decidability, and crash durability across process failures.
+  \item \textbf{Chapter 1: The Single-Writer Kernel (Ground Truth).} We construct the minimal deterministic local kernel using SQLite WAL mode, establishing serializability, synchronous admission guards, and crash durability across process failures.
   \item \textbf{Chapter 2: The Anchor Protocol (Capability Delegation).} We design cryptographically verifiable capability tokens (Harbor Cards) and prove that delegated authority can only narrow at every hop.
   \item \textbf{Chapter 3: The Sealed Harbor (Confinement \& Leakage).} We construct isolated execution harbors that bound information leakage between distrustful principals under strict egress quotas.
   \item \textbf{Chapter 4: The Legible Swarm (Human Supervision).} We derive the information-theoretic cost of supervisory attention, proving how digests must retain evidence paths without drowning the operator in raw telemetry.

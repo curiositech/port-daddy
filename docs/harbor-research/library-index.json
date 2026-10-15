@@ -118,7 +118,7 @@
       "id": "R3",
       "kind": "theorem",
       "title": "The derived regret head",
-      "one_breath": "Inspect iff C_miss(x)*a(x) >= c_att + C_fa*(1-a(x)); the folklore ranking key stakes x irreversibility x anomaly is the Bayes-optimal surfacing rule iff anomaly is a calibrated posterior.",
+      "one_breath": "With calibrated posterior and complete loss prevention by inspection, inspect iff C_miss*a >= c_att+C_fa*(1-a). Equal-slot batch allocation ranks positive inspection benefits; risk-ranking agreement alone does not establish calibration.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper1.tex",
         "labels": [
@@ -247,7 +247,7 @@
       "id": "R5",
       "kind": "theorem",
       "title": "Hypervisor enforceability = supervisory control",
-      "one_breath": "A safety policy is regimentable (preventable pre-effect) by an agent hypervisor iff it is controllable in the Ramadge-Wonham sense with respect to the uncontrollable event set; gate the channel, never the token.",
+      "one_breath": "A prefix-closed safety language is exactly realizable under full observation iff it is Ramadge-Wonham controllable. A stricter supervisor may preserve safety while sacrificing permitted histories.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper2.tex",
         "labels": [],
@@ -266,7 +266,7 @@
             "tab:policy-classification"
           ],
           "sections": [
-            "\"Synchronous State Decidability -- closing OP-2\" (thm:decidability) is the special case Sigma_c={DB writes}; the general theorem is folded as \"The general boundary: regimentation is controllability\" (sec:controllability, thm:regimentation-controllability) with the nine-policy table (tab:policy-classification), the gate-the-channel case, partial observation, and exercises ex:swk-classify-two, ex:swk-synthesis"
+            "\"Synchronous guard sufficiency\" (thm:decidability) gives a local invariant-preservation construction; the exact-language controllability theorem is folded as \"The general boundary: regimentation is controllability\" (sec:controllability, thm:regimentation-controllability) with the nine-policy table (tab:policy-classification), the gate-the-channel case, partial observation, and exercises ex:swk-classify-two, ex:swk-synthesis"
           ]
         }
       ],

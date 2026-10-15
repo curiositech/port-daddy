@@ -1,25 +1,9 @@
-% Redraw of fig-ch0-cnp-protocol to the tikz-diagram-craft standard (Book figure
-% language v2): a message-sequence ladder in place of two infographic panels.
-% Brief.
-%  Reader question: who sends what to whom, in what order, and where does the
-%    money move?
-%  Claim: a Manager broadcasts one call for proposals; contractors answer with a
-%    bid or an explicit refusal; one bid wins an exclusive worktree lease;
-%    execution yields content-addressed diff receipts and a verified test, and
-%    only those receipts unlock the escrow settlement (the one gold arrow).
-%  Evidence: whitepaper/chapter-0-prerequisites.tex, the Contract Net Protocol
-%    subsection (Smith 1980) and the figure it replaces (payloads kept in the
-%    legend: task build-kernel-ffi, lease token 0x09b, rep 0.98, rep +0.02).
-%  Must distinguish: broadcast vs reply; bid vs refusal; the award (the one
-%    exclusive grant) vs the settlement (the one payment); contractors never
-%    address each other.
-%  Grammar: message-sequence ladder, Manager in the centre so the broadcast fans
-%    out with no lifeline crossed. Rejected: the two-panel card flow it replaces,
-%    which reads as a pipeline and hides that a refusal is a message, not silence.
-%  Five-second test: "the manager calls, one contractor bids, one refuses, the
-%    winner gets the lease, and the gold arrow is paid only after the receipts."
-% Wrapper: a minipage at the full measure so the legend stacks under the picture
-% inside the chapter's \pdpagecentered box (an LR box).
+% Reader question: who sends what before allocation, execution and settlement?
+% Claim: Contract Net allocation precedes local admission and verifier-gated settlement.
+% Evidence: two contractors, one manager, six numbered message types.
+% Distinguish: proposal, refusal, contractual award, host admission and settlement.
+% Grammar: preserve the upstream message ladder and ruled payload legend.
+% Acceptance: locate the award before the admitted execution receipt.
 \begin{minipage}{\pdfullwidth}\centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
@@ -71,9 +55,11 @@
 1 & call for proposals & task \texttt{build-kernel-ffi}; spend cap \$0.00; tools \texttt{cargo}, \texttt{git}, \texttt{seatbelt} \\
 2 & bid & eta 12\,min; cost \$0.00; reputation 0.98 \\
 3 & refusal & lock contention --- the contractor is busy \\
-4 & award & exclusive worktree lease, token \texttt{0x09b} \\
-5 & receipts & content-addressed diff plus a signed oracle test run \\
-6 & settlement & escrow closes atomically; reputation $+0.02$ \\
+4 & award & explicit contract terms and exclusive worktree lease \\
+5 & receipts & admitted execution result, diff and verifier test run \\
+6 & settlement & release, refund or slash under agreed verifier terms \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+Local authority is checked before effects; an award does not bypass admission.
 \end{minipage}

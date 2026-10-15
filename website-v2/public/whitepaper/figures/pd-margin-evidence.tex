@@ -70,6 +70,18 @@
 % Embeds a transparent specimen drawing wrapped into body text (2x-3x larger)
 % with text flowing naturally around the linework.
 \NewDocumentCommand\pdwrapanalogy{O{r} O{0.40\textwidth} m m m +m}{%
+  \ifpdbook
+    % Wrapfig bypasses the Book's floating-owner registration. Use a normal
+    % measured exhibit so its caption has the same placement contract.
+    \begin{figure}[htbp]\centering
+      \IfFileExists{plates/margin-evidence/#5.png}{%
+        \includegraphics[width=#2,keepaspectratio]{plates/margin-evidence/#5.png}%
+      }{\PackageError{pd-margin-layout}{Missing illustration #5}%
+        {Generate and inspect the artwork before including it.}}%
+      \caption{\if\relax\detokenize{#4}\relax\else\textbf{#4.} \fi #6}%
+      \label{fig:#3}%
+    \end{figure}%
+  \else
   \begin{wrapfigure}{#1}{#2}%
     \centering\vspace{-4pt}%
     \IfFileExists{plates/margin-evidence/#5.pdf}{%
@@ -81,5 +93,5 @@
     \label{fig:#3}%
     \vspace{-4pt}%
   \end{wrapfigure}%
+  \fi
 }
-

@@ -236,6 +236,26 @@ paper_changed_since() {
   ! git diff --quiet "$base_ref"...HEAD -- "${sources[@]}"
 }
 
+# A successful engine exit does not establish stable references or margin geometry.
+tex_log_converged() {
+  [ -s "$1" ] && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed|PD-MARGIN-CONVERGENCE: pending|Margin positions changed|Rerun to get outlines right|rerunfilecheck Warning: File .* has changed|There were undefined references|Citation .* undefined|Reference .* undefined' "$1"
+}
+
+# Keep the manual path bounded like latexmk, and refuse to copy an unsettled PDF.
+run_tex_passes() {
+  local engine="$1" roottex="$2" outdir="$3" base="$4" pass
+  for pass in 1 2 3 4 5 6 7 8; do
+    echo "$engine fallback pass $pass/8"
+    "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
+      -output-directory="$outdir" "$roottex" || return $?
+    if [ "$pass" -ge 2 ] && tex_log_converged "$outdir/$base.log"; then
+      return 0
+    fi
+  done
+  echo "error: $roottex did not converge after 8 passes; refusing publication" >&2
+  return 1
+}
+
 build_one() {
   local srcdir="$1" roottex="$2" dest="$3"
   local base="${roottex%.tex}"
@@ -299,9 +319,8 @@ build_one() {
               -e '$max_repeat=8;' -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
-      # bibliographies, so bounded pdflatex passes are a complete fallback:
-      # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
-      # cover the rare long-TOC case that still reports changed labels.
+      # bibliographies; repeat the engine until references and margin anchors
+      # stabilize, with the same eight-pass budget used by latexmk.
       if ! command -v "$engine" >/dev/null 2>&1; then
         echo "error: whitepaper build requires latexmk or $engine" >&2
         echo "       install a local TeX Live: see the 'Local TeX Live' section of" >&2
@@ -309,16 +328,8 @@ build_one() {
         echo "       fontconfig drop-in the Book's by-name font binding needs." >&2
         exit 127
       fi
-      local pass
-      for pass in 1 2 3 4; do
-        echo "$engine fallback pass $pass/4"
-        "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
-                 -output-directory="$outdir" "$roottex" || exit $?
-        if [ "$pass" -ge 2 ] && [ -f "$outdir/$base.log" ] \
-          && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
-          break
-        fi
-      done
+      run_tex_passes "$engine" "$roottex" "$outdir" "$base" || exit $?
+
     fi
   )
   local rc=$?
@@ -329,7 +340,17 @@ build_one() {
     echo "::endgroup::"
     return 1
   fi
-  cp "$outdir/$base.pdf" "$dest"
+  # latexmk and the manual fallback share the same final publication gate.
+  if ! tex_log_converged "$outdir/$base.log"; then
+    echo "::error::$roottex has unsettled references or margin geometry; refusing publication"
+    echo "::endgroup::"
+    return 1
+  fi
+  if ! cp "$outdir/$base.pdf" "$dest"; then
+    echo "::error::could not copy $roottex to $dest; publication failed" >&2
+    echo "::endgroup::"
+    return 1
+  fi
   echo "wrote $dest ($(wc -c < "$dest") bytes)"
   # The Book is served by Cloudflare Pages, which refuses any file over
   # 25 MiB. A Book over this ceiling is not a Book anyone can read, however

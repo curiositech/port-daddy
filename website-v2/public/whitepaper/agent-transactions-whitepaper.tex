@@ -470,9 +470,19 @@ Structural prevention is enforced at two levels: \emph{statically} by the Anchor
 % after detection. That is exactly the pre-commit/post-commit distinction drawn
 % below. Resolved here by adopting and citing rather than silently coining.
 \paragraph{Regimentation vs. Enforcement (OP-2).}
-This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules, in the sense of Jones and Sergot's regimentation/enforcement distinction for normative systems~\pdcite{jonessergot1993regimentation}: a regimented norm's violation cannot occur at all, while an enforced norm's violation can occur and is sanctioned on detection. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
-
-Figure~\ref{fig:bonded-regiment-boundary} draws this boundary directly: the three compiled invariants on one side, the Arbiter on the other.
+A deterministic local guard is a sufficient way to implement
+pre-commit \emph{regimentation}, in Jones and Sergot's sense: the mediated
+violation is refused before its effect~\pdcite{jonessergot1993regimentation}.
+This requires complete mediation and an atomic check-and-commit; merely
+observing a transition afterwards is \emph{enforcement}.
+External I/O does not determine which category applies. An operation may
+remain pending while a remote authority issues an authenticated permit bound
+to its payload, resource version, expiry, and authorization epoch. A local
+admission step verifies that binding before committing, and a timeout refuses
+admission. This can preserve safety at an availability cost. Where evidence
+arrives only after an irreversible effect, detection and compensation are
+the available mechanisms. Figure~\ref{fig:bonded-regiment-boundary} contrasts
+these admission and recovery paths.
 
 \input{figures/fig-bonded-regiment-boundary}
 
@@ -736,7 +746,7 @@ CREATE TABLE claim_tickets (
 \end{lstlisting}
 Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. This guarantees fair exclusion without central scheduling.
 
-\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of semantic cadence, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
+\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (a stated wall-clock interval, for example 24~hours from the recorded settlement timestamp; zero evidence growth does not pause it) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
 \begin{pdclaim}{Design invariant}{Appeal Soundness}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1224,10 +1234,26 @@ models~\pdcite{rothschildstiglitz1976,wilson1977insurance} to agent transactions
 \paragraph{The mechanism.}\label{sec:youle:mechanism}
 Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), allow a market of \emph{insurer agents} to bid on underwriting each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the claim ceiling.
 
-A principal $P$ submits a transaction $T$ requiring bond coverage $B_T$. Insurers quote; principal selects. If the transaction proceeds and damages are assessed at $d$ with $d \leq c_I$, the insurer pays. Otherwise principal pays up to $B_T - c_I$ from its own stake.
+A principal $P$ submits a transaction $T$ requiring total secured coverage
+$B_T$. Insurers quote $0\le c_I\le B_T$; the principal selects one and
+reserves the remaining $B_T-c_I$. For assessed damage $d\ge0$, settlement pays
+\[
+ I(d)=\min(d,c_I),\qquad
+ P(d)=\min\bigl((d-c_I)_+,B_T-c_I\bigr).
+\]
+Thus $I(d)+P(d)=\min(d,B_T)$ when both parties perform; loss above $B_T$
+remains uncovered. With $B_T=100$, $c_I=80$, and $d=90$, the insurer pays
+$80$ and the principal $10$. Insurer default invokes its separately stated
+collateral rule; a coverage promise alone is not a funded payout.
 
 \paragraph{Market-discovered pricing.}
-The premium $q_I$ equals the insurer's expected loss $\mathbb{E}[d \mid T,\, \textit{agent history}]$ plus a risk premium $\alpha_I$ encoding the insurer's risk aversion and cost of capital. In equilibrium under competition, $q_I \to \mathbb{E}[d]$ for risk-neutral insurers (Rothschild--Stiglitz). Market discovery replaces the authority's best-guess parameter selection.
+A cost-based quote has premium
+$q_I=\mathbb E[\min(d,c_I)\mid T,\textit{history}]+\alpha_I$,
+where $\alpha_I$ covers operating costs, capital, and risk. A zero-markup
+competitive benchmark additionally assumes known risk classes, credible
+payment, and sufficient competition. It is not a general consequence of
+Rothschild--Stiglitz: adverse selection can prevent competitive equilibrium
+from existing~\pdcite{rothschildstiglitz1976,wilson1977insurance}.
 
 \paragraph{Adverse-selection controls.}
 To avoid the classic lemons problem, the mechanism requires:
@@ -1246,24 +1272,54 @@ An independent model specification and a Monte Carlo sweep over 36 parameter con
 \input{figures/fig-pareto-dominance-tikz}
 
 \paragraph{Relationship to the Bonded Advisor.}
-Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the matchmaker plus reputation oracle in the insurance market. It does not set prices; it provides information. Pricing is a competitive equilibrium, not an administrative decision.
+Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the matchmaker plus reputation oracle in the insurance market. It does not set prices; it provides information. Competitive equilibrium is the pricing benchmark only under the market
+and information assumptions stated above; the advisor does not establish
+its existence.
 
-\subsubsection{A5 --- Sybil deterrence is coverage-bounded}\label{sec:youle:a5}
+\subsubsection{A5 --- A coverage cap bounds the deterrence from deposits}\label{sec:youle:a5}
 
-A pure deposit-based Sybil deterrence policy is \emph{provably insufficient}, and the structure of the protocol explains why. An adversary spawns $K$ Sybil insurer identities, each posting the protocol-mandated deposit $B_{\mathrm{dep}}$, then undercuts honest bids by an arbitrarily small $\varepsilon$ and defaults on loss (Figure~\ref{fig:sybil-inline}).
-
-\textbf{Total Capital Forfeiture.} The arbitrary $\min(B_{\mathrm{dep}}, B_T)$ slash cap fails because it bounds the attacker's risk. To mathematically destroy the profitability of Sybil cartel undercutting, the protocol mandates \textbf{total capital forfeiture}: upon default, the \emph{entire} posted deposit $B_{\mathrm{dep}}$ is slashed, regardless of how small the coverage $B_T$ was. This converts a capped-risk arbitrage into a total-loss event.
+An adversary funds $K$ insurer identities, underbids honest insurers, and
+defaults when a covered loss occurs. The analyzed simulation uses a
+\emph{coverage-capped} collateral rule
+$s(B_{\mathrm{dep}},B_T)=\min(B_{\mathrm{dep}},B_T)$.
+Premiums are paid on every winning transaction, including defaults; capital
+is replenished between transactions, and funding and entry costs are zero.
+These assumptions specify the numerical experiment, not a complete insurer
+solvency or identity-admission mechanism.
 
 \input{figures/fig-sybil-inline}
 
-The naive expected-value calculation suggests breakeven at
-$B_{\mathrm{dep}}^{\star} = q^{*} \cdot (1 - P_{\mathrm{loss}}) / P_{\mathrm{loss}}$,
-which for the mixed risk classes used in the simulation gives
-$B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains profitable indefinitely.} The reason is structural: the deposit slash is capped at the coverage amount, $\mathrm{slash} = \min(B_{\mathrm{dep}}, B_T)$. Past $B_{\mathrm{dep}} \geq B_T$, any additional deposit posted by the Sybil is recovered intact on no-loss transactions; it never reaches the commons (Figure~\ref{fig:sybil-mc-inline}).
+For a fixed transaction with premium $q$, loss probability $p>0$, and
+coverage $B_T$, expected attacker profit under this contract is
+\[
+ \mathbb E[\pi]=q-p\min(B_{\mathrm{dep}},B_T).
+\]
+If $q>pB_T$, no deposit increase deters this attack under the capped rule.
+If $q\le pB_T$, deposits $B_{\mathrm{dep}}\ge q/p$ do deter it weakly.
+This is a conditional limitation of the cap, not an impossibility theorem
+for deposits. Under full forfeiture instead, the same premium convention
+gives $\mathbb E[\pi]=q-pB_{\mathrm{dep}}$, so $B_{\mathrm{dep}}\ge q/p$
+is sufficient in this one-shot model. For $q=10$, $p=0.1$, and $B_T=20$,
+a deposit of $110$ gives profit $8$ with the cap and $-1$ with full forfeiture.
+If the premium is also clawed back on default, both formulas change.
+
+The seeded sweep in Figure~\ref{fig:sybil-mc-inline} tests the capped
+contract only: its tested deposits from $0.5$ to $1000$ remain profitable
+for its stipulated bids and loss distribution. Those bids use a loss-size
+parameter rather than actuarially fair expected payouts. The experiment
+therefore demonstrates a failure of that particular pricing-and-collateral
+combination; it does not estimate a competitive insurer equilibrium.
 
 \input{figures/fig-bonded-sybil-deposit-floor-tikz}
 
-\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. The single-instrument deposit policy is provably insufficient; the mechanism in \S\ref{sec:youle} is correct only with this composite extension. The supporting analysis is bundled as \texttt{cartel-resilience.md} (Appendix~\ref{app:mech}).
+Candidate controls include a non-refundable admission cost, principal-bound
+exposure reservations, and probationary coverage limits. Their combined
+benefit must be compared with the attacker's total expected discounted gain;
+listing them does not prove deterrence. Full forfeiture is another contract,
+with a separate false-accusation and capital-cost tradeoff. The simulation
+and its analytical checks are recorded in
+\path{proofs/bonded/pareto/cartel-resilience.md}; the composite policy's
+incentive and solvency analysis remains open.
 
 \subsubsection{A6 --- Cartel sustainability under the folk theorem}\label{sec:youle:a6}
 
@@ -1324,7 +1380,7 @@ Each expressive class has a different relationship to the cleanup cost of \S\ref
 Treating all coordination as one uniform ``bonded action'' misses the price-discovery differences. The Bonded Advisor (\S\ref{sec:bonded-advisor}) and the Competitive-Insurance market (\S\ref{sec:youle}) must price each class separately, or the market will collapse to its highest-stakes class and freeze out the rest.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Semantic Cadence, Agentic Psychosis, and Observability}\label{sec:vibe}
+\section{Evidence-Growth Monitoring and Replay}\label{sec:vibe}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 \ifdefined\pdswisslandmarkplate
@@ -1334,41 +1390,95 @@ Treating all coordination as one uniform ``bonded action'' misses the price-disc
 \end{figure}
 \fi
 
+This section proposes a task-specific progress signal and an evaluation protocol.
+Wall-clock time, resource consumption, and recorded evidence answer different
+questions and should remain separately visible. No deployment result or universal
+failure detector is claimed.
 
-Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We formally introduce \textbf{Semantic Cadence} (the Causal-Density Ratio) as the primary temporal axis:
+\paragraph{A defined window score.}
+Fix a wall-clock window $W=[t-\Delta,t)$ of duration $\Delta>0$ seconds.
+Before observing the window, declare evidence categories $j=1,\ldots,m$, their
+acceptance criteria, and nonnegative task weights $w_j$ in points per event.
+Let $N_j(W)$ count distinct accepted records in category $j$ during $W$.
+The proposed evidence total and rate are
 \[
-t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau,
+ E(W)=\sum_{j=1}^{m}w_jN_j(W),\qquad
+ v(W)=\frac{E(W)}{\Delta}.
 \]
-where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weighted by verified evidence-trail growth (AST changes, test executions, or committed logic).
+$E$ has units of points and $v$ of points per second. Record consumed tokens
+$U(W)$ separately. Categories might include an accepted patch, a completed test
+record, or a documented analysis result. Repeating a reference does not create
+new evidence; the contract must specify deduplication, attribution, and what
+makes each record acceptable. Counts alone do not establish usefulness, semantic
+correctness, or a causal contribution to the outcome. Weights need task-specific
+validation before rates can be compared across tasks.
 
-\paragraph{Numbers by hand.} An agent burning $40$~tokens/sec for $30$~seconds ($1{,}200$ tokens) with zero AST diffs and zero test runs over that window integrates to a causal density of $\approx 0$: maximum spend, no evidence growth, so the weighting term zeroes the integrand and the Asylum Protocol triggers. An agent burning $15$~tokens/sec over the same window while landing three verified diffs keeps causal density high even though its raw token rate is barely a third of the first agent's---which is the whole point of metering by evidence growth rather than by token spend. \emph{Now you try:} the same $15$~tokens/sec with one verified diff and one passing test run in a $30$-second window (borderline: evidence growth is positive, so cadence advances, but slowly enough that the daemon flags it for the next window rather than stopping the process). Table~\ref{tab:cadence-verdicts} collects the three cases.
+\paragraph{Illustrative arithmetic.}
+For a 30-second window, assign two points per accepted patch and one per
+accepted test record. Table~\ref{tab:cadence-verdicts} computes the score for
+three constructed records. They are arithmetic examples, not calibrated
+thresholds or classifications of the agents.
 
 \begin{table}[H]
 \centering
-\caption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
+\caption{Illustrative evidence scores for a 30-second window. Patch and test
+weights are two and one points per event. A zero score means no counted evidence
+in this window; it does not establish failure.}
 \label{tab:cadence-verdicts}
-\begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X r r@{}}
 \toprule
-\textbf{Case} & \textbf{Token rate} & \textbf{Evidence in window} & \textbf{Cadence / verdict} \\
+\textbf{Case} & \textbf{Accepted records} & \textbf{Rate (points/s)} & \textbf{Tokens} \\
 \midrule
-Healthy & 15 tok/s & 3 AST diffs, 2 test runs & advances; nominal \\
-Borderline & 15 tok/s & 1 AST diff, 1 test run & advances slowly; flagged for next window \\
-Psychotic & 40 tok/s & none & $\approx 0$; Asylum triggered \\
+A & 3 patches, 2 tests & $8/30$ & 450 \\
+B & 1 patch, 1 test & $3/30$ & 450 \\
+C & none & $0$ & 1,200 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\paragraph{A note on the names.} The terms in the rest of this section are playful; the failure modes are not. Read ``Agentic Psychosis,'' ``the Asylum Protocol,'' and ``Inception Canaries'' as defined engineering terms with the operational definitions given below---each one names a detector and a response with a threshold attached---rather than as jokes.
+\paragraph{Review and optional recovery.}
+A low rate with sustained resource use may prioritize a review. It can also
+reflect legitimate thinking, reading, non-code work, a long-running test, or a
+wait for external evidence. Conversely, an agent can inflate counts with
+unhelpful records. A proposed detector must therefore report its observation
+window, resource threshold, task class, and false-positive and false-negative
+rates against independently assessed outcomes. The score does not itself
+authorize interruption or sanctions. A separately authorized recovery procedure
+may pause at a safe boundary, retain available task state, ask for a revised
+plan, or start a successor. Pausing a process does not undo external effects;
+a summary can omit information; recovery is not guaranteed to preserve all
+context or resolve the underlying problem.
 
-\paragraph{Agentic Psychosis \& The Asylum Protocol.} Unbounded LLMs inevitably enter \emph{Agentic Psychosis}: hallucination loops characterized by extremely high token-generation rates but zero functional AST change. When the daemon detects a causal-density ratio approaching zero alongside high token-burn, it initiates \textbf{The Asylum Protocol}. The daemon sends \texttt{SIGSTOP} to the agent process, routes its context window through a secondary SLM (Small Language Model) sidecar for semantic compaction and Situation-in-the-Loop (SITF) prompt injection (``\emph{You are looping. Re-evaluate your last 3 steps against the active plan.}''), and then issues \texttt{SIGCONT}. This cures the hallucination loop without sacrificing session context.
+\paragraph{Consented historical-defect probes.}
+A candidate evaluation uses consented, blinded probes drawn from historical
+defects in an isolated evaluation workspace. Participants know the evaluation
+policy while the particular defect and expected answer remain withheld. The
+protocol must define sampling, exposure limits, adjudication, and the separation
+of evaluation artifacts from production work. It must not introduce defects into
+live work. Report detection, repair quality, false alarms, and resource use;
+a probe outcome alone establishes neither general competence nor a justified
+change to reputation or execution authority.
 
-\paragraph{Inception Canaries (Gamified Chaos Engineering).} The daemon replaces traditional, UX-hostile skill-retention taxes with \textbf{Gamified Chaos Engineering}. The SLM sidecar routinely injects synthetic bugs (``Inception Canaries'') into the Attention Queue of loaded agents. If the agent successfully catches and resolves the injected bug, it is granted an Elo rating boost to its \texttt{skill\_hash} and higher subsequent autonomy limits (``God Mode''). If it fails or hallucinates around the bug, its blast radius is throttled.
+\paragraph{Replay requirements.}
+A proposed JSONL replay format should identify events, artifacts, claims,
+settlements, writer order, and known causal dependencies. Missing events and
+uncertain ordering must be represented explicitly. A replay supports inspection
+of retained observations; it does not recreate hidden model state or guarantee
+that a rerun produces the same result. Training use requires separate consent
+and evaluation.
 
-\paragraph{Replay JSONL as artifact.} Every settled session emits a JSONL replay log: events, notes, claims, settlements, in causal order. This is simultaneously: an audit artifact, a debugging tool, and---redacted---training data for downstream DPO/SFT.
+\paragraph{Disclosure and retention requirements.}
+Collection and replay should be opt-in under an explicit disclosure policy.
+The design must specify data minimization, access control, key custody,
+redaction tests, retention periods, and deletion behavior. Redaction can miss
+secrets or personal data; encryption and retention claims require implementation
+and verification. This section establishes requirements for that work, not a
+claim that every session already meets them.
 
-\paragraph{Privacy contract.} Replay is opt-in. Redaction strips secrets and PII. Encryption-at-rest applies the harbor session key (\S\ref{sec:federated-sovereign}). Eviction is LRU-bounded.
-
-We position Semantic Cadence and its resultant protocols not as Port Daddy features but as a category claim: \emph{multi-agent coding requires its own observability primitives}, and they are not the wall-clock metrics that single-process systems get away with.
+These proposals retain wall-clock time for budgets, timeouts, and appeal
+windows. Evidence growth cannot suspend a deadline. Their research question is
+whether task-specific records improve review decisions beyond resource and
+elapsed-time baselines at a measured cost in missed problems and false alarms.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Formal Model}\label{sec:tlaplus}
@@ -1805,7 +1915,7 @@ Using only the payoffs printed in Table~\ref{tab:claim-stage-game}, verify by ha
 \begin{pdsolution}{ex:bonded-claim-signaling-pd}
 Fix $A$'s choice and compare its two rows against each of $B$'s columns. Against $B{:}\mathrm{T}$, $A$ gets $3$ from $\mathrm{T}$ and $4$ from $\mathrm{F}$, so $\mathrm{F}$ is better ($4>3$). Against $B{:}\mathrm{F}$, $A$ gets $0$ from $\mathrm{T}$ and $1$ from $\mathrm{F}$, so $\mathrm{F}$ is again better ($1>0$). $\mathrm{F}$ therefore strictly dominates $\mathrm{T}$ for $A$ regardless of $B$'s move; the game is symmetric, so the same holds for $B$. Checking the three remaining cells: at $(T,T)=(3,3)$ either player can deviate to $\mathrm{F}$ and gain ($4>3$); at $(T,F)=(0,4)$, $A$ can deviate to $\mathrm{F}$ and gain ($1>0$); at $(F,T)=(4,0)$, $B$ can deviate to $\mathrm{F}$ and gain ($1>0$). Only $(F,F)=(1,1)$ survives---neither player gains by unilaterally switching back to $\mathrm{T}$ ($0<1$)---so it is the unique Nash equilibrium, exactly as the table's caption states.
 
-\emph{Provenance note.} An earlier draft of this chapter's stage-game table used different payoffs that a review flagged as \emph{not} a genuine Prisoner's Dilemma---mutual truth was not Pareto-dominant, and the proposed mutual-punishment strategy was not sequentially rational under that table. Table~\ref{tab:claim-stage-game} above is the corrected table; this exercise verifies the correction that is already in the chapter, not the flawed table that review replaced.
+
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-threshold-hand}
@@ -1863,12 +1973,24 @@ The script's own pass criterion (its exit code) is that the crossover lands in $
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-a5-coverage-bound}
-The A5 finding (\S\ref{sec:youle:a5}) shows that pure deposit deterrence is bounded by the auction coverage $B_T = \mu(1+s)$. Construct an attacker who exploits this bound directly. Then construct a defense---other than ``raise the deposit''---that defeats the attacker. Hint: see the composite mechanism $C_{kyc} + \text{reputation gating} + B_{dep}^{\text{per-class}}$.
+Assume premiums are retained on default, loss probability $p>0$, and
+slashing is capped at $\min(B_{\mathrm{dep}},B_T)$. Derive the condition on
+$q,p,B_T$ under which increasing the deposit cannot deter the specified
+one-shot attack. Then derive the threshold under full forfeiture. What
+additional payoff, monitoring, and exposure assumptions would an admission
+fee plus probation plus aggregate reservation need for a deterrence claim?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-a5-coverage-bound}
-The attacker spawns many low-history Sybil insurer identities, each posting the mandated deposit $B_{\mathrm{dep}}$; each identity underbids honest insurers by an arbitrarily small $\varepsilon$, wins the auction, collects premiums on every no-loss round, and defaults the moment a real loss lands. Because the slash is capped at $\min(B_{\mathrm{dep}}, B_T)$, once $B_{\mathrm{dep}} \ge B_T$ every dollar of deposit beyond the coverage ceiling is recovered intact on no-loss transactions---it never reaches the commons. Concretely, if concurrent aggregate exposure across the Sybil's identities is not reserved, one deposit can underwrite several simultaneous liabilities at once, multiplying the attack for free.
-
-Correction to the naive fix: full reimbursement of a single loss does not, by itself, show the attacker profits---that also needs the premium/loss distribution, exposure reuse across identities, or an external benefit from sabotage. Raising $B_{\mathrm{dep}}$ alone does not close A5, because the slash cap still bounds the attacker's downside at $B_T$ regardless of how large a deposit sits above it. The defense that actually closes it is the composite mechanism named in the hint: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (so spawning $K$ Sybils costs $K \cdot C_{\mathrm{kyc}}$, not zero), reputation gating that caps a new identity to low-coverage transactions until it accumulates a track record, a per-risk-class $B_{\mathrm{dep}}$ tuned to saturate its own coverage cap exactly, and atomic reservation so aggregate outstanding exposure across an identity's positions never exceeds its posted capital. Independent audits and pairwise-concavity checks are the remaining defense against collusion among identities that individually stay under any single reservation limit.
+The simulation credits premium $q$ on every win and slashes
+$\min(B_{\mathrm{dep}},B_T)$ on default. For a fixed loss probability $p$,
+expected profit is $q-p\min(B_{\mathrm{dep}},B_T)$. A deposit increase
+cannot deter this attack when $q>pB_T$; when $q\le pB_T$, a deposit of
+at least $q/p$ can. Full forfeiture changes the payoff to
+$q-pB_{\mathrm{dep}}$ and removes that particular cap. Neither formula
+models arbitrary identity reuse, unavailable collateral, or collusion.
+A proposed admission fee, probation rule, or aggregate exposure reservation
+must be included in a specified payoff and solvency model before claiming
+that it closes those attacks.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-cartel-detection}
@@ -1888,7 +2010,7 @@ Cheap fresh identities shorten the effective horizon a punished member faces and
 The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond price with insurer-agent bids. Propose one alternative pricing mechanism (e.g., a second-price auction with reserve, a Walrasian-style market-clearing rule, or a posted-price catalog) and argue whether it would conditionally Pareto-dominate the static escrow under the CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare}. Identify the assumption your alternative most depends on.
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-insurance-alt-pricing}
-This is a design obligation, not a closed theorem: no mechanism in this chapter proves a Pareto ordering for a posted-price catalog, so what follows is a defensible proposal, not a fictional derivation. A posted-price catalog quotes premiums by manifest risk class, principal history, exposure duration, and tail-capital band, recalibrated periodically against a hard reserve constraint---no per-transaction bidding, no auction latency. It conditionally improves on the static escrow of \S\ref{sec:scope-multiplier} exactly when the posted quote sits below the principal's idle-capital cost of self-insuring via a static bond, while the insurer remains individually rational and its reserves still cover the same tail risk the competitive market would have priced. Relative to \S\ref{sec:youle}'s bid-based mechanism, a posted catalog trades away instance-specific price discovery (Rothschild--Stiglitz's $q_I \to \mathbb{E}[d]$ convergence under competition) for lower manipulation surface and no per-transaction latency---the same trade the A6 cartel analysis makes salient in the other direction, since a catalog has no bid pattern for a colluding cartel to distort in the first place.
+This is a design obligation, not a closed theorem: no mechanism in this chapter proves a Pareto ordering for a posted-price catalog, so what follows is a defensible proposal, not a fictional derivation. A posted-price catalog quotes premiums by manifest risk class, principal history, exposure duration, and tail-capital band, recalibrated periodically against a hard reserve constraint---no per-transaction bidding, no auction latency. It conditionally improves on the static escrow of \S\ref{sec:scope-multiplier} exactly when the posted quote sits below the principal's idle-capital cost of self-insuring via a static bond, while the insurer remains individually rational and its reserves still cover the same tail risk the competitive market would have priced. Relative to \S\ref{sec:youle}'s bid-based mechanism, a posted catalog trades away instance-specific price discovery (the model's conditional pricing of expected capped payouts, capital costs, and expenses) for lower manipulation surface and no per-transaction latency---the same trade the A6 cartel analysis makes salient in the other direction, since a catalog has no bid pattern for a colluding cartel to distort in the first place.
 
 The proposal depends most on \emph{calibrated loss/tail dependence}: the catalog's bands must actually track the loss distribution within each class, and its capital reserve must be enforceably adequate against the tail, or the ``conditional'' improvement collapses into either under-pricing risk (insurer insolvency) or over-pricing it (pricing capable agents out, the same failure the threat-class bands of \S\ref{sec:pricing:threats} already warn against). The CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare} would need explicit class-conditional definitions before any formal Pareto claim could be stated for this alternative---this exercise does not supply that derivation, and neither should its answer key pretend to.
 \end{pdsolution}
@@ -1960,7 +2082,7 @@ We have argued that multi-agent collaboration at scale requires a commons author
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Semantic cadence and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
 
 The advisory design of the resource claim system is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
 
@@ -2217,7 +2339,7 @@ DataDome.
 \endlastfoot
 Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation\allowbreak.pv} \\
 Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
-Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
+Federated security (\S\ref{sec:federated-sovereign}) & ProVerif query audit & \Partial\ queried private constant is not the reconstructed root; intended claim unproved & \texttt{federated.pv} \\
 Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated), invariant holds & \texttt{Conservation.tla} \\
 No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\

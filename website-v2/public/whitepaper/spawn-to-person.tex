@@ -377,6 +377,15 @@ part. We use Table~\ref{tab:estimators} to match each to its signal type, and th
 substrate argument (\S\ref{sec:substrate}) to insist that none of them buys
 anything over a forgeable identity or an agent-authored oracle.
 
+These are different input contracts. A record that says ``worker A's result
+was preferred to worker B's'' is a comparison; a record that says ``A trusts
+B'' is a directed relation. Neither record, by itself, identifies who made
+the judgment or whether that judge had a conflict of interest. Before choosing
+an estimator, retain the task, the participants, and the judgment's provenance.
+Changing the score formula cannot recover those facts after they have been
+discarded. Section~\ref{sec:substrate} describes the records this chapter's
+estimators would need to score.
+
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
@@ -392,15 +401,6 @@ EigenTrust & who-trusts-whom graph & resists collusive cliques & signal is per-t
 \caption{Match each estimator to its input signal.}
 \label{tab:estimators}
 \end{table}
-
-These are different input contracts. A record that says ``worker A's result
-was preferred to worker B's'' is a comparison; a record that says ``A trusts
-B'' is a directed relation. Neither record, by itself, identifies who made
-the judgment or whether that judge had a conflict of interest. Before choosing
-an estimator, retain the task, the participants, and the judgment's provenance.
-Changing the score formula cannot recover those facts after they have been
-discarded. Section~\ref{sec:substrate} describes the records this chapter's
-estimators would need to score.
 
 \subsection{Reputation economics: cheap pseudonyms and limited records}
 
@@ -1184,10 +1184,12 @@ reputation honest --- you still need witnessed outcomes (\S\ref{sec:organs}) and
 incentive-compatible grading oracle (\S\ref{sec:oracle}). The theorem only rules
 out the cheap escape; it does not certify the score.}
 
-\noindent The dual fact --- that free identities also defeat any \emph{quorum} or
-\emph{trust-aggregation} mechanism by replication --- is the Sybil
-attack~\pdcite{douceur2002}, and the same positive-cost requirement defeats it. We
-record both consequences as one property.
+\noindent Identity-counting \emph{quorum} or \emph{trust-aggregation} mechanisms
+with no external admission anchor are vulnerable to the Sybil
+attack~\pdcite{douceur2002}. Identity costs or an externally anchored
+admission policy can limit replication.
+Positive cost alone does not establish that an attack is unprofitable. We
+record the common liability requirement as one property.
 
 \begin{property}[Reality of Reputation and Principal \mbox{Liability}]\label{prop:reality}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1195,7 +1197,7 @@ A reputation system carries economic force only to the extent that the accountab
 
 If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\pdcite{douceur2002}). 
 
-Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits. \emph{Kind:} \TheoremKind{} --- an immediate corollary of Theorem~\ref{thm:necessity} and the Sybil impossibility~\pdcite{douceur2002}, recorded as one property rather than proved twice; not a separate empirical claim.
+Binding spawned actors to a durable principal with aggregated exposure limits is one way to make sanctions persist; costly identity creation is another. Either needs a payoff analysis to establish deterrence. \emph{Kind:} \TheoremKind{} --- an immediate corollary of Theorem~\ref{thm:necessity} and the Sybil impossibility~\pdcite{douceur2002}, recorded as one property rather than proved twice; not a separate empirical claim.
 \end{property}
 
 \noindent Most agent runtimes still accept a \emph{self-asserted string}: a
@@ -1258,48 +1260,44 @@ the design question is \emph{how much}. The newcomer policy answers it as a
 \emph{shape, not a scalar}, and that shape implies a clean bound on what a
 whitewasher pays.
 
-\begin{pdclaim}{Theorem}{Whitewashing-Cost Bound}
+\begin{pdclaim}{Theorem}{Whitewashing Cost under Fixed Continuation Payoffs}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:whitewash-cost}
-Let an honest actor's witnessed history raise its economic ceiling from the
-newcomer ceiling $\kappa_0$ to a steady-state ceiling $\kappa^\star > \kappa_0$
-over a maturation window, and let the per-period surplus an actor can extract be
-non-decreasing in its ceiling, with surplus $\pi(\kappa)$. 
-
-Suppose an identity,
-once sanctioned, can only re-enter as a newcomer at ceiling $\kappa_0$. Then an
-actor who whitewashes (abandons a sanctioned identity and re-enters fresh) forgoes
-at least
+Fix a risk-neutral actor, discount factor $0<\delta\le1$, and a continuation
+opportunity schedule. Maintaining its established identity yields expected
+surplus $\pi(\kappa^\star)$ per period. A reset forces the actor through
+ceilings $\kappa_t\le\kappa^\star$, yielding $\pi(\kappa_t)$ for
+$t=1,\ldots,T$, after which the continuations coincide. Assume these are
+attainable expected surpluses under the specified counterpart strategies,
+not merely upper bounds on earnings, and that $\pi$ is non-decreasing.
+The discounted opportunity cost, measured at reset, is exactly
 \[
-W \;=\; \sum_{t=1}^{T}\bigl(\pi(\kappa^\star) - \pi(\kappa_t)\bigr) \;\ge\; 0,
+W_\delta=\sum_{t=1}^{T}\delta^t
+ \bigl(\pi(\kappa^\star)-\pi(\kappa_t)\bigr)\ge0.
 \]
-the cumulative surplus gap over the maturation window $T$ during which the fresh
-identity climbs from $\kappa_0$ back toward $\kappa^\star$. 
+If resetting avoids a sanction of present value $S$ and carries no other
+benefit or cost, resetting rather than retaining the sanctioned identity
+has gain $S-W_\delta$.
 
-Whitewashing is
-unprofitable exactly when the one-time gain from escaping the sanction is less than
-$W$; choosing the ceiling schedule so that $W$ exceeds the maximum single-outcome
-fraud gain makes honesty the dominant strategy for any actor that intends to keep
-working.
+For a distinct comparison, suppose a one-shot deviation gives immediate
+incremental gain $G$, is detected with probability $p$, and detection after
+$\tau$ periods forces this reset. Assume no other payoff differences and
+no escape from the probation policy. The deviation is weakly deterred iff
+\[
+ G\le p\delta^\tau W_\delta.
+\]
+This compares one specified deviation with its honest continuation; it is
+not a dominant-strategy claim against arbitrary counterpart strategies.
 \end{pdclaim}
-\begin{proof}[Proof sketch]
-\setlength{\parskip}{4pt plus 1pt}
-A sanctioned identity that does not whitewash retains its ceiling $\kappa^\star$
-(minus the explicit sanction); an identity that whitewashes resets to $\kappa_0$
-and, by hypothesis, can only regain the ceiling by re-accumulating witnessed
-history over $T$ periods, earning $\pi(\kappa_t)$ in period $t$ with
-$\kappa_0 \le \kappa_t \le \kappa^\star$. 
-
-The opportunity cost of the reset is the
-per-period surplus gap summed over the window, $W=\sum_t(\pi(\kappa^\star)-\pi(\kappa_t))$,
-which is non-negative since $\pi$ is non-decreasing in the ceiling. An actor
-whitewashes only if the avoided sanction exceeds $W$; setting the schedule
-$\{\kappa_t\}$ (equivalently, the maturation rate) so that $W$ dominates the
-largest gain a single fraudulent outcome can capture removes the incentive. The
-key design move is that the newcomer gets \emph{full work ability} but a
-\emph{reduced economic ceiling}, so $W$ is paid in forgone \emph{earnings}, not in
-forgone \emph{ability} --- which is why it taxes whitewashers without taxing honest
-newcomers' capacity to contribute. \qedhere
+\begin{proof}[Proof idea]
+Subtract the two continuation payoff streams term by term and discount to
+the time at which the decision is made. At reset the difference is
+$W_\delta$, so avoiding a sanction contributes $S-W_\delta$. Before a
+possible detection, the reset cost is incurred only on the detection event
+and is discounted a further $\tau$ periods. The incremental deviation
+payoff is therefore $G-p\delta^\tau W_\delta$. With random detection time,
+replace the latter cost by
+$\mathbb E[\mathbf1_{\{\mathrm{detected}\}}\delta^\tau W_\delta]$.
 \end{proof}
 
 \begin{pdexample}{The Cost of Starting Over}
@@ -1311,9 +1309,12 @@ linear five-period climb $\kappa_t = 10 + 18t$, and per-period surplus
 $\pi(\kappa)=0.1\kappa$. Table~\ref{tab:whitewash-numbers} sums the five
 surplus gaps to $W=18$ for this illustrative schedule.
 
-So a fraud gain of $G_{\max}=15$ is deterred by this schedule
-($15<18$) and a gain of $G_{\max}=25$ is not ($25>18$) --- the design lever is the
-\emph{shape} of the climb, not the size of the penalty.
+With certain immediate detection and $\delta=1$, a deviation gain of
+$15$ is deterred ($15<18$), while $25$ is not. At detection probability
+$p=0.1$, the expected cost is only $1.8$, so the same gain of $15$ is
+profitable. At $\delta=0.9$, the reset cost is $W_{0.9}=14.65938$;
+even certain immediate detection then fails to deter gain $15$.
+The schedule, monitoring probability, and time preference all matter.
 
 Note also what this
 instance fixes for the next theorem: the largest holdback any single period can
@@ -1346,15 +1347,15 @@ Gap $\pi(\kappa^\star)-\pi(\kappa_t)$ & $7.2$ & $5.4$ & $3.6$ & $1.8$ & $0.0$ & 
 \bottomrule
 \end{tabular}
 \caption{Re-entering as a newcomer forgoes $18$ of surplus over five periods;
-under the example's assumptions, a fraud gain below that does not pay for a reset.}
+with certain immediate detection and no discounting, it deters a smaller deviation gain.}
 \label{tab:whitewash-numbers}
 \end{table}
 
 \keyidea[Limit earnings, not ability]{The newcomer policy is a \emph{shape}: full work ability, reduced economic
-ceiling, climbing with witnessed history. That shape is what makes
-Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
-resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
-A flat ``distrust all newcomers'' policy taxes the wrong party.}
+ceiling, climbing with witnessed history.
+Theorem~\ref{thm:whitewash-cost}'s cost falls repeatedly on whitewashers.
+Honest newcomers also bear the initial earnings restriction; the next
+optimization explicitly minimizes that friction subject to deterrence.}
 
 \pdmarginanalogy{stp-stepped-pole}{}{ch05-stepped-surveyors-pole}{Like a surveyor's leveling rod measuring elevation against a sheer rock face, the front-loaded probation cliff imposes a steep initial scrutiny step before leveling off.}%
 \begin{pdclaim}{Theorem}{Front-Loaded Probation Dominance, \mbox{under} a Ceiling}
@@ -1375,7 +1376,10 @@ by that ceiling: the schedule is constrained by
 the per-period cap supplied by Theorem~\ref{thm:whitewash-cost}'s own ceiling
 schedule. 
 
-Subject to the deterrence constraint
+Suppose the reset is certain and immediate; alternatively absorb a fixed
+positive detection probability and delay into the required conditional
+cost $G_{\max}$. This is an optimization of that cost, not a claim about an
+unmodeled monitoring process. Subject to
 $\sum_{t=0}^T \delta_f^t g_t \ge G_{\max}$, the schedule minimizing honest
 newcomers' lifetime friction $H(g)=\sum_{t=0}^T \delta_h^t g_t$, when feasible
 and $G_{\max}>0$, is uniquely
@@ -2938,7 +2942,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{A role is replaced; a person accumulates.} The role rail names whoever fills it this week; the person rail is the set of witnessed outcomes that survive every respawn.
 \item \textbf{Continuity is a ledger position, not a metaphysics.} Three subsystems carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
 \item \textbf{Identity must be non-forgeable} or nothing above it holds: a respawn under a fresh label would shed every penalty and inflate every quorum. Principal-bound identity keeps the penalty flat across respawns and one principal at one weight.
-\item \textbf{Whitewashing has a price}, $\rho^{\ast}=G/(dB)=0.25$ in the worked case, and the penalty a fresh identity can escape decays as $0.8^{k}$; the probation cliff is the cheapest deterrent for the honest newcomer.
+\item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $p$ after delay $\tau$ faces expected cost $p\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
 \item \textbf{Adverse selection lives inside one identity} until a price can depend on an attested quantity; the attested flip is the whole gain from attestation ($0.5$ against $0.2$ in the example).
 \item \textbf{Resurrection is sound only through the mint}: a lineage that forks cannot mint twice, and the checker refuses the copy-fork.
 \item \textbf{Reputation is a substrate, not a score}: multi-dimensional, buyer-weighted, and never a bandit problem, because the arms are strategic.
@@ -3184,17 +3188,20 @@ necessary for those mechanisms under those access rules, but it is not
 sufficient by itself.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-newcomer-shape}
-Why is a ``newcomer policy as a shape'' (full work, reduced ceiling) strictly
-better than ``newcomers are distrusted'' (reduced work)? Consider the cost to
-an honest newcomer vs.\ a whitewasher.
+What tradeoff does full work with a reduced economic ceiling make compared
+with restricting newcomers' work? Distinguish evidence accumulation,
+liquidity, sanction evasion, and deterrence of a new deviation.
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-newcomer-shape}
-Full work with a reduced economic ceiling lets an honest newcomer demonstrate
-competence without being denied livelihood, while limiting the maximum
-one-shot gain from abandoning a mature sanctioned identity. ``Reduced work''
-slows evidence accumulation and taxes all honest entrants; ``reduced
-exposure'' targets the externality instead. The ceiling schedule must be
-chosen so the maturation opportunity cost exceeds plausible evasion gain.
+Allowing work preserves an opportunity to demonstrate competence, but a
+reduced earning ceiling can still exclude an honest entrant who cannot
+finance the initial low-income periods. Neither policy is unconditionally
+better without a participation and payoff model. Under
+Theorem~\ref{thm:whitewash-cost}'s fixed continuation payoffs, resetting to
+avoid a sanction of present value $S$ is unprofitable when $S\le W_\delta$.
+For its separate one-shot deviation model, weak deterrence instead requires
+$G\le p\delta^\tau W_\delta$. Preserving access to work does not by itself
+establish either condition or remove the newcomer's liquidity constraint.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-bond-farming}
 Bond-farming: a single principal spawns $1000$ agents, has them trade trivial

@@ -1,22 +1,9 @@
-% fig-ch0-concurrency-actors-csp.tex -- redrawn to the house figure language (v2).
-% Reader question: what differs between an actor send and a CSP rendezvous?
-% Claim: an actor send is asynchronous -- non-blocking, buffered in the
-% receiver's private FIFO mailbox, after which the receiver may `become` a
-% new behaviour; a CSP communication is a synchronous unbuffered rendezvous
-% (c!v and c?x occur together, Delta t = 0; whoever arrives first blocks),
-% with guarded choice (alt) over several channels, here with a lease
-% timeout as the alternative to a stuck rendezvous.
-% Grammar chosen: before/after on identical geometry (tpl-before-after.tex)
-% -- two sender/receiver pairs on one time grid, so the reader compares the
-% two paradigms by position, not by re-reading two unrelated layouts.
-% Rejected: two separate sequence diagrams side by side with independent
-% time axes -- that lets each half look locally correct while hiding the
-% claim that matters (one gap is non-zero, one is exactly zero); one shared
-% axis makes the zero-gap the thing a reader can see, not just read.
-% Facts: Hewitt & Agha (actors, 1973/1986); Hoare, CSP (1978);
-% whitepaper/chapter-0-prerequisites.tex Sec. "Concurrency Foundations:
-% Hewitt--Agha Actors vs. Hoare's CSP", immediately above
-% \ref{fig:actor-concurrency}.
+% Reader question: when does a sender continue relative to receiver readiness?
+% Claim: asynchronous sends and synchronous rendezvous differ in blocking.
+% Evidence: sender and receiver timelines on the upstream shared time grid.
+% Distinguish: buffering, joint readiness and implementation-specific ordering.
+% Grammar: aligned time panels; delay is illustrative, not measured.
+% Acceptance: find the sender that proceeds before the receiver is ready.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- one grid, declared once: a shared time axis for both panels -------
@@ -39,7 +26,7 @@
   \node[pd label,anchor=east] at ({\sendx-.15},0.48) {send};
   \node[pd badge] at ({\sendx+.20},0.48) {1};
   % the mailbox: a subordinate artifact, buffering the message for Delta t > 0
-  \node[pd artifact,minimum width=2.6cm] (MB) at ({(\sendx+\recvx)/2},-.50) {mailbox (FIFO)};
+  \node[pd artifact,minimum width=2.6cm] (MB) at ({(\sendx+\recvx)/2},-.50) {mailbox};
   \draw[pd thin arrow,shorten >=3pt,rounded corners=2pt] (\sendx,-.08) -- (\sendx,-.50) -- (MB.west);
   \draw[pd thin arrow,shorten <=3pt,rounded corners=2pt] (MB.east) -- (\recvx,-.50) -- (\recvx,{-\dy+.08});
   % receiver: idle (hairline) until the message is drained, then resumes
@@ -72,7 +59,7 @@
   \draw[pd protocol rule] (\rvx,\py) -- (\rvx,{\py-\dy});
   \node[pd protocol datum] at (\rvx,{\py-.5*\dy}) {};
   \node[pd badge] at ({\rvx-.55},{\py-.5*\dy}) {3};
-  \node[pd protocol label,anchor=west] at ({\rvx+.22},{\py-.5*\dy}) {rendezvous $(\Delta t = 0)$};
+  \node[pd protocol label,anchor=west] at ({\rvx+.22},{\py-.5*\dy}) {joint communication};
   % guarded choice: P1 also guards a lease-timeout channel while it waits
   \draw[pd breach arrow,rounded corners=2pt]
     (\arrSx,\py) |- ({(\arrSx+\rvx)/2},{\py-\dy-.85});
@@ -89,17 +76,18 @@
   \node[pd title,anchor=north west] at (3.55,{\ly-.30}) {semantics};
   \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
   \foreach \i/\n/\f/\s in {%
-    0/1/{send (actor)}/{non-blocking: $\Delta t > 0$, buffered in the mailbox},
+    0/1/{send (actor)}/{sender proceeds without waiting for receiver readiness},
     1/2/{receive, \texttt{become}}/{drains the mailbox; may adopt a new behaviour},
-    2/3/{rendezvous (CSP)}/{synchronous meet: $\Delta t = 0$; first arrival blocks}}{
+    2/3/{rendezvous (CSP)}/{one abstract joint event; first arrival waits}}{
       \node[pd badge] at (.28,{\ly-1.35-\i*.62}) {\n};
       \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.62}) {\f};
       \node[pd label,anchor=base west,align=left] at (3.55,{\ly-1.35-\i*.62}) {\s};}
   \node[pd badge] at (.28,{\ly-1.35-3*.62}) {4};
   \node[pd label,anchor=base west,text=pderror] at (.62,{\ly-1.35-3*.62}) {\texttt{alt} / lease timeout};
   \node[pd label,anchor=base west,align=left,text=pderror] at (3.55,{\ly-1.35-3*.62})
-    {guarded choice: the timeout channel avoids permanent deadlock};
+    {guarded choice: a modeled timeout offers another transition};
   \node[pd note,anchor=north west,text width=12.0cm] at (.05,{\ly-1.35-3*.62-.55})
-    {asynchronous isolation suits stochastic agent reasoning; synchronous
-    rendezvous suits scarce host resources (port leases, WAL commits).};
+    {The drawn actor delay is illustrative. Ordering and delivery guarantees
+    depend on the actor implementation; rendezvous denotes joint readiness,
+    not zero physical communication latency.};
 \end{tikzpicture}

@@ -20,6 +20,31 @@ ROOT = Path(__file__).resolve().parents[2]
 BOOK = ROOT / "website-v2/public/whitepaper"
 
 
+def copy_review_pages(book):
+    markers = ("COPYREVIEWNOTESONLY", "NOTFORPUBLICATION",
+               "ALTERNATIVEEPIGRAPHSDOSSIER")
+    return [i + 1 for i, page in enumerate(book)
+            if any(marker in "".join(page.get_text().upper().split())
+                   for marker in markers)]
+
+
+@unittest.skipUnless(fitz, "PyMuPDF is required for PDF text controls")
+class CopyReviewBoundaryTests(unittest.TestCase):
+    def test_publication_text_is_accepted(self):
+        with fitz.open() as book:
+            page = book.new_page()
+            page.insert_text((72, 72), "Chapter 0: Foundations and Prerequisites")
+            self.assertEqual(copy_review_pages(book), [])
+
+    def test_review_watermarks_are_detected_even_across_line_breaks(self):
+        for text in ("COPY REVIEW NOTES ONLY", "NOT FOR PUBLICATION",
+                     "COPY REVIEW\nNOTES ONLY", "Alternative Epigraphs Dossier"):
+            with self.subTest(text=text), fitz.open() as book:
+                page = book.new_page()
+                page.insert_text((72, 72), text)
+                self.assertEqual(copy_review_pages(book), [1])
+
+
 class BookTypographyTests(unittest.TestCase):
     def test_pinned_font_bytes_and_license(self):
         manifest = json.loads((BOOK / "fonts/manifest.json").read_text())
@@ -116,6 +141,11 @@ class PrivateBookFontTests(unittest.TestCase):
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
                      "Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks")
 class RenderedBookTypographyTests(unittest.TestCase):
+    def test_publication_has_no_editorial_copy_review_pages(self):
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            self.assertEqual(copy_review_pages(book), [],
+                             "Editorial review sheets must not ship in the Book")
+
     def test_retired_serif_is_not_loaded_anywhere_in_swiss(self):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
             families = {font[3] for page in book for font in page.get_fonts()}

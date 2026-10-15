@@ -1,129 +1,42 @@
-% Reader question: when can Mira and the routing agent share one ranking?
-% Claim: a strict reversal, not a difference in units or a tie, prevents
-% one order from satisfying both readers at every selection budget.
-% Evidence: synthetic ordinal ranks over three proposals named for real
-% lib/ artifacts; the complete data is pdRankSamples below. Checked by
-% tests/harbor-research/test_legible_swarm_split_ranker.py; no measured scores.
-% Must distinguish: readers (left/right) from alternative cases (panel a / panel b);
-% rank 1 is highest on BOTH sides. Only the briefing/attention pair reverses.
-% Grammar: Tufte classical slopegraph, identical geometry and direct baseline labels.
-% Reject: oversized geometric marker badges, raw fit-versus-loss units, or unified scores.
-% Width: the 4.5-inch Book column, unscaled. All type inherits shared roles.
-% Design references: https://charliepark.org/slopegraphs/ (ordinal scales,
-% ties, direct labels); https://www.edwardtufte.com/notebook/
-% sparkline-theory-and-practice-edward-tufte/ (words and graphics together).
+% Reader question: when can Mira and the router share one ranking?
+% Claim: a strict reversal prevents a common optimal order at every budget.
+% Evidence: the complete synthetic ordinal tuple data below, tested exhaustively.
+% Distinguish: reader differences, not a temporal change in the alternatives.
+% Grammar: two vertically stacked slopegraphs with identical rank scales.
+% Acceptance: identify the single crossing pair without reading the caption.
 % [internal, synthetic ordinal example]
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lxA{2.40}
-  \def\rxA{4.20}
-  \def\lxB{7.20}
-  \def\rxB{9.00}
-  \def\rankpitch{0.95}
-  % artifact / routing rank / Mira agreement rank / Mira dispute rank / role tag
   \def\pdRankSamples{%
 briefing.ts/1/1/2/briefing,
 attention.ts/2/2/1/attention,
 resurrection.ts/3/3/3/resurrection}
-
-  % Top-level subtitle & dividing hairline
-  \node[pd label,anchor=west,inner sep=0pt] at (0,4.15)
+  \node[pd label,text width=10.4cm,align=center] at (5.2,1.4)
     {Synthetic ordinal ranks; 1 is highest on both sides};
-  \draw[pd hairline] (0,3.90) -- (11.4,3.90);
-
-  % =========================================================================
-  % PANEL 1 (Left): Agreement
-  % =========================================================================
-  \node[pd title,anchor=west,inner sep=0pt] at (0,3.45)
-    {\textbf{(a) Agreement suiting both}};
-
-  % Column headers
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxA,2.55)
-    {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxA,2.55)
-    {\textbf{Mira}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
-
-  % Guide spines
-  \draw[draw=pdink!18,line width=0.4pt] (\lxA,2.40) -- (\lxA,0.25);
-  \draw[draw=pdink!18,line width=0.4pt] (\rxA,2.40) -- (\rxA,0.25);
-
-  % Agreement rows
-  \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
-    \pgfmathsetmacro{\yL}{2.30 - (\route-1)*\rankpitch}
-    \pgfmathsetmacro{\yR}{2.30 - (\agreement-1)*\rankpitch}
-    \draw[draw=pdink!55,line width=0.75pt] (\lxA,\yL) -- (\rxA,\yR);
-    \fill[pdink!70] (\lxA,\yL) circle (1.2pt);
-    \fill[pdink!70] (\rxA,\yR) circle (1.2pt);
-    \node[pd label,anchor=east,align=right,inner sep=0pt]
-      at ({\lxA-0.12},\yL)
-      {\texttt{\artifact}\enspace\textbf{\route}};
-    \node[pd label,anchor=west,align=left,inner sep=0pt]
-      at ({\rxA+0.12},\yR)
-      {\textbf{\agreement}};
-  }
-
-  % =========================================================================
-  % PANEL 2 (Right): Dispute
-  % =========================================================================
-  \node[pd title,anchor=west,inner sep=0pt] at (5.7,3.45)
-    {\textbf{(b) Top choices conflict in dispute}};
-
-  % Column headers
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxB,2.55)
-    {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
-  \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxB,2.55)
-    {\textbf{Mira}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
-
-  % Guide spines
-  \draw[draw=pdink!18,line width=0.4pt] (\lxB,2.40) -- (\lxB,0.25);
-  \draw[draw=pdink!18,line width=0.4pt] (\rxB,2.40) -- (\rxB,0.25);
-
-  % Dispute rows
-  \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
-    \pgfmathsetmacro{\yL}{2.30 - (\route-1)*\rankpitch}
-    \pgfmathsetmacro{\yR}{2.30 - (\dispute-1)*\rankpitch}
-    \ifnum\route=\dispute\relax
-      % Unchanged item (resurrection.ts): subtle dashed baseline
-      \draw[draw=pdink!35,line width=0.6pt,dash pattern=on 2pt off 1.5pt]
-        (\lxB,\yL) -- (\rxB,\yR);
-      \fill[pdink!40] (\lxB,\yL) circle (1.1pt);
-      \fill[pdink!40] (\rxB,\yR) circle (1.1pt);
-      \node[pd label,anchor=east,align=right,inner sep=0pt,text=pdinkmuted]
-        at ({\lxB-0.12},\yL)
-        {\textbf{\route}};
-      \node[pd label,anchor=west,align=left,inner sep=0pt,text=pdinkmuted]
-        at ({\rxB+0.12},\yR)
-        {\textbf{\dispute}\enspace\texttt{\artifact}};
-    \else
-      % Reversing items: bold highlighted crossing slopes
-      \ifnum\route=1\relax
-        % briefing.ts drops 1 -> 2 (Router top choice, Mira rank 2)
-        \draw[draw=pdcobalt,line width=1.2pt] (\lxB,\yL) -- (\rxB,\yR);
-        \fill[pdcobalt] (\lxB,\yL) circle (1.4pt);
-        \fill[pdcobalt] (\rxB,\yR) circle (1.4pt);
-        \node[pd label,anchor=east,align=right,inner sep=0pt,text=pdcobalt]
-          at ({\lxB-0.12},\yL)
-          {\textbf{\route}};
-        \node[pd label,anchor=west,align=left,inner sep=0pt,text=pdcobalt]
-          at ({\rxB+0.12},\yR)
-          {\textbf{\dispute}\enspace\texttt{\artifact}};
-      \else
-        % attention.ts rises 2 -> 1 (Mira top choice, Router rank 2)
-        \draw[draw=pdteal,line width=1.2pt] (\lxB,\yL) -- (\rxB,\yR);
-        \fill[pdteal] (\lxB,\yL) circle (1.4pt);
-        \fill[pdteal] (\rxB,\yR) circle (1.4pt);
-        \node[pd label,anchor=east,align=right,inner sep=0pt,text=pdteal]
-          at ({\lxB-0.12},\yL)
-          {\textbf{\route}};
-        \node[pd label,anchor=west,align=left,inner sep=0pt,text=pdteal]
-          at ({\rxB+0.12},\yR)
-          {\textbf{\dispute}\enspace\texttt{\artifact}};
-      \fi
-    \fi
+  \foreach \panel/\offset/\heading in {1/0/Agreement,2/-5.0/Dispute} {
+    \begin{scope}[yshift=\offset cm]
+      \node[pd title,anchor=west,text width=3.3cm,align=left] at (0,0.4) {\heading};
+      \node[pd title,text width=1.7cm,align=center] at (4.3,0.4) {Router};
+      \node[pd title,text width=1.7cm,align=center] at (8.7,0.4) {Mira};
+      \draw[pd hairline] (0,-0.2) -- (10.4,-0.2);
+      \draw[pd guide] (4.3,-0.8) -- (4.3,-3.1);
+      \draw[pd guide] (8.7,-0.8) -- (8.7,-3.1);
+      \foreach \artifact/\route/\agreement/\dispute/\role in \pdRankSamples {
+        \pgfmathsetmacro{\yL}{-0.9-(\route-1)*1.0}
+        \ifnum\panel=1\def\target{\agreement}\else\def\target{\dispute}\fi
+        \pgfmathsetmacro{\yR}{-0.9-(\target-1)*1.0}
+        \draw[pd rule] (4.3,\yL) -- (8.7,\yR);
+        \node[pd datum] at (4.3,\yL) {};
+        \node[pd datum] at (8.7,\yR) {};
+        \node[pd label,anchor=west,text width=3.1cm,align=left] at (0,\yL) {\texttt{\artifact}};
+        \node[pd label,anchor=east] at (4.0,\yL) {\route};
+        \node[pd label,anchor=west] at (9.0,\yR) {\target};
+      }
+    \end{scope}
   }
 \end{tikzpicture}
-\caption{One pair crosses when Mira and the router disagree. Panel (a) shows concordant preferences (one ranking satisfies both readers); panel (b) shows the strict reversal where high irreversible risk inverts the top choices. Panels compare alternative objective preferences, not time.}
+\caption{Agreement admits one common ranking. In dispute, briefing and attention reverse their order; no ranking is optimal for both readers at every selection budget. Synthetic ordinal example.}
 \label{fig:split-ranker}
 \end{figure}

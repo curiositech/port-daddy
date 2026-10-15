@@ -1,28 +1,9 @@
-% fig-ch0-lifecycle-hooks.tex -- redrawn to the house figure language (v2).
-% Reader question: where in a turn does each hook fire, and which loop owns
-% it?
-% Claim: the outer Session/Turn loop (SessionStart, UserPromptSubmit,
-% PreCompact, Stop, SessionEnd) wraps one turn's execution; within a turn,
-% the inner Agentic Tool Loop (PreToolUse, sandboxed execution, PostToolUse)
-% runs once per tool call and exits back out through Stop. PreToolUse is the
-% one hook with veto power (a forced push to a protected branch is blocked
-% before the syscall fires, exit code 2); PostToolUse may roll back an
-% unleased mutation after the fact.
-% Grammar chosen: two nested cycles on vertical spines (tpl-state-machine.tex's
-% guarded-transition grammar, closed into a loop as in
-% fig-ch0-bdi-execution.tex): the outer loop's spine on the left, the inner
-% tool loop nested inside a dashed boundary on the right, with the inner
-% loop's exit edge carrying the Stop hook back onto the outer spine.
-% Rejected: the four-boundary-box, icon-laden cross-section this fragment
-% used to be (a robot typing at a laptop, a shield padlock, a speedometer
-% gauge, a broom with sparkles, three callout cards with code snippets) --
-% none of those drawings distinguishes a hook from an icon of one, and the
-% figure's actual claim (two nested cycles, five named interception points)
-% needs a state machine, not an illustration.
-% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Lifecycle Hooks and
-% Supervisory Control" and Sec. "Case Studies in Lifecycle Hook Enforcement"
-% (the hook names and the three worked cases this figure's legend echoes
-% instead of re-drawing).
+% Reader question: which hook precedes effects and which inspects results?
+% Claim: a pre-tool veto can prevent a mediated call; post-tool checks run after it.
+% Evidence: upstream nested session/turn and agentic tool loops.
+% Distinguish: admission, confined effects, result inspection and closeout.
+% Grammar: retain the nested loop and named interception points.
+% Acceptance: distinguish a pre-effect veto from limited after-effect compensation.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- one grid, declared once --------------------------------------------
@@ -36,7 +17,7 @@
   % ---- the outer session/turn loop ----------------------------------------
   \node[pd focus state,minimum width=2.75cm] (O1) at (\sxO,{3*\dy}) {prompt received};
   \node[pd focus state,minimum width=2.75cm] (O2) at (\sxO,{2*\dy}) {turn executing};
-  \node[pd focus state,minimum width=2.75cm] (O3) at (\sxO,{1*\dy}) {turn verified};
+  \node[pd focus state,minimum width=2.75cm] (O3) at (\sxO,{1*\dy}) {turn reviewed};
   \node[pd terminal,minimum width=2.75cm]    (O4) at (\sxO,0)       {session closed};
   \draw[pd initial] (\sxO,5.70) -- (O1.north);
   \node[pd label,anchor=south] at (\sxO,5.65) {SessionStart};
@@ -85,13 +66,14 @@
     0/1/{\texttt{UserPromptSubmit}}/{outer}/{inject or reject context before deliberation begins},
     1/2/{\texttt{PreCompact}}/{outer}/{preserves claims and locks, then resumes the same turn},
     2/3/{\texttt{PreToolUse}}/{inner}/{vetoes a call before it runs (e.g.\ forced push to a protected branch)},
-    3/4/{\texttt{PostToolUse}}/{inner}/{sanitizes effects after; may roll back an unleased mutation},
-    4/5/{\texttt{Stop}}/{outer}/{verifies turn invariants; refuses completion until repaired}}{
+    3/4/{\texttt{PostToolUse}}/{inner}/{records results after effects; compensation may be limited},
+    4/5/{\texttt{Stop}}/{outer}/{checks closeout; may request more work before completion}}{
       \node[pd badge] at (.28,{\ly-1.35-\i*.90}) {\n};
       \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.90}) {\h};
       \node[pd label,anchor=base west] at (4.10,{\ly-1.35-\i*.90}) {\l};
       \node[pd label,anchor=base west,align=left,text width=7.4cm] at (5.75,{\ly-1.35-\i*.90}) {\s};}
   \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-4*.90-.60})
-    {the next-turn rail and the inner loop's deliberate/sandboxed rail are the
-    two honest cycles; blocked (dashed, red) is the only way off either one.};
+    {PreToolUse can veto a mediated call before it runs. PostToolUse
+    inspects an existing result; it cannot undo irreversible effects.
+    Hook names and veto behavior depend on the configured host contract.};
 \end{tikzpicture}

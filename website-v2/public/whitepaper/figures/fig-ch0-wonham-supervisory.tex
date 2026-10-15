@@ -1,27 +1,9 @@
-% fig-ch0-wonham-supervisory.tex -- redrawn to the house figure language (v2).
-% Reader question: which events can the supervisor disable, and what remains
-% of the plant's behaviour?
-% Claim: the supervisor S restricts the plant G's uncontrolled language
-% L(G) to the safe sublanguage K, so L(S/G) subseteq K subset L(G).
-% Controllable events Sigma_c (file writes, process spawns, network
-% requests) that would leave K are disabled by S; uncontrollable events
-% Sigma_u (model token generation, host signals, process exit) always
-% execute -- S has no authority over them.
-% Grammar chosen: nested sets (tpl-nested-sets.tex) for L(G) superset K,
-% beside a small automaton for the plant, with S drawn as a pd trust
-% boundary around the controllable-event transitions only; the one
-% uncontrollable transition sits outside that boundary, undisabled.
-% Rejected: the four-voting-robots-and-a-striped-barrier illustration this
-% fragment used to be, plus a processor-chip "kernel shield" icon and six
-% small pictograms for individual event kinds (a branching-diamond for git
-% commits, a globe for network egress, a gear for OS signals, a stopwatch,
-% a lightning bolt) -- none of those drawings states which events are
-% controllable, which figure is the actual claim; a set-containment diagram
-% plus a labelled automaton states it directly.
-% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Lifecycle Hooks and
-% Supervisory Control" (the Ramadge-Wonham formalization, the Sigma_c/Sigma_u
-% partition and the L(S/G) subseteq K subset L(G) containment) and its
-% caption for fig:wonham-supervisory.
+% Reader question: which unsafe events can a supervisor disable?
+% Claim: controllable events can be disabled; uncontrollable continuations remain.
+% Evidence: upstream language containment and event-class automaton.
+% Distinguish: safe target K, achievable controlled language and observation limits.
+% Grammar: nested languages and named transitions, not a universal safety gate.
+% Acceptance: state the controllability and observation conditions on K.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- one grid, declared once --------------------------------------------
@@ -30,8 +12,8 @@
   \draw[pd neutral fill] (0.60,1.00) rectangle (6.00,5.30);
   \node[pd label,anchor=north west] at (0.75,5.15) {$L(G)$};
   \draw[pd focus fill] (1.70,1.60) rectangle (4.90,3.90);
-  \node[pd label,anchor=north west] at (1.85,3.75) {$K = L(S/G)$};
-  \node[pd label] at (3.30,0.65) {$L(S/G) \subseteq K \subset L(G)$};
+  \node[pd label,anchor=north west] at (1.85,3.75) {safe target $K$};
+  \node[pd label] at (3.30,0.65) {$L(S/G) \subseteq K \subseteq L(G)$};
   \node[pd focus datum] (AD) at (3.00,2.60) {};
   \node[pd badge] at (3.35,2.90) {1};
   \node[pd breach datum] (DD) at (5.35,2.20) {};
@@ -72,6 +54,7 @@
       \node[pd label,anchor=base west] at (3.55,{\ly-1.35-\i*.95}) {\l};
       \node[pd label,anchor=base west,align=left,text width=7.9cm] at (5.35,{\ly-1.35-\i*.95}) {\s};}
   \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-2*.95-1.05})
-    {the dot and diamond on the left are the same two transitions, badged
-    1 and 2, read as traces inside or outside $K$.};
+    {Containment requires implementability: every permitted prefix must admit
+    its uncontrollable continuations. Partial observation adds a condition;
+    $L(S/G)=K$ is not guaranteed for an arbitrary safe target.};
 \end{tikzpicture}

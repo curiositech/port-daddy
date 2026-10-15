@@ -156,6 +156,9 @@
     \node[minimum width=48pt,minimum height=37pt,align=center] (#1) at (24,18) {#4};
   \end{scope}}
 
+% Reader question: How do overlapping requests become ordered records?
+% Evidence: schematic two-client history, not a runtime observation.
+% Each request precedes commit 1; each reply follows its own committed record.
 \newcommand{\SGWriterSequence}{%
 \begin{tikzpicture}[sg/base,y=-1pt]
   % Recomposed at native size: a 22-character mono request label no longer
@@ -187,6 +190,10 @@
   \node[anchor=west,font=\pdfiglabel] at (9,236) {time};
 \end{tikzpicture}}
 
+% Reader question: What is checked before the service admits requests?
+% Source: SQLite WAL documentation, sections 2--2.2, cited in the chapter.
+% Checkpointing copies committed pages; it does not apply uncommitted work.
+% The dashed group denotes separate mechanisms, not a proved composition.
 \newcommand{\SGRecoveryAdmission}{%
 \begin{tikzpicture}[sg/base,y=-1pt]
   % Recomposed at native size: a 25-character mono command (sqlite3_wal_
@@ -196,11 +203,11 @@
   \draw[sgInk!55,dash pattern=on 3pt off 2pt,line width=.7pt]
     (0,0) rectangle (300,318);
 
-  % 1. Replay WAL
+  % 1. Checkpoint WAL
   \node[anchor=north west,align=left,text width=228pt] at (10,8)
-    {{\pdfiglabelbold 1. Replay WAL}\\[2pt]
+    {{\pdfiglabelbold 1. Checkpoint WAL}\\[2pt]
      {\pdfiglabelmono\color{sgBlue} sqlite3\_wal\_checkpoint\_v2}\\[2pt]
-     {\pdfigsub Replays uncommitted frames into the main database before any page check runs.}};
+     {\pdfigsub Copies committed WAL pages into the main database; uncommitted frames are not applied.}};
   \SGDocument{walback}{(247,4)}{34}{26}{sgViolet!7}{}
   \SGDocument{walfront}{(253,9)}{34}{26}{sgViolet!7}{WAL}
   \draw[sg/arrow] (18,101)--(18,118);
