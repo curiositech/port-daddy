@@ -120,10 +120,18 @@ repo-specific mechanics:
   public `port-daddy-agent-skill` if it generalizes).
 - **Generalize.** Features must work for non-tsx/non-Rust repos, remote harbors,
   other machines, and shared GitHub teams — not just this checkout.
-- **Whitepaper check.** Reconcile coordination/kernel work against the seven
-  whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
-  Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
-  Commons, Federated Harbor); note drift in the PR.
+- **Book and research checks.** Reconcile coordination/kernel work against the
+  chapter manifest `whitepaper/textbook.json` and the claims in
+  `docs/harbor-research/omni-ledger.json`. The Book includes Chapter 0 plus eight
+  manifest chapters; chapter PDFs are retired. Correct a mathematical claim's
+  dependent figures, summaries, exercises, and indexed description together.
+- **Book publication acceptance.** A successful TeX process is insufficient:
+  `scripts/build-whitepapers.sh` must settle references and margin geometry before
+  copying the PDF. Run `scripts/harbor-research/run_pdf_checks.py` on that exact
+  PDF and inspect facing spreads, including all chapter openers. Keep
+  `\pdcopyreviewfalse` for publication; editorial review sheets are not Book pages.
+  Record the rendered hash, source tree, gates, and visual findings. A local proof
+  and an authorized hosted Book refresh are separate delivery states.
 - **Skill matching.** If you're missing a matching skill, use Jury-rig when the
   local runtime is explicitly enabled. When it is halted, do not invoke `pd`, its
   MCP server, hooks, daemon, or any substitute runtime; read the applicable

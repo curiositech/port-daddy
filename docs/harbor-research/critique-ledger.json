@@ -7746,8 +7746,8 @@
     "Item": "Derived regret head is a single-shot Neyman-Pearson likelihood-ratio test; the natural sequential extension is Wald's Sequential Probability Ratio Test (1947), uncited.",
     "Targets": "The Legible Swarm; research paper 1",
     "Prior adjudication": "",
-    "Status": "DONE 0ac32d8b2",
-    "Notes": "Added \\cite{wald1947} at thm:regret-head (chapter) and Theorem 3's related-work sentence (paper1); bibitem added to both."
+    "Status": "DECLINED -- the one-shot result is a Bayes cost comparison; SPRT optimality needs a separate sequential model.",
+    "Notes": "The Wald citation remains valid as a classical benchmark. The Book now identifies the one-shot result as a Bayes cost comparison, states perfect-remediation and calibration assumptions, and does not claim automatic SPRT optimality for adaptive telemetry. See BOOK-PUBLICATION-20261015; the source assertion that this is a Neyman-Pearson test is not adopted."
   },
   {
     "#": "LR-205",

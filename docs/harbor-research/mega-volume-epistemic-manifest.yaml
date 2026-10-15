@@ -51,13 +51,14 @@ results:
     name: "Derived regret head"
     epistemic_status: proved
     claim: >-
-      Inspect exactly when expected miss loss exceeds attention plus false-alarm
-      cost; anomaly must be a calibrated posterior rather than an ornamental score.
-    conditions: ["calibrated Pr(bad|evidence)", "declared miss, attention, and false-alarm costs"]
-    boundary: "Miscalibration invalidates the product-form interpretation by the calibration error."
+      Inspect when expected passing loss is at least the inspection cost,
+      using inspect-on-tie. Under an equal-slot budget, select the largest
+      positive reductions in expected loss.
+    conditions: ["calibrated Pr(bad|evidence)", "declared nonnegative costs", "inspection fully averts the bad-item loss", "additive losses and no cross-effects for batch allocation"]
+    boundary: "Risk ranking is not probability calibration; imperfect remediation requires its residual loss in the inspection cost."
     book_home: ["I"]
     evidence:
-      - {kind: verified, locator: "likelihood-ratio derivation in docs/harbor-research/tex/paper1.tex"}
+      - {kind: verified, locator: "Bayes cost comparison in whitepaper/legible-swarm.tex, thm:regret-head"}
 
   - id: R4
     name: "Digest and zoom frontier"
@@ -77,10 +78,10 @@ results:
     name: "Controllability boundary"
     epistemic_status: verified-framework-plus-internal-checker
     claim: >-
-      A safety policy can be prevented before effect exactly when it is
-      controllable with respect to the system's unmediated event alphabet.
-    conditions: ["explicit split between mediated and unmediated events", "complete model of the referenced state"]
-    boundary: "Semantic outputs and internal plans are detect-only; partial observation shrinks the preventable set."
+      A prefix-closed safety language can be realized exactly when it is
+      controllable with respect to the plant's uncontrollable event alphabet.
+    conditions: ["explicit controllable/uncontrollable alphabet", "specified plant language", "full observation"]
+    boundary: "A smaller safe language may be achievable when exact realization fails. Report delivery can be mediated even when internal generation cannot."
     book_home: ["II", "V", "VI"]
     evidence:
       - {kind: verified, locator: "Ramadge-Wonham controllability framework"}
@@ -91,8 +92,9 @@ results:
     epistemic_status: proved-plus-internal-harness
     claim: >-
       A positive least-squares completion residual proves that the relayed and
-      compared reports admit no global explanation; cycle structure can expose
-      an unchecked inconsistency that pairwise checks miss.
+      compared edge reports admit no common potential. With the same visible
+      sender claims, direct consistency comparison detects every residual alarm;
+      topology describes its circulation and observation blind spots.
     conditions:
       - "coordinate-subset restriction maps"
       - "the relevant endpoint reports are relayed to the analyst"
@@ -109,11 +111,11 @@ results:
     name: "Consistency-radius theorem"
     epistemic_status: proved-plus-internal-validation
     claim: >-
-      The completion residual is the exact minimum norm of an offset pattern
-      needed to explain the observed data; for one equivocator it localizes to
-      cycles through that actor and decomposes into graph-Laplacian solves.
-    conditions: ["single equivocator for the localization and lower-bound statements", "noise threshold above honest projection floor"]
-    boundary: "Coalition coboundaries, uniform lies, severed reports, and abelianization gaps can remain invisible."
+      The completion residual is the minimum norm of an unrestricted edge
+      correction to the visible coboundary image; coordinate decomposition
+      reduces its computation to graph-Laplacian solves.
+    conditions: ["declared Euclidean norm", "specified visible incidence map", "unrestricted correction support"]
+    boundary: "A correction constrained to one actor or admissible packet changes can require a larger norm; consistent false reports remain invisible."
     book_home: ["VII"]
     evidence:
       - {kind: internal, locator: "skills/harbor-results/scripts/sheaf_consistency_radius.py", seed: 20260816}

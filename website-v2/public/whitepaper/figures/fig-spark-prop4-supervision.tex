@@ -1,25 +1,9 @@
-% fig-spark-prop4-supervision.tex -- redrawn to the house figure language (v2).
-% Reader question: how does an operator get from a one-line fleet digest to a
-% byte-level trace without losing the thread?
-% Claim: a digest is not a separate artifact from the evidence -- it is a
-% reversible, low-entropy projection of the same append-only Merkle log the
-% kernel already committed. Four resolutions of that one projection (digest,
-% fleet status, execution receipt, syscall trace) each index into the same
-% log; drilling down costs a narrower index, never a recomputation.
-% Grammar chosen: a block stack of the four resolutions (one projection, read
-% top to bottom, numbered 1-4) with a single Merkle-log artifact beside it
-% that every level points into, keyed to a ruled legend.  Rejected: the
-% firehose-to-hexagon-to-FleetBar-window infographic from the prior draft --
-% five colour-coded "streams", a faceted hexagon icon and a mocked-up console
-% window draw three unrelated scenes (ingestion, filtering, display) that
-% compete for the one claim this figure owes the prose: that every
-% resolution reads the SAME log, not that a filter looks like a gem.
-% Facts: whitepaper/coordination-papers-mega-volume-chapter-0.tex Sec.
-% "Proposition 4: Supervision Has an Information Cost" -- "a summary is
-% therefore an index into evidence, not a substitute for it"; "allowing
-% instant drilling down from high-level status to raw syscall traces"; the
-% execution receipt $\rho_i$ and the $O(\log N)$ bounded operator view from
-% the paragraph immediately below the figure.
+% Reader question: how does a digest entry lead to supporting evidence?
+% Claim: references navigate to retained artifacts; commitments verify retrieved bytes.
+% Evidence: upstream four-resolution stack and shared evidence-log references.
+% Distinguish: summary, commitment, retained artifacts and semantic correctness.
+% Grammar: preserve upstream stack and ledger; no reversible-compression claim.
+% Acceptance: explain why a missing artifact cannot be recovered from its hash.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- one grid, declared once --------------------------------------------
@@ -60,14 +44,14 @@
     0/1/{digest}/{the log's leaves, viewed whole},
     1/2/{fleet status}/{the same leaves, grouped by project},
     2/3/{execution receipt}/{one committed leaf: invocation $\rho_i$},
-    3/4/{syscall trace}/{the raw bytes hashed into that leaf}}{
+    3/4/{syscall trace}/{retained trace bytes checked against the commitment}}{
       \node[pd badge] at ({\Lx+.30},{\ly-1.35-\i*.62}) {\n};
       \node[pd label,anchor=base west] at ({\Lx+.62},{\ly-1.35-\i*.62}) {\f};
       \node[pd label,anchor=base west,align=left,text width=6.6cm]
         at ({\Lx+3.50},{\ly-1.35-\i*.62}) {\s};}
   \node[pd note,anchor=north west,text width=12.7cm]
     at ({\Lx+.05},{\ly-1.35-3*.62-.55})
-    {every resolution reads the same append-only leaves: the operator's view
-     narrows from an $O(\log N)$ digest to one receipt without a byte being
-     recomputed.};
+    {References navigate to retained evidence. A commitment checks retrieved
+     content; it cannot reconstruct missing artifacts or prove their semantic
+     correctness. Summary size and drill-down cost depend on the index.};
 \end{tikzpicture}

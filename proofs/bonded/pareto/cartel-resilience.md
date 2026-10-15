@@ -10,75 +10,40 @@ Driving artifacts:
 - `proofs/bonded/pareto/simulation-sybil.mjs` + `simulation-sybil.run.log`
 - `proofs/bonded/pareto/simulation-cartel.mjs` + `simulation-cartel.run.log`
 
-## A5 — Sybil-attack regime
+## A5 — The analyzed coverage-capped contract
 
-### Setup
+The simulation creates one or three insurer identities, credits the premium
+on every winning transaction (including default), and slashes
+`min(B_dep, coverage)` when loss occurs. Capital is replenished between
+transactions; funding and entry costs are zero. The quoted bid uses the
+conditional loss-size parameter `mu`, not an actuarially fair expected
+payout. This is a stipulated attack scenario, not a computed competitive
+insurance equilibrium.
 
-An adversary spins up `K` Sybil insurer identities. Each Sybil posts the
-protocol-mandated deposit `B_dep`, then bids aggressively (1 − ε below
-honest cost) to win auctions. On loss, the Sybil defaults — pays
-nothing, forfeits its deposit. The protocol slashes `B_dep` to the
-commons, capped at the coverage amount.
-
-### Closed-form intuition
-
-Naive per-transaction expected attacker profit:
+For a fixed premium `q`, loss probability `p > 0`, and coverage `C`:
 
 ```
-E[π_sybil_per_txn] = q* − B_dep · P_loss
-breakeven:           B_dep* = q* / P_loss
+E[profit] = q - p * min(B_dep, C)
 ```
 
-For the mixed risk-class distribution (uniform over low/med/high):
+When `q > p*C`, increasing a coverage-capped deposit cannot deter the attack.
+When `q <= p*C`, any `B_dep >= q/p` does deter it weakly. The seeded sweep
+keeps positive mean profit throughout its tested deposit range 0.5 to 1000;
+its numerical result is specific to that contract and its selected inputs.
 
-```
-q* ≈ 37,  P_loss ≈ 0.117  →  B_dep* ≈ 316 USD/identity
-```
+Full forfeiture is a different contract with `E[profit] = q - p*B_dep`.
+For `q=10, p=.1, C=20, B_dep=110`, capped profit is `8`, full-forfeiture
+profit is `-1`. If premium is also clawed back, the formulas change again.
+This counterexample rules out a universal impossibility claim for deposits.
 
-### Empirical finding (the surprise)
+### Candidate additional controls
 
-The sweep shows mean_sybil_net stays positive across the entire deposit
-range tested (0.5 → 1000 USD). Closer inspection reveals **why** —
-and it is a real protocol concern:
-
-> **Deposit forfeiture is bounded by coverage.** The slash amount
-> equals `min(B_dep, coverage)` where `coverage = μ · (1 + s)`. For a
-> low-risk transaction with μ = 1, the protocol can only confiscate
-> at most 1.5 USD of the Sybil's deposit per default, even if the
-> Sybil posted 1000 USD. The cap exists because the protocol can only
-> route slashes back to actual loss-coverage.
-
-This means **deposit-based Sybil deterrence has a hard ceiling at the
-coverage amount.** Past that point, additional deposit sits idle and
-provides no further deterrence.
-
-### What does deter Sybils
-
-Three mechanisms compose to close A5:
-
-1. **Per-identity onboarding cost C_kyc.** A non-recoverable cost
-   (KYC fee, NFT mint, proof-of-personhood) imposed at identity
-   creation. This is the only deterrent that scales independent of
-   coverage.
-2. **Reputation gating.** New identities cap out at low-coverage
-   transactions until they accumulate a track record. Sybils cannot
-   shortcut to high-stake auctions.
-3. **Deposit per coverage class.** B_dep set per risk class to
-   saturate the coverage cap exactly. Combined with reputation
-   gating, this forces the Sybil to either (a) accept tiny per-txn
-   profits or (b) pay C_kyc per identity to escalate.
-
-The single-instrument deposit policy (B_dep only) is **insufficient**.
-This is a real revision to the §8.4.4 mechanism design — recorded
-honestly rather than waved away.
-
-### Status
-
-A5 is **partially closed**: the Sybil simulation is in place; the
-finding that deposit alone is insufficient is empirically established.
-The recommended composite mechanism (C_kyc + reputation + per-class
-B_dep) is documented but not yet simulated. Future work in
-`simulation-sybil-v2.mjs`.
+A non-refundable entry fee, principal-bound aggregate exposure reservations,
+and probationary coverage ceilings can change the attacker's incentives.
+None alone establishes Sybil resistance, and their composite is not yet
+proved or simulated here. Its deterrence, solvency, funding costs, and
+false-sanction effects require an explicit model. Full forfeiture also
+requires a credible collection and adjudication rule.
 
 ## A6 — Repeated-game cartel folk-theorem
 
@@ -162,11 +127,8 @@ A5 / A6 quantify the cost of breaking NS / NC:
 - **Breaking NC**: in the supplied payoff model, `p_d > 0.0478` at
   `δ = 0.95` makes immediate defection preferable in expectation. This does
   not itself prove welfare recovery or detector performance.
-- **Breaking NS**: pure deposit-based deterrence fails because of
-  the coverage cap. Closing A5 requires composite mechanisms (C_kyc
-  + reputation gating + per-class deposits). The §8.4.4 theorem
-  should be re-stated to require this composite as part of NS.
-
-These are concrete revisions to the published §8.4.4 narrative, not
-asterisks. The dominance result is robust; the assumptions list needs
-strengthening.
+- **Breaking NS**: the capped contract fails for the selected inputs when
+  expected premiums exceed expected capped forfeitures. Alternative capital
+  and admission policies require their own analysis. The Pareto result
+  remains conditional on its no-Sybil assumption; this attack simulation
+  does not discharge that assumption.

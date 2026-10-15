@@ -70,6 +70,17 @@ describe('collected-volume LaTeX preamble', () => {
     }
   });
 
+  test('publication defaults exclude editorial epigraph review spreads', () => {
+    const preamble = readFileSync(preamblePath, 'utf8');
+    expect(preamble).toMatch(/^\\pdcopyreviewfalse\s*$/m);
+    expect(preamble).not.toMatch(/^\\pdcopyreviewtrue\s*$/m);
+    expect(preamble).toContain('\\ifpdcopyreview');
+    expect(preamble).toContain('\\pdepigraphreviewspread{#1}');
+    const review = readFileSync(resolve(dirname(preamblePath),
+      'coordination-papers-mega-volume-epigraph-review-spreads.tex'), 'utf8');
+    expect(review).toContain('COPY REVIEW NOTES ONLY, NOT FOR PUBLICATION');
+  });
+
   test('compiles representative chapter, theorem, protocol, and exercise idioms', () => {
     const available = spawnSync('pdflatex', ['--version'], { encoding: 'utf8' });
     if (available.status !== 0) {

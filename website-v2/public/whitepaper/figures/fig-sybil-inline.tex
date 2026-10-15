@@ -27,7 +27,7 @@
   \def\rx{7.35}  \def\xmax{7.75}  \def\ymax{2.40}
   \def\kx{6.45}  \def\ky{1.85}
   \node[pd title,anchor=north west,text width=6.0cm] at (0,4.45)
-    {replicating identities multiplies entry, not one default loss};
+    {more identities require more posted capital};
   % ---- panel A: one principal fans out into K identities -------------------
   \node[pd identity state,circle,minimum size=8mm,inner sep=1pt] (pp) at (\px,\py) {$P$};
   \foreach \y/\lab in {2.55/1,1.95/2,1.35/3,0.75/{$\ldots$},0.15/{$K$}} {
@@ -54,8 +54,8 @@
   \node[pd note,anchor=north,text width=3.5cm,align=center] at ({(\ox+\rx)/2},{\oy-.72})
     {extra deposit returns intact past $B_T$};
 \end{tikzpicture}
-\caption{More identities multiply entry cost, not loss per default.
-Slashing stops at coverage $B_T$; deposits above that cap cannot increase
+\caption{Under the analyzed coverage-capped contract, extra identities
+require extra posted capital. Slashing stops at coverage $B_T$; deposits above that cap cannot increase
 the loss. Figure~\ref{fig:sybil-mc-inline} tests the resulting incentives.
 [internal, closed form]}
 \label{fig:sybil-inline}

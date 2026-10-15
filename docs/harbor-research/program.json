@@ -369,7 +369,7 @@
       "id": "R3",
       "kind": "theorem",
       "title": "The derived regret head",
-      "oneBreath": "Inspect iff C_miss(x)*a(x) >= c_att + C_fa*(1-a(x)); the folklore ranking key stakes x irreversibility x anomaly is the Bayes-optimal surfacing rule iff anomaly is a calibrated posterior.",
+      "oneBreath": "With calibrated posterior and complete loss prevention by inspection, inspect iff C_miss*a >= c_att+C_fa*(1-a). Equal-slot batch allocation ranks positive inspection benefits; risk-ranking agreement alone does not establish calibration.",
       "status": "folded",
       "chapters": [
         4
@@ -406,7 +406,7 @@
       "id": "R5",
       "kind": "theorem",
       "title": "Hypervisor enforceability = supervisory control",
-      "oneBreath": "A safety policy is regimentable (preventable pre-effect) by an agent hypervisor iff it is controllable in the Ramadge-Wonham sense with respect to the uncontrollable event set; gate the channel, never the token.",
+      "oneBreath": "A prefix-closed safety language is exactly realizable under full observation iff it is Ramadge-Wonham controllable. A stricter supervisor may preserve safety while sacrificing permitted histories.",
       "status": "folded",
       "chapters": [
         1
@@ -1007,8 +1007,8 @@
   "critiqueLedger": {
     "source": "docs/harbor-research/critique-ledger.json",
     "total": 897,
-    "done": 636,
-    "declined": 241,
+    "done": 635,
+    "declined": 242,
     "inWave": 0,
     "blocked": 19,
     "other": 1

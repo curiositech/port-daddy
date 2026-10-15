@@ -1,29 +1,9 @@
-% fig-ch0-closed-loop-diagram.tex -- redrawn to the house figure language (v2).
-% Reader question: what flows between the three tiers, and which tier is
-% the authority?
-% Claim: three architectural tiers separate probabilistic deliberation from
-% deterministic kernel coordination. Intent descends from deliberation
-% through confined execution into governance, which verifies capability and
-% commits an attestation; receipts ascend the same path back. Governance is
-% the authority -- it is the one tier that can refuse.
-% Grammar chosen: a block stack (tpl-block-stack.tex) of three full-width
-% bands, heaviest (focus-filled) at governance, with the loop drawn as two
-% margin arrows -- intent down the left, receipts up the right -- each
-% carrying one numbered badge keyed to a two-row legend, rather than
-% repeating the loop at every tier boundary.
-% Rejected: the three-banner-card illustration this fragment used to be
-% (a blue "DELIBERATION LAYER" banner over a context-buffer icon, an
-% open-book-with-code icon, a checkmark-and-lock "Output Validation Gate"
-% pill; a slate "EXECUTION LAYER" banner over a shield-and-lock "Seatbelt
-% Sandbox Enclave," a terminal-and-gear icon, a "Spend Cap Monitor" pill; a
-% navy "GOVERNANCE LAYER" banner over a padlock-sealed "Evidence Ledger"
-% pill and two gold "TCB" pills) -- the banners and pills recolor the same
-% three tiers four more times without adding a fact a plain band and a
-% short label list do not already carry.
-% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Closed-Loop
-% Attestation and Execution Verification" and its \pdwidecaption for
-% fig:pre-agent-loop (the three tiers, their contents, and the governance
-% tier's authority).
+% Reader question: which responsibilities separate proposal, effect and evidence?
+% Claim: governance checks admission; execution confines effects; receipts report.
+% Evidence: three architectural tiers and two directed information flows.
+% Distinguish: probabilistic proposal, mediated authority and observed outcome.
+% Grammar: upstream three-band stack; architectural tiers, not temporal phases.
+% Acceptance: locate both pre-effect admission and returned evidence.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- one grid, declared once --------------------------------------------
@@ -57,13 +37,14 @@
   \node[pd title,anchor=north west] at (5.55,{\ly-.30}) {carries};
   \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
   \foreach \i/\n/\h/\l/\s in {%
-    0/1/{intent}/{deliberation $\to$ governance}/{a proposed action, checked against capability and leased scope before any syscall},
-    1/2/{receipts}/{governance $\to$ deliberation}/{the signed WAL entry and Merkle attestation the action committed}}{
+    0/1/{intent}/{deliberation $\to$ governance}/{a proposed action, admitted before its mediated effect},
+    1/2/{receipts}/{governance $\to$ deliberation}/{a receipt identifying the observed outcome and retained evidence}}{
       \node[pd badge] at (.28,{\ly-1.35-\i*1.00}) {\n};
       \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*1.00}) {\h};
       \node[pd label,anchor=base west,align=left,text width=3.15cm] at (2.15,{\ly-1.35-\i*1.00}) {\l};
       \node[pd label,anchor=base west,align=left,text width=7.80cm] at (5.55,{\ly-1.35-\i*1.00}) {\s};}
   \node[pd note,anchor=north west,text width=13.0cm] at (.05,{\ly-1.35-1*1.00-.60})
-    {governance is the one tier that can refuse: it is the only authority
-    that turns an intent into either an attestation or a rejection.};
+    {Governance admits or refuses a mediated proposal before execution.
+    Confinement can also block effects; a receipt records an observed outcome,
+    rather than establishing its semantic correctness.};
 \end{tikzpicture}

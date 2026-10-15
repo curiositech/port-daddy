@@ -14,8 +14,8 @@
 %   Grammar rejected: a checklist table loses the ORDERING claim (rows are
 %   not equally mechanized); a decorative shield/lock icon per row asserts
 %   security the paper does not claim.
-% Five-second test: which single row is closest to MECHANIZED, and which
-%   three rows have not moved off OPEN?
+% Five-second test: which rows depend on stated assumptions, and which
+%   three rows remain OPEN? No cross-realm row is mechanized here.
 \pdfigurehue{pdgold}%
 \begin{figure*}[t]
 \centering
@@ -30,11 +30,11 @@
     {\node[pd label,anchor=east,text width=2.7cm,align=right] at (\lx,\y) {\lab};
      \draw[pd hairline] (\x0,\y) -- (\x0+\pw,\y);}
 
-  % identity + replay -- strongest evidence: chapter's own exemplar
-  \draw[pd focus rule,line width=1.2pt] (\x0,3.30) -- (10.05,3.30);
-  \node[pd focus datum] at (10.05,3.30) {};
-  \node[pd focus label,anchor=south east,text width=3.4cm,align=right] at (10.05,3.48)
-    {signed card $+$ epoch root};
+  % Cross-realm identity + replay -- conditional; protocol model absent.
+  \draw[pd focus rule,line width=1.2pt] (\x0,3.30) -- (6.15,3.30);
+  \node[pd focus datum] at (6.15,3.30) {};
+  \node[pd focus label,anchor=south east,text width=3.4cm,align=right] at (6.15,3.48)
+    {signatures $+$ fresh roots assumed};
 
   % revocation -- literally the concept; breach hue
   \draw[pd breach rule,line width=1.2pt] (\x0,1.90) -- (7.27,1.90);
@@ -82,9 +82,10 @@
     {position, not colour, carries the claim: each row advances only when the
     missing artifact or theorem exists};
 \end{tikzpicture}
-\caption{Evidence differs by threat. Identity and replay have concrete
-artifacts; revocation and settlement depend on stated connectivity and
-custody assumptions. Admission, cartel monitoring, and centralization remain
-open. [internal]}
+\caption{Cross-realm identity and replay remain conditional on signature
+checks and fresh roots; their protocol proof is pending. The available
+capability models concern a single harbor. Revocation and settlement depend
+on connectivity and custody assumptions. Admission, cartel monitoring, and
+centralization remain open. Positions indicate qualitative assurance. [internal]}
 \label{fig:fh-threat-bands}
 \end{figure*}

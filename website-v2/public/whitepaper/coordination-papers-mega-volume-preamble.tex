@@ -255,7 +255,7 @@
 \fi
 \input{figures/pd-reflection-plates}
 \newif\ifpdcopyreview
-\pdcopyreviewtrue
+\pdcopyreviewfalse
 \input{coordination-papers-mega-volume-epigraph-review-spreads}
 
 % The maturity, guarantee, proof-obligation and claim-evidence vocabularies --
@@ -476,7 +476,7 @@
   \fancyhead{}%
   \fancyhead[LE,RO]{\small\color{hhgray}\thepage}%
   \fancyhead[RE,LO]{\small\itshape\color{hhgray} #1}%
-  \fancyfoot[C]{\footnotesize\color{hhgray}\pdeditiontitle\ \textperiodcentered\ #1}}
+  \fancyfoot[C]{\footnotesize\color{hhgray}\pdeditiontitle}}
 
 % ---- Chapters, parts, and the front-matter map ----------------------------
 % Chapter numbers are Arabic and come from whitepaper/textbook.json via the
@@ -1207,7 +1207,10 @@
   \endgroup
   \par
 }
+% Captioned exhibits use the same owner inventory and outside-margin route.
+% A caller cannot opt out by calling a historical wide-caption helper.
 \NewDocumentCommand\pdwidecaption{O{} m O{}}{%
-  \pdpagecaption[#1]{#2}[#3]%
+  \if\relax\detokenize{#1}\relax\caption{#2}\else\caption[#1]{#2}\fi
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
 }
 \makeatother

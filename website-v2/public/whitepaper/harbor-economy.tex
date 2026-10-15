@@ -1306,11 +1306,11 @@ pointed at this market's own running example.
 \begin{pdclaim}{Theorem}{Conditional Bilateral-Trade Boundary}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:ms}
-For any bilateral slice of this market satisfying the Myerson--Satterthwaite
-assumptions---independent private buyer and seller values drawn from overlapping
-continuous supports, Bayesian incentive compatibility, interim individual
-rationality, and budget balance---no mechanism is also ex-post efficient
-everywhere~\pdcite{myerson1983}. 
+Consider a bilateral slice with risk-neutral buyer and seller, quasi-linear
+utilities, and independent private values with positive densities on intervals
+whose interiors overlap. No mechanism simultaneously achieves Bayesian incentive
+compatibility, interim individual rationality, ex-post efficient trade, and
+expected budget balance without outside subsidy~\pdcite{myerson1983}.
 
 This theorem constrains such a slice; it does not by
 itself prove incentive compatibility of the harbor mechanism or identify the
@@ -1775,37 +1775,39 @@ the agent cannot directly author (a CI-issued test result, a protected merge eve
 or an independently evaluated policy check). This narrows the signal channel; it
 does not make the task metric universally strategy-proof.
 
-\noindent\emph{Fix~B --- bond-and-slash the judges:} where machine-checking is impossible
-(aesthetics, ambiguous quality), the human/LLM judges get their \emph{own} bond and
-their \emph{own} reputation; a judge later contradicted by re-audit is slashed. The
-``rate-the-raters'' recursion must then be shown to terminate at a machine-checkable
-base, not regress infinitely. De-biasing for LLM judges (order-swap, pairwise,
-family-exclude) follows \textbf{Zheng et al.}~2023~\pdcite{zheng2023}.
+\noindent\emph{Fix~B --- accountable contractual adjudication:} for subjective
+criteria, parties name the judges, appeal procedure, terminal authority, and
+sanctionable misconduct in advance. Judges may post bonds, but disagreement
+alone is not proof of dishonesty. An appeal has a finite rank and can move
+only to a lower rank, terminating either at a protected objective predicate
+or at a designated final decision-maker. The latter supplies contractual
+finality, not an objective truth about taste. Judge information, collusion,
+monitoring, and payoff incentives remain part of the game.
+Order-swap and other bias controls for LLM judges address measured judging
+biases, not this logical gap~\pdcite{zheng2023}.
 
-\begin{pdexample}{A Captured Judge, Followed through the Re-Audit Lane}
+\begin{pdexample}{A Disputed Grade and a Finite Appeal}
 \setlength{\parskip}{4pt plus 1pt}
-Bob disputes a settlement: he claims
-Alice's $a_2$ delivered an ``untasteful'' refactor. Taste is not machine-checkable,
-so Fix~B applies: Judy, a human grader, is drawn to arbitrate. Judy posts a
-$50$\,\textsc{cr} judge-bond and rules \emph{for Bob}.
+Bob calls Alice's refactor ``untasteful.'' Judy rules for Bob after posting
+a $50$\,\textsc{cr} judge bond. The contract permits one appeal to an
+independent panel, whose decision determines the settlement. The panel
+prefers Alice's work. That reversal alone shows no bond breach: two honest
+panels may disagree about the same diff and passing tests.
 
-But Judy and Bob are
-colluding --- Judy is a captured judge, the exact failure
-Theorem~\ref{thm:folk} warns of.
+Suppose instead that an authenticated record proves Judy accepted Bob's
+bribe, breaching the declared conflict rule. The contract can slash Judy's
+bond on that evidence and compensate Alice up to the funded remedy.
+It cannot promise that $50$ makes every possible loss whole.
+For a risk-neutral judge receiving an immediate bribe $b$ that is retained
+if caught, detection probability $p$, no delay, and no other payoff change,
+this deviation has expected gain $b-50p$. At $b=10$ and $p=0.1$ it remains
+profitable; at $p=0.3$ it does not. Detection and collection must themselves
+be credible. The terminal panel's identical input artifacts do not make
+its preferences exogenous or machine-checkable.
 
-The market's defense is the re-audit lane: a
-sampled second panel later reviews Judy's ruling against the preserved evidence,
-finds it indefensible, and \emph{contradicts} it. Judy's $50$\,\textsc{cr} bond is
-slashed and her judge-reputation takes a tombstone; Alice is made whole.
-
-The signal
-became exogenous again not because Judy was honest but because lying was bonded and
-the re-audit made it expensive --- and the recursion stops at the second panel,
-whose own evidence is machine-checkable (the same diff, the same tests).
-
-\emph{Now you try:} trace the same dispute if the second panel's own ruling were
-\emph{also} disputed --- what has to be true of its evidence for the recursion to
-stop there rather than needing a third panel?
+\emph{Now you try:} distinguish a reversible settlement decision, a proved
+conflict of interest, and an honest disagreement. Which one does each
+contract clause authorize the authority to remedy?
 \end{pdexample}
 
 \pdexercisepointer*{\ref{ex:he-folk-signal-assumption}}{\ref{ex:he-rate-the-raters}}{\pageref{ex:he-folk-signal-assumption}}
@@ -1813,7 +1815,7 @@ stop there rather than needing a third panel?
 \begin{pdrecitation}
 \item Without looking: what CAN a reputation tombstone do, and what can it NOT undo?
 \item State Theorem~\ref{thm:folk} in one sentence: what does an imperfect-public-monitoring result require that an omitted strategic grader leaves undefined?
-\item Name the two resolutions (Fix~A and Fix~B) and the ground-truth base the recursion in Fix~B must terminate at.
+\item Name Fix~A and Fix~B, and distinguish an objective terminal predicate from contractual finality.
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -2085,7 +2087,7 @@ Incentive-compatible arbitration capacity & incentive compatibility &
 What this chapter leaves coupled, in the order the rest of the book will lean on it:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
-\item \textbf{A market, not a payment rail.} The harbor prices work between three sides, an operator-for-hire, a buyer and an insurer, and the escrow row is the one object all three sides read.
+\item \textbf{A market, not a payment rail.} The harbor has three markets: labor, agent rental, and skill licensing. They share an escrow abstraction; operators, buyers, and insurers are participant roles, not a competing classification of those markets.
 \item \textbf{The succession rule has a price.} Letting a worker be replaced mid-task costs $D^{\ast}=\eta K/(1-\eta K)$ in expectation; below that, the buyer is better off waiting.
 \item \textbf{The float plan is the built floor.} A worker becomes \emph{running} only at the committed transition where the wallet is debited and the escrow row exists; a signed plan alone admits nothing, and abort leaves all three traces unchanged.
 \item \textbf{Conservation is an invariant, not a hope.} In native units $\Delta W+\Delta E+\Delta C=0$ exactly, and no spawn happens without a bond; once amounts are converted, fee, slippage and risk are priced terms and the total is no longer zero by construction.
@@ -2382,20 +2384,19 @@ State Myerson--Satterthwaite in one sentence and list the assumptions that
   must be checked before applying it to one harbor trade.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-ms-assumptions}
-Myerson--Satterthwaite: for bilateral trade between a privately informed
-buyer and seller with independent values drawn from overlapping supports, no
-mechanism achieves Bayesian incentive compatibility, interim individual
-rationality, ex-post efficiency, and budget balance all at once. Before invoking
-it on one harbor trade, check that the slice really is bilateral (not
-multi-party), that values/costs are private and independently drawn from a
-common prior, that the supports genuinely overlap, that utility is transferable
-under risk neutrality, and exactly which of the four desiderata is being
-claimed --- the theorem only binds the ones actually asserted together. Applied
-to a harbor: when buyer and seller both price a job off the same grading oracle,
-their values are no longer independent private draws, so the independence item
-fails and the theorem's premise is voided; the harbor is outside the
-impossibility, not rescued from it, and what it owes instead is the oracle's own
-integrity (\pdchapref{stp}{From Spawn to Person}).
+Under independent private values with positive densities on intervals whose
+interiors overlap and quasi-linear, risk-neutral utility, bilateral trade cannot
+be simultaneously Bayesian incentive compatible, interim individually rational,
+ex-post efficient, and balanced in expectation without outside subsidy.
+Check the bilateral setting, private information, independence, prior, support
+interiors, utility model, and each claimed property before applying the theorem.
+Merely touching supports do not suffice: seller values in $[0,1]$ and buyer
+values in $[1,2]$ permit efficient, individually rational trade at fixed price~$1$.
+A shared grading oracle may induce dependence, but does not by itself establish
+it. A model using public oracle information must specify the resulting
+conditional value distributions and verify independence and the remaining
+hypotheses there. Oracle integrity remains a separate obligation
+(\pdchapref{stp}{From Spawn to Person}).
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-two-currency-example}
 Give a two-currency example in which native-unit conservation holds but the
@@ -2555,22 +2556,20 @@ it needs a plural or declared human/expert judge whose ruling carries
 contractual finality, backstopped by that judge's own bond.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-rate-the-raters}
-Prove the rate-the-raters recursion terminates: define a well-
-  founded order on ``levels of judge,'' grounded at machine-checkable oracles, and
-  show no infinite ascending chain of ``judges judging judges'' is needed.
+Design a terminating appeal procedure using a decreasing natural-number
+rank. State separately what supplies terminal authority for an objective
+predicate and for a subjective preference. Explain why termination does
+not establish accuracy.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-rate-the-raters}
-There is no theorem that subjective judging eventually bottoms out in
-machine-checkable truth, and the premise that one exists needs repairing before
-the question can be answered. What \emph{is} available is a well-founded
-recursion: assign the original grade rank $K$, allow an appeal only to rank
+Use a well-founded appeal procedure: assign the original grade rank $K$, allow an appeal only to rank
 $K{-}1$, and stop at rank $0$ --- either a protected oracle for an objective
 predicate, or a named final authority or quorum for a matter of preference.
 Because ranks are natural numbers, no infinite ascending chain of ``judges
 judging judges'' is possible. For aesthetic judgments the rank-$0$ base is
-contractual finality, not truth; bonding and re-auditing bound the judges'
-incentives to be honest, but they do not, and cannot, transmute taste into a
-machine-checkable fact. Figure~\ref{fig:he-rater-ladder} draws the descent.
+contractual finality, not truth. Bonding and re-auditing supply conditional
+incentives only under a specified monitoring and payoff model; they do not
+turn taste into a machine-checkable fact. Figure~\ref{fig:he-rater-ladder} draws the descent.
 
 \input{figures/fig-he-rater-ladder}
 \end{pdsolution}
@@ -2815,7 +2814,7 @@ Revocation & PKI revocation lists; Certificate Transparency~\pdcite{laurie2014} 
 Reputation revocation & Sagas compensation~\pdcite{sagas1987} &
   Tombstone propagation --- no conserved quantity to compensate \\
 Grading / IC signal & Folk theorems~\pdcite{aps1990} &
-  Strategy-proof machine-checkable oracle \emph{or} bonded-and-slashed judges \\
+  Strategy-proof machine-checkable oracle \emph{or} contractual adjudication with modeled judge incentives \\
 Agent transaction rails & UCP~\pdcite{ucp2026}; ACP~\pdcite{acp2025};
   AP2 mandates~\pdcite{ap2mandates2026} &
   They standardize the transaction and name trust out of scope; the harbor prices
@@ -2850,14 +2849,14 @@ signal whose author has every reason to flatter it --- Bob posts a $30$\,\textsc
 bounty per confirmed flaw and opens the diff to $k=3$ independent test-writing
 agents, each paid only for a defect it actually surfaces.
 
-If each catches a given
+If each detects and truthfully reports a given
 real defect independently with probability $d = 0.6$, the chance a planted flaw
 survives all three is \[
 (1-0.6)^3 = 0.064.
 \]
 
-Bob has bought his defect risk down from
-$1$ to about $6\%$ for at most $3 \times 30 = 90$\,\textsc{cr}, which is a number he
+Conditional on this fixed flaw and reporting model, its chance of receiving
+no report is about $6\%$, at a planned bounty budget of $3 \times 30 = 90$\,\textsc{cr}, which is a number he
 can hold up against what the bug would have cost him in production.
 
 Raise $k$ to $5$
@@ -2871,14 +2870,13 @@ bounty plus the carry on one bond.
 the smallest $k$ that pushes the survival probability below $1\%$.
 \end{pdexample}
 
-A \textbf{Becker-enforced panel} is a set of $k$ independent, conflict-free
-test-writing agents, each detecting a given flaw with probability
-$d \in (0,1)$, each posting a slashable bond $B$ to enter the market, and each
-facing a platform re-audit rate $\rho$ against a one-shot misreporting gain $G$.
-The panel size $k$ and the detection probability $d$ fix what the panel
-\emph{catches}; the triple $(G,B,\rho)$ separately fixes whether a test-writer
-is honest at all. The two questions are independent, so this chapter states them
-as two results rather than one bundled claim.
+A \textbf{reporting panel} is a set of $k$ test-writing agents.
+For one fixed flaw, let $R_i$ be the event that reviewer $i$ both detects it
+and truthfully reports it before settlement. The assurance calculation assumes
+these events are mutually independent and $\Pr(R_i)\ge d>0$.
+These are behavioral and measurement hypotheses, not consequences of posting a
+bond. A separate audit policy can make truthful reporting a best response under
+specified payoffs; at indifference, honesty still needs a selection assumption.
 
 Figure~\ref{fig:he-assurance} reserves one bounty $b$ and one bond-carry
 allowance $c_B$ per reviewer for a fixed flaw. Its $k(b+c_B)$ line is a planned
@@ -2891,49 +2889,56 @@ duplicate reports settle.
 \begin{pdclaim}{Theorem}{Purchased Assurance Bound}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:assurance}
-Let an author-agent submit a float-plan implementation with a proposed diff, and
-let a Becker-enforced panel of size $k$ review it. 
-
-Then the probability that a
-critical flaw survives undetected across all $k$ reviewers is bounded by
+For a fixed flaw in an implementation, let $R_1,\ldots,R_k$ be mutually
+independent detection-and-truthful-report events, each with probability at least
+$d$. Then
 \begin{equation}
-\Pr(\text{defect undetected}) \;\le\; (1-d)^k .
+\Pr(\text{no report of this flaw})
+ =\prod_{i=1}^k(1-\Pr(R_i))\;\le\;(1-d)^k.
 \end{equation}
-The operator's assurance level $1-(1-d)^k$ is then a purchasable commodity
-priced at $k \cdot (\text{bounty} + \text{bond carry})$, which is what makes
-``hosted trust as a service'' a quantifiable line item rather than a slogan.
+The product identity follows from mutual independence. Equality holds when
+all report probabilities equal $d$. Thus $1-(1-d)^k$ is a conditional lower
+bound on reporting this particular flaw. It is neither the probability that
+an arbitrary implementation is correct nor a guarantee of successful repair.
+The planned reviewer budget $k(b+c_B)$ pays for participation; the probability
+bound applies only if the reporting and independence hypotheses hold.
 \end{pdclaim}
 
 \begin{pdclaim}{Theorem}{Becker Deterrence for the Panel}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:becker-deterrence}
-Truthful effort is a dominant strategy for a Becker-enforced panel's test-writers
-exactly when expected punishment at least matches the one-shot gain from
-cheating --- the \textbf{Becker deterrence condition}~\pdcite{becker1968}:
+For a risk-neutral test-writer with exactly two available actions, honest
+reporting (normalized incremental payoff zero) and one misreport yielding
+$G$, assume the latter is detected and fully sanctioned with probability
+$\rho d_{\mathrm a}$, immediately, with no false sanctions or other payoff effects. Here
+$d_{\mathrm a}$ is the conditional probability that an audit detects the
+misreport; it is distinct from the reporting probability $d$ above.
+Honest reporting is a weak best response to this fixed audit policy iff
+expected punishment is at least the deviation gain --- the \textbf{Becker deterrence condition}~\pdcite{becker1968}:
 \begin{equation}\label{eq:becker}
-\rho\, d\, B \;\ge\; G ,
+\rho\, d_{\mathrm a}\, B \;\ge\; G ,
 \end{equation}
 equivalently, the platform must commit to a re-audit rate at or above the
-critical rate $\rho^\star = G/(dB)$. (\Designed{}; this half is imported, not
+critical rate $\rho^\star = G/(d_{\mathrm a}B)$. (\Designed{}; this half is imported, not
 proved here --- see the paragraph below.)
 \end{pdclaim}
 
 \noindent The deterrence condition in Theorem~\ref{prop:becker-deterrence} is
 not proved here; it is imported.
 The companion technical paper \emph{Reputation is Amortized
-Verification}~\pdcite{harbor3} derives $\rho^\star = G/(dB)$ as the stage-game
+Verification}~\pdcite{harbor3} derives $\rho^\star = G/(d_{\mathrm a}B)$ as the stage-game
 threshold of a bonded inspection game --- the same game this chapter plays in
 \S\ref{sec:ic} when it bonds and slashes a judge --- and works it at the program's
-running parameters: $G=10$, $d=0.8$, $B=50$ give $\rho^\star = 10/(0.8 \cdot 50)
+running parameters: $G=10$, $d_{\mathrm a}=0.8$, $B=50$ give $\rho^\star = 10/(0.8 \cdot 50)
 = 0.25$. Audit one report in four and the cheat payoff is exactly zero. Double the
 bond to $B=100$ and $\rho^\star$ halves to $0.125$: capital and vigilance are
-substitutes along the frontier $\rho d B = G$.
+substitutes along the frontier $\rho d_{\mathrm a} B = G$.
 
 \noindent In the notation of the audit tower of \pdchapref{stp}{From Spawn to
 Person}, this is the single-level case. There the bribe floor is written
-$\beta=\rho dB$, the gain at level $k$ is $G_k$, and level $k{+}1$ audits level
+$\beta=\rho d_{\mathrm a}B$, the gain at level $k$ is $G_k$, and level $k{+}1$ audits level
 $k$ across $C$ sealed cliques, so the condition here reads $\beta\ge G_0$ and
-the contraction $G_{k+1}=(1-\rho d)\,G_k$ is what makes a finite stack of
+the contraction $G_{k+1}=(1-\rho d_{\mathrm a})\,G_k$ is what makes a finite stack of
 audited auditors converge. The letter $k$ is overloaded between the two
 chapters: here it counts the panel, there it indexes the level.
 
@@ -2941,9 +2946,9 @@ chapters: here it counts the panel, there it indexes the level.
 be reproducibly wrong by about $17\%$. Equation~\eqref{eq:becker} is the
 \emph{keep-gain} convention: a caught cheat forfeits $B$ but keeps $G$. If the escrow
 also claws the gain back, the forfeiture is $G+B$ and the critical rate drops to
-$\rho^\star_c = G/\bigl(d(G+B)\bigr) = 0.2083$ at the same parameters. A platform
-whose rail does claw back but which budgets audits at $G/(dB)$ is over-auditing; one
-that does not claw back but budgets at $G/(d(G{+}B))$ is under-deterring. The
+$\rho^\star_c = G/\bigl(d_{\mathrm a}(G+B)\bigr) = 0.2083$ at the same parameters. A platform
+whose rail does claw back but which budgets audits at $G/(d_{\mathrm a}B)$ is over-auditing; one
+that does not claw back but budgets at $G/(d_{\mathrm a}(G{+}B))$ is under-deterring. The
 convention is a property of the slashing contract, not a modeling taste~\pdcite{harbor3}.}
 
 Figure~\ref{fig:he-deterrence-convention} puts the two critical rates side by
@@ -2968,10 +2973,10 @@ where it is likewise required rather than hygienic.}
 ``One draw and two echoes'' is the right intuition and it is not yet a number, and
 an operator buying assurance by the reviewer needs the number, because the whole
 point of Theorem~\ref{thm:assurance} is that assurance has a price. Give the echo a
-model. Let the panel's per-reviewer detection rate be a \emph{random} quantity $D$
+model. Let the panel's per-reviewer detection-and-report rate be a \emph{random} quantity $D$
 with mean $d$, drawn once per panel and shared by its members --- that is what a
 common blind spot is, a draw the panel makes together rather than one each.
-Assume detections are independent Bernoulli trials \emph{conditional on $D$}. Then
+Assume truthful flaw reports are independent Bernoulli trials \emph{conditional on $D$}. Then
 the miss probability is $\mathbb{E}\bigl[(1-D)^k\bigr]$, and the first thing to
 notice is a one-line inequality with an uncomfortable direction:
 \begin{equation}\label{eq:assurance-jensen}
