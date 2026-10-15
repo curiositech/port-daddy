@@ -1,0 +1,453 @@
+{
+  "layer-macro-dependencies": [
+    {
+      "id": "v00024",
+      "sourceDependency": {
+        "path": "website-v2/public/whitepaper/figures/pd-swiss-evidence.tex",
+        "lineStart": 221,
+        "lineEnd": 243,
+        "sha256": "9424f6268920e4537aad2106ac1250bba8946da243e66d742524ddc4f6d69adf",
+        "relationship": "Shared drawing macro actually invoked by source fragment",
+        "startChar": 12243,
+        "endChar": 13615
+      }
+    },
+    {
+      "id": "v00702",
+      "sourceDependency": {
+        "path": "website-v2/public/whitepaper/figures/pd-swiss-evidence.tex",
+        "lineStart": 243,
+        "lineEnd": 253,
+        "sha256": "9424f6268920e4537aad2106ac1250bba8946da243e66d742524ddc4f6d69adf",
+        "relationship": "Shared drawing macro actually invoked by source fragment",
+        "startChar": 13615,
+        "endChar": 14097
+      }
+    }
+  ],
+  "all-uncaptioned-diagram-source-map": [
+    {
+      "ids": [
+        "v00311",
+        "v00312"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 38,
+        "lineEnd": 59,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 1931,
+        "endChar": 2992
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdcheckpointwindow"
+    },
+    {
+      "ids": [
+        "v00329"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 59,
+        "lineEnd": 81,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 2992,
+        "endChar": 4165
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdheartbeatsketch"
+    },
+    {
+      "ids": [
+        "v00435"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 81,
+        "lineEnd": 103,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 4165,
+        "endChar": 5282
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdconsentregion"
+    },
+    {
+      "ids": [
+        "v00451"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 103,
+        "lineEnd": 132,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 5282,
+        "endChar": 6769
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdheavytailsketch"
+    },
+    {
+      "ids": [
+        "v00515",
+        "v00516",
+        "v00517"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 132,
+        "lineEnd": 160,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 6769,
+        "endChar": 8145
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdnomintsketch"
+    },
+    {
+      "ids": [
+        "v00574",
+        "v00575"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 160,
+        "lineEnd": 180,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 8145,
+        "endChar": 9250
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pddowntimebars"
+    },
+    {
+      "ids": [
+        "v00697"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 180,
+        "lineEnd": 198,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 9250,
+        "endChar": 10158
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdequivocationsketch"
+    },
+    {
+      "ids": [
+        "v00692"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "lineStart": 198,
+        "lineEnd": 213,
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
+        "startChar": 10158,
+        "endChar": 10912
+      },
+      "matchEvidence": "Macro drawing matches inspected PDF subject and exact labels; invocation found in compiled mega-volume-body.tex",
+      "macro": "pdlifetimeintersection"
+    },
+    {
+      "ids": [
+        "v00365"
+      ],
+      "title": "Gossip convergence",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 5390,
+        "lineEnd": 5416,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 345293,
+        "endChar": 346545
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-revocation-gossip.tex",
+          "lineStart": 1,
+          "lineEnd": 25,
+          "sha256": "46e4d9386cc8707924b0f3057e6f17930dade5feb9a882bb118577d28b63309b",
+          "startChar": 0,
+          "endChar": 1154
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00410"
+      ],
+      "title": "Canary detection power",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 8731,
+        "lineEnd": 8761,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 555458,
+        "endChar": 556829
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-canary-power.tex",
+          "lineStart": 1,
+          "lineEnd": 29,
+          "sha256": "0569d0cb216fdf0b3701b554c9a8efc16ce0180be89d004987a3fc39684ed83a",
+          "startChar": 0,
+          "endChar": 1283
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00414"
+      ],
+      "title": "Canary operating curve",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 8783,
+        "lineEnd": 8810,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 557966,
+        "endChar": 559182
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-canary-hypergeom.tex",
+          "lineStart": 1,
+          "lineEnd": 26,
+          "sha256": "e23ad49d9dfa09cae8d4938b6cde0b4a5c951e37077d0cf7f3bc35b4ebcedbaa",
+          "startChar": 0,
+          "endChar": 1120
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00413"
+      ],
+      "title": "SPRT likelihood trace",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 8826,
+        "lineEnd": 8855,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 559805,
+        "endChar": 561248
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-wald-sprt.tex",
+          "lineStart": 1,
+          "lineEnd": 28,
+          "sha256": "86321798a561d8257ab863ab1a5eb30efb8f50e857bef209277022767929104c",
+          "startChar": 0,
+          "endChar": 1361
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00458"
+      ],
+      "title": "Escalation threshold",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 11380,
+        "lineEnd": 11407,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 705695,
+        "endChar": 707109
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-escalation-threshold.tex",
+          "lineStart": 1,
+          "lineEnd": 26,
+          "sha256": "e3a93b904f381f88f9c3c29bca06a13a63e412b51a6d570bfca8fea278dd1c18",
+          "startChar": 0,
+          "endChar": 1310
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00554",
+        "v00555",
+        "v00556"
+      ],
+      "title": "Audit-depth model",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 18084,
+        "lineEnd": 18115,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 1114485,
+        "endChar": 1116077
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-stp-audit-depth.tex",
+          "lineStart": 1,
+          "lineEnd": 30,
+          "sha256": "78e8129ab610c0613492f31229e26f3ac2c347a4a933a8fea4b3de0aadcc4784",
+          "startChar": 0,
+          "endChar": 1498
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00634"
+      ],
+      "title": "Precautionary-lock welfare loss",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 24214,
+        "lineEnd": 24239,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 1478740,
+        "endChar": 1479968
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-welfare-loss.tex",
+          "lineStart": 1,
+          "lineEnd": 24,
+          "sha256": "3fa4f82669eb41ca87ec651e5dd1e6f7c5a3ec03eb2e20abe9ecbc8c9c126947",
+          "startChar": 0,
+          "endChar": 1140
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00640"
+      ],
+      "title": "Three-round deviation payoff",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 24599,
+        "lineEnd": 24619,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 1509891,
+        "endChar": 1510900
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-bonded-deviation.tex",
+          "lineStart": 1,
+          "lineEnd": 19,
+          "sha256": "84014a2f183efa3f47c7a9a67aacdf6704a44c0aa2995bf10e569dcf7eede2ad",
+          "startChar": 0,
+          "endChar": 913
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00676"
+      ],
+      "title": "Cycle consistency radius",
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex",
+        "lineStart": 27763,
+        "lineEnd": 27784,
+        "sha256": "b0172f38d7a0dcc2e93be603cadc8faf8bd08a2dd363e4b6c29b45c9d7900ed7",
+        "startChar": 1753351,
+        "endChar": 1754381
+      },
+      "sourceDependencies": [
+        {
+          "path": "whitepaper/figures/spark-fh-cycle-radius.tex",
+          "lineStart": 1,
+          "lineEnd": 20,
+          "sha256": "eb7992994caac1642835139cc73c9c0ebd48a814a7c258175a8b76fce3547e30",
+          "startChar": 0,
+          "endChar": 936
+        }
+      ],
+      "matchEvidence": "Actual curve labels and model match inspected PDF; original fragment bound by compiled inlining marker"
+    },
+    {
+      "ids": [
+        "v00699"
+      ],
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/book-sol-swk.tex",
+        "lineStart": 25,
+        "lineEnd": 35,
+        "sha256": "8f3e240aea3ada5b2af2db331addb3dabf0a82bfe55b572acd475dcad7149d88",
+        "startChar": 3529,
+        "endChar": 4376
+      },
+      "matchEvidence": "Source drawing labels match inspected solution-page diagram"
+    },
+    {
+      "ids": [
+        "v00700"
+      ],
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/book-sol-swk.tex",
+        "lineStart": 49,
+        "lineEnd": 76,
+        "sha256": "8f3e240aea3ada5b2af2db331addb3dabf0a82bfe55b572acd475dcad7149d88",
+        "startChar": 6073,
+        "endChar": 7543
+      },
+      "matchEvidence": "Source drawing labels match inspected solution-page diagram"
+    },
+    {
+      "ids": [
+        "v00701"
+      ],
+      "source": {
+        "path": ".cache/whitepaper-build/coordination-papers-mega-volume/book-sol-stp.tex",
+        "lineStart": 8,
+        "lineEnd": 23,
+        "sha256": "1ecc2709430a3ec513a9259b0b8a33f7b7205bd1ffae7284d316bdc8deb21026",
+        "startChar": 282,
+        "endChar": 1472
+      },
+      "matchEvidence": "Source drawing labels match inspected solution-page diagram"
+    },
+    {
+      "ids": [
+        "v00689"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-evidence.tex",
+        "lineStart": 48,
+        "lineEnd": 61,
+        "sha256": "c7a22e9489d8f0a2b6d4b2bc6ed0b78cd2b95be298d31d24399398a66527e095",
+        "startChar": 2029,
+        "endChar": 2659
+      },
+      "matchEvidence": "Macro exact labels and active invocation match inspected diagram",
+      "macro": "pdbondrecipientexample"
+    },
+    {
+      "ids": [
+        "v00698"
+      ],
+      "source": {
+        "path": "website-v2/public/whitepaper/figures/pd-margin-evidence.tex",
+        "lineStart": 34,
+        "lineEnd": 48,
+        "sha256": "c7a22e9489d8f0a2b6d4b2bc6ed0b78cd2b95be298d31d24399398a66527e095",
+        "startChar": 1399,
+        "endChar": 2029
+      },
+      "matchEvidence": "Macro exact labels and active invocation match inspected diagram",
+      "macro": "pdtreecounterexample"
+    }
+  ]
+}

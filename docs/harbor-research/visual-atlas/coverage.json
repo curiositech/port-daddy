@@ -1,0 +1,45 @@
+{
+  "pdf_sha256": "5c467da4e10998ba9bb59a18f54b8038e80e588c453f1d12082ccb489e5867e7",
+  "pdf_pages": 812,
+  "inventoryRecords": 723,
+  "countEquation": "263 captioned + 92 unique rasters + 346 vector audit components + 1 margin exhibit + 5 uncaptioned tables + 16 uncaptioned listings = 723",
+  "kindCounts": {
+    "figure": 145,
+    "table": 93,
+    "listing": 25,
+    "raster-art": 92,
+    "vector-candidate": 346,
+    "margin-exhibit": 1,
+    "uncaptioned-table": 5,
+    "uncaptioned-listing": 16
+  },
+  "captionedSourcesBound": 263,
+  "captionTexPreserved": 263,
+  "numberedTables": 93,
+  "unnumberedTables": 6,
+  "rasterOccurrences": 113,
+  "rasterAssetsExactMatched": 91,
+  "allPdfFigureTableListingDestinationsRepresented": true,
+  "missingNamedPdfObjects": [],
+  "missingCropOrContext": [],
+  "sourceHashMismatches": [],
+  "sourceAndDependencyRecordsChecked": 483,
+  "originalFragmentDependencies": 135,
+  "uncaptionedVisualComponentsSourceBound": 29,
+  "layerExamplesCovered": [
+    "v00024",
+    "v00120",
+    "v00702"
+  ],
+  "remainingNamedOccurrenceGaps": [],
+  "verdict": "PASS for the frozen PDF explicit-object and reviewed semantic census; retain stated limits.",
+  "limitations": [
+    "PDF figure.caption/table.caption destinations are duplicate caption hyperlink anchors, not additional numbered objects.",
+    "No XeTeX recorder .fls exists in this frozen build; source traversal plus explicit PDF destinations and reviewed macro/environment census provide bounded coverage, not a general proof for arbitrary TeX execution.",
+    "Definitions-only pdassurancevalues is unused and excluded; false-branch duplicated solution figures/listings are not shipped occurrences.",
+    "Mathematical equations/arrays, ordinary running text, and repeated text-callout frames are not independent artworks. Frames remain in the occurrence audit.",
+    "One tiny scene pictogram v00424 has no matched external asset. It remains inventoried as page furniture.",
+    "Source/receipt matching does not independently validate numerical models, empirical provenance claims or image publication clearance.",
+    "Source files copied by the site builder and their hashes support inspection; no claim is made that generator transformations were replayed or that every macro dependency is a complete TeX execution trace."
+  ]
+}

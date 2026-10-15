@@ -1,0 +1,551 @@
+{
+  "beforeItems": 723,
+  "afterItems": 723,
+  "beforeSemanticSha256": "4b47681eb1795f1d28ef820141e61609472e532d2101c2aafb26ab1860ee7abb",
+  "afterSemanticSha256": "4b47681eb1795f1d28ef820141e61609472e532d2101c2aafb26ab1860ee7abb",
+  "semanticChangedIds": [],
+  "fullFieldDifferences": {
+    "v00330": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00656": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00423": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00516": [
+      "source"
+    ],
+    "v00624": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00536": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00289": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00566": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00554": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00556": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00517": [
+      "source"
+    ],
+    "v00689": [
+      "source"
+    ],
+    "v00277": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00299": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00281": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00700": [
+      "source"
+    ],
+    "v00297": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00512": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00315": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00695": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00285": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00292": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00575": [
+      "source"
+    ],
+    "v00269": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00497": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00699": [
+      "source"
+    ],
+    "v00280": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00382": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00271": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00329": [
+      "source"
+    ],
+    "v00693": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00698": [
+      "source"
+    ],
+    "v00024": [
+      "sourceDependencies"
+    ],
+    "v00648": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00293": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00623": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00515": [
+      "source"
+    ],
+    "v00393": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00410": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00464": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00273": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00317": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00414": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00389": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00522": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00312": [
+      "source"
+    ],
+    "v00676": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00521": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00415": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00353": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00274": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00403": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00466": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00645": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00458": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00666": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00396": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00451": [
+      "source"
+    ],
+    "v00529": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00640": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00632": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00570": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00278": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00266": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00435": [
+      "source"
+    ],
+    "v00296": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00294": [
+      "sourceAssets",
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00359": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00510": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00436": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00290": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00276": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00314": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00284": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00287": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00413": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00555": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00647": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00395": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00634": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00282": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00356": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00581": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00669": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00511": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00572": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00574": [
+      "source"
+    ],
+    "v00440": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00697": [
+      "source"
+    ],
+    "v00288": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00692": [
+      "source"
+    ],
+    "v00365": [
+      "sourceDependencies",
+      "source"
+    ],
+    "v00649": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00637": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00672": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00474": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00424": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00479": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00275": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00283": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00702": [
+      "sourceDependencies"
+    ],
+    "v00612": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00311": [
+      "source"
+    ],
+    "v00306": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00535": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00344": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00638": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00351": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00308": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00467": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00347": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00264": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00579": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00569": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00309": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00270": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00298": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00272": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00701": [
+      "source"
+    ],
+    "v00559": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00279": [
+      "assetProvenance",
+      "dataProvenance",
+      "assetMatchMethod"
+    ],
+    "v00319": [
+      "dataProvenance",
+      "assetMatchMethod"
+    ]
+  },
+  "artUnchanged": true,
+  "bookUnchanged": true,
+  "sourceFilesChanged": [],
+  "fullWrapperExit": 0,
+  "finalStageLog": "full-reproduction-final.log",
+  "assetSourcesLost": [],
+  "assetReceiptsLost": [],
+  "existingAssetReceiptPayloadChanged": [],
+  "assetSourcesExactMatches": 91,
+  "stageSequence": [
+    "base extraction",
+    "caption source binding",
+    "recorded human screening",
+    "source candidate audit",
+    "frozen source maps",
+    "3 margin tables + 11 solution listings",
+    "5 main listings + diagram sources",
+    "16 listing crops",
+    "tight ladder crop",
+    "exact JPEG/PNG source binding + byte-identical aliases + receipts",
+    "final coverage gate"
+  ],
+  "expectedMetadataChanges": [
+    "Exact asset method/status labels normalized.",
+    "Source maps record character offsets in addition to line ranges.",
+    "Collection generation headers added alongside unchanged existing asset-specific receipt payloads.",
+    "Byte-identical source aliases are retained as exact candidates."
+  ],
+  "finalAtlasSha256": "98a31ceac8bbe6b6b63c69b2ddec13a67f5ffcb4d04b7230623cd4db105b7351",
+  "artNormalizerInMemoryIdempotence": true
+}
