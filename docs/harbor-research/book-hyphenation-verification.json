@@ -1,0 +1,189 @@
+{
+  "status": "local candidate, not published",
+  "finalPdf": {
+    "path": ".scratch/hyphenation-review/candidate-1/coordination-papers-mega-volume.pdf",
+    "pages": 812,
+    "bytes": 73505808,
+    "sha256": "fb3d32c05da6b7562d0adcf17b08df4387065e8631927836d74346c68304a930"
+  },
+  "build": {
+    "command": "PD_BOOK_FONT_PROFILE=suisse bash scripts/build-whitepapers.sh coordination-papers-mega-volume",
+    "passes": 3,
+    "logPath": ".scratch/hyphenation-review/build-candidate.log",
+    "logSha256": "940ead4454d92c2e1161c5727bd270a5d765d6c3021ed85eeebb09d364a6df39",
+    "compilerLogSha256": "7f9e9a03b3912009b2cfe16eafce65665658c5e33b749dc3a01ba03998030492",
+    "converged": true
+  },
+  "sourceHashes": [
+    {
+      "path": "whitepaper/single-writer-kernel.tex",
+      "beforeSha256": "8e426c8d8cbcd2127434db1a12a51131458e245f38bb1a39ec3fa968896f9b0f",
+      "afterSha256": "098cc4e5de5bc8f52c310c676892f67aa3a4cf0625a8cee1d3989230daff5923"
+    },
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "beforeSha256": "adb2ab75591d11a9e0d1945e247679f203022be3c0331e12a833e1fa08ee1fc5",
+      "afterSha256": "cb518bd988f4714e14afa480e9961af4c19ed893f85d6894d23f4d20fbaa5d78"
+    },
+    {
+      "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "beforeSha256": "7f1e13709084dc9975fc66f2e9d619f75c2802d2b12dd1f099064d5b319a2b83",
+      "afterSha256": "4578548bb96c3746535db1492fe98450ca9be68bf77daaf024afedc9151b648e"
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "beforeSha256": "015b3c029428c813ceb6396bb461fce8a982185072719a186832cb491238dcd5",
+      "afterSha256": "5fca75177125c267d8d1806d66744d41ae34d72dfd4840d613e7b6c0bc10c288"
+    }
+  ],
+  "exactWordWrappers": 7,
+  "wordingPreserved": true,
+  "wordingProof": "Final source hashes equal the validated candidate-1 hashes; stripping only the seven mbox wrappers reproduces the saved pre-edit bytes. Exploratory FloatBarrier and nonbreaking space reverted exactly.",
+  "detectedBodyCalloutPageEndingCandidates": 0,
+  "automatedGates": {
+    "path": ".scratch/hyphenation-review/pdf-checks-candidate.log",
+    "sha256": "b221c7fb9d53c24440755ac46a8aa280171ad81fa8cbee5cba7b8ff9c119d41f",
+    "passed": true
+  },
+  "facingSpreads": [
+    {
+      "pages": [
+        90,
+        91
+      ],
+      "folios": [
+        66,
+        67
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0090-0091.png",
+      "sha256": "db38f28f8b911840c7c755fe645b64928d45db49884945021691aac60285ce83"
+    },
+    {
+      "pages": [
+        196,
+        197
+      ],
+      "folios": [
+        172,
+        173
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0196-0197.png",
+      "sha256": "2c9d7d578c4b4a1f59c13fb9c30c4f4343373a2de675332e81eab98faf66097f"
+    },
+    {
+      "pages": [
+        202,
+        203
+      ],
+      "folios": [
+        178,
+        179
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0202-0203.png",
+      "sha256": "aa84bdf2d84bf4e6b2340b3addc44c66e65fe7d2b40f605c9a04abf36bc78cfd"
+    },
+    {
+      "pages": [
+        204,
+        205
+      ],
+      "folios": [
+        180,
+        181
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0204-0205.png",
+      "sha256": "7b9e79ab7ce7bf5a842ea949cd370b8fae0ba20bb242d7eaed05cd1b6e27c5f7"
+    },
+    {
+      "pages": [
+        318,
+        319
+      ],
+      "folios": [
+        294,
+        295
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0318-0319.png",
+      "sha256": "ac5c6d4dc3ecd85e51c2aa548e0ad0dc48f46dfc704dfe61faf5a15e9effcb96"
+    },
+    {
+      "pages": [
+        320,
+        321
+      ],
+      "folios": [
+        296,
+        297
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0320-0321.png",
+      "sha256": "9b70f103eb53bb795ffac1e5dd14b9ca91df3e90db5028edaecd65d7093cb4be"
+    },
+    {
+      "pages": [
+        428,
+        429
+      ],
+      "folios": [
+        404,
+        405
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0428-0429.png",
+      "sha256": "80b51d48f30d16e8f12162df1daabd37e7f70704cd7ee9cf7435ad60bd2a6ff3"
+    },
+    {
+      "pages": [
+        430,
+        431
+      ],
+      "folios": [
+        406,
+        407
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0430-0431.png",
+      "sha256": "f0b69a541060d86366a2fe1550ef555206af20f3d619af318e3df42b0732e7c9"
+    },
+    {
+      "pages": [
+        454,
+        455
+      ],
+      "folios": [
+        430,
+        431
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0454-0455.png",
+      "sha256": "4e96db5ea442816fb1ae2dfef095393a98b80d6349e99d84e0c8b16a16f33a50"
+    },
+    {
+      "pages": [
+        456,
+        457
+      ],
+      "folios": [
+        432,
+        433
+      ],
+      "path": ".scratch/hyphenation-review/facing-spreads/pages-0456-0457.png",
+      "sha256": "1ec61e3f643febfcdb0c18365292c02837a9de0acefbabd25288a662ccc373e0"
+    }
+  ],
+  "frozenReleaseAndAtlas": {
+    "filesHashVerified": 2684,
+    "changed": 0
+  },
+  "generatedPublicPdf": {
+    "sha256": "f71a19ca9f52cef29a4d3ce2090157e2d91f0bd5ade3d1c6830667da2f496018",
+    "bytes": 10431619
+  },
+  "limitations": [
+    "Figure 2.9 still precedes the whole-word continuation of the claim.",
+    "Page-ending scan covers body/callout text at 9\u201311.5pt within the main column; not a proof about every font or margin object.",
+    "Existing one-word threshold continuation at printed folio 295 remains; no broad pagination redesign."
+  ],
+  "rejectedExperiment": {
+    "pages": 814,
+    "sha256": "bc28849ebf1121c8cd9c1bdd585027790f16bdf119933e4625cf54154eb67b15",
+    "reason": "Local FloatBarrier created sparse figure-only page and worse flow; both exploratory refinements reverted exactly."
+  },
+  "visualInspection": "All ten affected actual facing spreads inspected. Whole target words preserved across the seven original boundaries. Figure 2.9 still intervenes before the whole-word continuation. Existing isolated threshold line at folio 295 remains; experimental layout refinements rejected."
+}
