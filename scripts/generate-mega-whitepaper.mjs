@@ -1175,9 +1175,15 @@ function validateCorpus(raw, source = 'whitepaper/corpus.json') {
 // lives OUTSIDE: split the path at each separator, keeping the separator on
 // the preceding piece, and wrap each piece in its own \path{...}, joined by
 // \allowbreak. Rendered with nothing to wrap, this looks identical to one
-// \path{}; wrapped, the line can now break after any /, -, _, or . in it.
+// \path{}; wrapped, prefer separators and CamelCase boundaries. Long
+// unbroken basenames also need bounded pieces: WebhookDelivery overflowed
+// the Artifact column into CI in the printed appendix. Ten characters fit
+// the native monospace face at the column's measure without shrinking it.
 function texPathBreakable(path) {
-  const segments = path.split(/(?<=[/_.-])/).filter(Boolean);
+  const segments = path
+    .split(/(?<=[/_.-])|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/)
+    .filter(Boolean)
+    .flatMap((segment) => segment.match(/.{1,10}/gu) ?? []);
   return segments.map((segment) => `\\path{${segment}}`).join('\\allowbreak ');
 }
 

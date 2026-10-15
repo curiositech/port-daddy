@@ -97,7 +97,7 @@ describe('collected-volume LaTeX preamble', () => {
       String.raw`\documentclass[11pt,a4paper]{article}
 \input{${preamblePath}}
 \begin{document}
-\pdchapter{T}{Compatibility Smoke}
+\pdchapter{1}{Compatibility Smoke}{swk}{pdcobalt}
 \section{Status and prose idioms}
 \Built\quad\BuiltWeak\quad\Designed\quad\Vision
 \pullquote{One compatibility grammar, exercised as rendered LaTeX.}

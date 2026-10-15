@@ -28,6 +28,49 @@ def copy_review_pages(book):
                    for marker in markers)]
 
 
+def evidence_table_records(pages, statuses):
+    """Read claim/status cells by their rendered column headers, not text order.
+
+    PDF extraction emits table cells column-by-column; identifier and Status
+    are not adjacent. Monospaced claim spans exclude running heads and prose.
+    Continuation rows retain their identity and are checked separately.
+    """
+    records = []
+    for page in pages:
+        words = page.get_text("words")
+        spans = [span for block in page.get_text("dict")["blocks"]
+                 for line in block.get("lines", []) for span in line["spans"]]
+        headers = []
+        for word in words:
+            if word[4] != "Claim":
+                continue
+            row = {w[4]: w for w in words if abs(w[1] - word[1]) < 1}
+            if all(name in row for name in ("Artifact", "CI", "Status", "Evidence")):
+                headers.append(row)
+        headers.sort(key=lambda row: row["Claim"][1])
+        for index, header in enumerate(headers):
+            bottom = (headers[index + 1]["Claim"][1]
+                      if index + 1 < len(headers) else page.rect.height)
+            status_cells = sorted(
+                [w for w in words if abs(w[0] - header["Status"][0]) < 1
+                 and header["Status"][3] < w[1] < bottom and w[4] in statuses],
+                key=lambda word: word[1])
+            for row_index, status in enumerate(status_cells):
+                row_bottom = (status_cells[row_index + 1][1]
+                              if row_index + 1 < len(status_cells) else bottom)
+                claim = [span for span in spans
+                         if header["Claim"][0] - 1 <= span["bbox"][0]
+                         < header["Artifact"][0] - 2
+                         and status[1] - 1 <= span["bbox"][1] < row_bottom - 1]
+                code = sorted((span for span in claim if span["flags"] & 8),
+                              key=lambda span: (round(span["bbox"][1], 1), span["bbox"][0]))
+                identifier = "".join("".join(span["text"].split()) for span in code)
+                identifier = identifier.replace("\u2010", "-").replace("\u2011", "-")
+                continued = any("(continued)" in span["text"] for span in claim)
+                records.append((identifier, status[4], continued, page.number + 1))
+    return records
+
+
 @unittest.skipUnless(fitz, "PyMuPDF is required for PDF text controls")
 class CopyReviewBoundaryTests(unittest.TestCase):
     def test_publication_text_is_accepted(self):
@@ -217,14 +260,31 @@ class RenderedBookTypographyTests(unittest.TestCase):
         def normalized(text):
             text = re.sub(r'[-\u2010\u2011]\n', '', text)
             return ' '.join(text.replace('\u2010', '-').replace('\u2011', '-').split())
-        with fitz.open(os.environ['BOOK_TYPOGRAPHY_PDF']) as book:
-            pages = [i for i, page in enumerate(book)
-                     if 'Cross-references are live.' in normalized(page.get_text())]
-            self.assertEqual(len(pages), 1)
-            index = pages[0]
-            guidance = book[index].get_text() + book[max(0, index-1)].get_text()
-            self.assertIn('How to use this textbook', guidance)
-            self.assertIn('links back to its full entry.', normalized(book[index].get_text()))
+        pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
+        aux = pdf.with_suffix('.aux').read_text()
+        with fitz.open(pdf) as book:
+            indices = {}
+            for label in ('book:reader-left', 'book:reader-right', 'book:reader-navigation'):
+                match = re.search(r'\\newlabel\{' + re.escape(label)
+                                  + r'\}\{\{[^{}]*\}\{([^{}]+)\}', aux)
+                self.assertIsNotNone(match, f'Missing reader-guide anchor: {label}')
+                indices[label] = next(i for i, page in enumerate(book)
+                                      if page.get_label() == match.group(1))
+            index = indices['book:reader-navigation']
+            self.assertLessEqual(indices['book:reader-left'], index)
+            self.assertLessEqual(index, indices['book:reader-right'])
+            guidance = normalized(book[index].get_text())
+            self.assertRegex(guidance, r'Cross-references are live[:.]')
+            self.assertRegex(guidance, r'[Ff]ull source entries.*margin at first use')
+            self.assertRegex(guidance, r'short citations link back.*entries')
+            # Verify the destination described to readers, not only the prose.
+            names = book.resolve_names()
+            links = [link for page in book for link in page.get_links()
+                     if link.get('nameddest', '').startswith('pdbook-source-')]
+            self.assertTrue(links, 'No repeat citations link to their full source entries')
+            for link in links:
+                self.assertIn(link['nameddest'], names)
+                self.assertEqual(link['page'], names[link['nameddest']]['page'])
 
     def test_federated_conclusion_keeps_its_limitations_together(self):
         pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
@@ -242,19 +302,26 @@ class RenderedBookTypographyTests(unittest.TestCase):
     def test_evidence_records_preserve_every_manifest_identifier(self):
         pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
         aux = pdf.with_suffix('.aux').read_text()
-        manifest = json.loads((ROOT/'whitepaper/corpus.json').read_text())
+        manifest = json.loads((ROOT / 'whitepaper/corpus.json').read_text())
+        expected = {record['id']: record['status'] for record in
+                    manifest['formalArtifacts'] + manifest['researchProgramArtifacts']}
         with fitz.open(pdf) as book:
-            indices=[]
-            for label in ('app:mechanized','app:result-atlas'):
+            indices = []
+            for label in ('app:mechanized', 'app:result-atlas'):
                 folio = re.search(r'\\newlabel\{' + re.escape(label)
-                                  + r'\}\{\{[^{}]*\}\{([^{}]+)\}',aux).group(1)
-                indices.append(next(i for i,p in enumerate(book) if p.get_label()==folio))
-            text=''.join(book[i].get_text() for i in range(indices[0],indices[1]+1))
-            compact=''.join(text.split()).replace('\u2011','-').replace('\u2010','-')
-            for record in manifest['formalArtifacts']+manifest['researchProgramArtifacts']:
-                # Continuation heads may repeat the identifier; its actual
-                # record, identified by the following Status field, is unique.
-                self.assertEqual(compact.count(record['id']+'Status'),1,record['id'])
+                                  + r'\}\{\{[^{}]*\}\{([^{}]+)\}', aux).group(1)
+                indices.append(next(i for i, p in enumerate(book) if p.get_label() == folio))
+            records = evidence_table_records(
+                (book[i] for i in range(indices[0], indices[1] + 1)), set(expected.values()))
+            # Every identifier appears once as a primary record with its exact
+            # manifest status. Extra path-list continuation rows must agree.
+            actual = Counter((identifier, status) for identifier, status, continued, _ in records
+                             if not continued)
+            self.assertEqual(actual, Counter(expected.items()))
+            for identifier, status, continued, page in records:
+                with self.subTest(identifier=identifier, page=page, continued=continued):
+                    self.assertIn(identifier, expected)
+                    self.assertEqual(status, expected[identifier])
 
     def test_actual_prose_uses_selected_sans_not_legacy_pagella(self):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
