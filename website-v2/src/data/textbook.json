@@ -67,8 +67,8 @@
       "question": "Where can a rule be made real?",
       "teaser": "Two agents ask for the same resource. Which request succeeds, and what happens if the writer crashes before replying? A local database can settle the first question. The second depends on when it commits and which kind of failure follows.",
       "epigraph": {
-        "text": "There is no fundamental need to keep a database at all; the log is all the information there is. The only reason for storing the database is performance of retrieval operations.",
-        "source": "Jim Gray and Andreas Reuter, Transaction Processing: Concepts and Techniques, 1993"
+        "text": "A transaction commits at the instant its commit record appears on disk.",
+        "source": "Jim Gray et al., The Recovery Manager of the System R Database Manager, 1981, p. 232"
       }
     },
     {

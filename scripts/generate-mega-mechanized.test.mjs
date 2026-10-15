@@ -173,13 +173,13 @@ test('renderMechanizedClaims prints a shared directory once and stacks the remai
   // with the file count, not repeated before every one of the two basenames
   // -- repeating an 18-path row's shared prefix on every line was the actual
   // remaining cause of an overfull \hbox this emitter hit and fixed.
-  assert.match(rendered, /\\path\{proofs\/\}\\allowbreak \\path\{multifixture\/\}\\ \\textit\{\(2 files\)\}/);
+  assert.match(collapseBreakHints(rendered), /\\path\{proofs\/multifixture\/\}\\ \\textit\{\(2 files\)\}/);
   // The two basenames follow, joined by a forced \newline (not a wrapped
   // comma list), each still through \path{} for its raw underscore/dot.
   assert.match(rendered, /\\path\{Model\.\}\\allowbreak \\path\{tla\}\\newline\{\}\\path\{Model\.\}\\allowbreak \\path\{cfg\}/);
   assert.doesNotMatch(rendered, /Model\.tla.*,.*Model\.cfg/s);
   // And the shared directory itself appears exactly once in this row, not twice.
-  assert.equal((rendered.match(/proofs\/\}\\allowbreak \\path\{multifixture\/\}/g) ?? []).length, 1);
+  assert.equal((collapseBreakHints(rendered).match(/\\path\{proofs\/multifixture\/\}/g) ?? []).length, 1);
 });
 
 test('renderMechanizedClaims falls back to one \\newline per full path when multiple paths share no directory', () => {
@@ -328,5 +328,27 @@ test('renderMechanizedClaims puts every caption in its table first head', () => 
     assert.match(firstHead, /\\caption\{[^}]+\}\\label\{tab:mechanized-[^}]+\}/);
     assert.equal((table.match(/\\caption\{/g) ?? []).length, 1);
     assert.match(table, /\\endfirsthead[\s\S]*\\endhead/);
+  }
+});
+
+
+test('artifact filenames preserve every character while long basenames wrap within a narrow column', () => {
+  const manifest = fixtureManifest();
+  const paths = [
+    'proofs/relay/WebhookDelivery.tla',
+    'proofs/relay/CardRevocation_baseline.cfg',
+    'proofs/relay/noninterference123456789.tla',
+  ];
+  manifest.formalArtifacts[0].paths = paths;
+  const rendered = renderMechanizedClaims(manifest);
+  const collapsed = collapseBreakHints(rendered);
+  for (const path of paths) {
+    const basename = path.slice(path.lastIndexOf('/') + 1);
+    assert.ok(collapsed.includes(`\\path{${basename}}`), basename);
+  }
+  assert.ok(rendered.includes('\\path{Webhook}\\allowbreak \\path{Delivery.}'));
+  const tables = rendered.slice(rendered.indexOf('\\begin{xltabular}'));
+  for (const match of tables.matchAll(/\\path\{([^{}]*)\}/g)) {
+    assert.ok([...match[1]].length <= 10, `unbreakable path segment: ${match[1]}`);
   }
 });

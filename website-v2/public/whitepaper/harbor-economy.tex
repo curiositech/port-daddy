@@ -263,8 +263,10 @@ make external.}
 
 \pdmarginanalogy{he-movable-type}{}{movable-type}{Like movable metal type replacing hand-lettered manuscripts, standardized agent interfaces convert unique labor into interchangeable, composable modules.}%
 A solo operator running a swarm of coding agents needs three things --- legibility,
-accountability, and safety --- and needs \emph{no cryptography at all}, because she
-owns every machine in the harbor. That is the single-player wedge of
+accountability, and safety. When she controls every machine and principal in the
+harbor, coordination need not include a cross-operator trust protocol. Credentials,
+authenticated transport, and protection of stored data remain necessary where the
+threat model calls for them. That is the single-player setting of
 \pdchapref{ls}{The Legible Swarm}. The
 instant two operators trade, the world changes. Alice's frigates touch your
 repository. You must now price work done by agents you did not spawn, owned by a
@@ -2177,9 +2179,8 @@ starts with only a disclosed, discounted prior tied to that lineage, and updates
 on its own settled outcomes from there.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-reputation-disclosure}
-A buyer reads a three-axis reputation vector
-  $(\text{accuracy},\text{aesthetics},\text{efficiency})$. Specify a disclosure
-  rule that lets the buyer weight the axes \emph{without} re-introducing a single
+A buyer reads a reputation vector with three axes: accuracy, aesthetics, and
+  efficiency. Specify a disclosure rule that lets the buyer weight the axes \emph{without} re-introducing a single
   Goodhart target. Argue why every fixed scalar collapse re-creates the bandit
   framing the design rejects.
 \end{pdexercise}

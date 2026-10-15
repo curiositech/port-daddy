@@ -237,16 +237,16 @@ Repeated negotiation can consume agent time and context. The design here
 moves common admission rules into the commons authority while retaining
 verification at the relevant boundaries. It does not require abandoning
 per-message authentication or access checks.
-Hobbes identified this dynamic in 1651~\pdcite{hobbes1651leviathan}. In the state of nature, without a common authority, rational actors cannot cooperate because the cost of verifying each counterparty's intentions exceeds the benefit of cooperation. The solution is not to make individuals trustworthy---it is to establish a \textbf{sovereign} whose authority both parties accept \emph{before} the interaction begins, so that the interaction itself can focus on the work. ``Covenants, without the sword, are but words, and of no strength to secure a man at all.''
+Hobbes's argument for enforceable covenants offers a historical motivation for shared settlement rules~\pdcite{hobbes1651leviathan}: ``Covenants, without the sword, are but words, and of no strength to secure a man at all.'' The analogy concerns commitments backed by enforcement. It does not establish that cooperation requires a common authority in every setting. Here, a shared authority is one proposed way to make admission and settlement rules available before agents begin work.''
 A \textbf{commons authority} supplies shared admission, attribution, and
 settlement rules. Agents enter under those rules, but admission alone does
 not establish good behavior. The incentive and monitoring assumptions below
 determine which risks the arrangement can limit.
-\subsection{The Three Failures of Peer-to-Peer Trust}
-Peer-to-peer trust fails for agent systems in three specific ways:
-\paragraph{It doesn't scale.} If $n$ agents must establish pairwise trust, the system requires $O(n^2)$ trust negotiations. Each negotiation consumes tokens, time, and context window. With 8~agents, this is manageable. With 50, it dominates wall-clock time. With 1000 (a production agent fleet), it is infeasible.
-\paragraph{It doesn't survive death.} When an agent crashes, its trust relationships die with it. A successor agent that resumes the dead agent's work must re-establish trust with every counterparty from scratch. The trust investment is non-transferable because it was encoded in ephemeral bilateral state, not in durable infrastructure.
-\paragraph{It doesn't address misaligned principals.} An agent can be perfectly ``trustworthy'' in the sense that it faithfully executes its instructions---while its instructions come from a principal whose interests are adversarial to the commons. Peer-to-peer trust evaluates the agent's behavior; it cannot evaluate the principal's intent. The agent is a loyal soldier in someone else's war, with a spotless reputation.
+\subsection{Three Risks of Ad Hoc Pairwise Trust}
+Ad hoc pairwise arrangements can expose agent systems to three risks:
+\paragraph{Pairwise negotiation can be costly.} A complete all-to-all arrangement among $n$ agents has $n(n-1)/2$ potential unordered pairs. If each pair separately negotiates trust, the number of negotiations is quadratic in $n$. Actual token use, latency, and context demand depend on the interaction topology, the cost of each negotiation, concurrency, and whether established credentials or agreements can be reused. Sparse interaction and shared verification can reduce that cost; the pair count alone establishes no fleet-size threshold for feasibility.
+\paragraph{Ephemeral trust state can be lost.} If credentials, agreements, and continuity records exist only in an agent's volatile state, a crash can leave its successor unable to establish the authority or commitments it inherited. Durable peer-to-peer protocols can preserve this evidence; shared infrastructure is another way to make continuity explicit and recoverable.
+\paragraph{Faithful execution need not serve the commons.} An agent may follow its principal's instructions faithfully while pursuing interests that conflict with those of other participants. Evidence of faithful execution alone does not establish a common interest. Admission, monitoring, and contract design must therefore account for the principal's incentives as well as the agent's observed behavior.
 \subsection{Contributions}
 We present:
 \begin{enumerate}
@@ -1960,7 +1960,7 @@ The trace: at $\delta=0.30$, TLC's search reaches a state where an agent deviate
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-sweep-crossover}
-\texttt{proofs/economics/sweep-delta.sh} sweeps $\delta \in \{0.30, 0.31, \ldots, 0.40\}$ and reports a crossover value. What is the pinned crossover, and how does the script itself judge whether it passed?
+The script \path{proofs/economics/sweep-delta.sh} sweeps the grid $\delta \in \{0.30, 0.31, \ldots, 0.40\}$ and reports a crossover value. What is the pinned crossover, and how does the script itself judge whether it passed?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-sweep-crossover}
 The committed sample output (\texttt{proofs/economics/README.md}) reports the invariant \texttt{VIOLATED} for every $\delta$ from $0.30$ through $0.34$ and \texttt{HOLDS} from $0.35$ through $0.40$, so the crossover---the smallest $\delta$ for which the invariant holds---is pinned at

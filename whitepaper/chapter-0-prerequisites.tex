@@ -953,7 +953,7 @@ Modern agents employ structured search and planning algorithms across candidate 
 
   \item \textbf{Voyager Lifelong Skill Learning~\pdcite{wang2023voyager}:}\enspace Implements open-ended lifelong learning by accumulating an \textbf{executable skill library}. When an agent solves a complex programming task, it synthesizes a self-contained, parameter-validated script and stores it in a vector-indexed codebase. Subsequent tasks retrieve and compose existing skills, transforming complex multi-step reasoning into atomic tool calls.
 
-  \item \textbf{TDAG: Task Decomposition and Agent Generation~\pdcite{wang2024tdag}:}\enspace Dynamically decomposes a task and generates specialized subagents. Wang et al. evaluate it on ItineraryBench, a travel-planning benchmark. This supports an adaptive planning pattern; it is not a theorem about eliminating dependency cycles or serializing software mutations.
+  \item \textbf{TDAG~\pdcite{wang2024tdag}:}\enspace Task Decomposition and Agent Generation dynamically decomposes a task and generates specialized subagents. Wang et al. evaluate it on ItineraryBench, a travel-planning benchmark. This supports an adaptive planning pattern; it is not a theorem about eliminating dependency cycles or serializing software mutations.
 
   \item \textbf{HyperTree Planning~\pdcite{gui2025hypertree}:}\enspace Gui et al. construct and iteratively refine hierarchical planning outlines, evaluated on TravelPlanner. The structure supports decomposition of constrained plans. Its reported benchmark gains do not establish that software agents avoid local minima or produce correct repository changes.
 \end{enumerate}
