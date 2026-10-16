@@ -60,7 +60,10 @@
     pad at break*=7pt,lines before break=6,
     overlay unbroken={\pdblock@frame},overlay first={\pdblock@frame},
     overlay middle={\pdblock@frame},overlay last={\pdblock@frame}]
-    \clubpenalty=9000 \widowpenalty=9000
+    % A block may split across pages, but its last line must not stand alone at the top of the next page
+    % (printed pp. 200 and 347 in the 2026-10-14 edition); the club and broken rules stay relaxed so the
+    % split itself remains possible.
+    \clubpenalty=9000 \widowpenalty=10000
     \displaywidowpenalty=9000 \brokenpenalty=9000
 }
 \newcommand{\pdblockafter}[1]{\par\end{tcolorbox}\endgroup}
