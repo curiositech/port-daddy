@@ -1,130 +1,84 @@
-% fig-ch0-bbl-vision-cones.tex
-% Dynamic Epistemic Observation Cones in Big Brother Logic
-% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
-
-\input{figures/pd-robot-glyphs.tex}
+% Brief (tikz-diagram-craft).
+% Reader question: when does observer a1 know what worker a2 knows?
+% Claim: each agent has a directed vision cone V(a). a2 lies inside V(a1), so
+%   a1 observes a2; phi lies inside V(a2), so a2 observes phi. Composing the
+%   two observations gives a1 the higher-order fact K_{a1}K_{a2}phi. Points
+%   outside every cone are epistemic shadow -- unobserved by anyone.
+% Evidence: chapter-0-prerequisites.tex, "Dynamic Epistemic Logic and Big
+%   Brother Logic" -- Charrier et al. 2014: "if agent a1 observes agent a2
+%   (a2 in V(a1)), a1 knows what a2 observes, yielding K_{a1}K_{a2}(phi)".
+%   [internal; Charrier et al. 2014]
+% Must distinguish: the two agents' cones; the two observation relations
+%   (a1-sees-a2, a2-sees-phi) that compose into the higher-order fact; the
+%   shadow where neither cone reaches.
+% Grammar: a real plane (not pgfplots -- nothing here is a computed curve):
+%   two agents as named points, each with a directed wedge, phi as a plain
+%   datum inside the inner wedge, a ruled legend composing the two numbered
+%   observation relations into the verdict. Rejected: the v1 figure's
+%   numbered coordinate grid (-7..10, -3..3) -- nothing in the chapter or the
+%   caption ever cites a coordinate, so the grid was unearned precision, and
+%   its three verdict cards repeated the identical formula twice and a third,
+%   unrelated "invariant verification" card -- a content bug, not a styling
+%   one. No robot icons: an agent is a named circle, the way an automaton's
+%   state is.
+% Five-second test: "a2's dot sits inside the wide cone; phi's dot sits
+%   inside the narrow cone grown out of a2 -- so a1 knows a2 knows phi."
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \tikzset{
-    gridline/.style={draw=pdslate!20,line width=0.4pt},
-    shadowregion/.style={fill=pdslate!12,draw=none},
-    cardbox/.style={draw=pdslate!30,line width=0.55pt,fill=white,rounded corners=2.5pt,inner sep=3pt}
-  }
-
-  % =========================================================================
-  % TOP: 2D COORDINATE PLOT & VISION CONES (x in [0.5, 13.2], y in [1.5, 5.1])
-  % =========================================================================
-
-  % Epistemic Shadow regions (unobservable background)
-  \fill[pdslate!10,rounded corners=2pt] (1.3, 1.8) rectangle (12.8, 4.9);
-
-  % Observer Agent a1 Vision Cone V(a1) (Teal wedge spreading from x=2.0)
-  \fill[pdteal!22] (2.0, 3.35) -- (12.8, 4.75) -- (12.8, 1.95) -- cycle;
-  \draw[line width=0.8pt,pdteal!80!black] (2.0, 3.35) -- (12.8, 4.75);
-  \draw[line width=0.8pt,pdteal!80!black] (2.0, 3.35) -- (12.8, 1.95);
-
-  % Worker Agent a2 Vision Cone V(a2) (Darker teal/cobalt wedge spreading from x=8.8)
-  \fill[pdcobalt!25] (8.8, 3.35) -- (12.8, 4.55) -- (12.8, 2.15) -- cycle;
-  \draw[line width=0.8pt,pdcobalt!85!black] (8.8, 3.35) -- (12.8, 4.55);
-  \draw[line width=0.8pt,pdcobalt!85!black] (8.8, 3.35) -- (12.8, 2.15);
-
-  % Coordinate Grid lines
-  % Vertical grid lines: -7 to 10 (step = 0.65cm)
-  % x=-7 -> 1.35, x=-6 -> 2.0, x=0 -> 6.1, x=4 -> 8.8, x=8 -> 11.45, x=10 -> 12.8
-  \foreach \i/\xval in {
-    1.35/-7, 2.0/-6, 2.68/-5, 3.36/-4, 4.05/-3, 4.73/-2, 5.41/-1,
-    6.1/0, 6.78/1, 7.46/2, 8.14/3, 8.8/4, 9.49/5, 10.17/6, 10.85/7, 11.45/8, 12.13/9, 12.8/10
-  } {
-    \draw[gridline] (\i, 1.8) -- (\i, 4.9);
-    \node[anchor=north,font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!80!black}] at (\i, 1.8) {\xval};
-  }
-
-  % Horizontal grid lines: y = -3, -2, -1, 0, 1, 2, 3 (step = 0.5cm)
-  \foreach \j/\yval in {
-    1.85/-3, 2.35/-2, 2.85/-1, 3.35/0, 3.85/1, 4.35/2, 4.85/3
-  } {
-    \draw[gridline] (1.35, \j) -- (12.8, \j);
-    \node[anchor=east,font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!80!black}] at (1.35, \j) {\yval};
-  }
-
-  % Main Axes
-  \draw[line width=0.7pt,hhink] (1.35, 3.35) -- (12.8, 3.35); % X axis
-  \draw[line width=0.7pt,hhink] (6.1, 1.8) -- (6.1, 4.9);    % Y axis
-
-  % Shadow Labels
-  \node[font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{hhgray!90!black}] at (4.0, 4.6) {Epistemic Shadow};
-  \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhgray!90!black}] at (8.5, 2.1) {Epistemic Shadow region};
-
-  % Vision Cone Labels
-  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdteal!90!black}] at (3.8, 3.55) {$\mathbf{V(a_1)}$};
-  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdcobalt}] at (7.8, 3.8) {$\mathbf{V(a_2)}$};
-  \node[font=\fontsize{5.8}{7.0}\selectfont\bfseries\color{pdcobalt}] at (9.8, 4.3) {$\mathbf{V(a_2)}$};
-
-  % Observer Agent a1 (Robot at x=-6, y=0 -> (2.0, 3.35))
-  \pdrobotbase[0.65]{(2.0, 3.35)}{pdcobalt}
-  \node[anchor=north,font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhink},align=center] at (2.0, 2.65) {%
-    Observer\\Agent $a_1$%
-  };
-
-  % Worker Agent a2 (Robot at x=4, y=0 -> (8.8, 3.35))
-  \pdrobotbase[0.65]{(8.8, 3.35)}{pdteal}
-  \node[anchor=north,font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{hhink},align=center] at (8.8, 2.7) {%
-    Worker\\Agent $a_2$%
-  };
-
-  % Objective phi (Target task property at x=8, y=2 -> (11.45, 4.35))
-  \fill[white,draw=pderror,line width=1.0pt] (11.45, 4.35) circle (0.16);
-  \node[font=\fontsize{6.0}{7.2}\selectfont\bfseries\color{pderror}] at (11.45, 4.35) {$\phi$};
-  \node[anchor=west,font=\fontsize{5.2}{6.2}\selectfont\bfseries\color{pderror},align=left] at (11.75, 4.45) {Objective};
-  \node[anchor=west,font=\fontsize{4.6}{5.4}\selectfont\color{hhink},align=left] at (11.75, 4.15) {Target task\\property};
-  \draw[pd arrow,line width=0.6pt,pderror] (11.7, 4.35) -- (11.62, 4.35);
-
-  % =========================================================================
-  % BOTTOM: THREE VERIFICATION CARDS (x in [0.4, 13.1], y in [0.15, 1.35])
-  % =========================================================================
-
-  % --- Card 1: Higher-order verification ---
-  \begin{scope}[shift={(0.4, 0.2)}]
-    \draw[cardbox] (0, 0) rectangle (3.9, 1.05);
-    % Red Star Badge
-    \draw[fill=pdrust!90!black,draw=none,rounded corners=1.5pt] (3.4, 0.72) rectangle (3.75, 0.95);
-    \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{white}] at (3.575, 0.83) {+};
-    % Content
-    \node[anchor=west,font=\fontsize{7.0}{8.5}\selectfont\bfseries\color{hhink}] at (0.2, 0.65) {%
-      $\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$%
-    };
-    \node[anchor=west,font=\fontsize{5.0}{6.0}\selectfont\color{hhgray!90!black}] at (0.2, 0.25) {%
-      Higher-order verification%
-    };
-  \end{scope}
-
-  % --- Card 2: Agent 1 knows Agent 2 knows phi ---
-  \begin{scope}[shift={(4.5, 0.2)}]
-    \draw[cardbox] (0, 0) rectangle (3.9, 1.05);
-    % Red Star Badge
-    \draw[fill=pdrust!90!black,draw=none,rounded corners=1.5pt] (3.4, 0.72) rectangle (3.75, 0.95);
-    \node[font=\fontsize{5.0}{6.0}\selectfont\bfseries\color{white}] at (3.575, 0.83) {+};
-    % Content
-    \node[anchor=west,font=\fontsize{7.0}{8.5}\selectfont\bfseries\color{hhink}] at (0.2, 0.65) {%
-      $\mathcal{M}, s \models K_{a_1} K_{a_2} \phi$%
-    };
-    \node[anchor=west,font=\fontsize{5.0}{6.0}\selectfont\color{hhgray!90!black}] at (0.2, 0.25) {%
-      Agent 1 knows Agent 2 knows $\phi$%
-    };
-  \end{scope}
-
-  % --- Card 3: Invariant verification ---
-  \begin{scope}[shift={(8.6, 0.2)}]
-    \draw[draw=pdhealth!80,line width=0.6pt,fill=pdhealth!5,rounded corners=2.5pt] (0, 0) rectangle (4.5, 1.05);
-    % Shield Icon
-    \pdiconshieldcheck[0.75]{(0.55, 0.52)}
-    % Content
-    \node[anchor=west,font=\fontsize{5.6}{6.8}\selectfont\bfseries\color{pdhealth!90!black}] at (1.05, 0.68) {%
-      Invariant verification%
-    };
-    \node[anchor=west,font=\fontsize{4.6}{5.6}\selectfont\color{hhink},text width=3.2cm] at (1.05, 0.32) {%
-      Successful system property verification in the logic%
-    };
-  \end{scope}
-
+  % ---- the grid -------------------------------------------------------------
+  \def\Wl{0.0}  \def\Wr{11.6}  \def\Hb{0.55}  \def\Ht{5.85}
+  \coordinate (a1) at (1.35,2.35);
+  \coordinate (a2) at (6.05,3.45);
+  \coordinate (phi) at (10.05,4.35);
+  \def\angA{13.2}  \def\spreadA{21}  \def\radA{8.1}   % V(a1): wide, long
+  \def\angB{12.7}  \def\spreadB{17}  \def\radB{6.15}  % V(a2): narrower
+  \def\trim{0.52}  % clears the 8.5mm agent node, so no edition's pattern
+                    % fill ever needs to occlude a stroke under its own text
+  % ---- the field: unobserved by default, named once -----------------------
+  \draw[pd neutral fill] (\Wl,\Hb) rectangle (\Wr,\Ht);
+  \node[pd label,anchor=south west,text=pdinkmuted] at (\Wl+0.18,\Hb+0.14)
+    {epistemic shadow};
+  % ---- V(a1): wide, reaches far enough to hold a2 --------------------------
+  % the wedge's near-apex edge is trimmed clear of the agent node (see
+  % \trim above) rather than meeting at the node's exact centre, so the
+  % stroke never needs the node's own fill to occlude it.
+  \fill[pd focus fill]
+    ($(a1)+({\angA+\spreadA}:\trim)$) -- ($(a1)+({\angA+\spreadA}:\radA)$)
+      arc[start angle={\angA+\spreadA},end angle={\angA-\spreadA},radius=\radA]
+      -- ($(a1)+({\angA-\spreadA}:\trim)$) -- cycle;
+  \node[pd focus label,anchor=south west] at ($(a1)+(1.2,1.55)$) {$V(a_1)$};
+  % ---- V(a2): narrower, reaches far enough to hold phi ---------------------
+  \fill[pd legible fill]
+    ($(a2)+({\angB+\spreadB}:\trim)$) -- ($(a2)+({\angB+\spreadB}:\radB)$)
+      arc[start angle={\angB+\spreadB},end angle={\angB-\spreadB},radius=\radB]
+      -- ($(a2)+({\angB-\spreadB}:\trim)$) -- cycle;
+  \node[pd legible label,anchor=south west] at ($(a2)+(0.55,1.35)$) {$V(a_2)$};
+  % ---- the two agents and the objective, named nodes so every incident
+  % line clips to the node's own boundary -- never through its text, in any
+  % edition's fill treatment (hatched editions do not occlude an overlaid
+  % line the way a solid tint does).
+  \node[pd automaton focus,minimum size=8.5mm] (node-a1) at (a1) {$a_1$};
+  \node[pd automaton state,minimum size=8.5mm] (node-a2) at (a2) {$a_2$};
+  \node[pd datum] (node-phi) at (phi) {};
+  \node[pd label,anchor=west] at ($(phi)+(0.28,0)$) {$\phi$};
+  % ---- the two observation relations, each an arrow with a badge ----------
+  \draw[pd focus arrow] (node-a1) -- (node-a2);
+  \draw[pd legible arrow] (node-a2) -- (node-phi);
+  \node[pd badge] at ($(a1)!0.58!(a2)$) {1};
+  \node[pd badge] at ($(a2)!0.58!(phi)$) {2};
+  % ---- the ruled legend: the two observations compose into the verdict ----
+  % badges are set as bold numerals, not redrawn circles, so the table never
+  % depends on font inheritance into a nested tikzpicture.
+  \node[anchor=north west,text width=11.5cm,align=left] at (\Wl,\Hb-0.35) {%
+    \renewcommand{\arraystretch}{1.28}%
+    \pdfiglabel
+    \begin{tabular}{@{}cp{3.55cm}p{4.65cm}@{}}
+      \toprule
+      & \textbf{condition} & \textbf{reading} \\
+      \midrule
+      \textbf{1} & $a_2 \in V(a_1)$ & $a_1$ observes $a_2$ \\
+      \textbf{2} & $\phi \in V(a_2)$ & $a_2$ observes $\phi$ \\
+      $1 \wedge 2$ & \multicolumn{2}{l}{the composed verdict: $a_1$ knows $a_2$ knows $\phi$} \\
+      \bottomrule
+    \end{tabular}};
 \end{tikzpicture}
