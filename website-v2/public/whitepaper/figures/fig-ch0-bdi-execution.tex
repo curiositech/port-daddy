@@ -41,12 +41,14 @@
   \node[pd artifact,minimum width=2.6cm] (BS) at (\ax,{3*\dy}) {belief base $bs$};
   \draw[pd thin arrow] (BS.west) -- (AP.east);
   % ---- the one branch that leaves the honest path: action failure --------
-  \node[pd breach state,minimum width=2.6cm] (RP) at (\ax,{1*\dy}) {recovery plan};
-  \draw[pd breach arrow] (XA.east) -- (RP.west);
-  \node[pd label,text=pderror] at ($(XA.east)!.5!(RP.west)+(0,.60)$) {$-!g$};
+  % A failed action posts -!g to the queue first; only a later cycle selects an
+  % applicable recovery plan through the same S_E / S_O path (AgentSpeak SOS).
   \draw[pd breach arrow,rounded corners=3pt]
-    (RP.east) -- (\rx,{1*\dy}) -- (\rx,{4*\dy}) -- (E.east);
+    (XA.east) -- (\rx,{1*\dy}) -- (\rx,{4*\dy}) -- (E.east);
+  \node[pd label,text=pderror,anchor=east] at ({\rx-.22},{3.5*\dy}) {$-!g$};
   \node[pd badge] at (\rx,2.9) {4};
+  \node[pd label,text=pderror,anchor=south,align=center,text width=2.9cm] at (\ax,{1*\dy+.34})
+    {failure re-enters $\mathcal{E}$;\\recovery is a plan\\selected next cycle};
   % ---- success: the action's perceptions close the loop on the left ------
   \draw[pd focus arrow,rounded corners=3pt]
     (XA.west) -- (\lx,{1*\dy}) -- (\lx,{4*\dy}) -- (E.west);
@@ -67,8 +69,22 @@
   \node[pd badge] at (.28,{\ly-1.35-3*.62}) {4};
   \node[pd label,anchor=base west,text=pderror] at (.62,{\ly-1.35-3*.62}) {$-!g$ (failure)};
   \node[pd label,anchor=base west,align=left,text=pderror] at (3.90,{\ly-1.35-3*.62})
-    {pops the failed frame; posts recovery back to $\mathcal{E}$};
-  \node[pd note,anchor=north west,text width=11.6cm] at (.05,{\ly-1.35-3*.62-.55})
+    {pops the failed frame and posts $-!g$ to $\mathcal{E}$; $S_E$, $S_O$ then select a recovery plan};
+  % ---- the comparison the chapter promises: three ways to choose an action --
+  \def\py{\ly-1.35-3*.62-.75}
+  \draw[pd rule] (0,\py) -- (\R,\py);
+  \node[pd title,anchor=north west] at (.05,{\py-.30}) {paradigm};
+  \node[pd title,anchor=north west] at (3.60,{\py-.30}) {decides by};
+  \node[pd title,anchor=north west] at (9.40,{\py-.30}) {weakness};
+  \draw[pd hairline] (0,{\py-.95}) -- (\R,{\py-.95});
+  \foreach \i/\n/\d/\w in {%
+    0/{reactive rules}/{condition $\to$ action, no future model}/{blind to consequences},
+    1/{classical planning}/{a plan computed in advance (STRIPS)}/{brittle under drift},
+    2/{BDI (this cycle)}/{intentions re-selected every cycle}/{perceives every cycle}}{
+      \node[pd label,anchor=base west] at (.05,{\py-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at (3.60,{\py-1.35-\i*.62}) {\d};
+      \node[pd label,anchor=base west] at (9.40,{\py-1.35-\i*.62}) {\w};}
+  \node[pd note,anchor=north west,text width=11.6cm] at (.05,{\py-1.35-2*.62-.55})
     {both the honest and the breach path re-enter $\mathcal{E}$: a perception as the
     next event, $-!g$ as the next recovery event.};
 \end{tikzpicture}
