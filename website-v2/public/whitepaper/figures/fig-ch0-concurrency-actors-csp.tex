@@ -1,187 +1,105 @@
-% fig-ch0-concurrency-actors-csp.tex
-% Concurrency Foundations: Hewitt-Agha Actor Model vs. Hoare CSP Rendezvous
-% 100% native vector Swiss TikZ layout adhering to Harbor Figure Standard (v2).
-% Strict collision-free geometry, verified typography, and architectural clarity.
-
-\input{figures/pd-robot-glyphs.tex}
+% fig-ch0-concurrency-actors-csp.tex -- redrawn to the house figure language (v2).
+% Reader question: what differs between an actor send and a CSP rendezvous?
+% Claim: an actor send is asynchronous -- non-blocking, buffered in the
+% receiver's private FIFO mailbox, after which the receiver may `become` a
+% new behaviour; a CSP communication is a synchronous unbuffered rendezvous
+% (c!v and c?x occur together, Delta t = 0; whoever arrives first blocks),
+% with guarded choice (alt) over several channels, here with a lease
+% timeout as the alternative to a stuck rendezvous.
+% Grammar chosen: before/after on identical geometry (tpl-before-after.tex)
+% -- two sender/receiver pairs on one time grid, so the reader compares the
+% two paradigms by position, not by re-reading two unrelated layouts.
+% Rejected: two separate sequence diagrams side by side with independent
+% time axes -- that lets each half look locally correct while hiding the
+% claim that matters (one gap is non-zero, one is exactly zero); one shared
+% axis makes the zero-gap the thing a reader can see, not just read.
+% Facts: Hewitt & Agha (actors, 1973/1986); Hoare, CSP (1978);
+% whitepaper/chapter-0-prerequisites.tex Sec. "Concurrency Foundations:
+% Hewitt--Agha Actors vs. Hoare's CSP", immediately above
+% \ref{fig:actor-concurrency}.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \tikzset{
-    containerbox/.style={
-      draw=pdslate!40,
-      line width=0.75pt,
-      fill=white,
-      rounded corners=3pt
-    },
-    subcard/.style={
-      draw=pdslate!30,
-      line width=0.5pt,
-      fill=hhpaper!30,
-      rounded corners=2pt,
-      inner sep=3pt
-    },
-    usedforpill/.style={
-      draw=none,
-      fill=pdcobalt!90!black,
-      rounded corners=2pt,
-      inner xsep=6pt,
-      inner ysep=2.5pt
-    },
-    cspusedforpill/.style={
-      draw=none,
-      fill=pdteal!90!black,
-      rounded corners=2pt,
-      inner xsep=6pt,
-      inner ysep=2.5pt
-    }
-  }
-
+  % ---- one grid, declared once: a shared time axis for both panels -------
+  \def\x0{3.05}    % lifeline start (after the row-label gutter)
+  \def\xe{12.30}   % lifeline end
+  \def\dy{1.05}    % row pitch: sender above, receiver below, within a panel
+  \def\py{-3.75}   % panel pitch: where the sync panel starts
+  \def\R{13.00}    % right margin of rules and the legend
   % =========================================================================
-  % LEFT PANEL: HEWITT-AGHA ACTOR MODEL (x in [0.1, 7.1], y in [0.75, 5.5])
+  % PANEL A: asynchronous actor send (chapter hue)
   % =========================================================================
-  \draw[containerbox] (0.1, 0.75) rectangle (7.1, 5.5);
-  % Header (Cobalt)
-  \fill[fill=pdcobalt!90!black, rounded corners=2pt] (0.14, 5.12) rectangle (7.06, 5.46);
-  \node[anchor=center] at (3.6, 5.29) {%
-    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}HEWITT-AGHA ACTOR MODEL (ASYNCHRONOUS)%
-  };
-
-  % Sender / Dispatcher
-  \begin{scope}[shift={(1.0, 4.0)}]
-    \pdrobotbase[0.60]{(0, 0)}{pdcobalt}
-    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Sender\\Actor};
-  \end{scope}
-
-  % Envelope dispatch arrow
-  \begin{scope}[shift={(2.1, 4.15)}]
-    \draw[fill=white, draw=pdcobalt, line width=0.5pt, rounded corners=1pt] (-0.35, -0.22) rectangle (0.35, 0.22);
-    \draw[line width=0.4pt, pdcobalt] (-0.35, 0.22) -- (0, -0.05) -- (0.35, 0.22);
-    \draw[->, line width=0.7pt, pdcobalt] (0.45, 0) -- (0.85, 0);
-    \node[anchor=south, font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{pdcobalt}] at (0, 0.25) {message};
-  \end{scope}
-
-  % Asynchronous Private Mailbox (Queue)
-  \begin{scope}[shift={(3.7, 4.15)}]
-    \draw[draw=pdcobalt!80!black, fill=pdcobalt!8, line width=0.6pt, rounded corners=2pt] (-0.75, -0.45) rectangle (0.75, 0.45);
-    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{pdcobalt}, align=center] at (0, 0.22) {Private Mailbox};
-    % FIFO Slots
-    \draw[fill=white, draw=pdcobalt!60, line width=0.4pt] (-0.6, -0.32) rectangle (-0.2, 0.05);
-    \draw[fill=white, draw=pdcobalt!60, line width=0.4pt] (-0.2, -0.32) rectangle (0.2, 0.05);
-    \draw[fill=pdteal!30, draw=pdcobalt!60, line width=0.4pt] (0.2, -0.32) rectangle (0.6, 0.05);
-    \node[font=\fontsize{3.5}{4.2}\selectfont\color{pdslate!80}] at (0, -0.14) {FIFO};
-  \end{scope}
-
-  % Arrow to Receiver Actor
-  \draw[->, line width=0.7pt, pdcobalt] (4.55, 4.15) -- (5.1, 4.15);
-
-  % Receiver Actor
-  \begin{scope}[shift={(5.8, 4.0)}]
-    \pdrobotbase[0.60]{(0, 0)}{pdteal}
-    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Receiver\\Actor};
-  \end{scope}
-
-  % State transition card: "become"
-  \begin{scope}[shift={(1.9, 2.15)}]
-    \draw[subcard] (-1.6, -0.75) rectangle (1.6, 0.75);
-    \node[anchor=north west, font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-1.45, 0.65) {Asynchronous Semantics};
-    \node[anchor=north west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}, text width=3.0cm] at (-1.45, 0.38) {%
-      $\bullet$ \textbf{Temporal decoupling}: send is non-blocking ($\Delta t > 0$).\\%
-      $\bullet$ \textbf{Independent execution}: receiver consumes from mailbox at its own pace.%
-    };
-  \end{scope}
-
-  \begin{scope}[shift={(5.3, 2.15)}]
-    \draw[draw=pdcobalt!70, fill=pdcobalt!5, line width=0.6pt, rounded corners=2pt] (-1.5, -0.75) rectangle (1.5, 0.75);
-    \node[anchor=north west, font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{pdcobalt}] at (-1.35, 0.65) {Isolated State Mutation};
-    % 2 Become pills
-    \draw[fill=pdcobalt!85, draw=none, rounded corners=1.5pt] (-1.3, 0.05) rectangle (1.3, 0.35);
-    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{white}] at (0, 0.20) {become\ $(B_0 \rightarrow B_1)$};
-
-    \draw[->, line width=0.5pt, pdcobalt] (0, 0.03) -- (0, -0.15);
-
-    \draw[fill=pdcobalt!85, draw=none, rounded corners=1.5pt] (-1.3, -0.48) rectangle (1.3, -0.18);
-    \node[font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{white}] at (0, -0.33) {become\ $(B_1 \rightarrow B_2)$};
-  \end{scope}
-
-  % Bottom Pill: Actor Use Case
-  \node[usedforpill, anchor=south] at (3.6, 0.85) {%
-    \fontsize{4.5}{5.4}\selectfont\color{white}\textbf{Used for:}\ \ Stochastic Agent Reasoning \& Isolated Workspaces%
-  };
-
+  \node[pd title,anchor=west] at (0,{0+.62}) {asynchronous actor send};
+  \node[pd label,anchor=east] at ({\x0-.30},0)      {sender actor};
+  \node[pd label,anchor=east] at ({\x0-.30},{-\dy}) {receiver actor};
+  \def\sendx{5.80}   % send event: non-blocking, sender keeps running
+  \def\recvx{9.60}   % receive event: mailbox drained, receiver resumes
+  % sender: one continuous rule -- it never blocks
+  \draw[pd focus arrow] (\x0,0) -- (\xe,0);
+  \node[pd focus datum] at (\sendx,0) {};
+  \node[pd label,anchor=east] at ({\sendx-.15},0.48) {send};
+  \node[pd badge] at ({\sendx+.20},0.48) {1};
+  % the mailbox: a subordinate artifact, buffering the message for Delta t > 0
+  \node[pd artifact,minimum width=2.6cm] (MB) at ({(\sendx+\recvx)/2},-.50) {mailbox (FIFO)};
+  \draw[pd thin arrow,shorten >=3pt,rounded corners=2pt] (\sendx,-.08) -- (\sendx,-.50) -- (MB.west);
+  \draw[pd thin arrow,shorten <=3pt,rounded corners=2pt] (MB.east) -- (\recvx,-.50) -- (\recvx,{-\dy+.08});
+  % receiver: idle (hairline) until the message is drained, then resumes
+  \draw[pd hairline]     (\x0,{-\dy}) -- (\recvx,{-\dy});
+  \draw[pd focus arrow]  (\recvx,{-\dy}) -- (\xe,{-\dy});
+  \node[pd focus datum] at (\recvx,{-\dy}) {};
+  \node[pd label,anchor=east] at ({\recvx-.15},{-\dy-.48}) {receive, become};
+  \node[pd badge] at ({\recvx+.20},{-\dy-.48}) {2};
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}]
+    (\x0,{-\dy-.82}) -- (\xe,{-\dy-.82});
+  \node[pd label,anchor=west] at (\xe,{-\dy-.82}) {time};
   % =========================================================================
-  % RIGHT PANEL: HOARE CSP SYNCHRONOUS RENDEZVOUS (x in [7.4, 14.4], y in [0.75, 5.5])
+  % PANEL B: synchronous CSP rendezvous (protocol hue) -- same grid
   % =========================================================================
-  \draw[containerbox] (7.4, 0.75) rectangle (14.4, 5.5);
-  % Header (Teal)
-  \fill[fill=pdteal!90!black, rounded corners=2pt] (7.44, 5.12) rectangle (14.36, 5.46);
-  \node[anchor=center] at (10.9, 5.29) {%
-    \fontsize{5.2}{6.2}\selectfont\bfseries\color{white}HOARE CSP SYNCHRONOUS RENDEZVOUS%
-  };
-
-  % Sender Process (P1)
-  \begin{scope}[shift={(8.3, 4.0)}]
-    \pdrobotbase[0.60]{(0, 0)}{pdteal}
-    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Process $P_1$\\{\fontsize{3.6}{4.4}\selectfont (Sender)}};
-  \end{scope}
-
-  % Instantaneous Barrier (Rendezvous point)
-  \begin{scope}[shift={(10.9, 4.15)}]
-    % Barrier frame
-    \draw[draw=pderror!80!black, fill=pderror!8, line width=0.65pt, rounded corners=2pt] (-1.2, -0.55) rectangle (1.2, 0.55);
-    \node[font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{pderror!90!black}, align=center] at (0, 0.32) {Synchronous Barrier};
-    
-    % Meeting arrows
-    \draw[->, line width=0.75pt, pdteal!90!black] (-1.0, 0) -- (-0.2, 0);
-    \draw[<-, line width=0.75pt, pdcobalt!90!black] (0.2, 0) -- (1.0, 0);
-    \fill[pderror] (0, 0) circle (0.09cm);
-    
-    \node[font=\fontsize{3.8}{4.5}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Rendezvous\ ($\Delta t = 0$)};
-  \end{scope}
-
-  % Arrow from P1 to Barrier
-  \draw[->, line width=0.7pt, pdteal] (8.9, 4.15) -- (9.6, 4.15);
-
-  % Arrow from P2 to Barrier
-  \draw[<-, line width=0.7pt, pdcobalt] (12.2, 4.15) -- (12.8, 4.15);
-
-  % Receiver Process (P2)
-  \begin{scope}[shift={(13.4, 4.0)}]
-    \pdrobotbase[0.60]{(0, 0)}{pdcobalt}
-    \node[anchor=north, font=\fontsize{4.2}{5.0}\selectfont\bfseries\color{hhink}, align=center] at (0, -0.32) {Process $P_2$\\{\fontsize{3.6}{4.4}\selectfont (Receiver)}};
-  \end{scope}
-
-  % Bottom left subcard: Synchronous Handshake
-  \begin{scope}[shift={(9.1, 2.15)}]
-    \draw[subcard] (-1.5, -0.75) rectangle (1.5, 0.75);
-    \node[anchor=north west, font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-1.35, 0.65) {Zero Buffer Rendezvous};
-    \node[anchor=north west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}, text width=2.8cm] at (-1.35, 0.38) {%
-      $\bullet$ Neither party proceeds until both arrive at the channel.\\%
-      $\bullet$ Unbuffered: value is transferred instantaneously.%
-    };
-  \end{scope}
-
-  % Bottom right subcard: Guarded External Choice
-  \begin{scope}[shift={(12.6, 2.15)}]
-    \draw[subcard] (-1.6, -0.75) rectangle (1.6, 0.75);
-    \node[anchor=north west, font=\fontsize{4.4}{5.2}\selectfont\bfseries\color{hhink}] at (-1.45, 0.65) {Guarded External Choice};
-    \begin{scope}[shift={(-1.15, 0.1)}]
-      \pdiconcrash[0.45]{(0, 0)}
-    \end{scope}
-    \node[anchor=north west, font=\fontsize{3.8}{4.5}\selectfont\color{hhgray!90!black}, text width=2.3cm] at (-0.85, 0.38) {%
-      $\mathbf{ALT}$ / select with lease timeout prevents permanent deadlock under crash failure.%
-    };
-  \end{scope}
-
-  % Bottom Pill: CSP Use Case
-  \node[cspusedforpill, anchor=south] at (10.9, 0.85) {%
-    \fontsize{4.5}{5.4}\selectfont\color{white}\textbf{Used for:}\ \ Host Resource Mutexes, Port Claims \& WAL Commits%
-  };
-
-  % =========================================================================
-  % BOTTOM FOOTER BANNER (Full width: x in [0.1, 14.4])
-  % =========================================================================
-  \node[draw=pdcobalt!40, line width=0.6pt, fill=pdcobalt!6, rounded corners=2pt, anchor=south, inner xsep=8pt, inner ysep=3.2pt] at (7.25, 0.12) {%
-    \fontsize{4.8}{5.8}\selectfont\color{hhink}\textbf{The Agent Kernel Synthesis:}\ \ Sovereign Agents communicate via Asynchronous Mailboxes;\ Scarce Host Resources synchronize via CSP Barriers.%
-  };
-
+  \node[pd title,anchor=west] at (0,{\py+.62}) {synchronous CSP rendezvous};
+  \node[pd label,anchor=east] at ({\x0-.30},\py)          {process $P_1$};
+  \node[pd label,anchor=east] at ({\x0-.30},{\py-\dy})    {process $P_2$};
+  \def\arrSx{6.45}    % P1 arrives first: it blocks and waits
+  \def\arrRx{7.55}    % P2 arrives later: a shorter wait
+  \def\rvx{8.65}       % the rendezvous: both occur together, Delta t = 0
+  % P1: runs, then blocks (hairline) until the rendezvous, then resumes
+  \draw[pd protocol rule]   (\x0,\py) -- (\arrSx,\py);
+  \draw[pd hairline]        (\arrSx,\py) -- (\rvx,\py);
+  \draw[pd protocol rule]   (\rvx,\py) -- (\xe,\py);
+  % P2: runs, blocks for a shorter span, then resumes
+  \draw[pd protocol rule]   (\x0,{\py-\dy}) -- (\arrRx,{\py-\dy});
+  \draw[pd hairline]        (\arrRx,{\py-\dy}) -- (\rvx,{\py-\dy});
+  \draw[pd protocol rule]   (\rvx,{\py-\dy}) -- (\xe,{\py-\dy});
+  % the rendezvous itself: one mark, shared by both lifelines, Delta t = 0
+  \draw[pd protocol rule] (\rvx,\py) -- (\rvx,{\py-\dy});
+  \node[pd protocol datum] at (\rvx,{\py-.5*\dy}) {};
+  \node[pd badge] at ({\rvx-.55},{\py-.5*\dy}) {3};
+  \node[pd protocol label,anchor=west] at ({\rvx+.22},{\py-.5*\dy}) {rendezvous $(\Delta t = 0)$};
+  % guarded choice: P1 also guards a lease-timeout channel while it waits
+  \draw[pd breach arrow,rounded corners=2pt]
+    (\arrSx,\py) |- ({(\arrSx+\rvx)/2},{\py-\dy-.85});
+  \node[pd breach state,minimum width=2.2cm] (TO) at ({(\arrSx+\rvx)/2+1.55},{\py-\dy-.85}) {lease timeout};
+  \draw[pd breach arrow] ({(\arrSx+\rvx)/2},{\py-\dy-.85}) -- (TO.west);
+  \node[pd badge] at ({(\arrSx+\rvx)/2-.05},{\py-\dy-1.20}) {4};
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}]
+    (\x0,{\py-\dy-1.75}) -- (\xe,{\py-\dy-1.75});
+  \node[pd label,anchor=west] at (\xe,{\py-\dy-1.75}) {time};
+  % ---- the legend: each numbered event, what it means --------------------
+  \def\ly{-7.15}   % = \py - \dy - 2.35, written as a literal for pgfmath
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {event};
+  \node[pd title,anchor=north west] at (3.55,{\ly-.30}) {semantics};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\f/\s in {%
+    0/1/{send (actor)}/{non-blocking: $\Delta t > 0$, buffered in the mailbox},
+    1/2/{receive, \texttt{become}}/{drains the mailbox; may adopt a new behaviour},
+    2/3/{rendezvous (CSP)}/{synchronous meet: $\Delta t = 0$; first arrival blocks}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.62}) {\f};
+      \node[pd label,anchor=base west,align=left] at (3.55,{\ly-1.35-\i*.62}) {\s};}
+  \node[pd badge] at (.28,{\ly-1.35-3*.62}) {4};
+  \node[pd label,anchor=base west,text=pderror] at (.62,{\ly-1.35-3*.62}) {\texttt{alt} / lease timeout};
+  \node[pd label,anchor=base west,align=left,text=pderror] at (3.55,{\ly-1.35-3*.62})
+    {guarded choice: the timeout channel avoids permanent deadlock};
+  \node[pd note,anchor=north west,text width=12.0cm] at (.05,{\ly-1.35-3*.62-.55})
+    {asynchronous isolation suits stochastic agent reasoning; synchronous
+    rendezvous suits scarce host resources (port leases, WAL commits).};
 \end{tikzpicture}
