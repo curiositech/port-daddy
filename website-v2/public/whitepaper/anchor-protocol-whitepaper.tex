@@ -155,14 +155,16 @@
 \noindent\textit{Reading time: approximately 30 minutes end-to-end. \pdchapref{bonded}{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026) carries the economic and governance argument; either paper can be read first.}
 \vspace{0.6cm}
 % --- Series locator box -------------------------------------------------------
+% Page furniture, not a conceptual figure: no chapter hue, the house neutral
+% ground (pd neutral fill) instead of the old cream hhsand card.
 \begin{center}
-\begin{tikzpicture}
-\node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
-      inner sep=11pt,text width=15.1cm,align=left,font=\small] {%
-  {\scshape\bfseries\footnotesize\textcolor{hhebony}{Port Daddy Coordination Papers\hfill Chapter~\pdchapternumber~of~\pdchaptercount}}\\[5pt]
-  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
+\begin{tikzpicture}[pd figure]
+\node[pd neutral fill,rounded corners=5pt,line width=0.8pt,
+      inner xsep=11pt,inner ysep=11pt,text width=15.1cm,align=left,font=\small] {%
+  {\scshape\bfseries\footnotesize\textcolor{pdink}{Port Daddy Coordination Papers\hfill Chapter~\pdchapternumber~of~\pdchaptercount}}\\[5pt]
+  {\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\\[6pt]
   \pdtextbookmap\\[6pt]
-  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
+  {\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\\[5pt]
   {\footnotesize \pdbooktitle{} reads in this order: each chapter stands on the ones before it, and each proof chapter follows the chapter whose promises it keeps. Every chapter is independently readable.}
 };
 \end{tikzpicture}
@@ -203,9 +205,10 @@ In a multi-agent development environment, agents operate concurrently to read fi
 To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\pdcite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\pdcite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
 \paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Table~\ref{tab:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
 \vspace{4pt}
-\noindent\begin{tikzpicture}
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-      inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
+% Volume-context callout: page furniture, the house neutral ground again.
+\noindent\begin{tikzpicture}[pd figure]
+\node[pd neutral fill,line width=0.8pt,rounded corners=2pt,
+      inner xsep=8pt,inner ysep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
   \small\textbf{\scshape Volume Context.}\enspace This chapter provides the cryptographic substrate. \pdchapref{bonded}{The Bonded Commons} builds the economic and game-theoretic layer on top: bonded participation, conditional auctions, mechanism analysis, and Sen-inspired advisory conflict resolution. The Anchor Protocol is a self-contained subset consumed as the trust kernel for the wider mechanism design. Read this chapter for ``how does the daemon authenticate an agent?''; read \pdchapref{bonded}{The Bonded Commons} for ``why should there be a daemon at all?''
 };

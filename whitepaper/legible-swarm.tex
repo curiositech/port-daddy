@@ -132,12 +132,14 @@
 \newcounter{protocol}[section]
 \renewcommand{\theprotocol}{\thesection.\arabic{protocol}}
 \newenvironment{protocol}[1]{%
+  % Page furniture, not a conceptual figure: the house neutral ground
+  % (pd neutral fill) instead of the old cream hhsand box.
   \par\vspace{8pt}\refstepcounter{protocol}\noindent
-  \begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
-        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{tikzpicture}[pd figure]
+  \node[pd neutral fill,rounded corners=2pt,
+        inner xsep=10pt,inner ysep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
   \begin{minipage}{\dimexpr\textwidth-30pt\relax}
-  {\scshape\bfseries\color{hhink}Protocol~\theprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}
+  {\scshape\bfseries\color{pdink}Protocol~\theprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}
   \small
 }{%
   \end{minipage}\egroup;
