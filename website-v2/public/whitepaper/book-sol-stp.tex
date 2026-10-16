@@ -5,21 +5,24 @@ accountable continuity survives replacement of that process.
 \begin{pdSolution}{stp:ex:stp-dependency-chain}
 \par\smallskip
 \begin{center}
-\begin{tikzpicture}[x=1mm,y=1mm]
-  % 4 stages in the dependency chain
-  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N1) at (0,14) {Evidence\\Checkpoints};
-  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N2) at (28,14) {Verified\\Lineage};
-  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N3) at (56,14) {Accountable\\Person};
-  \node[draw=pdink!60,fill=pdink!4,rounded corners=1.5pt,font=\scriptsize\bfseries,align=center,inner sep=2.5pt] (N4) at (84,14) {Durable\\Reputation};
-
-  \draw[->,line width=0.8pt,pdink!70] (N1) -- (N2);
-  \draw[->,line width=0.8pt,pdink!70] (N2) -- (N3);
-  \draw[->,line width=0.8pt,pdink!70] (N3) -- (N4);
-
-  % Right-to-left failure consequences
-  \node[font=\tiny,text=red!80!black,align=center] at (14,3) {Absent: state lost;\\unwitnessed drift};
-  \node[font=\tiny,text=red!80!black,align=center] at (42,3) {Absent: history\\cannot follow swap};
-  \node[font=\tiny,text=red!80!black,align=center] at (70,3) {Absent: disposable\\sybil reset};
+% Dependency chain, house figure language: the four-stage spine in the
+% chapter hue, read right to left via the breach label under each gap
+% naming what that link's absence costs.
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1mm,y=1mm]
+  % ---- the four-stage chain, in the chapter hue ------------------------------
+  \node[pd focus state,minimum width=2.4cm] (N1) at (0,14)  {Evidence\\checkpoints};
+  \node[pd focus state,minimum width=2.4cm] (N2) at (28,14) {Verified\\lineage};
+  \node[pd focus state,minimum width=2.4cm] (N3) at (56,14) {Accountable\\person};
+  \node[pd focus state,minimum width=2.4cm] (N4) at (84,14) {Durable\\reputation};
+  \foreach \a/\b in {N1/N2,N2/N3,N3/N4}{\draw[pd focus arrow] (\a)--(\b);}
+  % ---- read right to left: what each link's absence costs --------------------
+  \node[pd breach label,align=center,text width=27mm] at (14,-1)
+    {absent: state lost, unwitnessed drift};
+  \node[pd breach label,align=center,text width=27mm] at (42,-1)
+    {absent: history cannot follow a swap};
+  \node[pd breach label,align=center,text width=27mm] at (70,-1)
+    {absent: disposable sybil reset};
 \end{tikzpicture}
 \end{center}
 \par\smallskip

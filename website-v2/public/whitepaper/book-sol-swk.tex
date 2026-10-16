@@ -22,16 +22,29 @@ Expand, backfill, dual-read-or-write, contract keeps mixed versions safe for a w
 \begin{pdSolution}{swk:ex:swk-checkpoint-window}
 \par\smallskip
 \begin{center}
-\begin{tikzpicture}[x=1mm,y=1mm]
-  % Timeline axis
-  \draw[->,line width=0.8pt,hhink] (0,8) -- (82,8) node[right,font=\footnotesize\selectfont] {$t$};
-  % Tick marks and labels
-  \draw[line width=0.9pt,hhink] (15,6.5) -- (15,9.5) node[below=11pt,font=\scriptsize\selectfont,align=center] {\textbf{Commit $t_0$}\\(I1a-safe)};
-  \draw[line width=0.9pt,hhink] (65,6.5) -- (65,9.5) node[below=11pt,font=\scriptsize\selectfont,align=center] {\textbf{Checkpoint $t_0+\delta$}\\(\texttt{fsync} / I1b-safe)};
-  % Vulnerability window shading
-  \fill[hhamber!18,draw=hhamber,line width=0.6pt,dashed] (15,10) rectangle (65,18);
-  \node[font=\scriptsize\bfseries,text=hhamber!90!hhink] at (40,14) {Vulnerability Window $\delta$ (I1b-exposed)};
-  \node[font=\tiny,text=hhgray] at (40,21) {Unsynced WAL frames held in volatile OS page cache};
+% Timeline of the WAL checkpoint window, house figure language: the two safe
+% instants (commit, checkpoint) on one axis, the one breach interval between
+% them labeled clear of its own fill so the technical edition's dot pattern
+% never crosses the text (figcheck T4).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1mm,y=1mm]
+  \def\xa{15}   % instant: commit t0 (I1a-safe)
+  \def\xb{65}   % instant: checkpoint t0+delta (I1b-safe)
+  \def\xend{82} % axis end
+  % ---- the one breach interval, label clear of its own pattern fill ---------
+  \node[pd breach label,align=center] at ({(\xa+\xb)/2},23)
+    {\textbf{Vulnerability window $\delta$}\\(I1b-exposed)};
+  \fill[pd breach fill] (\xa,10) rectangle (\xb,18);
+  % ---- axis -------------------------------------------------------------------
+  \draw[pd rule,->] (0,8) -- (\xend,8) node[pd label,right] {$t$};
+  % ---- the two safe instants, ticked and named -------------------------------
+  \foreach \x/\lab in {\xa/{\textbf{Commit $t_0$}\\(I1a-safe)},
+                       \xb/{\textbf{Checkpoint $t_0+\delta$}\\(\texttt{fsync} / I1b-safe)}}{
+    \draw[pd rule] (\x,6.5) -- (\x,9.5);
+    \node[pd focus datum] at (\x,8) {};
+    \node[pd label,below=11pt,align=center] at (\x,6.5) {\lab};}
+  \node[pd note,anchor=north west,text width=82mm] at (0,-8)
+    {unsynced WAL frames held in volatile OS page cache};
 \end{tikzpicture}
 \end{center}
 \par\smallskip
@@ -46,33 +59,49 @@ A release with no matching (key, holder) row is a successful no-op so that retri
 \begin{pdSolution}{swk:ex:swk-acquire-race}
 \par\smallskip
 \begin{center}
-\begin{tikzpicture}[x=1mm,y=1mm]
-  % Vertical life-lines
-  \draw[line width=0.6pt,pdink!40] (10,32) -- (10,0);
-  \draw[line width=0.6pt,pdink!40] (45,32) -- (45,0);
-  \draw[line width=0.6pt,pdink!40] (80,32) -- (80,0);
-
-  \node[font=\footnotesize\bfseries,text=pdcobalt] at (10,35) {Agent A};
-  \node[font=\footnotesize\bfseries,text=pdink] at (45,35) {Kernel WAL};
-  \node[font=\footnotesize\bfseries,text=pdamber] at (80,35) {Agent B};
-
-  % Concurrent acquires
-  \draw[->,line width=0.7pt,pdcobalt] (10,29) -- (43,27) node[midway,above,font=\tiny] {\texttt{acquire(k)}};
-  \draw[->,line width=0.7pt,pdamber] (80,29) -- (47,27) node[midway,above,font=\tiny] {\texttt{acquire(k)}};
-
-  % First insert succeeds
-  \node[draw=pdcobalt,fill=pdcobalt!10,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,22)
-    {\textbf{INSERT (k, A)}: commits (1st)};
-  \draw[->,line width=0.7pt,pdcobalt] (43,18) -- (10,16) node[midway,below,font=\tiny] {\textbf{GRANTED}};
-
-  % Second insert conflicts
-  \node[draw=pdamber,fill=pdamber!12,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,12)
-    {\textbf{INSERT (k, B)}: \textsc{UniqueViolation}};
-
-  % Catch block & select holder
-  \node[draw=pdink!70,fill=pdink!5,rounded corners=1pt,font=\tiny,inner sep=2pt,align=center] at (45,5)
-    {\texttt{SELECT holder} $\to$ \textbf{A}};
-  \draw[->,line width=0.7pt,pdamber] (47,1) -- (80,-1) node[midway,below,font=\tiny] {\textbf{DENIED(A)}};
+% Sequence of the acquire race, house figure language: the kernel's WAL is
+% the subject (chapter hue); the two outcomes carry the concept that names
+% them (ready = granted, breach = denied); each serialized step is a badge
+% keyed to the legend below, which carries the detail the old boxed prose
+% used to set directly in the picture.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1mm,y=1mm]
+  \def\dy{9.5}                              % one message per row
+  \def\rows{4}
+  \def\xA{10}   \def\xW{45}  \def\xB{80}   % lifeline columns
+  \def\yHead{\rows*\dy+6}
+  % ---- heads, the kernel named as the subject --------------------------------
+  \node[pd label] (hA) at (\xA,\yHead) {Agent A};
+  \node[pd focus label] (hW) at (\xW,\yHead) {Kernel WAL};
+  \node[pd label] (hB) at (\xB,\yHead) {Agent B};
+  \draw[pd guide] (\xA,{\yHead-4}) -- (\xA,{-\rows*\dy+4});
+  \draw[pd focus rule] (\xW,{\yHead-4}) -- (\xW,{-\rows*\dy+4});
+  \draw[pd guide] (\xB,{\yHead-4}) -- (\xB,{-\rows*\dy+4});
+  % ---- four messages, in the order the daemon actually serializes them ------
+  \foreach \a/\b/\k/\w/\s in {%
+    \xA/\xW/1/{\texttt{acquire(k)}}/{pd thin arrow},
+    \xB/\xW/2/{\texttt{acquire(k)}}/{pd thin arrow},
+    \xW/\xA/3/{granted}/{pd ready arrow},
+    \xW/\xB/4/{denied(a)}/{pd breach arrow}}{
+      \node[pd badge] (m\k) at ({(\a+\b)/2},{-\k*\dy+6}) {\k};
+      \draw[\s,-,pd to badge]   (\a,{-\k*\dy+6}) -- (m\k);
+      \draw[\s,pd from badge]   (m\k) -- (\b,{-\k*\dy+6});
+      \node[pd tag,anchor=south] at ({(\a+\b)/2},{-\k*\dy+9}) {\w};}
+  % ---- the legend: each step, what it settles --------------------------------
+  \def\ly{-\rows*\dy+2}
+  \draw[pd rule] (0,\ly) -- (82,\ly);
+  \node[pd title,anchor=north west] at (0,{\ly-3}) {step};
+  \node[pd title,anchor=north west] at (13,{\ly-3}) {settles};
+  \draw[pd hairline] (0,{\ly-10.5}) -- (82,{\ly-10.5});
+  \foreach \i/\n/\s in {%
+    0/1/{WAL inserts (k, A): the first row written, the linearization point},
+    1/2/{WAL inserts (k, B): \textsc{UniqueViolation}, the key is already taken},
+    2/3/{A's acquire returns; the lifeline now holds the claim},
+    3/4/{B's catch runs \texttt{SELECT holder}: returns \textbf{A}}}{
+      \node[pd badge] at (2,{\ly-12.5-\i*6.5}) {\n};
+      \node[pd label,anchor=west,align=left] at (5.5,{\ly-12.5-\i*6.5}) {\s};}
+  \node[pd note,anchor=north west,text width=82mm] at (0,{\ly-12.5-4*6.5-1})
+    {that \texttt{SELECT} is where the loser learns the winner's name};
 \end{tikzpicture}
 \end{center}
 \par\smallskip
