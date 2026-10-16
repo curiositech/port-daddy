@@ -484,5 +484,17 @@
     "original": "\\emph{Reputation is Amortized Verification: Inspection Games for\nAgent Economies.} Paper~3 of the Port Daddy Harbor research program, 2026. (The\ncompanion technical paper: proves the bonded-inspection stage-game threshold\n$\\rho^\\star = G/(dB)$, its confiscation-convention fork\n$\\rho^\\star_c = G/(d(G{+}B))$, and the audit-tower contraction under sealed\nmulti-clique sampling.)",
     "margin": "\\emph{Reputation is Amortized Verification: Inspection Games for Agent Economies}. Port Daddy Harbor research program, companion paper~3, 2026.",
     "reason": "Retain complete title, source identity and year; compact author/venue metadata and omit repeated explanatory commentary."
+  },
+  {
+    "key": "kleppmann2016locking",
+    "original": "Martin Kleppmann.\n\\newblock How to do distributed locking.\n\\newblock \\textit{martin.kleppmann.com}, February 2016; folded into \\textit{Designing Data-Intensive Applications}, O'Reilly, 2017.",
+    "margin": "Kleppmann 2016. \\emph{How to do distributed locking}.",
+    "reason": "Six consecutive cited items in chapter 0, and Figure 1.5's caption with two citations and an evidence block in chapter 1, put more margin content on one page than it holds once the figures were redrawn; author-date and complete title beside the text, full metadata remains in the bibliography."
+  },
+  {
+    "key": "burrows2006chubby",
+    "original": "Mike Burrows.\n\\newblock The Chubby Lock Service for Loosely-Coupled Distributed Systems.\n\\newblock In \\textit{Symposium on Operating Systems Design and Implementation (OSDI)}, 2006.",
+    "margin": "Burrows 2006. \\emph{The Chubby Lock Service for Loosely-Coupled Distributed Systems}.",
+    "reason": "Six consecutive cited items in chapter 0, and Figure 1.5's caption with two citations and an evidence block in chapter 1, put more margin content on one page than it holds once the figures were redrawn; author-date and complete title beside the text, full metadata remains in the bibliography."
   }
 ]
