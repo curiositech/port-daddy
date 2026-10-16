@@ -1,11 +1,15 @@
 % Swiss edition overrides (v2 role names): shared Book labels, disciplined colour,
 % strong rules, right angles, and square marks. Swiss is not allowed to mean
 % ``flat solid rectangles'': hierarchy also travels through white surface,
-% pale surface, outline, hatch, and stroke weight. Solid colour is therefore
-% reserved for a climax state, a breach/refusal, or a terminal state. Ordinary
-% states keep a visible edge; focus states use a pale field and a strong edge;
-% artifacts stay white; hatching remains hatching. This gives the edition the
-% same expressive range as maritime and technical without spending extra hue.
+% pale surface, outline, hatch, and stroke weight. No state, node or box is a
+% solid block of colour (2026-10-16, author's ruling: a filled slab fixes no
+% minimal-ink principle). A climax state is the focus state with the heaviest
+% edge; a breach/refusal is a dashed hue edge with hue text on the page; a
+% terminal state is a double edge; the automaton subject is a pale disc with a
+% strong edge. Ordinary states keep a visible edge; focus states use a pale
+% field and a strong edge; artifacts stay white; hatching remains hatching.
+% Solid colour survives only in marks small enough to be a glyph: badges,
+% data points, and the knockout band.
 % Loaded by
 % pd-figure-language.tex before its concept map expands.
 %
@@ -30,7 +34,8 @@
   pd thin arrow/.append style={draw=pdink!70,line width=.8pt},
   pd state/.append style={draw=pdink!72,line width=.8pt,fill=pdinkmuted!7,rounded corners=0pt,
     inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
-  pd terminal/.append style={fill=pdink,text=pdpage,font=\pdfiglabelbold},
+  pd terminal/.append style={fill=pdpage,draw=pdink,line width=.9pt,double,double distance=1.4pt,
+    text=pdink,font=\pdfiglabelbold},
   pd artifact/.append style={draw=pdinkmuted!62,line width=.6pt,fill=pdpage,rounded corners=0pt},
   pd panel/.append style={draw=pdink!78,line width=.8pt,
     dash pattern=on 5pt off 2.5pt,rounded corners=0pt},
@@ -43,8 +48,8 @@
   pd focus rule/.append style={line width=2pt},
   pd focus state/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!14,
     text=pdink,font=\pdfiglabelbold},
-  pd climax state/.append style={draw=pdfocus,line width=2pt,fill=pdfocus,
-    text=pdpage,font=\pdfiglabelbold},
+  pd climax state/.append style={draw=pdfocus,line width=2pt,fill=pdfocus!14,
+    text=pdink,font=\pdfiglabelbold},
   pd focus fill/.append style={fill=pdfocus!12,draw=pdfocus,line width=.8pt},
   pd focus datum/.append style={circle,draw=none,inner sep=2.7pt},
   pd datum/.append style={rectangle,draw=none,inner sep=2.3pt},
@@ -58,7 +63,8 @@
 % them all white made Swiss less expressive than maritime and technical and
 % forced the outline alone to do every job.  The tint is deliberately lighter
 % than a focus state: concept membership is visible, but the chapter's subject
-% still owns the strongest field.  Breach remains the categorical exception.
+% still owns the strongest field.  Breach is a dashed hue edge with hue text:
+% the dash doubles the hue, and no refusal is ever a red slab.
 \renewcommand{\pdconcept}[2]{%
   \tikzset{%
     #1/.style={draw=#2,text=pdink},
@@ -70,7 +76,8 @@
   }%
   \def\pdcmpa{#2}\def\pdcmpb{pderror}%
   \ifx\pdcmpa\pdcmpb
-    \tikzset{#1 state/.style={pd state,draw=none,fill=#2,text=pdpage,font=\pdfiglabelbold}}%
+    \tikzset{#1 state/.style={pd state,fill=pdpage,draw=#2,line width=1.2pt,dash pattern=on 3pt off 2pt,
+      text=#2!85!pdink,font=\pdfiglabelbold}}%
   \else
     \tikzset{#1 state/.style={pd state,fill=#2!10,draw=#2,line width=1.2pt,text=pdink,font=\pdfiglabelbold}}%
   \fi}
@@ -82,9 +89,10 @@
   pd series/.append style={mark=square*},
   pd focus series/.append style={line width=2pt,mark=square*},
 }
-% Automata keep their circles in every edition; Swiss fills the subject solid.
+% Automata keep their circles in every edition; the Swiss subject is a pale disc
+% with the strongest edge, never a solid one.
 \tikzset{
-  pd automaton focus/.append style={draw=none,fill=pdfocus,text=pdpage,
+  pd automaton focus/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!14,text=pdink,
     font=\pdfiglabelbold},
   pd trust boundary/.append style={line width=1pt},
 }
