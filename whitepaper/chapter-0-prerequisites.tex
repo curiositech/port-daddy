@@ -184,7 +184,7 @@ Rules can be enforced before an act only when the system controls the unbypassab
 
 To guarantee mutual exclusion and crash resilience, all local mutations across shared repositories, lock registries, and port assignments must funnel through one serial write authority: an append-only write-ahead log (WAL) operating in SQLite. By serializing parallel mutation requests into a single monotonically ordered causal sequence, the kernel guarantees strict serializability ($t_1 \prec t_2 \prec t_3$) and crash-stop consistency. Semantic failures that no gate can decide remain matters of detection and remedy, but physical race conditions are prevented structurally at the effect boundary.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop1-funnel.tex}%
   }
@@ -198,7 +198,7 @@ In classical security engineering, authority must obey Saltzer and Schroeder's f
 
 Under the Anchor Protocol, every child capability is a strict, verifiable subset of its parent's authority and validity lifetime ($C_0 \supset C_1 \supset C_2$ and $T_0 > T_1 > T_2$). Authentication proves who signed the credential; attenuation specifies what the signature is permitted to authorize. Chained cryptographic capability tokens (such as macaroons~\pdcite{birgisson2014macaroons} and Harbor Cards) enforce monotonic restriction at every delegation hop: an intermediate delegate cannot widen permissions, extend deadlines, or remove sandbox constraints when dispatching subordinate workers.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop2-attenuation.tex}%
   }
@@ -216,7 +216,7 @@ In multi-tenant, multi-principal systems, mutual distrust is the necessary defau
 
 Confinement must therefore be an invariant of the room itself, enforced by the operating system kernel (macOS Seatbelt, Linux Landlock and Bubblewrap). The sealed harbor severs all ambient network sockets and shared disk access, leaving a single, strictly metered egress slot: silence except through the slot, an unbypassable gate on the only enforceable boundary, a conserved spend budget that fails closed, and synthetic canary tokens planted to detect and prove any covert side-channel data exfiltration. What the room cannot promise is stated as an explicit boundary, at the same prominence as the claims.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop3-confinement.tex}%
   }
@@ -234,7 +234,7 @@ Human oversight is constrained by fundamental cognitive and information-theoreti
 
 Yet naive LLM-generated summaries are actively dangerous: they hallucinate away subtle test failures, sanitize errors, and declare false victories. A digest cannot guarantee that a supervisor will notice any one of many relevant events unless it expends sufficient bits and attention to distinguish them. In an accountable architecture, a summary is therefore an index into evidence, not a substitute for it. The supervisory dashboard presents low-entropy summaries backed by cryptographic pointers directly into the underlying Merkle event log, allowing instant drilling down from high-level status to raw syscall traces.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop4-supervision.tex}%
   }
@@ -248,7 +248,7 @@ Operating system processes are inherently mortal: they can be terminated by out-
 
 An Agent Operating Kernel decouples ephemeral execution bodies from durable agent personas. A task acquires a durable cryptographic principal (Ed25519 keypair), an append-only capability history, a Merkle-backed evidence record, active normative obligations, and ultimate liability for physical outcomes. Restarting a crashed process or leasing a fresh container does not wipe the case file clean or replenish consumed token budgets: the durable persona resumes execution from the exact checkpoint recorded in the persistent ledger.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop5-identity.tex}%
   }
@@ -266,7 +266,7 @@ When autonomous agents trade compute, task assignments, and data access, economi
 
 A trustworthy harbor economy strictly separates four distinct coordination instruments: (1)~\textbf{Payment}, which compensates delivered labor; (2)~\textbf{Collateral}, which bonds and prices bounded failure; (3)~\textbf{Evidence}, which provides cryptographic proof of task completion; and (4)~\textbf{Settlement}, which atomically and irrevocably closes obligations. Combining these functions into a single score undermines trust and invites strategic manipulation; separating them guarantees that claims can be audited independently of the currencies used to clear them.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-spark-prop6-instruments.tex}%
   }
@@ -280,7 +280,7 @@ In complex software engineering, deterministic formal verification cannot decide
 
 Some harms cannot be prevented upfront, and some outcomes cannot be judged purely by mechanical test suites. To govern this irreducible uncertainty, the kernel constructs institutional procedures: bonded stake deposits, randomized spot audits by independent witness verifiers, neutral contestation and appeal arbitration, and strict conservation rules. By turning uncertainty into an inspectable, contested process backed by financial slashing, the commons deters defection while providing due process for false positives.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop7-bonded.jpg}%
   }
@@ -298,7 +298,7 @@ When autonomous fleets scale across distinct physical workstations, cloud tenanc
 
 Cross-machine federation must therefore exchange cryptographically verifiable evidence rather than shared state. Mutually distrustful hosts communicate across untrusted zero-trust relays, exchanging signed capability attestations, revocation gossips, Merkle inclusion proofs, and settlement receipts without sharing a database. Transport carries non-repudiable evidence; the receiving host's local kernel retains complete sovereignty over whether to admit, execute, or reject the requested operation.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \includegraphics[width=\pdfullwidth]{figures/fig-spark-prop8-federation.jpg}%
   }
@@ -441,7 +441,7 @@ When an action $a$ in plan $p$ fails during host execution, AgentSpeak semantics
 
 Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architecture, illustrating how autonomous systems select between reactive rules, static classical planning, and dynamic BDI execution.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-bdi-execution.tex}%
   }
@@ -500,7 +500,7 @@ When multiple agents deliberate and execute concurrently on a developer's workst
 
 Figure~\ref{fig:actor-concurrency} details the dual concurrency architecture: Hewitt--Agha virtual actor isolation for stochastic deliberation, and Hoare's Communicating Sequential Processes (CSP) synchronous rendezvous for physical state mutations.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-concurrency-actors-csp.tex}%
   }
@@ -556,7 +556,7 @@ In a developer's autonomous coding environment, speech acts are not abstract phi
 \label{tab:fipa-performatives}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-fipa-speech-acts.tex}%
   }
@@ -590,7 +590,7 @@ Reid G. Smith's (1980) \textbf{Contract Net Protocol (CNP)}~\pdcite{smith1980cnp
   \item \textbf{Execution, Interim Streaming, and Settlement:}\enspace The contractor checks out an isolated worktree branch, streams structured progress deltas, commits the diff, runs verification tests, and submits cryptographic execution receipts to unlock escrow payment.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-cnp-protocol.tex}%
   }
@@ -652,7 +652,7 @@ Public Announcement Logic (PAL) models communication as epistemic model restrict
 
 Charrier et al.~\pdcite{charrier2014bigbrother} developed \textbf{Big Brother Logic (BBL)}, formalizing epistemic reasoning over embodied agents equipped with directed observation cones (vision sets $V(a)$). If agent $a_1$ observes agent $a_2$ ($a_2 \in V(a_1)$), $a_1$ knows what $a_2$ observes, yielding $K_{a_1} K_{a_2}(\phi)$. By inverting verification into a planning problem, BBL proves that multi-agent systems can achieve target epistemic goals $\Phi$ by autonomously reconfiguring observation cones and network routes.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-bbl-vision-cones.tex}%
   }
@@ -731,7 +731,7 @@ If $|A| \ge 3$, any Social Welfare Function $F: \mathcal{L}(A)^n \to \mathcal{L}
 is necessarily a \textbf{Dictatorship (D)}: $\exists i \in N$ such that $\forall x, y \in A, \; x \succ_i y \implies x \succ y$.
 \end{theorem}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-arrows-consensus.tex}%
   }
@@ -997,7 +997,7 @@ A major vulnerability of early tool-use architectures was schema bloat: injectin
   \item \textbf{Tier 3 (Deep Reference and Subprocess Execution):} Beneath the instruction manual lies the deepest architectural layer: specialized executable scripts (\path{scripts/}), schemas, and large reference manuals (\path{references/}), spanning $10^4$--$10^5$ tokens. Crucially, the agent \emph{does not load Tier~3 assets into its language context}. Instead, Tier~2 instructs the agent to execute Tier~3 scripts in an isolated host subshell or query specific byte offsets on demand. Because invoking a specialized script or deep reference is needed only for esoteric domain edge-cases, its execution probability is orders of magnitude lower ($P \approx 10^{-3}$ to $10^{-4}$).
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-progressive-skills.tex}%
   }
@@ -1036,7 +1036,7 @@ Figure~\ref{fig:lifecycle-hooks-engines} formalizes the complete cross-section o
   \item \textbf{The Inner Agentic Tool Loop:} Governs the iterative reasoning-action cycle: pre-tool interception and deterministic vetoes (\texttt{PreToolUse}), sandboxed execution, and reactive post-tool sanitization (\texttt{PostToolUse}).
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-lifecycle-hooks.tex}%
   }
@@ -1129,7 +1129,7 @@ To eliminate race conditions across concurrent workers, an operating kernel enfo
   \item \textbf{Confidential Local LLM Sandboxing:} Untrusted or external subagents execute in confined environments with stripped environment variables (scrubbing master API tokens, SSH keys, and cloud credentials), communicating strictly across local domain sockets under seatbelt confinement.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-wonham-supervisory.tex}%
   }
@@ -1151,7 +1151,7 @@ The kernel implements a \textbf{Zombie Salvage Protocol}:
 
 Figure~\ref{fig:pre-agent-loop} illustrates the closed agentic loop, stratified into three architectural tiers: the probabilistic Deliberation Layer, the confined Execution Layer, and the deterministic Governance Layer.
 
-\begin{figure}[htbp]
+\begin{figure}[tp]
   \pdpagecentered[\pdfullwidth]{%
     \input{figures/fig-ch0-closed-loop-diagram.tex}%
   }
