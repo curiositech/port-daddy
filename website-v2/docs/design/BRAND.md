@@ -191,9 +191,8 @@ truth to a market of trusted persons.
 Contrast asks whether an ink can be read **on** a ground. It cannot answer
 whether two inks can be told **apart** — two colours of identical luminance
 have a contrast ratio of 1.00 against each other and may be a perfectly legible
-pair, or an invisible one. A categorical palette exists to tell series apart, so
-that is measured separately, by
-`node website-v2/scripts/check-figure-palette-separation.mjs` (required in CI).
+pair, or an invisible one. Pairwise separation is measured by `python3 scripts/harbor-research/palette_check.py`
+(with token parity verified by `node website-v2/scripts/check-figure-palette.mjs`, required in CI).
 
 The metric is OKLab ΔE×100, with protanopia and deuteranopia simulated
 (Machado–Oliveira–Fernandes 2009, severity 1.0, in linear RGB). Floors: a

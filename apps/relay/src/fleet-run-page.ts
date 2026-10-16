@@ -144,7 +144,7 @@ const PAGE_CSS = `
   --surface-base:#f2eee6;--surface-raised:#f7f3eb;--surface-strong:#e9e2d5;
   --text-primary:#121212;--text-secondary:#403b34;--text-muted:#47423a;--text-ghost:#98928a;
   --cobalt:#003fb8;--teal:#006b5f;--health:#1f7a4d;--amber:#a66f00;--error:#bf2f2f;
-  --violet:#933fa5;--rust:#7a4514;--gold:#666a00;
+  --violet:#822586;--rust:#7a4514;--gold:#666a00;
   --hair:rgba(18,18,18,.14);--hair-strong:rgba(18,18,18,.34);--border-strong:#121212;
   --surface-card:#e9e2d5;--on-accent:#fbf7ef;}
 :root{--cobalt-slab:#003fb8;--lime:#cad900;--cream:#fbf7ef;--ink:#17191d;--flag-white:#fbf7ef;

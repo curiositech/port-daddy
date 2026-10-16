@@ -97,8 +97,8 @@ public enum PD {
         /// Amber is not a text colour on cream (3.71:1). Text uses this cut.
         public static let amberOnTint = dyn(0x5b3900, 0xffe0a0)
         public static let error  = dyn(0xbf2f2f, 0xff7d7d)
-        public static let indigo = dyn(0x353a85, 0x8a8af8)   // protocol / federation
-        public static let violet = dyn(0x933fa5, 0xe0a5ed)   // identity / continuity
+        public static let indigo = dyn(0x312865, 0x8a8af8)   // protocol / federation
+        public static let violet = dyn(0x822586, 0xe0a5ed)   // identity / continuity
         public static let rust   = dyn(0x7a4514, 0xb98e6b)   // reputation / Elo
         /// Economy / value — the money colour, its own token (not amber).
         public static let gold   = dyn(0x666a00, 0xd8dd3c)
