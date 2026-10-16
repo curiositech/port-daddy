@@ -58,8 +58,8 @@ const ALLOWED_HEX = new Set([
   // Amber is stripes/dots/display only (3.71:1); violet and gold are AA as text.
   '006B5F', // pdteal    — legibility               --brand-accent
   '1F7A4D', // pdhealth  — ready / coordinated      --story-health
-  '353A85', // pdindigo  — protocol / federation    --story-indigo
-  '933FA5', // pdviolet  — identity / continuity    --story-violet
+  '312865', // pdindigo  — protocol / federation    --story-indigo
+  '822586', // pdviolet  — identity / continuity    --story-violet
   '7A4514', // pdrust    — reputation               --story-rust
   '666A00', // pdgold    — economy / value          --story-gold
   '384856', // pdslate   — foundation / bedrock     --story-slate

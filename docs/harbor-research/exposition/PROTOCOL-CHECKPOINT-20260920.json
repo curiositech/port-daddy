@@ -397,13 +397,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-palette.tex",
-      "sha256": "c86c325ea896aec44a6f3a93ace269151f9595180542507bec5d04624af2de33",
-      "bytes": 2493
+      "sha256": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
+      "bytes": 3326
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-pedagogy.tex",
-      "sha256": "ed558776c8eb3999a6a71295f66f57eef91b0434ddc55b312138151cc4231799",
-      "bytes": 79581
+      "sha256": "72fe5d008b7f9e09d30d4255c96a057dada08ff334961523b27f31defa0073f8",
+      "bytes": 79860
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",

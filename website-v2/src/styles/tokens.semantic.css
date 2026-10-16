@@ -61,9 +61,13 @@
      product's story*. Each rounds out the wheel into a harmonious set anchored
      on cobalt #003fb8 (kernel/truth), teal #006b5f (legibility), and danger
      #bf2f2f (breach). See docs/design/BRAND.md. Palette v2 (design-preview/
-     proposal.html): indigo, violet and rust re-derived so every semantic pair
-     is CIEDE2000-separated (indigo↔violet 19.1 light / 19.3 dark), and gold
-     minted so the economy stops borrowing the warning token.
+     proposal.html): indigo, violet and rust re-derived so the semantic pairs
+     separate, and gold minted so the economy stops borrowing the warning token.
+     (That re-derivation was stated in CIEDE2000, which nothing in this repo
+     computes; the numbers below are OKLab ΔE×100, which the separation guard
+     does compute — indigo↔violet is 17.0 light / 15.5 dark. The dark theme is
+     NOT yet gated: it has four pairs under the floor of its own, including
+     accent↔health at 5.3. See the separation guard's header.)
 
        cobalt   L0  kernel / truth        (existing --brand-primary)
        teal     L2  legibility            (existing --brand-accent)
@@ -77,18 +81,39 @@
 
      One analogous-warm arc (danger→rust→amber→gold→lime) and one analogous-cool
      arc (health→teal→cobalt→indigo→violet). Light values are AA+ on cream as
-     text (indigo 8.66, rust 6.75, violet 5.19, gold 5.00 on --surface-base) and
+     text (indigo 11.19, rust 6.75, violet 7.09, gold 5.00 on --surface-base) and
      as cream-text fills (≥5.42); the *-on-tint cuts are ≥6.6 on tinted wells.
      The Book's TeX palette (figures/pd-palette.tex) mirrors these light values;
-     website-v2/scripts/check-figure-palette.mjs keeps the two in lockstep. */
+     website-v2/scripts/check-figure-palette.mjs keeps the two in lockstep.
+
+     SEPARATION, which contrast does not measure. Being readable ON the cream is
+     not the same as being tellable APART, and this palette was only ever checked
+     for the first. check-figure-palette-separation.mjs now measures all 21 pairs
+     in OKLab with protanopia and deuteranopia simulated (Machado 2009, severity
+     1.0). Indigo and violet are re-stepped here because they were the two pairs
+     with room to move: cobalt↔indigo was ΔE 9.1 (now 15.1) and cobalt↔violet
+     collapsed to 4.8 under protanopia (now 8.6). Both moved along their own hue
+     and both GAINED contrast, so nothing was traded for saturation.
+
+     What could NOT be fixed: teal↔health (ceiling 12.2), gold↔health (13.9) and
+     teal↔gold (14.3) cannot reach the floor of 15 by any re-stepping that keeps
+     their meanings on their own hues. sRGB has almost no chroma to spend on the
+     112°–182° arc at a lightness dark enough to set as text on cream — the teal
+     ramp cannot reach chroma 0.10 at 4.5:1 there at all. Only ONE of gold,
+     health and teal can be a categorical series colour; the other two need a
+     second encoding. The separation guard records this rather than hiding it. */
   --story-health: #1f7a4d;          /* L1 ready/healthy — sage green */
   --story-health-on-tint: #155534;  /* on tinted wells (≥6.8) */
   --story-health-foreground: #fbf7ef;
-  --story-indigo: #353a85;          /* L1→L3 protocol/federation */
-  --story-indigo-on-tint: #262a63;
+  --story-indigo: #312865;          /* L1→L3 protocol/federation — re-stepped deeper
+                                       so it separates from cobalt: OKLab ΔE 15.1
+                                       normal / 14.7 worst CVD, was 9.1 / 8.4 */
+  --story-indigo-on-tint: #201948;
   --story-indigo-foreground: #fbf7ef;
-  --story-violet: #933fa5;          /* L3 identity/continuity — the person */
-  --story-violet-on-tint: #6b2e79;
+  --story-violet: #822586;          /* L3 identity/continuity — the person; re-stepped
+                                       darker to clear cobalt under protanopia:
+                                       ΔE 8.6, was 4.8 (a full collapse) */
+  --story-violet-on-tint: #5d0b61;
   --story-violet-foreground: #fbf7ef;
   --story-rust: #7a4514;            /* L3 reputation/Elo — trust earned */
   --story-rust-on-tint: #5a3210;
