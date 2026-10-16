@@ -22,7 +22,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 PUB = Path("website-v2/public/whitepaper")
 PREAMBLE = PUB / "coordination-papers-mega-volume-preamble.tex"
-HELPER_SHA = "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd"
+HELPER_SHA = "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1"
 BLOCK_INKS = {'Proof': 'B33F35', 'Property': '7048A5', 'Hypothesis': '427A26', 'Calculation': '946000', 'Invariant': '233A76', 'Definition': '3D454B', 'Checked': '006EA0', 'Protocol': '007D73', 'Neutral': '363B40'}
 ICONS = ("book-open", "calculator", "file-text", "flask-conical", "key-round",
          "list-checks", "lock-keyhole", "scroll-text", "workflow")

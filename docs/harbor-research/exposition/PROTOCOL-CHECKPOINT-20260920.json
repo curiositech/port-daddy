@@ -3,7 +3,7 @@
   "scope": "Option A: protocol-only palette/perimeter descendant; renewed owner fixture review pending; steward owns publication",
   "base_commit": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
   "branch": "codex/book-protocol-checkpoint-20260920",
-  "helper_freeze_sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+  "helper_freeze_sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
   "upstream_icons": {
     "repository": "https://github.com/lucide-icons/lucide",
     "commit": "951813ce76a859d4d8b145366972cbb237147a4e",
@@ -57,14 +57,14 @@
     },
     {
       "path": "tests/harbor-research/test_protocol_style.py",
-      "sha256": "54cce80d559b1d634c8a3c20b9fba7e0314f3212e531652d1e80a3986dc76269",
+      "sha256": "646fe37123ca76bb22bf35cb60b2a6e6ee5d0188e7974520a297d3464d9eb331",
       "bytes": 27366,
       "change": "new"
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "a178bec01197ad8c6bb9cbdf3d91b09115b2fdacd2c2025f2f56d22165c06b00",
-      "bytes": 63938,
+      "sha256": "611bdffff6a09ebe52e129c540d376614f1787768c77417199b56d7d0c32fee3",
+      "bytes": 64246,
       "change": "modified"
     },
     {
@@ -201,8 +201,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
-      "bytes": 3944,
+      "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
+      "bytes": 4192,
       "change": "new"
     },
     {
@@ -339,8 +339,8 @@
     },
     {
       "path": "whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
-      "bytes": 3944,
+      "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
+      "bytes": 4192,
       "change": "new"
     }
   ],
@@ -357,8 +357,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "a178bec01197ad8c6bb9cbdf3d91b09115b2fdacd2c2025f2f56d22165c06b00",
-      "bytes": 63938
+      "sha256": "611bdffff6a09ebe52e129c540d376614f1787768c77417199b56d7d0c32fee3",
+      "bytes": 64246
     },
     {
       "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
@@ -382,8 +382,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex",
-      "sha256": "01ac103f000102e0d90acb325a9570d7ab6de8ef1f47f7f8a4fa2a3fd11f0313",
-      "bytes": 4941
+      "sha256": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
+      "bytes": 5457
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-figure-language.tex",
@@ -402,13 +402,13 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-pedagogy.tex",
-      "sha256": "44c5a7cc5625144be74bae1401cf0dede019eace44bd05c6ff87b7bd702c41e3",
-      "bytes": 79860
+      "sha256": "6becb14b631e7040f0e5a6165589e5f25bacdf164ef4e393f6c5df81ee40db1a",
+      "bytes": 80092
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
-      "bytes": 3944
+      "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
+      "bytes": 4192
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
