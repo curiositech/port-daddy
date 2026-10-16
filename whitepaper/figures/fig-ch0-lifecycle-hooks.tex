@@ -1,220 +1,97 @@
-% fig-ch0-lifecycle-hooks.tex
-% The Agent Lifecycle Hook Cross-Section
-% 100% native vector Swiss TikZ spatial replica of the AI-generated diagram prototype.
-
-\input{figures/pd-robot-glyphs.tex}
+% fig-ch0-lifecycle-hooks.tex -- redrawn to the house figure language (v2).
+% Reader question: where in a turn does each hook fire, and which loop owns
+% it?
+% Claim: the outer Session/Turn loop (SessionStart, UserPromptSubmit,
+% PreCompact, Stop, SessionEnd) wraps one turn's execution; within a turn,
+% the inner Agentic Tool Loop (PreToolUse, sandboxed execution, PostToolUse)
+% runs once per tool call and exits back out through Stop. PreToolUse is the
+% one hook with veto power (a forced push to a protected branch is blocked
+% before the syscall fires, exit code 2); PostToolUse may roll back an
+% unleased mutation after the fact.
+% Grammar chosen: two nested cycles on vertical spines (tpl-state-machine.tex's
+% guarded-transition grammar, closed into a loop as in
+% fig-ch0-bdi-execution.tex): the outer loop's spine on the left, the inner
+% tool loop nested inside a dashed boundary on the right, with the inner
+% loop's exit edge carrying the Stop hook back onto the outer spine.
+% Rejected: the four-boundary-box, icon-laden cross-section this fragment
+% used to be (a robot typing at a laptop, a shield padlock, a speedometer
+% gauge, a broom with sparkles, three callout cards with code snippets) --
+% none of those drawings distinguishes a hook from an icon of one, and the
+% figure's actual claim (two nested cycles, five named interception points)
+% needs a state machine, not an illustration.
+% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Lifecycle Hooks and
+% Supervisory Control" and Sec. "Case Studies in Lifecycle Hook Enforcement"
+% (the hook names and the three worked cases this figure's legend echoes
+% instead of re-drawing).
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \tikzset{
-    loopboundary/.style={draw=pdcobalt!80,line width=1.1pt,dashed,dash pattern=on 5pt off 4pt,fill=hhpaper!25,rounded corners=8pt},
-    innerboundary/.style={draw=pdcobalt!60,line width=0.85pt,dashed,dash pattern=on 4pt off 3pt,fill=white,rounded corners=6pt},
-    casenode/.style={draw=pdslate!30,line width=0.75pt,fill=white,rounded corners=6pt}
-  }
-
-  % Explicit outer canvas bounding box
-  \path (0.2, -0.2) rectangle (16.5, 7.7);
-
-  % =========================================================================
-  % LEFT: AGENT INTERACTION LOOP CONTAINER (x in [0.35, 11.0], y in [0.75, 7.5])
-  % =========================================================================
-  \draw[loopboundary] (0.35, 0.75) rectangle (11.0, 7.5);
-  \node[fill=white,draw=pdcobalt!40,line width=0.5pt,inner xsep=9pt,inner ysep=2.8pt,rounded corners=3pt,font=\fontsize{8.5}{10.0}\selectfont\bfseries\color{hhink}] at (5.7, 7.5) {%
-    Agent Interaction Loop%
-  };
-
-  % --- Inflow: SessionStart -> UserPromptSubmit -> Deliberation Robot ---
-  % SessionStart
-  \node[font=\fontsize{7.8}{9.2}\selectfont\bfseries\color{hhink}] (sess_start) at (1.30, 6.6) {SessionStart};
-
-  % UserPromptSubmit
-  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] (prompt_sub) at (1.30, 5.20) {UserPromptSubmit};
-  \draw[pd arrow,line width=1.0pt,hhink] (sess_start) -- (prompt_sub);
-
-  % Smooth curved arrow from SessionStart into Top Deliberation Node
-  \draw[pd arrow,line width=1.0pt,hhink] (2.10, 6.6) -- (4.3, 6.6) to[out=0,in=90] (5.7, 6.22);
-
-  % Deliberation Robot Typing at Laptop with Prompt Terminal
-  \begin{scope}[shift={(1.30, 3.25)}]
-    \pdrobotlaptop[1.10]{(0, 0)}{pdcobalt}
-    % Terminal screen next to laptop
-    \draw[fill=pdslate!95!black,draw=pdslate!70,line width=0.45pt,rounded corners=1.5pt] (-1.12, -0.32) rectangle (-0.52, 0.44);
-    \node[font=\fontsize{7.8}{9.0}\selectfont\bfseries\color{pdhealth}] at (-0.82, 0.22) {\texttt{>\_}};
-    \draw[line width=0.55pt,pderror] (-1.02, 0.02) -- (-0.62, 0.02);
-    \draw[line width=0.55pt,pdteal] (-1.02, -0.12) -- (-0.72, -0.12);
-    \node[anchor=north,font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink},align=center] at (0, -0.82) {%
-      Agent\\Deliberation%
-    };
-  \end{scope}
-
-  \draw[pd arrow,line width=1.0pt,hhink] (prompt_sub) -- (1.30, 4.25);
-
-  % Clean horizontal arrow from Typing Robot / Screen into PreToolUse Security Gate
-  \draw[pd arrow,line width=1.0pt,hhink] (2.15, 3.25) -- (3.65, 3.25);
-
-  % =========================================================================
-  % INNER TOOL LOOP: CIRCULAR 4-NODE RING (x in [3.2, 9.9], y in [0.95, 6.65])
-  % =========================================================================
-  \draw[innerboundary] (3.2, 0.95) rectangle (9.9, 6.65);
-  \node[fill=white,draw=pdcobalt!40,line width=0.5pt,inner xsep=7pt,inner ysep=2.2pt,rounded corners=2.5pt,font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{hhink}] at (6.55, 0.95) {%
-    Inner Tool Loop%
-  };
-
-  % --- NODE 1 (TOP): Agent Deliberation Card (x=6.55, y=5.75) ---
-  \begin{scope}[shift={(6.55, 5.75)}]
-    \draw[fill=white,draw=pdcobalt!90!black,line width=0.95pt,rounded corners=4pt] (-1.25, -0.44) rectangle (1.25, 0.44);
-    % Avatar / profile badge
-    \draw[fill=pdcobalt!15,draw=pdcobalt,line width=0.5pt,rounded corners=1.5pt] (0.52, -0.28) rectangle (1.06, 0.28);
-    \fill[pdcobalt] (0.79, 0.10) circle (0.08);
-    \fill[pdcobalt] (0.79, -0.16) ellipse (0.16 and 0.08);
-    % Text lines on card
-    \draw[line width=0.8pt,pdcobalt] (-1.12, 0.18) -- (0.36, 0.18);
-    \draw[line width=0.8pt,pdcobalt] (-1.12, 0.01) -- (0.36, 0.01);
-    \draw[line width=0.8pt,pdcobalt] (-1.12, -0.16) -- (0.08, -0.16);
-    \node[anchor=north,font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink},align=center] at (0, -0.48) {%
-      Agent\\Deliberation%
-    };
-  \end{scope}
-
-  % --- NODE 2 (RIGHT): Seatbelt Sandbox with Spend Cap (x=8.75, y=3.8) ---
-  \begin{scope}[shift={(8.75, 3.8)}]
-    \draw[fill=white,draw=pdslate!90!black,line width=0.95pt,rounded corners=4.5pt] (-0.85, -0.95) rectangle (0.85, 0.95);
-    % Spend cap label on top
-    \node[font=\fontsize{6.8}{8.0}\selectfont\bfseries\color{hhink}] at (0, 0.68) {Spend cap};
-    % Semicircular Speedometer Gauge
-    \begin{scope}[shift={(0, 0.24)}]
-      \fill[pdhealth] (-0.42, 0) arc (180:90:0.42) -- (0,0) -- cycle;
-      \fill[pdamber] (0, 0) arc (90:40:0.42) -- (0,0) -- cycle;
-      \fill[pderror] (40:0.42) arc (40:0:0.42) -- (0,0) -- cycle;
-      \fill[white] (-0.22, 0) arc (180:0:0.22) -- cycle;
-      \draw[line width=1.5pt,pderror,line cap=round] (0, 0) -- (0.28, 0.22);
-      \fill[pdslate!95!black] (0, 0) circle (0.06);
-    \end{scope}
-    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink},align=center] at (0, -0.54) {%
-      Seatbelt\\Sandbox%
-    };
-  \end{scope}
-
-  % --- NODE 3 (BOTTOM): PostToolUse Hygiene (x=6.55, y=1.95) ---
-  \begin{scope}[shift={(6.55, 1.95)}]
-    % Broom with handle, bristles, and sparkles
-    \draw[line width=1.6pt, pdrust!80!black, line cap=round] (-0.18, -0.14) -- (0.24, 0.28);
-    \draw[fill=pdteal!85!black, draw=pdteal!95!black, line width=0.5pt, rounded corners=1pt]
-      (-0.28, -0.24) -- (-0.12, -0.08) -- (-0.06, -0.14) -- (-0.22, -0.30) -- cycle;
-    \draw[line width=0.5pt, white] (-0.26, -0.22) -- (-0.20, -0.28);
-    \draw[line width=0.5pt, white] (-0.22, -0.18) -- (-0.16, -0.24);
-    \fill[pdamber!90!orange] (0.28, 0.14) circle (0.045);
-    \fill[pdteal] (0.10, 0.30) circle (0.035);
-    \fill[pdcobalt] (0.32, 0.30) circle (0.04);
-    \node[font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink},align=center] at (0, -0.42) {%
-      PostToolUse\\Hygiene%
-    };
-  \end{scope}
-
-  % --- NODE 4 (LEFT): PreToolUse Security Gate (x=4.45, y=3.8) ---
-  \begin{scope}[shift={(4.45, 3.8)}]
-    % Deep cobalt shield with crisp white padlock (identical to prototype)
-    \draw[fill=pdcobalt!90!black,draw=pdcobalt!95!black,line width=0.6pt,rounded corners=1.5pt]
-      (-0.36, 0.40) -- (0.36, 0.40) to[out=-25,in=90] (0.36, -0.05) to[out=-90,in=0] (0, -0.46) to[out=180,in=-90] (-0.36, -0.05) to[out=90,in=205] cycle;
-    % Shackle
-    \draw[line width=1.1pt, white] (-0.11, 0.08) -- (-0.11, 0.20) arc (180:0:0.11) -- (0.11, 0.08);
-    % Body
-    \draw[fill=white, draw=none, rounded corners=1pt] (-0.16, -0.16) rectangle (0.16, 0.08);
-    % Keyhole
-    \fill[pdcobalt!90!black] (0, 0.0) circle (0.035);
-    \draw[line width=0.7pt, pdcobalt!90!black] (0, 0.0) -- (0, -0.09);
-
-    \node[anchor=north,font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink},align=center] at (0, -0.52) {%
-      PreToolUse\\Security Gate%
-    };
-  \end{scope}
-
-  % --- CIRCULAR GREEN CYCLE ARROWS (Spacious, elegant, collision-free) ---
-  % Top -> Right: Agent Deliberation -> Seatbelt Sandbox (Exit 0)
-  \draw[pd arrow,line width=1.8pt,pdhealth] (7.80, 5.4) to[out=-15,in=110] (8.75, 4.85);
-  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{pdhealth}] at (8.5, 5.65) {(Exit 0)};
-
-  % Right -> Bottom: Seatbelt Sandbox -> PostToolUse Hygiene
-  \draw[pd arrow,line width=1.8pt,pdhealth] (8.75, 2.75) to[out=-90,in=0] (7.65, 1.95);
-
-  % Bottom -> Left: PostToolUse Hygiene -> PreToolUse Security Gate (Exit 0)
-  \draw[pd arrow,line width=1.8pt,pdhealth] (5.45, 1.95) to[out=180,in=-90] (4.45, 2.80);
-  % Placed cleanly in the lower-left open quadrant, completely collision-free
-  \node[font=\fontsize{7.5}{9.0}\selectfont\bfseries\color{pdhealth}] at (3.55, 1.65) {(Exit 0)};
-
-  % Left -> Top: PreToolUse Security Gate -> Agent Deliberation
-  \draw[pd arrow,line width=1.8pt,pdhealth] (4.45, 4.85) to[out=90,in=195] (5.30, 5.4);
-
-  % --- RED EXIT VETO BRANCHES TO STOP GATE ---
-  % Vertical red line down to Stop Gate (inside Agent Interaction Loop until exit at bottom)
-  \draw[line width=1.4pt,pderror] (7.80, 5.75) -- (10.45, 5.75) -- (10.45, 1.35);
-  \draw[pd arrow,line width=1.4pt,pderror] (10.45, 1.35) -- (10.45, 1.05);
-
-  % Clean orthogonal T-junction from Seatbelt Sandbox to vertical red line (Exit 2 Veto)
-  \draw[line width=1.4pt,pderror] (9.60, 3.8) -- (10.45, 3.8);
-  \node[fill=white,inner sep=1.8pt,rounded corners=1pt,font=\fontsize{7.0}{8.2}\selectfont\bfseries,text=pderror,align=center] at (10.0, 4.2) {(Exit 2\\Veto)};
-
-  % Stop Gate: Deep cobalt shield with crisp white padlock (x=10.45, y=0.55)
-  \begin{scope}[shift={(10.45, 0.55)}]
-    \draw[fill=pdcobalt!90!black,draw=pdcobalt!95!black,line width=0.6pt,rounded corners=1.5pt]
-      (-0.34, 0.38) -- (0.34, 0.38) to[out=-25,in=90] (0.34, -0.05) to[out=-90,in=0] (0, -0.44) to[out=180,in=-90] (-0.34, -0.05) to[out=90,in=205] cycle;
-    % Shackle
-    \draw[line width=1.1pt, white] (-0.10, 0.08) -- (-0.10, 0.19) arc (180:0:0.10) -- (0.10, 0.08);
-    % Body
-    \draw[fill=white, draw=none, rounded corners=1pt] (-0.15, -0.15) rectangle (0.15, 0.08);
-    % Keyhole
-    \fill[pdcobalt!90!black] (0, 0.0) circle (0.032);
-    \draw[line width=0.7pt, pdcobalt!90!black] (0, 0.0) -- (0, -0.08);
-
-    \node[anchor=north,font=\fontsize{7.2}{8.5}\selectfont\bfseries\color{hhink}] at (0, -0.48) {Stop Gate};
-  \end{scope}
-
-  % =========================================================================
-  % RIGHT: THREE CASE STUDY CALLOUT CARDS (Exact match to prototype)
-  % =========================================================================
-
-  % --- Case A: Pre-Tool Security Veto ---
-  \begin{scope}[shift={(11.6, 5.25)}]
-    \draw[casenode] (0, 0) rectangle (4.8, 2.10);
-    % Red Pill Badge
-    \node[fill=pderror!90!black,draw=none,rounded corners=3.5pt,inner xsep=15pt,inner ysep=3.0pt,text=white,font=\fontsize{8.5}{10.0}\selectfont\bfseries] at (2.4, 2.10) {Case A};
-    % Content
-    \node[anchor=north west,font=\fontsize{8.5}{9.8}\selectfont\bfseries\color{hhink}] at (0.35, 1.75) {%
-      Pre-Tool Security Veto:%
-    };
-    \node[anchor=north west,font=\fontsize{7.2}{8.5}\selectfont\color{hhink},text width=4.3cm] at (0.35, 1.28) {%
-      \texttt{Bash('git push -f origin main')}\\[3pt]
-      $\rightarrow$ \textbf{\textcolor{pderror}{Blocked (Exit 2)}}%
-    };
-  \end{scope}
-
-  % --- Case B: Reactive Code Hygiene ---
-  \begin{scope}[shift={(11.6, 2.80)}]
-    \draw[casenode] (0, 0) rectangle (4.8, 2.10);
-    % Green Pill Badge
-    \node[fill=pdhealth!90!black,draw=none,rounded corners=3.5pt,inner xsep=15pt,inner ysep=3.0pt,text=white,font=\fontsize{8.5}{10.0}\selectfont\bfseries] at (2.4, 2.10) {Case B};
-    % Content
-    \node[anchor=north west,font=\fontsize{8.5}{9.8}\selectfont\bfseries\color{hhink}] at (0.35, 1.75) {%
-      Reactive Code Hygiene:%
-    };
-    \node[anchor=north west,font=\fontsize{7.2}{8.5}\selectfont\color{hhink},text width=4.3cm] at (0.35, 1.28) {%
-      \texttt{Edit('jwt.ts')}\\[3pt]
-      $\rightarrow$ \textbf{\textcolor{pdhealth}{Biome Formatted (Exit 0)}}%
-    };
-  \end{scope}
-
-  % --- Case C: Closeout Test Gate ---
-  \begin{scope}[shift={(11.6, 0.35)}]
-    \draw[casenode] (0, 0) rectangle (4.8, 2.10);
-    % Amber Pill Badge
-    \node[fill=pdamber!95!black,draw=none,rounded corners=3.5pt,inner xsep=15pt,inner ysep=3.0pt,text=white,font=\fontsize{8.5}{10.0}\selectfont\bfseries] at (2.4, 2.10) {Case C};
-    % Content
-    \node[anchor=north west,font=\fontsize{8.5}{9.8}\selectfont\bfseries\color{hhink}] at (0.35, 1.75) {%
-      Closeout Test Gate:%
-    };
-    \node[anchor=north west,font=\fontsize{7.2}{8.5}\selectfont\color{hhink},text width=4.3cm] at (0.35, 1.28) {%
-      Stop hook runs tests $\rightarrow$ \textbf{\textcolor{pderror}{Failed}}\\[3pt]
-      $\rightarrow$ \textbf{\textcolor{pderror}{Repair Compelled}}%
-    };
-  \end{scope}
-
+  % ---- one grid, declared once --------------------------------------------
+  \def\dy{1.60}     % outer spine pitch
+  \def\sxO{4.00}    % outer spine column
+  \def\gxO{2.25}    % outer badge/label gutter (left of the spine)
+  \def\sxI{11.10}   % inner spine column
+  \def\pxA{7.45} \def\pxB{12.60}  % inner panel left/right edge
+  \def\pyA{1.30} \def\pyB{5.35}   % inner panel bottom/top edge
+  \def\R{13.50}     % legend rule width
+  % ---- the outer session/turn loop ----------------------------------------
+  \node[pd focus state,minimum width=2.75cm] (O1) at (\sxO,{3*\dy}) {prompt received};
+  \node[pd focus state,minimum width=2.75cm] (O2) at (\sxO,{2*\dy}) {turn executing};
+  \node[pd focus state,minimum width=2.75cm] (O3) at (\sxO,{1*\dy}) {turn verified};
+  \node[pd terminal,minimum width=2.75cm]    (O4) at (\sxO,0)       {session closed};
+  \draw[pd initial] (\sxO,5.70) -- (O1.north);
+  \node[pd label,anchor=south] at (\sxO,5.65) {SessionStart};
+  \draw[pd focus arrow] (O3.south) -- (O4.north);
+  \node[pd label,anchor=east] at (1.95,0.80) {SessionEnd};
+  \node[pd label,anchor=east] at (1.95,{2.5*\dy}) {UserPromptSubmit};
+  \node[pd badge] at (\gxO,{2.5*\dy}) {1};
+  \draw[pd focus arrow,pd to badge] (O1.south) -- (O2.north);
+  % the next-turn cycle, on the far left rail (as in fig-ch0-bdi-execution)
+  \draw[pd focus arrow,rounded corners=3pt]
+    (O3.west) -- (0.70,{1*\dy}) -- (0.70,{2*\dy}) -- (O2.west);
+  \node[pd focus label,rotate=90] at (0.40,{1.5*\dy}) {next turn};
+  % PreCompact: a subordinate checkpoint that resumes the same turn
+  \node[pd artifact,text width=1.35cm,align=center] (PC) at (6.45,{2.5*\dy}) {Pre\\Compact};
+  \draw[pd thin arrow,<->] (O2.north) -- (PC.south west);
+  \node[pd badge] at (4.70,3.95) {2};
+  % ---- the inner agentic tool loop (nested, dashed trust-style boundary) --
+  \draw[pd trust boundary] (\pxA,\pyA) rectangle (\pxB,\pyB);
+  \node[pd kind] at ({(\pxA+\pxB)/2},{\pyB-.35}) {inner agentic tool loop};
+  \node[pd focus state,minimum width=2.30cm] (I1) at (\sxI,2.60) {deliberate};
+  \node[pd focus state,minimum width=2.30cm] (I2) at (\sxI,4.10) {sandboxed};
+  \draw[pd focus arrow,shorten >=2pt,shorten <=2pt] (I1.north west) -- (I2.south west);
+  \draw[pd focus arrow,shorten >=2pt,shorten <=2pt] (I2.south east) -- (I1.north east);
+  \node[pd label,anchor=east] at (9.45,3.75) {PreToolUse};
+  \node[pd badge] at (9.75,3.75) {3};
+  \node[pd label,anchor=east] at (9.45,2.95) {PostToolUse};
+  \node[pd badge] at (9.75,2.95) {4};
+  % the one branch that leaves the honest path: a vetoed tool call
+  \node[pd breach state,minimum width=1.80cm] (BX) at (\sxI,-0.30) {blocked};
+  \draw[pd breach arrow] (I1.south) -- (BX.north);
+  \node[pd label,anchor=west,text=pderror] at (12.00,-0.30) {Exit 2};
+  % ---- entry and exit: the outer turn owns the inner loop's lifetime ------
+  \draw[pd thin arrow] (O2.east) -- (7.00,{2*\dy}) -- (7.00,2.60) -- (I1.west);
+  \draw[pd focus arrow,rounded corners=3pt]
+    (I1.east) -- (12.25,1.00) -- (5.375,1.00) -- (O3.east);
+  \node[pd label,anchor=south] at (8.50,1.35) {Stop};
+  \node[pd badge] at (8.50,1.00) {5};
+  % ---- the legend: each hook, which loop, what it does or vetoes ---------
+  \def\ly{-1.60}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {hook};
+  \node[pd title,anchor=north west] at (4.10,{\ly-.30}) {loop};
+  \node[pd title,anchor=north west] at (5.75,{\ly-.30}) {fires and may};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\h/\l/\s in {%
+    0/1/{\texttt{UserPromptSubmit}}/{outer}/{inject or reject context before deliberation begins},
+    1/2/{\texttt{PreCompact}}/{outer}/{preserves claims and locks, then resumes the same turn},
+    2/3/{\texttt{PreToolUse}}/{inner}/{vetoes a call before it runs (e.g.\ forced push to a protected branch)},
+    3/4/{\texttt{PostToolUse}}/{inner}/{sanitizes effects after; may roll back an unleased mutation},
+    4/5/{\texttt{Stop}}/{outer}/{verifies turn invariants; refuses completion until repaired}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*.90}) {\n};
+      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.90}) {\h};
+      \node[pd label,anchor=base west] at (4.10,{\ly-1.35-\i*.90}) {\l};
+      \node[pd label,anchor=base west,align=left,text width=7.4cm] at (5.75,{\ly-1.35-\i*.90}) {\s};}
+  \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-4*.90-.60})
+    {the next-turn rail and the inner loop's deliberate/sandboxed rail are the
+    two honest cycles; blocked (dashed, red) is the only way off either one.};
 \end{tikzpicture}
