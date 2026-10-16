@@ -1,24 +1,27 @@
-% Analytical sparkline: Epidemic gossip convergence F(r) = 1 / (1 + (m-1)e^{-k r}).
-% Fits inside the 93.95pt book margin column.
-% Source: ch2 §revocation, expected Theta(log m) rounds.
+% Margin sparkline: epidemic gossip convergence F(r) = 1 / (1 + (m-1)e^{-k r}).
+% Fits inside the 1.3in book margin column.
+% Reader question: how fast does a revocation reach every daemon in the mesh?
+% Claim: the informed fraction F(r) saturates to 1 within O(log m) rounds --
+%   at m=8, by round r=3 (log2 8), the mesh is already fully informed.
+% Source: ch2 Theorem (Conditional Gossip Expectation), Theta(log m) rounds.
 \begingroup\makeatletter
 \ifdefined\pd@typesetpicturebox
   \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
 \fi
-\begin{tikzpicture}[x=15pt,y=25pt,font=\fontsize{7}{8}\selectfont]
-  % Baseline and ceiling
-  \draw[pdinkmuted!45,line width=.35pt] (0,0) -- (4.0,0);
-  \draw[pdinkmuted!30,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,1.0) -- (4.0,1.0);
-  % Convergence curve for m=8 daemons, log2(8)=3 rounds
-  \draw[pdteal,line width=.85pt] plot[domain=0:4.0,samples=31]
+\begin{tikzpicture}[pd figure,x=18pt,y=42pt]
+  % Baseline and ceiling: neutral references, never a drawn edge.
+  \draw[pd hairline] (0,0) -- (4.0,0);
+  \draw[pd guide] (0,1.0) -- (4.0,1.0);
+  % Convergence curve for m=8 daemons, log2(8)=3 rounds.
+  \draw[pd legible,line width=.9pt] plot[domain=0:4.0,samples=31]
     (\x,{1.0 / (1.0 + 7.0 * exp(-1.2 * \x))});
-  % Points at r=0 and r=3
-  \fill[pdteal] (0,0.125) circle[radius=1.2pt];
-  \fill[pdteal] (3,{1.0 / (1.0 + 7.0 * exp(-3.6))}) circle[radius=1.2pt];
-  % Labels
-  \node[anchor=east,inner sep=1.5pt] at (0,0) {$0$};
-  \node[anchor=west,inner sep=1.5pt] at (4.0,1.0) {$1$};
-  \node[anchor=south,inner sep=1.5pt] at (2.0,0.85) {$F(r)\to 1$};
-  \node[anchor=north,inner sep=2pt] at (2.0,0) {$r \sim \log_2 m$};
+  % The start and the worked point (m=8 -> 3 rounds), dropped to their value.
+  \node[pd legible datum] at (0,0.125) {};
+  \node[pd legible datum] at (3,{1.0 / (1.0 + 7.0 * exp(-3.6))}) {};
+  % Labels: end values, the limit, and the worked range -- nothing else.
+  \node[pd label,anchor=east] at (0,0) {$0$};
+  \node[pd label,anchor=west,inner xsep=3pt] at (4.0,1.0) {$1$};
+  \node[pd direct label,anchor=south] at (1.2,0.62) {$F(r)\to 1$};
+  \node[pd label,anchor=north] at (2.0,0) {$r \sim \log_2 m$};
 \end{tikzpicture}
 \makeatother\endgroup

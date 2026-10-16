@@ -1,25 +1,32 @@
-% Analytical sparkline: Escalation threshold u*(delta) = delta / (1 + delta) for w=1.
+% Margin sparkline: escalation threshold u*(delta) = delta / (1 + delta), w=1.
 % Domain delta in [0, 0.50]; clears cost above threshold.
-% Fits inside the 93.95pt book margin column.
-% Source: sec:escalation, Eq. u* = delta*w / (1 + delta*w).
+% Fits inside the 1.3in book margin column.
+% Reader question: how much of the validation signal u must an escalation
+%   clear before it is worth its cost, as the debit delta grows?
+% Claim: the threshold rises with delta but stays well under the 0.333
+%   ceiling across the whole worked range; the chapter's own hand-worked
+%   point is delta=0.05, where u* = 0.0476.
+% Source: sec:escalation, Eq. u* = delta*w / (1 + delta*w); the worked
+%   calculation immediately below this sparkline's \marginnote call.
 \begingroup\makeatletter
 \ifdefined\pd@typesetpicturebox
   \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
 \fi
-\begin{tikzpicture}[x=160pt,y=80pt,font=\fontsize{7}{8}\selectfont]
-  % Baseline and upper reference
-  \draw[pdinkmuted!35,line width=.35pt] (0,0) -- (0.50,0);
-  \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,0.333) -- (0.50,0.333);
-  % Escalation threshold curve u*(delta) = delta / (1 + delta)
-  \draw[pdteal,line width=.85pt] plot[domain=0:0.50,samples=31]
+\begin{tikzpicture}[pd figure,x=115pt,y=200pt]
+  % Baseline and upper reference: neutral, never a drawn edge.
+  \draw[pd hairline] (0,0) -- (0.50,0);
+  \draw[pd guide] (0,0.333) -- (0.50,0.333);
+  % Escalation threshold curve u*(delta) = delta / (1 + delta).
+  \draw[pd legible,line width=.9pt] plot[domain=0:0.50,samples=31]
     (\x,{\x / (1 + \x)});
-  % Highlighted points at delta=0.05 (textbook worked point) and delta=0.30
-  \fill[pdteal] (0.05,{0.05/1.05}) circle[radius=1pt];
-  \fill[pdteal] (0.30,{0.30/1.30}) circle[radius=1pt];
-  % Labels
-  \node[anchor=east,inner sep=1pt] at (0,0) {$0$};
-  \node[anchor=west,inner sep=1pt] at (0.50,0.333) {$.33$};
-  \node[anchor=south,inner sep=1pt] at (0.25,0.35) {$u^\star(\delta)=\tfrac{\delta}{1+\delta}$};
-  \node[anchor=north,inner sep=1.5pt] at (0.25,0) {debit $\delta: 0\longrightarrow .50$};
+  % The chapter's own hand-worked point (delta=0.05) is the focus; the
+  % second point (delta=0.30) is a plain reference further up the curve.
+  \node[pd focus datum] at (0.05,{0.05/1.05}) {};
+  \node[pd legible datum] at (0.30,{0.30/1.30}) {};
+  % Labels: end values, the formula, and the worked range.
+  \node[pd label,anchor=east] at (0,0) {$0$};
+  \node[pd label,anchor=south west] at (0.50,0.333) {$.33$};
+  \node[pd direct label,anchor=south east] at (0.49,0.012) {$\delta/(1+\delta)$};
+  \node[pd label,anchor=north] at (0.25,-0.035) {debit $\delta: 0\longrightarrow .50$};
 \end{tikzpicture}
 \makeatother\endgroup
