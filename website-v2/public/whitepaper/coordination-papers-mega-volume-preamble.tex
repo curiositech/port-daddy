@@ -138,7 +138,10 @@
 % penalty at the only usable split. Keep strong preferences inside frames,
 % but allow the split; ordinary body paragraphs retain the strict rules above.
 \AtBeginEnvironment{mdframed}{%
-  \clubpenalty=9000 \widowpenalty=9000
+  % A box may split across pages, but not so that its last line stands alone at the top of the next page:
+  % the 2026-10-14 edition had such one-line tails on printed pp. 200 and 347. Keep the widow rule strict
+  % inside boxes; the club and broken rules stay relaxed so the split itself remains possible.
+  \clubpenalty=9000 \widowpenalty=10000
   \displaywidowpenalty=9000 \brokenpenalty=9000}
 % The reservation has to cover the heading's own apparatus before it covers any
 % prose: a \section spends roughly 3.5 baselines on beforeskip, the heading line
