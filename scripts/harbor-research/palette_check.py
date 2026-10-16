@@ -66,9 +66,9 @@ SERIES = [
  ('pdteal',    '#006B5F', 'legibility'),
  ('pdgold',    '#666A00', 'economy / value'),
  ('pdhealth',  '#1F7A4D', 'ready / coordinated'),
- ('pdindigo',  '#353A85', 'protocol / federation'),
+ ('pdindigo',  '#312865', 'protocol / federation'),
  ('pdrust',    '#7A4514', 'reputation / trust earned'),
- ('pdviolet',  '#933FA5', 'identity / continuity'),
+ ('pdviolet',  '#822586', 'identity / continuity'),
 ]
 SURFACE = ('pdcream', '#F2EEE6')
 

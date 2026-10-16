@@ -380,7 +380,8 @@ class PaletteCheck(unittest.TestCase):
         self.assertLess(teal_health["normal"], 15)
         self.assertTrue(teal_health["verdict"].startswith("fail"))
         cob_ind = pairs[frozenset(("pdcobalt", "pdindigo"))]
-        self.assertLess(cob_ind["normal"], 15)
+        self.assertGreaterEqual(cob_ind["normal"], 15)
+        self.assertEqual(cob_ind["verdict"], "ok")
 
     def test_delta_e_is_symmetric_and_zero_on_identity(self):
         c = P.hex2rgb("#003FB8")

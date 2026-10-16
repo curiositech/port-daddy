@@ -33,7 +33,7 @@ import sys
 # website-v2/src/styles/tokens.semantic.css).
 PALETTE = {
     "pdcobalt": "003FB8", "pdteal": "006B5F", "pdhealth": "1F7A4D",
-    "pdindigo": "353A85", "pdviolet": "933FA5", "pdrust": "7A4514",
+    "pdindigo": "312865", "pdviolet": "822586", "pdrust": "7A4514",
     "pdgold": "666A00", "pderror": "BF2F2F", "pdamber": "A66F00",
     "pdlime": "CAD900", "pdink": "121212", "pdinkmuted": "403B34",
     "pdcream": "F2EEE6", "pdcreamraised": "F7F3EB", "pdcreamstrong": "E9E2D5",
