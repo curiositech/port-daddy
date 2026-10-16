@@ -53,7 +53,7 @@ worked redraws, and `scripts/book_figure_qa.py`.
 | Type | three voices, `\footnotesize`, never smaller; mixed case; no hyphenation | `pd title` (bold heads), `pd label` (upright names), `pd note` (one italic aside); `pd tag` = label knocked out of the page; `pd kind` = small-caps kind tag |
 | Hue | the figure's subject in the **chapter hue**; anything else in its **concept hue**; 2–4 hues; every hue doubled by shape, dash or a word | `pd focus …`; `pd truth` cobalt, `pd legible` teal, `pd ready` green, `pd protocol` indigo, `pd identity` violet, `pd reputation` rust, `pd value` gold, `pd breach` red (dashed, diamonds), `pd warn` amber (rules only, never text) |
 | Weight | .5 / .9 / 1.6 pt: guide and hairline / rule and edge / spine and focus | `pd hairline`, `pd guide`, `pd rule`, `pd spine`, `pd focus rule`, `X rule` |
-| Surface | page < subordinate < subject: `pd state` (white, ink edge) < `pd artifact` (white, grey edge) < `pd focus state` / `X state` (24 % tint, same-hue edge) | fills always edged; text always ink |
+| Surface | page < subordinate < subject: `pd state` (white, ink edge) < `pd artifact` (white, grey edge) < `pd focus state` / `X state` (24 % tint, same-hue edge); **no state, node or box is a solid block of colour in any edition** — a climax is the heaviest edge on a pale field, a breach a dashed hue edge with hue text, a terminal a double edge (author's ruling 2026-10-16) | fills always edged; text always ink; white-on-colour only in a badge |
 | Ground | the page is white; knockouts and neutral surfaces are `pdpage`, never cream | `pd neutral fill` = warm grey band |
 | Marks | numbered badges for guards and steps, keyed to a ruled legend *table*, never a paragraph in the picture | `pd badge`, `pd focus badge`, `pd datum`, `X datum` |
 | Width | drawn to the **4.5 in column** (11.4 cm); 6.0 in full width only on purpose; never `\resizebox`, never scaled by the safety net | one `\def` grid per figure |
@@ -98,9 +98,17 @@ flowchart LR
    runs `harbor-chartwork`'s figcheck (T1–T5, T8 hard) and `beauty_lint.py`
    (B1–B10; every warning is read and either fixed or justified); fails any
    ink wider than the column; writes one contact sheet, editions side by side.
-5. **Look.** Open the sheet at 100 %. PASS means the machine found nothing;
-   it does not mean the figure is good. Check the five-point rubric in
-   `skills/harbor-chartwork/references/craft-rules.md` on each edition.
+5. **Look — on the production spread, never on the sheet alone.** PASS means
+   the machine found nothing; it does not mean the figure is good, and the
+   contact sheet is a fragment compile, not a page. Proof is the two-page
+   spread a reader sees: build the Book (`scripts/build-whitepapers.sh
+   coordination-papers-mega-volume`), impose it (`scripts/build-spreads.sh`,
+   or `scripts/build-figure-page-context.py --only "Figure N.M"` for the
+   figure's own page and spread), and judge the figure where it lands —
+   against the margin column, the running head, the facing page and the
+   caption. A single-page render or a standalone chapter compile is not
+   proof either; never show one as a page. Then check the five-point rubric
+   in `skills/harbor-chartwork/references/craft-rules.md` on each edition.
 6. **Caption and commit.** First sentence says what is drawn, second what it
    shows with the number, then the idealisation, then `[provenance]`.
 
