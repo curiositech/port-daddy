@@ -38,23 +38,32 @@
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\dy{1.05}   \def\gap{2.15}   \def\rows{7}
+  % guide top cleared below the role labels at this width ("attester (CVM)"
+  % and "RATS appraisal" both wrapped to two lines at 1.8cm, reaching down
+  % far enough that the guide -- and, in the technical edition's wider face,
+  % message 1's own arrow -- crossed the second line; shortened to the one
+  % role name the brief calls essential ("attester"; "verifier" is already
+  % the lifeline's own header, so the RATS-appraisal gloss reduces to
+  % "appraisal") so each role label is one line, and pushed the guide top
+  % down besides for margin.
+  \def\guidetop{-1.65}
   \foreach \i/\name/\role in {%
     0/{hardware}/{root of trust},
-    1/{init agent}/{attester (CVM)},
-    2/{verifier}/{RATS appraisal}}{
+    1/{init agent}/{attester},
+    2/{verifier}/{appraisal}}{
     \node[pd state,minimum width=1.85cm] (h\i) at ({\i*\gap},0) {\name};
     \node[pd label,text=pdinkmuted,anchor=north,text width=1.8cm,align=center] at ({\i*\gap},-0.52) {\role};
-    \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});}
+    \draw[pd guide] ({\i*\gap},\guidetop) -- ({\i*\gap},{-\rows*\dy-0.55});}
   \foreach \i/\name/\role in {%
     3/{Derek}/{relying party},
     4/{Erin}/{relying party}}{
     \node[pd state,minimum width=1.85cm] (h\i) at ({\i*\gap},0) {\name};
     \node[pd label,text=pdinkmuted,anchor=north,text width=1.8cm,align=center] at ({\i*\gap},-0.52) {\role};
     \ifnum\i=4
-      \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},-4.45);
+      \draw[pd guide] ({\i*\gap},\guidetop) -- ({\i*\gap},-4.45);
       \draw[pd guide] ({\i*\gap},-5.95) -- ({\i*\gap},{-\rows*\dy-0.55});
     \else
-      \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});
+      \draw[pd guide] ({\i*\gap},\guidetop) -- ({\i*\gap},{-\rows*\dy-0.55});
     \fi}
   \foreach \a/\b/\k in {1/0/1, 0/1/2, 1/2/3, 2/3/4, 2/4/5, 3/1/6, 4/1/7}{
     \pgfmathsetmacro{\ytail}{-\k*\dy-0.43}

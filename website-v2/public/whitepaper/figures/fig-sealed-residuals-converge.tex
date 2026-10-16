@@ -75,7 +75,10 @@
   \draw[draw=sgInk,fill=sgTeal!7,line width=.85pt]
     (236,47) rectangle (315,139);
   \draw[sgTeal,line width=1.25pt] (236,47)--(275.5,87)--(315,47);
-  \draw[sgInk,line width=.6pt] (236,139)--(267,107) (315,139)--(284,107);
+  % Flap lines shortened (same angle, less travel) so they clear the
+  % "one shared" label below -- the original (236,139)--(267,107) pair
+  % converged to y=107, inside the label's own 2-line block.
+  \draw[sgInk,line width=.6pt] (236,139)--(258.3,116) (315,139)--(292.7,116);
   \node[font=\SGType\bfseries,text=sgTeal,align=center] at (275.5,103)
     {one shared\\output envelope};
   \node[font=\SGType\bfseries,text=sgTeal,align=center] at (275.5,153)

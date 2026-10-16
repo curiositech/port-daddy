@@ -66,15 +66,18 @@
     \node[pd panel,fit=(EP)(GR),inner sep=5pt] (panel) {};
   \end{scope}
   \node[pd title,anchor=south] at (panel.north) {append-only write targets};
-  % writes from the rail: label over the arrow, guard badge by the rail
-  \draw[pd arrow] (\rx,0|-EP.west) -- (EP.west) node[pd label,pos=.50,above=4pt] {reassign-role};
-  \draw[pd arrow] (\rx,0|-IJ.west) -- (IJ.west) node[pd label,pos=.57,above=4pt] {external-op};
+  % writes from the rail: the three guarded ops are named by badge+legend
+  % only (the panel is too narrow for a second, inline copy of their name
+  % without the word crossing the panel's dashed edge -- see report); the
+  % one unguarded op (reassign-role) has no legend row, so it alone keeps
+  % an inline name, shortened to clear both the rail and the panel edge.
+  \draw[pd arrow] (\rx,0|-EP.west) -- (EP.west) node[pd label,pos=.50,above=4pt] {reassign};
+  \draw[pd arrow] (\rx,0|-IJ.west) -- (IJ.west);
   \node[pd badge] at ($(\rx,0|-IJ.west)!.13!(IJ.west)$) {2};
-  \draw[pd arrow] (\rx,0|-GR.west) -- (GR.west) node[pd label,pos=.57,above=4pt] {delegate};
+  \draw[pd arrow] (\rx,0|-GR.west) -- (GR.west);
   \node[pd badge] at ($(\rx,0|-GR.west)!.13!(GR.west)$) {4};
   % the one write only executing may make, bridged over the rail
-  \draw[pd arrow,preaction={draw=pdpage,line width=3.2pt,-}] (X.east) -- (EJ.west)
-    node[pd label,pos=.56,above=4pt] {admit-effect};
+  \draw[pd arrow,preaction={draw=pdpage,line width=3.2pt,-}] (X.east) -- (EJ.west);
   \node[pd badge] at ($(X.east)!.19!(EJ.west)$) {1};
 \end{tikzpicture}
 

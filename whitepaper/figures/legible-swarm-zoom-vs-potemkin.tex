@@ -26,7 +26,10 @@
   \draw[sg/arrow] (158,202)--(158,194)--(56,194)--(56,184);
   \draw[sg/arrow] (158,194)--(158,184);
   \draw[sg/arrow] (158,194)--(260,194)--(260,184);
-  \node[anchor=west,font=\SGType,text=sgInk!70] at (163,194) {claims};
+  % moved from (163,194) -- sat centred on the horizontal spreader segment
+  % it was meant to annotate; re-routed beside the rightmost branch instead,
+  % matching how "resolves to" already sits beside its own row (below).
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (266,194) {claims};
 
   % 3 Claim cards
   \draw[draw=sgInk,fill=white,line width=.75pt] (18,166) rectangle (94,184);
@@ -82,7 +85,8 @@
     (158,67)--(158,57);
   \draw[sgInk!60,line width=.75pt,-{Stealth[length=4.5pt,width=3.6pt]}]
     (158,67)--(260,67)--(260,57);
-  \node[anchor=west,font=\SGType,text=sgInk!70] at (163,67) {claims};
+  % moved from (163,67) for the same reason as the top section's "claims".
+  \node[anchor=west,font=\SGType,text=sgInk!70] at (266,67) {claims};
 
   % 3 Ungrounded claim cards (dashed border, identical dimensions)
   \draw[draw=sgInk!50,dashed,line width=.75pt,fill=sgRed!3] (18,39) rectangle (94,57);

@@ -41,8 +41,13 @@
     % The 1% line is a decision reference from the worked example.
     \draw[draw=pdinkmuted,densely dashed,line width=.7pt]
       (axis cs:.8,1) -- (axis cs:6.25,1);
-    \node[pd label,anchor=east,inner sep=0pt,xshift=-3pt]
-      at (axis cs:6.22,1.7) {1\% target};
+    % anchor=east at x=6.22 put the one-line label (~0.84 data-units wide)
+    % back across the x=6 major gridline (gridlines are 1 unit apart, and
+    % "pd evidence axis" sets grid=major centrally -- not this fragment's
+    % to disable). Broken to two lines and re-centred in the x=5..6 gap,
+    % comfortably clear of both its bounding gridlines.
+    \node[pd label,align=center,inner sep=0pt]
+      at (axis cs:5.5,2.3) {1\%\\target};
 
     % Risk: independent reviewers decay geometrically; a perfectly shared
     % outcome has one effective draw and therefore remains at 1-d=.4.

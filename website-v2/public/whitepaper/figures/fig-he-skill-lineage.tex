@@ -7,7 +7,10 @@
   \SGDocument{accVOneLeaf}{(4,31)}{100}{43}{sgViolet!9}{v1 signed leaf\\$h_1$, license}
   \SGDocument{accVTwoLeaf}{(207,31)}{106}{43}{sgBlue!7}{v2 signed leaf\\parent $h_1$; root $E_2$}
   \draw[sg/arrow,draw=sgViolet] (accVOneLeaf.east)--(accVTwoLeaf.west);
-  \node[anchor=south,text=sgViolet] at (156,42) {parent hash};
+  % moved from x=156 (centred on the arrow) -- that point sits almost
+  % exactly on the background grid's rightmost rule (x=157); shifted right,
+  % clear of the grid, still beside the same wallet-to-leaf arrow.
+  \node[anchor=south,text=sgViolet] at (180,42) {parent hash};
   \SGDocument{accVOneHistory}{(4,99)}{100}{42}{sgViolet!7}{v1 settled history\\$n_{v1}=20$}
   \node[sg/check,minimum width=100pt,draw=sgAmber,fill=sgAmber!9] (accGamma) at (54,170)
     {$\gamma=0.4$ predeclared\\$0.4\times20=8$ prior};

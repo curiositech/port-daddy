@@ -6,7 +6,9 @@
   \SGDocument{accWallet}{(4,27)}{74}{43}{sgViolet!9}{wallet $W$\\$100\ U_A$}
   \SGDocument{accEscrow}{(123,27)}{77}{43}{sgBlue!7}{escrow $E$\\$+80\ U_A$}
   \SGDocument{accCommons}{(238,27)}{77}{43}{sgTeal!8}{commons $C$\\$+20\ U_A$}
-  \draw[sg/arrow,draw=sgBlue] (accWallet.east)--node[above,text=sgBlue] {$80\ U_A$}(accEscrow.west);
+  % label sat directly on the arrow (bare "above" has no gap); +2.5pt clears it,
+  % matching the "20 U_A" teal label's own clearance below its line.
+  \draw[sg/arrow,draw=sgBlue] (accWallet.east)--node[above=2.5pt,text=sgBlue] {$80\ U_A$}(accEscrow.west);
   \draw[sg/arrow,draw=sgTeal] (accWallet.east)--(96,78)--(96,96)--(276,96)--(276,70);
   \node[anchor=south,text=sgTeal] at (187,92) {$20\ U_A$};
   \node[sg/check,minimum width=307pt,minimum height=25pt,draw=sgTeal,fill=sgTeal!7] at (159,121)
