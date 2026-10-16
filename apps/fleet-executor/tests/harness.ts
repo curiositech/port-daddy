@@ -8,6 +8,24 @@
 import { vi } from 'vitest';
 import type { ExecutorEnv, FleetRunJob } from '../src/env.js';
 
+/** Opt-in disposable sandbox fixture. Never executes its command strings. */
+export function makePurserSandbox(headSha = 'HEADSHA') {
+  return {
+    destroy: vi.fn(async () => {}),
+    exec: vi.fn(async (command: string) => {
+      if (command.includes('__PD_PURSER_HEAD__')) return { exitCode: 0, stdout: `__PD_PURSER_HEAD__:${headSha}` };
+      if (command.includes('git cat-file')) return { exitCode: 0, stdout: btoa('export const widget = () => true;') };
+      if (command.includes('__PD_PURSER_TEST_STARTED__')) return { exitCode: 0, stdout:
+        '__PD_PURSER_TEST_STARTED__\n__PD_PURSER_JEST_SUMMARY__:' + btoa(JSON.stringify({
+          numFailedTests: 0, numFailedTestSuites: 0, numPassedTests: 1,
+          numRuntimeErrorTestSuites: 0, numTotalTests: 1, success: true,
+        })),
+      };
+      return { exitCode: 0, stdout: '' };
+    }),
+  };
+}
+
 export interface FetchRecord {
   method: string;
   url: string;
@@ -215,7 +233,7 @@ export function freshState(): GitHubState {
     openIssues: [],
     issuesCreated: [],
     failGitWrites403: false,
-    treeFiles: new Map([['BASESHA', []]]),
+    treeFiles: new Map([['BASESHA', []], ['HEADSHA', []]]),
     appSlug: 'port-daddy',
     prAuthor: { login: 'a-human', type: 'User' },
     prState: 'open',

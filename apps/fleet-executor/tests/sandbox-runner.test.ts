@@ -68,8 +68,8 @@ describe('buildDefaultSandboxTestCommand', () => {
         { path: "tests/unit/author's-contract.test.ts" },
       ]),
     ).toBe(
-      "npm ci --no-audit --no-fund --onnxruntime-node-install=skip && " +
-        "npm test -- --runTestsByPath 'tests/unit/first.test.ts' " +
+      "npm ci --ignore-scripts --no-audit --no-fund --onnxruntime-node-install=skip && " +
+        "node --experimental-vm-modules node_modules/jest/bin/jest.js --runTestsByPath 'tests/unit/first.test.ts' " +
         "'tests/unit/author'\\''s-contract.test.ts' --json " +
         "--outputFile='/work/pd-purser-jest-result.json'",
     );
@@ -83,6 +83,31 @@ describe('buildDefaultSandboxTestCommand', () => {
 });
 
 describe('runTestsInSandbox', () => {
+  it('keeps the installation credential out of origin, checkout, installs and test processes without coordination', async () => {
+    const calls: Array<{ command: string; options?: Record<string, unknown> }> = [];
+    const outcome = await runTestsInSandbox({
+      sandboxBinding: { async exec(command: string, options?: Record<string, unknown>) {
+        calls.push({ command, options });
+        return { exitCode: 0, stdout: command.includes(TEST_STARTED_MARKER) ? `${TEST_STARTED_MARKER}\n${jestSummary()}` : '' };
+      } },
+      owner: 'curiositech', repo: 'port-daddy', headSha: 'reviewed-sha',
+      files: [{ path: 'tests/unit/widget.test.ts', contents: 'it("works", () => {});' }], token: 'secret-github-token',
+    });
+    expect(outcome.outcomeKind).toBe('passed');
+    expect(calls).toHaveLength(3);
+    expect(calls[0].command).toContain('https://github.com/curiositech/port-daddy.git');
+    expect(calls[0].command).not.toContain('checkout');
+    expect(calls[0].options?.env).toMatchObject({ GIT_CONFIG_VALUE_0: `Authorization: Basic ${btoa('x-access-token:secret-github-token')}` });
+    expect(calls[1].command).toContain('checkout');
+    expect(calls[1].command).toContain('npm ci --ignore-scripts');
+    expect(calls[2].command).not.toContain('npm test');
+    for (const call of calls.slice(1)) expect(call.options).not.toHaveProperty('env');
+    for (const call of calls) {
+      expect(call.command).not.toContain('secret-github-token');
+      expect(call.options?.timeout).toBeGreaterThan(0);
+    }
+  });
+
   it('fails closed before touching the sandbox when no authored files exist', async () => {
     let calls = 0;
     const outcome = await runTestsInSandbox({
@@ -111,8 +136,8 @@ describe('runTestsInSandbox', () => {
   it('does not call an installation failure a test execution', async () => {
     const outcome = await runTestsInSandbox({
       sandboxBinding: {
-        async exec() {
-          return { exitCode: 1, stdout: 'npm ci failed before Jest started' };
+        async exec(command: string) {
+          return { exitCode: command.includes('git fetch') ? 0 : 1, stdout: 'npm ci failed before Jest started' };
         },
       },
       owner: 'curiositech',
@@ -134,7 +159,8 @@ describe('runTestsInSandbox', () => {
   it('separates Jest load and zero-test errors from assertion failures', async () => {
     const outcome = await runTestsInSandbox({
       sandboxBinding: {
-        async exec() {
+        async exec(command: string) {
+          if (!command.includes(TEST_STARTED_MARKER)) return { exitCode: 0, stdout: '' };
           return {
             exitCode: 1,
             stdout: [
@@ -167,10 +193,24 @@ describe('runTestsInSandbox', () => {
     expect(outcome.outputTail).not.toContain(JEST_SUMMARY_MARKER);
   });
 
+  it.each(['', jestSummary({ numTotalTests: 0, numPassedTests: 0 }), jestSummary({ numFailedTests: 1, success: false })])('exit zero without a consistent positive report is not a pass: %s', async summary => {
+    const outcome = await runTestsInSandbox({
+      sandboxBinding: { async exec(command: string) {
+        return { exitCode: 0, stdout: command.includes(TEST_STARTED_MARKER) ? `${TEST_STARTED_MARKER}\n${summary}` : '' };
+      } },
+      owner: 'curiositech', repo: 'port-daddy', headSha: 'reviewed-sha',
+      files: [{ path: 'tests/unit/widget.test.ts', contents: 'it("works", () => {});' }], token: 'token',
+    });
+    expect(outcome.passed).toBe(false);
+    expect(outcome.outcomeKind).not.toBe('passed');
+    expect(outcome.outcomeKind).not.toBe('assertion-failure');
+  });
+
   it('attributes failures only when structured Jest evidence reports failed cases', async () => {
     const outcome = await runTestsInSandbox({
       sandboxBinding: {
-        async exec() {
+        async exec(command: string) {
+          if (!command.includes(TEST_STARTED_MARKER)) return { exitCode: 0, stdout: '' };
           return {
             exitCode: 1,
             stdout: [
@@ -223,8 +263,8 @@ describe('runTestsInSandbox', () => {
       passed: true,
       outcomeKind: 'passed',
     });
-    expect(commands[0]).toContain('custom-runner --contract-only');
-    expect(commands[0]).not.toContain('npm test --');
+    expect(commands[2]).toContain('custom-runner --contract-only');
+    expect(commands.join('\n')).not.toContain('npm test --');
   });
 
   it('gives the macaroon only to the compiled daemon process and always kills it', async () => {
