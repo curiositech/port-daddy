@@ -31,7 +31,11 @@
   ytick={0,0.1,0.2,0.3},
   ylabel={critical rate $\rho^\star$},
   nodes near coords={\pgfmathprintnumber[fixed,precision=4]{\pgfplotspointmeta}},
-  every node near coord/.append style={pd label,anchor=south,yshift=6pt}]
+  % pd evidence axis sets grid=major; with symbolic x coords the major
+  % gridline for each category sits exactly at that bar's centre -- the
+  % same x as its value label, which ran straight through it. xshift
+  % clears the (0.35pt) gridline without reading as off-center.
+  every node near coord/.append style={pd label,anchor=south,yshift=3pt,xshift=18pt}]
   % Each convention has its own bar outline and a clear value-label gap.
   \addplot[pd focus fill,bar shift=0pt] coordinates {(keep-gain,0.25)};
   \addplot[pd focus fill,bar shift=0pt] coordinates {(claw-back,0.2083)};

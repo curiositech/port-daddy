@@ -68,7 +68,8 @@
   \node[pd label,anchor=south west] at (axis cs:0.0015,0.115) {$R{=}0.1864$};
   \node[pd datum] at (axis cs:0.04,0.06) {};
   \draw[pd guide] (axis cs:0.04,0.06) -- (axis cs:0.033,0.10);
-  \node[pd label,anchor=south west] at (axis cs:0.021,0.095) {$R{=}0.0087$};
+  % x=0.021 (anchor=south west, growing right) ran the label past xmax=0.05.
+  \node[pd label,anchor=south west] at (axis cs:0.016,0.095) {$R{=}0.0087$};
 \end{axis}
 \end{tikzpicture}
 \caption{At $p=.05$, the positive-rate wedge lies between
