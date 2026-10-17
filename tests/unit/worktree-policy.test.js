@@ -26,6 +26,24 @@ describe('evaluateSessionWorktreePolicy', () => {
     expect(result.worktree).toBeNull();
   });
 
+  test('rejects a supplied but incomplete worktree context even without enforcement', () => {
+    const result = evaluateSessionWorktreePolicy({
+      worktree: { id: 'partial', root: '/tmp/partial' },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('WORKTREE_CONTEXT_INVALID');
+    expect(result.worktree).toBeNull();
+    expect(result.hint).toContain('Omit worktree');
+  });
+
+  test('preserves explicit null as the library unscoped-world sentinel', () => {
+    const result = evaluateSessionWorktreePolicy({ worktree: null });
+
+    expect(result.success).toBe(true);
+    expect(result.worktree).toBeNull();
+  });
+
   test('requires valid worktree context when enforcement is enabled', () => {
     const result = evaluateSessionWorktreePolicy({ requireLinkedWorktree: true });
 

@@ -1101,12 +1101,14 @@ describe('Route error codes: sessions', () => {
 
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
-    await app.inject({
+    const first = await app.inject({
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'session-1', agentId: 'agent-1', files: ['file-a.ts'] },
       headers: creds['agent-1'].headers,
     });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ worktreeId: null, files: ['file-a.ts'] });
 
     // Try to create another session with the same files
     const res = await app.inject({

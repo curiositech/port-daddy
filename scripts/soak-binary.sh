@@ -59,6 +59,10 @@ mkdir -p "$SOAK_PREFIX"
 chmod 700 "$SOAK_PREFIX"
 LOG="$SOAK_PREFIX/soak.log"
 TEST_DB="$SOAK_PREFIX/port-daddy.db"
+SOAK_HOME="$SOAK_PREFIX/home"
+SOAK_PD_HOME="$SOAK_PREFIX/control"
+mkdir -p "$SOAK_HOME" "$SOAK_PD_HOME"
+chmod 700 "$SOAK_HOME" "$SOAK_PD_HOME"
 
 # Crash signatures. "panic(" catches bun panics on any thread; the other two
 # are the exact strings from the 3.24.0 incident.
@@ -90,7 +94,9 @@ fail() {
 
 echo "Soaking $BIN for ${SOAK_SECONDS}s on port ${SOAK_PORT} (sandbox: $SOAK_PREFIX)"
 
-PD_HOME="$SOAK_PREFIX" \
+HOME="$SOAK_HOME" \
+USERPROFILE="$SOAK_HOME" \
+PD_HOME="$SOAK_PD_HOME" \
 PORT_DADDY_PREFIX="$SOAK_PREFIX" \
 PORT_DADDY_DB="$TEST_DB" \
 PORT_DADDY_TEST_DB="$TEST_DB" \

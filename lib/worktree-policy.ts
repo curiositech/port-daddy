@@ -17,7 +17,7 @@ export interface SessionWorktreePolicyInput {
 export interface SessionWorktreePolicyResult {
   success: boolean;
   worktree: SessionWorktreeContext | null;
-  code?: 'WORKTREE_REQUIRED' | 'MAIN_WORKTREE_SESSION_FORBIDDEN';
+  code?: 'WORKTREE_CONTEXT_INVALID' | 'WORKTREE_REQUIRED' | 'MAIN_WORKTREE_SESSION_FORBIDDEN';
   error?: string;
   hint?: string;
 }
@@ -52,6 +52,20 @@ export function evaluateSessionWorktreePolicy(input: SessionWorktreePolicyInput)
   const requireLinkedWorktree = input.requireLinkedWorktree === true;
   const allowMainWorktree = input.allowMainWorktree === true;
   const worktree = normalizeSessionWorktreeContext(input.worktree);
+
+  // Omission (and the library-level explicit null sentinel) means the caller
+  // deliberately chose the unscoped world. Any other supplied value claims to
+  // be a worktree context, so collapsing an incomplete object to null would
+  // silently widen its conflict and ownership scope.
+  if (input.worktree !== undefined && input.worktree !== null && !worktree) {
+    return {
+      success: false,
+      worktree: null,
+      code: 'WORKTREE_CONTEXT_INVALID',
+      error: 'worktree must include non-empty id and root fields plus a boolean isMain field',
+      hint: 'Omit worktree for an unscoped session, or provide a complete worktree context.',
+    };
+  }
 
   if (!requireLinkedWorktree) {
     return { success: true, worktree };
