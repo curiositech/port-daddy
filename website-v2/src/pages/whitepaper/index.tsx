@@ -25,62 +25,45 @@ import {
  * document. Chapters are entries in an outline — part, then chapter, then
  * the question it answers, then why you would want it — and never cards
  * linking off to eight separate PDFs, because there are not eight PDFs.
+ *
+ * 2026-10-19: the panels lost their paint. Part openers were solid slabs
+ * carrying a 108px numeral, chapter numbers were filled squares, the seam
+ * statement was a rust flood, and most labels sat at 11–13px. Now a part is
+ * a rule and a numbered heading in its own hue, a chapter number is a word
+ * in that hue, the seam is a bordered note, and nothing on the page is set
+ * below 14px except the eyebrow (12px, bold, tracked, upper case — the one
+ * size the vision rule permits there). The masthead shows the Book's own
+ * cover, rasterised from the committed PDF, instead of an illustration of a
+ * book.
  */
 
 /**
  * The four part inks, as tokens rather than hexes.
  *
- * These were the Book's light-mode values pasted in literally, which had two
- * costs. The palette guard forbids colour literals in a component for a
- * reason -- a hex here cannot follow the token when the story palette moves --
- * and, more visibly, a literal does not know what theme it is in. Every one of
- * these already exists as a theme-aware pair: cobalt and teal are the brand
- * tokens the story palette reuses for L0 truth and L2 legibility, violet and
- * gold are its own. The dark block redefines all four, so the slabs now darken
- * with the page instead of printing light-mode ink on a dark ground.
- *
- * `on` matters most. It was fixed at cream, which is only correct while the
- * block stays dark; pairing each block with its own foreground token is what
- * lets the Swiss slab treatment carry paper-coloured type in either theme.
+ * The palette guard forbids colour literals in a component for a reason: a
+ * hex here cannot follow the token when the story palette moves, and a
+ * literal does not know what theme it is in. Every one of these exists as a
+ * theme-aware pair: cobalt and teal are the brand tokens the story palette
+ * reuses for L0 truth and L2 legibility, violet and gold are its own.
  */
-const PART_INK: Record<string, { block: string; on: string; rule: string }> = {
-  pdcobalt: {
-    block: 'var(--brand-primary)',
-    on: 'var(--brand-primary-foreground)',
-    rule: 'var(--brand-primary)',
-  },
-  pdteal: {
-    block: 'var(--brand-accent)',
-    on: 'var(--brand-accent-foreground)',
-    rule: 'var(--brand-accent)',
-  },
-  pdviolet: {
-    block: 'var(--story-violet)',
-    on: 'var(--story-violet-foreground)',
-    rule: 'var(--story-violet)',
-  },
-  pdgold: {
-    block: 'var(--story-gold)',
-    on: 'var(--story-gold-foreground)',
-    rule: 'var(--story-gold)',
-  },
+const PART_INK: Record<string, string> = {
+  pdcobalt: 'var(--brand-primary)',
+  pdteal: 'var(--brand-accent)',
+  pdviolet: 'var(--story-violet)',
+  pdgold: 'var(--story-gold)',
 }
 
 /**
- * Which part's ink a chapter belongs to, keyed by chapter id.
- *
- * The Contents panel already draws the parts, so it has the ink to hand; every
- * other panel lists chapters out of part order (the spine runs 1–8 straight
- * through, the proofs panel picks three) and used to fall back to a neutral
- * hairline, which threw away the one piece of information the reader had
- * already learned on the first panel. Deriving it here rather than hard-coding
- * a second table means a chapter that moves between parts moves its colour too.
+ * Which part's ink a chapter belongs to, keyed by chapter id. Every panel
+ * lists chapters out of part order (the spine runs 1–8 straight through, the
+ * proofs panel picks three), so the hue the reader learned on the Contents
+ * panel has to travel with the chapter. Deriving it here rather than
+ * hard-coding a second table means a chapter that moves between parts moves
+ * its colour too.
  */
 const CHAPTER_INK = new Map(
   TABLE_OF_CONTENTS.flatMap((part) =>
-    part.chapters.map(
-      (chapterId) => [chapterId, PART_INK[part.color] ?? PART_INK.pdcobalt] as const,
-    ),
+    part.chapters.map((chapterId) => [chapterId, PART_INK[part.color] ?? PART_INK.pdcobalt] as const),
   ),
 )
 
@@ -88,31 +71,16 @@ function inkFor(chapterId: string) {
   return CHAPTER_INK.get(chapterId) ?? PART_INK.pdcobalt
 }
 
-/**
- * A chapter number as a filled square of its part's ink, paper-coloured type.
- *
- * This is the Swiss edition's own device and the reason the rest of this page
- * needs almost no rules: a solid block reads as a mark at any size, so a
- * column of them is navigable at a glance, and the colour carries the part
- * without a legend. Square, flat, no border — the colour edge IS the edge.
- */
-function NumberBlock({
-  n,
-  ink,
-  size = 'md',
-}: {
-  n: number
-  ink: { block: string; on: string }
-  size?: 'md' | 'lg'
-}) {
+/** A chapter number in its part's hue: a mark the eye can run down a column of, with no box around it. */
+function NumberMark({ n, ink, size = 'md' }: { n: number; ink: string; size?: 'md' | 'lg' }) {
   return (
     <span
       className={
         size === 'lg'
-          ? 'grid h-14 w-14 shrink-0 place-items-center font-mono text-[26px] font-bold leading-none tabular-nums tracking-[-0.04em]'
-          : 'grid h-8 w-8 shrink-0 place-items-center font-mono text-[15px] font-bold leading-none tabular-nums tracking-[-0.03em]'
+          ? 'w-12 shrink-0 font-mono text-[26px] font-bold leading-none tabular-nums tracking-[-0.03em]'
+          : 'w-8 shrink-0 font-mono text-[15px] font-bold leading-none tabular-nums'
       }
-      style={{ background: ink.block, color: ink.on }}
+      style={{ color: ink }}
       aria-hidden="true"
     >
       {String(n).padStart(2, '0')}
@@ -120,9 +88,12 @@ function NumberBlock({
   )
 }
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
+function Eyebrow({ children, ink }: { children: React.ReactNode; ink?: string }) {
   return (
-    <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+    <div
+      className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]"
+      style={ink ? { color: ink } : undefined}
+    >
       {children}
     </div>
   )
@@ -135,22 +106,22 @@ function ChapterEntry({ paperId, rule }: { paperId: string; rule: string }) {
   if (!paper || !record) return null
 
   return (
-    <div className="deck-chapter py-3" style={{ ['--deck-ch' as string]: rule }}>
+    <div className="deck-chapter py-4" style={{ ['--deck-ch' as string]: rule }}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[13px] font-bold" style={{ color: rule }}>
+        <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: rule }}>
           {String(paper.chapter).padStart(2, '0')}
         </span>
-        <h3 className="text-[17px] font-bold leading-tight tracking-[-0.012em] text-[var(--text-primary)]">
+        <h3 className="text-[18px] font-bold leading-tight tracking-[-0.012em] text-[var(--text-primary)]">
           {paper.title}
         </h3>
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
           {chapterRoleLabel(paper)}
         </span>
       </div>
-      <p className="mt-1 text-[14px] font-semibold italic text-[var(--text-secondary)]">
+      <p className="mt-1.5 text-[15px] font-semibold italic leading-[1.5] text-[var(--text-secondary)]">
         {record.question}
       </p>
-      <p className="mt-1.5 max-w-[74ch] text-[14.5px] leading-[1.6] text-[var(--text-secondary)]">
+      <p className="mt-1.5 max-w-[70ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
         {record.teaser}
       </p>
     </div>
@@ -159,48 +130,27 @@ function ChapterEntry({ paperId, rule }: { paperId: string; rule: string }) {
 
 function ContentsPanel() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       {TABLE_OF_CONTENTS.map((part) => {
         const ink = PART_INK[part.color] ?? PART_INK.pdcobalt
         return (
           <section key={part.id}>
-            {/*
-              The part band, in the Swiss edition's own idiom rather than a
-              chip beside a heading. The book sets a part opener as a slab of
-              the part's ink carrying an oversized numeral and the title in
-              paper; this is that at web scale. The numeral is the size it is
-              because it is the thing you navigate by on a flip-through, and
-              it sits on the same baseline as the title so the two read as one
-              mark rather than a number next to some words.
-
-              No radius, no border, no shadow: the colour edge IS the edge.
-            */}
-            <div
-              className="on-block grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-5"
-              style={{ background: ink.block, color: ink.on }}
-            >
-              {/*
-                The numeral is set at display size, not label size. On the
-                book's part page it is the largest thing on the sheet and it
-                is what you navigate by on a flip-through; at 60px it was a
-                caption sitting next to a heading, and a Roman numeral is
-                narrow enough that it read smaller still. Tabular figures are
-                off on purpose — I, II, III and IV are letters here, and
-                forcing them onto a digit advance opens gaps inside III.
-              */}
-              <span className="font-mono text-[clamp(56px,9.5vw,108px)] font-bold leading-[0.74] tracking-[-0.05em]">
-                {part.numeral}
-              </span>
-              <h2 className="pb-[0.18em] text-[clamp(20px,2.7vw,30px)] font-bold leading-[1.02] tracking-[-0.025em]">
+            {/* A part opener is a rule, its numeral and its title in the
+                part's hue — the same device the chapter numbers use, one size
+                up, so the four hues read as four parts without a legend and
+                without a block of paint. */}
+            <div className="border-t-2 border-[var(--border-strong)] pt-3">
+              <Eyebrow ink={ink}>Part {part.numeral}</Eyebrow>
+              <h2 className="mt-1 text-[clamp(22px,2.2vw,28px)] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--text-primary)]">
                 {part.title}
               </h2>
             </div>
-            <p className="mt-3 max-w-[76ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
+            <p className="mt-3 max-w-[70ch] text-[15px] leading-[1.6] text-[var(--text-muted)]">
               {part.blurb}
             </p>
             <div className="mt-2">
               {part.chapters.map((chapterId) => (
-                <ChapterEntry key={chapterId} paperId={chapterId} rule={ink.rule} />
+                <ChapterEntry key={chapterId} paperId={chapterId} rule={ink} />
               ))}
             </div>
           </section>
@@ -212,22 +162,22 @@ function ContentsPanel() {
 
 function SpinePanel() {
   return (
-    <div className="space-y-6">
-      <blockquote className="deck-voice max-w-[54ch] text-[clamp(19px,2vw,26px)] leading-[1.42] text-[var(--text-primary)]">
+    <div className="space-y-7">
+      <blockquote className="deck-voice max-w-[54ch] text-[clamp(20px,2vw,26px)] leading-[1.42] text-[var(--text-primary)]">
         {LIBRARY_SPINE}
       </blockquote>
-      {/* Eight chapters on one hard grid: a solid numeral block in the part's
-          ink, then the title, then the claim. The blocks are what make the
-          four parts visible in a list that runs straight through 1 to 8. */}
-      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+      {/* Eight chapters on one hard grid: the numeral in the part's hue, then
+          the title, then the claim. The hue is what keeps the four parts
+          visible in a list that runs straight through 1 to 8. */}
+      <div className="grid gap-x-8 gap-y-5 border-t-2 border-[var(--border-strong)] pt-5 sm:grid-cols-2">
         {TEXTBOOK.chapters.map((chapter) => (
-          <div key={chapter.id} className="grid grid-cols-[auto_1fr] items-start gap-x-3">
-            <NumberBlock n={chapter.number} ink={inkFor(chapter.id)} />
+          <div key={chapter.id} className="grid grid-cols-[auto_1fr] items-baseline gap-x-3">
+            <NumberMark n={chapter.number} ink={inkFor(chapter.id)} />
             <div>
-              <div className="text-[14.5px] font-bold leading-[1.2] tracking-[-0.012em] text-[var(--text-primary)]">
+              <div className="text-[16px] font-bold leading-[1.25] tracking-[-0.012em] text-[var(--text-primary)]">
                 {chapter.title}
               </div>
-              <p className="mt-1 max-w-[52ch] text-[14px] leading-[1.55] text-[var(--text-secondary)]">
+              <p className="mt-1 max-w-[52ch] text-[15px] leading-[1.55] text-[var(--text-secondary)]">
                 {chapter.oneLine}
               </p>
             </div>
@@ -241,8 +191,8 @@ function SpinePanel() {
 function ProofsPanel() {
   const proving = WHITE_PAPERS.filter((paper) => paper.role === 'proves')
   return (
-    <div className="space-y-5">
-      <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+    <div className="space-y-6">
+      <p className="max-w-[70ch] text-[16px] leading-[1.6] text-[var(--text-secondary)]">
         A proving chapter is not an appendix — it is the chapter where the prose stops
         and a checker starts, and it always follows the chapter whose promises it keeps.
         Three of the eight do this, and each one names the tool that holds it.
@@ -250,8 +200,7 @@ function ProofsPanel() {
       {/* Three rows, not three cards. A proving chapter is a chapter — the
           same outline entry the Contents panel draws, picked out of it — and
           boxing it would say it is a separate thing you could take away on its
-          own, which is the one claim this whole page exists to deny. The
-          numeral block does the separating; nothing here has an outline. */}
+          own, which is the one claim this whole page exists to deny. */}
       <div>
         {proving.map((paper) => {
           const record = chapterRecordFor(paper.id)
@@ -259,22 +208,19 @@ function ProofsPanel() {
           return (
             <div
               key={paper.id}
-              className="grid grid-cols-[auto_1fr] items-start gap-x-4 border-t-2 border-[var(--border-strong)] py-4 first:border-t-0 first:pt-0"
+              className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 border-t-2 border-[var(--border-strong)] py-5 first:border-t-0 first:pt-0"
             >
-              <NumberBlock n={paper.chapter} ink={ink} size="lg" />
+              <NumberMark n={paper.chapter} ink={ink} size="lg" />
               <div>
                 <div className="flex flex-wrap items-baseline gap-x-3">
-                  <h3 className="text-[17px] font-bold leading-tight tracking-[-0.015em] text-[var(--text-primary)]">
+                  <h3 className="text-[18px] font-bold leading-tight tracking-[-0.015em] text-[var(--text-primary)]">
                     {paper.title}
                   </h3>
-                  <span
-                    className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: ink.rule }}
-                  >
+                  <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: ink }}>
                     {chapterRoleLabel(paper)}
                   </span>
                 </div>
-                <p className="mt-1.5 max-w-[74ch] text-[14.5px] leading-[1.6] text-[var(--text-secondary)]">
+                <p className="mt-1.5 max-w-[70ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
                   {record?.oneLine}
                 </p>
               </div>
@@ -282,7 +228,7 @@ function ProofsPanel() {
           )
         })}
       </div>
-      <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
+      <p className="max-w-[70ch] text-[15px] leading-[1.6] text-[var(--text-muted)]">
         Every mechanised claim in the Book is listed with the artifact that checks it and
         the job that runs it, in the appendix and on the proofs page — including the ones
         where the model is bounded, or the property is named but not yet machine-checked.
@@ -293,8 +239,8 @@ function ProofsPanel() {
 
 function LimitsPanel() {
   return (
-    <div className="space-y-5">
-      <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+    <div className="space-y-6">
+      <p className="max-w-[70ch] text-[16px] leading-[1.6] text-[var(--text-secondary)]">
         Every important statement in the Book is labelled by kind, so you always know what
         you are reading: a <strong className="text-[var(--text-primary)]">theorem</strong> that
         follows from a formal model with stated assumptions, a{' '}
@@ -305,15 +251,13 @@ function LimitsPanel() {
         <strong className="text-[var(--text-primary)]">empirical hypothesis</strong> that
         still needs measuring. Each chapter ends with its own Limitations and Boundaries.
       </p>
-      {/* The seam itself, as a slab rather than a tinted box with a bar down
-          one side. This is the most important sentence on the panel and it is
-          set the way the Book sets a part opener: solid ink, paper type, no
-          border, because a colour block is a statement and a tint is a hint. */}
+      {/* The seam itself: the most important sentence on the panel, set apart
+          by a rule in the panel's hue rather than a block of it. */}
       <div
-        className="px-5 py-4"
-        style={{ background: 'var(--story-rust)', color: 'var(--story-rust-foreground)' }}
+        className="border-l-4 bg-[var(--surface-raised)] py-4 pl-5 pr-5"
+        style={{ borderColor: 'var(--story-rust)' }}
       >
-        <p className="max-w-[70ch] text-[15px] font-medium leading-[1.55]">
+        <p className="max-w-[66ch] text-[16px] font-medium leading-[1.55] text-[var(--text-primary)]">
           The harbor runs today. The market does not — it is specified and, in places,
           proved, which is a different thing from deployed, and the Book says which is
           which on every page rather than in a disclaimer at the end.
@@ -323,22 +267,21 @@ function LimitsPanel() {
         <Eyebrow>What changed, and when</Eyebrow>
         {/* Date in its own column rather than stacked above the title: the
             dates are the same shape and the same width, so a column of them
-            is a scale the eye can run down, which is the whole reason to set
-            a changelog on a grid instead of as four stacked blocks. */}
+            is a scale the eye can run down. */}
         <div className="mt-2">
           {LIBRARY_CHANGELOG.slice(0, 4).map((entry) => (
             <div
               key={entry.dateIso}
-              className="grid gap-x-5 border-t border-[var(--hair-strong)] py-2.5 sm:grid-cols-[7.5rem_1fr]"
+              className="grid gap-x-5 border-t border-[var(--hair-strong)] py-3 sm:grid-cols-[8.5rem_1fr]"
             >
-              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)] sm:pt-[3px]">
+              <div className="font-mono text-[14px] font-bold leading-[1.5] text-[var(--text-muted)]">
                 {entry.date}
               </div>
               <div>
-                <div className="text-[14.5px] font-semibold leading-tight text-[var(--text-primary)]">
+                <div className="text-[16px] font-semibold leading-[1.3] text-[var(--text-primary)]">
                   {entry.title}
                 </div>
-                <p className="mt-1 max-w-[74ch] text-[13.5px] leading-[1.55] text-[var(--text-muted)]">
+                <p className="mt-1 max-w-[70ch] text-[15px] leading-[1.55] text-[var(--text-muted)]">
                   {entry.summary}
                 </p>
               </div>
@@ -354,9 +297,7 @@ function ReadPanel() {
   // The bound volume plus any alternate typographic editions published beside
   // it. The volume has a downloadUrl; an edition only has its pdfPath, and the
   // union of the two shapes is why this is not one field. The Book publishes
-  // one edition today, so this is usually a single card — the grid takes its
-  // column count from the list rather than assuming three, which is what left
-  // a lone third-width card when the other two editions stopped being built.
+  // one edition today, so this is usually a single entry.
   const downloads = [
     { id: COLLECTED_VOLUME.id, title: COLLECTED_VOLUME.title, pages: COLLECTED_VOLUME.pages, href: COLLECTED_VOLUME.downloadUrl },
     ...(COLLECTED_VOLUME.editions ?? []).map((edition) => ({
@@ -368,46 +309,33 @@ function ReadPanel() {
   ]
 
   return (
-    <div className="space-y-5">
-      <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+    <div className="space-y-6">
+      <p className="max-w-[70ch] text-[16px] leading-[1.6] text-[var(--text-secondary)]">
         It is one PDF. Read it front to back if you have the time, or use the front
         matter's express lanes, which name the four or five sections that carry the
         argument for whoever you happen to be — the operator, the security reviewer, the
         economist, the person who just wants the thing to stop losing their work.
       </p>
-      {/* One edition gets a slab the width of the reading measure, not a
-          card-sized tile stranded in a panel with nothing beside it. The
-          single download IS the panel; making it small to keep the shape it
-          had when there were three of them is what left the dead space. */}
-      <div className={`grid gap-4 ${downloads.length > 1 ? 'md:grid-cols-3' : 'md:max-w-[42rem]'}`}>
-        {downloads.map((edition) => {
-          const href = edition.href
-          return (
-            <a
-              key={edition.id}
-              href={href}
-              /* A filled block, not an outlined tile. The one thing to do on
-                 this panel is take the PDF, and a Swiss page says that by
-                 giving it the colour and the weight rather than by drawing a
-                 rectangle around a link. Hover deepens the block; it does not
-                 add chrome that was not there at rest. */
-              className="group block px-5 py-4 no-underline transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
-              style={{
-                background: 'var(--brand-primary)',
-                color: 'var(--brand-primary-foreground)',
-              }}
-            >
-              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] opacity-80">
-                {edition.pages > 0 ? `${edition.pages} pp · PDF` : 'building'}
-              </div>
-              <div className="mt-1.5 text-[17px] font-bold leading-[1.15] tracking-[-0.015em]">
-                {edition.title}
-              </div>
-            </a>
-          )
-        })}
+      {/* The one thing to do on this panel is take the PDF, so the download is
+          the one filled element on the page. */}
+      <div className={`grid gap-4 ${downloads.length > 1 ? 'md:grid-cols-3' : 'md:max-w-[36rem]'}`}>
+        {downloads.map((edition) => (
+          <a
+            key={edition.id}
+            href={edition.href}
+            className="group block px-5 py-4 no-underline transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
+            style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-foreground)' }}
+          >
+            <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] opacity-90">
+              {edition.pages > 0 ? `${edition.pages} pages · PDF` : 'building'}
+            </div>
+            <div className="mt-1.5 text-[18px] font-bold leading-[1.2] tracking-[-0.015em]">
+              {edition.title}
+            </div>
+          </a>
+        ))}
       </div>
-      <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
+      <p className="max-w-[70ch] text-[15px] leading-[1.6] text-[var(--text-muted)]">
         One set of sources, set in the Swiss character: colour blocking, grotesk display,
         flat marks. Two other typographies of the same eight chapters and the same generated
         bibliography live in the repository and build from the same sources; nothing in the
@@ -503,44 +431,62 @@ export default function WhitepaperPage() {
       <DeckShell
         routeLabel="/whitepaper"
         hoist={['fl-whiskey', 'fl-papa']}
-        art={{
-          light: '/img/generated/library/book-light.webp',
-          dark: '/img/generated/library/book-dark.webp',
-          alt: 'A cut-paper diorama: one closed book on a reading stand, its spine banded in the four part colours, eight ribbon markers fanned from its pages.',
-        }}
         activeId={activeId}
         onSelect={select}
         signals={signals}
         masthead={
-          <div className="space-y-5">
-            <div>
+          <div className="flex flex-col gap-5">
+            {/* The cover and the Book's three figures share one row: the
+                object on the left, its numbers stepped down its right-hand
+                side, so the column carries no empty air beside the picture.
+                On a wide screen the row leads, the way a bookseller's listing
+                does (object, then title); on a phone the masthead is a short
+                scrolling band above the rail, so the title and the download
+                come first and the row follows. */}
+            <div className="order-2 flex items-stretch gap-5 lg:order-1">
+              <figure className="w-[9.5rem] shrink-0 lg:w-[10rem]">
+                <img
+                  className="block h-auto w-full border-2 border-[var(--border-strong)]"
+                  src="/whitepaper/plates/cover-swiss.jpg"
+                  width={1000}
+                  height={1429}
+                  alt={`Cover of ${TEXTBOOK.edition.title}, ${TEXTBOOK.edition.version}`}
+                  loading="eager"
+                  decoding="async"
+                />
+                <figcaption className="mt-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                  Page one of the PDF
+                </figcaption>
+              </figure>
+              <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                {[
+                  { n: String(TEXTBOOK.chapters.length).padStart(2, '0'), l: 'chapters' },
+                  { n: String(TEXTBOOK.parts.length).padStart(2, '0'), l: 'parts' },
+                  { n: String(COLLECTED_VOLUME.pages), l: 'pages, free' },
+                ].map((stat) => (
+                  <div key={stat.l} className="border-t-2 border-[var(--border-strong)] pt-2">
+                    <div className="font-mono text-[26px] font-bold leading-none text-[var(--text-primary)]">
+                      {stat.n}
+                    </div>
+                    <div className="mt-1 text-[14px] text-[var(--text-muted)]">{stat.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="order-1 lg:order-2">
               <Eyebrow>The Harbor Library · {TEXTBOOK.edition.version}</Eyebrow>
-              <h1 className="mt-2 max-w-[17ch] text-[clamp(30px,3.4vw,46px)] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)]">
+              <h1 className="mt-2 max-w-[17ch] text-[clamp(28px,3vw,40px)] font-bold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
                 {TEXTBOOK.edition.title}
               </h1>
-              <p className="deck-voice mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
+              <p className="deck-voice mt-3 max-w-[44ch] text-[16px] leading-[1.55] text-[var(--text-secondary)]">
                 {TEXTBOOK.edition.claim}
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-x-7 gap-y-3">
-              {[
-                { n: String(TEXTBOOK.chapters.length).padStart(2, '0'), l: 'chapters' },
-                { n: String(TEXTBOOK.parts.length).padStart(2, '0'), l: 'parts' },
-                { n: String(COLLECTED_VOLUME.pages), l: 'pages, free' },
-              ].map((stat) => (
-                <div key={stat.l} className="border-t-2 border-[var(--border-strong)] pt-2">
-                  <div className="font-mono text-[26px] font-bold leading-none text-[var(--text-primary)]">
-                    {stat.n}
-                  </div>
-                  <div className="mt-1 text-[12.5px] text-[var(--text-muted)]">{stat.l}</div>
-                </div>
-              ))}
-            </div>
-
             <a
               href={COLLECTED_VOLUME.downloadUrl}
-              className="inline-block bg-[var(--brand-primary)] px-5 py-3 font-mono text-[13px] font-bold tracking-[0.04em] text-[var(--brand-primary-foreground)] no-underline"
+              className="order-3 inline-block self-start bg-[var(--brand-primary)] px-5 py-3 font-mono text-[14px] font-bold tracking-[0.04em] text-[var(--brand-primary-foreground)] no-underline"
             >
               Read the Book (PDF)
             </a>
