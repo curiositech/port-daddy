@@ -42,7 +42,7 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
   return (
     <article className="border-b border-[var(--hair)] py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[13px] font-bold text-[var(--brand-primary)]">
+        <span className="font-mono text-[14px] font-bold text-[var(--brand-primary)]">
           {paper.number.padStart(2, '0')}
         </span>
         <h3 className="text-[17px] font-bold leading-tight tracking-[-0.012em] text-[var(--text-primary)]">
@@ -54,15 +54,15 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
         {paper.claim}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
           {paper.number === '8' ? 'Related to' : 'Folded into'} {chapterTitleFor(paper.chapterRef)}
         </span>
-        <span className="font-mono text-[11px] text-[var(--text-ghost)]">
+        <span className="font-mono text-[14px] text-[var(--text-ghost)]">
           {paper.resultTags.join(' · ')}
         </span>
         <a
           href={paper.pdfPath}
-          className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
+          className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
         >
           PDF · {paper.pages} pp
         </a>
@@ -152,7 +152,7 @@ function DivesPanel() {
             <div key={paper.id} className="border-l-[3px] pl-3" style={{ borderColor: VERDICT_INK[dive.verdict] }}>
               <div className="flex flex-wrap items-baseline gap-2">
                 <span
-                  className="font-mono text-[11px] font-bold uppercase tracking-[0.11em]"
+                  className="font-mono text-[12px] font-bold uppercase tracking-[0.11em]"
                   style={{ color: VERDICT_INK[dive.verdict] }}
                 >
                   {dive.verdict}
@@ -331,14 +331,14 @@ export default function ResearchProgramPage() {
                   <div className="font-mono text-[26px] font-bold leading-none text-[var(--text-primary)]">
                     {stat.n}
                   </div>
-                  <div className="mt-1 text-[12.5px] text-[var(--text-muted)]">{stat.l}</div>
+                  <div className="mt-1 text-[14px] text-[var(--text-muted)]">{stat.l}</div>
                 </div>
               ))}
             </div>
 
             <a
               href="/whitepaper"
-              className="inline-block bg-[var(--brand-primary)] px-5 py-3 font-mono text-[13px] font-bold tracking-[0.04em] text-[var(--brand-primary-foreground)] no-underline"
+              className="inline-block bg-[var(--brand-primary)] px-5 py-3 font-mono text-[14px] font-bold tracking-[0.04em] text-[var(--brand-primary-foreground)] no-underline"
             >
               Read the Book instead
             </a>

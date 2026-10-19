@@ -166,7 +166,7 @@ export function Wordmark({
         className={cn('inline-flex items-center gap-[var(--space-2)]', className)}
       >
         <BrandMark className="h-full w-auto" />
-        <span className="font-display text-[1.3rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)] xl:text-[1.45rem]">
+        <span className="whitespace-nowrap font-display text-[1.3rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)] xl:text-[1.45rem]">
           Port Daddy
         </span>
       </span>

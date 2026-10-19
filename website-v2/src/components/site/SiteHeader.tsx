@@ -202,6 +202,11 @@ function OverflowNavMenu() {
   );
 }
 
+// A row in the phone menu's utility group: the same shape as the nav rows
+// above it, so search, the repo and the account read as part of one list.
+const menuRowClass =
+  "flex items-center justify-between gap-[var(--space-3)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]";
+
 function CompressedNavMenu() {
   return (
     <Popover.Root>
@@ -218,7 +223,9 @@ function CompressedNavMenu() {
         <Popover.Content
           align="end"
           sideOffset={10}
-          className="z-[120] grid w-[min(calc(100vw-var(--space-6)),22rem)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] shadow-[var(--shadow-brutal)]"
+          // Fifteen rows plus the phone utilities outrun an 812px screen; the
+          // list scrolls inside the sheet so the last rows are reachable.
+          className="z-[120] grid max-h-[calc(100dvh-5rem)] w-[min(calc(100vw-var(--space-6)),22rem)] content-start overflow-y-auto border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] shadow-[var(--shadow-brutal)]"
         >
           <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
             <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
@@ -258,6 +265,29 @@ function CompressedNavMenu() {
               </Popover.Close>
             ))}
           </nav>
+
+          {/* Below sm the bar is brand, menu and theme only: at 375px the
+              search box, the octocat and the account chip pushed the wordmark
+              onto two lines under the menu button. They live here instead,
+              as rows of the same list, and reappear in the bar from sm up. */}
+          <div className="mt-[var(--space-2)] grid gap-[var(--space-1)] border-t-2 border-[var(--border-strong)] pt-[var(--space-2)] sm:hidden">
+            <Popover.Close asChild>
+              <button type="button" onClick={openDocsSearch} className={menuRowClass}>
+                <span>Search the docs</span>
+                <Search size={16} aria-hidden="true" />
+              </button>
+            </Popover.Close>
+            <a
+              href="https://github.com/curiositech/port-daddy"
+              target="_blank"
+              rel="noreferrer"
+              className={menuRowClass}
+            >
+              <span>GitHub repository</span>
+              <Github size={16} aria-hidden="true" />
+            </a>
+            <AccountChip variant="row" />
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -322,14 +352,20 @@ export function SiteHeader() {
               <DocsSearch variant="compact" />
             </div>
 
-            <button
-              type="button"
-              onClick={openDocsSearch}
-              className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
-              aria-label="Search documentation"
-            >
-              <Search size={16} />
-            </button>
+            {/* The wrapper owns the phone cutoff; the button keeps its own
+                1440px cutoff. Stacking both on one element put the icon back
+                beside the search box at 1440, because sm:inline-flex outranks
+                the arbitrary min-[1440px]:hidden in the generated cascade. */}
+            <div className="hidden sm:contents">
+              <button
+                type="button"
+                onClick={openDocsSearch}
+                className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
+                aria-label="Search documentation"
+              >
+                <Search size={16} />
+              </button>
+            </div>
 
             <a
               href="https://github.com/curiositech/port-daddy"
@@ -341,7 +377,9 @@ export function SiteHeader() {
               <Github size={16} />
             </a>
 
-            <AccountChip />
+            <div className="hidden sm:contents">
+              <AccountChip />
+            </div>
 
             <Button
               type="button"

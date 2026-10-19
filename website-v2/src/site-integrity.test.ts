@@ -294,6 +294,9 @@ function isKnownRoute(value: string) {
 
   if (exactRoutes.has(routePath) || redirectOnlyRoutes.has(routePath)) return true
   if (routePath.startsWith('/docs/')) return true
+  // Static pages shipped under public/ (the sheaf visualizer at
+  // /research/sheaf-visualizer/) are routes the router never sees.
+  if (existsSync(path.join(publicRoot, routePath.slice(1), 'index.html'))) return true
 
   const [collection, slug] = routePath.slice(1).split('/')
 

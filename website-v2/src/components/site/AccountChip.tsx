@@ -42,6 +42,11 @@ function parseStatus(body: unknown): AccountState {
 const chipClass =
   "inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]";
 
+// The phone menu lists the account as a full-width row among the site's
+// other rows (see SiteHeader's CompressedNavMenu), not as a chip.
+const rowClass =
+  "flex w-full items-center justify-between gap-[var(--space-3)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]";
+
 const menuItemClass =
   "flex items-center justify-between gap-[var(--space-3)] border-2 border-transparent px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]";
 
@@ -52,8 +57,9 @@ const ACCOUNT_MENU_ITEMS = [
   { label: "Mercy report", href: `${RELAY_ORIGIN}/account/mercy` },
 ] as const;
 
-export function AccountChip() {
+export function AccountChip({ variant = "chip" }: { variant?: "chip" | "row" }) {
   const [state, setState] = useState<AccountState>({ status: "signed-out" });
+  const triggerClass = variant === "row" ? rowClass : chipClass;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,8 +82,8 @@ export function AccountChip() {
     // already means "repo", and the header cannot afford a wide chip — GitHub
     // is the sign-in mechanism (relay /login says so), not the label.
     return (
-      <a href={`${RELAY_ORIGIN}/login`} className={chipClass} data-account-chip="signed-out">
-        Sign in
+      <a href={`${RELAY_ORIGIN}/login`} className={triggerClass} data-account-chip="signed-out">
+        {variant === "row" ? "Sign in with GitHub" : "Sign in"}
       </a>
     );
   }
@@ -87,7 +93,7 @@ export function AccountChip() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className={chipClass}
+          className={triggerClass}
           data-account-chip="signed-in"
           aria-label={`Account menu for ${state.login}`}
         >
@@ -104,7 +110,15 @@ export function AccountChip() {
           )}
           {/* Avatar-only until ultra-wide; the login label is a luxury the
               header can only afford once the primary nav has fully unfolded. */}
-          <span className="hidden max-w-[8rem] truncate min-[1800px]:inline">{state.login}</span>
+          <span
+            className={
+              variant === "row"
+                ? "max-w-[10rem] truncate"
+                : "hidden max-w-[8rem] truncate min-[1800px]:inline"
+            }
+          >
+            {state.login}
+          </span>
           <ChevronDown size={12} aria-hidden="true" />
         </button>
       </Popover.Trigger>
