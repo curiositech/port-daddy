@@ -19,7 +19,7 @@ import {
   runIdForDelivery,
 } from '../src/delivery-failure.js';
 
-const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      blocking: true\n      prompt: code-reviewer ship\n';
+const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      blocking: true\n      prompt: code-reviewer ship\n';
 
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
@@ -69,6 +69,13 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('runs stale reservation cleanup from the scheduled trigger', async () => {
+    const db=memoryD1();
+    const ctx=capturingCtx();
+    await handler.scheduled!({} as ScheduledController, makeEnv({DB:db.db}), ctx);
+    await Promise.all(ctx.waited);
+    expect(db.staleSweepQueries).toBe(1);
+  });
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
     // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
     // let a clean, zero-source review complete. It is infrastructure failure:
@@ -114,6 +121,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      blocking: true',
         '      fallbacks:',
         '        - backend: cloudflare',
@@ -156,6 +164,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -163,6 +172,7 @@ describe('queue consumer', () => {
         '      prompt: review',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -217,6 +227,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -224,6 +235,7 @@ describe('queue consumer', () => {
         '      prompt: review',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -382,6 +394,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -421,7 +434,7 @@ describe('queue consumer', () => {
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
@@ -452,12 +465,25 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -493,6 +519,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      blocking: true',
         '      fallbacks:',
         '        - backend: cloudflare',
@@ -504,18 +531,33 @@ describe('queue consumer', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const intent = { state: 'queued', error: null as string | null };
+    const billingD1 = memoryD1();
     const db = {
       prepare(sql: string) {
+        if (!sql.includes('fleet_run_intents')) return billingD1.db.prepare(sql);
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -559,10 +601,10 @@ describe('queue consumer', () => {
     expect(state.reviews).toHaveLength(0);
   });
 
-  it('closes an execution-only fleet as cancelled instead of looking for a missing run', async () => {
+  it('closes an execution-only fleet as failed while no runner consumes sandbox grants', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      allowedTools: "Read,Write,Bash(npm test*)"\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
+      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      allowedTools: "Read,Write,Bash(npm test*)"\n      execution:\n        mode: write_sandbox\n        repository: current_repository\n        worktree: isolated\n        cwd: .\n        toolAllowlist: [read_file, run_tests]\n        mcpAllowlist: [github.read]\n        networkAllowlist: []\n        writePathAllowlist: [.]\n        maxWallClockMs: 300000\n        maxCostMicrousd: 1000000\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
     );
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -573,13 +615,49 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('INSERT INTO fleet_run_reservations')) return {
+              run_id: 'run:delivery-abc', installation_id: 42,
+              retail_microusd: 100_000_000, provider_cost_cap_microusd: 25_000_000,
+              provider_cost_microusd: null, state: 'reserved',
+            } as T;
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
+            if (sql.includes('UPDATE fleet_run_reservations SET lease_owner')) return {
+              run_id: 'run:delivery-abc', lease_owner: bound[0],
+              lease_fence: 1, lease_expires_at: bound[1],
+            } as T;
+            if (sql.includes('FROM fleet_run_spend_v2')) return {
+              installation_id: 42, model: '@cf/qwen/qwen3-30b-a3b-fp8',
+              input_tokens: 0, output_tokens: 0, provider_cost_microusd: 0,
+            } as T;
+            if (sql.includes('SELECT r.provider_cost_cap_microusd')) return {
+              provider_cost_cap_microusd: 25_000_000, provider_cost_microusd: 0,
+            } as T;
+            if (sql.includes("SET state = 'settled'")) return {
+              run_id: 'run:delivery-abc', installation_id: 42,
+              retail_microusd: 100_000_000, provider_cost_cap_microusd: 25_000_000,
+              provider_cost_microusd: 0, state: 'settled',
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
-            if (sql.includes('SELECT conclusion FROM fleet_runs')) return null;
+            if (sql.includes('SELECT conclusion FROM fleet_runs')) {
+              return { conclusion: 'failure' } as T;
+            }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -603,8 +681,8 @@ describe('queue consumer', () => {
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    expect(intent.state).toBe('cancelled');
-    expect(intent.error).toContain('no Cloud-executable review ships');
+    expect(intent.state).toBe('failure');
+    expect(intent.error).toBeNull();
   });
 
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
@@ -634,7 +712,7 @@ describe('queue consumer', () => {
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
@@ -687,7 +765,7 @@ describe('queue consumer', () => {
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
@@ -726,6 +804,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -758,7 +837,7 @@ describe('queue consumer', () => {
     expect(state.completed).toHaveLength(0);
   });
 
-  it('stops after three provider attempts and completes neutral as a fleet fault', async () => {
+  it('stops after three provider attempts and fails closed when the required voter is unavailable', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       [
@@ -766,6 +845,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -791,10 +871,10 @@ describe('queue consumer', () => {
     expect(msg.retry).not.toHaveBeenCalled();
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(state.completed[0]?.conclusion).toBe('neutral');
+    expect(state.completed[0]?.conclusion).toBe('failure');
     expect(state.completed[0]?.summary).toContain('HTTP 429, code 3040');
     expect(state.completed[0]?.summary).toContain('adjudicated FLEET-WIDE fault');
-    expect(state.completed[0]?.summary).toContain('not gating this PR');
+    expect(state.completed[0]?.summary).toContain('required vote remains unmet and gates this PR');
   });
 });
 

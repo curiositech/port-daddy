@@ -36,6 +36,11 @@ does not by itself update `relay.portdaddy.dev`.
 
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, sessions with append-only notes, advisory file/symbol claims, distributed locks, pub/sub messaging, budget-bonded spawning, and automatic salvage.
 
+Agent launches enter through WorkIntent and a single-node plan before the governed
+Conductor executes them. Spawn responses include a durable run receipt linking
+the intent, launch, session and transcript; see [SDK receipt readback](docs/sdk.md#spawn--ai-run-launcher).
+
+
 ```bash
 # Start working (registers agent + claims port + starts session)
 pd begin "Building the auth layer" --identity myapp:api --lifecycle durable --roadmap auth-layer
@@ -112,6 +117,8 @@ pd setup
 `pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
 The [release train](docs/RELEASING.md#release-train-authority-and-recovery) publishes through the Port Daddy GitHub App with repository-scoped authority, exact source/tag/Release receipts and explicit cleanup status. Release discovery accepts large changelogs while rejecting missing dated headers or failed Git reads. Approved Actions configuration and a controlled live rollout are separate from source validation; signing, soak, protected review/queue and fresh-install gates remain in place.
+
+[Fleetbot source publication](docs/operations/fleetbot-source-publication.md) packages a clean committed change without credentials and submits it as data to the protected workload. Relay creates a governed App PR; signed receipt and Git tree readback bind it to the reviewed source. This source path still requires a configured protected grant and authorized dispatcher; it does not start the local runtime or provide a local proposal broker.
 
 ### 3. Verify
 
@@ -340,6 +347,25 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 ### Coordination Guard (`pd guard`)
 
+Automatic Git hooks and the Git shim now honor the machine-wide Off/HALT markers
+before invoking Port Daddy, even when a different runtime directory is selected.
+Missing or invalid local readiness also stops automatic calls. Pilot SessionStart
+steering, repository attention and skill sync stay installed behind the gate.
+Ordinary pre-commit validation and Git LFS remain active in either state. Turning
+On with valid readiness resumes the existing PD hooks without reinstalling them.
+controls are now source-built in FleetBar (popover and Settings) and pd-console
+(persistent control band). They save the canonical stop markers without a daemon
+and deny new local work; shutdown receipts remain separate from the saved setting.
+FleetBar orders task creation with its local Off latch and cancels tracked
+requests/streams when another app writes Off. Automatic appwatch and deferred
+packager starts honor the same markers; ordinary hooks and LFS stay installed.
+The CLI shim, final subprocess handoff and Fleet I/O bridge recheck Off after
+asynchronous preparation. Effects deferred inside individual provider/sink
+adapters remain an explicit unfinished boundary.
+Runtime admission, native visual proof, and outstanding adversarial findings are
+tracked explicitly; this is not a packaged or zero-spend guarantee. See
+[local Off controls and remaining work](docs/operations/local-off-control.md).
+
 `pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
@@ -548,6 +574,8 @@ written down as fact. There was no `--sender` flag on `pd inbox send`; the
 sender is your session. Reads, clears and mark-read on another agent's inbox
 are still unauthenticated — see the deferral in
 [`docs/security/identity-write-boundary-audit.md`](docs/security/identity-write-boundary-audit.md).
+
+`pd begin --json` retains public session and identity metadata but omits the credential after private persistence; explicitly selected `PD_EMIT_EXPORTS=1` shell output still carries the credential, unless JSON mode takes precedence.
 
 ### Durable Commitments
 
@@ -837,13 +865,16 @@ installed; session claims and notes are the cumulative outcome record.
 Provider configuration always calls the stable user-owned
 `~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
 Creating `~/.port-daddy/hooks.disabled` is the operator emergency kill switch:
-every Port Daddy-provided interactive or Git hook exits before reading input,
+the Port Daddy portion of each interactive or Git hook exits before reading input,
 writing diagnostics, handling the `HALT` listening watch, inspecting a project,
 probing a daemon, or publishing a commit event.
 Removing that marker re-enables the normal project and daemon gates; it does not
-start Port Daddy or arm a project. Port Daddy's commit hooks also no-op when a
-repository has no Coordination Guard configuration or when the local daemon's
-ready generation and fresh heartbeat cannot be verified.
+start Port Daddy or arm a project, and an existing HALT still wins. Port Daddy
+hook work also no-ops when the local daemon's ready generation and fresh heartbeat
+cannot be verified. Only managed Coordination Guard checks additionally require
+their repository configuration; commit publishing and secret scanning do not.
+Unrelated hook actions, ordinary repository validations and Git LFS are not
+disabled by the Port Daddy switch.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and
@@ -1021,7 +1052,7 @@ pd safe guard --staged          # exit non-zero when a NEW secret is staged
 pd safe fix                     # opt-in chmod of crown-jewel permissions
 ```
 
-`pd safe guard --staged` is wired into this repo's pre-commit hook: fail-open when `pd` is absent, fail-closed when it finds a staged secret. Corralling reduces blast radius (no plaintext at rest) but is honestly **not** confidentiality against a malicious same-UID agent — that needs the separate-UID broker (ADR-0087).
+`pd safe guard --staged` is wired into this repo's pre-commit hook: skipped when Port Daddy is Off, unready or absent, fail-closed when it runs and finds a staged secret. Skipping is not proof of a clean secret scan. Corralling reduces blast radius (no plaintext at rest) but is honestly **not** confidentiality against a malicious same-UID agent — that needs the separate-UID broker (ADR-0087).
 
 ### Note Encryption
 
@@ -1156,7 +1187,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **136 paths, 169 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **137 paths, 170 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
@@ -1258,6 +1289,8 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [Machine-instruction parity audit](docs/research/2026-09-02-machine-instruction-parity.md) — installed-guide and Pilot/skill provenance, preservation boundaries, and the remaining repair contract; source delivery is not installation
 - [macOS isolated-build findings](docs/research/2026-09-02-macos-isolated-bun-build.md) — three failed attempts, resolver controls, and remaining proof requirements; no runtime promotion
 - [Project Epistemology design package](docs/research/egosystem-reconciliation/README.md) — constitution, packet-audit skill, synthetic temporal/R17 consequence harness and existing Harbor integration contract; no runtime integration, measured research benefit or authority to resume halted work
+- [Cooperative Harbor implementation](docs/strategy/cooperative-harbor-implementation.md) — approved shared-work, editor and managed-hosting contracts; tested local foundations use distinct replica incarnations and scoped document routing. Local file opening no longer auto-joins a shared channel; verified shared admission and the complete product remain unshipped. See the [evidence and remaining gates](docs/research/egosystem-reconciliation/final/cooperative-foundations-evidence.md).
+- [Local editor history evidence](docs/research/egosystem-reconciliation/final/cooperative-editor-history-evidence.md) — per-replica undo/redo preserves collaborators' edits and emits exact mirror deltas. Other-replica claims hold history replay pending affected-operation validation. Source and headless tests are complete for this bounded slice; native interaction proof and the complete editor remain open.
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---

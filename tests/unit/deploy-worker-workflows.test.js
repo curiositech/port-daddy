@@ -17,7 +17,6 @@ const workflow = name => parse(readFileSync(resolve('.github/workflows', name), 
 // ship wrangler.toml.example (config deliberately out-of-band), so they are
 // exempt by construction.
 const DEPLOYED_WORKERS = [
-  { app: 'fleet-executor', file: 'deploy-fleet-executor.yml' },
   { app: 'steward', file: 'deploy-steward.yml' },
 ];
 
@@ -40,6 +39,35 @@ describe('worker deploy workflows', () => {
     expect(deployStep).toBeDefined();
     expect(deployStep.run).toContain('--config wrangler.deploy.toml');
     // Credentials come from the secrets context only — never inline.
+    expect(deployStep.env.CLOUDFLARE_API_TOKEN).toBe('${{ secrets.CLOUDFLARE_API_TOKEN }}');
+    expect(deployStep.env.CLOUDFLARE_ACCOUNT_ID).toBe('${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
+  });
+
+  test('fleet-executor: protected manual deploy from reviewed, ready main only', () => {
+    const file = 'deploy-fleet-executor.yml';
+    const wf = workflow(file);
+    const triggers = wf.on ?? wf[true];
+    expect(triggers).toHaveProperty('workflow_dispatch');
+    expect(triggers).not.toHaveProperty('push');
+
+    expect(wf.concurrency.group).toBe('deploy-fleet-executor');
+    expect(wf.concurrency['cancel-in-progress']).toBe(false);
+
+    const deploy = wf.jobs.deploy;
+    expect(deploy.environment).toBe('fleet-production');
+    expect(deploy.if).toContain("github.repository == 'curiositech/port-daddy'");
+    expect(deploy.defaults.run['working-directory']).toBe('apps/fleet-executor');
+
+    const checkout = deploy.steps.find(s => (s.uses ?? '').startsWith('actions/checkout'));
+    expect(checkout.with.ref).toBe('main');
+    const reviewedMain = deploy.steps.find(s => s.name === 'Require reviewed current main');
+    expect(reviewedMain.run).toContain('test "${GITHUB_REF}" = "refs/heads/main"');
+    expect(reviewedMain.run).toContain('git ls-remote origin refs/heads/main');
+    const readiness = deploy.steps.find(s => s.name === 'Verify production managed-billing readiness');
+    expect(readiness.run).toContain('check-managed-billing-readiness.mjs');
+
+    const deployStep = deploy.steps.find(s => /wrangler deploy/.test(s.run ?? ''));
+    expect(deployStep.run).toContain('--config wrangler.deploy.toml');
     expect(deployStep.env.CLOUDFLARE_API_TOKEN).toBe('${{ secrets.CLOUDFLARE_API_TOKEN }}');
     expect(deployStep.env.CLOUDFLARE_ACCOUNT_ID).toBe('${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
   });

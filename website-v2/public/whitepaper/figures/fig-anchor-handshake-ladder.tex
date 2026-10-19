@@ -1,0 +1,115 @@
+% A UML sequence diagram of the issue-delegate-verify ceremony, drawn from the
+% chapter's own Phase-3 pseudocode: Daemon.IssueToken (Alg. asymmetric),
+% Agent.Delegate and Harbor.VerifyChain (Alg. delegation), with the capability
+% sets of Def. offline-attn (["db:read","db:write"] narrowed to ["db:read"]).
+%
+% Root key: sk_daemon / pk_daemon. Settled from source, not from the prose:
+% analyses/harbor_card_v3_delegation.pv, _v5_attenuation.pv,
+% _v6_multihop_attack.pv and _v7_multihop_fixed.pv all declare
+% `free daemon_sk: skey [private]` and verify the chain root under
+% `pk(daemon_sk)`, and core/harbor-card-rs/src/lib.rs binds its verifier to one
+% *issuer* public key whose subject is the daemon fingerprint. Alg. delegation
+% already requires "Daemon Public Key: pk_daemon"; the chapter's `pk_root` was
+% an undeclared alias for that same key and is removed in the same change.
+%
+% Conventions in force, so that nothing in the drawing varies except what the
+% protocol varies: one arrow style for every communication; activation boxes
+% on lifelines for "this participant is working"; a reflex self-message for
+% the verifier's own loop; arrowheads stopped 0.16cm short of the box they
+% address; message labels wrapped to sit inside their own lane, so they need
+% no opaque backing and cross no lifeline -- which is why `pd direct label`
+% is used here with fill=none throughout.
+%
+% The readable fact is the shaded region: every message after m1 is inside it,
+% and the Daemon's lifeline crosses it carrying no activation box at all.
+%
+% Per-claim verification, against rendered PDF geometry at 1.0x / 150 dpi under
+% BOTH preambles (chapter: anchor-protocol-whitepaper.pdf p.8; Book:
+% coordination-papers-mega-volume.pdf p.95). Read off get_drawings(), not by
+% eye:
+%   - "shaded region": the fill is real ink in both editions, not merely a
+%     declared style. Modal grey inside the region against paper outside it
+%     separates by 14 levels (5.5%) under the chapter preamble and 34 levels
+%     (13.3%) under the Book's, and the region additionally carries a drawn
+%     edge. This is the one styling word the caption spends, and it is kept.
+%   - "every message after m1 falls inside": the region spans y 359.5..618.9
+%     (chapter). m1 is at y 336.8, ABOVE it; m2 421.8, m3 506.9, the verifier's
+%     reflex 9.35/10.05 and m4 591.9 all fall within. Same ordering in the Book
+%     at y 252.4..511.7. No message label crosses the boundary either.
+%   - "where the Daemon is not addressed": the four lifelines are at x 180.5,
+%     264.1, 347.8, 431.4 (chapter). Inside the region no arrow endpoint comes
+%     within 6pt of x 180.5, and the Daemon carries no activation box below
+%     y 359.5 -- its only box is at y 330..345, above the region. The lifeline
+%     itself runs the full depth, so the reader sees a participant present and
+%     unspoken-to rather than a participant that vanished.
+%   - NO dash-bearing path exists in this figure in either edition (zero paths
+%     carry a dash array), so there is nothing here for the `pd guide`
+%     antialiasing failure to reach. That is deliberate: the earlier version of
+%     this figure promised a dotted lifeline that rendered solid, and the fix
+%     was to stop encoding the fact in a dash at all.
+% [internal; the chapter's own algorithms and the ProVerif models]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  msg/.style={pd direct label,fill=none,align=center,anchor=south,inner ysep=3pt}]
+
+  % ---- the offline region, drawn first so every mark sits on top of it ----
+  % Encoded, not annotated: the reader sees a region with a drawn edge, and
+  % that edge is itself the divider under message 1.
+  \draw[pd neutral fill] (-5.85,-12.55) rectangle (5.00,-3.40);
+  % The region's name runs up its own left gutter -- inside the region it
+  % names, clear of every lifeline, and not mistakable for a note set loose
+  % under the drawing.
+  \node[pd note,rotate=90,anchor=south,align=center] at (-5.73,-7.98)
+    {offline: the Daemon is not contacted again};
+
+  % ---- participants ----
+  \node[pd actor,text width=1.35cm,align=center] at (-4.72,0) {Daemon};
+  \node[pd actor,text width=1.35cm,align=center] at (-1.77,0) {Agent A};
+  \node[pd actor,text width=1.35cm,align=center] at ( 1.18,0) {Agent B};
+  \node[pd actor,text width=1.35cm,align=center] at ( 4.13,0) {Harbor};
+
+  % ---- lifelines: one style for all four. Who is idle is shown by the
+  %      absence of an activation box, not by a second line style. ----
+  \foreach \x in {-4.72,-1.77,1.18,4.13} \draw[pd hairline] (\x,-0.78) -- (\x,-12.35);
+
+  % ---- activation boxes ----
+  % The Daemon's is the only one above the region, and it has none below it.
+  \draw[pd rule,fill=hhpaper] (-4.83,-2.35) rectangle (-4.61,-2.85);
+  \draw[pd rule,fill=hhpaper] (-1.88,-2.60) rectangle (-1.66,-5.60);
+  \draw[pd rule,fill=hhpaper] ( 1.07,-5.60) rectangle ( 1.29,-8.60);
+  \draw[pd rule,fill=hhpaper] ( 4.02,-8.60) rectangle ( 4.24,-11.60);
+  \draw[pd rule,fill=hhpaper] ( 1.07,-11.60) rectangle ( 1.29,-12.00);
+
+  % ---- m1: the Daemon issues the root card ----
+  \draw[pd arrow] (-4.61,-2.60) -- (-2.04,-2.60);
+  \node[msg] at (-3.245,-2.48)
+    {\texttt{m1\quad card\_0 =}\\\texttt{Sign(sk\_daemon,}\\\texttt{jti, \{db:read,}\\\texttt{db:write\})}};
+
+  % ---- m2: agent A mints the child card with no round trip ----
+  \draw[pd arrow] (-1.66,-5.60) -- (0.91,-5.60);
+  \node[msg] at (-0.295,-5.48)
+    {\texttt{m2\quad card\_1 =}\\\texttt{Sign(sk\_A,}\\\texttt{card\_0, B,}\\\texttt{\{db:read\})}};
+
+  % ---- m3: agent B presents the whole chain ----
+  \draw[pd arrow] (1.29,-8.60) -- (3.86,-8.60);
+  \node[msg] at (2.655,-8.48)
+    {\texttt{m3\quad chain =}\\\texttt{[card\_0,}\\\texttt{card\_1]}};
+
+  % ---- the verifier's own loop: a reflex self-message on its activation box --
+  \draw[pd arrow] (4.02,-9.35) -- (3.62,-9.35) -- (3.62,-10.05) -- (3.86,-10.05);
+  \node[pd direct label,fill=none,align=right,anchor=east,text width=2.05cm]
+    at (3.49,-9.70) {verify each hop under \texttt{pk\_daemon}};
+
+  % ---- m4: the verdict returns to B, never to the Daemon ----
+  \draw[pd arrow] (4.02,-11.60) -- (1.45,-11.60);
+  \node[msg] at (2.655,-11.48)
+    {\texttt{m4\quad accept}\\\texttt{\{db:read\}}};
+\end{tikzpicture}
+\caption{The issue--delegate--verify ceremony as a sequence diagram. Every
+message after \texttt{m1} falls inside the shaded region, where the Daemon is
+not addressed: agent~A mints \texttt{card\_1} from \texttt{card\_0} with its
+own key, and the Harbor accepts the chain under \texttt{pk\_daemon} with no
+round trip to the issuer. [internal]}
+\label{fig:anchor-handshake-ladder}
+\end{figure}

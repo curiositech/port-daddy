@@ -163,6 +163,7 @@ describe('retention sweep', () => {
     // which keys on user_id rather than a timestamp.
     const expected: Array<[string, number]> = [
       ['shipwright_chats WHERE created_at', SHIPWRIGHT_RETENTION_DAYS],
+      ['shipwright_thread_messages WHERE created_at', SHIPWRIGHT_RETENTION_DAYS],
       ['seamanship_skill_cache WHERE fetched_at', SEAMANSHIP_CACHE_RETENTION_DAYS],
       ['agent_chats WHERE created_at', SNIPE_CHAT_RETENTION_DAYS],
       ['agent_chat_spend WHERE window_start', CHAT_SPEND_RETENTION_DAYS],

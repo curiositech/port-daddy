@@ -40,6 +40,7 @@ import { defaultSpawnAdapter, reapWorktree } from './spawn-adapter.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
 import type { DispatchQueue, Dispatch } from './queue.js';
 import type { WorkIntentService } from '../agent-harbor/work-intent-service.js';
+import { createLocalRuntimeGate } from '../local-runtime-control.js';
 
 export interface DispatchWorkerLogger {
   info(msg: string, meta?: Record<string, unknown>): void;
@@ -48,6 +49,8 @@ export interface DispatchWorkerLogger {
 }
 
 export interface DispatchWorkerOptions {
+  /** Additional injected admission policy; production defaults to canonical local Off. */
+  runtimeAllowed?: () => boolean;
   queue: DispatchQueue;
   logger?: DispatchWorkerLogger;
   /** Max dispatches running concurrently in THIS daemon. Default 2. */
@@ -149,6 +152,7 @@ export class DispatchWorker {
   private readonly costFn: DispatchCostFn | undefined;
   private readonly workIntentService: WorkIntentService | undefined;
   private readonly failoverOpts: DispatchWorkerOptions['failover'];
+  private readonly runtimeAllowed: () => boolean;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -175,6 +179,7 @@ export class DispatchWorker {
     this.costFn = opts.costFn;
     this.failoverOpts = opts.failover;
     this.workIntentService = opts.workIntentService;
+    this.runtimeAllowed = createLocalRuntimeGate(opts.runtimeAllowed);
   }
 
   /**
@@ -186,6 +191,7 @@ export class DispatchWorker {
    * can be alive yet, so every claimed/in_progress row is genuinely stranded.
    */
   start(): void {
+    if (!this.runtimeAllowed()) { this.stop(); return; }
     if (this.running) return;
 
     try {
@@ -243,6 +249,7 @@ export class DispatchWorker {
    * tests that want to drive the loop deterministically).
    */
   async poll(): Promise<number> {
+    if (!this.runtimeAllowed()) { this.stop(); return 0; }
     // Note: poll() does NOT gate on `this.running`. The interval timer only
     // fires while started, but poll() is also invoked directly — by the HTTP
     // `/dispatches/:id/run` nudge and by tests — and must work in those cases.
@@ -251,6 +258,7 @@ export class DispatchWorker {
     let launched = 0;
     try {
       while (this.inFlight.size < this.maxConcurrency) {
+        if (!this.runtimeAllowed()) { this.stop(); break; }
         const claimed = this.claimOne();
         if (!claimed) break; // queue empty or claim raced
         this.inFlight.add(claimed.id);
@@ -347,6 +355,7 @@ export class DispatchWorker {
       ...(cfg.isUnavailable ? { isUnavailable: cfg.isUnavailable } : {}),
       ...(cfg.buildHandoff ? { buildHandoff: cfg.buildHandoff } : {}),
       mintSuccessor: async (req: SuccessorRequest) => {
+        if (!this.runtimeAllowed()) return null;
         try {
           const captured = workIntentService.captureDispatch(
             {
@@ -405,7 +414,12 @@ export class DispatchWorker {
     try {
       this.logger.info('dispatch_worker_run_start', { id: idShort, goal: claimed.goal.slice(0, 80) });
       const { result } = await runClaimedDispatch(this.queue, claimed, {
-        spawnAdapter: this.spawnAdapter,
+        spawnAdapter: async (...args) => {
+          // Runner admission may await budgets/workspace checks. Recheck at the
+          // actual adapter seam, not only before claiming a queued intent.
+          if (!this.runtimeAllowed()) throw new Error('Local Port Daddy is Off; dispatch backend refused');
+          return this.spawnAdapter(...args);
+        },
         ...(this.buildFailoverOptions() ? { failover: this.buildFailoverOptions()! } : {}),
         // Per-dispatch choice wins; the worker's setting is a DEFAULT, not an
         // override (see the `backend` option doc).
@@ -454,7 +468,7 @@ export class DispatchWorker {
         rowState = this.queue.get(claimed.id)?.state ?? null;
       } catch { /* row gone — treat as reapable */ }
       const isSalvage = outcomeState === 'salvage' || rowState === 'salvage';
-      if (isSalvage) {
+      if (isSalvage || !this.runtimeAllowed()) {
         this.logger.info('dispatch_worker_reap_skipped_salvage', { id: idShort, worktreePath });
       } else {
         // Best-effort; never throws out.

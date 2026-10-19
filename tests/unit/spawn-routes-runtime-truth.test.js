@@ -10,6 +10,9 @@ await jest.unstable_mockModule('../../lib/spawner/backends/cli-tube.js', () => (
   spawnViaCliTube: mockSpawnViaCliTube,
 }));
 
+const { createConductor } = await import('../../lib/fleet/conductor.js');
+const { createWorkIntentService } = await import('../../lib/agent-harbor/work-intent-service.js');
+const { createWorkIntentSpawn } = await import('../../lib/agent-harbor/work-intent-spawn.js');
 const { createSpawner } = await import('../../lib/spawner.js');
 const { createTranscripts } = await import('../../lib/transcripts.js');
 const { spawnPlugin } = await import('../../routes/spawn.js');
@@ -49,7 +52,7 @@ function mockCoordinationFetch() {
   return jest.fn().mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => ({ success: true }),
+    json: async () => ({ success: true, sessionId: 'session-route-runtime', credential: 'synthetic' }),
     text: async () => 'OK',
   });
 }
@@ -62,9 +65,10 @@ function installFakeCli(dir, name) {
   return path;
 }
 
-async function buildApp({ transcripts, costTracker }) {
+async function buildApp({ db, transcripts, costTracker }) {
   const app = Fastify();
   const spawner = createSpawner({
+    runtimeAllowed: () => true, // All backend and coordination effects are intercepted.
     transcripts,
     costTracker,
     enforceTelemetryPolicy: true,
@@ -74,6 +78,7 @@ async function buildApp({ transcripts, costTracker }) {
   await app.register(spawnPlugin, {
     deps: {
       spawner,
+      workIntentSpawn: createWorkIntentSpawn({ db, workIntentService: createWorkIntentService({ db }), conductor: createConductor({ db, spawner }) }),
       costTracker,
       metrics: { errors: 0 },
       logger: {
@@ -131,7 +136,7 @@ describe('spawn route effective runtime truth with real preflight', () => {
   test('forced cli:codex route keeps requested high-tier model and effective codex sentinel', async () => {
     const requestedHighModel = resolveModel({ backend: 'claude', tier: 'high' });
     const costTracker = makeCostTracker();
-    const app = await buildApp({ transcripts, costTracker });
+    const app = await buildApp({ db, transcripts, costTracker });
 
     try {
       const spawnRes = await app.inject({
@@ -175,7 +180,7 @@ describe('spawn route effective runtime truth with real preflight', () => {
 
   test('cli-tube receipt survives completion in the FleetBar /spawn API, and is absent when unavailable', async () => {
     const costTracker = makeCostTracker();
-    const app = await buildApp({ transcripts, costTracker });
+    const app = await buildApp({ db, transcripts, costTracker });
     const receipt = {
       tool: 'pd-coast-guard',
       agentId: 'will-be-replaced-by-the-spawner',

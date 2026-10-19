@@ -1,0 +1,36 @@
+{
+  "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+  "authors": [
+    "Shunyu Yao",
+    "Jeffrey Zhao",
+    "Dian Yu",
+    "Nan Du",
+    "Izhak Shafran",
+    "Karthik Narasimhan",
+    "Yuan Cao"
+  ],
+  "source": {
+    "citation": "Yao et al., ReAct: Synergizing Reasoning and Acting in Language Models",
+    "url": "https://arxiv.org/html/2210.03629v3",
+    "version": "v3, 2023-03-10"
+  },
+  "core_question": "How does interleaving generated reasoning text, task-specific actions, and environment observations perform on the tasks and configurations studied in this paper?",
+  "scope": "The paper evaluates specific prompting and fine-tuning configurations on HotpotQA, FEVER, ALFWorld, and WebShop. Results are task-, model-, prompt-, and interface-specific; generated rationale is public model text, not verified source provenance or a faithful account of hidden reasoning.",
+  "key_ideas": [
+    "The paper defines an interleaved trajectory of reasoning text, actions, and observations; the observation comes from the task environment.",
+    "Its knowledge tasks use a limited Wikipedia search/lookup/finish API; the authors also evaluate alternative routing and fine-tuning configurations.",
+    "Its reported results include both strengths and failure categories. They do not establish universal superiority, factuality, transfer, or controllability.",
+    "One ALFWorld appendix example edits text supplied to a later prompt and reports a changed trajectory; that single intervention does not establish general control."
+  ],
+  "historical_import": {
+    "status": "unreviewed_historical_nonoperative",
+    "sha256": "5667807179ea3f076beab68403be9fcc2b664ac8e0b04223ec48875d2ef93624",
+    "instruction": "Do not ingest the preserved original JSON as current canonical claims.",
+    "canonical_preimage": {
+      "repository": "curiositech/port-daddy",
+      "commit": "00ab2c9ab2197ff97e85edc173370b7446fdb2ef",
+      "path": "skills/yao-2022-react/_book_identity.json"
+    },
+    "archive_note": "An identical copy is retained in campaign review evidence; no portable bundle-relative archive file is asserted."
+  }
+}

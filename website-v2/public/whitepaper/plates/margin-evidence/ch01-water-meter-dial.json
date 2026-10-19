@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Rotary water flow meter with cutaway piston and cobalt blue indicator needle. Analogy for monotonic append-only state accounting.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "f05bee6fc762d4db1bb34a1e77e004eca3191b9b5696126a06436fd335e08e68",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

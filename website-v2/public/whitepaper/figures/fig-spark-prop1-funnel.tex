@@ -1,0 +1,192 @@
+% fig-spark-prop1-funnel.tex
+% Proposition 1: Serial Write Arbitration (The Single-Writer Kernel)
+% Faithful 100% native vector Swiss TikZ reconstruction of fig-spark-prop1-funnel.jpg.
+% Full-width (15.0cm = \pdfullwidth), pure white ground, Swiss typography.
+% Strict adherence to Harbor Figure Standard (v2):
+% - Sentence case for all titles and labels (never ALL-CAPS).
+% - High Tufte data-ink ratio (quiet neutral tones, minimal non-data ink, crisp borders).
+% - Typographic law: \pdfiglabelsize (\footnotesize), pd title, pd label; zero inline \fontsize.
+% - Line weight ladder: 0.5pt (hairline/guides), 0.9pt (rules/arrows/borders), 1.6pt (spine).
+% - Semantic palette: pdcobalt (concurrent processes), pdrust (WAL commit climax), pdslate (neutral frames).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pblock/.style={
+      draw=pdcobalt,
+      line width=0.7pt,
+      fill=pdcobalt!20,
+      rounded corners=2pt
+    },
+    walframe/.style={
+      draw=pdslate!80!black,
+      line width=0.5pt,
+      fill=pdslate!10,
+      rounded corners=1.5pt
+    },
+    walactive/.style={
+      draw=pdrust!90!black,
+      line width=0.9pt,
+      fill=pdrust,
+      rounded corners=2pt
+    },
+    commitbox/.style={
+      draw=pdrust!90!black,
+      line width=0.9pt,
+      fill=pdrust,
+      rounded corners=2.5pt
+    },
+    funnelarrow/.style={
+      ->,
+      >=Stealth,
+      line width=0.9pt,
+      draw=pdink
+    },
+    dashedconnect/.style={
+      ->,
+      >=Stealth,
+      line width=0.7pt,
+      dashed,
+      draw=pdink!80!black
+    }
+  }
+
+  % =========================================================================
+  % LEFT REGION: CONCURRENT PROCESSES (x in [0.6, 5.0])
+  % =========================================================================
+  % Top Header & Bracket (Sentence case)
+  \node[pd title,anchor=center,text=pdink] at (2.8, 9.4) {%
+    Concurrent processes%
+  };
+  \draw[line width=0.5pt,dashed,draw=pdink!60!black]
+    (0.9, 8.95) -- (0.9, 9.10) -- (4.7, 9.10) -- (4.7, 8.95);
+
+  % Column Headers: P1, P2, P3
+  \node[pd title,anchor=center,text=pdink] at (1.4, 8.5) {P1};
+  \node[pd title,anchor=center,text=pdink] at (2.8, 8.5) {P2};
+  \node[pd title,anchor=center,text=pdink] at (4.2, 8.5) {P3};
+
+  % --- Row 1 (Top Stack: 3 blocks per column) ---
+  \foreach \col/\cx in {1/1.4, 2/2.8, 3/4.2} {
+    \filldraw[pblock] (\cx-0.5, 7.60) rectangle (\cx+0.5, 8.05);
+    \filldraw[pblock] (\cx-0.5, 7.05) rectangle (\cx+0.5, 7.50);
+    \filldraw[pblock] (\cx-0.5, 6.50) rectangle (\cx+0.5, 6.95);
+  }
+  \draw[dashedconnect] (1.95, 7.27) -- (2.25, 7.27);
+  \draw[dashedconnect] (3.35, 7.27) -- (3.65, 7.27);
+
+  % --- Row 2 (Middle Stack: 3 blocks per column) ---
+  \foreach \col/\cx in {1/1.4, 2/2.8, 3/4.2} {
+    \filldraw[pblock] (\cx-0.5, 5.45) rectangle (\cx+0.5, 5.90);
+    \filldraw[pblock] (\cx-0.5, 4.90) rectangle (\cx+0.5, 5.35);
+    \filldraw[pblock] (\cx-0.5, 4.35) rectangle (\cx+0.5, 4.80);
+  }
+  \draw[dashedconnect] (1.95, 5.12) -- (2.25, 5.12);
+  \draw[dashedconnect] (3.35, 5.12) -- (3.65, 5.12);
+
+  % --- Row 3 (Bottom Stack: 5 blocks per column) ---
+  \foreach \col/\cx in {1/1.4, 2/2.8, 3/4.2} {
+    \filldraw[pblock] (\cx-0.5, 3.35) rectangle (\cx+0.5, 3.75);
+    \filldraw[pblock] (\cx-0.5, 2.85) rectangle (\cx+0.5, 3.25);
+    \filldraw[pblock] (\cx-0.5, 2.35) rectangle (\cx+0.5, 2.75);
+    \filldraw[pblock] (\cx-0.5, 1.85) rectangle (\cx+0.5, 2.25);
+    \filldraw[pblock] (\cx-0.5, 1.35) rectangle (\cx+0.5, 1.75);
+  }
+  % Vertical guide lines on row 3 (P1 and P3)
+  \draw[line width=0.5pt,draw=pdink!50!black] (0.8, 1.35) -- (0.8, 3.75);
+  \draw[line width=0.5pt,draw=pdink!50!black] (4.8, 1.35) -- (4.8, 3.75);
+  \draw[dashedconnect] (1.95, 2.55) -- (2.25, 2.55);
+  \draw[dashedconnect] (3.35, 2.55) -- (3.65, 2.55);
+
+  % Bottom Label for Processes (Sentence case)
+  \node[pd label,anchor=center,text=pdink] at (2.8, 0.7) {%
+    Concurrent processes%
+  };
+
+  % =========================================================================
+  % CONVERGENCE DASHED LINES INTO FUNNEL
+  % =========================================================================
+  % From Row 1 (y=7.27) -> down to y=5.6 -> funnel
+  \draw[dashedconnect] (4.7, 7.27) -- (5.4, 7.27) -- (5.4, 5.6) -- (6.1, 5.6);
+  % From Row 2 (y=5.12) -> funnel
+  \draw[dashedconnect] (4.7, 5.12) -- (6.1, 5.12);
+  % From Row 3 (y=2.55) -> up to y=4.6 -> funnel
+  \draw[dashedconnect] (4.7, 2.55) -- (5.4, 2.55) -- (5.4, 4.6) -- (6.1, 4.6);
+
+  % =========================================================================
+  % CENTER REGION: SERIAL FUNNEL & COMMIT BOUNDARY (x in [6.1, 8.5])
+  % =========================================================================
+  % Funnel Polygon (Triangle pointing right)
+  \filldraw[draw=pdink,line width=0.9pt,fill=pdpage]
+    (6.1, 3.6) -- (7.8, 5.1) -- (6.1, 6.6) -- cycle;
+
+  % Serial Funnel Annotation (Sentence case)
+  \node[pd title,anchor=center,align=center,text=pdink] at (6.3, 9.4) {%
+    Serial\\funnel%
+  };
+  \draw[line width=0.5pt,dashed,draw=pdink!60!black] (6.3, 8.8) -- (6.3, 6.4);
+
+  % Central vertical dashed divider line
+  \draw[line width=0.5pt,dashed,draw=pdink!60!black] (7.0, 3.2) -- (7.0, 0.4);
+
+  % Commit boundary arrow from funnel tip to WAL
+  \draw[funnelarrow,line width=0.9pt] (7.8, 5.1) -- (9.9, 5.1);
+
+  % Unbypassable Commit Boundary Annotation (Sentence case, centered over horizontal path 8.7 -> 11.0)
+  \node[pd title,anchor=center,align=center,text=pdink] at (9.9, 9.4) {%
+    Unbypassable\\commit boundary%
+  };
+  \draw[dashedconnect] (8.7, 5.1) -- (8.7, 8.8) -- (11.0, 8.8) -- (11.0, 8.05);
+
+  % =========================================================================
+  % RIGHT REGION: WRITE-AHEAD LOG (WAL) & ORDERED COMMITS (x in [10.0, 14.8])
+  % =========================================================================
+  % WAL Stack Box (centered at x = 11.0)
+  % 4 neutral frames above (quiet slate tint, 0.5pt border, high Tufte data-ink ratio)
+  \filldraw[walframe] (10.0, 7.55) rectangle (12.0, 8.00);
+  \filldraw[walframe] (10.0, 7.00) rectangle (12.0, 7.45);
+  \filldraw[walframe] (10.0, 6.45) rectangle (12.0, 6.90);
+  \filldraw[walframe] (10.0, 5.90) rectangle (12.0, 6.35);
+
+  % Highlighted Active WAL Frame (Warm Rust Climax State)
+  \filldraw[walactive] (10.0, 5.00) rectangle (12.0, 5.80);
+  \node[pd title,anchor=center,text=white] at (11.0, 5.40) {%
+    WAL%
+  };
+
+  % 3 neutral frames below
+  \filldraw[walframe] (10.0, 4.35) rectangle (12.0, 4.80);
+  \filldraw[walframe] (10.0, 3.80) rectangle (12.0, 4.25);
+  \filldraw[walframe] (10.0, 3.25) rectangle (12.0, 3.70);
+
+  % Label next to WAL Stack (Sentence case)
+  \node[pd title,anchor=west,align=left,text=pdink] at (12.2, 5.40) {%
+    Write-ahead\\log (WAL)%
+  };
+
+  % --- Serialized Ordered Commits ---
+  % Fork arrows down from WAL base (y = 3.25)
+  \draw[line width=0.9pt,draw=pdink] (11.0, 3.25) -- (11.0, 2.7);
+  \draw[funnelarrow,line width=0.9pt] (11.0, 2.7) -- (9.2, 2.7) -- (9.2, 2.2);
+  \draw[funnelarrow,line width=0.9pt] (11.0, 2.7) -- (11.0, 2.2);
+  \draw[funnelarrow,line width=0.9pt] (11.0, 2.7) -- (12.8, 2.7) -- (12.8, 2.2);
+
+  % Commit Boxes: T1 -> T2 -> T3
+  \filldraw[commitbox] (8.6, 1.25) rectangle (9.8, 2.2);
+  \node[pd title,anchor=center,text=white] at (9.2, 1.72) {T1};
+
+  \draw[funnelarrow,line width=0.9pt] (9.9, 1.72) -- (10.3, 1.72);
+
+  \filldraw[commitbox] (10.4, 1.25) rectangle (11.6, 2.2);
+  \node[pd title,anchor=center,text=white] at (11.0, 1.72) {T2};
+
+  \draw[funnelarrow,line width=0.9pt] (11.7, 1.72) -- (12.1, 1.72);
+
+  \filldraw[commitbox] (12.2, 1.25) rectangle (13.4, 2.2);
+  \node[pd title,anchor=center,text=white] at (12.8, 1.72) {T3};
+
+  % Bottom Label for Ordered Commits (Sentence case)
+  \node[pd label,anchor=center,text=pdink] at (11.0, 0.7) {%
+    Serialized ordered commits%
+  };
+
+\end{tikzpicture}

@@ -1,98 +1,54 @@
 # Distributed Constraint Satisfaction: From Local Decisions to Global Solutions
 
-## The Fundamental Problem
+## Source and model boundary
 
-The opening insight establishes why distribution matters even when a central designer exists: "If such a designer exists, a natural question is why it matters that there are multiple agents; they can be viewed merely as end sensors and effectors for executing the plan devised by the designer." The answer lies in real-world constraints: sensor networks have "local sensor capabilities, limited processing power, limited power supply, and limited communication bandwidth." Distribution is forced by physical reality, not theoretical preference.
+This reference follows Chapter 1 of Shoham and Leyton-Brown's [Revision 1.1 manuscript](https://www.masfoundations.org/mas.pdf). A distributed CSP has variables with finite domains, constraints, an ownership/distribution arrangement, and messages between agents. It is a feasibility protocol, not a strategic authority, blame, authentication, or effect-execution system.
 
-The formal problem: each variable owned by a different agent, each agent decides its own variable's value "with relative autonomy," and "each agent can communicate with his neighbors in the constraint graph." This is graph coloring abstracted: variables are nodes, binary constraints are edges, solution is assignment with no violations. But the computational substrate—distributed agents with local views—fundamentally changes what algorithms are possible.
+## Local filtering: sound pruning, incomplete search
 
-## Arc Consistency: Sound but Incomplete
+For a binary constraint between \(x_i\) and \(x_j\), revision deletes \(v_i\in D_i\) when no \(v_j\in D_j\) is compatible:
 
-The filtering algorithm operationalizes unit resolution from logic:
+    REVISE(i, j):
+      for each vi in Di:
+        if no vj in Dj satisfies Cij(vi, vj):
+          delete vi
 
-```
-Revise(xi, xj):
-  For each value vi in Di:
-    If no value vj in Dj is consistent with vi:
-      Delete vi from Di
-```
+If a domain becomes empty, the current CSP is infeasible. Nonempty domains do not by themselves establish a solution: local consistency can leave a globally infeasible instance. This makes filtering useful as preprocessing and diagnosis, while preserving the need for a complete method when a solution/infeasibility certificate is required.
 
-This is "a weak inference rule, and so it is not surprising that the filtering algorithm is weak as well." The algorithm terminates with one of three outcomes: (a) solution found, (b) proof of no solution (some domain becomes empty), or (c) inconclusive (domains non-empty but no solution extractable). 
+## Nogoods: complete reasoning can be expensive
 
-The critical example (Figure 1.4, instance c): three variables, three colors, filtering leaves multiple values per domain but the problem is actually infeasible. Local consistency doesn't guarantee global consistency. The computational benefit—polynomial time, local message passing—comes at the cost of incompleteness.
+A nogood is a partial assignment that cannot extend to a solution. Hyper-resolution-style distributed reasoning can derive new nogoods and eventually derive the empty nogood for infeasibility. It is sound and complete in the stated finite propositional/CSP setting, but may generate exponentially many nogoods in the worst case. The lesson is not “always escalate”; it is to choose the required completeness and retain the derived conflict clauses that explain a result.
 
-For agent systems: use filtering as preprocessing to catch obvious contradictions early, but recognize when local information is insufficient and escalate to stronger methods. The algorithm's incompleteness isn't a bug—it's the price of efficiency.
+Example shape: if \(x_2=red,x_3=blue\) is incompatible with all values of \(x_1\), communicate that partial assignment as a nogood. A recipient can combine it with other constraints. The exact clause, rather than a vague “failure,” is the reusable diagnostic.
 
-## Hyper-Resolution: Complete but Intractable
+## Asynchronous backtracking (ABT)
 
-The opposite extreme: "Hyper-resolution is both sound and complete for propositional logic, and indeed it gives rise to a complete distributed CSP algorithm." Each agent maintains nogoods (inconsistent partial assignments), generates new nogoods via inference, communicates them to neighbors. This continues until either a solution is found or the empty nogood is derived (proving infeasibility).
+ABT uses a total priority ordering. Each agent maintains:
+- an **agent_view** of higher-priority assignments it knows;
+- a current value consistent with that view when one exists;
+- a nogood store;
+- incoming/outgoing links required by the protocol.
 
-The trap: "the number of Nogoods generated can grow to be unmanageably large. Thus, the situation in which we find ourselves is that we have one algorithm that is too weak and another that is impractical."
+Higher-priority assignments travel in OK messages. When an agent has no value consistent with its view, it derives a nogood and sends it to an appropriate higher-priority agent. If the learned nogood mentions an assignment owned by a previously non-neighbor agent, ABT adds the required link so that agent's assignment can enter the view. This is a precise protocol consequence; an arbitrary observed failure does not create a semantic dependency.
 
-Instance c demonstrates both: x₁ derives {x₂=red, x₃=blue} and {x₂=blue, x₃=red} as nogoods. Agent x₂ receives these and derives {x₃=blue} and {x₃=red}. Agent x₃ combines these to generate the empty nogood {}—proof of infeasibility. This logical completeness required exponential communication and storage.
+### Four-queens trace (finite-domain teaching fixture)
 
-The lesson: hierarchical abstraction is essential. Use weak methods for filtering, strong methods only for critical decisions where failure must be diagnosed. Nogoods aren't just failure signals—they're diagnostic information showing which combinations of assignments caused failure. This enables intelligent backtracking rather than blind search.
+Let \(A_1>A_2>A_3>A_4\) own columns and choose rows 1..4. Initially each can choose row 1 from its partial view. \(A_4\), after receiving conflicting higher-priority assignments, finds no permitted row and returns a nogood such as \(\{A_1=1,A_2=1,A_3=1\}\) to the relevant higher-priority recipient. That agent changes assignment, sends a fresh OK message, and the change propagates. Messages can be stale because agents run asynchronously; correctness is from the protocol/model conditions, not from an implicit global clock.
 
-## Asynchronous Backtracking: Reconciling Parallelism and Completeness
+A correct operational trace records message identifier, sender, recipient, referenced assignments, local view version, derived nogood, and replacement assignment. It must also state delivery/fairness/crash assumptions; the textbook protocol does not prove liveness for an arbitrary unreliable service.
 
-The synthesis achieves three goals: "(1) true parallelism (agents execute concurrently), (2) asynchrony (no global clock), (3) soundness & completeness (guaranteed correct solutions)." This "is likely to require somewhat complex algorithms."
+## Nogood storage and ordering
 
-The algorithm assumes total ordering of agents (e.g., x₁ > x₂ > x₃). Constraint checking responsibility: the lower-priority agent checks. Two message types: (1) Ok? messages propagate assignments downward, (2) Nogood messages propagate backtracking information upward.
+Minimal nogood derivation can be expensive. Retaining all nogoods preserves diagnostic information but can consume substantial space; discarding clauses requires the chosen protocol’s correctness conditions. In particular, do not infer that every policy retaining only currently relevant nogoods preserves completeness; distinguish a proven ABT storage rule from an arbitrary memory cap. The priority order affects message pattern and search effort, but it is an algorithmic order, not an organizational permission or accountability hierarchy.
 
-Agent state consists of:
-- `agent_view`: assignments received from higher-priority neighbors
-- `current_value`: agent's own assignment
-- `Nogood_list`: known inconsistent partial assignments
+A “skill” may act as a CSP variable owner only if it has an explicit finite decision domain and constraints. A skill catalog, capability label, or free-form task description does not supply those objects.
 
-The dynamic link addition is subtle: "Since the Nogood can include assignments of some agent Aj, which Ai was not previously constrained with, after adding Aj's assignment to its agent_view Ai sends a message to Aj asking it to add Ai to its list of outgoing links." The constraint graph is not static—it grows as dependencies are discovered.
+## A safe transfer procedure
 
-## The Four Queens Example: Concurrency in Action
+1. Write variables, finite domains, hard constraints and ownership.
+2. State the priority order and reliable/fair message assumptions.
+3. Use filtering for early pruning; use ABT/nogoods when the problem demands a distributed complete protocol.
+4. Keep semantic authorization, identity verification and side-effect approval in separate mechanisms.
+5. Treat a nogood as an explanation of modeled assignments, not proof of a real-world cause.
 
-The extended example (Section 1.3.3) shows how ABT navigates 10 cycles:
-
-**Cycle 1**: All agents initially select row 1. A₁, A₂, A₃ send ok? messages downward.
-
-**Cycle 2**: A₄ receives assignments from A₁, A₂, A₃ and finds no consistent value. It sends nogood {A₁=1, A₂=1, A₃=1} to A₃.
-
-The critical observation: "Agent A₃ thinks that these agents are still in the first column of their respective rows. This is a manifestation of concurrency that causes each agent to act at all times in a form that is based only on his Agent_View." Stale information is inevitable—agents work with partial, outdated knowledge.
-
-**Cycles 3-8**: Backtracking ripples upward. A₃ sends nogood to A₂, forcing A₂ to change. A₂ sends nogood to A₁, forcing A₁ to change to row 2. Assignments propagate back down.
-
-**Cycles 9-10**: Forward progress resumes. Final solution: A₁=2, A₂=1, A₃=3, A₄=4.
-
-The non-obvious property: "The algorithm doesn't follow a clean 'search tree'—the asynchronous nature means: messages in flight may be stale, multiple agents making decisions in parallel based on incomplete info, backtracking can 'undo' work by lower-priority agents."
-
-For concurrent skill execution in agent systems: multiple skills work in parallel on partial information, must be robust to outdated neighbor state, explicitly communicate which conditions caused failure (nogoods), and adapt to emerging dependencies through dynamic coordination.
-
-## Improvements: Minimal Nogoods and Memory Management
-
-The full agent_view sent as a nogood may be non-minimal: "consider an agent A₆ holding an inconsistent agent_view with the assignments of agents A₁, A₂, A₃, A₄ and A₅. If we assume that A₆ is only constrained by the current assignments of A₁ and A₃, sending a Nogood message to A₅ that contains all the assignments in the agent_view seems to be a waste."
-
-Computing minimal nogoods is NP-hard in general. Three storage strategies balance memory and diagnostic fidelity:
-1. Store all nogoods (exponential memory)
-2. Store only nogoods consistent with agent_view (polynomial in domain size)
-3. Store only nogoods consistent with both agent_view and current_value (≤ |domain| nogoods)
-
-The trade-off: longer nogoods are more informative (point to deeper causes) but more expensive to compute and transmit. Smaller nogoods backjump further up the hierarchy but miss context. This is the essence of diagnostic depth: how much information should failure messages carry?
-
-For distributed systems: memory-efficient backtracking requires pruning diagnostically irrelevant information, but communication overhead must be balanced against diagnostic quality. The choice of storage strategy determines both memory footprint and convergence speed.
-
-## Priority Ordering and Coordination Structure
-
-The total ordering (A₁ > A₂ > A₃ > A₄) isn't arbitrary—it determines communication flow and search behavior. Different orderings yield different convergence rates. The assignment: higher-priority agents push decisions down (authority), lower-priority agents pull explanations up (accountability).
-
-This maps to hierarchical agent systems: task dependency ordering determines when downstream tasks get invoked, which agents can override others' decisions, and how blame assignment works during failure. The priority structure is the coordination protocol.
-
-Non-obvious implication: changing the priority ordering doesn't change the solution set (same CSP) but dramatically affects how quickly solutions are found and how much communication occurs. The optimal ordering depends on constraint graph structure—this is the analog of variable ordering heuristics in centralized CSP solvers.
-
-## Transfer to Intelligent Agent Systems
-
-**For task decomposition**: Each skill is a variable, constraints between tasks define dependencies, each agent has local decision-making authority, only direct dependencies communicate. Strict domination (some skill always better) enables polynomial preprocessing. Weak domination is order-dependent—requires careful sequencing to avoid deadlocks.
-
-**For failure prevention**: Lightweight local consistency checks (arc consistency) catch obvious contradictions early. When local heuristics fail, escalate to complete reasoning (hyper-resolution) for critical decisions. Nogoods provide root cause analysis without global synchronization—communicate which combinations of choices caused failure.
-
-**For concurrent execution**: Multiple skills execute in parallel, each acting on partial information from neighbors. Stale information is unavoidable—agents must be robust to outdated state. Dynamic link addition handles emerging dependencies: as new failure modes are discovered, communication links are added between previously unconnected agents.
-
-**For hierarchical abstraction**: Build coordination graphs with sparse connectivity. Variable elimination order affects communication overhead—problems with dense interaction graphs are harder. Factorization pays off when sparsity exists. Tree-width is the complexity measure for distributed optimization.
-
-The profound lesson: distribution is not just parallelism—it's a fundamentally different computational model. Algorithms must be redesigned from scratch to respect locality of information, asynchrony of computation, and partial observability of global state. The constraint satisfaction framework makes this precise: agents solve a global problem through purely local interactions, with correctness guaranteed by protocol structure rather than central coordination.
+This preserves the original local-view, dynamic-link and conflict-analysis methods while retaining their finite-CSP conditions.

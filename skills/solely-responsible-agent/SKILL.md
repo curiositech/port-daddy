@@ -18,11 +18,11 @@ metadata:
       reason: Sole owners are nodes in a wider coordination topology; this skill designs one node deeply
     - skill: ostrom-commons-governance
       reason: Graduated sanctions and monitoring for violated obligations come from commons governance
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: design-doc
-      description: Sole-responsibility agent specification covering exclusive scope, durable state home, mandatory ledger, and escalation/handover protocol
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: design-doc
+        description: Sole-responsibility agent specification covering exclusive scope, durable state home, mandatory ledger, and escalation/handover protocol
 ---
 # Solely Responsible Agent: Design One Owner Per Concern
 
@@ -33,6 +33,27 @@ the traffic." This skill designs agents whose entire identity is one
 concern of one project: the avatar, the officer of the watch, the test
 warden. One agent, one concern, exclusive ownership, durable state,
 mandatory logging, real enforcement.
+
+## Accountability is not unilateral authority
+
+One coordinator may own the checklist, ledger, and escalation for a bounded
+concern. It must not self-approve, execute, and verify a consequential effect.
+State the coordinator's permission ceiling, assign independent approval and
+receipt verification where risk warrants it, and make handover preserve the
+ledger without manufacturing a missing approval. During the local runtime halt,
+use ordinary Git/PR/hosted evidence and tool-native collaboration rather than
+local Port Daddy commands.
+
+```mermaid
+flowchart LR
+  C[Coordinator: ledger and escalation] --> A[Independent approver]
+  A -->|approved authority| X[Effect executor]
+  X --> R[Effect receipt]
+  R --> V[Independent verifier]
+  V --> L[Durable ledger]
+  C --> L
+  C -. cannot self-approve or self-attest .-> X
+```
 
 ## Philosophy
 
@@ -166,10 +187,10 @@ around them.
   to know?" — owned by exactly one ship.
 - **Cadence**: `0 */4 * * *` — six 4-hour maritime watches/day; each
   covers the gap since the last deck-log entry.
-- **State**: deck log = immutable `pd note` rows prefixed
-  `watch-log:` (operator-visible ledger); tuples for live handover
-  signals; GitHub issues (label `watch:finding`, deduped by title)
-  as the escalation surface.
+- **State**: deck log = an immutable operator-visible ledger; during a
+  runtime halt, record it in the PR/issue evidence path rather than local
+  Port Daddy notes. GitHub issues (label `watch:finding`, deduped by title)
+  are the escalation surface.
 - **Ledger rule**: every watch writes an entry, ALL QUIET included.
 - **Honest gaps**: episodic memory was read-only over HTTP at design
   time (deck log uses notes instead); the obligation monitor
@@ -199,6 +220,7 @@ every overlapping duty from other agents' prompts.
 - [ ] Each ledger entry ends with handover notes
 - [ ] Enforcement stated honestly: monitor + sanctions, or documented gap
 - [ ] The agent reports — repair is dispatched, not done from the watch
+- [ ] Consequential effects have an independent approval and receipt-verification path.
 
 ## References
 

@@ -65,12 +65,19 @@ function mkShip(over: Partial<ShipConfig> = {}): ShipConfig {
     role: 'Hold the PR to its best interpretation.',
     telos: 'Steel-man, then demand.',
     blocking: false,
-    needsExecution: false,
     ideation: false,
     purser: true,
     blockWithoutSandbox: false,
     testPaths: [],
     graft: [],
+    participation: { default: 'advisory', rules: [] },
+    participationValid: true,
+    execution: {
+      mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
+      toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
+      maxWallClockMs: 0, maxCostMicrousd: 0,
+    },
+    executionConfigState: 'absent',
     ...over,
   };
 }
@@ -2575,6 +2582,7 @@ describe('pd-fleet.yml purser parsing', () => {
     '    purser:',
     '      class: purser',
     '      trigger: pull_request:opened',
+    '      participation: { default: advisory, rules: [] }',
     '      blocking: true',
     '      blockWithoutSandbox: true',
     '      cf_role: shipDefault',
@@ -2595,7 +2603,7 @@ describe('pd-fleet.yml purser parsing', () => {
     // No graft configured ⇒ the purser gets the default skill-graft list.
     expect(p.graft).toEqual([...PURSER_DEFAULT_GRAFT]);
     expect(p.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
-    expect(p.needsExecution).toBe(false); // cloud-executable by contract
+    expect(p.execution.mode).toBe('none'); // model-only by explicit execution policy
     expect(p.prompt.length).toBeGreaterThan(0); // default persona prompt
   });
 
@@ -2646,8 +2654,10 @@ describe('executeFleet wiring — purser is opt-in and runs AFTER the other ship
       '    purser:',
       '      class: purser',
       '      trigger: pull_request:opened',
+      '      participation: { default: advisory, rules: [] }',
       '    code-reviewer:',
       '      trigger: pull_request:opened',
+      '      participation: { default: required, rules: [] }',
       '      blocking: true',
       '      fallbacks:',
       '        - backend: cloudflare',
@@ -2684,6 +2694,7 @@ describe('executeFleet wiring — purser is opt-in and runs AFTER the other ship
       '  agents:',
       '    code-reviewer:',
       '      trigger: pull_request:opened',
+      '      participation: { default: required, rules: [] }',
       '      fallbacks:',
       '        - backend: cloudflare',
       "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",

@@ -1,0 +1,97 @@
+% fig-ch0-lifecycle-hooks.tex -- redrawn to the house figure language (v2).
+% Reader question: where in a turn does each hook fire, and which loop owns
+% it?
+% Claim: the outer Session/Turn loop (SessionStart, UserPromptSubmit,
+% PreCompact, Stop, SessionEnd) wraps one turn's execution; within a turn,
+% the inner Agentic Tool Loop (PreToolUse, sandboxed execution, PostToolUse)
+% runs once per tool call and exits back out through Stop. PreToolUse is the
+% one hook with veto power (a forced push to a protected branch is blocked
+% before the syscall fires, exit code 2); PostToolUse may roll back an
+% unleased mutation after the fact.
+% Grammar chosen: two nested cycles on vertical spines (tpl-state-machine.tex's
+% guarded-transition grammar, closed into a loop as in
+% fig-ch0-bdi-execution.tex): the outer loop's spine on the left, the inner
+% tool loop nested inside a dashed boundary on the right, with the inner
+% loop's exit edge carrying the Stop hook back onto the outer spine.
+% Rejected: the four-boundary-box, icon-laden cross-section this fragment
+% used to be (a robot typing at a laptop, a shield padlock, a speedometer
+% gauge, a broom with sparkles, three callout cards with code snippets) --
+% none of those drawings distinguishes a hook from an icon of one, and the
+% figure's actual claim (two nested cycles, five named interception points)
+% needs a state machine, not an illustration.
+% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Lifecycle Hooks and
+% Supervisory Control" and Sec. "Case Studies in Lifecycle Hook Enforcement"
+% (the hook names and the three worked cases this figure's legend echoes
+% instead of re-drawing).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\dy{1.60}     % outer spine pitch
+  \def\sxO{4.00}    % outer spine column
+  \def\gxO{2.25}    % outer badge/label gutter (left of the spine)
+  \def\sxI{11.10}   % inner spine column
+  \def\pxA{7.45} \def\pxB{12.60}  % inner panel left/right edge
+  \def\pyA{1.30} \def\pyB{5.35}   % inner panel bottom/top edge
+  \def\R{13.50}     % legend rule width
+  % ---- the outer session/turn loop ----------------------------------------
+  \node[pd focus state,minimum width=2.75cm] (O1) at (\sxO,{3*\dy}) {prompt received};
+  \node[pd focus state,minimum width=2.75cm] (O2) at (\sxO,{2*\dy}) {turn executing};
+  \node[pd focus state,minimum width=2.75cm] (O3) at (\sxO,{1*\dy}) {turn verified};
+  \node[pd terminal,minimum width=2.75cm]    (O4) at (\sxO,0)       {session closed};
+  \draw[pd initial] (\sxO,5.70) -- (O1.north);
+  \node[pd label,anchor=south] at (\sxO,5.65) {SessionStart};
+  \draw[pd focus arrow] (O3.south) -- (O4.north);
+  \node[pd label,anchor=east] at (1.95,0.80) {SessionEnd};
+  \node[pd label,anchor=east] at (1.95,{2.5*\dy}) {UserPromptSubmit};
+  \node[pd badge] at (\gxO,{2.5*\dy}) {1};
+  \draw[pd focus arrow,pd to badge] (O1.south) -- (O2.north);
+  % the next-turn cycle, on the far left rail (as in fig-ch0-bdi-execution)
+  \draw[pd focus arrow,rounded corners=3pt]
+    (O3.west) -- (0.70,{1*\dy}) -- (0.70,{2*\dy}) -- (O2.west);
+  \node[pd focus label,rotate=90] at (0.40,{1.5*\dy}) {next turn};
+  % PreCompact: a subordinate checkpoint that resumes the same turn
+  \node[pd artifact,text width=1.35cm,align=center] (PC) at (6.45,{2.5*\dy}) {Pre\\Compact};
+  \draw[pd thin arrow,<->] (O2.north) -- (PC.south west);
+  \node[pd badge] at (4.70,3.95) {2};
+  % ---- the inner agentic tool loop (nested, dashed trust-style boundary) --
+  \draw[pd trust boundary] (\pxA,\pyA) rectangle (\pxB,\pyB);
+  \node[pd kind] at ({(\pxA+\pxB)/2},{\pyB-.35}) {inner agentic tool loop};
+  \node[pd focus state,minimum width=2.30cm] (I1) at (\sxI,2.60) {deliberate};
+  \node[pd focus state,minimum width=2.30cm] (I2) at (\sxI,4.10) {sandboxed};
+  \draw[pd focus arrow,shorten >=2pt,shorten <=2pt] (I1.north west) -- (I2.south west);
+  \draw[pd focus arrow,shorten >=2pt,shorten <=2pt] (I2.south east) -- (I1.north east);
+  \node[pd label,anchor=east] at (9.45,3.75) {PreToolUse};
+  \node[pd badge] at (9.75,3.75) {3};
+  \node[pd label,anchor=east] at (9.45,2.95) {PostToolUse};
+  \node[pd badge] at (9.75,2.95) {4};
+  % the one branch that leaves the honest path: a vetoed tool call
+  \node[pd breach state,minimum width=1.80cm] (BX) at (\sxI,-0.30) {blocked};
+  \draw[pd breach arrow] (I1.south) -- (BX.north);
+  \node[pd label,anchor=west,text=pderror] at (12.00,-0.30) {Exit 2};
+  % ---- entry and exit: the outer turn owns the inner loop's lifetime ------
+  \draw[pd thin arrow] (O2.east) -- (7.00,{2*\dy}) -- (7.00,2.60) -- (I1.west);
+  \draw[pd focus arrow,rounded corners=3pt]
+    (I1.east) -- (12.25,1.00) -- (5.375,1.00) -- (O3.east);
+  \node[pd label,anchor=south] at (8.50,1.35) {Stop};
+  \node[pd badge] at (8.50,1.00) {5};
+  % ---- the legend: each hook, which loop, what it does or vetoes ---------
+  \def\ly{-1.60}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {hook};
+  \node[pd title,anchor=north west] at (4.10,{\ly-.30}) {loop};
+  \node[pd title,anchor=north west] at (5.75,{\ly-.30}) {fires and may};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\h/\l/\s in {%
+    0/1/{\texttt{UserPromptSubmit}}/{outer}/{inject or reject context before deliberation begins},
+    1/2/{\texttt{PreCompact}}/{outer}/{preserves claims and locks, then resumes the same turn},
+    2/3/{\texttt{PreToolUse}}/{inner}/{vetoes a call before it runs (e.g.\ forced push to a protected branch)},
+    3/4/{\texttt{PostToolUse}}/{inner}/{sanitizes effects after; may roll back an unleased mutation},
+    4/5/{\texttt{Stop}}/{outer}/{verifies turn invariants; refuses completion until repaired}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*.90}) {\n};
+      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.90}) {\h};
+      \node[pd label,anchor=base west] at (4.10,{\ly-1.35-\i*.90}) {\l};
+      \node[pd label,anchor=base west,align=left,text width=7.4cm] at (5.75,{\ly-1.35-\i*.90}) {\s};}
+  \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-4*.90-.60})
+    {the next-turn rail and the inner loop's deliberate/sandboxed rail are the
+    two honest cycles; blocked (dashed, red) is the only way off either one.};
+\end{tikzpicture}

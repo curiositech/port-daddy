@@ -24,7 +24,13 @@ Checks
        DONE <sha-or-PR>
        IN-WAVE-<n>
        DECLINED -- <reason>
+       BLOCKED -- <branch>
      (an em/en dash or a plain double hyphen is accepted before <reason>).
+     BLOCKED names a row whose fix is real, agreed and owned by a *different*
+     branch, so it is not done and is not declined -- the distinction matters
+     because a blocked row silently left empty reads as nobody having looked
+     at it, and a blocked row marked DONE is the CA-045 failure (a Status
+     whose own Notes refuted it). It is counted as open, never as closed.
   4. For every id present in both files, the two files agree on `Status`
      verbatim -- if the author updates one and forgets the other, this is
      exactly the drift the tool exists to catch.
@@ -44,6 +50,7 @@ import json
 import re
 import sys
 from pathlib import Path
+import omni_ledger
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MD_PATH = REPO_ROOT / "docs" / "harbor-research" / "CRITIQUE-LEDGER.md"
@@ -56,7 +63,12 @@ STATUS_RE = re.compile(
     r"^(?:"
     r"DONE \S.*"                        # DONE <sha-or-PR> (at least one non-space token after)
     r"|IN-WAVE-\d+"                     # IN-WAVE-<n>
-    r"|DECLINED\s*(?:--|-|—|–)\s*\S.*"  # DECLINED -- <reason> (--, -, em/en dash)
+    # The reason/branch may not be empty and may not itself be a dash: without
+    # the second exclusion "DECLINED --" parses as reason "-" via the single-dash
+    # alternative, and a row that declines or blocks without saying why or where
+    # is the silent version of both, which is what this ledger exists to stop.
+    r"|DECLINED\s*(?:--|-|—|–)\s*[^\s\-—–].*"  # DECLINED -- <reason>
+    r"|BLOCKED\s*(?:--|-|—|–)\s*[^\s\-—–].*"   # BLOCKED -- <branch that owns the file>
     r")$"
 )
 
@@ -155,7 +167,7 @@ def check_status(rid: str, status: str, source: str, errors: list[str]) -> None:
         return
     errors.append(
         f"  [BAD STATUS] {source} row {rid}: {status!r} is not empty, "
-        f"'DONE <sha-or-PR>', 'IN-WAVE-<n>', or 'DECLINED -- <reason>'"
+        f"'DONE <sha-or-PR>', 'IN-WAVE-<n>', 'DECLINED -- <reason>', or 'BLOCKED -- <branch>'"
     )
 
 
@@ -164,14 +176,14 @@ def main() -> int:
     parser.add_argument("--verbose", action="store_true", help="print every id checked")
     args = parser.parse_args()
 
-    if not MD_PATH.exists():
+    if not omni_ledger.document_exists(MD_PATH):
         print(f"[MISSING FILE] {MD_PATH}")
         return 1
     if not JSON_PATH.exists():
         print(f"[MISSING FILE] {JSON_PATH}")
         return 1
 
-    md_rows = parse_markdown_rows(MD_PATH.read_text(encoding="utf-8"))
+    md_rows = parse_markdown_rows(omni_ledger.document_text(MD_PATH))
     try:
         json_data = json.loads(JSON_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:

@@ -8,7 +8,7 @@ description: >-
   expects. Use when drafting or revising a paper for EC/AAMAS/CAV/S&P/OSDI/POPL-class venues,
   writing a related-work or contributions section, checking whether a term or result is already
   taken, or preparing a submission-readiness pass.
-  NOT for doing the underlying proof, derivation or experiment; NOT for house voice on internal
+  NOT for doing the underlying proof, derivation or experiment; use research-prior-art for discovery and novelty checks. NOT for house voice on internal
   write-ups (use harbor-exposition); NOT for grant proposals, theses, or blog posts.
 allowed-tools: Read,Write,Edit,Grep,Glob,Bash(python3:*),WebSearch,WebFetch
 metadata:
@@ -65,7 +65,7 @@ drafting means rewriting.
 1. **Positioning** — fill in `templates/positioning-worksheet.md` before writing
    the contributions paragraph. It is built from real failures; every question
    corresponds to one.
-2. **Prior art** — run the protocol in `references/finding-prior-art.md`.
+2. **Prior art** — use `research-prior-art` and bring its comparison table and search ledger into this workflow.
    Snowball two rounds from a seed; cross vocabulary boundaries deliberately via
    controlled vocabularies; run the naming check on anything you plan to coin.
 3. **Venue** — `references/venue-map.md`. Page budget differs by more than 2×
@@ -206,7 +206,7 @@ not" in a corpus that had already been manually audited.
 - `references/venue-map.md` — **Read when** choosing a venue or working out
   which community a result belongs to. Format/blindness table, the three
   transplantation failure shapes, live adjacent conversations.
-- `references/finding-prior-art.md` — **Read when** writing related work,
+- `../research-prior-art/references/finding-prior-art.md` — **Read when** writing related work,
   checking whether a term is taken, or claiming novelty. Snowballing, controlled
   vocabularies, per-tool blind spots, verification discipline.
 - `references/exposition-craft.md` — **Read when** placing definitions, stating
@@ -240,7 +240,7 @@ not" in a corpus that had already been manually audited.
 - [`references/exemplar-structures.md`](references/exemplar-structures.md) — How strong papers in this space are actually built — **Read when** structuring a paper, writing the first sentence, formatting a contributions list, or deciding where the running example goes.
 - [`references/exposition-craft.md`](references/exposition-craft.md) — Explaining formal ideas to readers who are not specialists in them — **Read when** drafting a section that imports machinery from another field, deciding where definitions go, stating a theorem, or writing an 
 - [`references/figures-and-examples.md`](references/figures-and-examples.md) — Figures, captions, and worked examples — **Read when** designing a figure for a theory paper, writing a caption, or deciding how to use a running example.
-- [`references/finding-prior-art.md`](references/finding-prior-art.md) — Finding prior art across a vocabulary boundary — **Read when** writing a related-work section, checking whether a term is already taken, or trying to establish that something is novel.
+- [`research-prior-art/references/finding-prior-art.md`](../research-prior-art/references/finding-prior-art.md) — Finding prior art across a vocabulary boundary — **Read when** writing a related-work section, checking whether a term is already taken, or trying to establish that something is novel.
 - [`references/venue-map.md`](references/venue-map.md) — Venue map and literature positioning — **Read when** choosing where to submit, or working out which community a result actually belongs to.
 
 **`scripts/`**

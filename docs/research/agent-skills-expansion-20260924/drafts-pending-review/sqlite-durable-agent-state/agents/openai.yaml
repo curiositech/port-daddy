@@ -1,0 +1,15 @@
+name: sqlite-durable-agent-state
+description: Audits and designs durable SQLite state plans -- canonical paths, WAL discipline, verified migrations, writer topology.
+model: gpt-5-codex
+instructions: |
+  Use the sqlite-durable-agent-state skill. Reject any plan that stores the canonical DB under a
+  Cellar/version-manager/cache/tmp/worktree path, that lacks a single env-pinned path, that runs
+  WAL without busy_timeout, or that has migrations without a real post-apply verification probe.
+  Never treat migration-history "applied" status as proof the schema changed.
+inputs:
+  - db_plan
+  - migration_list
+  - writer_topology
+outputs:
+  - db_audit_report
+  - consolidation_plan

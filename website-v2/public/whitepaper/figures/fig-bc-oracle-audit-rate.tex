@@ -1,0 +1,82 @@
+% New figure for Sec. bc-settlement-oracles ("Composition with cartel
+% resistance"). The chapter says the human-audit sampling rate sigma sets the
+% oracle layer's detection probability, that the folk-theorem threshold is
+% therefore a calibration target on sigma, and that "the default 10% sample is a
+% starting point" -- but never puts the default beside the threshold, so a
+% reader cannot see how much headroom 10% actually buys or where a cheaper
+% sample would stop working. Curve: the chapter's own closed form
+% p_d* = (pi_C - (1-delta) pi_D) / (L + delta pi_D) at the supplied payoffs
+% pi_C = 5/3, pi_D = 4.95, L = 25, which reproduces the chapter's anchor
+% p_d*(0.95) = 0.0478 exactly [verified].
+% Data: whitepaper/figures/data/oracle-audit-threshold.csv, emitted by
+% whitepaper/figures/data/make-figure-data.py (deterministic, no seed).
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  \begin{axis}[
+    width=8.7cm,height=5.4cm,
+    scale only axis,
+    axis lines=left,
+    title={a ten-per-cent sample buys about double the rate the model needs},
+    title style={font=\pdfiglabelbold,text=hhink,yshift=-1pt},
+    xmin=0.80,xmax=1.005,ymin=0,ymax=0.125,
+    xlabel={how patient the colluding oracles are, $\delta$},
+    ylabel={per-round chance a cartel is caught},
+    xlabel style={font=\pdfiglabel,text=hhgray},
+    ylabel style={font=\pdfiglabel,text=hhgray},
+    tick label style={font=\pdfiglabel,text=hhgray},
+    axis line style={draw=hhgray,line width=.45pt},
+    tick style={draw=hhgray,line width=.45pt},
+    xtick={0.80,0.85,0.90,0.95,1.00},
+    xticklabels={0.80,0.85,0.90,0.95,1.00},
+    ytick={0,0.05,0.10},
+    yticklabels={0,5\%,10\%},
+    clip=false,
+  ]
+    % the region a cartel survives in: at or below the threshold curve
+    \addplot[pd caution fill,draw=hhamber!75,line width=.45pt,forget plot]
+      coordinates {(0.800,0) (0.800,0.02337) (0.820,0.02669) (0.840,0.03000)
+        (0.860,0.03328) (0.880,0.03654) (0.900,0.03978) (0.920,0.04299)
+        (0.940,0.04619) (0.960,0.04936) (0.980,0.05252) (1.000,0.05565)
+        (1.000,0)} \closedcycle;
+
+    % the two candidate human-audit sampling rates
+    \addplot[pd focus rule,draw=hhteal,line width=1.15pt,forget plot,domain=0.8:1.0,samples=2]{0.10};
+    \addplot[pd rule,draw=hhink,line width=.8pt,dash pattern=on 3pt off 2pt,forget plot,
+      domain=0.8:1.0,samples=2]{0.05};
+
+    % the chapter's worked anchor, and where a 5% sample stops clearing it
+    \node[pd caution datum] at (axis cs:0.95,0.04778) {};
+    \draw[pd guide] (axis cs:0.95,0) -- (axis cs:0.95,0.04778);
+    \node[pd datum] at (axis cs:0.964,0.05) {};
+
+    \node[pd direct label,text=hhteal,anchor=west] at (axis cs:0.806,0.1085)
+      {$\sigma=10\%$, the protocol's default sample};
+    \node[pd direct label,anchor=west] at (axis cs:0.806,0.0595)
+      {$\sigma=5\%$};
+    \node[pd direct label,text=hhamber,anchor=west] at (axis cs:0.818,0.0138)
+      {under the curve, cheating still pays};
+    \draw[pd guide] (axis cs:0.905,0.0410) -- (axis cs:0.905,0.0735);
+    \node[pd direct label,text=hhamber,anchor=south west,align=left,text width=3.85cm]
+      at (axis cs:0.900,0.0735) {the threshold the model\\needs: $0.0478$ at $\delta=0.95$};
+  \end{axis}
+\end{tikzpicture}
+\vspace{2mm}
+\caption{\textbf{The default human-audit sample is roughly twice the detection
+rate the cartel model demands, and a halved sample is not.} The amber curve is
+the chapter's own fragility threshold, the per-round detection probability at
+which a colluding oracle pair stops preferring the cartel, drawn from
+$(\pi_C-(1-\delta)\pi_D)/(L+\delta\pi_D)$ at the supplied payoffs
+$\pi_C=5/3$, $\pi_D=4.95$, $L=25$; below it collusion still pays. Because the
+human-audit sampling rate is the oracle layer's detection probability, the
+protocol's default $\sigma=10\%$ is the flat teal rule, and it clears the
+threshold at every patience the model admits -- $0.0478$ at $\delta=0.95$, and
+never more than $0.0557$ even as $\delta\to1$. A $5\%$ sample clears it only
+until $\delta=0.964$; past that the cheaper sample silently licenses exactly the
+2-of-3 oracle collusion the audit exists to price. The threshold is
+model-conditional: a different payoff spread, event timing, or monitoring model
+moves the whole curve, and the deployed detector is not claimed to attain it.
+[verified; \texttt{figures/data/oracle-audit-threshold.csv} from
+\texttt{figures/data/make-figure-data.py}, deterministic]}
+\label{fig:bc-oracle-audit-rate}
+\end{figure}

@@ -10,20 +10,20 @@
  * machine noise; getting it wrong in the restrictive direction means a
  * HUMAN's PR goes unreviewed, which is worse.
  *
- * DESIGN — identity first, branch name second, never branch name alone.
+ * DESIGN — identity AND branch provenance, never either one alone.
  * `pull_request.head.ref` is attacker-controlled: anyone with push access can
  * open a PR from a branch literally named `purser/pr-1-tests`. So the branch
- * prefix is only ever a CORROBORATING signal. The authoritative signal is the
- * PR author being the fleet's own GitHub App bot user, resolved from the
+ * prefix is only ever a CORROBORATING signal. App identity alone is also
+ * insufficient: the App may publish a human-authored branch as a transport.
+ * The skip therefore requires BOTH the PR author being the fleet's own GitHub
+ * App bot user, resolved from the
  * credentials this Worker actually holds (`GET /app` under the App JWT) rather
  * than from any value the PR can influence. A human account (`type: "User"`)
  * never matches, whatever it names its branch.
  *
- * FAIL DIRECTION. When the app identity cannot be resolved (network failure,
- * missing permission), the classifier degrades to the weaker `bot-and-branch`
- * signal rather than guessing at `app-identity` — see `AuthorshipSignal`. The
- * review skip accepts that weaker signal because the cost of a false positive
- * there is only one unreviewed machine branch, never an unmerged human PR.
+ * FAIL DIRECTION. When either fact is absent, the classifier returns `none`
+ * and the PR is reviewed. An extra review costs money; suppressing independent
+ * review on human-authored work destroys the required gate.
  */
 
 /**
@@ -35,10 +35,8 @@ export const FLEET_BRANCH_PREFIXES = ['purser/', 'fleet/'] as const;
 
 /** How confident the classifier is, and on what evidence. */
 export type AuthorshipSignal =
-  /** The PR author IS the fleet's own App bot user. Authoritative. */
-  | 'app-identity'
-  /** A bot authored it from a fleet-shaped branch, but the App login was unresolvable. */
-  | 'bot-and-branch'
+  /** The fleet App authored a branch from a namespace Fleet itself creates. */
+  | 'app-and-branch'
   /** Not the fleet. */
   | 'none';
 
@@ -68,7 +66,7 @@ export interface AuthorshipInput {
   /**
    * The fleet App's own bot login (`<app-slug>[bot]`), resolved from this
    * Worker's own credentials. `null` when it could not be determined — which
-   * DOWNGRADES the verdict rather than guessing.
+   * FAILS the self-review classification rather than guessing.
    */
   fleetAppLogin: string | null | undefined;
 }
@@ -97,11 +95,11 @@ function hasFleetBranchPrefix(headRef: string | null | undefined): boolean {
  *
  * The decision table, in order:
  *   - not a Bot                       → `none`            (humans never match)
- *   - App login known and equal       → `app-identity`    (authoritative)
+ *   - App login known/equal + branch  → `app-and-branch`  (conjunction)
+ *   - App login known/equal + no branch→ `none`           (App transport only)
  *   - App login known and NOT equal   → `none`            (another bot, e.g.
  *                                        dependabot, even on a `fleet/` branch)
- *   - App login unknown + fleet branch→ `bot-and-branch`  (weak signal)
- *   - App login unknown + other branch→ `none`
+ *   - App login unknown               → `none`            (review)
  *
  * @param input Author login/type, head ref, and the fleet's own App login.
  * @returns The verdict plus the signal and a reason string for the transcript.
@@ -126,13 +124,21 @@ export function classifyPrAuthorship(input: AuthorshipInput): FleetAuthorship {
   }
 
   if (appLogin) {
-    if (login.toLowerCase() === appLogin.toLowerCase()) {
+    if (login.toLowerCase() === appLogin.toLowerCase() && branchMatches) {
       return {
         fleetAuthored: true,
-        signal: 'app-identity',
-        reason: `authored by the fleet's own GitHub App (${login})${
-          branchMatches ? ` on a fleet branch (${input.headRef})` : ''
-        }`,
+        signal: 'app-and-branch',
+        reason: `authored by the fleet's own GitHub App (${login}) on a fleet branch (${input.headRef})`,
+        branchMatches,
+      };
+    }
+    if (login.toLowerCase() === appLogin.toLowerCase()) {
+      return {
+        fleetAuthored: false,
+        signal: 'none',
+        reason:
+          `authored through the fleet's GitHub App (${login}) on non-fleet branch ` +
+          `${input.headRef ?? '(unknown)'}; App identity alone proves publication transport, not authorship`,
         branchMatches,
       };
     }
@@ -144,24 +150,12 @@ export function classifyPrAuthorship(input: AuthorshipInput): FleetAuthorship {
     };
   }
 
-  // App login unresolvable. Accept only the corroborated weak signal, and LABEL
-  // it weak — `signal: 'bot-and-branch'` — so any caller can tell it apart
-  // from the authoritative `app-identity` verdict.
-  if (branchMatches) {
-    return {
-      fleetAuthored: true,
-      signal: 'bot-and-branch',
-      reason:
-        `bot author ${login || '(unknown)'} on fleet-prefixed branch ${input.headRef}; ` +
-        `the fleet App login could not be resolved, so this is a WEAK signal`,
-      branchMatches,
-    };
-  }
-
   return {
     fleetAuthored: false,
     signal: 'none',
-    reason: `bot author ${login || '(unknown)'} on non-fleet branch ${input.headRef ?? '(unknown)'}`,
+    reason:
+      `fleet App identity could not be resolved for bot author ${login || '(unknown)'}` +
+      `${branchMatches ? ` on fleet-prefixed branch ${input.headRef}` : ''}; review is required`,
     branchMatches,
   };
 }

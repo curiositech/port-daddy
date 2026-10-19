@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "2.0.0",
+  "assessmentId": "assessment-1",
+  "protocolSnapshotDigest": "sha256:protocol",
+  "repositoryAnchor": "git:anchor",
+  "truthState": "PROPOSED",
+  "scope": "One inert research attempt with no bounty, bond, payout, slash, or refund.",
+  "authorities": [
+    {"role": "effect-boundary", "principal": "effect-key", "controlDomain": "effects"},
+    {"role": "settlement-review", "principal": "settlement-key", "controlDomain": "settlement"},
+    {"role": "evidence-recorder", "principal": "recorder-key", "controlDomain": "evidence"}
+  ],
+  "assets": [
+    {
+      "assetId": "model-allowance",
+      "kind": "subscription allowance",
+      "custodian": "provider",
+      "lossBearer": "operator",
+      "reachableLoss": {"state": "UNKNOWN", "low": null, "high": null, "unit": "provider-allowance", "sourceRefs": []}
+    }
+  ],
+  "assumptions": [
+    {
+      "assumptionId": "a1",
+      "statement": "The research profile has no monetary settlement effects.",
+      "status": "POLICY_SELECTED",
+      "falsifier": "Any payout, slash, refund, bounty, bond, or reputation mutation is reachable."
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "s1",
+      "family": "griefing-liveness",
+      "coalition": ["worker-body"],
+      "target": "operator model allowance",
+      "preconditions": ["The attempt can consume model calls."],
+      "sequence": ["Start bounded attempt.", "Loop without producing an accepted terminal.", "Consume available allowance."],
+      "informationAdvantage": "The worker observes its own progress and call cadence before the operator does.",
+      "gain": {"state": "UNKNOWN", "low": null, "high": null, "unit": "attacker-utility", "sourceRefs": []},
+      "attackerCost": {"state": "UNKNOWN", "low": null, "high": null, "unit": "provider-allowance", "sourceRefs": []},
+      "victimLoss": {"state": "UNKNOWN", "low": null, "high": null, "unit": "provider-allowance", "sourceRefs": []},
+      "externality": {"state": "BOUNDED", "low": 0, "high": 1, "unit": "blocked-attempt", "sourceRefs": ["policy:single-attempt"]},
+      "evidenceRefs": ["design:attempt-cap"],
+      "controlDomains": ["worker", "provider", "operator"],
+      "defenseIds": ["d1"],
+      "residualSeverity": "MEDIUM",
+      "falsifier": "A trace exceeds the exact call, time, or attempt cap or can create an untracked child.",
+      "reevaluationTrigger": "Any live provider integration or changed attempt ceiling.",
+      "acceptedRisk": null
+    }
+  ],
+  "defenses": [
+    {
+      "defenseId": "d1",
+      "classes": ["STRUCTURAL", "PROCEDURAL"],
+      "statement": "One attempt uses explicit native-unit ceilings and fails closed at the boundary.",
+      "assumptions": ["The effect boundary completely mediates model calls."],
+      "evidenceRefs": ["design:attempt-cap"],
+      "falsifier": "An effect reaches the provider without crossing the counted boundary."
+    }
+  ],
+  "settlement": {
+    "profile": "NO_SETTLEMENT",
+    "effectAuthority": "effect-key",
+    "settlementAuthority": "settlement-key",
+    "evidenceClasses": [],
+    "conflictTerminal": "UNSETTLED",
+    "compensationRequiresNewEffect": true
+  },
+  "unresolved": ["Provider allowance remaining and burn rate are not directly observable."],
+  "runtimeAuthority": "NONE",
+  "settlementAuthority": "NONE",
+  "legalConclusion": "NONE",
+  "truthEffect": "NONE"
+}

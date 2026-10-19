@@ -281,10 +281,17 @@ describe('sessionstart-pilot.mjs hook script', () => {
   const script = join(process.cwd(), 'hooks', 'sessionstart-pilot.mjs');
 
   function run(payload: object, env: Record<string, string> = {}): string {
+    const fixtureRoot = makeTmp();
+    const home = join(fixtureRoot, 'home');
+    const state = join(home, '.port-daddy');
+    mkdirSync(state, { recursive: true });
+    writeFileSync(join(state, 'daemon.ready'), '4242\n');
+    writeFileSync(join(state, 'daemon.pid'), '4242\n');
+    writeFileSync(join(state, 'heartbeat'), 'fixture only\n');
     try {
       return execFileSync('node', [script], {
         input: JSON.stringify(payload),
-        env: { ...process.env, ...env },
+        env: { ...process.env, HOME: home, PD_HOME: state, ...env },
         encoding: 'utf8',
       });
     } catch {

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "chapters": {
+    "whitepaper/single-writer-kernel.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:swk-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:anchor-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/sealed-harbor.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:sealed-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "whitepaper/legible-swarm.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:ls-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/spawn-to-person.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:stp-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/harbor-economy.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:he-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:bonded-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ],
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex": [
+      {
+        "title": "Review of the key ideas",
+        "role": "review",
+        "reason": "Authored closing enumerate recap revisits the chapter mechanisms before the grouped exercise section."
+      },
+      {
+        "label": "sec:fh-exercises",
+        "role": "exercises",
+        "reason": "Authored chapter-end practice uses pdexercise environments grouped by pdexercisesfor, with paired pdsolution material."
+      }
+    ]
+  }
+}

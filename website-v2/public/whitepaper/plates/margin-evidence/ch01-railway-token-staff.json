@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "English railway brass token staff with cobalt blue locking collar. Analogy for single-writer mutual exclusion.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "f89ba707e8e8ec99656fa9e5f11f96e4dd2cc15fbbada570ab8c82fc959cfc51",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

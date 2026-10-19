@@ -9,9 +9,11 @@ const YAML = `fleet:
     code-reviewer:
       trigger: pull_request:opened
       blocking: true
+      participation: { default: required, rules: [] }
       prompt: code-reviewer ship
     qa:
       trigger: pull_request:opened
+      participation: { default: required, rules: [] }
       prompt: qa ship
 `;
 const PASS = '```json\n[]\n```\nFLEET-VERDICT: PASS';
@@ -56,7 +58,7 @@ describe('cloud ship execution consumes signed-in repository controls', () => {
     expect(JSON.stringify(ai.calls)).not.toContain('code-reviewer ship');
     expect(JSON.stringify(ai.calls)).toContain('qa ship');
     expect(state.completed.at(-1)?.conclusion).toBe('neutral');
-    expect(state.completed.at(-1)?.summary).toContain('not reviewed');
+    expect(state.completed.at(-1)?.summary).toContain('disabled — no vote');
     expect(capture.steps.some(step => step.ship === 'code-reviewer' && step.kind === 'ship-skipped')).toBe(true);
   });
   it('does not apply a different repository control to this job', async () => {
@@ -89,7 +91,7 @@ describe('cloud ship execution consumes signed-in repository controls', () => {
     expect(state.completed.at(-1)?.conclusion).toBe('neutral');
   });
   it('rechecks XO OFF after an ideation ship responds, before optional editor spend', async () => {
-    state.files.set('main:pd-fleet.yml', 'fleet:\n  xo: true\n  agents:\n    spark:\n      class: ideation\n      trigger: pull_request:opened\n      prompt: spark ship\n');
+    state.files.set('main:pd-fleet.yml', 'fleet:\n  xo: true\n  agents:\n    spark:\n      class: ideation\n      trigger: pull_request:opened\n      participation: { default: advisory, rules: [] }\n      prompt: spark ship\n');
     const proposal = '```json\n[{"title":"A bounded improvement","rationale":"Improve the changed flow","evidence":["a.ts"],"action":"roadmap"}]\n```\nFLEET-VERDICT: PASS';
     const ai = aiStub({ perShip: { spark: proposal } });
     const realRun = ai.ai.run;
@@ -101,7 +103,7 @@ describe('cloud ship execution consumes signed-in repository controls', () => {
     expect(JSON.stringify(ai.calls)).toContain('spark ship');
     expect(JSON.stringify(ai.calls)).not.toContain('XO EDITOR');
     expect(JSON.stringify(ai.calls)).not.toContain('XO TRIAGE');
-    expect(state.completed.at(-1)?.conclusion).toBe('success');
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
   });
   it('missing database or migration cannot silently permit a ship', async () => {
     const { env, ai } = environment();

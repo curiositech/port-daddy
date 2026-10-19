@@ -1,0 +1,34 @@
+% Question: What does a failed search establish?
+% Claim: A checked witness, complete bounded exhaustion and incomplete search differ.
+% Evidence: constructed finite catalog D={P1,P2,P3}; checker and model fixed.
+% Distinguish: infeasible, feasible, unknown; domain completeness and execution authority.
+% Grammar: aligned search traces; reject a success/failure fork that calls timeout impossible.
+% Five-second test: two rejected plans and one unchecked plan do not prove impossibility.
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner sep=0pt}]
+\def\step{1.35}\def\start{3.25}\def\dy{1.8}
+\path[use as bounding box] (0,-7.0) rectangle (11.4,.55);
+\node[pd panel title,anchor=west] at (0,.3) {An unfinished search does not prove impossibility};
+\node[pd direct label,anchor=west] at (0,-.4) {Each case: $D=\{P_1,P_2,P_3\}$; exact checks in a fixed model};
+\foreach \x/\name in {3.25/$P_1$,4.6/$P_2$,5.95/$P_3$}
+ {\node[pd panel title] at (\x,-1.12) {\name};}
+\node[pd panel title,anchor=west] at (7.05,-1.12) {Established result};
+\draw[pd rule] (0,-1.47)--(11.4,-1.47);
+\foreach \y/\head in {-2.2/{Witness checked},-4.0/{Catalog\\exhausted},-5.8/{Search\\incomplete}}{
+\node[pd panel title,anchor=west,text width=2.6cm] at (0,\y) {\head};
+\draw[pd guide] (2.9,\y)--(6.3,\y);}
+\foreach \x/\y in {3.25/-2.2,3.25/-4.0,4.6/-4.0,5.95/-4.0,3.25/-5.8,4.6/-5.8}{
+\draw[pd rule] ({\x-.12},{\y-.12})--({\x+.12},{\y+.12});
+\draw[pd rule] ({\x-.12},{\y+.12})--({\x+.12},{\y-.12});}
+\node[pd focus datum] at (4.6,-2.2) {};
+\node[pd direct label] at (5.95,-2.2) {?};
+\node[pd direct label] at (5.95,-5.8) {?};
+\node[pd panel title,anchor=west] at (7.05,-1.97) {Feasible in the model};
+\node[pd direct label,anchor=west] at (7.05,-2.45) {$P_2$ supplies a witness.};
+\node[pd panel title,anchor=west] at (7.05,-3.77) {No feasible member of $D$};
+\node[pd direct label,anchor=west] at (7.05,-4.25) {All three checked and rejected.};
+\node[pd panel title,anchor=west] at (7.05,-5.57) {Undetermined};
+\node[pd direct label,anchor=west] at (7.05,-6.05) {$P_3$ remains unchecked.};
+\draw[pd hairline] (0,-3.1)--(11.4,-3.1);
+\draw[pd hairline] (0,-4.9)--(11.4,-4.9);
+\draw[pd rule] (0,-6.65)--(11.4,-6.65);
+\end{tikzpicture}

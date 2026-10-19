@@ -39,3 +39,11 @@
 whitepaper-foundlings/**/*.png filter=lfs diff=lfs merge=lfs -text
 whitepaper-foundlings/**/*.pdf filter=lfs diff=lfs merge=lfs -text
 skill_candidates/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+docs/harbor-research/exposition/figures/page-context/**/*.webp filter=lfs diff=lfs merge=lfs -text
+
+# Rendered rival figure variants (docs/pr-assets/figure-rivals/**) are binary
+# media and go to git-lfs. Path-scoped on purpose: claude/binary-hygiene is in
+# flight with a repo-wide `*.webp filter=lfs` rule, and this line says the same
+# thing for this one directory, so whichever lands first the bytes are in LFS
+# and the two never disagree. Drop this block once the repo-wide rule is in.
+docs/pr-assets/figure-rivals/**/*.webp filter=lfs diff=lfs merge=lfs -text

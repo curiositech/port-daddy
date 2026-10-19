@@ -145,7 +145,7 @@ legacy `verify()` is either deleted or explicitly quarantined as non-wire-format
   `apps/relay/src/auth.ts` tests, `lib/harbor-tokens.ts` tests, `lib/arbiter.ts` FFI.
 - **Skills:** `rust-kernel-ffi`, `advanced-rust-patterns`, `rust-code-testing`,
   `macaroon-capability-credentials` (the fixture-parity model to copy),
-  `rust-with-claude-code`.
+  `rust-development-workflow`.
 - **Size:** L.
 - **Gate:** the shared fixture asserted green in `cargo test` AND both TS suites in
   the same PR (ADR-0120 rule 1: "no fixture, no second implementation"); negative
@@ -165,7 +165,7 @@ surface; no behavior changes.
 
 - **Depends on (order):** `hv2-port-rs` (same crate; sweep covers the new code).
 - **Surfaces:** `core/**/*.rs`, `.github/workflows/` (rust jobs).
-- **Skills:** `rust-with-claude-code`, `rust-performance-and-idioms`,
+- **Skills:** `rust-development-workflow`, `rust-performance-and-idioms`,
   `github-actions-matrix-patterns`.
 - **Size:** M.
 - **Gate:** `cargo fmt --check` and `cargo clippy -- -D warnings` green across the
@@ -361,7 +361,7 @@ surface, honest empty/unknown states.
 
 - **Depends on:** nothing.
 - **Surfaces:** `core/pd-console/`.
-- **Skills:** `gpui-rust-console`, `rust-with-claude-code`,
+- **Skills:** `gpui-rust-console`, `rust-development-workflow`,
   `circuit-breakers-and-retries`, `agent-visual-evidence-manifest`.
 - **Size:** M.
 - **Gate:** Rust unit tests for poll-state machine (jitter bounds, 4xx park,
@@ -586,7 +586,7 @@ or `shipwright-pr-open` past their hard edges.
      "gate": "squid/1 sign-verify e2e test; second-writer anomaly test; revoke-rotation test",
      "human": "prod signing-key provisioning (wrangler secret put) — the DAG's only human action"},
     {"id": "hv2-port-rs", "plan_ref": "ADR-0120 top NEXT item", "size": "L", "wave": 1,
-     "skills": ["rust-kernel-ffi", "advanced-rust-patterns", "rust-code-testing", "macaroon-capability-credentials", "rust-with-claude-code"],
+     "skills": ["rust-kernel-ffi", "advanced-rust-patterns", "rust-code-testing", "macaroon-capability-credentials", "rust-development-workflow"],
      "surfaces": ["core/harbor-card-rs", "tests/fixtures", "apps/relay/src/auth.ts", "lib/harbor-tokens.ts"],
      "gate": "shared harbor-card-hv2 parity fixture green in cargo + both TS suites, same PR; negative vectors",
      "human": "none"},
@@ -606,7 +606,7 @@ or `shipwright-pr-open` past their hard edges.
      "gate": "five UI-contract clauses tested vs stub relay; three-state screenshots with manifests",
      "human": "none"},
     {"id": "hitl-pd-console", "plan_ref": "docs/hitl-interruptions.md §4", "size": "M", "wave": 1,
-     "skills": ["gpui-rust-console", "rust-with-claude-code", "circuit-breakers-and-retries", "agent-visual-evidence-manifest"],
+     "skills": ["gpui-rust-console", "rust-development-workflow", "circuit-breakers-and-retries", "agent-visual-evidence-manifest"],
      "surfaces": ["core/pd-console"],
      "gate": "poll state-machine unit tests (jitter, 4xx park, breaker); three-state renders",
      "human": "none"},
@@ -616,7 +616,7 @@ or `shipwright-pr-open` past their hard edges.
      "gate": "listing/exit-code/critical-blocks-dispatch tests; golden output snapshots",
      "human": "none"},
     {"id": "fmt-clippy-widening", "plan_ref": "ADR-0120 build gates", "size": "M", "wave": 2,
-     "skills": ["rust-with-claude-code", "rust-performance-and-idioms", "github-actions-matrix-patterns"],
+     "skills": ["rust-development-workflow", "rust-performance-and-idioms", "github-actions-matrix-patterns"],
      "surfaces": ["core", ".github/workflows"],
      "gate": "fmt --check + clippy -D warnings green across widened set; core tests green",
      "human": "none"},

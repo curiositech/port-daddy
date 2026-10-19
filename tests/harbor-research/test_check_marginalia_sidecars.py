@@ -213,7 +213,66 @@ class TestLicenceAllowList(unittest.TestCase):
             write_plate(repo, "old", sidecar)
             result = run_checker(repo)
             self.assertEqual(result.returncode, 1)
+
+    def test_provided_by_subject_passes(self) -> None:
+        # A living contributor's own headshot, granted first-party for one
+        # specific credited use (thomas-youle.json's actual pattern) --
+        # distinct from a bespoke permission found on someone else's upload
+        # (test_bespoke_permission_fails, the Coase case).
+        with TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            sidecar = {
+                **VALID_SIDECAR,
+                "commons_file_page": "N/A — not sourced from Wikimedia Commons; see credit",
+                "original_url": "N/A — provided directly by the subject",
+                "credit": "Photo provided directly by the subject for this credit",
+                "licence_short": "provided by subject",
+                "licence_url": None,
+            }
+            write_plate(repo, "thomas-youle", sidecar)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertIn("checked 1 plate(s), 0 failure(s)", result.stdout)
+
+    def test_provided_by_subject_is_case_and_whitespace_insensitive(self) -> None:
+        variants = ["Provided by subject", "PROVIDED BY SUBJECT", "  provided by subject  "]
+        for i, licence in enumerate(variants):
+            with self.subTest(licence=licence):
+                with TemporaryDirectory() as tmp:
+                    repo = make_repo(Path(tmp))
+                    sidecar = {
+                        **VALID_SIDECAR,
+                        "credit": "Provided directly by the subject",
+                        "licence_short": licence,
+                        "licence_url": None,
+                    }
+                    write_plate(repo, f"subject-slug{i}", sidecar)
+                    result = run_checker(repo)
+                    self.assertEqual(result.returncode, 0, msg=f"{licence!r}: {result.stdout}")
+
+    def test_provided_by_someone_else_is_not_allow_listed(self) -> None:
+        # The allow-list entry is exactly "provided by subject" -- a grant
+        # from anyone other than the depicted person is a bespoke
+        # third-party permission and must still fail, same as Coase.
+        with TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            sidecar = {**VALID_SIDECAR, "licence_short": "provided by employer", "licence_url": None}
+            write_plate(repo, "not-the-subject", sidecar)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1)
             self.assertIn("is not on the allow-list", result.stdout)
+
+    def test_provided_by_subject_without_honest_credit_fails(self) -> None:
+        # licence_short alone is not enough -- credit/usage_terms must
+        # actually say the grant is direct-from-subject, or a plate could
+        # claim this licence with no honest provenance text backing it.
+        with TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            sidecar = {**VALID_SIDECAR, "licence_short": "provided by subject", "licence_url": None}
+            write_plate(repo, "vague-credit", sidecar)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("neither 'credit' nor 'usage_terms' states", result.stdout)
 
 
 if __name__ == "__main__":

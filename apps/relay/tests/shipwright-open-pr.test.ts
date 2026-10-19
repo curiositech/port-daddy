@@ -24,7 +24,10 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import {
+  handleShipwrightChat,
+  handleShipwrightHistory,
   handleShipwrightOpenPr,
   SHIPWRIGHT_BRANCH_PREFIX,
   MAX_YAML_CHARS,
@@ -43,6 +46,9 @@ const BASE = 'https://relay.example';
 const COOKIE_VALUE = 'sess-open-pr';
 const WRAP_KEY = 'cc'.repeat(32);
 const INSTALLATION_ID = 42;
+const TEST_APP_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
+  .export({ type: 'pkcs8', format: 'pem' }) as string;
+const THREAD_ID = `swt_${'b'.repeat(48)}`;
 const PR_URL = 'https://github.com/octo/widgets/pull/7';
 
 const GOOD_YAML = [
@@ -99,7 +105,12 @@ const baseUser: UserRow = {
  * SELECT. Every write (run) THROWS — the route must never touch D1 state, and
  * a passing happy-path test is the proof.
  */
-function makeDb(opts: { history?: ShipwrightMessageRow[]; sealed?: { enc: string; iv: string } } = {}) {
+function makeDb(opts: {
+  history?: ShipwrightMessageRow[];
+  proposalOrigin?: 'assistant_conversation' | 'deterministic_onboarding' | null;
+  sealed?: { enc: string; iv: string };
+  allowWrites?: boolean;
+} = {}) {
   const stmt = (sql: string) => {
     let bound: unknown[] = [];
     const s = {
@@ -119,16 +130,31 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sealed?: { enc: string
             : null) as T | null;
         }
         if (sql.includes('FROM users WHERE id')) return baseUser as unknown as T;
+        if (sql.includes('FROM shipwright_threads WHERE id')) return {
+          id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
+          repo_full_name: 'octo/widgets', created_at: 1, updated_at: 1,
+        } as T;
+        if (sql.includes('FROM shipwright_proposals')) {
+          const yaml = bound[4];
+          const emitted = (opts.history ?? []).some(
+            (m) => m.role === 'assistant' && m.content.includes('```yaml\n' + yaml + '\n```'),
+          );
+          const origin = opts.proposalOrigin === undefined
+            ? (emitted ? 'assistant_conversation' : null)
+            : opts.proposalOrigin;
+          return (origin ? { origin } : null) as T | null;
+        }
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
-        if (sql.includes('FROM shipwright_chats')) {
+        if (sql.includes('FROM shipwright_thread_messages') || sql.includes('FROM shipwright_chats')) {
           const rows = [...(opts.history ?? [])].sort((a, b) => b.id - a.id);
           return { results: rows as unknown as T[] };
         }
         return { results: [] };
       },
-      async run(): Promise<never> {
+      async run(): Promise<D1Result> {
+        if (opts.allowWrites) return { success: true, meta: { changes: 1 } } as unknown as D1Result;
         throw new Error('D1 write refused: the open-pr route must not mutate state');
       },
     };
@@ -148,9 +174,12 @@ function makeKV(seed: Record<string, string> = {}): KVNamespace {
 
 interface EnvOpts {
   history?: ShipwrightMessageRow[];
+  proposalOrigin?: 'assistant_conversation' | 'deterministic_onboarding' | null;
   /** Pre-seed the repo→installation KV binding (skips the App-JWT lookup). */
   repoBoundTo?: number;
   noGithubApp?: boolean;
+  allowWrites?: boolean;
+  ai?: Ai;
 }
 
 /** Env with a decryptable session token + KV pre-seeded like fleet-control tests. */
@@ -166,13 +195,14 @@ async function makeSessionEnv(opts: EnvOpts = {}): Promise<Env> {
     seed['github_repo_inst_octo_widgets'] = String(opts.repoBoundTo);
   }
   return {
-    DB: makeDb({ history: opts.history, sealed }),
+    DB: makeDb({ history: opts.history, proposalOrigin: opts.proposalOrigin, sealed, allowWrites: opts.allowWrites }),
     KV: makeKV(seed),
     USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
     PUBLIC_BASE_URL: BASE,
+    AI: opts.ai,
     ...(opts.noGithubApp
       ? {}
-      : { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: 'PEM-PLACEHOLDER' }),
+      : { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: TEST_APP_KEY }),
   } as unknown as Env;
 }
 
@@ -183,7 +213,7 @@ function jsonReq(body: unknown, withCookie = true, origin?: string): Request {
   return new Request(`${BASE}/v1/shipwright/open-pr`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify(body && typeof body === 'object' ? { threadId: THREAD_ID, ...(body as Record<string, unknown>) } : body),
   });
 }
 
@@ -195,7 +225,7 @@ function formReq(fields: Record<string, string>): Request {
       Cookie: `__Host-pd_session=${COOKIE_VALUE}`,
       Origin: BASE,
     },
-    body: new URLSearchParams(fields).toString(),
+    body: new URLSearchParams({ threadId: THREAD_ID, ...fields }).toString(),
   });
 }
 
@@ -204,14 +234,43 @@ function formReq(fields: Record<string, string>): Request {
  * idiom): /user/installations answers the tenancy question; the git/contents/
  * pulls endpoints answer the mutation path; everything else 500s loudly.
  */
-function stubGithub(installations: Array<{ id: number }>) {
+function stubGithub(
+  installations: Array<{ id: number }>,
+  repoInstallation = INSTALLATION_ID,
+  revokeStatus = 204,
+  userCanWrite = true,
+) {
   const seen: Array<{ url: string; method: string; body: string | null }> = [];
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     const method = (init?.method ?? 'GET').toUpperCase();
     seen.push({ url, method, body: typeof init?.body === 'string' ? init.body : null });
+    if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
+      const granted = installations.some((entry) => entry.id === INSTALLATION_ID);
+      return Response.json({
+        total_count: granted ? 1 : 0,
+        repositories: granted ? [{
+          full_name: 'octo/widgets',
+          permissions: { pull: true, push: userCanWrite, maintain: false, admin: false },
+        }] : [],
+      });
+    }
     if (url.includes('/user/installations')) {
       return Response.json({ installations });
+    }
+    if (url.endsWith('/repos/octo/widgets/installation') && method === 'GET') {
+      return Response.json({ id: repoInstallation });
+    }
+    if (url.endsWith(`/app/installations/${INSTALLATION_ID}/access_tokens`) && method === 'POST') {
+      return Response.json({
+        token: 'ghs_scoped_test_token',
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        repositories: [{ id: 7, name: 'widgets', full_name: 'octo/widgets' }],
+        permissions: { contents: 'write', pull_requests: 'write' },
+      });
+    }
+    if (url.endsWith('/installation/token') && method === 'DELETE') {
+      return new Response(null, { status: revokeStatus });
     }
     if (url.includes('/git/refs/heads/main') && method === 'GET') {
       return Response.json({ object: { sha: 'base-sha-123' } });
@@ -300,8 +359,8 @@ describe('open-pr — the server re-validates; a lying client gets a 400', () =>
     );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('INVALID_YAML');
-    // Fail-fast shape: the roster never reached GitHub in any form.
-    expect(mock).not.toHaveBeenCalled();
+    // Scope authorization may read GitHub, but invalid YAML never mutates it.
+    expect(mock.mock.calls.every((c) => (c[1]?.method ?? 'GET') === 'GET')).toBe(true);
   });
 
   it('400 BAD_REQUEST on an oversized roster (bounded before parsing)', async () => {
@@ -328,14 +387,56 @@ describe('open-pr — the server re-validates; a lying client gets a 400', () =>
     );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('NOT_FROM_CHAT');
-    expect(mock).not.toHaveBeenCalled();
+    expect(mock.mock.calls.every((c) => (c[1]?.method ?? 'GET') === 'GET')).toBe(true);
   });
 });
 
 // ── Tenancy (the billing idiom, GitHub decides) ──────────────────────────────
 
 describe('open-pr — tenancy: a session can never target another tenant', () => {
-  it('403 FORBIDDEN when GitHub does not attribute the installation to this user', async () => {
+  it('allows a read-only collaborator to read/chat but refuses publication', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], INSTALLATION_ID, 204, false);
+    const env = await makeSessionEnv({
+      history: chatWith(GOOD_YAML),
+      repoBoundTo: INSTALLATION_ID,
+      allowWrites: true,
+      ai: { run: async () => ({ response: 'Read-only discussion remains available.' }) } as unknown as Ai,
+    });
+    const headers = { Cookie: `__Host-pd_session=${COOKIE_VALUE}` };
+    const history = await handleShipwrightHistory(
+      new Request(`${BASE}/v1/shipwright/history?thread=${THREAD_ID}`, { headers }),
+      env,
+    );
+    expect(history.status).toBe(200);
+    const chat = await handleShipwrightChat(new Request(`${BASE}/v1/shipwright/chat`, {
+      method: 'POST',
+      headers: { ...headers, Origin: BASE, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: THREAD_ID, message: 'Discuss this roster', stream: false }),
+    }), env);
+    expect(chat.status).toBe(200);
+
+    const publish = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(publish.status).toBe(404);
+    expect(((await publish.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
+    expect(seen.every((call) => call.method === 'GET')).toBe(true);
+  });
+
+  it('refuses identical emitted YAML when the requested target is repo B, not thread repo A', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+    const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: INSTALLATION_ID });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/repo-b' }),
+      env,
+    );
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
+    expect(seen.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('returns the indistinguishable denial when GitHub does not grant the exact repo', async () => {
     // Session A asks for installation 42; GitHub says A owns only 7 — that IS
     // the session-A-vs-session-B test: B's installation is simply one GitHub
     // does not list for A, and the server checks GitHub, not the claim.
@@ -345,22 +446,22 @@ describe('open-pr — tenancy: a session can never target another tenant', () =>
       jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
       env,
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('FORBIDDEN');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
     // Nothing was created: no branch, no commit, no PR.
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
-  it('403 REPO_NOT_INSTALLED when the repo belongs to a DIFFERENT installation', async () => {
-    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+  it('uses the same denial when the repo belongs to a different installation', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], 99);
     // The user owns 42 — but octo/widgets is served by installation 99.
     const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: 99 });
     const res = await handleShipwrightOpenPr(
       jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
       env,
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('REPO_NOT_INSTALLED');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
@@ -394,6 +495,13 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     expect(body.prUrl).toBe(PR_URL);
     expect(body.branch.startsWith(SHIPWRIGHT_BRANCH_PREFIX)).toBe(true);
 
+    const mint = seen.find((c) => c.url.endsWith(`/app/installations/${INSTALLATION_ID}/access_tokens`) && c.method === 'POST');
+    expect(JSON.parse(mint!.body!)).toEqual({
+      repositories: ['widgets'],
+      permissions: { contents: 'write', pull_requests: 'write' },
+    });
+    expect(seen.some((c) => c.url.endsWith('/installation/token') && c.method === 'DELETE')).toBe(true);
+
     // The mutation shape: fresh branch → contents PUT → PR. Never a bare push.
     expect(seen.some((c) => c.url.endsWith('/git/refs') && c.method === 'POST')).toBe(true);
     const put = seen.find((c) => c.url.includes('/contents/pd-fleet.yml') && c.method === 'PUT');
@@ -415,6 +523,39 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     expect(prPayload.body).toContain('re-validated');
     expect(prPayload.body).toContain('review and merge');
     // Zero D1 writes: makeDb throws on ANY run() — reaching 200 proves none.
+  });
+
+  it('labels deterministic onboarding provenance without claiming a conversation emitted it', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+    const env = await makeSessionEnv({
+      proposalOrigin: 'deterministic_onboarding',
+      repoBoundTo: INSTALLATION_ID,
+    });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const pr = seen.find((call) => call.url.endsWith('/pulls') && call.method === 'POST');
+    const body = (JSON.parse(pr!.body!) as { body: string }).body;
+    expect(body).toContain('generated deterministically');
+    expect(body).toContain('saved **Port Daddy Shipwright onboarding answers**');
+    expect(body).toContain('without a model call');
+    expect(body).not.toContain('drafted in a **Port Daddy Shipwright** conversation');
+    expect(body).not.toContain('designed with GitHub user');
+  });
+
+  it('reports an unconfirmed repository-token revocation after the PR opens', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], INSTALLATION_ID, 500);
+    const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: INSTALLATION_ID });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(res.status).toBe(502);
+    expect(((await res.json()) as { code: string }).code).toBe('TOKEN_CLEANUP_UNCONFIRMED');
+    expect(seen.some((c) => c.url.endsWith('/pulls') && c.method === 'POST')).toBe(true);
+    expect(seen.some((c) => c.url.endsWith('/installation/token') && c.method === 'DELETE')).toBe(true);
   });
 
   it('form dialect: success 303s the browser straight to the PR', async () => {
@@ -450,16 +591,17 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
 // ── The page's Open-PR deck ──────────────────────────────────────────────────
 
 describe('shipwright page — the Open-PR deck', () => {
-  it('offers ONLY installations GitHub attributes to this user, escaped', () => {
+  it('locks the PR form to the active repository-scoped thread', () => {
     const html = renderPrTemplate([
       { id: INSTALLATION_ID, accountLogin: 'octo', accountType: 'User' },
       { id: 7, accountLogin: '<script>evil</script>', accountType: 'Organization' },
-    ]);
+    ], { installations: [], notice: null, threadId: THREAD_ID, repo: 'octo/widgets', installationId: INSTALLATION_ID });
     expect(html).toContain('action="/v1/shipwright/open-pr"');
-    expect(html).toContain(`<option value="${INSTALLATION_ID}">octo</option>`);
-    // Hostile GitHub account names never become markup.
+    expect(html).toContain(`name="threadId" value="${THREAD_ID}"`);
+    expect(html).toContain('name="installationId" value=""');
+    expect(html).toContain('name="repo" value=""');
+    expect(html).not.toContain('<select');
     expect(html).not.toContain('<script>evil');
-    expect(html).toContain('&lt;script&gt;');
     // The submission is a plain form POST — no client JS in the path.
     expect(html).toContain('method="post"');
   });

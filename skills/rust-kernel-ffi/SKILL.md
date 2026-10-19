@@ -28,7 +28,7 @@ metadata:
   pairs-with:
     - skill: rust-debugging-mastery
       reason: Debugging a segfault/SIGABRT at the FFI boundary needs the general Rust debugging toolkit this skill's failure-mode table only summarizes.
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Day-to-day Rust authoring conventions (cargo workflow, error handling, testing) that this skill assumes but does not re-teach.
     - skill: rust-app-distribution
       reason: Shipping the built cdylib inside a distributed binary/installer is the packaging half of what build-core.sh only builds locally.
@@ -49,6 +49,8 @@ metadata:
 ---
 
 # Rust Kernel FFI (cdylib ⇄ TypeScript via koffi)
+
+**Activation boundary:** use this for the C ABI, ownership handoff, serialization, and koffi loader between a Rust `cdylib` and TypeScript/Bun. Use `rust-debugging-mastery` after a crash or loader failure, `advanced-rust-patterns` for the Rust-only public API, and `rust-development-workflow` for normal edit/test workflow.
 
 Build a Rust shared library that a Node/Bun daemon calls over a C ABI. The canonical
 in-repo template is **`core/harbor-card-rs/src/lib.rs`** (the `#[no_mangle] extern "C"`

@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Industrial customs transit seal with cobalt blue metal crimp button clamped over braided wire. Analogy for transit through intermediary harbors without disclosure.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "47c518b7442341b30e259f9ebce15434ba8ca9d3b12e3d41474ec22223e9304b",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

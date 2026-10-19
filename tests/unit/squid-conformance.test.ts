@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -16,7 +15,7 @@ import {
   registeredTentaclesForProvider,
 } from '../../lib/squid/hook-shape.js';
 
-const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-conformance-selftest', `jest-${process.pid}`);
+const SCRATCH = join(process.cwd(), '.scratch', 'squid-conformance-selftest', `jest-${process.pid}`);
 
 function provider(overrides: Partial<SquidProviderConformance> = {}): SquidProviderConformance {
   return {
@@ -162,7 +161,7 @@ describe('Giant Squid conformance', () => {
     expect(result.repair).toContain('linked worktree');
   });
 
-  test('filesystem reader verifies all four provider-native configs against one exact project root', () => {
+  test.each(['direct', 'gated'])('filesystem reader verifies all four provider configs with %s attention', attention => {
     const workspace = join(SCRATCH, 'workspace');
     const fakeHome = join(SCRATCH, 'home');
     const pdHome = join(SCRATCH, 'pd-home');
@@ -172,6 +171,8 @@ describe('Giant Squid conformance', () => {
     mkdirSync(join(fakeHome, '.gemini'), { recursive: true });
     mkdirSync(join(pdHome, 'bin', 'squid'), { recursive: true });
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    mkdirSync(join(workspace, 'hooks'), { recursive: true });
+    writeFileSync(join(workspace, 'hooks/repo-lifecycle'), readFileSync(join(process.cwd(), 'hooks/repo-lifecycle')));
 
     const hookCommands = REGISTERED_TENTACLES.map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
     const claudeHookCommands = registeredTentaclesForProvider('claude')
@@ -185,7 +186,7 @@ describe('Giant Squid conformance', () => {
         PreCompact: [claudeHookCommands[3]],
         SessionStart: [{ hooks: [
           { type: 'command', command: '/gate/sessionstart-pilot.mjs' },
-          { type: 'command', command: 'pd attention --json' },
+          { type: 'command', command: attention === 'direct' ? 'pd attention --json' : '/bin/sh "${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle" attention' },
         ] }],
       },
     }));
@@ -216,6 +217,26 @@ describe('Giant Squid conformance', () => {
     expect(result.wiredProviders).toBe(4);
     expect(result.providers.every((entry) => entry.wired)).toBe(true);
     expect(result.capabilities.inbox).toBe(true);
+
+    if (attention === 'gated') {
+      const stagedWrapper = join(workspace, 'hooks/repo-lifecycle');
+      rmSync(stagedWrapper);
+      const missingWrapper = readSquidConformance(workspace, {
+        home: fakeHome, pdHome, commandExists: () => true,
+      });
+      expect(missingWrapper.capabilities.inbox).toBe(false);
+      writeFileSync(stagedWrapper, readFileSync(join(process.cwd(), 'hooks/repo-lifecycle')));
+      const configPath = join(workspace, '.claude/settings.json');
+      const configText = readFileSync(configPath, 'utf8');
+      const wrongConfig = JSON.parse(configText);
+      wrongConfig.hooks.SessionStart[0].hooks[1].command = '/bin/sh "${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle" sync-skills';
+      writeFileSync(configPath, JSON.stringify(wrongConfig));
+      const wrongAction = readSquidConformance(workspace, {
+        home: fakeHome, pdHome, commandExists: () => true,
+      });
+      expect(wrongAction.capabilities.inbox).toBe(false);
+      writeFileSync(configPath, configText);
+    }
 
     writeFileSync(join(pdHome, 'daemon.ready'), '4241\n');
     const booting = readSquidConformance(workspace, {

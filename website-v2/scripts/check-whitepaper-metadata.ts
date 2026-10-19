@@ -7,7 +7,11 @@
  * `website-v2/public/whitepaper/`.
  *
  * Tolerances:
- *   - `pages`  : exact match required.
+ *   - `pages`  : never pinned exactly. Two rules instead — an absolute floor
+ *                that catches a broken artifact, and a `max(5%, 4 pages)`
+ *                drift band against the recorded baseline that fails loudly
+ *                on a large move and says what to do about it. The policy and
+ *                its derivation live in scripts/page-count-policy.ts.
  *   - `sizeKb` : within `max(2%, 4 KB)` of the on-disk size. Percentage
  *                catches drift on large PDFs; the 4 KB floor keeps small
  *                LaTeX rebuilds (where the same content can wobble by a
@@ -38,6 +42,14 @@ import { fileURLToPath } from 'node:url'
 import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
 import { COLLECTED_VOLUME, WHITE_PAPERS, type CollectedVolumeEdition } from '../src/data/whitePapers'
 import { RESEARCH_PAPERS } from '../src/data/researchPapers'
+import {
+  formatDriftFailure,
+  formatFloorFailure,
+  locateBaseline,
+  pagesAboveFloor,
+  pagesWithinBand,
+  type PageCountSubject,
+} from './page-count-policy'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(__dirname, '..')
@@ -70,11 +82,13 @@ function partitionEditions(
 
 const { present: presentEditions, missing: missingEditions } = partitionEditions(COLLECTED_VOLUME.editions ?? [])
 
-// The Book is a publication artifact, not an eighth chapter, but its page and
-// byte metadata must obey the same drift guard as the chapters. Its
-// alternate-typography editions are checked the same way once their PDF
-// exists (see partitionEditions above).
-const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS, ...presentEditions]
+// The eight chapters no longer publish a standalone PDF (retired: an A4
+// render of the same words with no margin column). WHITE_PAPERS entries
+// therefore carry no `pdfPath` and are not in this list — there is nothing on
+// disk left to drift-check them against. Only the Book itself, and its
+// alternate-typography editions once their PDF exists (see
+// partitionEditions above), are checked here.
+const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...presentEditions]
 // The standalone research papers (public/research/paperN.pdf) declare pages and
 // sizeKb in researchPapers.ts and drift the same way; they had no guard before.
 const PUBLISHED_RESEARCH_PDFS = RESEARCH_PAPERS
@@ -109,9 +123,16 @@ export interface PdfFacts {
 
 export interface DriftReport {
   id: string
+  /** The record's human name, when the registry carries one. */
+  title?: string
   pdfPath: string
   expected: { pages: number; sizeKb: number }
   actual: PdfFacts
+  /** The built PDF came out under this document's absolute page floor. */
+  pagesFloorDrift: boolean
+  /** The built PDF left the `max(5%, 4 pages)` band around the baseline. */
+  pagesBandDrift: boolean
+  /** Either page rule broke. Kept so callers can ask one question. */
   pagesDrift: boolean
   sizeDrift: boolean
 }
@@ -170,9 +191,15 @@ export function pdfFactsFromDisk(absPath: string): PdfFacts {
 /**
  * Compares metadata against on-disk PDFs.
  * Pure: takes a `getFacts` callback so it is unit-testable.
+ *
+ * `pages` is not compared for equality. The declared count is a recorded
+ * baseline, not a mirror: a rebuild that reflows by a page or two is normal and
+ * says nothing, while a rebuild that leaves the `max(5%, 4 pages)` band, or
+ * lands under the document's floor, is reported and explained. See
+ * scripts/page-count-policy.ts.
  */
 export function detectDrift(
-  papers: readonly { id: string; pdfPath: string; pages: number; sizeKb: number }[],
+  papers: readonly { id: string; title?: string; pdfPath: string; pages: number; sizeKb: number }[],
   getFacts: (absPath: string) => PdfFacts = pdfFactsFromDisk,
 ): DriftReport[] {
   const reports: DriftReport[] = []
@@ -182,14 +209,19 @@ export function detectDrift(
       throw new Error(`Whitepaper PDF missing on disk: ${absPath} (declared as ${paper.pdfPath})`)
     }
     const actual = getFacts(absPath)
-    const pagesDrift = actual.pages !== paper.pages
+    const pagesFloorDrift = !pagesAboveFloor(actual.pages, paper.id)
+    const pagesBandDrift = !pagesFloorDrift && !pagesWithinBand(actual.pages, paper.pages)
+    const pagesDrift = pagesFloorDrift || pagesBandDrift
     const sizeDrift = !sizeWithinTolerance(actual.sizeKb, paper.sizeKb)
     if (pagesDrift || sizeDrift) {
       reports.push({
         id: paper.id,
+        title: paper.title,
         pdfPath: paper.pdfPath,
         expected: { pages: paper.pages, sizeKb: paper.sizeKb },
         actual,
+        pagesFloorDrift,
+        pagesBandDrift,
         pagesDrift,
         sizeDrift,
       })
@@ -198,6 +230,29 @@ export function detectDrift(
   return reports
 }
 
+
+/**
+ * Every record whose declared pages/sizeKb differ from the PDF at all, in any
+ * direction and by any amount. This is what `--fix` writes back; `detectDrift`
+ * is what the check fails on. They are deliberately different questions: "is
+ * this number stale?" and "has this number moved far enough that a person
+ * should look?".
+ */
+export function detectResync(
+  papers: readonly { id: string; pdfPath: string; pages: number; sizeKb: number }[],
+  getFacts: (absPath: string) => PdfFacts = pdfFactsFromDisk,
+): Map<string, { pages: number; sizeKb: number }> {
+  const updates = new Map<string, { pages: number; sizeKb: number }>()
+  for (const paper of papers) {
+    const absPath = resolvePdfPath(paper.pdfPath)
+    if (!existsSync(absPath)) continue
+    const actual = getFacts(absPath)
+    if (actual.pages !== paper.pages || actual.sizeKb !== paper.sizeKb) {
+      updates.set(paper.id, { pages: actual.pages, sizeKb: actual.sizeKb })
+    }
+  }
+  return updates
+}
 
 export interface PdfDigest {
   pages: number
@@ -368,14 +423,34 @@ function setNumericProperty(
   prop.setInitializer(String(value))
 }
 
-function formatReport(reports: DriftReport[]): string {
+/**
+ * Builds the policy's description of one record: what to call it, and the exact
+ * file and line holding the baseline a reader may need to edit.
+ */
+export function pageCountSubject(report: DriftReport, absSourcePath: string, displayPath: string): PageCountSubject {
+  return {
+    id: report.id,
+    label: report.title ?? report.id,
+    baselineLocation: locateBaseline(absSourcePath, report.id, displayPath),
+    resyncCommand: 'npm run fix:whitepaper-metadata',
+    resyncCommandCwd: 'website-v2/',
+  }
+}
+
+function formatReport(reports: DriftReport[], absSourcePath: string, displayPath: string): string {
   const lines: string[] = []
   lines.push('Whitepaper metadata drift detected:')
   lines.push('')
   for (const r of reports) {
     lines.push(`  - ${r.id} (${r.pdfPath})`)
-    if (r.pagesDrift) {
-      lines.push(`      pages:  metadata=${r.expected.pages}  pdf=${r.actual.pages}`)
+    // Page counts get the full policy message, not a two-number diff: whoever
+    // reads this needs to know which of the two things happened and what to do.
+    if (r.pagesFloorDrift) {
+      lines.push(formatFloorFailure(pageCountSubject(r, absSourcePath, displayPath), r.actual.pages))
+    } else if (r.pagesBandDrift) {
+      lines.push(
+        formatDriftFailure(pageCountSubject(r, absSourcePath, displayPath), r.expected.pages, r.actual.pages),
+      )
     }
     if (r.sizeDrift) {
       const allowed = Math.max(r.expected.sizeKb * SIZE_TOLERANCE_PCT, SIZE_FLOOR_KB)
@@ -436,12 +511,17 @@ function main(argv: string[]): number {
     const editionsNote =
       presentEditions.length > 0 ? ` + ${presentEditions.length} Book edition(s)` : ''
     console.log(
-      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + the Book${editionsNote} + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
+      `Whitepaper metadata in sync (the Book (${WHITE_PAPERS.length} chapters)${editionsNote} + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
     )
     return 0
   }
 
-  if (reports.length > 0) console.error(formatReport(reports))
+  if (chapterReports.length > 0) {
+    console.error(formatReport(chapterReports, whitePapersSrc, 'website-v2/src/data/whitePapers.ts'))
+  }
+  if (researchReports.length > 0) {
+    console.error(formatReport(researchReports, researchPapersSrc, 'website-v2/src/data/researchPapers.ts'))
+  }
   if (digests.drifts.length > 0) console.error(formatDigestReport(digests.drifts))
 
   if (!fix) return 1
@@ -453,15 +533,20 @@ function main(argv: string[]): number {
     rewrote += digests.drifts.length
   }
 
-  // Each registry is rewritten from its own drift list; an id never appears in both.
-  const targets: Array<[string, DriftReport[]]> = [
-    [whitePapersSrc, chapterReports],
-    [researchPapersSrc, researchReports],
+  // Each registry is rewritten from its own resync list; an id never appears in
+  // both. `--fix` resyncs on ANY divergence, not only on the ones the check
+  // reports: the check tolerates a page or two of reflow so routine work stays
+  // green, but the number the website prints should still be the true one. When
+  // the move was large enough to fail the check, this is also the one-command
+  // form of the baseline edit the failure message asks for — and it lands in
+  // the diff, where a reviewer sees it.
+  const targets: Array<[string, readonly { id: string; pdfPath: string; pages: number; sizeKb: number }[]]> = [
+    [whitePapersSrc, PUBLISHED_WHITEPAPER_PDFS],
+    [researchPapersSrc, PUBLISHED_RESEARCH_PDFS],
   ]
-  for (const [src, list] of targets) {
-    if (list.length === 0) continue
-    const updates = new Map<string, { pages: number; sizeKb: number }>()
-    for (const r of list) updates.set(r.id, { pages: r.actual.pages, sizeKb: r.actual.sizeKb })
+  for (const [src, papers] of targets) {
+    const updates = detectResync(papers)
+    if (updates.size === 0) continue
     const original = readFileSync(src, 'utf8')
     const next = rewriteMetadata(original, updates)
     if (next === original) {

@@ -140,6 +140,10 @@ function deterministicSuffix(...parts: string[]): string {
   return createHash('sha256').update(parts.join('\0')).digest('hex').slice(0, 24);
 }
 
+function isolatedHookEnv(pdHome: string, overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return { ...process.env, ...overrides, PD_HOME: pdHome };
+}
+
 /** Build a schema-valid but append-only historical interactive packet fixture. */
 function appendHistoricalInteractiveBoundary(
   db: DatabaseInstance,
@@ -1960,15 +1964,51 @@ describe('interactive Squid context-pressure bridge', () => {
     try {
       const result = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: '{}',
-        env: {
-          ...process.env,
+        env: isolatedHookEnv(root, {
           PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
           PD_URL: 'http://127.0.0.1:9876@evil.example',
-        },
+        }),
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);
       expect(existsSync(marker)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('precompact hook honors an isolated HALT without invoking its CLI and records SEEN once', () => {
+    const parent = join(homedir(), 'coding', 'tmp', 'interactive-squid-context-pressure');
+    mkdirSync(parent, { recursive: true });
+    const root = mkdtempSync(join(parent, 'halted-'));
+    const cli = join(root, 'pd-fixture');
+    const called = join(root, 'called');
+    writeFileSync(cli, `#!/bin/sh\nprintf x > "${called}"\n`, { mode: 0o755 });
+    writeFileSync(
+      join(root, 'HALT'),
+      '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=test-only\n',
+    );
+    const env = isolatedHookEnv(root, {
+      PD_HOOK_PROVIDER: 'claude',
+      PD_SQUID_CLI: cli,
+      PD_URL: 'http://127.0.0.1:9876',
+    });
+    try {
+      for (const trigger of ['manual', 'auto']) {
+        const result = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
+          input: JSON.stringify({ session_id: 'claude-provider-session', trigger }),
+          env,
+          encoding: 'utf8',
+        });
+        expect(result.status).toBe(0);
+        expect(result.stdout).toBe('');
+      }
+      expect(existsSync(called)).toBe(false);
+      const distress = readFileSync(join(root, 'DISTRESS'), 'utf8').trim().split('\n');
+      expect(distress).toHaveLength(1);
+      expect(distress[0]).toContain(
+        'agent:claude:claude-provider-session control SEEN ref=2026-09-05T14:02:11Z hook=precompact',
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -2013,7 +2053,7 @@ describe('interactive Squid context-pressure bridge', () => {
       });
       const accepted = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: event,
-        env: { ...process.env, PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli },
+        env: isolatedHookEnv(root, { PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli }),
         encoding: 'utf8',
       });
       expect(accepted.status).toBe(0);
@@ -2027,12 +2067,11 @@ describe('interactive Squid context-pressure bridge', () => {
       // therefore fails open; no oversized daemon output reaches Claude.
       const oversized = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: JSON.stringify({ session_id: 'claude-provider-session', trigger: 'manual' }),
-        env: {
-          ...process.env,
+        env: isolatedHookEnv(root, {
           PD_URL: 'http://127.0.0.1:9876',
           PD_SQUID_CLI: cli,
           PD_SQUID_TEST_OVERSIZE_RESPONSE: '1',
-        },
+        }),
         encoding: 'utf8',
       });
       expect(oversized.status).toBe(0);
@@ -2054,7 +2093,7 @@ describe('interactive Squid context-pressure bridge', () => {
     try {
       const manual = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: JSON.stringify({ session_id: 'claude-provider-session', trigger: 'manual' }),
-        env: { ...process.env, PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli },
+        env: isolatedHookEnv(root, { PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli }),
         encoding: 'utf8',
       });
       expect(manual.status).toBe(0);
@@ -2065,7 +2104,7 @@ describe('interactive Squid context-pressure bridge', () => {
 
       const automatic = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: JSON.stringify({ session_id: 'claude-provider-session', trigger: 'auto' }),
-        env: { ...process.env, PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli },
+        env: isolatedHookEnv(root, { PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli }),
         encoding: 'utf8',
       });
       expect(automatic.status).toBe(0);
@@ -2085,12 +2124,11 @@ describe('interactive Squid context-pressure bridge', () => {
     try {
       const result = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
         input: JSON.stringify({ session_id: 'claude-provider-session', trigger: 'manual' }),
-        env: {
-          ...process.env,
+        env: isolatedHookEnv(root, {
           PD_URL: 'http://127.0.0.1:9876',
           PD_SQUID_CLI: cli,
           PD_ACTOR_CREDENTIAL: 'fixture-credential-must-not-appear',
-        },
+        }),
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);

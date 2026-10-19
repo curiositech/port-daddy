@@ -592,19 +592,17 @@ pub enum Subscription {
     Agent { agent_id: String },
     /// Subscribe to one file's collaborative streams. The Harbor Editor's
     /// LAN-multiplayer transport (P2). `channel` is
-    /// `editor_sync::channel_for_path(path)` — the **edit-sync lane**, carrying
+    /// `editor_sync::channel_for_document(document)` — the **edit-sync lane**, carrying
     /// durable Loro op frames (`decode_frame` → the buffer), slice-2 lossy presence
     /// frames (`decode_presence_frame` → the remote-cursor pool), and slice-3
     /// snapshot refs (`decode_snapshot_frame`), routed by frame kind so they never
-    /// cross. `coord_channel` is `editor_sync::coordination_channel_for_path(path)` —
+    /// cross. `coord_channel` is `editor_sync::coordination_channel_for_document(document)` —
     /// the **coordination control plane** (claims / guard / conflict-predict),
     /// deliberately a SEPARATE tube channel so a keystroke burst on the edit lane
     /// cannot starve coordination latency (P2 slice 3 isolation, ref-03 §3). The
     /// intended wiring is ONE SSE per channel — two independent `mpsc`s, which IS the
-    /// isolation — but like slice 1's receive path this is declared here and NOT yet
-    /// consumed in main.rs (which currently treats an `Editor` intent as "nothing to
-    /// follow"); the editor surface will drive both subscriptions when the keystroke
-    /// input layer lands.
+    /// isolation. Local editor construction returns no subscription: the verified
+    /// principal/device/grant shared-session adapter is still required.
     Editor {
         channel: String,
         coord_channel: String,

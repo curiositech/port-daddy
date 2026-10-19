@@ -1,0 +1,79 @@
+{
+  "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+  "beforeSourceSha256": "a90af00c18ec3d57f4a680153b950002367cca32e5f71f1e8fc03521909a5be8",
+  "scope": "Six parent-authored editorial decompressions; preserves scientific claims without revalidation.",
+  "blocks": [
+    {
+      "heading": "\\begin{pdexample}{What ``Nothing Leaks'' Costs, in Bits}",
+      "before": "\\begin{pdexample}{What ``Nothing Leaks'' Costs, in Bits}\nPrice the three candidate designs on the chapter's own toy release --- the one\nTheorem~\\ref{thm:sealed-noninterference} will later check exhaustively --- and\nyou can do the whole comparison in your head. Derek's secret is one of\n$\\{0,1,2,3\\}$, so it carries $\\log_2 4 = 2$ bits, and the contracted release is\n$g(s)=s\\bmod 2$, which takes two values and therefore carries exactly $1$ bit\n--- and, since $s$ written in binary has its parity in the low position, that\nrelease is literally one of the secret's two bits. Now count. An honest gate\nhands Erin $1$ of those $2$ bits: the bit Derek sold her, and no more. The\nleaky gate of the mutation suite, which forwards $s$ itself, hands over $2$ ---\nthe whole secret, which is why the checker catches it four steps in. And the\ntaint tracker of the pitch above, run \\emph{soundly} at token granularity, has\nto mark the parity bit as tainted by the secret it was computed from and drop\nit, so Erin gets $0$ bits and the engagement has nothing left to deliver to\nher. The $0$-bit design blocks the contracted answer along with the secret; the\nother horn, the tracker that lets the parity through, cannot then certify that\nwhat the worker submitted was $s$ rather than some $f(s)$ it chose. Every\nhonest design in this chapter therefore lives in the middle column, and the\nrest of the chapter is the arithmetic of how wide that column is allowed to\nget.\n\\end{pdexample}",
+      "paragraphStarts": [
+        "Now count.",
+        "The leaky gate",
+        "And the taint tracker",
+        "The $0$-bit design",
+        "Every honest design"
+      ],
+      "displays": [
+        "g(s)=s\\bmod 2"
+      ]
+    },
+    {
+      "heading": "\\begin{pdexample}{Four Label States, Four Locked Doors, Two Keys}",
+      "before": "\\begin{pdexample}{Four Label States, Four Locked Doors, Two Keys}\nThe lattice the next paragraph reaches for is small enough to count on your\nfingers, and the count \\emph{is} the mechanism. Two owners, Derek and Erin,\nmeans two clauses, so a value inside the room sits in one of $2^2=4$ label\nstates: $\\{\\}$, $\\{D\\}$, $\\{E\\}$, $\\{D,E\\}$. Derek's data enters at $\\{D\\}$ and\nErin's model at $\\{E\\}$; the instant the worker computes with both, whatever it\nproduced sits at $\\{D,E\\}$. There are four edges up that lattice and four\nedges down it, and the asymmetry between the two fours is the design. All four\nupward edges are free and unwitnessed, because adding somebody's restriction\nneeds nobody's permission. All four downward edges are locked, and --- this is\nthe part worth doing by hand --- they're locked \\emph{by owner}: the two that\ndrop $D$, namely $\\{D\\}\\to\\{\\}$ and $\\{D,E\\}\\to\\{E\\}$, open only with Derek's\ndelegated declassification authority, and the two that drop $E$, namely\n$\\{E\\}\\to\\{\\}$ and $\\{D,E\\}\\to\\{D\\}$, only with Erin's. Two keys, four locks,\ntwo apiece. That is why the room has exactly two gates rather than one, and\nwhy the aggregate-feedback channel to Erin is \\emph{Derek's} gate and not hers:\nthe artifact she receives is one that has had Derek's clause dropped, and only\nDerek can drop it.\n\\end{pdexample}",
+      "paragraphStarts": [
+        "There are four edges",
+        "All four downward edges",
+        "Two keys, four locks,"
+      ],
+      "displays": [
+        "\\{D\\}\\to\\{\\}\\text{ and }\\{D,E\\}\\to\\{E\\}",
+        "\\{E\\}\\to\\{\\}\\text{ and }\\{D,E\\}\\to\\{D\\}"
+      ]
+    },
+    {
+      "heading": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}",
+      "before": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}\nThe number of unordered pairs among four secrets is\n\\[\\binom{4}{2}=6.\\]\nTwo of them, $(0,2)$ and $(1,3)$, are equal-parity. For those two pairs, the check found identical\nobservation logs through every interleaving of at most seven steps\\pdprov{c1\\_noninterference.py}{20260816}{verified}.\n\n\\emph{Now you try:}\nwith $g(s)=s\\bmod 2$ over secrets $\\{0,\\dots,7\\}$, how many unordered secret\npairs must a sound room keep Erin-indistinguishable?\n(Exercise~\\ref{ex:sealed-pairs}.)\n\\end{pdexample}",
+      "paragraphStarts": [
+        "Two of them,",
+        "\\emph{Now you try:}"
+      ],
+      "displays": [
+        "\\binom{4}{2}=6"
+      ]
+    },
+    {
+      "heading": "\\begin{pdexample}{Eight Events, Five Vetoes, and One Rule That Only Looks Like an Exception}",
+      "before": "\\begin{pdexample}{Eight Events, Five Vetoes, and One Rule That Only Looks Like an Exception}\nSort the agent's alphabet into two piles before reading any theorem about it.\nFive events the mediation layer can veto before they take effect:\n\\texttt{fs\\_write}, \\texttt{net\\_egress}, \\texttt{exec\\_tool},\n\\texttt{git\\_push}, \\texttt{spawn\\_child}. Three it can only watch go past:\n\\texttt{model\\_emit\\_token}, \\texttt{in\\_context\\_read},\n\\texttt{internal\\_plan}. Eight events, and therefore eight policies of the\nplain form \\emph{never do $X$}, of which exactly five are regimentable and\nthree are detect-only --- and you can sort any of them without running\nanything, because the test is just ``is the event it has to disable in the\nfirst pile?'' [internal, \\texttt{b3\\_controllability.py}]. Now the ninth\npolicy, the one the whole room rests on: \\emph{no \\texttt{net\\_egress} after\n\\texttt{in\\_context\\_read} of a secret}. It \\emph{mentions} an event from the\nsecond pile, which is what makes it look like a counterexample, but read what\nit actually has to disable and the answer is \\texttt{net\\_egress} and nothing\nelse --- the read is permitted and merely recorded as taint. One event to\ndisable, that event in the first pile, so the count says regimentable, and the\nchecker agrees. \\emph{Now you try:} classify \\emph{no\n\\texttt{in\\_context\\_read} of a secret} the same way, in two sentences.\n(Exercise~\\ref{ex:sealed-compound}.)\n\\end{pdexample}",
+      "paragraphStarts": [
+        "Three it can only watch",
+        "Eight events,",
+        "Now the ninth",
+        "\\emph{Now you try:}"
+      ],
+      "displays": []
+    },
+    {
+      "heading": "\\begin{pdexample}{Twelve Thousand Eight Hundred Bits, and the Only Two Dials}",
+      "before": "\\begin{pdexample}{Twelve Thousand Eight Hundred Bits, and the Only Two Dials}\nA work order grants Erin a $64$-bit status schema per job, over $200$ jobs.\nMultiply, and that's the account: $200\\times 64=12{,}800$ bits of adversarial\ncapacity, before timing. Two things about that arithmetic are worth a second\nlook, and neither needs a model. First, the account is a \\emph{product}, so\nthe contract writer has exactly two dials and they trade off against each\nother --- the same $12{,}800$ bits fall out of a narrower schema over a longer\nengagement --- and the only setting that drives the product to zero is $b=0$,\nwhich closes the feedback channel that was Erin's reason for signing in the\nfirst place. (That is what Section~\\ref{sec:sealed-limitations} means when it\nsays ``zero'' is available only at $b=0$; it is a price, not an impossibility.)\nSecond, and this is the uncomfortable half,\nTheorem~\\ref{thm:sealed-noninterference} does not narrow those $12{,}800$ bits\nby a single one: it guarantees they left through the declared gate, not that a\nworker computing $t=f(s)$ and submitting $t$ chose them innocently. The room\nsells a bounded account. It does not sell an innocent one. \\emph{Now you try:}\nthe same work order lets each job return at one of three scheduled times ---\nwhat does that add to the total? (Exercise~\\ref{ex:sealed-budget}.)\n\\end{pdexample}",
+      "paragraphStarts": [
+        "Two things about that arithmetic",
+        "Second, and this is",
+        "\\emph{Now you try:}"
+      ],
+      "displays": [
+        "200\\times 64=12{,}800\\text{ bits}"
+      ]
+    },
+    {
+      "heading": "\\begin{pdexample}{When the Advanced Composition Bound Starts to Pay}",
+      "before": "\\begin{pdexample}{When the Advanced Composition Bound Starts to Pay}\nAt $\\delta'=10^{-6}$: for $k=32$ releases at $\\varepsilon=0.1$, basic\ncomposition gives $32\\times 0.1=3.20$ while the advanced bound gives $3.31$, so\nthe advanced bound is not yet paying; at $k=128$, $\\varepsilon=0.05$, basic\ngives $6.40$ but advanced gives $3.30$\\pdprov{a3\\_epsilon\\_ledger.py}{20260816}{verified}.\nThese comparisons fix the caps and horizon. A smaller advanced epsilon permits\n$\\delta'=10^{-6}$; basic composition remains pure-DP. The crossing compares\nepsilon values, not uniformly stronger guarantees. \\emph{Now you try:} at $k=8$,\n$\\varepsilon=0.5$, which bound is smaller, and at $\\varepsilon=0.1$, at which\n$k$ does the advanced bound first pay? (Exercise~\\ref{ex:sealed-crossover}.)\nFigure~\\ref{fig:sealed-composition-crossover} plots both bounds against $k$\nand marks this exact crossing.\n\\end{pdexample}",
+      "paragraphStarts": [
+        "These comparisons fix",
+        "\\emph{Now you try:}"
+      ],
+      "displays": [
+        "32\\times 0.1=3.20"
+      ]
+    }
+  ]
+}

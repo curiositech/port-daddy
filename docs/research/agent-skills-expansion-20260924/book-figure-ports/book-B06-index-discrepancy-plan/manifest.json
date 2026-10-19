@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "tiny-check.py": "f1fda4b22d4e7660fc184f7edafc9df83ffbd51551e64e0a1598b1c7668fb704",
+    "readback-receipt.json": "8bdc0be15bb8dc8f1b96e8fa6cb12381b52ebad92c5ad164c23598ecdaed3ff9",
+    "tiny-check-results.json": "7ecc5f48da4fec1e65615d30c7b343b0d373a47acc7dd25558b15b2ccb7616b7"
+  },
+  "review": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924-handoff/research/B06-index-discrepancy-independent-review.md",
+    "sha256": "ae175e5d3d320826d853c9e552829c2dd2e0a4080c702f2278debabb0e0147d2"
+  }
+}

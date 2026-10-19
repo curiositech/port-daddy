@@ -1,0 +1,102 @@
+% Redraw of fig-ch0-fipa-speech-acts to the tikz-diagram-craft standard (Book
+% figure language v2): three small-multiple state machines in place of a
+% robot-glyph infographic with an embedded packet-inspector table.
+% Brief.
+%  Reader question: what may follow each performative?
+%  Claim: three lifecycles on one shared column grid -- the leading act, a
+%    guard or evaluation stage, and the terminal outcome(s) -- read top to
+%    bottom exactly as the prose and Table~\ref{tab:fipa-performatives}
+%    introduce them: directive request, assertive inform, commissive propose.
+%    request -> agree | refuse (an off-ramp before agreement) -> inform-done |
+%    failure; inform($\phi$) -> a context guard -> a belief-base update;
+%    propose -> a utility evaluation -> accept-proposal | reject-proposal.
+%  Evidence: whitepaper/chapter-0-prerequisites.tex, Table~\ref{tab:fipa-performatives}
+%    (the seven performatives this figure draws transitions between) and the
+%    figure it replaces (the "cryptographic speech act envelope" field list
+%    moves to the report as a booktabs-table recommendation, not into the
+%    picture: a classification of n fields x m properties is a table).
+%  Must distinguish: the one off-ramp refusal that can happen before
+%    agreement (request only) from the two-way terminal branch that ends
+%    every protocol; ready (green) outcomes from breach (red, dashed) ones;
+%    a performative name (a literal protocol token, set \texttt) from an
+%    internal processing stage (context guard, utility evaluation -- ours,
+%    not FIPA's, set in the label voice).
+%  Grammar: three automata on identical geometry (small multiples): one
+%    column grid shared by all three rows, so the reader calibrates the
+%    scale once and the branching shape -- not the box size or pitch -- is
+%    what differs row to row. Rejected: the original two-agent dispatch
+%    diagram (robot icons at the margins, a protocol box per row, a 2 cm
+%    packet-field strip along the bottom). It drew the bilateral agents this
+%    book's CNP figure (fig-ch0-cnp-protocol) already draws as a message
+%    ladder, so repeating them here answered a question this figure does not
+%    ask; and its envelope strip set every field at 3.6-4.8 pt, under the
+%    7 pt floor.
+%  Five-second test: "request can be refused outright, or agreed and then
+%    still fail; inform and propose each end in exactly one outcome bucket,
+%    propose's outcome is the only one with two branches like request's
+%    second branch."
+% State names are the performative verbs themselves (request, agree, inform-
+% done, ...), so an edge needs no action word of its own -- the arrow's
+% target already says what was sent. Named phases are long, so states are
+% the house's named-phase rectangle (pd state), not an automaton circle
+% (S12: circles are for short names only); ready/breach colour alone marks
+% an outcome as terminal, following redraw-workunit-machine.tex's precedent
+% for a coloured terminal rectangle with no added double border.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, shared by all three rows -----------------------------------
+  \def\colA{1.55}     % the leading performative
+  \def\colB{5.35}     % the guard / evaluation stage
+  \def\colC{9.15}     % terminal outcome(s)
+  \def\rowdy{4.35}  % pitch between the three protocol rows
+  \def\branch{0.95} % vertical spread of a two-way terminal branch
+  \def\tx{-1.95}    % left margin: row title and the initial arrow's tail
+  % ============================================================================
+  % ROW 0 (y=0): Directive request -- the one protocol with two branch points
+  % ============================================================================
+  \node[pd title,anchor=west] at (\tx,1.85) {1. \texttt{request}};
+  \node[pd kind,anchor=west] at (\tx,1.42) {directive};
+  \draw[pd initial] (\tx,0) -- (1.55-1.45,0);
+  \node[pd state,minimum width=2.5cm] (R1) at (\colA,0) {\texttt{request}};
+  \node[pd state,minimum width=2.3cm] (R2) at (\colB,0) {\texttt{agree}};
+  \draw[pd rule] (R1) -- (R2);
+  \node[pd ready state,minimum width=3.0cm] (R3) at (\colC,{\branch}) {\texttt{inform-done}};
+  \node[pd breach state,minimum width=2.3cm] (R4) at (\colC,{-\branch}) {\texttt{failure}};
+  \draw[pd ready arrow] (R2) -- (R3);
+  \draw[pd breach arrow] (R2) -- (R4);
+  % the off-ramp: request may be refused before agreement is ever reached
+  \node[pd breach state,minimum width=2.3cm] (RX) at (\colA,-1.80) {\texttt{refuse}};
+  \draw[pd breach arrow,rounded corners=3pt] (R1.south) -- ({\colA},-1.20) -- (RX.north);
+  % ============================================================================
+  % ROW 1 (y=-rowdy): Assertive inform -- one straight chain, no off-ramp
+  % ============================================================================
+  \node[pd title,anchor=west] at ({\tx},{-\rowdy+1.85}) {2. \texttt{inform}($\phi$)};
+  \node[pd kind,anchor=west] at ({\tx},{-\rowdy+1.42}) {assertive};
+  \draw[pd initial] ({\tx},{-\rowdy}) -- ({1.55-1.45},{-\rowdy});
+  \node[pd state,minimum width=2.9cm] (I1) at (\colA,{-\rowdy}) {\texttt{inform}($\phi$)};
+  \node[pd state,minimum width=2.9cm] (I2) at (\colB,{-\rowdy}) {context guard};
+  \node[pd ready state,minimum width=3.0cm] (I3) at (\colC,{-\rowdy}) {belief update};
+  \draw[pd rule] (I1) -- (I2);
+  \draw[pd ready arrow] (I2) -- (I3);
+  % ============================================================================
+  % ROW 2 (y=-2*rowdy): Commissive propose -- one branch, same shape as row 0's
+  % ============================================================================
+  \node[pd title,anchor=west] at ({\tx},{-2*\rowdy+1.85}) {3. \texttt{propose}};
+  \node[pd kind,anchor=west] at ({\tx},{-2*\rowdy+1.42}) {commissive};
+  \draw[pd initial] ({\tx},{-2*\rowdy}) -- ({1.55-1.45},{-2*\rowdy});
+  \node[pd state,minimum width=2.5cm] (P1) at (\colA,{-2*\rowdy}) {\texttt{propose}};
+  \node[pd state,minimum width=2.7cm] (P2) at (\colB,{-2*\rowdy}) {utility eval};
+  \node[pd ready state,minimum width=3.2cm] (P3) at (\colC,{-2*\rowdy+\branch}) {\texttt{accept-proposal}};
+  \node[pd breach state,minimum width=3.2cm] (P4) at (\colC,{-2*\rowdy-\branch}) {\texttt{reject-proposal}};
+  \draw[pd rule] (P1) -- (P2);
+  \draw[pd ready arrow] (P2) -- (P3);
+  \draw[pd breach arrow] (P2) -- (P4);
+  % ---- the key: what each hue means, read once for all three rows ----------
+  \node[pd title,anchor=north west] at (\colA-1.30,{-2*\rowdy-1.60}) {what each hue means};
+  \foreach \i/\s/\w in {0/{pd state}/{a performative sent, or an internal check},
+                        1/{pd ready state}/{the protocol's successful outcome},
+                        2/{pd breach state}/{a refusal or a failure}}{
+    \node[\s,minimum width=.55cm,minimum height=.36cm,inner sep=0pt]
+      at ({\colA-1.10},{-2*\rowdy-2.45-\i*.54}) {};
+    \node[pd label,anchor=west] at ({\colA-0.72},{-2*\rowdy-2.45-\i*.54}) {\w};}
+\end{tikzpicture}

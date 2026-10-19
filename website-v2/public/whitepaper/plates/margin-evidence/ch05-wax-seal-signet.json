@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Engraved signet ring poised above cobalt blue sealing wax on parchment. Analogy for durable cryptographic witness binding an act to persistent identity.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "c3b6ee09e65820baf2286734b52d91c0c000861f445084f9a15070a0d3b9840c",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

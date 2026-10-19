@@ -23,7 +23,7 @@
  *     prepareForRequest / verify / serialize / deserialize  (macaroon.ts)
  *   - Caveat grammar: builders + parseCaveat / checkCaveat / makeChecker /
  *     narrows  (caveats.ts)
- *   - Rent-paid discharge: mintPushGrant / dischargeRentPaid  (discharge.ts)
+ *   - Rent-paid discharge: mintActorBoundPushGrant / dischargeRentPaid  (discharge.ts)
  *   - The gate: verifyPushGrant  (gate.ts)
  *
  * See `docs/adr/0053-out-of-band-enforcement.md` Appendix A for the schema.
@@ -58,12 +58,17 @@ export {
   type ParsedCaveat,
 } from './caveats.js';
 export {
-  mintPushGrant,
+  mintActorBoundPushGrant,
+  actorBoundPushGrantIdentifier,
+  matchesActorBoundPushGrantIdentifier,
+  isCanonicalActorPrincipal,
   dischargeRentPaid,
+  ACTOR_BOUND_PUSH_GRANT_DOMAIN,
+  CANONICAL_ACTOR_ID_BYTES,
   DISCHARGE_TTL_MS,
   type RentDischargeRecord,
   type GrantMintResult,
-  type MintPushGrantOptions,
+  type MintActorBoundPushGrantOptions,
   type DischargeResult,
   type DischargeRentOptions,
 } from './discharge.js';

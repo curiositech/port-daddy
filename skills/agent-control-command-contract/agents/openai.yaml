@@ -1,12 +1,17 @@
 name: agent-control-command-contract
-description: Audit an operator control-command contract for collapsed verbs, incomplete delivery lifecycles, and stale-projection authorization.
+description: Audit a declared operator control-command profile for missing or contradictory verb/backend/lifecycle declarations and admission-binding gaps.
 model: gpt-5-codex
 instructions: |
-  Use the agent-control-command-contract skill. Model interrupt, pause, kill, steer, checkpoint, and fork as
-  distinct claims, each with its own delivered/acknowledged/failed/expired terminal-state lifecycle (see
-  references/verb-state-machine.md). Verify authorizationSource reads authoritative lease/event state, never a
-  cached projection or UI state (see references/authorization-sources.md). Verify every verb x backend
-  combination in the matrix proves distinct terminal states, including an honest "unsupported" terminal for
-  backends that cannot perform a verb. Run scripts/control_contract_audit.mjs and fail closed on any gap.
-inputs: [operator-control-panel-design, backend-capability-matrix]
-outputs: [control-command-contract, control-contract-audit]
+  Use the agent-control-command-contract skill. First identify the explicit profile
+  and its product source; do not impose a universal verb set. Distinguish policy
+  denial, unsupported capability, delivered/acknowledged command, independently
+  observed effect, pre-delivery expiry, and outcome-unknown after possible
+  delivery. Check exact matrix coverage, duplicate/unknown references, profile
+  lifecycle distinctions, and principal/target/scope/current-policy/expiry/
+  fencing declarations. Run scripts/control_contract_audit.mjs and require a
+  zero exit status, then report its scope accurately: declaration completeness
+  only. Never infer a backend's capability from a label, sample, Cloudflare or
+  hook name, or self-report. Never say the audit makes a UI safe to enable.
+  Link separate runtime and UI evidence; if it was not run, mark it untested.
+inputs: [operator-control-panel-design, control-profile-specification]
+outputs: [control-command-profile, static-declaration-audit]

@@ -57,6 +57,7 @@ if _HERE not in sys.path:
 
 import check_citations as cc  # noqa: E402  (reused: REPO_ROOT, INPUT_RE, strip_comments, discover_corpus_files, is_excluded, rel)
 import check_propagated_corrections as cpc  # noqa: E402  (reused: strip_latex_comments)
+from omni_ledger import ROOT as OMNI_ROOT, document_exists, document_text, update_document
 
 REPO_ROOT = cc.REPO_ROOT  # overridable below for tests, via --repo-root
 INDEX_REL = "docs/harbor-research/library-index.json"
@@ -83,8 +84,17 @@ def abspath(rel_path: str) -> str:
     return os.path.join(REPO_ROOT, rel_path)
 
 
+def source_exists(rel_path: str) -> bool:
+    """Fixture roots use their own files; only this checkout consults Omni."""
+    if os.path.realpath(REPO_ROOT) == os.path.realpath(OMNI_ROOT):
+        return document_exists(rel_path)
+    return os.path.isfile(abspath(rel_path))
+
+
 def read_text(rel_path: str) -> str | None:
     p = abspath(rel_path)
+    if rel_path.startswith("docs/harbor-research/") and rel_path.endswith((".json", ".md")) and os.path.realpath(REPO_ROOT) == os.path.realpath(OMNI_ROOT):
+        return document_text(rel_path) if document_exists(rel_path) else None
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8", errors="replace") as fh:
@@ -147,7 +157,7 @@ def discover_corpus_files() -> list[str]:
     files: list[str] = []
     for pattern in cc.CORPUS_PATTERNS:
         for path in sorted(glob.glob(os.path.join(REPO_ROOT, pattern))):
-            if os.path.isfile(path) and not _is_excluded_relative(path):
+            if os.path.isfile(path) and not _is_excluded_relative(path) and cc.is_standalone_corpus_doc(path):
                 files.append(path)
     return files
 
@@ -171,14 +181,13 @@ class IndexError_(Exception):
 
 
 def load_index() -> dict:
-    path = abspath(INDEX_REL)
-    if not os.path.isfile(path):
+    text = read_text(INDEX_REL)
+    if text is None:
         raise IndexError_(f"{INDEX_REL} does not exist")
-    with open(path, encoding="utf-8") as fh:
-        try:
-            data = json.load(fh)
-        except json.JSONDecodeError as e:
-            raise IndexError_(f"{INDEX_REL} is not valid JSON: {e}") from e
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise IndexError_(f"{INDEX_REL} is not valid JSON: {e}") from e
     for key in ("$schema", "version", "entries", "unindexed_allow"):
         if key not in data:
             raise IndexError_(f"{INDEX_REL} is missing top-level key '{key}'")
@@ -198,10 +207,29 @@ def load_index() -> dict:
                     "figures", "scripts", "numbers", "mechanization", "site", "status"):
             if req not in e:
                 raise IndexError_(f"{INDEX_REL}: entry '{eid}' is missing '{req}'")
+    # An allow-list id is a chapter's own \label{...}, and two chapters may
+    # legitimately carry the same one: the Book generator namespaces labels per
+    # chapter, which is exactly what lets def:0040b and def:float-plan sit in
+    # two chapters each (library-checks.yml passes both to
+    # check_duplicate_theorems.py --allow for that reason). So the identity of a
+    # row is the (file, id) PAIR, which is how check_coverage reads this list
+    # and how render_markdown sorts it -- and, until now, an assumption nothing
+    # enforced. A row repeated under one file is a real double-entry: it says
+    # the same label is unindexed twice for two different reasons, and the
+    # second reason is unreachable. Reported as the pair, so a reader is never
+    # told a deliberate cross-chapter label is a duplicate.
+    seen_allow: set[tuple[str, str]] = set()
     for i, a in enumerate(data["unindexed_allow"]):
         for req in ("id", "file", "reason"):
             if req not in a:
                 raise IndexError_(f"{INDEX_REL}: unindexed_allow[{i}] is missing '{req}'")
+        pair = (a["file"], a["id"])
+        if pair in seen_allow:
+            raise IndexError_(
+                f"{INDEX_REL}: duplicate unindexed_allow entry "
+                f"'{a['id']}' in {a['file']} -- one row per (file, id)"
+            )
+        seen_allow.add(pair)
     return data
 
 
@@ -238,15 +266,15 @@ def check_existence(index: dict) -> list[str]:
         check_location(eid, "standalone", e.get("standalone"))
         for ch in e.get("chapters", []):
             check_location(eid, f"chapter[{ch.get('file')}]", ch)
-            if not os.path.isfile(abspath(ch["file"])):
+            if not source_exists(ch["file"]):
                 failures.append(f"{eid}: chapter file does not exist: {ch['file']}")
         for kind in ("figures", "scripts", "mechanization"):
             for p in e.get(kind, []):
-                if not os.path.isfile(abspath(p)):
+                if not source_exists(p):
                     failures.append(f"{eid}: {kind} path does not exist: {p}")
 
     for a in index["unindexed_allow"]:
-        if not os.path.isfile(abspath(a["file"])):
+        if not source_exists(a["file"]):
             failures.append(
                 f"unindexed_allow entry '{a['id']}': file does not exist: {a['file']}"
             )
@@ -638,12 +666,15 @@ def main() -> int:
         all_failures.extend(failures)
 
     md_content = generate_markdown(index, textbook)
-    md_path = abspath(MD_REL)
 
     if args.write_md:
-        with open(md_path, "w", encoding="utf-8") as fh:
-            fh.write(md_content)
-        print(f"wrote {MD_REL} ({len(md_content)} bytes)")
+        if os.path.realpath(REPO_ROOT) == os.path.realpath(OMNI_ROOT):
+            update_document(MD_REL, md_content)
+            print(f"updated Omni document {MD_REL} ({len(md_content)} bytes)")
+        else:
+            with open(abspath(MD_REL), "w", encoding="utf-8") as fh:
+                fh.write(md_content)
+            print(f"wrote fixture {MD_REL} ({len(md_content)} bytes)")
 
     if args.check_md:
         on_disk = read_text(MD_REL)

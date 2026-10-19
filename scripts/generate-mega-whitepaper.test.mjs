@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -7,12 +7,15 @@ import {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
+  generate,
+  documentBody,
   inlineInputs,
   loadCiteShortforms,
   loadTextbook,
   namespaceLabels,
   renderChapter,
   renderCiteShortformAliases,
+  renderMarginReferenceRegistry,
   renderContents,
   renderSolutions,
   renderTextbookMap,
@@ -37,11 +40,75 @@ const seamsSource = readFileSync(
   'utf8',
 );
 
+test('margin references preserve full metadata, stable numbers and URL targets', () => {
+  const registry = renderMarginReferenceRegistry([
+    { key: 'mega009', body: 'A. Author. Full title. Journal, 2020. \\url{https://example.org/long/path}' },
+    { key: 'mega001', body: 'B. Writer. Another title. 2021.' },
+  ], '\\pdciteshort{mega009}{Author, Full title (2020).}\n\\pdciteshort{mega001}{Writer, Another title (2021).}');
+  assert.match(registry, /\\pdbookreference\{mega009\}\{1\}/);
+  assert.match(registry, /\\pdbookreference\{mega001\}\{2\}/);
+  assert.ok(registry.includes('A. Author. Full title. Journal, 2020.'));
+  assert.ok(registry.includes('\\href{https://example.org/long/path}{Online source}'));
+  assert.ok(registry.includes('{Writer, Another title (2021).}'));
+});
+
+test('an unidentified margin repeat fails generation instead of printing a raw key', () => {
+  assert.throws(() => renderMarginReferenceRegistry([
+    { key: 'mega009', body: 'A. Author. Full title. 2020.' },
+  ], ''), /mega009 has no short form/);
+});
+
+test('reviewed margin editing cannot drift away from its original source', () => {
+  const refs = [{ key: 'mega001', body: 'Author. Full work title. Publisher, 2020.' }];
+  const aliases = '\\pdciteshort{mega001}{Author 2020, \\textit{Full work title}}';
+  const edits = [{ key: 'local-source', original: refs[0].body, margin: 'Author. Full work title. 2020.' }];
+  const rendered = renderMarginReferenceRegistry(refs, aliases, edits);
+  assert.ok(rendered.includes('{Author. Full work title. 2020.}{Author 2020}'));
+  assert.throws(() => renderMarginReferenceRegistry([{ ...refs[0], body: 'Changed work. 2021.' }], aliases, edits), /Stale/);
+  assert.throws(() => renderMarginReferenceRegistry(refs, aliases, [...edits, ...edits]), /Duplicate/);
+});
+
+test('Locke on consent and Locke on identity retain different source identities', () => {
+  const shortforms = loadCiteShortforms();
+  assert.match(shortforms.get('locke1689'), /Second Treatise/);
+  assert.match(shortforms.get('locke1689identity'), /Essay Concerning/);
+  const identityChapter = readFileSync(resolve('website-v2/public/whitepaper/spawn-to-person.tex'), 'utf8');
+  assert.doesNotMatch(identityChapter, /\\(?:pd)?cite\{locke1689\}/);
+  assert.match(identityChapter, /\\bibitem\{locke1689identity\}/);
+});
+
 test('the Book generator inserts prefix-keyed prose seams and no editorial plates', () => {
   assert.match(generatorSource, /pdchapteropening\$\{paper\.prefix\}/);
   assert.match(generatorSource, /pdchapterhandoff\$\{paper\.prefix\}/);
   assert.doesNotMatch(generatorSource, /paper\.roman/);
   assert.doesNotMatch(generatorSource, /pdchapterplate|paper\.plate|editorial plate/i);
+});
+
+// A preamble comment that merely names \begin{document} used to move the seam
+// to that comment's line, splicing the chapter's whole preamble -- its
+// \newtheorem lines included -- into the Book, which then failed to compile on
+// `Command \theorem already defined`. A chapter must be able to write about a
+// marker without relocating it.
+test('the body seam is the marker the compiler sees, not one named in a comment', () => {
+  const tex = [
+    '\\documentclass{article}',
+    '% pd-pedagogy.tex redefines \\pullquote at \\begin{document}, so this is dead.',
+    '\\newtheorem{theorem}{Theorem}[section]',
+    '\\begin{document}',
+    'REAL BODY',
+    '% a commented \\end{document} is prose too',
+    '\\end{document}',
+  ].join('\n');
+  const body = documentBody(tex, 'fixture.tex');
+  assert.match(body, /REAL BODY/);
+  assert.doesNotMatch(body, /\\newtheorem/);
+  assert.doesNotMatch(body, /\\documentclass/);
+  // An escaped per cent is a character, not the start of a comment.
+  assert.match(
+    documentBody('\\begin{document}100\\% sure\n\\end{document}', 'fixture.tex'),
+    /100\\% sure/,
+  );
+  assert.throws(() => documentBody('% \\begin{document}\n', 'fixture.tex'), /malformed/);
 });
 
 test('every chapter in textbook.json has exactly one opening and one handoff seam', () => {
@@ -118,6 +185,27 @@ test('textbook.json validation fails closed on structural drift', () => {
   const badPrefix = clone();
   badPrefix.chapters[0].prefix = 'swk-1';
   assert.throws(() => validateTextbook(badPrefix, 't.json'), /lowercase letters/);
+
+  // An ABSENT prefix, which the lowercase-letters rule alone would not catch:
+  // RegExp.prototype.test stringifies, so /^[a-z]+$/.test(undefined) is true
+  // ("undefined" is lowercase letters) and so is .test(null). What actually
+  // rejects these is the requireString sweep above that line, and nothing
+  // pinned that. If prefix ever left that list, an omitted prefix would reach
+  // the generator and emit \pdchapteropeningundefined -- a missing macro eight
+  // minutes into xelatex rather than a validation error here.
+  for (const absent of [undefined, null]) {
+    const noPrefix = clone();
+    noPrefix.chapters[0].prefix = absent;
+    assert.throws(
+      () => validateTextbook(noPrefix, 't.json'),
+      /prefix must be a non-empty string/,
+      `prefix: ${String(absent)} must be rejected, not stringified into a macro name`,
+    );
+  }
+
+  const missingKey = clone();
+  delete missingKey.chapters[0].prefix;
+  assert.throws(() => validateTextbook(missingKey, 't.json'), /prefix must be a non-empty string/);
 });
 
 test('every chapter opens on a question and an attributed epigraph', () => {
@@ -129,7 +217,7 @@ test('every chapter opens on a question and an attributed epigraph', () => {
   }
   const rendered = renderTextbookMap(loadTextbook());
   assert.match(rendered, /pdchapterquestionofswk\\endcsname\{Where can a rule be made real\?\}/);
-  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{John Locke/);
+  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{Norbert Wiener/);
   // chapters inherit their part's hue: both Part I chapters are cobalt
   assert.match(rendered, /pdchaptercolorofswk\\endcsname\{pdcobalt\}/);
   assert.match(rendered, /pdchaptercolorofanchor\\endcsname\{pdcobalt\}/);
@@ -187,6 +275,192 @@ test('the committed shared textbook map matches textbook.json in both copies', (
   assert.match(rendered, /\\pdtextbookmap/);
 });
 
+// Every macro below resolves a chapter PREFIX through \csname, and \csname on a
+// name nothing defines expands to \relax -- which typesets NOTHING and raises
+// nothing. A mistyped prefix at a use site therefore deletes a chapter number
+// from the page in silence. Every prefix the generated map defines is correct by
+// construction; the only way in is a use site, so the use sites are what this
+// checks.
+const prefixSourceRoots = ['whitepaper', 'website-v2/public/whitepaper'];
+// The generated map is where the prefixes are DEFINED, so it is the one file
+// whose \csname names are not use sites. Regenerate it, don't lint it.
+const prefixDefinitionFiles = new Set([
+  'whitepaper/figures/pd-textbook-map.tex',
+  'website-v2/public/whitepaper/figures/pd-textbook-map.tex',
+]);
+
+function texSourcesUnder(root) {
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(resolve(dir), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.tex') && !prefixDefinitionFiles.has(path)) out.push(path);
+    }
+  };
+  walk(root);
+  return out;
+}
+
+const prefixReferencePatterns = [
+  [/\\csname\s+pdchapter[a-z]*of([A-Za-z]+)\\endcsname/g, '\\csname pdchapter...of<prefix>\\endcsname'],
+  [/\\pdchapref\{([A-Za-z]+)\}/g, '\\pdchapref{<prefix>}'],
+  [/\\(?:new|renew|provide)command\{\\pdchapterprefix\}\{([A-Za-z]+)\}/g, '\\pdchapterprefix'],
+];
+
+// A fragment under figures/ that no chapter root \input`s is invisible: it is
+// never compiled, never rendered, and never reviewed, but it sits in the
+// corpus where the next author will copy it. The five below are known and
+// named. The point of naming them is that the set is CHECKED: a sixth cannot
+// appear without this test failing, so a scratch file, a measurement probe or
+// an abandoned draft cannot quietly become part of the Book's figure corpus.
+// To add one deliberately, add it here and say in the PR why it stays.
+const figureDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
+const knownUnreferencedFragments = [
+  'website-v2/public/whitepaper/figures/appendix-figures.tex',
+  // These two predate the pd-figure-language system, carry their own
+  // \documentclass, and DO NOT COMPILE -- `I do not know the key '/tikz/ellipse'`
+  // and `Undefined control sequence` respectively, on main as well as here. They
+  // are unreferenced AND broken, which is the strongest case in the corpus for
+  // deletion; they are listed rather than deleted because removing a figure is a
+  // decision for whoever owns the chapter, not for a typography PR.
+  'website-v2/public/whitepaper/figures/diag-magic-link.tex',
+  'website-v2/public/whitepaper/figures/diag-sybil-attack.tex',
+  // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
+  'website-v2/public/whitepaper/figures/fig-anchor-phases.tex',
+  'website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex',
+  // Rival-variant comparison drawings ("the six rival variants as drawable
+  // fragments", the figure-rivals-and-mermaid gallery): six candidate
+  // redraws were produced, three won and are \input by their chapters
+  // (fig-anchor-handshake-ladder, fig-bc-delta-threshold,
+  // fig-he-succession-price), and these three are the losing variants,
+  // kept on disk for the gallery's own side-by-side comparison rather than
+  // wired into the Book. Deliberately unreferenced by design, not an
+  // oversight.
+  'website-v2/public/whitepaper/figures/fig-bc-graduated-trigger.tex',
+  'website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex',
+  'website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex',
+];
+const stagedUnreferencedFragments = JSON.parse(
+  readFileSync(resolve('whitepaper/figure-staging.json'), 'utf8'),
+).fragments;
+
+// The shared figure apparatus exists TWICE -- once under whitepaper/figures and
+// once under website-v2/public/whitepaper/figures -- because the standalone
+// chapters and the Book each resolve `figures/...` against their own directory.
+// Seven files are currently in that position, pd-figure-language.tex among them,
+// and until this test they were kept in step by hand. That is the same
+// two-lists-with-nothing-checking-them defect as every other one this PR is
+// about, and it is the one with the sharpest consequence: the twins define the
+// house styles, so a fragment that loads the stale copy draws in a style set
+// nobody reviewed.
+//
+// The pairs are DISCOVERED, not listed. A twin added later is covered the day it
+// appears, with nobody remembering to come back and add it here -- which is the
+// whole difference between a check and a comment. Byte-for-byte, including
+// comments: the comments in pd-figure-language.tex carry the measurements the
+// styles rest on, and a measurement that is true in one copy and stale in the
+// other is exactly the drift worth catching.
+//
+// If this ever needs to be one file rather than two, the fix is a build step
+// that writes one from the other, and this test is what tells you the two are
+// currently identical enough for that to be safe.
+const sharedApparatusDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
+
+test('the shared figure apparatus is identical in both figure directories', () => {
+  const [a, b] = sharedApparatusDirs;
+  const inA = new Set(
+    readdirSync(resolve(a), { withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.endsWith('.tex'))
+      .map((e) => e.name),
+  );
+  const twins = readdirSync(resolve(b), { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith('.tex') && inA.has(e.name))
+    .map((e) => e.name)
+    .sort();
+
+  // A guard on the guard: if the discovery ever finds nothing, this test would
+  // pass while checking zero files. The apparatus is not going to drop to zero
+  // by accident, so an empty result means the directories moved and this test
+  // has quietly stopped being a test.
+  assert.ok(
+    twins.length > 0,
+    `no .tex file exists in both ${a} and ${b} — either the layout changed or this test is checking nothing`,
+  );
+
+  const drifted = twins.filter(
+    (name) => readFileSync(resolve(`${a}/${name}`), 'utf8') !== readFileSync(resolve(`${b}/${name}`), 'utf8'),
+  );
+  assert.deepEqual(
+    drifted,
+    [],
+    `these files exist in both figure directories and their contents have drifted apart: ${drifted.join(', ')}. `
+      + 'They are one thing kept in two places; edit both, or the chapters and the Book draw in different styles.',
+  );
+});
+
+test('no fragment joins the figure corpus without a chapter that inputs it', () => {
+  const inputRe = /\\input\{figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;
+  const inputted = new Set();
+  for (const root of ['whitepaper', 'website-v2/public/whitepaper']) {
+    for (const entry of readdirSync(resolve(root), { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
+      const source = readFileSync(resolve(`${root}/${entry.name}`), 'utf8');
+      for (const match of source.matchAll(inputRe)) inputted.add(match[1]);
+    }
+  }
+  const unreferenced = [];
+  for (const dir of figureDirs) {
+    for (const entry of readdirSync(resolve(dir), { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
+      const stem = entry.name.slice(0, -'.tex'.length);
+      // pd-* are the shared style and apparatus files, pulled in by the
+      // preamble rather than as a figure.
+      if (stem.startsWith('pd-') || inputted.has(stem)) continue;
+      unreferenced.push(`${dir}/${entry.name}`);
+    }
+  }
+  assert.deepEqual(
+    unreferenced.sort(),
+    [...knownUnreferencedFragments, ...stagedUnreferencedFragments].sort(),
+    'every unplaced fragment must be named in the temporary staging inventory; remove its staging entry when a chapter inputs it',
+  );
+});
+
+test('every chapter-prefix reference names a prefix textbook.json declares', () => {
+  const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
+  // The generated map provides `none` as the prefix a build carries before any
+  // chapter has opened; Chapter 0 uses `prereq`.
+  declared.add('none');
+  declared.add('prereq');
+  const offenders = [];
+  for (const root of prefixSourceRoots) {
+    for (const file of texSourcesUnder(root)) {
+      const source = readFileSync(resolve(file), 'utf8');
+      for (const [pattern, shape] of prefixReferencePatterns) {
+        for (const match of source.matchAll(pattern)) {
+          if (!declared.has(match[1])) {
+            offenders.push(`${file}: ${shape} names '${match[1]}', which textbook.json does not declare`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('a mistyped chapter prefix is caught rather than expanding to nothing', () => {
+  const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
+  declared.add('none');
+  const typo = '\\csname pdchapternumberofswkk\\endcsname';
+  const found = [...typo.matchAll(prefixReferencePatterns[0][0])].map((match) => match[1]);
+  assert.deepEqual(found, ['swkk']);
+  assert.equal(declared.has('swkk'), false);
+  // ...and the real spelling passes the same gate, so the check is not vacuous.
+  const good = [...'\\csname pdchapternumberofswk\\endcsname'.matchAll(prefixReferencePatterns[0][0])];
+  assert.equal(declared.has(good[0][1]), true);
+});
+
 test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
   for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex', 'pd-pedagogy.tex']) {
     assert.equal(
@@ -197,13 +471,66 @@ test('the shared palette and hyperlink files are byte-identical in both source t
   }
 });
 
-test('the front-matter map lists every chapter in order with a first-edition concordance', () => {
-  const contents = renderContents(loadTextbook());
-  const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
+test('one complete contents renderer decorates the live ToC with metadata, without a second map', () => {
+  const textbook = loadTextbook();
+  const contents = renderContents(textbook);
+  const numbers = [...contents.matchAll(/\\pdcontentschaptermeta\{(\d+)\}/g)].map((m) => Number(m[1]));
   assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.match(contents, /I & 4 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
-  assert.match(contents, /VII & 8 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
-  assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+  const artKeys = [...contents.matchAll(/\\pdcontentspartmeta\{\d+\}\{([^}]+)\}/g)].map((m) => m[1]);
+  assert.deepEqual(artKeys, textbook.parts.map((part) => part.numeral));
+  for (const numeral of artKeys) {
+    for (const edition of ['', 'swiss/', 'technical/']) {
+      assert.ok(existsSync(resolve(`website-v2/public/whitepaper/plates/${edition}part-${numeral}.jpg`)));
+    }
+  }
+  assert.equal((contents.match(/\\pdtableofcontents/g) ?? []).length, 1);
+  assert.doesNotMatch(contents, /pdcontentsspread|pdcontentschapter\{|The argument, chapter by chapter/);
+  assert.match(contents, /\\pdchapref\{swk\}/);
+  assert.doesNotMatch(collectedVolumeSource, /\\tableofcontents\b/);
+  assert.equal((collectedVolumeSource.match(/mega-volume-contents\.tex/g) ?? []).length, 1);
+});
+
+test('contents follows changed metadata and keeps summaries rather than a hard-coded chapter catalog', () => {
+  const textbook = loadTextbook();
+  textbook.parts[0].blurb = 'A changed part obligation.';
+  textbook.parts[0].chapters[0].oneLine = 'A changed chapter claim.';
+  const contents = renderContents(textbook);
+  assert.match(contents, /A changed part obligation\./);
+  assert.match(contents, /A changed chapter claim\./);
+});
+
+test('solutions add navigable per-chapter entries and the reader guide starts on the left half', () => {
+  const chapters = loadTextbook().chapters;
+  const solutions = renderSolutions(chapters);
+  assert.equal((solutions.match(/\\addcontentsline\{toc\}\{section\}/g) ?? []).length, chapters.length);
+  const map = readFileSync(resolve('website-v2/public/whitepaper/figures/fig-book-reader-map.tex'), 'utf8');
+  const leftProse = map.indexOf('\\pdreaderleftprose');
+  const rightPage = map.indexOf('\\label{book:reader-right}');
+  assert.ok(leftProse > map.indexOf('\\label{book:reader-left}'));
+  assert.ok(leftProse < map.indexOf('\\clearpage', leftProse));
+  assert.ok(map.indexOf('\\clearpage', leftProse) < rightPage);
+  assert.match(collectedVolumeSource, /\\newcommand\{\\pdreaderleftprose\}\{%\s*\S/);
+  assert.match(collectedVolumeSource, /\\textsf\{\[verified\]\}/);
+  assert.match(collectedVolumeSource, /\\textsf\{\[internal\]\}/);
+  assert.match(solutions, /\\pdbackmatterheaders\{Solutions to the exercises\}/);
+});
+
+test('retained unnumbered headings enter the ToC without duplicating authored entries or code examples', () => {
+  const chapter = loadTextbook().chapters[0];
+  const body = String.raw`\subsection*{One ledger, \emph{three} keys}
+Prose.
+\section*{Review}
+\label{sec:review}
+% Keep the authored short title.
+\addcontentsline{toc}{section}{Review of the key ideas}
+% \section*{Comment, not a heading}
+\begin{lstlisting}
+\subsection*{Code, not a heading}
+\end{lstlisting}`;
+  const rendered = renderChapter(chapter, body);
+  assert.match(rendered, /\\subsection\*\{One ledger, \\emph\{three\} keys\}\n\\addcontentsline\{toc\}\{subsection\}\{One ledger, \\emph\{three\} keys\}/);
+  assert.equal((rendered.match(/\\addcontentsline/g) ?? []).length, 2);
+  assert.equal((renderChapter(chapter, rendered).match(/\\addcontentsline/g) ?? []).length, 2);
 });
 
 test('a reference whose label already names another chapter by its prefix is left alone', () => {
@@ -392,6 +719,34 @@ test('reference ordering is locale-independent and normalized', () => {
   assert.deepEqual(refs.map((ref) => ref.body), ['\\emph{alpha}', 'Beta', '{Zulu}']);
 });
 
+test('a preamble comment about \\begin{document} does not move the body start', () => {
+  const source = [
+    '\\documentclass{article}',
+    '% the pedagogy twin always wins at \\begin{document}, so the local copy',
+    '% below is dead code.',
+    '\\newtheorem{definition}{Definition}[section]',
+    '\\begin{document}',
+    '\\section{Kept}',
+    '% a trailing note about \\end{document} is prose, not the marker',
+    '\\end{document}',
+  ].join('\n');
+
+  const body = documentBody(source, 'chapter.tex');
+  // The preamble must stay in the preamble: emitting \newtheorem into the
+  // collated body is what made xelatex die on "Command \definition already
+  // defined", 9000 lines from the comment that caused it.
+  assert.doesNotMatch(body, /\\newtheorem/);
+  assert.doesNotMatch(body, /\\documentclass/);
+  assert.match(body, /\\section\{Kept\}/);
+  // The commented \end{document} must not truncate the body before the note.
+  assert.match(body, /trailing note/);
+});
+
+test('a source with no uncommented \\begin{document} fails closed', () => {
+  const source = '% only a comment mentioning \\begin{document}\n\\end{document}';
+  assert.throws(() => documentBody(source, 'chapter.tex'), /malformed document body/);
+});
+
 test('standalone title, page style, and contents chrome is removed', () => {
   const source = [
     '\\maketitle',
@@ -450,6 +805,15 @@ test('one paper cannot map a bibliography key to two references', () => {
 });
 
 // --- pd-pedagogy: exercises and their deferred solutions in the Book -------
+
+test('explicit margin-page boundary survives legacy page-break cleanup', () => {
+  const source = '\\section{Argument}\nBefore.\n\\clearpage\n\\pdmarginpagebreak\nAfter.';
+  const cleaned = cleanStandaloneChrome(source);
+  assert.doesNotMatch(cleaned, /\\clearpage\b/);
+  assert.match(cleaned, /Before\.\s*\\pdmarginpagebreak\s*After\./);
+  const pedagogy = readFileSync(resolve('whitepaper/figures/pd-pedagogy.tex'), 'utf8');
+  assert.ok(pedagogy.includes('\\newcommand{\\pdmarginpagebreak}{\\clearpage}'));
+});
 
 test('cleanStandaloneChrome strips the standalone solution-file open/print lines', () => {
   const source = [
@@ -534,63 +898,14 @@ test('renderSolutions lists every chapter with exercises under its own heading, 
   assert.match(escaped, /Chapter 2: A \\& B/);
 });
 
-// --- ported from PR #7698 suite (features main's copy lacked tests for) ---
-
-test('standalone title, page style, and contents chrome is removed', () => {
-  const source = [
-    '\\maketitle',
-    '\\thispagestyle{empty}',
-    '\\tableofcontents',
-    '\\section{Kept}',
-    '\\appendix',
-  ].join('\n');
-
-  const cleaned = cleanStandaloneChrome(source);
-  assert.doesNotMatch(cleaned, /\\maketitle|\\thispagestyle|\\tableofcontents/);
-  assert.match(cleaned, /\\section\{Kept\}/);
-  assert.match(cleaned, /\\pdchapterappendix/);
-});
-
-test('labels and references are namespaced without rewriting TikZ labels', () => {
-  const source = [
-    '\\label{sec:contract}',
-    '\\ref{sec:contract}',
-    'label={alg:admit}',
-    'label={visual caption}',
-  ].join('\n');
-
-  assert.equal(
-    namespaceLabels(source, 'stp'),
-    [
-      '\\label{stp:sec:contract}',
-      '\\ref{stp:sec:contract}',
-      'label={stp:alg:admit}',
-      'label={visual caption}',
-    ].join('\n'),
-  );
-});
-
-test('identical local citation keys stay isolated between papers', () => {
-  const firstPaper = new Map([['shared', 'mega001']]);
-  const secondPaper = new Map([['shared', 'mega002']]);
-
-  assert.equal(rewriteCitations('\\cite{shared}', firstPaper, 'first.tex'), '\\cite{mega001}');
-  assert.equal(rewriteCitations('\\cite{shared}', secondPaper, 'second.tex'), '\\cite{mega002}');
-});
-
-test('one paper cannot map a bibliography key to two references', () => {
-  const prepared = [{
-    source: 'collision.tex',
-    references: [
-      { key: 'shared', body: 'First reference', source: 'collision.tex' },
-      { key: 'shared', body: 'Second reference', source: 'collision.tex' },
-    ],
-  }];
-
-  assert.throws(
-    () => collateReferences(prepared),
-    /collision\.tex: bibliography key shared maps to two references/,
-  );
+test('solution exhibits retain their owning chapter with distinct counters and anchors', () => {
+  const rendered = renderSolutions([{ number: 6, prefix: 'he', title: 'Economy' }]);
+  for (const kind of ['figure', 'table', 'lstlisting']) {
+    assert.ok(rendered.includes(`\\setcounter{${kind}}{0}`));
+    assert.ok(rendered.includes(`\\renewcommand{\\the${kind}}{6.S\\arabic{${kind}}}`));
+    assert.ok(rendered.includes(`\\renewcommand{\\theH${kind}}{solution.he.\\arabic{${kind}}}`));
+  }
+  assert.ok(rendered.indexOf('solution.he.') < rendered.indexOf('\\input{book-sol-he}'));
 });
 
 // ---------------------------------------------------------------------------
@@ -657,6 +972,13 @@ test('two genuinely different papers by the same authors in the same year stay d
 });
 
 // --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
+
+test('the assembled Book enables margin references without a special driver', () => {
+  const root = readFileSync(resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'), 'utf8');
+  const enabled = root.indexOf('\\providecommand{\\pdEnableMarginCitations}{1}');
+  const renderer = root.indexOf('\\input{figures/pd-book-citations.tex}');
+  assert.ok(enabled >= 0 && renderer > enabled, 'default Book must enable margin sources before loading the renderer');
+});
 
 test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preserving the command name', () => {
   const citationMap = new Map([['lampson1974', 'mega002'], ['saltzer1975protection', 'mega003']]);
@@ -735,5 +1057,84 @@ test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
     assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
   } finally {
     rmSync(path, { force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// No chapter carries an abstract or a Reader's Map -- zero, full stop.
+//
+// An earlier gate (drafted on claude/generator-readers-map-gate, not merged)
+// policed a weaker invariant: a Reader's Map had to be STARRED so the Book's
+// stripPaperApparatus would drop it, on the theory that a numbered
+// \section{Reader's Map} is chapter content and a starred one is standalone
+// chrome the Book does not print. That distinction is now moot. The author's
+// decision was to delete the six per-chapter Reader's Maps and the seven
+// per-chapter abstracts outright -- from every chapter source, standalone
+// editions included, not only from the Book's generated output -- and to
+// replace them with one book-level reader's map (figures/fig-book-reader-map)
+// drawn once in the front matter. So the invariant this test polices is
+// strictly stronger than "no unstarred map leaks into the Book": no chapter
+// source may define one at all, starred or not, and the generated Book body
+// must contain no trace of either apparatus either. A regression here means
+// someone added a per-chapter abstract or reader's map back, not that they
+// forgot to star one.
+// ---------------------------------------------------------------------------
+
+// Any sectioning command whose title names a reader's map, starred or not --
+// deliberately looser than any strip pattern the generator might use, so this
+// test notices a heading the generator would fail to recognise too.
+const READERS_MAP_HEADING = /\\(?:sub)*section(\*?)\s*\{([^}]*[Rr]eader'?s?\s+[Mm]ap[^}]*)\}/g;
+// The phrase itself, anywhere -- what a reader would actually see on the page.
+const READERS_MAP_PHRASE = /[Rr]eader'?s?\s+[Mm]ap/;
+
+test("no chapter source defines a Reader's Map or an abstract, and neither reaches the Book", () => {
+  const textbook = loadTextbook();
+
+  // --- the source side: every chapter, by name, from textbook.json --------
+  // Chapters come from textbook.json, never a list kept here: a ninth chapter
+  // is covered the day it is added, and a renamed source cannot quietly fall
+  // out of the sweep.
+  const withMaps = [];
+  const withAbstracts = [];
+  for (const chapter of textbook.chapters) {
+    const source = readFileSync(resolve(chapter.source), 'utf8');
+    for (const heading of source.matchAll(READERS_MAP_HEADING)) {
+      withMaps.push(`${chapter.source}: \\section${heading[1]}{${heading[2]}}`);
+    }
+    if (/\\begin\{abstract\}/.test(source)) {
+      withAbstracts.push(chapter.source);
+    }
+  }
+  assert.deepEqual(
+    withMaps,
+    [],
+    "no chapter source may define a Reader's Map, starred or not -- the one book-level map in "
+    + 'figures/fig-book-reader-map replaces all six; a chapter that still has one was missed',
+  );
+  assert.deepEqual(
+    withAbstracts,
+    [],
+    'no chapter source may carry \\begin{abstract}; the author deleted the per-chapter abstracts '
+    + 'along with the reader maps, and the front matter no longer promises standalone editions keep them',
+  );
+
+  // --- the output side: against the generated Book, not a regex belief ----
+  const out = resolve('.cache/mega-generator-readers-map-test');
+  rmSync(out, { recursive: true, force: true });
+  try {
+    generate({ textbook, out });
+    const bodyLines = readFileSync(resolve(out, 'mega-volume-body.tex'), 'utf8').split('\n');
+    const leaked = bodyLines
+      .map((line, index) => `${index + 1}: ${line.trim()}`)
+      .filter((line) => READERS_MAP_PHRASE.test(line));
+    assert.deepEqual(
+      leaked,
+      [],
+      "the Book body must contain no reader's map; these lines reached mega-volume-body.tex",
+    );
+    const abstractLeaked = bodyLines.some((line) => /\\begin\{abstract\}/.test(line));
+    assert.equal(abstractLeaked, false, 'the Book body must contain no \\begin{abstract}');
+  } finally {
+    rmSync(out, { recursive: true, force: true });
   }
 });

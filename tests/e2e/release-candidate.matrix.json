@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "suite": "port-daddy-release-candidate-phase-1",
+  "description": "Artifact-bound whole-product journeys that are hermetic, bounded, shardable, and explicit about later release gates.",
+  "artifactContract": {
+    "buildCommand": "node scripts/build-single-binary.mjs --target=<host-target> --outfile=<durable-stage>/pd",
+    "manifest": "release-artifacts.json",
+    "stageRootContract": "A synthetic Cellar path below $HOME/coding/tmp; runtime authority remains in a separate isolated home.",
+    "releaseEntries": [
+      "pd",
+      "port-daddy",
+      "port-daddy-manifest.json",
+      "native",
+      "bin",
+      "hooks",
+      "skills",
+      "agents"
+    ]
+  },
+  "defaults": {
+    "durableRoot": "$HOME/coding/tmp",
+    "resultFormat": "json",
+    "rawSensitiveArtifacts": false
+  },
+  "cases": [
+    {
+      "id": "artifact.release-layout",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "artifact",
+      "timeoutSeconds": 90,
+      "runner": "artifactReleaseLayout",
+      "proves": [
+        "The host-target pd launcher and companion are executable staged artifacts built by the release builder.",
+        "The staged cargo passes the compiled pd batten verifier and its manifest hashes are recorded without file bodies."
+      ],
+      "doesNotProve": [
+        "GitHub provenance, Developer ID signing, notarization, or a published release archive.",
+        "A pristine Homebrew installation or upgrade."
+      ]
+    },
+    {
+      "id": "artifact.package-resource-discovery",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "artifact",
+      "timeoutSeconds": 120,
+      "runner": "packageResourceDiscovery",
+      "proves": [
+        "The compiled launcher discovers staged tentacles, hooks, the public skill, and Pilot resources outside the source checkout.",
+        "Provider configuration points at a stable isolated home instead of the synthetic Cellar or source checkout."
+      ],
+      "doesNotProve": [
+        "Real provider hook execution, provider authentication, macOS TCC consent, or background capture.",
+        "Homebrew formula installation behavior."
+      ]
+    },
+    {
+      "id": "runtime.transport-parity",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "runtime",
+      "timeoutSeconds": 150,
+      "runner": "transportParity",
+      "proves": [
+        "The staged daemon reaches readiness on both its Unix socket and its published loopback TCP endpoint.",
+        "Health and version payloads identify the same live process over both transports."
+      ],
+      "doesNotProve": [
+        "launchd supervision, a canonical port 9876 deployment, browser behavior, or remote networking.",
+        "Long-duration crash freedom under production state."
+      ]
+    },
+    {
+      "id": "runtime.coordination-restart-repository-family",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "runtime",
+      "timeoutSeconds": 300,
+      "runner": "coordinationRestartRepositoryFamily",
+      "proves": [
+        "The compiled CLI completes begin, plan set/check/read, note, file claim, and sitrep journeys against isolated durable state.",
+        "Two arbitrary fixture repositories remain distinct while a main checkout and linked worktree share one canonical repository family.",
+        "A forced daemon crash followed by restart preserves session, checked plan, note, claim, and worktree metadata readback."
+      ],
+      "doesNotProve": [
+        "Cross-machine Relay replication, Chartroom authorization, GitHub delivery, or recovery of another owner.",
+        "The operator's canonical daemon or repository contents."
+      ]
+    },
+    {
+      "id": "runtime.synthetic-multi-client-pressure",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "runtime",
+      "timeoutSeconds": 210,
+      "runner": "syntheticMultiClientPressure",
+      "proves": [
+        "The staged daemon survives a deterministic synthetic registry plus five bounded concurrent client loops hitting health, sessions, roadmap, Galaxy, and Fleet reads.",
+        "Every synthetic client has at most one in-flight refresh and state remains readable after the pressure sample."
+      ],
+      "doesNotProve": [
+        "The installed 1.6 GB database, five real pd-console builds, FleetBar, approximately 28 panes per console, or two-second production cadence.",
+        "Hidden-pane inactivity or the absence of overlapping refreshes in pd-console itself; those are separately gated below."
+      ]
+    },
+    {
+      "id": "hostile.port-collision-recovery",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "hostile",
+      "timeoutSeconds": 180,
+      "runner": "portCollisionRecovery",
+      "proves": [
+        "A staged daemon fails instead of displacing an unrelated listener on its requested port.",
+        "After the listener is released, a clean daemon can claim the same port and become ready."
+      ],
+      "doesNotProve": [
+        "Canonical launchd duplicate-daemon repair or takeover of a half-alive installed process."
+      ]
+    },
+    {
+      "id": "hostile.partial-failure-cleanup",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "hostile",
+      "timeoutSeconds": 150,
+      "runner": "partialFailureCleanup",
+      "proves": [
+        "An injected test failure still terminates the artifact daemon and removes the case-owned runtime directory.",
+        "Cleanup is checked, not inferred from a successful process exit."
+      ],
+      "doesNotProve": [
+        "Cleanup after host power loss, runner termination, or SIGKILL of the test orchestrator itself."
+      ]
+    },
+    {
+      "id": "hostile.secret-free-logs",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "hostile",
+      "timeoutSeconds": 30,
+      "runner": "secretFreeLogs",
+      "proves": [
+        "Known secret carriers and deterministic canaries emitted by a hostile fixture are redacted before durable suite logs are written.",
+        "The results artifact contains classifications and counts, not raw secret payloads."
+      ],
+      "doesNotProve": [
+        "Perfect detection of every possible secret encoding or safety of unrelated GitHub Actions logs."
+      ]
+    },
+    {
+      "id": "existing.compiled-cli-surface",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "existing",
+      "timeoutSeconds": 420,
+      "runner": "existingCompiledCliSurface",
+      "proves": [
+        "The existing compiled CLI surface reconciler still drives or explicitly skips every top-level verb using the staged companion binary.",
+        "The Phase-1 suite composes the existing smoke instead of renaming or duplicating it."
+      ],
+      "doesNotProve": [
+        "Deep product semantics for every CLI verb or safety of commands intentionally represented by explicit skips."
+      ]
+    },
+    {
+      "id": "existing.bounded-packaged-soak",
+      "phase": 1,
+      "status": "automated",
+      "required": true,
+      "shard": "existing",
+      "timeoutSeconds": 210,
+      "runner": "existingBoundedPackagedSoak",
+      "proves": [
+        "The exact staged companion boots, answers a bounded workload, and exits cleanly through the existing packaged-binary soak.",
+        "The soak scratch prefix is explicitly under the suite's durable root."
+      ],
+      "doesNotProve": [
+        "The release workflow's full 180-second timer window or issue 676's production-state crash profile.",
+        "The installed daemon stability gate below."
+      ]
+    }
+  ],
+  "externalGates": [
+    {
+      "id": "app-pr-lifecycle-signatures",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "github",
+      "acceptance": [
+        "A non-draft PR is created by the configured GitHub App with attributable agent and session receipts.",
+        "Review, required checks, protected queue, merged head, artifact provenance, and signatures are independently read back."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["PR URL", "commit SHA", "App actor", "check conclusions", "signature and provenance verdicts"]
+      }
+    },
+    {
+      "id": "relay-chartroom-auth-lifecycle",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "staging",
+      "acceptance": [
+        "Relay and Chartroom authenticate through their durable production-shaped boundary.",
+        "Authorized write, durable readback, revocation, denial, and restart behavior are proven without exporting credentials."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["environment name", "hashed principal", "status codes", "revocation receipt"]
+      }
+    },
+    {
+      "id": "brew-pristine-upgrade-migration",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "macos-and-linux",
+      "skipContract": {
+        "allowedReasons": ["published-release-not-available", "supported-runner-not-available"],
+        "skipIsPass": false
+      },
+      "acceptance": [
+        "A pristine supported host installs the published archive through the tap and finds every package resource.",
+        "An upgrade preserves durable authority state, migrates supported data, and removes versioned-keg references."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["formula version", "archive digest", "resource inventory", "migration counts", "path-classification verdict"]
+      }
+    },
+    {
+      "id": "installed-daemon-fleetbar",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "macos",
+      "acceptance": [
+        "The signed installed daemon is supervised by launchd and FleetBar connects to the same healthy runtime over its intended surfaces.",
+        "Removed environment keys are absent, provider hooks are current, Relay connectivity is truthful, and health/Galaxy reads stay non-error."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["runtime version", "aggregate counts", "artifact hashes", "redacted category verdicts"],
+        "forbidden": ["raw registry database", "transcript bodies", "credentials", "unscrubbed crash reports"]
+      }
+    },
+    {
+      "id": "installed-high-cardinality-client-stability",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "macos",
+      "acceptance": [
+        "A deterministic seeded high-cardinality or production-scale registry is exercised without copying production payloads into CI.",
+        "Five simultaneous pd-console client classes plus FleetBar sustain the production-shaped refresh period and approximately 28-pane request mix.",
+        "Per-client request counters prove bounded request rate, no overlapping refresh cycles, and no requests from hidden panes.",
+        "The daemon remains crash-free and responsive; roadmap status=all limit=2000, Galaxy, health, Fleet, and durable state readback remain successful."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["seed recipe hash", "registry byte count", "row counts", "client counts", "request counters", "latency summary", "crash count", "artifact version and hash"],
+        "forbidden": ["production database", "transcript bodies", "credentials", "unscrubbed crash reports"]
+      }
+    },
+    {
+      "id": "porthole-safe-fixture",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "macos-tcc",
+      "skipContract": {
+        "requiredFixture": "explicit operator-approved Porthole Safe Fixture",
+        "allowedReasons": ["unsupported-platform", "tcc-permission-not-granted", "safe-fixture-not-provisioned"],
+        "skipIsPass": false
+      },
+      "acceptance": [
+        "An explicit app and instance allowlist is visible and enforced while capture continues in the background.",
+        "Picker alignment, cursor visibility, comments, pause, resume, stop, redaction, indexing, and cast export are directly evidenced.",
+        "Capture outside the allowlist and unconsented sources is denied."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["fixture identifier", "consent scope", "redacted screenshots", "playable cast URL", "denial receipts"]
+      }
+    },
+    {
+      "id": "cloudflare-staging-cost-observability",
+      "status": "separately-gated",
+      "phase1Claimed": false,
+      "requiredForReleaseCandidate": true,
+      "platform": "cloudflare-staging",
+      "acceptance": [
+        "Staging exercises the production Worker and durable storage topology with bounded synthetic data.",
+        "Request, storage, AI, retry, and failure costs are observable and stay within an explicit release budget."
+      ],
+      "evidencePolicy": {
+        "rawSensitiveArtifacts": false,
+        "allowed": ["deployment version", "aggregate operation counts", "cost totals", "budget verdict", "redacted trace identifiers"]
+      }
+    }
+  ]
+}

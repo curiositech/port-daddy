@@ -1,0 +1,3 @@
+type: changed
+
+- **The manuscript review is applied to the chapters, not only catalogued.** Thirty-three of the review's open items land in the Book: two chapter-1 theorems gain hypotheses they were leaning on, a chapter-2 section title that was false as printed is withdrawn, correlated reviewers and heavy-tailed service get parameters and falsifiers instead of adjectives, the deontic fragment's grammar gets one definition, and the transfer ceremony stops being written out twice. Nineteen more are routed to the branches that own their files, one is declined with its reason, and five stay open with what would close them. The critique ledger gains a `BLOCKED` status so a row owned by another branch reads as open rather than as done.

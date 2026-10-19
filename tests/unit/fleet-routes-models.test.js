@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 const mockAssessBackendReadiness = jest.fn(async (backend) => ({
   backend,
@@ -408,6 +409,101 @@ describe('fleet routes /fleet/models', () => {
     const yaml = readFileSync(configPath, 'utf-8');
     expect(yaml).toContain('fallbacks:');
     expect(yaml).toContain('backend: claude-cli');
+
+    await app.close();
+  });
+
+  test('POST /fleet/config/:project/runtime never rewrites cloud-only agents', async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'pd-fleet-runtime-cloud-only-'));
+    tempDirs.push(projectDir);
+    const configPath = join(projectDir, 'pd-fleet.yml');
+    writeFileSync(configPath, `fleet:
+  name: demo
+  agents:
+    hosted-qa:
+      cloud_only: true
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: '@cf/zai-org/glm-4.7-flash'
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      prompt: review the frozen diff
+    malformed-hosted-qa:
+      cloud_only: "false"
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: '@cf/zai-org/glm-5.2'
+      prompt: fail closed
+    local-qa:
+      cloud_only: false
+      trigger: git:committed
+      backend: ollama
+      model: qwen2.5-coder:7b
+      fallbacks:
+        - backend: claude-cli
+      prompt: review locally
+`, 'utf-8');
+    commitTempRepo(projectDir);
+
+    const reload = jest.fn();
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [{ project: 'demo', projectDir }] };
+          },
+          reload,
+        },
+        projects: {
+          get() { return null; },
+          getByPath() { return null; },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/config/demo/runtime',
+      payload: {
+        backend: 'codex',
+        model: 'gpt-5.4-mini',
+        clearFallbacks: true,
+        agentNames: ['hosted-qa', 'malformed-hosted-qa', 'local-qa'],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      updatedAgents: ['local-qa'],
+      skippedAgents: ['hosted-qa', 'malformed-hosted-qa'],
+    }));
+    const saved = parseYaml(readFileSync(configPath, 'utf-8'));
+    expect(saved.fleet.agents['hosted-qa']).toEqual(expect.objectContaining({
+      cloud_only: true,
+      backend: 'cloudflare',
+      model: '@cf/zai-org/glm-4.7-flash',
+      fallbacks: [{ backend: 'cloudflare', model: '@cf/qwen/qwen3-30b-a3b-fp8' }],
+    }));
+    expect(saved.fleet.agents['malformed-hosted-qa']).toEqual(expect.objectContaining({
+      cloud_only: 'false',
+      backend: 'cloudflare',
+      model: '@cf/zai-org/glm-5.2',
+    }));
+    expect(saved.fleet.agents['local-qa']).toEqual(expect.objectContaining({
+      cloud_only: false,
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+    }));
+    expect(saved.fleet.agents['local-qa'].fallbacks).toBeUndefined();
+    expect(reload).toHaveBeenCalledTimes(1);
 
     await app.close();
   });

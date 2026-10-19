@@ -92,7 +92,12 @@ In order:
    (`references/exercise-design.md` §Placement). `chapter_lint.py`'s
    `exercises_at_chapter_end` floor checks this: every `pdexercise` cluster
    must sit inside the chapter's own closing `\section{Exercises}` (advisory
-   today — the Book's chapters have not all been relocated yet).
+   today — the Book's chapters have not all been relocated yet). Title that
+   section exactly `Exercises`. A section whose title merely *mentions*
+   exercises ("Open problems (the starred exercises, collected)") is a
+   different section with a different job; the linter distinguishes them by
+   exact title and by which one actually holds the `\pdexercisesfor`
+   groups, and reports which section it judged against.
 3. **"History and references"** (Nielsen–Chuang/CLRS's phrase) — citations for
    the whole chapter, with a locator into each source (page/section for a
    book, theorem number for a paper, script and seed for a number) as a
@@ -124,3 +129,10 @@ this treatment (the Parfit interlude; Hobbes, Sen, Krakoa) as open author
 decisions, not settled placements — this skill does not decide those for the
 author, it only fixes the *form* an interlude must take once chosen: named,
 bounded, and skippable without losing the chapter's argument.
+
+`chapter_lint.py` can only enforce half of this. It counts sections titled
+"Interlude" — so it catches two labelled ones, and reports `REVIEW` rather
+than `PASS` when it finds one or none, because the frame woven unlabelled
+through ordinary prose (the failure mode that actually recurs) leaves it
+nothing to count. Deciding whether a chapter has one is a reading task, and
+the linter's job here is to stop pretending otherwise.

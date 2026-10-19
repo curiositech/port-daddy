@@ -1,0 +1,90 @@
+% fig-ch0-arrows-consensus.tex -- redrawn to the house figure language (v2).
+% Reader question: why can three agents' rankings cycle, and what breaks the
+% cycle?
+% Claim: three agents' strict ordinal rankings over {A,B,C} can produce a
+% majority cycle (A > B > C > A) no matter how the rankings are counted --
+% Arrow's theorem says any ordinal rule satisfying U, P and IIA is forced
+% into a dictatorship instead.  Replacing rankings with cardinal utility
+% bids and summing them produces one total order, because the aggregation
+% is no longer a function of ordinal profiles at all.
+% Grammar chosen: before/after on identical geometry (same two triangle
+% positions, A top / B bottom-left / C bottom-right, in both panels) -- left,
+% the three agents' rankings as a majority cycle in pd breach; right, the
+% same three agents' utility bids summed to one total order in pd focus.
+% Exactly one of the triangle's three edges reverses direction between the
+% panels (B-C becomes C-B); the other two agree, which is itself the honest
+% picture of "only the IIA pairwise comparisons changed." Rejected: the
+% four-robot "voting tokens" scene with git/database icons, a classical
+% temple "verification gate" and a scalloped wax-seal padlock -- none of
+% those nouns appear in the theorem or the prose, and an icon of a temple
+% does not distinguish U from P from IIA the way a legend row does.
+% Facts: website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex
+% Sec. "Social Choice Theory and Arrow's Impossibility Theorem"
+% (Theorem~\ref{thm:arrow}: U, P, IIA force D) and the "Why Arrow's Theorem
+% Matters" subsection (Condorcet cycles; cardinal utility and bonded bidding;
+% VCG clearing) immediately above and below \ref{fig:arrows-impossibility}.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\PW{6.30}    % panel width
+  \def\PX{7.30}    % right panel's x-shift (= \PW + 1.00 gutter)
+  \def\ytitle{5.00}
+  \def\yra{4.35} \def\yrb{3.90} \def\yrc{3.45}  % the three agents' rows
+  \def\ytop{2.10}  \def\ybase{0.10}             % triangle: shared geometry
+  \def\xA{3.15}    \def\xB{1.10}  \def\xC{5.20} % top / bottom-left / bottom-right
+  \def\Lx{-1.00}   % legend rule, left edge
+  \def\R{12.60}    % legend rule, right edge
+  % ===== LEFT PANEL: three ordinal rankings cycle under majority rule ======
+  \node[pd title,anchor=west] at (0,\ytitle) {ordinal ranking};
+  \node[pd label,anchor=west] at (0.15,\yra) {agent 1:\ \ $A \succ B \succ C$};
+  \node[pd label,anchor=west] at (0.15,\yrb) {agent 2:\ \ $B \succ C \succ A$};
+  \node[pd label,anchor=west] at (0.15,\yrc) {agent 3:\ \ $C \succ A \succ B$};
+  \node[pd automaton state] (La) at (\xA,\ytop)  {$A$};
+  \node[pd automaton state] (Lb) at (\xB,\ybase) {$B$};
+  \node[pd automaton state] (Lc) at (\xC,\ybase) {$C$};
+  \draw[pd breach arrow] (La) -- (Lb);
+  \draw[pd breach arrow] (Lb) -- (Lc);
+  \draw[pd breach arrow] (Lc) -- (La);
+  \draw[pd rule,decorate,decoration={brace,amplitude=4pt,mirror,raise=3pt}]
+    (-0.25,{\yra+.20}) -- (-0.25,{\yrc-.20});
+  \node[pd badge] at (-0.75,\yrb) {1};
+  \draw[pd rule,decorate,decoration={brace,amplitude=4pt,mirror,raise=3pt}]
+    (\xB,{\ybase-.35}) -- (\xC,{\ybase-.35});
+  \node[pd badge] at (\xA,{\ybase-.70}) {3};
+  \node[pd breach label,anchor=north] at (\xA,-.95) {$A \succ B \succ C \succ A$ --- no winner};
+  % ===== RIGHT PANEL: the same three agents, cardinal bids, one total order
+  \node[pd title,anchor=west] at (\PX,\ytitle) {cardinal utility};
+  \node[pd label,anchor=west] at ({\PX+.15},\yra) {agent 1:\ \ $A\,.9$\ \ $B\,.3$\ \ $C\,.5$};
+  \node[pd label,anchor=west] at ({\PX+.15},\yrb) {agent 2:\ \ $A\,.4$\ \ $B\,.8$\ \ $C\,.6$};
+  \node[pd label,anchor=west] at ({\PX+.15},\yrc) {agent 3:\ \ $A\,.5$\ \ $B\,.2$\ \ $C\,.9$};
+  \draw[pd hairline] ({\PX+.15},{\yrc-.30}) -- ({\PX+\PW-.15},{\yrc-.30});
+  \node[pd title,anchor=west] at ({\PX+.15},{\yrc-.58})
+    {$\Sigma$:\ \ $A\,1.8$\ \ $B\,1.3$\ \ $C\,2.0$};
+  \node[pd automaton state]       (Ra) at ({\PX+\xA},\ytop)  {$A$};
+  \node[pd automaton state]       (Rb) at ({\PX+\xB},\ybase) {$B$};
+  \node[pd automaton focus]       (Rc) at ({\PX+\xC},\ybase) {$C$};
+  \draw[pd focus arrow] (Rc) -- (Ra);
+  \draw[pd focus arrow] (Ra) -- (Rb);
+  \draw[pd focus arrow] (Rc) -- (Rb);
+  \node[pd focus label,anchor=north] at ({\PX+\xA},-.95) {$C \succ A \succ B$ --- total order};
+  % ---- the legend: the theorem's four conditions, two of them anchored ---
+  \def\ly{-1.75}
+  \draw[pd rule] (\Lx,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at ({\Lx+.05},{\ly-.30}) {condition};
+  \node[pd title,anchor=north west] at ({\Lx+5.00},{\ly-.30}) {holds because};
+  \draw[pd hairline] (\Lx,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\f/\s in {%
+    0/1/{U --- unrestricted domain}/{every profile of rankings above is admitted},
+    1/2/{P --- weak pareto}/{unanimous agreement would carry to the result},
+    2/3/{IIA --- independence}/{each arrow above compares only that one pair},
+    3/4/{D --- dictatorship}/{the only rule left once cycles are forbidden}}{
+      \node[pd badge] at ({\Lx+.30},{\ly-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at ({\Lx+.62},{\ly-1.35-\i*.62}) {\f};
+      \node[pd label,anchor=base west]
+        at ({\Lx+5.00},{\ly-1.35-\i*.62}) {\s};}
+  \node[pd note,anchor=north west,text width=13.6cm]
+    at ({\Lx+.05},{\ly-1.35-3*.62-.55})
+    {cardinal utility turns a ranking into a number: summing bypasses U, P
+     and IIA entirely, because the aggregation is no longer a function of
+     ordinal profiles alone.};
+\end{tikzpicture}

@@ -6,6 +6,8 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -45,6 +47,27 @@ class CommittedProgramIsCurrent(unittest.TestCase):
         site = (REPO / "website-v2/src/data/researchPapers.ts").read_text()
         for paper in self.program["papers"]:
             self.assertIn(f"id: '{paper['siteId']}'", site, paper["siteId"])
+
+    def test_script_imports_in_isolated_process(self):
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        code = (
+            "import importlib.util, sys; "
+            f"spec = importlib.util.spec_from_file_location('isolated_program', {str(SCRIPT)!r}); "
+            "module = importlib.util.module_from_spec(spec); "
+            "sys.modules[spec.name] = module; spec.loader.exec_module(module); "
+            "print('isolated import succeeded')"
+        )
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", code],
+            cwd=REPO,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("isolated import succeeded", result.stdout)
 
 
 class DriftIsCaught(unittest.TestCase):

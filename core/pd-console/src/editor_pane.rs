@@ -28,8 +28,12 @@
 //! while the TUI shows the tag text. No `rgb(0x…)` hex anywhere — color is meaning,
 //! resolved from `Tone`.
 
+#[path = "editor_save.rs"]
+mod editor_save;
+
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use self::editor_save::SaveTarget;
+use crate::buffer::{HarborBuffer, HistoryAction, HistoryDirection, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -72,34 +76,15 @@ const WEDGE_PROBE_INTERVAL_MS: i64 = 400;
 /// truncation marker.
 const MAX_LINES: usize = 2000;
 
-/// Default PD identity for the local (opener) replica when none is injected. Real
-/// callers pass the operator's `pd whoami` identity; tests and the headless render
-/// path fall back to this so the buffer always has a stable replica id.
+/// Unverified display label for a local opener. It is never replica identity or
+/// authority to read/publish a shared project.
 const DEFAULT_IDENTITY: &str = "port-daddy:console:operator";
 
-/// Resolve the operator's PD identity for the local Loro replica.
-///
-/// Tries `pd whoami --identity` once; on any failure (no session, `pd` absent,
-/// non-zero exit) falls back to [`DEFAULT_IDENTITY`]. Honest about the fallback:
-/// the buffer is correct either way (a stable PeerID is minted from whatever
-/// string we get), the identity just won't reflect the live session if `pd` is
-/// unavailable. Kept synchronous and cheap; the caller invokes it at pane
-/// construction, not per render tick.
+/// Local display label only. Opening a file must not execute a coordination CLI
+/// or imply that a label is a verified identity. Shared principal/device/grant
+/// admission belongs to the authenticated Harbor gateway, not this constructor.
 pub fn resolve_operator_identity() -> String {
-    let out = std::process::Command::new("pd")
-        .args(["whoami", "--identity"])
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() {
-                DEFAULT_IDENTITY.to_string()
-            } else {
-                s
-            }
-        }
-        _ => DEFAULT_IDENTITY.to_string(),
-    }
+    DEFAULT_IDENTITY.to_string()
 }
 
 /// Width of the gutter line-number column for a file with `n` lines.
@@ -113,8 +98,8 @@ fn gutter_width(n: usize) -> usize {
 }
 
 /// A short, stable author tag for a PeerId — the last 2 hex nibbles of the id.
-/// Deterministic and compact for the gutter; the full PeerId↔PD-identity mapping
-/// lives in `buffer.rs`. Returns a fixed-width 2-char tag.
+/// Deterministic and compact for the gutter. This tag is a display hint, not
+/// proof of a principal. Returns a fixed-width 2-char tag.
 fn author_tag(peer: PeerId) -> String {
     format!("{:02x}", (peer & 0xff) as u8)
 }
@@ -151,19 +136,23 @@ struct CodeCache {
 /// error); `error` holds any load failure; `truncated` records the large-file cap.
 pub struct EditorPane {
     path: String,
+    document: crate::editor_sync::DocumentRef,
     region: Option<(u32, u32)>,
     identity: String,
+    /// Presentation baseline for a read-only producer mirror, not a writing ID.
+    viewer_peer: Option<PeerId>,
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
-    /// The per-file **edit-sync** tube channel this editor's op stream rides on (P2
-    /// slice 1), derived once from `path` via [`crate::editor_sync::channel_for_path`].
-    /// Two replicas opening the same file land on the same channel and exchange Loro
-    /// op frames over it. Presence (slice 2) and snapshot refs (slice 3) ride this
-    /// SAME channel under distinct frame kinds.
+    save_target: Option<SaveTarget>,
+    saved_stamp: Option<Vec<u8>>,
+    pending_save: Option<Vec<u8>>,
+    pending_verification: bool,
+    save_error: Option<String>,
+    /// DocumentRef-derived edit lane. Merely opening a local path does not
+    /// subscribe; verified shared-session admission is still an external gate.
     channel: String,
-    /// The per-file **coordination** tube channel (P2 slice 3), derived from `path`
-    /// via [`crate::editor_sync::coordination_channel_for_path`]. Deliberately a
+    /// The DocumentRef-derived **coordination** channel. Deliberately a
     /// SEPARATE channel from `channel` so claims / guard / conflict-predict signals
     /// never share a queue with the high-frequency doc-op lane — a keystroke burst
     /// cannot starve coordination (ref-03 §3 isolation). Derived once; stable for the
@@ -214,6 +203,44 @@ pub struct EditorPane {
     code: std::cell::RefCell<Option<CodeCache>>,
 }
 
+/// A frozen device-local write. Executed off the render thread.
+pub struct SaveRequest {
+    document: crate::editor_sync::DocumentRef,
+    target: SaveTarget,
+    stamp: Vec<u8>,
+    bytes: Vec<u8>,
+    verify_only: bool,
+}
+
+pub struct SaveCompletion {
+    document: crate::editor_sync::DocumentRef,
+    stamp: Vec<u8>,
+    result: std::result::Result<SaveTarget, String>,
+    verify_only: bool,
+}
+
+impl SaveRequest {
+    pub fn is_verification(&self) -> bool { self.verify_only }
+
+    pub fn run(self) -> SaveCompletion {
+        let result = if self.verify_only {
+            self.target.verify()
+        } else {
+            self.target.save(&self.bytes)
+        };
+        SaveCompletion {
+            document: self.document,
+            stamp: self.stamp,
+            result,
+            verify_only: self.verify_only,
+        }
+    }
+}
+
+impl SaveCompletion {
+    pub fn is_verification(&self) -> bool { self.verify_only }
+}
+
 impl EditorPane {
     /// Construct a pane bound to `path` with an optional `region`, opened under the
     /// default operator identity. No disk I/O here — call `load()` (sync) or
@@ -222,10 +249,8 @@ impl EditorPane {
         Self::new_with_identity(path, region, DEFAULT_IDENTITY)
     }
 
-    /// Construct a pane whose local Loro replica is keyed to `identity` (the
-    /// operator's PD identity, e.g. from `pd whoami`). This is the identity↔replica
-    /// binding the battle-plan requires for correct authorship across reconnects.
-    /// It is not authority for a successor to impersonate a dead actor.
+    /// Construct a local pane with an unverified display label. A new buffer
+    /// receives a fresh replica; equal labels cannot restart one shared counter.
     pub fn new_with_identity(
         path: impl Into<String>,
         region: Option<(u32, u32)>,
@@ -233,23 +258,26 @@ impl EditorPane {
     ) -> Self {
         let path = path.into();
         let identity = identity.into();
-        // Derive both per-file channels once at construction — each is a pure
-        // function of the path, so both are stable for the pane's whole life (and
-        // match every other replica that opens the same file). The edit-sync lane and
-        // the coordination lane are DISTINCT channels (slice-3 isolation).
-        let channel = crate::editor_sync::channel_for_path(&path);
-        let coord_channel = crate::editor_sync::coordination_channel_for_path(&path);
-        // Mint the local replica id from the identity directly (same FNV-1a as the
-        // buffer) so presence has a stable local PeerId even before a file loads —
-        // the presence lane does not depend on the buffer being open.
-        let local_peer = peer_id_for_identity(&identity);
+        // A local draft gets its own document identity; no auto-join by path.
+        let document = crate::editor_sync::DocumentRef::local_draft();
+        let channel = crate::editor_sync::channel_for_document(&document);
+        let coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        // Provisional empty awareness; replaced by the loaded buffer's fresh ID.
+        let local_peer = HarborBuffer::empty(&identity).local_peer();
         Self {
             path,
+            document,
             region,
             identity,
+            viewer_peer: None,
             buffer: None,
             truncated: false,
             error: None,
+            save_target: None,
+            saved_stamp: None,
+            pending_save: None,
+            pending_verification: false,
+            save_error: None,
             channel,
             coord_channel,
             presence: PresenceStore::new(local_peer),
@@ -272,14 +300,31 @@ impl EditorPane {
     /// Used by the GPUI render path (`&self`-sync construction) and by `refresh()`.
     /// Idempotent: clears prior state before loading.
     pub fn load(&mut self) {
+        if self.pending_save.is_some() {
+            self.save_error = Some("wait for the current save before reopening".into());
+            return;
+        }
         self.buffer = None;
         self.truncated = false;
+        self.save_target = None;
+        self.saved_stamp = None;
+        self.pending_save = None;
+        self.pending_verification = false;
+        self.save_error = None;
         // Drop the render cache: a re-load may read DIFFERENT disk content that
         // happens to produce an equal-length op stream (an equal CRDT stamp), so
         // the stamp alone cannot be trusted across a reopen.
         self.code.replace(None);
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
+                self.reset_replica_awareness(buf.local_peer());
+                match SaveTarget::open(&self.path, &buf.to_string()) {
+                    Ok(target) => {
+                        self.saved_stamp = Some(buf.change_stamp());
+                        self.save_target = Some(target);
+                    }
+                    Err(reason) => self.save_error = Some(reason),
+                }
                 self.buffer = Some(buf);
                 self.error = None;
             }
@@ -289,11 +334,108 @@ impl EditorPane {
         }
     }
 
+    /// Reopening creates a new operation-counter incarnation. Ephemeral claims
+    /// and presence from the discarded replica cannot become the new one's.
+    fn reset_replica_awareness(&mut self, peer: PeerId) {
+        self.presence = PresenceStore::new(peer);
+        self.remote.clear();
+        self.presence_out = PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS);
+        self.local_presence = PresenceState::caret(1, 0, 1, 1);
+        self.claims = ClaimStore::new(peer);
+        self.claim_ledger = ClaimLedger::new();
+        self.claim_out = ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS);
+        self.next_claim_id = 0;
+        self.wedge_probe = WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS);
+        self.wedge_inflight = None;
+        self.guard_band = None;
+    }
+
     /// Borrow the live buffer, if loaded. Lets callers (and the merge demo) inject
     /// a second replica's ops via `apply_remote_ops` so an agent's lines render
     /// with their own authorship.
     pub fn buffer(&self) -> Option<&HarborBuffer> {
         self.buffer.as_ref()
+    }
+
+    pub fn document(&self) -> &crate::editor_sync::DocumentRef {
+        &self.document
+    }
+
+    /// A local save request freezes bytes and the exact CRDT revision. The worker
+    /// owns only this snapshot; it never reads or mutates the live Loro buffer.
+    pub fn prepare_save(&mut self) -> std::result::Result<SaveRequest, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot save a local file".into());
+        }
+        if self.pending_save.is_some() {
+            return Err("an editor save is already in progress".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        let target = self.save_target.clone().ok_or_else(|| self.save_error.clone()
+            .unwrap_or_else(|| "editor save target is unavailable".into()))?;
+        let stamp = buffer.change_stamp();
+        let verify_only = self.saved_stamp.as_ref() == Some(&stamp);
+        let bytes = if verify_only { Vec::new() } else { buffer.to_string().into_bytes() };
+        self.pending_save = Some(stamp.clone());
+        self.pending_verification = verify_only;
+        self.save_error = None;
+        Ok(SaveRequest { document: self.document.clone(), target, stamp, bytes, verify_only })
+    }
+
+    /// Only the same document and pending request may advance the disk baseline.
+    /// A later edit keeps the pane dirty even when the older write succeeded.
+    pub fn complete_save(&mut self, completion: SaveCompletion) -> Result<(), String> {
+        if self.document != completion.document || self.pending_save.as_ref() != Some(&completion.stamp) {
+            return Err("stale editor save completion".into());
+        }
+        self.pending_save = None;
+        self.pending_verification = false;
+        match completion.result {
+            Ok(target) => {
+                self.save_target = Some(target);
+                self.saved_stamp = Some(completion.stamp);
+                self.save_error = None;
+                Ok(())
+            }
+            Err(reason) => {
+                self.save_error = Some(reason.clone());
+                Err(reason)
+            }
+        }
+    }
+
+    pub fn fail_save_worker(&mut self, reason: String) {
+        self.pending_save = None;
+        self.pending_verification = false;
+        self.save_error = Some(reason);
+    }
+
+    pub fn save_status(&self) -> String {
+        if self.save_error.is_some() { return "SAVE ERROR".into(); }
+        if self.pending_save.is_some() {
+            return if self.pending_verification { "CHECKING FILE" } else { "SAVING LOCAL" }.into();
+        }
+        let Some(buffer) = self.buffer.as_ref() else { return "UNAVAILABLE".into(); };
+        if self.saved_stamp.as_ref() == Some(&buffer.change_stamp()) {
+            "NO LOCAL EDITS".into()
+        } else {
+            "UNSAVED LOCAL".into()
+        }
+    }
+
+    /// The background lane imports the foreground's exact history, never seeds
+    /// a second copy from disk. Its distinct replica cannot author as the opener.
+    pub fn mirror(path: String, region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef, snapshot: &[u8], viewer_peer: PeerId) -> Result<Self> {
+        let mut pane = Self::new(path, region);
+        pane.channel = crate::editor_sync::channel_for_document(&document);
+        pane.coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        pane.document = document;
+        if !pane.hydrate_from_snapshot(snapshot) {
+            return Err(anyhow::anyhow!("invalid editor mirror snapshot"));
+        }
+        pane.viewer_peer = Some(viewer_peer);
+        Ok(pane)
     }
 
     /// The most recent disk-open failure, if this pane could not establish a
@@ -310,6 +452,44 @@ impl EditorPane {
         self.buffer.as_ref().map(HarborBuffer::to_string)
     }
 
+    /// Drain authoritative UTF-8 receipts in mutation order. P1B syntax work
+    /// consumes this seam directly and must never derive edits from snapshots.
+    pub fn take_edit_receipts(&mut self) -> ReceiptBatch {
+        self.buffer
+            .as_ref()
+            .map(HarborBuffer::take_edit_receipts)
+            .unwrap_or_default()
+    }
+
+    /// Fail closed on every live claim touched by a UTF-8 replacement. History
+    /// callers invoke this with Loro's stable cursor range before undo/redo, so
+    /// governance always precedes mutation.
+    fn ensure_editable_range(
+        &self,
+        before: &str,
+        range: std::ops::Range<usize>,
+        replacement_newlines: usize,
+    ) -> std::result::Result<(), String> {
+        let first_line = 1 + before[..range.start]
+            .bytes()
+            .filter(|b| *b == b'\n')
+            .count() as u32;
+        // Count newlines *inside* a non-empty replacement too: deleting a
+        // newline joins two lines and therefore touches both claim regions.
+        let deleted_last_line = 1 + before.as_bytes()[..range.end]
+            .iter()
+            .filter(|b| **b == b'\n')
+            .count() as u32;
+        let inserted_last_line = first_line.saturating_add(replacement_newlines as u32);
+        let last_line = deleted_last_line.max(inserted_last_line);
+        for line in first_line..=last_line.max(first_line) {
+            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
+                return Err(gated.message());
+            }
+        }
+        Ok(())
+    }
+
     /// Apply one human edit expressed as a UTF-8 byte replacement. Existing
     /// live-claim policy is checked before any byte is written; accepted edits
     /// become locally-authored Loro ops and return the incremental tube frame the
@@ -319,6 +499,9 @@ impl EditorPane {
         range: std::ops::Range<usize>,
         replacement: &str,
     ) -> std::result::Result<String, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
         let Some(buffer) = self.buffer.as_ref() else {
             return Err("editor buffer is not loaded".into());
         };
@@ -334,28 +517,86 @@ impl EditorPane {
             ));
         }
 
-        let first_line = 1 + before[..range.start]
-            .bytes()
-            .filter(|b| *b == b'\n')
-            .count() as u32;
-        // Count newlines *inside* a non-empty replacement too: deleting a
-        // newline joins two lines and therefore touches both claim regions.
-        let last_line = 1 + before.as_bytes()[..range.end]
-            .iter()
-            .filter(|b| **b == b'\n')
-            .count() as u32;
-        for line in first_line..=last_line.max(first_line) {
-            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
-                return Err(gated.message());
-            }
-        }
+        self.ensure_editable_range(
+            &before,
+            range.clone(),
+            replacement.bytes().filter(|byte| *byte == b'\n').count(),
+        )?;
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
-        let delta = buffer.replace_authored(unicode, replacement);
-        Ok(crate::editor_sync::encode_frame(
-            buffer.local_peer(),
-            &delta,
-        ))
+        let edit = buffer.replace_authored(unicode, replacement);
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(frame)
+    }
+
+    /// Undo one foreground-authored item after resolving and claim-checking its
+    /// current merged range. The returned frame is the ordinary editor-sync
+    /// delta mirrored by the producer and broadcast to peers.
+    pub fn undo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(false)
+    }
+
+    /// Redo one foreground-authored item through the same governed path.
+    pub fn redo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(true)
+    }
+
+    fn apply_local_history(&mut self, redo: bool) -> std::result::Result<Option<String>, String> {
+        let Some(buffer) = self.buffer.as_ref() else {
+            return Err("editor buffer is not loaded".into());
+        };
+        let action = if redo {
+            HistoryAction::Redo
+        } else {
+            HistoryAction::Undo
+        };
+        let edit = buffer.apply_history_governed(action, |before, guard| {
+            self.ensure_editable_range(before, guard.range.clone(), guard.replacement_newlines)
+        })?;
+        let Some(edit) = edit else {
+            return Ok(None);
+        };
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(Some(frame))
+    }
+
+    /// Apply foreground history through the same stable-range claim governance
+    /// as the ordinary undo/redo commands, then restore selection anchors and
+    /// clear stale composition only after an accepted change.
+    pub fn apply_history(
+        &mut self,
+        direction: HistoryDirection,
+        input: &mut crate::editor_input::EditorInput,
+    ) -> std::result::Result<Option<String>, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        let action = match direction {
+            HistoryDirection::Undo => HistoryAction::Undo,
+            HistoryDirection::Redo => HistoryAction::Redo,
+        };
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = buffer.anchor_at_byte(selected.start)
+            .zip(buffer.anchor_at_byte(selected.end));
+        let Some(edit) = buffer.apply_history_governed(action, |before, guard| {
+            self.ensure_editable_range(before, guard.range.clone(), guard.replacement_newlines)
+        })? else {
+            return Ok(None);
+        };
+        let after = buffer.to_string();
+        if let Some((mut start, mut end)) = anchors {
+            if let (Some(start), Some(end)) = (
+                buffer.resolve_anchor_byte(&mut start),
+                buffer.resolve_anchor_byte(&mut end),
+            ) {
+                input.restore_selection(&after, start..end, reversed);
+            }
+        }
+        input.unmark();
+        input.reconcile(&after);
+        Ok(Some(crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta)))
     }
 
     /// Fold the foreground authority's exact local delta into the producer's
@@ -370,10 +611,39 @@ impl EditorPane {
             return false;
         };
         let before = buffer.change_stamp();
-        if crate::editor_sync::apply_frame(buffer, &frame).is_err() {
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
             return false;
         }
-        buffer.change_stamp() != before
+        let changed = buffer.change_stamp() != before;
+        changed
+    }
+
+    /// Import an admitted document frame without moving a local selection onto
+    /// unrelated text. CRDT positions, not old byte or line offsets, survive edits.
+    pub fn ingest_preserving_selection(&mut self, frame: &str,
+        input: &mut crate::editor_input::EditorInput) -> bool {
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = self.buffer().and_then(|buffer| Some((
+            buffer.anchor_at_byte(selected.start)?,
+            buffer.anchor_at_byte(selected.end)?,
+        )));
+        if !self.ingest_frame(frame) {
+            return false;
+        }
+        if let Some(buffer) = self.buffer() {
+            let text = buffer.to_string();
+            if let Some((mut start, mut end)) = anchors {
+                if let (Some(start), Some(end)) = (
+                    buffer.resolve_anchor_byte(&mut start),
+                    buffer.resolve_anchor_byte(&mut end),
+                ) {
+                    input.restore_selection(&text, start..end, reversed);
+                }
+            }
+            input.reconcile(&text);
+        }
+        true
     }
 
     /// The per-file tube channel this editor's op stream rides on. Callers open the
@@ -410,7 +680,12 @@ impl EditorPane {
         if frame.peer == buffer.local_peer() {
             return false; // our own ops, echoed back — nothing to fold
         }
-        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+        let before = buffer.change_stamp();
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
+            return false;
+        }
+        let changed = buffer.change_stamp() != before;
+        changed
     }
 
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
@@ -431,6 +706,16 @@ impl EditorPane {
     /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
     /// a snapshot the buffer already contains is a no-op.
     pub fn hydrate_from_snapshot(&mut self, snapshot: &[u8]) -> bool {
+        if self.buffer.is_none() {
+            let buffer = HarborBuffer::empty(self.identity.clone());
+            if buffer.apply_remote_ops(snapshot).is_err() {
+                return false;
+            }
+            self.reset_replica_awareness(buffer.local_peer());
+            self.buffer = Some(buffer);
+            self.error = None;
+            return true;
+        }
         let buffer = self
             .buffer
             .get_or_insert_with(|| HarborBuffer::empty(self.identity.clone()));
@@ -799,7 +1084,7 @@ impl EditorPane {
         let mut slot = self.code.borrow_mut();
         if slot.as_ref().map_or(true, |c| c.stamp != stamp) {
             let lang = crate::syntax::lang_for_path(&self.path);
-            let opener = buffer.local_peer();
+            let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
             let all = buffer.lines();
             let total = all.len();
             let show_authors = all
@@ -863,7 +1148,7 @@ impl Pane for EditorPane {
             return blocks;
         };
 
-        let opener = buffer.local_peer();
+        let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
         // The tokenized snapshot: an Arc clone on the unchanged path — the old
         // path re-cloned every line's String into a Block::Row per view().
         let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
@@ -1025,6 +1310,9 @@ impl Pane for EditorPane {
         // open does a blocking std::fs read; do it off the reactor so a slow/huge
         // file can't stall it, then fold the buffer (or error) back into `self`.
         Box::pin(async move {
+            if self.pending_save.is_some() {
+                return Err(anyhow::anyhow!("wait for the current save before refreshing"));
+            }
             let path = self.path.clone();
             let identity = self.identity.clone();
             // Same reopen hazard as `load()`: never trust the old cache across
@@ -1035,6 +1323,19 @@ impl Pane for EditorPane {
                 .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
             match opened {
                 Ok(buf) => {
+                    self.reset_replica_awareness(buf.local_peer());
+                    self.save_target = None;
+                    self.saved_stamp = None;
+                    self.pending_save = None;
+                    self.pending_verification = false;
+                    self.save_error = None;
+                    match SaveTarget::open(&self.path, &buf.to_string()) {
+                        Ok(target) => {
+                            self.saved_stamp = Some(buf.change_stamp());
+                            self.save_target = Some(target);
+                        }
+                        Err(reason) => self.save_error = Some(reason),
+                    }
                     self.buffer = Some(buf);
                     self.error = None;
                     self.truncated = false;
@@ -1042,6 +1343,10 @@ impl Pane for EditorPane {
                 Err(e) => {
                     self.error = Some(format!("{e}"));
                     self.buffer = None;
+                    self.save_target = None;
+                    self.saved_stamp = None;
+                    self.pending_save = None;
+                    self.pending_verification = false;
                     self.truncated = false;
                 }
             }
@@ -1049,25 +1354,154 @@ impl Pane for EditorPane {
         })
     }
 
-    /// Declare this editor's live intent: watch the file's op-stream channel so a
-    /// second replica's Loro edits arrive over the tube (P2 slice 1). Same
-    /// declare-intent contract the `AgentTranscript` lane uses — main.rs opens the
-    /// SSE (`DaemonClient::subscribe_channel`) and drains frames back through
-    /// [`ingest_frame`](Self::ingest_frame). Only once a real buffer is open: an
-    /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
-    /// subscribes to nothing (poll-only).
+    /// No implicit shared admission from a local file/identity label. The
+    /// authenticated shared-session adapter is required before subscribing.
     fn subscription(&self) -> Option<Subscription> {
-        self.buffer.as_ref().map(|_| Subscription::Editor {
-            channel: self.channel.clone(),
-            coord_channel: self.coord_channel.clone(),
-        })
+        // Local file opening is not a shared-session consent/admission flow.
+        // The former path-derived auto-subscription admitted unrelated peers.
+        // Stay local until the verified principal/device/grant adapter exists.
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
+
+    #[test]
+    fn mirror_imports_exact_history_without_reseeding_or_reusing_authorship() {
+        let path = write_temp("mirror.txt", "original\n");
+        let mut foreground = make_pane(&path, None);
+        let snapshot = foreground.snapshot_blob().unwrap();
+        let mut mirror = EditorPane::mirror(path, None, foreground.document().clone(), &snapshot,
+            foreground.buffer().unwrap().local_peer()).unwrap();
+        assert_ne!(foreground.buffer().unwrap().local_peer(), mirror.buffer().unwrap().local_peer());
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert_eq!(foreground.document(), mirror.document());
+        assert!(mirror.apply_local_text_edit(0..0, "forged").is_err());
+        assert_eq!(code_buffer(&foreground.view()).unwrap().2, code_buffer(&mirror.view()).unwrap().2);
+        let frame = foreground.apply_local_text_edit(0..0, "one new line\n").unwrap();
+        assert!(mirror.ingest_local_frame(&frame));
+        assert!(!mirror.ingest_local_frame(&frame), "duplicate local delivery is a no-op");
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert!(mirror.subscription().is_none(), "a mirror is not shared admission");
+    }
+
+    #[test]
+    fn editor_save_racing_edit_remains_dirty_after_older_write() {
+        let path = write_temp("save-race.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        pane.apply_local_text_edit(0..0, "first ").unwrap();
+        assert_eq!(pane.save_status(), "UNSAVED LOCAL");
+        let request = pane.prepare_save().unwrap();
+        assert_eq!(pane.save_status(), "SAVING LOCAL");
+        pane.apply_local_text_edit(0..0, "second ").unwrap();
+        let completion = request.run();
+        pane.complete_save(completion).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first start\n");
+        assert_eq!(pane.save_status(), "UNSAVED LOCAL");
+        let second_save = pane.prepare_save().unwrap();
+        pane.complete_save(second_save.run()).unwrap();
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "second first start\n");
+    }
+
+    #[test]
+    fn editor_save_clean_checks_external_edit_without_replacing_target() {
+        let path = write_temp("save-clean-conflict.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.save_status(), "NO LOCAL EDITS");
+        let first = pane.prepare_save().unwrap();
+        assert!(first.is_verification());
+        assert_eq!(pane.save_status(), "CHECKING FILE");
+        let before = std::fs::metadata(&path).unwrap();
+        pane.complete_save(first.run()).unwrap();
+        let after = std::fs::metadata(&path).unwrap();
+        assert!(super::editor_save::same_file(&before, &after), "verification never replaces the file");
+        std::fs::write(&path, "external\n").unwrap();
+        let check = pane.prepare_save().unwrap();
+        assert!(check.is_verification());
+        assert!(pane.complete_save(check.run()).unwrap_err().contains("changed"));
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+    }
+
+    #[test]
+    fn editor_save_clean_refuses_same_bytes_replaced_target() {
+        let path = write_temp("save-clean-replaced.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        let replacement = std::path::PathBuf::from(&path).with_extension("replacement");
+        std::fs::write(&replacement, "start\n").unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+        let request = pane.prepare_save().unwrap();
+        assert!(request.is_verification());
+        assert!(pane.complete_save(request.run()).unwrap_err().contains("changed"));
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "start\n");
+    }
+
+    #[test]
+    fn editor_save_failed_prepared_write_cleans_temp_and_keeps_editor_dirty() {
+        let path = write_temp("save-write-failure.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "mine ").unwrap();
+        let request = pane.prepare_save().unwrap();
+        assert!(!request.is_verification());
+        let mut temp = None;
+        let result = request.target.save_with_hook(&request.bytes, |prepared| {
+            temp = Some(prepared.to_path_buf());
+            Err("controlled preparation failure".into())
+        });
+        let completion = SaveCompletion {
+            document: request.document,
+            stamp: request.stamp,
+            result,
+            verify_only: false,
+        };
+        assert!(pane.complete_save(completion).unwrap_err().contains("controlled"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "start\n");
+        assert!(!temp.unwrap().exists(), "failed temporary write is removed");
+        assert_eq!(pane.save_status(), "SAVE ERROR");
+    }
+
+    #[test]
+    fn editor_save_external_change_refuses_and_stays_dirty() {
+        let path = write_temp("save-external.txt", "start\n");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "mine ").unwrap();
+        let request = pane.prepare_save().unwrap();
+        std::fs::write(&path, "external\n").unwrap();
+        let reason = pane.complete_save(request.run()).unwrap_err();
+        assert!(reason.contains("changed"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+        assert!(pane.save_status().starts_with("SAVE ERROR"));
+        assert!(pane.prepare_save().unwrap().run().result.is_err());
+    }
+
+    #[test]
+    fn malformed_mirror_snapshot_is_not_an_empty_success() {
+        assert!(EditorPane::mirror("/not/read/from/disk".into(), None,
+            crate::editor_sync::DocumentRef::local_draft(), b"garbage", 1).is_err());
+    }
+
+    #[test]
+    fn remote_edits_preserve_reversed_selection_on_the_same_unicode_text() {
+        let path = write_temp("stable-selection.txt", "a😀target\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&pane.text().unwrap(), "a😀".len().."a😀target".len(), true);
+        let peer = HarborBuffer::empty("Charli");
+        peer.apply_remote_ops(&pane.snapshot_blob().unwrap()).unwrap();
+        peer.insert_authored(0, "研究\n");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &peer.export_ops());
+        assert!(pane.ingest_preserving_selection(&frame, &mut input));
+        assert_eq!(&pane.text().unwrap()[input.selection()], "target");
+        assert!(input.selection_reversed());
+        assert_eq!(input.selection().start, "研究\na😀".len());
+        assert!(!pane.ingest_preserving_selection(&frame, &mut input));
+    }
     use std::io::Write;
     use std::path::PathBuf;
 
@@ -1273,7 +1707,9 @@ mod tests {
         let path = write_temp("local-input.rs", "let value = 1;\n");
         let identity = "port-daddy:console:human-input";
         let mut foreground = make_pane_as(&path, identity);
-        let mut producer_mirror = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(path.clone(), None,
+            foreground.document().clone(), &foreground.snapshot_blob().unwrap(),
+            foreground.buffer().unwrap().local_peer()).unwrap();
         let (before_lines, _, _) = code_buffer(&foreground.view()).expect("code buffer");
 
         let text = foreground.text().expect("loaded text");
@@ -1304,6 +1740,134 @@ mod tests {
     }
 
     #[test]
+    fn undo_redo_frames_keep_foreground_and_producer_mirror_converged() {
+        let path = write_temp("history-mirror.rs", "let value = 1;\n");
+        let identity = "port-daddy:console:history-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(
+            path.clone(), None, foreground.document().clone(),
+            &foreground.snapshot_blob().expect("foreground snapshot"),
+            foreground.buffer().expect("foreground buffer").local_peer(),
+        ).expect("producer mirror");
+
+        let foreground_initial = foreground.take_edit_receipts();
+        let producer_initial = producer_mirror.take_edit_receipts();
+        assert!(foreground_initial.complete && foreground_initial.receipts.is_empty());
+        assert!(producer_initial.complete);
+        assert_eq!(producer_initial.receipts.len(), 1, "snapshot hydration is receipted");
+
+        let edit_frame = foreground
+            .apply_local_text_edit(4..9, "answer")
+            .expect("local replacement");
+        assert!(producer_mirror.ingest_local_frame(&edit_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+
+        let undo_frame = foreground
+            .undo_local_text_edit()
+            .expect("undo is governed")
+            .expect("one local undo item");
+        assert_eq!(foreground.text().as_deref(), Some("let value = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&undo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&undo_frame),
+            "the producer reimports the exact frame idempotently"
+        );
+
+        let redo_frame = foreground
+            .redo_local_text_edit()
+            .expect("redo is governed")
+            .expect("one local redo item");
+        assert_eq!(foreground.text().as_deref(), Some("let answer = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&redo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&redo_frame),
+            "redo frame replay is also idempotent"
+        );
+
+        let foreground_batch = foreground.take_edit_receipts();
+        let producer_batch = producer_mirror.take_edit_receipts();
+        assert!(foreground_batch.complete);
+        assert!(producer_batch.complete);
+        let foreground_receipts = foreground_batch.receipts;
+        let producer_receipts = producer_batch.receipts;
+        assert_eq!(foreground_receipts.len(), 3);
+        assert_eq!(producer_receipts, foreground_receipts);
+        assert_eq!(foreground_receipts[0].deleted_text, "value");
+        assert_eq!(foreground_receipts[0].inserted_text, "answer");
+        assert_eq!(foreground_receipts[1].deleted_text, "answer");
+        assert_eq!(foreground_receipts[1].inserted_text, "value");
+        assert_eq!(foreground_receipts[2].deleted_text, "value");
+        assert_eq!(foreground_receipts[2].inserted_text, "answer");
+        let empty = foreground.take_edit_receipts();
+        assert!(empty.complete);
+        assert!(empty.receipts.is_empty(), "drain is exact");
+    }
+
+    #[test]
+    fn foreground_and_producer_receipt_overflow_is_bounded_and_explicit() {
+        let path = write_temp("receipt-overflow-mirror.txt", "x");
+        let identity = "port-daddy:console:receipt-overflow-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(
+            path.clone(), None, foreground.document().clone(),
+            &foreground.snapshot_blob().expect("foreground snapshot"),
+            foreground.buffer().expect("foreground buffer").local_peer(),
+        ).expect("producer mirror");
+
+        for _ in 0..=crate::buffer::EDIT_RECEIPT_CAPACITY {
+            let end = foreground.text().expect("foreground text").len();
+            let frame = foreground
+                .apply_local_text_edit(end..end, "x")
+                .expect("local append");
+            assert!(producer_mirror.ingest_local_frame(&frame));
+        }
+
+        for batch in [
+            foreground.take_edit_receipts(),
+            producer_mirror.take_edit_receipts(),
+        ] {
+            assert!(!batch.complete, "every mirror reports the discontinuity");
+            assert!(
+                batch.receipts.is_empty(),
+                "no mirror retains or exposes a truncated receipt prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn text_noop_creates_one_history_item_but_no_fake_receipt() {
+        let path = write_temp("noop-history.txt", "same\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:noop-history");
+        pane.apply_local_text_edit(0..4, "same")
+            .expect("valid replacement is accepted");
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        let batch = pane.take_edit_receipts();
+        assert!(batch.complete);
+        assert!(batch.receipts.is_empty());
+    }
+
+    #[test]
+    fn ime_combining_grapheme_replacement_is_one_history_item() {
+        let path = write_temp("ime-history.txt", "e\u{301}lan\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:ime-history");
+        let before = pane.text().expect("loaded text");
+        let mut input = crate::editor_input::EditorInput::default();
+        let edit = input.replace(&before, Some(0..2), "👩‍🚀", true, Some(5..5));
+        pane.apply_local_text_edit(edit.range, &edit.text)
+            .expect("IME replacement is accepted as one edit");
+
+        assert_eq!(pane.text().as_deref(), Some("👩‍🚀lan\n"));
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        pane.undo_local_text_edit()
+            .expect("IME undo succeeds")
+            .expect("one IME undo frame");
+        assert_eq!(pane.text().as_deref(), Some("e\u{301}lan\n"));
+        assert!(!pane.buffer().unwrap().can_undo());
+    }
+
+    #[test]
     fn local_keystroke_is_refused_inside_another_live_claim() {
         let path = write_temp("guarded-input.rs", "fn guarded() {}\nfn free() {}\n");
         let mut human = make_pane_as(&path, "port-daddy:console:human");
@@ -1320,6 +1884,484 @@ mod tests {
         assert_eq!(human.text().as_deref(), Some(before.as_str()));
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+    }
+
+    fn assert_history_denied_without_mutation(pane: &mut EditorPane, redo: bool) {
+        let before_text = pane.text().expect("loaded history text");
+        let before_stamp = pane.buffer().unwrap().change_stamp();
+        let before_undo_count = pane.buffer().unwrap().undo_count();
+        let before_redo_count = pane.buffer().unwrap().redo_count();
+        let before_receipts = pane.buffer().unwrap().edit_receipt_batch_snapshot();
+        let refusal = if redo {
+            pane.redo_local_text_edit()
+        } else {
+            pane.undo_local_text_edit()
+        }
+        .expect_err("an overlapping live claim must deny before history mutation");
+
+        assert!(refusal.contains("is held by"));
+        assert_eq!(pane.text().as_deref(), Some(before_text.as_str()));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), before_stamp);
+        assert_eq!(pane.buffer().unwrap().undo_count(), before_undo_count);
+        assert_eq!(pane.buffer().unwrap().redo_count(), before_redo_count);
+        assert_eq!(
+            pane.buffer().unwrap().edit_receipt_batch_snapshot(),
+            before_receipts,
+            "denial must preserve the authoritative receipt batch byte-for-byte"
+        );
+    }
+
+    #[test]
+    fn multiline_insertion_history_denies_every_touched_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "adjacent-before\nanchor\nadjacent-after\n";
+        const AFTER: &str = "adjacent-before\nanchor\nnew-one\nnew-two\nadjacent-after\n";
+        let insertion = "adjacent-before\nanchor".len();
+
+        for claimed_line in 2..=4 {
+            let path = write_temp(&format!("guarded-history-line-{claimed_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:history-human-{claimed_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:history-claimant-{claimed_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+
+            let undo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "undo-touched-line", 1_000);
+            assert!(human.ingest_claim(&undo_claim));
+            assert_history_denied_without_mutation(&mut human, false);
+
+            let release = agent.release_region_claim(0);
+            assert!(human.ingest_claim(&release));
+            human
+                .undo_local_text_edit()
+                .expect("released undo succeeds")
+                .expect("released undo frame");
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+
+            let redo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "redo-touched-line", 2_000);
+            assert!(human.ingest_claim(&redo_claim));
+            assert_history_denied_without_mutation(&mut human, true);
+        }
+
+        for adjacent_line in [1, 5] {
+            let path = write_temp(&format!("adjacent-history-line-{adjacent_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:adjacent-human-{adjacent_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:adjacent-claimant-{adjacent_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+            let adjacent_claim = agent.acquire_region_claim(
+                adjacent_line,
+                adjacent_line,
+                "adjacent-unrelated",
+                3_000,
+            );
+            assert!(human.ingest_claim(&adjacent_claim));
+
+            human
+                .undo_local_text_edit()
+                .expect("adjacent claim does not deny undo")
+                .expect("adjacent undo frame");
+            assert_eq!(human.text().as_deref(), Some(BEFORE));
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+            human
+                .redo_local_text_edit()
+                .expect("adjacent claim does not deny redo")
+                .expect("adjacent redo frame");
+            assert_eq!(human.text().as_deref(), Some(AFTER));
+            let redone = human.take_edit_receipts();
+            assert!(redone.complete && redone.receipts.len() == 1);
+        }
+    }
+
+    #[test]
+    fn pure_deletion_history_checks_restored_line_without_touching_adjacent_line() {
+        const BEFORE: &str = "open\nclaimed\nadjacent\n";
+        const AFTER: &str = "openclaimed\nadjacent\n";
+
+        let path = write_temp("guarded-deletion-history.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:deletion-history-human");
+        let mut agent = make_pane_as(&path, "port-daddy:editor:deletion-history-claimant");
+        human
+            .apply_local_text_edit(4..5, "")
+            .expect("initial newline deletion is claim-clear");
+        assert_eq!(human.text().as_deref(), Some(AFTER));
+        let authored = human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+
+        let undo_claim = agent.acquire_region_claim(2, 2, "restored-line", 1_000);
+        assert!(human.ingest_claim(&undo_claim));
+        assert_history_denied_without_mutation(&mut human, false);
+        let release = agent.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .undo_local_text_edit()
+            .expect("released deletion undo succeeds")
+            .expect("deletion undo frame");
+        let undone = human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
+
+        let redo_claim = agent.acquire_region_claim(2, 2, "rejoined-line", 2_000);
+        assert!(human.ingest_claim(&redo_claim));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let adjacent_path = write_temp("adjacent-deletion-history.rs", BEFORE);
+        let mut adjacent_human =
+            make_pane_as(&adjacent_path, "port-daddy:console:deletion-adjacent-human");
+        let mut adjacent_agent = make_pane_as(
+            &adjacent_path,
+            "port-daddy:editor:deletion-adjacent-claimant",
+        );
+        adjacent_human
+            .apply_local_text_edit(4..5, "")
+            .expect("adjacent deletion fixture edit");
+        let authored = adjacent_human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+        let adjacent_claim = adjacent_agent.acquire_region_claim(3, 3, "unrelated-line", 3_000);
+        assert!(adjacent_human.ingest_claim(&adjacent_claim));
+        adjacent_human
+            .undo_local_text_edit()
+            .expect("line three does not deny deletion undo")
+            .expect("adjacent deletion undo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(BEFORE));
+        let undone = adjacent_human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
+        adjacent_human
+            .redo_local_text_edit()
+            .expect("line three does not deny deletion redo")
+            .expect("adjacent deletion redo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(AFTER));
+        let redone = adjacent_human.take_edit_receipts();
+        assert!(redone.complete && redone.receipts.len() == 1);
+    }
+
+    #[test]
+    fn neutralized_undo_top_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "older\nneutral\nadjacent\n";
+        let path = write_temp("neutralized-undo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-undo-human");
+        human
+            .apply_local_text_edit(0..0, "OLD-")
+            .expect("older line edit");
+        let top = human.text().unwrap().find("neutral").unwrap();
+        human
+            .apply_local_text_edit(top..top, "TOP-")
+            .expect("top line edit");
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-undo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let peer_text = peer.to_string();
+        let top = peer_text.find("TOP-").unwrap();
+        let top_unicode = peer_text[..top].chars().count();
+        let deletion = peer.replace_authored(top_unicode..top_unicode + 4, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (2, 0)
+        );
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-undo-claimant");
+        let overlap = claimant.acquire_region_claim(1, 1, "older-item", 1_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, false);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-line", 2_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .undo_local_text_edit()
+            .expect("adjacent claim permits multi-pop undo")
+            .expect("older effective undo frame");
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 1)
+        );
+
+        let release = claimant.release_region_claim(1);
+        assert!(human.ingest_claim(&release));
+        let overlap = claimant.acquire_region_claim(1, 1, "older-redo", 3_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(2);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-redo", 4_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .redo_local_text_edit()
+            .expect("adjacent claim permits reconciled redo")
+            .expect("older redo frame");
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+    }
+
+    #[test]
+    fn neutralized_newline_redo_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "claim\nvictim\n";
+        let path = write_temp("neutralized-redo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-redo-human");
+        human
+            .apply_local_text_edit(5..6, "")
+            .expect("delete newline as older authored item");
+        let end = human.text().unwrap().len();
+        human
+            .apply_local_text_edit(end..end, "OLDER")
+            .expect("newer authored item");
+        human.undo_local_text_edit().unwrap().unwrap();
+        human.undo_local_text_edit().unwrap().unwrap();
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 2)
+        );
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-redo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let deletion = peer.replace_authored(5..6, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(human.text().as_deref(), Some("claimvictim\n"));
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-redo-claimant");
+        let claim = claimant.acquire_region_claim(2, 2, "older-redo-target", 1_000);
+        assert!(human.ingest_claim(&claim));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .redo_local_text_edit()
+            .expect("released multi-pop redo succeeds")
+            .expect("older redo frame");
+        assert_eq!(human.text().as_deref(), Some("claimvictim\nOLDER"));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (1, 0)
+        );
+    }
+
+    #[test]
+    fn repeated_remote_shift_history_denies_shifted_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "abcd\ntail\n";
+        const PREFIX: &str = "REMOTE\n";
+        let cases = [
+            ("insertion", 2..2, "LOCAL", "abLOCALcd\ntail\n"),
+            ("replacement", 1..3, "XY", "aXYd\ntail\n"),
+            ("deletion", 1..3, "", "ad\ntail\n"),
+        ];
+
+        for (name, range, replacement, expected_after) in cases {
+            let path = write_temp(&format!("repeated-history-{name}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:repeated-history-{name}"),
+            );
+            human
+                .apply_local_text_edit(range, replacement)
+                .expect("initial local edit is accepted");
+            human
+                .undo_local_text_edit()
+                .expect("first undo succeeds")
+                .expect("first undo frame");
+
+            let peer = HarborBuffer::empty(format!("port-daddy:editor:remote-shift-{name}"));
+            peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+                .expect("peer joins after first undo");
+            let remote = peer.replace_authored(0..0, PREFIX);
+            let remote_frame = crate::editor_sync::encode_frame(peer.local_peer(), &remote.delta);
+            assert!(human.ingest_frame(&remote_frame));
+
+            human
+                .redo_local_text_edit()
+                .expect("first redo succeeds after remote shift")
+                .expect("first redo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{expected_after}").as_str())
+            );
+            human
+                .undo_local_text_edit()
+                .expect("second undo succeeds")
+                .expect("second undo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{BEFORE}").as_str())
+            );
+
+            let queued = human.buffer().unwrap().edit_receipt_batch_snapshot();
+            assert!(queued.complete);
+            assert_eq!(
+                queued.receipts.len(),
+                5,
+                "accepted edit, undo, import, redo, and second undo remain queued"
+            );
+
+            let mut claimant = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:repeated-claimant-{name}"),
+            );
+            let overlap = claimant.acquire_region_claim(2, 2, "shifted-actual-line", 1_000);
+            assert!(human.ingest_claim(&overlap));
+            assert_history_denied_without_mutation(&mut human, true);
+
+            let release_overlap = claimant.release_region_claim(0);
+            assert!(human.ingest_claim(&release_overlap));
+            let before_adjacent = claimant.acquire_region_claim(1, 1, "adjacent-before", 2_000);
+            assert!(human.ingest_claim(&before_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("preceding adjacent line allows redo")
+                .expect("adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("preceding adjacent line allows undo")
+                .expect("adjacent undo frame");
+
+            let release_before = claimant.release_region_claim(1);
+            assert!(human.ingest_claim(&release_before));
+            let after_adjacent = claimant.acquire_region_claim(3, 3, "adjacent-after", 3_000);
+            assert!(human.ingest_claim(&after_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("following adjacent line allows redo")
+                .expect("following adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("following adjacent line allows undo")
+                .expect("following adjacent undo frame");
+        }
+    }
+
+    #[test]
+    fn history_refusal_preserves_ops_stack_selection_and_composition() {
+        let path = write_temp("history-claims.rs", "open\nclaimed\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        pane.apply_local_text_edit(0..0, "😀 ").unwrap();
+        let claim = other.acquire_region_claim(2, 2, "claimed", 1_000);
+        pane.ingest_claim(&claim);
+        // A claim on a different line does not block ordinary region-safe typing.
+        pane.apply_local_text_edit(0..0, "é ").unwrap();
+        let before = pane.text().unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.replace(&before, None, "研究", true, Some(0..2));
+        let prior_input = input.clone();
+        let overlapping = other.acquire_region_claim(1, 1, "history target", 1_500);
+        pane.ingest_claim(&overlapping);
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let refusal = pane.apply_history(HistoryDirection::Undo, &mut input).unwrap_err();
+        assert!(refusal.contains("request a handoff"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+        assert_eq!(input, prior_input);
+        assert!(!pane.buffer().unwrap().can_redo());
+        for token in BYPASS {
+            assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+
+        pane.ingest_claim(&other.release_region_claim(1));
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some("😀 open\nclaimed\n"));
+        assert_eq!(input.marked_range(), None);
+        // Re-check current claims for REDO too, not only the initial undo.
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "new claim", 2_000));
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        pane.ingest_claim(&other.release_region_claim(2));
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+    }
+
+    #[test]
+    fn history_delta_updates_mirror_and_render_cache_without_duplicate_effects() {
+        let path = write_temp("history-mirror.rs", "a😀z\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+        assert!(mirror.apply_history(HistoryDirection::Undo, &mut input).is_err());
+        mirror.ingest_local_frame(&pane.apply_local_text_edit(1..5, "研究").unwrap());
+        let (edited_lines, _, _) = code_buffer(&pane.view()).unwrap();
+        for (direction, expected) in [
+            (HistoryDirection::Undo, "a😀z\n"),
+            (HistoryDirection::Redo, "a研究z\n"),
+        ] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert!(!pane.ingest_frame(&frame), "local echo is not another edit");
+            assert_eq!(pane.text().as_deref(), Some(expected));
+            assert_eq!(pane.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+            let (lines, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(!Arc::ptr_eq(&lines, &edited_lines));
+            let (idle, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(Arc::ptr_eq(&lines, &idle));
+            assert!(!mirror.buffer().unwrap().can_undo());
+            assert!(mirror.apply_history(direction, &mut input).is_err());
+        }
+    }
+
+    #[test]
+    fn history_preserves_reversed_selection_on_unaffected_unicode_text() {
+        let path = write_temp("history-selection.rs", "😀 target\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        pane.acquire_region_claim(1, 1, "my own claim", 1_000);
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        let text = pane.text().unwrap();
+        let start = text.find("target").unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&text, start..start + 6, true);
+        for direction in [HistoryDirection::Undo, HistoryDirection::Redo] {
+            pane.apply_history(direction, &mut input).unwrap().unwrap();
+            let text = pane.text().unwrap();
+            assert_eq!(&text[input.selection()], "target");
+            assert!(input.selection_reversed());
+            assert_eq!(input.marked_range(), None);
         }
     }
 
@@ -1465,13 +2507,12 @@ mod tests {
         );
         assert_eq!(lines.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(lines[0].author_tag.as_deref(), Some(human_tag.as_str()));
         assert_eq!(lines[1].author_tag.as_deref(), Some(agent_tag.as_str()));
-        assert_ne!(
-            human_tag, agent_tag,
-            "distinct replicas carry distinct tags"
-        );
+        // Tags are display abbreviations, not unique identities. Policy and
+        // attribution compare the complete PeerID, including on two devices.
+        assert_ne!(opener, agent.local_peer());
         assert_eq!(lines[1].text.as_ref(), "agent added this");
     }
 
@@ -1479,8 +2520,8 @@ mod tests {
     /// opener is Resting, any other replica is Engaged, unknown is Default.
     #[test]
     fn author_tone_maps_opener_to_resting_and_agents_to_engaged() {
-        let opener = peer_id_for_identity("port-daddy:console:operator");
-        let agent = peer_id_for_identity("port-daddy:editor:agent-Y");
+        let opener = fixture_peer_id("port-daddy:console:operator");
+        let agent = fixture_peer_id("port-daddy:editor:agent-Y");
         assert!(matches!(author_tone(Some(opener), opener), Tone::Resting));
         assert!(matches!(author_tone(Some(agent), opener), Tone::Engaged));
         assert!(matches!(author_tone(None, opener), Tone::Default));
@@ -1489,29 +2530,15 @@ mod tests {
     /// A loaded editor declares its intent to watch the file's op-stream channel;
     /// an errored/empty pane subscribes to nothing (no buffer to fold ops into).
     #[test]
-    fn subscription_targets_the_files_channel_once_loaded() {
+    fn opening_a_local_file_never_auto_joins_a_shared_channel() {
         let path = write_temp("sub.txt", "hello\n");
         let pane = make_pane(&path, None);
-        match pane.subscription() {
-            Some(Subscription::Editor {
-                channel,
-                coord_channel,
-            }) => {
-                assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
-                assert_eq!(channel, pane.channel());
-                // Slice-3 isolation: the coordination lane is a SEPARATE channel.
-                assert_eq!(
-                    coord_channel,
-                    crate::editor_sync::coordination_channel_for_path(&path)
-                );
-                assert_eq!(coord_channel, pane.coordination_channel());
-                assert_ne!(
-                    channel, coord_channel,
-                    "edit-sync and coordination ride distinct channels"
-                );
-            }
-            other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
-        }
+        assert!(pane.subscription().is_none());
+        assert_eq!(pane.channel(), crate::editor_sync::channel_for_document(pane.document()));
+        assert_ne!(pane.channel(), pane.coordination_channel());
+        let other = make_pane(&path, None);
+        assert_ne!(pane.document(), other.document(), "same path is not shared consent");
+        assert_ne!(pane.channel(), other.channel());
         // An unreadable file → no buffer → nothing to fold into → no subscription.
         let errored = make_pane("/nonexistent/does/not/exist.rs", None);
         assert!(errored.subscription().is_none());
@@ -1548,7 +2575,7 @@ mod tests {
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
         assert_eq!(r[1].text.as_ref(), "agent added over the wire");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -1595,7 +2622,7 @@ mod tests {
     /// Encode a presence frame from a distinct remote replica, the exact string
     /// that would arrive on this pane's channel subscription.
     fn remote_presence_frame(identity: &str, state: PresenceState) -> String {
-        let peer = peer_id_for_identity(identity);
+        let peer = fixture_peer_id(identity);
         let store = PresenceStore::new(peer);
         encode_presence_frame(peer, &store.publish(state))
     }
@@ -1638,7 +2665,7 @@ mod tests {
         let pool = pane.remote_cursors();
         assert_eq!(pool.len(), 2, "both remote cursors pooled");
         assert_eq!(
-            pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line),
+            pool.get(&fixture_peer_id(a)).map(|s| s.cursor_line),
             Some(2)
         );
         assert_eq!(
@@ -1648,7 +2675,7 @@ mod tests {
         );
 
         // A non-presence frame (an op frame) and garbage are ignored by the lane.
-        let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
+        let op = crate::editor_sync::encode_frame(fixture_peer_id(a), &[1, 2, 3]);
         assert!(!pane.ingest_presence(&op), "an op frame is not presence");
         assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
     }
@@ -1659,7 +2686,7 @@ mod tests {
     fn local_presence_broadcast_is_debounced() {
         let path = write_temp("presence-out.txt", "hello\n");
         let mut pane = make_pane(&path, None);
-        let local = peer_id_for_identity("port-daddy:console:operator");
+        let local = pane.buffer().unwrap().local_peer();
 
         // Nothing moved yet → nothing to broadcast.
         assert!(pane.take_presence_broadcast(0).is_none());
@@ -1732,8 +2759,8 @@ mod tests {
         // Establish two remote cursors — two genuine repaint edges.
         let a = "port-daddy:editor:agent-A";
         let b = "port-daddy:editor:agent-B";
-        let store_a = PresenceStore::new(peer_id_for_identity(a));
-        let store_b = PresenceStore::new(peer_id_for_identity(b));
+        let store_a = PresenceStore::new(fixture_peer_id(a));
+        let store_b = PresenceStore::new(fixture_peer_id(b));
         let frame_a = encode_presence_frame(
             store_a.local(),
             &store_a.publish(PresenceState::caret(2, 0, 1, 5)),
@@ -1789,7 +2816,7 @@ mod tests {
         // once (a new PeerId is unambiguously a pool change, independent of clock
         // resolution), and replaying that same frame does not.
         let c = "port-daddy:editor:agent-C";
-        let store_c = PresenceStore::new(peer_id_for_identity(c));
+        let store_c = PresenceStore::new(fixture_peer_id(c));
         let frame_c = encode_presence_frame(
             store_c.local(),
             &store_c.publish(PresenceState::caret(5, 2, 1, 5)),
@@ -1854,7 +2881,7 @@ mod tests {
             "operator + agent lines survived to the cold replica via /blob"
         );
         assert_eq!(r[1].text.as_ref(), "agent added before the crash");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -1894,9 +2921,14 @@ mod tests {
     fn region_claim_rides_the_coord_lane_and_lands_in_a_remote_pane() {
         let path = write_temp("claim-wire.txt", "l1\nl2\nl3\nl4\nl5\n");
         let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
-        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+        // Explicit fixture binding, not production admission or a read-only mirror.
+        let mut pane_b = EditorPane::new_with_identity(path, None, "human-B");
+        pane_b.document = pane_a.document().clone();
+        pane_b.channel = crate::editor_sync::channel_for_document(pane_b.document());
+        pane_b.coord_channel = crate::editor_sync::coordination_channel_for_document(pane_b.document());
+        assert!(pane_b.hydrate_from_snapshot(&pane_a.snapshot_blob().unwrap()));
 
-        // Both panes agree on the coordination channel (pure function of the path).
+        // An explicit document reference, not matching paths, pairs these fixtures.
         assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
         assert!(
             pane_b.claim_ledger().is_empty(),
@@ -1917,7 +2949,7 @@ mod tests {
             pane_b.ingest_claim(&frame),
             "a remote claim frame changes B's ledger"
         );
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let owners = pane_b.claim_ledger().owners_of_line(3);
         assert_eq!(owners.len(), 1, "line 3 is claimed on B");
         assert_eq!(owners[0].peer, a_peer, "the claim is attributed to A");
@@ -1993,7 +3025,7 @@ mod tests {
 
         // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
         // to A, but B's footer line is — on the very same file.
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let led = pane_a.claim_ledger();
         assert!(
             !led.is_line_claimed_by_other(25, a_peer),

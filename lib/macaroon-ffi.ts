@@ -93,6 +93,8 @@ export function __resetKernelForTests(): void {
 
 export interface VerifyPushGrantArgs {
   grant: Macaroon;
+  /** Trusted canonical daemon actor; transport/session aliases are invalid. */
+  actor: string;
   /** Daemon-held grant root key, hex. */
   rootKeyHex: string;
   discharges: Macaroon[];
@@ -124,6 +126,7 @@ export function verifyPushGrantPreferKernel(args: VerifyPushGrantArgs): GateResu
   if (k) {
     const req = JSON.stringify({
       macaroon: toRustMacaroon(args.grant),
+      actor: args.actor,
       root_key_hex: args.rootKeyHex,
       discharges: args.discharges.map(toRustMacaroon),
       ctx: {
@@ -170,6 +173,7 @@ export function verifyPushGrantPreferKernel(args: VerifyPushGrantArgs): GateResu
     args.grant,
     Buffer.from(args.rootKeyHex, 'hex'),
     args.discharges,
+    args.actor,
     args.ctx,
     resolveCaveatKey,
   );

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "research/planning-B06-hierarchical-methods-deepening.md",
+    "preimage_sha256": "37e0c8cc5a9bfe91dcdd481df29e5a0986c27656396f62751289898b78246232",
+    "corrected_sha256": "e5b8225c4b9536332ebe1d8f23bae3f2d25ef2daef70fac0b0393d99b496b038"
+  },
+  {
+    "path": "research/B06-hierarchical-Book-candidate-review.md",
+    "preimage_sha256": "939b9ea37a19dfd6f1ade670e66d1ec2faee9c97c96a9658f39e2bf0f2845329",
+    "corrected_sha256": "54a707aeab44b7f97bc2cb7dcf234f61dac7f0b75b1b7d5d178e3d2f3b200e42"
+  },
+  {
+    "path": "research/Grassi-primary-correction-audit.md",
+    "preimage_sha256": "3c975f6814a72312f18a882cb0f32c8ac9149468fd89df6944c2f1b2f47122aa",
+    "corrected_sha256": "7123efeb540d42c21b85fc990dfbb5801c9e7f1867e9cefdefc158f1c61fd762"
+  }
+]

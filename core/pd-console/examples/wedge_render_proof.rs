@@ -25,6 +25,8 @@
 
 #[path = "../src/berths.rs"]
 mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
+#[path = "../src/local_control.rs"]
+mod local_control; // editor/agent admission must compile in the example crate too
 #[path = "../src/agent.rs"]
 mod agent;
 #[path = "../src/buffer.rs"]
@@ -45,6 +47,8 @@ mod editor_wedge;
 mod editor_commit_gate;
 #[path = "../src/editor_pane.rs"]
 mod editor_pane;
+#[path = "../src/editor_input.rs"]
+mod editor_input;
 #[path = "../src/syntax.rs"]
 mod syntax;
 

@@ -46,6 +46,9 @@ export interface AgentRunReceipt {
   id: string;
   kind: AgentRunKind;
   requestHash: string;
+  intentId: string | null;
+  planId: string | null;
+  launchId: string | null;
   predecessorSessionId: string | null;
   predecessor: AgentRunPredecessorSnapshot | null;
   successorSessionId: string | null;
@@ -73,6 +76,9 @@ interface AgentRunReceiptRow {
   kind: AgentRunKind;
   idempotency_key_hash: string;
   request_hash: string;
+  intent_id: string | null;
+  plan_id: string | null;
+  launch_id: string | null;
   predecessor_session_id: string | null;
   predecessor_snapshot_json: string | null;
   successor_session_id: string | null;
@@ -196,6 +202,9 @@ function toReceipt(row: AgentRunReceiptRow): AgentRunReceipt {
     id: row.id,
     kind: row.kind,
     requestHash: row.request_hash,
+    intentId: row.intent_id ?? null,
+    planId: row.plan_id ?? null,
+    launchId: row.launch_id ?? null,
     predecessorSessionId: row.predecessor_session_id,
     predecessor: parseJsonObject<AgentRunPredecessorSnapshot>(row.predecessor_snapshot_json),
     successorSessionId: row.successor_session_id,
@@ -277,6 +286,11 @@ export function createAgentRunReceiptStore(
     CREATE INDEX IF NOT EXISTS idx_agent_run_receipts_predecessor
       ON agent_run_receipts(predecessor_session_id, created_at DESC);
   `);
+
+  const columns = new Set((db.prepare('PRAGMA table_info(agent_run_receipts)').all() as Array<{ name: string }>).map(row => row.name));
+  for (const column of ['intent_id', 'plan_id', 'launch_id']) {
+    if (!columns.has(column)) db.exec(`ALTER TABLE agent_run_receipts ADD COLUMN ${column} TEXT`);
+  }
 
   if (options.recoverNonTerminal !== false) {
     const recoveredAt = now();
@@ -525,7 +539,40 @@ export function createAgentRunReceiptStore(
     return rows.map(toReceipt);
   }
 
-  return { accept, get, markStarting, markStatus, list };
+  /** Bind immutable provenance, never authorize another execution. */
+  function bindExecution(id: string, input: { intentId: string; planId: string; launchId?: string }): AgentRunReceipt {
+    const intentId = required(input.intentId, 'intentId');
+    const planId = required(input.planId, 'planId');
+    const launchId = input.launchId === undefined ? null : required(input.launchId, 'launchId');
+    const changed = db.prepare(`UPDATE agent_run_receipts
+      SET intent_id = ?, plan_id = ?, launch_id = COALESCE(?, launch_id)
+      WHERE id = ? AND status = 'accepted'
+        AND (intent_id IS NULL OR intent_id = ?)
+        AND (plan_id IS NULL OR plan_id = ?)
+        AND (launch_id IS NULL OR ? IS NULL OR launch_id = ?)`)
+      .run(intentId, planId, launchId, id, intentId, planId, launchId, launchId);
+    if (changed.changes !== 1) throw new Error('Run receipt execution binding refused');
+    return get(id)!;
+  }
+
+  function findRequest(input: { idempotencyKey: string; kind: AgentRunKind; request: unknown }): AgentRunReceipt | null {
+    const row = db.prepare('SELECT * FROM agent_run_receipts WHERE idempotency_key_hash = ?')
+      .get(sha256(required(input.idempotencyKey, 'idempotencyKey'))) as AgentRunReceiptRow | undefined;
+    if (!row) return null;
+    if (row.kind !== input.kind || row.request_hash !== sha256(canonicalJson(input.request))) {
+      throw new AgentRunIdempotencyConflictError(row.id);
+    }
+    return toReceipt(row);
+  }
+
+  return { accept, get, findRequest, markStarting, markStatus, bindExecution, list };
+}
+
+/** Read-only projection; never performs restart recovery or creates a store. */
+export function readAgentRunReceipt(db: PortableDatabase, id: string): AgentRunReceipt | null {
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'agent_run_receipts'").get()) return null;
+  const row = db.prepare('SELECT * FROM agent_run_receipts WHERE id = ?').get(id) as AgentRunReceiptRow | undefined;
+  return row ? toReceipt(row) : null;
 }
 
 export type AgentRunReceiptStore = ReturnType<typeof createAgentRunReceiptStore>;

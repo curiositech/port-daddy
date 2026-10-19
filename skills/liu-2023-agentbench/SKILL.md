@@ -200,9 +200,9 @@ Rouge-L: 0.92 - LOOP DETECTED
 
 - `diagrams/01_flowchart_agent_failure_diagnosis_&_reme.md` — Mermaid flowchart mapping agent symptoms (malformed output, rule violations, repetition) to root causes and remediation strategies. **Read when** diagnosing why an agent failed and what to fix.
 
-- `diagrams/02_quadrantChart_model_selection_matrix:_task_t.md` — Quadrant chart positioning CodeLlama, Llama2, GPT-4 by task type (procedural vs strategic) and planning horizon. **Read when** choosing which model to deploy for a specific agent task.
+- `diagrams/02_quadrantChart_model_selection_matrix-_task_t.md` — Quadrant chart positioning CodeLlama, Llama2, GPT-4 by task type (procedural vs strategic) and planning horizon. **Read when** choosing which model to deploy for a specific agent task.
 
-- `diagrams/03_stateDiagram-v2_agent_state_machine:_planning-.md` — State machine showing planning→action→validation→observation loop with failure points (format violations, invalid actions, loop detection). **Read when** understanding where agents get stuck in multi-turn interactions.
+- `diagrams/03_stateDiagram-v2_agent_state_machine-_planning-.md` — State machine showing planning→action→validation→observation loop with failure points (format violations, invalid actions, loop detection). **Read when** understanding where agents get stuck in multi-turn interactions.
 
 - `references/code-training-double-edged-sword.md` — Explains CodeLlama's paradox: excels at web/database tasks (52% vs 5.6%) but fails at games/OS tasks (8.4% vs 21.3%). **Read when** deciding between code-trained and general models.
 

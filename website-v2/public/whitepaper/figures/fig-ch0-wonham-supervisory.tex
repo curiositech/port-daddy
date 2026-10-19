@@ -1,0 +1,77 @@
+% fig-ch0-wonham-supervisory.tex -- redrawn to the house figure language (v2).
+% Reader question: which events can the supervisor disable, and what remains
+% of the plant's behaviour?
+% Claim: the supervisor S restricts the plant G's uncontrolled language
+% L(G) to the safe sublanguage K, so L(S/G) subseteq K subset L(G).
+% Controllable events Sigma_c (file writes, process spawns, network
+% requests) that would leave K are disabled by S; uncontrollable events
+% Sigma_u (model token generation, host signals, process exit) always
+% execute -- S has no authority over them.
+% Grammar chosen: nested sets (tpl-nested-sets.tex) for L(G) superset K,
+% beside a small automaton for the plant, with S drawn as a pd trust
+% boundary around the controllable-event transitions only; the one
+% uncontrollable transition sits outside that boundary, undisabled.
+% Rejected: the four-voting-robots-and-a-striped-barrier illustration this
+% fragment used to be, plus a processor-chip "kernel shield" icon and six
+% small pictograms for individual event kinds (a branching-diamond for git
+% commits, a globe for network egress, a gear for OS signals, a stopwatch,
+% a lightning bolt) -- none of those drawings states which events are
+% controllable, which figure is the actual claim; a set-containment diagram
+% plus a labelled automaton states it directly.
+% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Lifecycle Hooks and
+% Supervisory Control" (the Ramadge-Wonham formalization, the Sigma_c/Sigma_u
+% partition and the L(S/G) subseteq K subset L(G) containment) and its
+% caption for fig:wonham-supervisory.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\R{13.90}      % legend rule width
+  % ---- left: the language containment, as nested sets ---------------------
+  \draw[pd neutral fill] (0.60,1.00) rectangle (6.00,5.30);
+  \node[pd label,anchor=north west] at (0.75,5.15) {$L(G)$};
+  \draw[pd focus fill] (1.70,1.60) rectangle (4.90,3.90);
+  \node[pd label,anchor=north west] at (1.85,3.75) {$K = L(S/G)$};
+  \node[pd label] at (3.30,0.65) {$L(S/G) \subseteq K \subset L(G)$};
+  \node[pd focus datum] (AD) at (3.00,2.60) {};
+  \node[pd badge] at (3.35,2.90) {1};
+  \node[pd breach datum] (DD) at (5.35,2.20) {};
+  \node[pd badge] at (5.35,2.65) {2};
+  % ---- right: the plant, with S as a boundary around Sigma_c only --------
+  \draw[pd trust boundary] (7.70,4.60) rectangle (13.00,6.50);
+  \node[pd kind,anchor=north] at (10.35,6.44) {S disables $\Sigma_c$};
+  \node[pd automaton state] (X0) at (8.60,3.30) {$x_0$};
+  \node[pd automaton state] (X1) at (8.60,5.60) {$x_1$};
+  \node[pd automaton state,draw=pderror,dash pattern=on 3.2pt off 2.2pt,line width=1.2pt]
+    (X3) at (12.40,5.60) {$x_3$};
+  \node[pd automaton state] (X2) at (8.60,1.00) {$x_2$};
+  \draw[pd initial] (7.30,2.60) -- (X0);
+  \draw[pd rule] (X0) -- (X1);
+  \node[pd badge] at (8.10,4.45) {1};
+  \node[pd label,anchor=east] at (7.75,4.45) {file write};
+  \draw[pd breach arrow] (X1) -- (X3);
+  \node[pd badge] at (9.85,4.95) {2};
+  \node[pd label,anchor=west,text=pderror] at (10.20,4.95) {process spawn};
+  \draw[pd rule] (X0) -- (X2);
+  \node[pd label,anchor=east] at (8.15,2.15) {model tokens};
+  \node[pd note,anchor=north west,text width=6.3cm] at (7.70,0.60)
+    {$x_3$ is reached only inside $S$'s boundary; $x_2$, reached by an
+    uncontrollable event, is never a candidate for disablement.};
+  % ---- the legend: each event class, badge, what S may do -----------------
+  \def\ly{-0.90}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {event};
+  \node[pd title,anchor=north west] at (3.55,{\ly-.30}) {class};
+  \node[pd title,anchor=north west] at (5.35,{\ly-.30}) {the supervisor};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\h/\l/\s in {%
+    0/1/{file write}/{$\Sigma_c$}/{admitted: the trace stays inside $K$},
+    1/2/{process spawn}/{$\Sigma_c$}/{disabled: would leave $K$ (e.g.\ an unleased mutation)},
+    2/{--}/{model tokens, host signals,\\process exit}/{$\Sigma_u$}/{always executes; outside $S$'s authority}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*.95}) {\n};
+      \node[pd label,anchor=base west,align=left,text width=2.75cm] at (.62,{\ly-1.35-\i*.95}) {\h};
+      \node[pd label,anchor=base west] at (3.55,{\ly-1.35-\i*.95}) {\l};
+      \node[pd label,anchor=base west,align=left,text width=7.9cm] at (5.35,{\ly-1.35-\i*.95}) {\s};}
+  \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-2*.95-1.05})
+    {the dot and diamond on the left are the same two transitions, badged
+    1 and 2, read as traces inside or outside $K$.};
+\end{tikzpicture}

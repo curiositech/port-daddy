@@ -14,6 +14,7 @@ import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import {
   clearTestCurrentContext,
   getDaemonState,
+  readTestCurrentContext,
   request,
   runCli,
   runCliViaIpc,
@@ -1309,6 +1310,7 @@ describe('CLI Integration Tests', () => {
       ]);
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
+      const mintedContext = readTestCurrentContext(defaultContextSlot);
 
       writeTestCurrentContext({
         agentId: beginData.agentId,
@@ -1318,7 +1320,7 @@ describe('CLI Integration Tests', () => {
         // The context is deliberately STALE (bogus sessionId), but the soul
         // credential begin minted must survive — #8877 rejects attributed
         // note writes without it.
-        credential: beginData.credential ?? null,
+        credential: mintedContext.credential ?? null,
       });
 
       const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);

@@ -7,7 +7,7 @@ mindmap
       Compress organizational knowledge
       Decompose complex problems systematically
       Import centuries of human learning
-      Task completion improves from <20% to 100%
+      Task completion improves from below 20 percent to 100 percent
       Application: Find human SOP → Encode as agent roles
     Structured Communication
       Prevents hallucination cascades
@@ -19,11 +19,11 @@ mindmap
       Ground LLM confidence in reality
       Run code, call APIs, test outputs
       Concrete verification beats abstract review
-       4-5% improvement from execution feedback
+      4-5% improvement from execution feedback
       Application: Design feedback loops with real execution
     Publish-Subscribe Architecture
       Decouple senders and receivers
-      Avoid O(n²) point-to-point complexity
+      Avoid quadratic point-to-point complexity
       Agents publish to shared message pool
       Subscribe by information type, not agent identity
       Application: Design around message types not communication graphs

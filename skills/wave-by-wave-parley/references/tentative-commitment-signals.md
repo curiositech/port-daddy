@@ -1,40 +1,34 @@
-# Commitment Levels as Per-Turn Briefing Signals: COMMITTED / TENTATIVE / EXPLORATORY
+# Commitment labels and per-node evidence joins
 
-`commitment_level` is a first-class field on every `Subtask` in the decomposer's output schema (defined in `meta-dag-predict.ts` line 27 and enforced by the JSON Schema at line 144). It is not a planning annotation — it is a **per-turn briefing signal** that the parley executor reads before launching each wave. The field tells the executor whether a node needs human-loop validation, LLM re-evaluation, or can proceed without any gate.
+Use these as local planning labels, not calibrated probabilities or authority
+claims. They describe what the next checkpoint must inspect.
 
-## The Three Levels
+| Label | Local meaning | Minimum record before a later admission |
+|---|---|---|
+| `COMMITTED` | A proposed node has a stated contract and current supporting evidence. | Node ID, graph revision, contract, evidence hashes, and any approval/risk/resource gate still required. |
+| `TENTATIVE` | The node is presently planned, but an upstream result may change its approach or contract. | The exact predecessor IDs and what evidence would confirm, revise, or hold the proposal. |
+| `EXPLORATORY` | The node is an investigation or conditional possibility whose necessity/output is still open. | A question, bounded artifact/stop condition, evidence owner, and the downstream nodes that must not assume its result. |
 
-**COMMITTED** — high confidence, well-defined approach, all inputs known or stably predictable. No parley re-evaluation. The decomposer assigns COMMITTED when: (a) wave 0 with a well-structured problem, (b) all upstream dependencies have stable, typed output contracts, and (c) Sensemaker confidence >= 0.8. The `shouldParley` guard in the SKILL.md implementation skips COMMITTED nodes entirely. Commitment is **monotonically downward** during parley: once COMMITTED, a node cannot be demoted. This monotonicity is deliberate — it prevents oscillation between gates and keeps already-validated work from being re-litigated.
+## Checkpoint procedure
 
-**TENTATIVE** — the node is likely necessary and its output shape is understood, but the concrete approach depends on what upstream nodes produce. The decomposer emits TENTATIVE when specification confidence is 0.2–0.8 or when the node depends on a "vague node" (per the decomposer's confidence threshold tree; see `jury_rig-decomposer` SKILL.md lines 59–67). A single TENTATIVE node in the upcoming wave is sufficient to trigger parley — `shouldParley` returns `true` regardless of premortem `recommendation`. **TENTATIVE is the parley trigger.** Parley's job is to consume wave-N evidence and resolve TENTATIVE into either COMMITTED (approach confirmed) or EXPLORATORY/pruned (approach abandoned or deferred).
+1. Take `justFinished` from the completed wave and join each ID to exactly one
+   outcome for the proposed graph revision. A partial, failed, missing, or
+   untrusted outcome is not a successful producer.
+2. For each upcoming node, look up its own label and its declared dependency
+   IDs. Do not infer a wave-level label or use unrelated completed output.
+3. Reassess a risk only when `risk.affectedNodes ∩ justFinished` is nonempty;
+   retain the prior severity plus evidence hash and provenance.
+4. A tentative node can become a new committed proposal only after its actual
+   dependencies and revised contract validate. An exploratory node can supply
+   a bounded result, remain held, or motivate a new revision. Neither label
+   bypasses approval, authority, resources, or risk gates.
+5. If evidence changes a prior decision, preserve that historical decision and
+   create a successor revision that names its parent, supersession rationale,
+   changed contract/edge, and validator result. It is an archival supersession,
+   not a silent rewrite or a claim that an old receipt has a new revision.
 
-**EXPLORATORY** — the node might not be needed at all; its necessity is conditional on what earlier waves reveal. Specification confidence < 0.2, or the problem domain was classified as `wicked` by the Sensemaker. An EXPLORATORY node also triggers parley (`shouldParley` treats it identically to TENTATIVE). Parley outcome: promote to COMMITTED if evidence makes the path clear, or prune if evidence makes the path unnecessary. EXPLORATORY nodes should never survive to execution without passing through a parley gate — their presence means the plan has open-world uncertainty that must be closed before compute is spent.
-
-## Decomposer Schema Integration
-
-The authoritative JSON Schema for `DecomposerOutput.Subtask` lives in the Jury-rig repo at `packages/core/src/context/meta-dag-predict.ts` (inline schema object, lines 130–160) and is mirrored in the Jury-rig catalog's `jury_rig-decomposer` skill (`schemas/decomposer-output.schema.json` there) <!-- cite-exempt: Jury-rig-repo paths, not port-daddy paths -->. Both require `commitment_level` as a non-optional enum field: `['COMMITTED', 'TENTATIVE', 'EXPLORATORY']`. The synthesizer in `meta-dag-predict.ts` applies a default of `'TENTATIVE'` (line 579) when the decomposer omits the field — meaning the safe default is always to trigger parley, never to skip it.
-
-The `waves` array in `DecomposerOutput` (`{ wave_number: number; subtask_ids: string[] }`) does not carry commitment levels directly. The executor must join `subtask_ids` against the `subtasks` array to retrieve `commitment_level` for each node before calling `shouldParley`. There is no denormalized "wave-level commitment" — commitment is always per-subtask.
-
-## TENTATIVE as Parley Trigger: Precise Mechanics
-
-`shouldParley(upcomingWave, premortem, waveOutputs)` returns `true` if:
-
-1. `upcomingWave.nodes.some(n => n.commitment_level === 'TENTATIVE' || n.commitment_level === 'EXPLORATORY')`, OR
-2. `premortem.recommendation === 'ACCEPT_WITH_MONITORING' || premortem.recommendation === 'ESCALATE_TO_HUMAN'`
-
-Condition 1 is the commitment-level trigger; Condition 2 is the premortem-risk trigger. Either alone is sufficient. Both can fire simultaneously (e.g., a TENTATIVE node in a high-risk plan). When parley runs on a TENTATIVE node, it collects outputs from the completed wave that are listed in the TENTATIVE node's `input_contract` dependencies (`extractDependencyIds(n.input_contract)`), feeds them to `evaluateNodeCommitment`, and produces a mutation: `promote` (→ COMMITTED), `demote` (→ EXPLORATORY), or `prune` (node removed from wave). A TENTATIVE node that parley cannot resolve — because upstream outputs are ambiguous — should be demoted to EXPLORATORY and pushed to a later wave, not forced to COMMITTED.
-
-## Key Points
-
-- TENTATIVE = parley trigger. One TENTATIVE node in the upcoming wave is sufficient to invoke the full parley routine regardless of premortem recommendation.
-- The decomposer defaults missing `commitment_level` to TENTATIVE (line 579 of `meta-dag-predict.ts`), so omission always triggers parley — the safe default.
-- Commitment is monotonically downward: COMMITTED nodes are never re-evaluated by parley; TENTATIVE can promote to COMMITTED or demote to EXPLORATORY; EXPLORATORY can promote to COMMITTED or be pruned.
-- The decomposer's vague-node confidence thresholds (0.8 / 0.5–0.8 / 0.2–0.5 / < 0.2) map directly to COMMITTED / check-dependencies / TENTATIVE / EXPLORATORY — these thresholds are the mechanistic basis for every commitment assignment.
-- `DecomposerOutput.waves` carries only `subtask_ids`; the executor must join against `subtasks` to get `commitment_level` per node — there is no wave-level commitment shortcut.
-
-## See Also
-
-- `skills/jury_rig-decomposer/SKILL.md` — Three-pass protocol, vague-node confidence thresholds, and commitment-level assignment decision tree (the upstream source of every TENTATIVE/EXPLORATORY node this skill acts on). <!-- cite-exempt -->
-- `packages/core/src/context/meta-dag-predict.ts` lines 23–64 — Canonical TypeScript definitions for `Subtask.commitment_level` and `PreMortemOutput.recommendation`; synthesizer default at line 579.
-- `skills/wave-by-wave-parley/diagrams/01_flowchart_decision-points.md` — Visual execution flow showing where `shouldParley` fires and how mutations flow back into the wave plan.
+Constructed example: `patch-X@r5` is `TENTATIVE` and requires
+`inspect-call-sites@r5`. Its predecessor has evidence `h2` but returns
+`partial`, so the checkpoint records `hold`; it does not promote `patch-X`.
+A later successful `h3` may support a revision proposal, while `publish` still
+waits for its own approval edge. The label guides re-evaluation only.

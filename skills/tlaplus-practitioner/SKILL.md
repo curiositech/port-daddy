@@ -25,19 +25,16 @@ IF the task involves any of these THEN apply this skill:
 IF the task is purely about type systems, proof assistants, or model checking
 without state machines THEN stop -- this skill does not apply.
 
-## Decision Tree: What Kind of Spec Do You Need?
+## Choose a Model Scope
 
-```
-Is there shared mutable state accessed by multiple agents?
-  YES --> Does the state have a TTL or expiration?
-  |         YES --> Advisory Lock Pattern (Section 1)
-  |         NO  --> Does an agent crash leave orphaned state?
-  |                   YES --> Crash-Reap-Salvage Pattern (Section 2)
-  |                   NO  --> Escrow State Machine Pattern (Section 3)
-  NO --> You probably don't need TLA+. Use unit tests.
-```
+See [model scope and fairness](references/model-scope-and-fairness.md) before
+translating implementation claims into finite models.
 
-See `evals/evals.json` for worked evaluation cases that map to each decision path.
+Use [the model-selection workflow](diagrams/research-t01-decide-whether-a-finite-state-model-helps-ascii-conversion.md)
+to decide whether a state-machine model adds value and which property it can
+examine. A finite model can expose counterexamples within declared bounds; it
+does not establish production behavior by itself. See `evals/evals.json` for
+worked evaluation cases.
 
 ## Section 1: Advisory Locks with TTL
 
@@ -62,8 +59,8 @@ Port Daddy mapping:
 | TLA+ Concept       | Port Daddy Implementation              |
 |---------------------|----------------------------------------|
 | `heartbeat[a]`      | `agents.last_heartbeat` column         |
-| `status = "stale"`  | `60% of DEAD_THRESHOLDS[status]`       |
-| `status = "dead"`   | `DEAD_THRESHOLDS[status]` exceeded     |
+| `status = "stale"`  | A source-specific status boundary; inspect the pinned implementation. |
+| `status = "dead"`   | A source-specific reaping boundary; inspect the pinned implementation. |
 | `salvageClaims`     | `resurrection_queue.status = "claimed"` |
 | `SingleClaimer`     | `UNIQUE(agent_id)` on resurrection_queue|
 
@@ -86,7 +83,12 @@ promises to heartbeat. If the agent crashes, the reaper detects missed heartbeat
 marks the agent dead, releases its ports, and enters it into a salvage queue.
 Another agent can claim the salvaged work.
 
-The invariant: no port is ever assigned to two live agents simultaneously.
+This example deliberately models a crash-detection event as a true crash: a
+`stale` agent cannot heartbeat again. It excludes live-but-paused agents,
+delayed/reordered heartbeats, and external lease fencing, so it cannot establish
+“no live agent is ever reaped” for a production failure detector. The represented
+safety property is that a dead/salvaged owner holds no port and each port maps
+to at most one owner.
 
 ```tla
 ---- MODULE BondedCommons ----
@@ -99,13 +101,15 @@ CONSTANTS
     DeadThreshold   \* e.g., 3
 
 VARIABLES
-    portOwner,      \* [Ports -> Agents \cup {""}}]
+    portOwner,      \* [Ports -> Agents \cup {""}]
     heartbeat,      \* [Agents -> 0..MaxTTL]
     agentStatus,    \* [Agents -> {"alive", "stale", "dead", "salvaged"}]
     salvageQueue,   \* SUBSET Agents
     clock
 
 vars == <<portOwner, heartbeat, agentStatus, salvageQueue, clock>>
+
+ASSUME DeadThreshold \in 1..MaxTTL
 
 TypeOK ==
     /\ portOwner \in [Ports -> Agents \cup {""}]
@@ -162,8 +166,7 @@ Salvage(claimer, dead) ==
     /\ UNCHANGED <<portOwner, heartbeat, clock>>
 
 Tick ==
-    /\ clock < MaxTTL
-    /\ clock' = clock + 1
+    /\ clock' = IF clock < MaxTTL THEN clock + 1 ELSE clock
     /\ UNCHANGED <<portOwner, heartbeat, agentStatus, salvageQueue>>
 
 Next ==
@@ -176,7 +179,7 @@ Next ==
     \/ Tick
 
 \* ---- INVARIANTS (Safety) ----
-NoDoubleClaim ==
+UniqueOwnerMapping ==
     \A p \in Ports :
         portOwner[p] /= "" => agentStatus[portOwner[p]] \in {"alive", "stale"}
 
@@ -190,25 +193,26 @@ StaleEventuallyReaped ==
     \A a \in Agents :
         (agentStatus[a] = "stale") ~> (agentStatus[a] = "dead")
 
-Spec == Init /\ [][Next]_vars /\ WF_vars(Tick)
+Spec == Init /\ [][Next]_vars
+    /\ WF_vars(Tick)
+    /\ WF_vars(\E a \in Agents : Reap(a))
 ====
 ```
 
 ### Running BondedCommons
 
 ```bash
-# BondedCommons.cfg
+# BondedCommons.cfg: use the specification carrying the declared fairness.
 cat > BondedCommons.cfg << 'EOF'
 CONSTANTS
     Agents = {"a1", "a2", "a3"}
     Ports = {9001, 9002}
     MaxTTL = 5
     DeadThreshold = 2
-INIT Init
-NEXT Next
+SPECIFICATION Spec
 INVARIANTS
     TypeOK
-    NoDoubleClaim
+    UniqueOwnerMapping
     DeadOwnsNothing
 PROPERTIES
     StaleEventuallyReaped
@@ -219,56 +223,55 @@ java -cp tla2tools.jar tlc2.TLC BondedCommons -workers auto
 
 ### Quality Gate
 
-You are done when TLC explored >1M distinct states with zero violations, you
-tested with at least 3 agents and 2 resources, and you intentionally weakened
-an invariant and confirmed TLC catches it.
+Record the exact TLA+ Tools version, model constants, state/transition counts,
+symmetry, deadlock setting, invariants, temporal properties, fairness
+assumptions, and counterexamples. Choose small finite bounds that preserve the
+race/property under review, then vary them as sensitivity checks. A passing
+bounded TLC run is evidence about that model only; no state-count threshold
+proves adequacy. A mutation that violates an invariant should produce a
+counterexample under the same model, but that checks only the model/test setup,
+not implementation completeness.
 
-## Running TLC: Decision Tree
+## Running TLC and Choosing Bounds
 
-```
-Safety only?  --> INVARIANTS in .cfg, no fairness needed
-Liveness too? --> PROPERTIES in .cfg + Spec with WF/SF fairness
-Deadlock only? --> tlc2.TLC Spec -deadlock -workers auto
-```
-
-### Bounding Parameters
-
-| Parameter  | Start Small | Medium | Production |
-|------------|-------------|--------|------------|
-| Agents     | 2           | 3      | 4          |
-| Resources  | 1           | 2      | 3          |
-| MaxTTL     | 3           | 5      | 8          |
-| States     | ~10K        | ~500K  | >1M        |
-
-IF TLC runs >10 min THEN reduce MaxTTL first (exponential), resources second,
-agents last (need >= 2 for concurrency bugs).
+Use [the bounded TLC workflow](diagrams/research-t02-bounded-tlc-workflow-and-claim-limits-rewrites-existing-mermaid.md).
+Put safety invariants and liveness properties in the configuration only after
+confirming the checked `SPECIFICATION` includes the relevant fairness
+assumptions. Safety is checked across explored transitions; liveness claims
+depend on the specification and environment assumptions. Bounds and state counts
+are descriptive model parameters, not coverage targets or production
+equivalents. If exploration is too large, reduce the smallest dimension that
+preserves the race under study, document omitted behaviors, and run a
+sensitivity model.
 
 ## Interpreting Counterexamples
 
-```
-INVARIANT violation?
-  YES --> TypeOK false? --> Actions produce out-of-range values. Tighten guards.
-          Domain invariant false? --> Race condition in Acquire/Claim. Strengthen guard.
-PROPERTY violation?
-  YES --> Lasso trace ("back to state N"). System loops without progress.
-          Fix: add WF_vars(Action) or SF_vars(Action) fairness.
-DEADLOCK?
-  YES --> No Next action enabled. Add stuttering step or use -deadlock flag.
-```
+Use [the counterexample/fairness diagnosis](diagrams/research-t03-fairness-changes-the-temporal-claim-ascii-conversion.md).
+Inspect the trace and the exact enabledness/fairness premise before changing
+guards or adding fairness. Fairness excludes behaviors; add it only when the
+environment or implementation guarantees the action is eventually scheduled. A
+liveness failure may be a real counterexample or an unjustified/missing
+environmental premise; report which.
 
 ## Failure Modes
 
 ### FM1: State Space Explosion (OutOfMemoryError)
 
-**Symptom**: Billions of states within seconds. **Diagnosis**: Unbounded types.
+**Symptom**: Exploration grows beyond the available time or memory budget.
+**Diagnosis**: Bounds, symmetry, or the modeled state may be too large; inspect
+TLC’s reported state space rather than assuming a universal performance signature.
 **Fix**: Use `0..MaxVal` not `Nat`. Add symmetry: `Symmetry == Permutations(Agents)`.
 
 ### FM2: Liveness Fails Despite Correct Logic
 
 **Symptom**: Lasso counterexample where everything "looks right."
-**Diagnosis**: Missing fairness. TLC considers traces where enabled actions never fire.
-**Fix**: `Spec == Init /\ [][Next]_vars /\ WF_vars(Tick) /\ WF_vars(\E a \in Agents : Reap(a))`
-Use WF first. SF only when enabling condition flickers on/off.
+**Diagnosis**: Inspect the lasso, enabledness, and temporal formula. The trace
+may expose a real liveness failure, or it may be excluded only if the modeled
+environment guarantees a particular enabled action eventually runs.
+**Fix**: Add weak or strong fairness only for actions whose scheduling guarantee
+is justified by the implementation/environment contract. Name which behaviors
+the assumption excludes and rerun the model; do not add fairness only to silence
+the trace.
 
 ### FM3: Invariant Violation on a "Correct" State
 
@@ -279,8 +282,12 @@ they belong in one action.
 
 ### FM4: Unexpected Deadlock
 
-**Symptom**: No `Next` action enabled. **Diagnosis**: Clock hit MaxTTL and all agents
-are terminal. **Fix**: Add `Done == (\A a \in Agents : agentStatus[a] \in {"dead", "salvaged"}) /\ UNCHANGED vars` or use `-deadlock` flag.
+**Symptom**: No `Next` action enabled. **Diagnosis**: Check whether the state is
+an intended terminal state, a missing transition, or an abstraction artifact
+(for example, a saturating clock). **Fix**: If terminal behavior is intended,
+specify and check the terminal-state condition explicitly. Otherwise repair the
+transition relation. TLC's `-deadlock` option disables deadlock checking; use it
+only when deadlocks are intentionally allowed and analyzed separately.
 
 ## Anti-Patterns (Novice vs Expert)
 
@@ -290,9 +297,9 @@ models state transitions: `portOwner \in [Ports -> Agents]`, not table DDL.
 **One giant Next action** -- Novice puts everything in one disjunction. Expert
 decomposes into named actions (ClaimPort, Crash, Reap) so counterexamples are readable.
 
-**Skipping TypeOK** -- Novice omits type invariant, gets mysterious counterexamples.
-Expert writes TypeOK first; it catches 80% of spec bugs. It is the TLA+ equivalent
-of TypeScript types.
+**Skipping TypeOK** -- write a type invariant to expose out-of-domain transitions.
+It checks only the types represented in the model and is not a substitute for
+domain invariants.
 
 **Unbounded model checking** -- Novice uses `Nat` or `Seq(S)` without bounds. TLC
 chokes. Expert bounds everything: `0..MaxN`, `Len(seq) <= MaxLen`.
@@ -313,14 +320,9 @@ IF liveness THEN use `~>`, `<>`, or `[]<>` operators and declare fairness in Spe
 
 ## File Organization
 
-```
-specs/
-  BondedCommons.tla    # Specification
-  BondedCommons.cfg    # TLC config (constants, invariants, properties)
-  BondedCommons.md     # Human explanation + counterexample guide
-```
-
-Always keep `.tla` and `.cfg` together. The `.cfg` is not optional.
+Keep a spec, its model configuration, and an explanation/trace note together;
+the configuration must invoke the same `Spec` and fairness contract whose
+results are being reported. See [spec/config/report artifact map](diagrams/research-t04-spec-config-report-artifact-map.md).
 
 ## Bundled Assets
 
@@ -330,9 +332,24 @@ Always keep `.tla` and `.cfg` together. The `.cfg` is not optional.
 
 - [ ] TypeOK passes as invariant
 - [ ] At least one domain safety invariant passes
-- [ ] TLC explored >1M states with 0 violations
-- [ ] Tested with >= 3 agents (2 is insufficient for many coordination bugs)
+- [ ] Bounds, state counts, fairness, invariants/properties, and counterexamples are recorded; no state-count threshold is treated as proof
+- [ ] Finite bounds preserve the concurrency/race under study and are documented as model-specific
 - [ ] Intentionally broke an invariant, confirmed TLC catches it
 - [ ] Liveness properties verified with declared fairness (if applicable)
 - [ ] .cfg committed alongside .tla
 - [ ] Constants documented with bound rationale
+
+## Model assumptions and fairness
+
+The BondedCommons example treats `Crash(a)` as an actual crash and disallows
+subsequent heartbeats for that state. It does not model a live process with a
+delayed heartbeat, a false suspicion, a resurrected old generation, or
+target-enforced fencing. The `clock` saturates at `MaxTTL`, so time can still
+stutter and `Reap` can remain enabled. `StaleEventuallyReaped` requires both
+weak fairness for `Tick` and weak fairness for some enabled `Reap`; the `.cfg`
+must select `SPECIFICATION Spec` to check that temporal formula under those
+assumptions. This is not production or deployment proof.
+
+TLC was **NOT_RUN** for this skill’s worked example. The model text/config has
+not been compiled or model-checked here, so syntax and counterexample claims
+remain unverified.

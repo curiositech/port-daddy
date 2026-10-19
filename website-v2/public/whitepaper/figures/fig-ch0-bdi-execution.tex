@@ -1,0 +1,90 @@
+% fig-ch0-bdi-execution.tex -- redrawn to the house figure language (v2).
+% Reader question: how does a BDI agent choose what to do each cycle, and
+% what happens when an action fails?
+% Claim: events enter the event queue E; S_E selects one event; relevant
+% plans are filtered to applicable ones against the belief base bs; S_O
+% selects a plan, pushed on the intention stack is; S_I selects which
+% intention advances and executes one action a in the host environment; a
+% failed action posts a failure event -!g, which is added back to E and
+% (per the SOS rule) pops the failed frame and drives recovery.
+% Grammar chosen: a cycle on a weighted spine, S_E/S_O/S_I as numbered
+% badges keyed to a ruled legend, the belief base as a subordinate artifact
+% feeding the filter step, success closing the loop on the left rail and
+% failure (pd breach, dashed) closing it on the right rail.  Rejected: the
+% "paradigm spectrum" panel (reactive / planning / BDI) from the prior
+% draft -- that is a 3-way classification, which is a table, not a figure
+% (see report); drawing it here would duplicate the cycle's own claim.
+% Facts: Bordini et al. 2007 (AgentSpeak(L) SOS); whitepaper/chapter-0-prerequisites.tex
+% Sec. "Operational Semantics of AgentSpeak(L)", the S_E/S_O/S_I definitions
+% and the -!g failure rule immediately above \ref{fig:bdi-execution-flow}.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\dy{1.45}    % spine pitch
+  \def\sx{6.80}    % spine column
+  \def\gx{4.95}    % right edge of the naming gutter (badges sit here)
+  \def\lx{1.15}    % left rail: the success loop (perceive)
+  \def\ax{10.30}   % right column: belief base and recovery plan
+  \def\rx{12.60}   % right rail: the failure loop (-!g re-enters E)
+  \def\R{12.60}    % right margin of the legend rule
+  % ---- the honest cycle, in the chapter hue -------------------------------
+  \node[pd focus state,minimum width=3.3cm] (E)  at (\sx,{4*\dy}) {event queue $\mathcal{E}$};
+  \node[pd focus state,minimum width=3.3cm] (AP) at (\sx,{3*\dy}) {applicable plans};
+  \node[pd focus state,minimum width=3.3cm] (IS) at (\sx,{2*\dy}) {intention stack};
+  \node[pd focus state,minimum width=3.3cm] (XA) at (\sx,{1*\dy}) {execute $a$};
+  \foreach \a/\b in {E/AP,AP/IS,IS/XA}{\draw[pd focus arrow] (\a)--(\b);}
+  % ---- every selection function named once, in one gutter ----------------
+  \foreach \i/\t in {3.5/select event, 2.5/select plan, 1.5/select intention}{
+    \node[pd label,anchor=east] at ({\gx-.35},{\i*\dy}) {\t};}
+  \foreach \i/\n in {3.5/1, 2.5/2, 1.5/3}{\node[pd badge] at (\gx,{\i*\dy}) {\n};}
+  % ---- the belief base: a subordinate feed into the filter step ----------
+  \node[pd artifact,minimum width=2.6cm] (BS) at (\ax,{3*\dy}) {belief base $bs$};
+  \draw[pd thin arrow] (BS.west) -- (AP.east);
+  % ---- the one branch that leaves the honest path: action failure --------
+  % A failed action posts -!g to the queue first; only a later cycle selects an
+  % applicable recovery plan through the same S_E / S_O path (AgentSpeak SOS).
+  \draw[pd breach arrow,rounded corners=3pt]
+    (XA.east) -- (\rx,{1*\dy}) -- (\rx,{4*\dy}) -- (E.east);
+  \node[pd label,text=pderror,anchor=east] at ({\rx-.22},{3.5*\dy}) {$-!g$};
+  \node[pd badge] at (\rx,2.9) {4};
+  \node[pd label,text=pderror,anchor=south,align=center,text width=2.9cm] at (\ax,{1*\dy+.34})
+    {failure re-enters $\mathcal{E}$;\\recovery is a plan\\selected next cycle};
+  % ---- success: the action's perceptions close the loop on the left ------
+  \draw[pd focus arrow,rounded corners=3pt]
+    (XA.west) -- (\lx,{1*\dy}) -- (\lx,{4*\dy}) -- (E.west);
+  \node[pd focus label,rotate=90] at ({\lx-.48},{2.5*\dy}) {perceive};
+  % ---- the legend: each selection function, what it picks ----------------
+  \def\ly{0.30}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {function};
+  \node[pd title,anchor=north west] at (3.90,{\ly-.30}) {selects};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\f/\s in {%
+    0/1/{$S_E(\mathcal{E})$}/{one event: external perception or added goal},
+    1/2/{$S_O(\mathrm{App})$}/{one plan, filtered against $bs$, pushed on $is$},
+    2/3/{$S_I(is)$}/{which intention advances; runs one action this cycle}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.62}) {\f};
+      \node[pd label,anchor=base west,align=left] at (3.90,{\ly-1.35-\i*.62}) {\s};}
+  \node[pd badge] at (.28,{\ly-1.35-3*.62}) {4};
+  \node[pd label,anchor=base west,text=pderror] at (.62,{\ly-1.35-3*.62}) {$-!g$ (failure)};
+  \node[pd label,anchor=base west,align=left,text=pderror] at (3.90,{\ly-1.35-3*.62})
+    {pops the failed frame and posts $-!g$ to $\mathcal{E}$; $S_E$, $S_O$ then select a recovery plan};
+  % ---- the comparison the chapter promises: three ways to choose an action --
+  \def\py{\ly-1.35-3*.62-.75}
+  \draw[pd rule] (0,\py) -- (\R,\py);
+  \node[pd title,anchor=north west] at (.05,{\py-.30}) {paradigm};
+  \node[pd title,anchor=north west] at (3.60,{\py-.30}) {decides by};
+  \node[pd title,anchor=north west] at (9.40,{\py-.30}) {weakness};
+  \draw[pd hairline] (0,{\py-.95}) -- (\R,{\py-.95});
+  \foreach \i/\n/\d/\w in {%
+    0/{reactive rules}/{condition $\to$ action, no future model}/{blind to consequences},
+    1/{classical planning}/{a plan computed in advance (STRIPS)}/{brittle under drift},
+    2/{BDI (this cycle)}/{intentions re-selected every cycle}/{perceives every cycle}}{
+      \node[pd label,anchor=base west] at (.05,{\py-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at (3.60,{\py-1.35-\i*.62}) {\d};
+      \node[pd label,anchor=base west] at (9.40,{\py-1.35-\i*.62}) {\w};}
+  \node[pd note,anchor=north west,text width=11.6cm] at (.05,{\py-1.35-2*.62-.55})
+    {both the honest and the breach path re-enter $\mathcal{E}$: a perception as the
+    next event, $-!g$ as the next recovery event.};
+\end{tikzpicture}

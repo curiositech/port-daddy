@@ -185,8 +185,11 @@ inputs with provenance. Provider and repository credentials do not transfer.
 Permissions are freshly issued, expiring capabilities. Hooks are executable and
 run only inside the guest after allowlist/signature review.
 
-At most one body may be authoritative for an agent node and work intent unless a
-separate plan explicitly admits parallel embodiment.
+For one `(AgentNode, WorkEpisode)`, exactly one body generation may write the
+transcript or redeem effects. Parallel work is represented as separately
+admitted child `AgentNode`/episode pairs with carved envelopes. A diagnostic
+replica may be read-only, non-transcribing, and effect-incapable; it is never a
+second embodiment of the worker.
 
 ## 10. Keep remote state a projection
 

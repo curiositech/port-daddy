@@ -22,16 +22,16 @@ Source: <https://doc.rust-lang.org/std/cell/>
 flowchart TD
   A["Need to mutate through &self"] --> T{"Crosses threads?"}
   T -->|"No (single thread)"| C{"Whole-value swap of a Copy/small type?"}
-  C -->|yes| CELL["Cell&lt;T&gt;<br/>get/set/replace, no references handed out → NEVER panics"]
-  C -->|"no — need &/&mut to inner"| RC["RefCell&lt;T&gt;<br/>runtime borrow tracking → borrow()/borrow_mut() can PANIC"]
+  C -->|yes| CELL["Cell‹T›<br/>get/set/replace, no references handed out → NEVER panics"]
+  C -->|"no — need &/&mut to inner"| RC["RefCell‹T›<br/>runtime borrow tracking → borrow()/borrow_mut() can PANIC"]
   T -->|"Yes (shared across threads)"| S{"Access shape?"}
   S -->|"single integer/flag/ptr"| AT["Atomic* (AtomicUsize, AtomicBool, …)<br/>lock-free, choose Ordering"]
-  S -->|"many readers, rare writer"| RW["RwLock&lt;T&gt;<br/>= the Sync version of RefCell"]
-  S -->|"exclusive access"| MX["Mutex&lt;T&gt;"]
-  S -->|"init once, then read-only"| OL["OnceLock&lt;T&gt; / LazyLock&lt;T&gt;"]
-  CELL -.->|"shared owner"| RCb["wrap in Rc&lt;...&gt; (single thread)"]
+  S -->|"many readers, rare writer"| RW["RwLock‹T›<br/>= the Sync version of RefCell"]
+  S -->|"exclusive access"| MX["Mutex‹T›"]
+  S -->|"init once, then read-only"| OL["OnceLock‹T› / LazyLock‹T›"]
+  CELL -.->|"shared owner"| RCb["wrap in Rc‹...› (single thread)"]
   RC -.->|"shared owner"| RCb
-  MX -.->|"shared owner"| ARC["wrap in Arc&lt;...&gt; (threads)"]
+  MX -.->|"shared owner"| ARC["wrap in Arc‹...› (threads)"]
   RW -.->|"shared owner"| ARC
 ```
 

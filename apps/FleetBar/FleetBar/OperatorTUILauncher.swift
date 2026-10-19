@@ -148,6 +148,7 @@ enum OperatorConsoleLauncher {
     /// (exported as PORT_DADDY_URL so pd-console's DaemonClient::discover follows it).
     @MainActor
     static func launch(app: ConsoleApp, daemonURL: String? = nil) {
+        guard LocalRuntimeControl.shared.blockedReason == nil else { return }
         let url = URL(fileURLWithPath: app.path)
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
@@ -168,7 +169,7 @@ enum OperatorConsoleLauncher {
         if let binaryPath = resolvedBinaryPath() {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: binaryPath)
-            try? task.run()
+            try? task.pdRun()
         }
     }
 
@@ -182,7 +183,7 @@ enum OperatorConsoleLauncher {
         task.standardOutput = pipe
         task.standardError = Pipe()
         do {
-            try task.run()
+            try task.pdRun()
             task.waitUntilExit()
         } catch {
             return nil

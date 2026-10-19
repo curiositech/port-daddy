@@ -1,0 +1,30 @@
+{
+  "source": "docs/harbor-research/tex/paper8.tex",
+  "sourceSha256": "ce3232a123991cc710ad2d254a096c69c7089a7ae2c75bea0c240f0107e93024",
+  "pdfSha256": "04221e91a95a3f4fbc193db9c6956981d674a9ac007d0e6ff1d2d36830b0ea42",
+  "pages": 24,
+  "bytes": 556765,
+  "passes": 2,
+  "engine": "pdflatex",
+  "finalErrors": 0,
+  "undefinedCitations": 0,
+  "undefinedReferences": 0,
+  "existingWarnings": {
+    "underfullHboxes": 8,
+    "overfullHboxes": 1,
+    "overfullPt": 3.345
+  },
+  "visuallyInspectedPages": [
+    1,
+    12,
+    13,
+    14,
+    21,
+    22,
+    23,
+    24
+  ],
+  "renderDpi": 150,
+  "scope": "Citation repair and rendered changed pages; not a scientific certification of the full manuscript.",
+  "figureSha256": "55225779b58455b39bd34df2e6d06b4e2e3be80c61882c876c45c87a4d362495"
+}

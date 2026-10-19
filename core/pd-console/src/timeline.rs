@@ -157,6 +157,7 @@ pub fn launch_timeline_companion(daemon_url: &str) -> Result<PathBuf, String> {
 /// loop. Kept separate from resolution so the actual process-error boundary is
 /// directly testable.
 fn spawn_timeline_process(bin: &Path, daemon_url: &str) -> Result<(), String> {
+    crate::local_control::ensure_allowed().map_err(|error| error.to_string())?;
     let child = std::process::Command::new(bin)
         .env("PORT_DADDY_URL", daemon_url)
         .spawn()

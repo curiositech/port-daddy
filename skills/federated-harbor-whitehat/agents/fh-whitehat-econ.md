@@ -64,8 +64,8 @@ dispute window closes, OR dispute-on-C within the window. If both,
 the *earlier* event wins by harbor-tree ordering; the loser's bond
 pays the winner.
 
-**TLA+.** `proofs/federated/settlement/no-double-extract.tla`
-(placeholder). Invariant `NoDoubleExtract`: in every reachable
+**TLA+.** `proofs/federated/settlement/no-double-extract.tla` (placeholder).
+Invariant `NoDoubleExtract`: in every reachable
 state, the adversary's net balance change ≤ legitimate settlement
 amount.
 
@@ -105,8 +105,8 @@ cold-start window. Cross-harbor capabilities issued to or by the
 new harbor are gated by a *reputation budget* starting at the bond
 amount and growing at a paper-stated rate.
 
-**Mesa.** `proofs/federated/cold-start/extraction-bound.py`
-(placeholder). For every strategy in the library (and for adversary-
+**Mesa.** `proofs/federated/cold-start/extraction-bound.py` (placeholder).
+For every strategy in the library (and for adversary-
 best-response), expected extraction ≤ posted bond. Joint cold-start
 by coalition is simulated; cap is per-harbor; coalitions do not
 accelerate the budget.

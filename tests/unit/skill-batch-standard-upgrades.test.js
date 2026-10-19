@@ -217,17 +217,60 @@ describe('transformers-js consumes canonical v2 profiles without promoting decla
 });
 
 describe('accepted skill-review blockers remain repaired', () => {
-  test('handoff similarity follows empty-context and same-space admission', () => {
-    const skill = readFileSync(join(repo, 'skills', 'agent-context-partitioner', 'SKILL.md'), 'utf8');
-    const emptyContextGate = skill.indexOf('if not receiver_context_ids:');
-    const sameSpaceGate = skill.indexOf('if chunks[receiver_id].space_id == source_space_id');
-    const similarity = skill.indexOf('max_similarity = max(');
+  test('context partitioning accepts no-vector plans, admits same-space comparison, and rejects cross-space comparison', async () => {
+    const {
+      computeSpaceId,
+      validatePartition,
+    } = await import(join(
+      repo,
+      'skills',
+      'agent-context-partitioner',
+      'scripts',
+      'validate-context-partition.mjs',
+    ));
+    const fixture = JSON.parse(readFileSync(join(
+      repo,
+      'skills',
+      'agent-context-partitioner',
+      'examples',
+      'valid-proposal.json',
+    ), 'utf8'));
+    const digest = (character) => `sha256:${character.repeat(64)}`;
+    const retrievalSpace = (character) => {
+      const space = {
+        modelArtifactDigest: digest(character),
+        modelConfigDigest: digest(character),
+        preprocessingDigest: digest(character),
+        chunkerDigest: digest(character),
+        pooling: 'mean',
+        dimensions: 384,
+        normalization: 'l2',
+        metric: 'cosine',
+        coordinatePrecision: 'float32',
+        quantizationDigest: digest(character),
+        redactionPolicyDigest: digest(character),
+        modality: 'text',
+      };
+      return { ...space, spaceId: computeSpaceId(space) };
+    };
 
-    expect(emptyContextGate).toBeGreaterThan(-1);
-    expect(sameSpaceGate).toBeGreaterThan(emptyContextGate);
-    expect(similarity).toBeGreaterThan(sameSpaceGate);
-    expect(skill).toContain('semantic_routing_receipts=routing_receipts');
-    expect(skill).toContain('limitations=list_known_gaps(needed_ids) + routing_limitations');
+    expect(validatePartition(fixture)).toEqual([]);
+
+    const sameSpace = structuredClone(fixture);
+    sameSpace.items[0].retrievalSpace = retrievalSpace('1');
+    sameSpace.items[1].retrievalSpace = structuredClone(sameSpace.items[0].retrievalSpace);
+    sameSpace.semanticComparisons = [{
+      leftItemId: 'guidance:1',
+      rightItemId: 'obligation:1',
+      spaceId: sameSpace.items[0].retrievalSpace.spaceId,
+    }];
+    expect(validatePartition(sameSpace)).toEqual([]);
+
+    const crossSpace = structuredClone(sameSpace);
+    crossSpace.items[1].retrievalSpace = retrievalSpace('2');
+    expect(validatePartition(crossSpace)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'E_CROSS_SPACE_COMPARISON' }),
+    ]));
   });
 
   test('PM review scan matches both durable-work temp roots exactly', () => {

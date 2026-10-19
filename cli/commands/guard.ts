@@ -10,6 +10,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
 import { resolveRoadmapHarbor } from './roadmap.js';
+import { HOOK_READY_GATE } from '../../lib/hook-runtime-gate.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -411,42 +412,14 @@ function dirtyFiles(cwd = process.cwd()): string[] {
 }
 
 function guardHookAvailabilityFunction(): string[] {
-  // Keep this self-contained: managed blocks are merged into arbitrary user
-  // hooks and cannot safely source a file from the originating checkout.
-  // tests/unit/coordination-guard.test.js executes both this block and the
-  // standalone templates so their fail-open boundary cannot drift silently.
+  // Embed the shared pre-invocation boundary; foreign hook bodies still run.
   return [
+    HOOK_READY_GATE,
     'pd_guard_available() {',
-    '  pd_guard_home="${PD_HOME:-$HOME/.port-daddy}"',
-    '  [ ! -e "$pd_guard_home/hooks.disabled" ] || return 1',
-    '  pd_guard_root=$(git rev-parse --show-toplevel 2>/dev/null || true)',
-    '  [ -n "$pd_guard_root" ] || return 1',
-    '  pd_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)',
-    '  pd_guard_local="$pd_guard_root/.portdaddy/coordination-guard.json"',
-    '  pd_guard_shared="$pd_guard_common/port-daddy/coordination-guard.json"',
-    '  [ -f "$pd_guard_local" ] || [ -f "$pd_guard_shared" ] || return 1',
-    '  pd_guard_ready="${PORT_DADDY_READY_FILE:-$pd_guard_home/daemon.ready}"',
-    '  pd_guard_pid="${PORT_DADDY_PID_FILE:-$pd_guard_home/daemon.pid}"',
-    '  pd_guard_heartbeat="${PORT_DADDY_HEARTBEAT_FILE:-$pd_guard_home/heartbeat}"',
-    '  [ -f "$pd_guard_ready" ] && [ ! -L "$pd_guard_ready" ] || return 1',
-    '  [ -f "$pd_guard_pid" ] && [ ! -L "$pd_guard_pid" ] || return 1',
-    '  [ -f "$pd_guard_heartbeat" ] && [ ! -L "$pd_guard_heartbeat" ] || return 1',
-    '  pd_guard_ready_pid=$(tr -d "[:space:]" < "$pd_guard_ready" 2>/dev/null || true)',
-    '  pd_guard_daemon_pid=$(tr -d "[:space:]" < "$pd_guard_pid" 2>/dev/null || true)',
-    '  [ -n "$pd_guard_ready_pid" ] && [ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ] || return 1',
-    // GNU and BSD stat spell mtime differently and neither fails the way the
-    // other's flag suggests: `stat -f %m FILE` on GNU coreutils reads %m as a
-    // second FILE, prints a whole filesystem block to stdout, and exits 1 --
-    // so a `-f || -c` chain captures the dump AND the timestamp concatenated,
-    // fails the digit check below, and takes the guard out on every Linux
-    // machine. Ask each dialect on its own and keep whichever answers in digits.
-    '  pd_guard_heartbeat_mtime=$(stat -c %Y "$pd_guard_heartbeat" 2>/dev/null || true)',
-    '  case "$pd_guard_heartbeat_mtime" in ""|*[!0-9]*) pd_guard_heartbeat_mtime=$(stat -f %m "$pd_guard_heartbeat" 2>/dev/null || true) ;; esac',
-    '  pd_guard_now=$(date +%s 2>/dev/null || true)',
-    '  case "$pd_guard_heartbeat_mtime" in ""|*[!0-9]*) return 1 ;; esac',
-    '  case "$pd_guard_now" in ""|*[!0-9]*) return 1 ;; esac',
-    '  pd_guard_age=$((pd_guard_now - pd_guard_heartbeat_mtime))',
-    '  [ "$pd_guard_age" -ge -30 ] 2>/dev/null && [ "$pd_guard_age" -le 30 ] 2>/dev/null',
+    '  pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || return 1',
+    '  pd_guard_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1',
+    '  pd_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1',
+    '  [ -f "$pd_guard_root/.portdaddy/coordination-guard.json" ] || [ -f "$pd_guard_common/port-daddy/coordination-guard.json" ]',
     '}',
   ];
 }

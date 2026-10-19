@@ -60,6 +60,7 @@ import {
   type BreakerScope,
 } from './circuit-breaker.js';
 import { isSubscriptionBackend } from '../backend-catalog.js';
+import type { SpawnSpec, SpawnStartedReceipt } from '../spawner.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,18 @@ export interface LaunchIntent {
   env?: Record<string, string>;
   tubeChannel?: string;
 
+  // The same explicit one-body options used by WorkIntent intake. No arbitrary
+  // spec spread: admitted capabilities and worktree policy remain authoritative.
+  name?: string;
+  files?: string[];
+  permissionMode?: SpawnSpec['permissionMode'];
+  injectSquidHooks?: boolean;
+  requestedBackend?: SpawnSpec['requestedBackend'];
+  requestedModel?: string;
+  backendOverrideSource?: SpawnSpec['backendOverrideSource'];
+  canonicalRunId?: string;
+  onAgentReady?: (receipt: SpawnStartedReceipt & { sessionId: string }) => void;
+
   // execution context (passed through to the spawner spec) —
   workdir?: string;
   identity?: string;
@@ -208,7 +221,7 @@ export interface ConductorSpawner {
 /**
  * Minimal shape of the bonds module the Conductor needs for refund-before-kill
  * on operator halt. Mirrors the panic route's convention exactly: list the
- * `running` bonds, refund the ones whose agentId is being halted, THEN kill —
+ * escrowed/running bonds, refund the ones whose agentId is being halted, THEN kill —
  * so the spawner's kill-path slash becomes a no-op (the bond is already
  * operator-resolved). Operator halt therefore ALWAYS REFUNDS, never slashes.
  */
@@ -533,15 +546,15 @@ export function createConductor(deps: ConductorDeps) {
   }
 
   /**
-   * Refund every `running` bond escrowed for `agentId`, BEFORE its body is
+   * Refund every escrowed/running bond for `agentId`, BEFORE its body is
    * killed. Mirrors routes/panic.ts: refunding first makes the spawner's
    * kill-path slash a no-op, so operator halt ALWAYS REFUNDS and never slashes.
    */
   function refundBondsForAgent(agentId: string | null | undefined): void {
     if (!bonds || !agentId) return;
     try {
-      const running = bonds.listBonds({ state: 'running', limit: 1000 });
-      for (const b of running) {
+      const unsettled = ['escrowed', 'running'].flatMap(state => bonds.listBonds({ state, limit: 1000 }));
+      for (const b of unsettled) {
         if (b.agentId === agentId) {
           try {
             bonds.refund(b.id);
@@ -791,6 +804,15 @@ export function createConductor(deps: ConductorDeps) {
       backend: intent.backend,
       task: intent.task ?? intent.goal,
     };
+    if (intent.name != null) spec.name = intent.name;
+    if (intent.files != null) spec.files = intent.files;
+    if (intent.permissionMode != null) spec.permissionMode = intent.permissionMode;
+    if (intent.injectSquidHooks != null) spec.injectSquidHooks = intent.injectSquidHooks;
+    if (intent.requestedBackend != null) spec.requestedBackend = intent.requestedBackend;
+    if (intent.requestedModel != null) spec.requestedModel = intent.requestedModel;
+    if (intent.backendOverrideSource != null) spec.backendOverrideSource = intent.backendOverrideSource;
+    if (intent.onAgentReady) spec.onReady = intent.onAgentReady;
+    if (intent.canonicalRunId) spec.canonicalRunId = intent.canonicalRunId;
     if (intent.model != null) spec.model = intent.model;
     if (intent.modelTier != null) spec.modelTier = intent.modelTier;
     if (intent.identity != null) spec.identity = intent.identity;
@@ -936,7 +958,20 @@ export function createConductor(deps: ConductorDeps) {
         // then let the caller bind its own projection. If the caller rejects
         // the witness, the spawner refuses backend execution rather than run an
         // untraceable body.
-        setState(admitted.id, 'running', { agentId: receipt.agentId });
+        const stopped = pendingKills.has(admitted.id) || get(admitted.id)?.state === 'halted';
+        setState(admitted.id, stopped ? 'halted' : 'running', { agentId: receipt.agentId });
+        if (stopped) {
+          if (pendingKills.delete(admitted.id) && reserved > 0) {
+            breaker.release(lineageScope(admitted.rootId), reserved);
+            breaker.release(GLOBAL_SCOPE, reserved);
+          }
+          refundBondsForAgent(receipt.agentId);
+          // The spawner has registered the body by now. Abort it before its
+          // managed-session admission or first backend turn can proceed.
+          try { spawner.kill(receipt.agentId); } catch { /* witness still refuses below */ }
+          intent.onAgentStarted?.(receipt);
+          throw new Error('Launch halted before backend execution');
+        }
         intent.onAgentStarted?.(receipt);
       };
     }
@@ -944,6 +979,16 @@ export function createConductor(deps: ConductorDeps) {
     try {
       spawnResult = await spawner.spawn(spec);
     } catch (err) {
+      // An operator halt remains authoritative even if the pending spawn throws.
+      // A known body already released its reservation in halt(); only an
+      // unobserved body retains a reservation here.
+      if (get(admitted.id)?.state === 'halted') {
+        if (pendingKills.delete(admitted.id) && reserved > 0) {
+          breaker.release(lineageScope(admitted.rootId), reserved);
+          breaker.release(GLOBAL_SCOPE, reserved);
+        }
+        return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: null };
+      }
       // Spawn threw — book the outcome as a failure, release the reservation.
       breaker.recordOutcome(lineageScope(admitted.rootId), {
         success: false,
@@ -963,7 +1008,8 @@ export function createConductor(deps: ConductorDeps) {
     // and only now — hold the body's agentId. Honor the pending kill: SIGTERM→
     // SIGKILL the body, refund (never slash) its bond, release the reservation,
     // and leave the launch in `halted` (already set by halt()) for salvage.
-    if (pendingKills.has(admitted.id)) {
+    const killWasPending = pendingKills.has(admitted.id);
+    if (killWasPending || get(admitted.id)?.state === 'halted') {
       pendingKills.delete(admitted.id);
       refundBondsForAgent(spawnResult.agentId);
       try {
@@ -971,7 +1017,7 @@ export function createConductor(deps: ConductorDeps) {
       } catch {
         /* kill is best-effort; the worktree + transcript are preserved to salvage */
       }
-      if (reserved > 0) {
+      if (killWasPending && reserved > 0) {
         breaker.release(lineageScope(admitted.rootId), reserved);
         breaker.release(GLOBAL_SCOPE, reserved);
       }

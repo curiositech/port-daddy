@@ -29,6 +29,35 @@
 #   PD_FLEETBAR_KEEP_OLD_DEV=1   keep superseded timestamped dev bundles
 set -euo pipefail
 
+# Shared HOOK_OFF_GATE from lib/hook-runtime-gate.ts; never invokes PD.
+pd_hook_runtime_enabled() (
+  [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
+  pd_gate_home="$2"
+  for pd_gate_root in "$1" "$pd_gate_home"; do
+    if [ ! -e "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ]; then
+      [ -d "${pd_gate_root%/*}" ] && [ -r "${pd_gate_root%/*}" ] && [ -x "${pd_gate_root%/*}" ] || exit 1
+      continue
+    fi
+    [ -d "$pd_gate_root" ] && [ -r "$pd_gate_root" ] && [ -x "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ] || exit 1
+    for pd_gate_marker in "$pd_gate_root/hooks.disabled" "$pd_gate_root/HALT"; do
+      [ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1
+    done
+  done
+  pd_gate_halt="${PD_HALT_FILE:-$pd_gate_home/HALT}"
+  case "$pd_gate_halt" in /*) ;; *) exit 1 ;; esac
+  pd_gate_parent="${pd_gate_halt%/*}"
+  [ -d "$pd_gate_parent" ] && [ -r "$pd_gate_parent" ] && [ -x "$pd_gate_parent" ] || exit 1
+  [ ! -e "$pd_gate_halt" ] && [ ! -L "$pd_gate_halt" ]
+)
+
+pd_require_on() {
+  pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || {
+    echo "Port Daddy is Off or its control state is unknown; automatic work skipped." >&2
+    exit 0
+  }
+}
+
+
 # ── 1. Parse the lane ─────────────────────────────────────────────────────────
 LANE=latest
 DEVNAME=""
@@ -130,7 +159,9 @@ mv "$NEW_APP" "$APP"
 touch "$APP"
 echo "▸ installed $APP (v$VERSION)"
 
+# PD_LOCAL_OFF_GUARDED_LAUNCH_V1
 # ── 5. Dev lane: retire this name's superseded bundles ─────────────────────────
+pd_require_on
 if [ "$LANE" = dev ] && [ "${PD_FLEETBAR_KEEP_OLD_DEV:-0}" != "1" ]; then
   # ????????-???? pins the stamp to exactly YYYYMMDD-HHMM so a name that is a
   # suffix of another name can't match across builds.
@@ -138,6 +169,7 @@ if [ "$LANE" = dev ] && [ "${PD_FLEETBAR_KEEP_OLD_DEV:-0}" != "1" ]; then
     [ -d "$OLD" ] || continue
     [ "$OLD" = "$APP" ] && continue
     echo "▸ retiring superseded dev build $(basename "$OLD")"
+    pd_require_on
     pkill -f "$(re_escape "$OLD/Contents/MacOS/FleetBar")" 2>/dev/null || true
     rm -rf "$OLD"
   done
@@ -146,6 +178,7 @@ fi
 [ "${PD_FLEETBAR_NO_LAUNCH:-0}" = "1" ] && { echo "✓ $LANE lane updated (no launch requested)"; exit 0; }
 
 # ── 6. (Re)start ───────────────────────────────────────────────────────────────
+pd_require_on
 if [ -n "$LABEL" ]; then
   # Supervised lanes: render the LaunchAgent plist (machine-local paths), make
   # sure it's bootstrapped, then kickstart -k so launchd swaps in the new binary.
@@ -167,29 +200,35 @@ if [ -n "$LABEL" ]; then
 </plist>
 PLIST
   GUI="gui/$(id -u)"
+  pd_require_on
   if launchctl print "$GUI/$LABEL" >/dev/null 2>&1; then
     # Re-bootstrap so launchd re-reads the plist (the app path can change), then
     # kickstart to be certain the fresh binary is the one running.
+    pd_require_on
     launchctl bootout "$GUI/$LABEL" 2>/dev/null || true
     sleep 0.5
   fi
   # Old manually-launched instances of this lane's bundle would linger beside the
   # supervised one — clear them before launchd takes over.
+  pd_require_on
   pkill -f "$(re_escape "$APP/Contents/MacOS/FleetBar")" 2>/dev/null || true
   # bootout is asynchronous: an immediate bootstrap can race it (EBUSY) and,
   # under set -e, abort AFTER the teardown but BEFORE the restart — leaving the
   # lane down (fleet review finding). Retry briefly instead of trusting one shot.
   BOOTSTRAPPED=0
   for _try in 1 2 3 4 5; do
+    pd_require_on
     if launchctl bootstrap "$GUI" "$PLIST_DST" 2>/dev/null; then BOOTSTRAPPED=1; break; fi
     sleep 1
   done
   [ "$BOOTSTRAPPED" = 1 ] || { echo "✗ launchctl bootstrap failed after retries — $LABEL may be down" >&2; exit 1; }
+  pd_require_on
   launchctl kickstart -k "$GUI/$LABEL" 2>/dev/null || true
   echo "▸ launchd $LABEL restarted on the fresh bundle"
 else
   pkill -f "$(re_escape "$APP/Contents/MacOS/FleetBar")" 2>/dev/null || true
   sleep 0.5
+  pd_require_on
   open "$APP"
   echo "▸ launched $(basename "$APP")"
 fi

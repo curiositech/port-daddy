@@ -1087,7 +1087,9 @@ Clear panic state.
 ### POST /spawn
 Spawn an AI run with full PD coordination (registration, sessions, heartbeats, salvage on crash).
 
-This is the delegation primitive. Layer durable issue/work records above spawn rather than introducing another launch verb.
+This route admits one WorkIntent and WorkPlan through Conductor and returns a durable `runReceipt` joining the intent, plan, launch, managed session, and transcript. It is the delegation primitive; layer issue/work records above it rather than introducing another launch verb. The source contract needs installed-runtime verification before use.
+
+HTTP callers may send `Idempotency-Key` (a nonempty string of at most 400 UTF-8 bytes). A matching retry returns the prior receipt with `duplicate: true` and code `WORK_INTENT_REPLAY`, without launching again. Pending replay (`accepted`, `starting`, `live`, or `unknown`) returns HTTP `202`; terminal replay returns HTTP `200`. Replay may have no output, so inspect its receipt. Reusing a key for different request content returns HTTP `409` with `WORK_INTENT_IDEMPOTENCY_CONFLICT` and `receiptId`. Do not relaunch an `unknown` run without resolving its receipt.
 
 Launches are fail-closed on telemetry. Port Daddy blocks a spawn when the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate for the completed run.
 The live spawner defaults that policy on. Internal code may only opt out by attaching explicit HITL confirmation metadata; an omitted flag is not a valid bypass.
@@ -1110,7 +1112,7 @@ At the moment, the operator-facing launchable path is the Claude SDK backend wit
 | `timeout` | number | no | Timeout in milliseconds |
 
 **Response (success):**
-- includes normal spawn fields, `name` when available, plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
+- includes normal spawn fields, `name` when available, `runReceipt`, `duplicate`, plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
 - `rateMode` is currently `exact` for accepted launches
 
 **Response (precondition failure):**
@@ -1126,8 +1128,11 @@ This returns structured attempts and blocked reasons. Use it before `/spawn` whe
 ### GET /spawn
 List active spawned agents.
 
+### GET /spawn/receipts/:id
+Read the durable `runReceipt`. Its status is `accepted`, `starting`, `live`, `completed`, `failed`, `cancelled`, `over_budget`, `no_runtime`, or `unknown`. Response: `{ "success": true, "runReceipt": { ... } }`; an unknown id returns HTTP `404` with `RUN_RECEIPT_NOT_FOUND`. Use terminal receipt evidence to establish the outcome of a stop request.
+
 ### DELETE /spawn/:agentId
-Kill a spawned agent.
+Request that a spawned agent stop. A successful response reports `status: "requested"`; it does not guarantee termination. Read the terminal receipt to confirm the outcome.
 
 ---
 

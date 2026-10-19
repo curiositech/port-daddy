@@ -299,7 +299,7 @@ Done when:
 ## Track 8: Coordination Papers Proof And Runtime Closure
 
 The unified whitepaper program is maintained in
-[`docs/roadmap/whitepaper-research-program.md`](../roadmap/whitepaper-research-program.md).
+[the Omni research ledger](../harbor-research/OMNI-LEDGER.md).
 Its registry links are `link:coordination-papers-mega-volume`,
 `link:coordination-papers-proof-program`,
 `link:coordination-papers-empirical-program`, and

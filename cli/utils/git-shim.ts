@@ -20,10 +20,11 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { HOOK_READY_GATE } from '../../lib/hook-runtime-gate.js';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
 export const SHIM_GIT_PATH = join(SHIM_BIN_DIR, 'git');
-export const SHIM_VERSION = '5';
+export const SHIM_VERSION = '6';
 
 export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # Port Daddy git shim v${SHIM_VERSION}
@@ -99,6 +100,12 @@ done
 if [ -z "$real_git" ]; then
   echo "pd-shim: cannot find a real git binary on PATH" >&2
   exit 127
+fi
+
+${HOOK_READY_GATE}
+# Off means ordinary Git, without CLI calls, audit writes or guard admission.
+if ! pd_hook_runtime_ready "\${HOME:+$HOME/.port-daddy}" "\${PD_HOME:-\${HOME:+$HOME/.port-daddy}}"; then
+  exec "$real_git" "$@"
 fi
 
 # Operator escape hatch — for emergency, recovery, or guard debugging.

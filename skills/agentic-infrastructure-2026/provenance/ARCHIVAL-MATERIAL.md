@@ -1,0 +1,5 @@
+# Historical preimage and generation records
+
+The canonical original skill is at baseline commit `00ab2c9ab2197ff97e85edc173370b7446fdb2ef`. The active [`original-source-manifest.tsv`](original-source-manifest.tsv) has exactly three columns: baseline commit, canonical Git path, and original SHA-256. The separate validation receipt ledger adds the handoff-copy path; that field is not in the active manifest. The canonical commit/path/hash is the portable recovery authority. Handoff copies and prior authoring deltas are convenience evidence only, outside this active skill.
+
+The original `source-to-draft.diff` and `source-full.sha256` generated during prior authoring were moved to the scoped validation receipt's `preimage/previous-draft/` directory. They are not active instructions. The original five-file skill preimage is preserved outside this bundle, including its three worked examples and ASCII architecture sketches; see the active Mermaid replacements and the per-section retention ledger in the repair receipt.

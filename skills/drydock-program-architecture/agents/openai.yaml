@@ -1,0 +1,9 @@
+interface:
+  display_name: Drydock Program Architect
+  short_description: Compose containment, resurrection, capacity, context, UX, and proof
+  default_prompt: >-
+    Design or review one exact Drydock architecture packet. Honor all active
+    operator halts. Keep shipped, partial, target, deferred, rejected, and unknown
+    truth distinct. Route focused decisions to the normative skills, produce an
+    executable hypertree and witness-labeled diagrams, and never treat this design
+    work as permission to launch a subject or spend money.

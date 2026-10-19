@@ -346,8 +346,8 @@
     {
       "path": "templates/post-commit-hook",
       "url": "/samples/files/templates/post-commit-hook",
-      "bytes": 2504,
-      "sha256": "294d7ae133e981058b9d199db6b27058247805909ee93e498a020ae1ca99bac2"
+      "bytes": 5594,
+      "sha256": "c0f44671f7004a47445f8609292bbcbda5b0ba5cc0bd8b7bb7b69064bc1b349e"
     },
     {
       "path": "templates/swarm-researcher/README.md",

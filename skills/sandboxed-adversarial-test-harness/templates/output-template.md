@@ -93,14 +93,26 @@ Explicitly untrusted: [subject, dependencies, tests, guest, agent, output, input
 - Conservative reservation: [integer minor units and formula]
 - Durable pre-dispatch transition: [receipt]
 
-### Financial-loss ceiling
+### T3A billable financial-loss ceiling
 
 - Isolated provider account/project/key/payment rail: [evidence or ABSENT]
 - Dedicated external cell's configured limit: [amount]
 - Documented and measured enforcement tolerance: [amount and test evidence]
 - Maximum financial exposure = configured limit + tolerance: [amount]
 - Existing/unsettled exposure in that custody domain: [amount]
-- Eligible for T3: [yes/no; no when any proof is absent]
+- Eligible for T3A: [yes/no; no when any proof is absent]
+
+### T3B subscription-capacity envelope
+
+- Capacity-evidence schema/version/digest: [evidence]
+- Execution class: [must be real-provider; fake-or-replay cannot cross this gate]
+- Native shared bucket IDs and route aliases: [values]
+- Auth mode, remaining units, reset horizons, and observation quality: [values]
+- Operator reserve / prior reservations / unresolved holds / drift margin: [values]
+- p95 action burn plus checkpoint tail: [values]
+- Atomic compare-and-swap reservation receipt: [evidence]
+- Before/after provider or first-party observation: [evidence]
+- Eligible for T3B: [yes/no; never describe this as a hard cash cap]
 
 ### Conservation
 
@@ -124,8 +136,10 @@ reconciliation outcome.
 | Durable breaker and unresolved exposure | | | |
 | Receipt-storage reserve | | | |
 
-For the first T3 canary, the only acceptable values are one request, one attempt,
-concurrency one, zero tools, zero children, zero retries, and no automatic refill.
+For the first T3A or T3B canary, the only acceptable values are one request, one
+attempt, concurrency one, zero tools, zero children, zero retries, and no
+automatic refill. T3A additionally requires external cash custody; T3B requires
+fresh schema-valid native-unit capacity evidence and a worst-case hold.
 
 ## Durable State And Recovery
 
@@ -165,6 +179,8 @@ concurrency one, zero tools, zero children, zero retries, and no automatic refil
 - Safety breaker persistence and authenticated reset preconditions: [evidence]
 - At most one authoritative body generation: [invariant and race evidence]
 - Cross-backend capability diff and credential non-transfer: [evidence]
+- Resurrection-plan schema and semantic-verifier receipt: [evidence or not in scope]
+- Capacity-evidence schema and semantic-verifier receipt: [evidence or not in scope]
 - 1,000-request duplicate and varied-flood results: [process/reservation/queue counts]
 
 ## Trial Basin Scenario
@@ -190,6 +206,7 @@ concurrency one, zero tools, zero children, zero retries, and no automatic refil
 |---|---|---|---|---|
 | `HOST_OBSERVED` | | | | |
 | `BROKER_OBSERVED` | | | | |
+| `CAPACITY_OBSERVED` | | | | |
 | `PROVIDER_RECONCILED` | | | | |
 | `GUEST_ASSERTED` | | | | |
 | `MODEL_CHECKED` | | | | |

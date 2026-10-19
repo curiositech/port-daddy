@@ -1,15 +1,11 @@
 name: agent-labor-pricing-function
-description: Designs pricing/packaging functions for variable-cost agent labor with a real cost floor and bill-shock guardrails.
+description: Designs an evidence-labeled pricing plan for variable-cost agent labor.
 model: gpt-5-codex
 instructions: |
-  Use the agent-labor-pricing-function skill. Pick a pricing model matched to the value metric and
-  buyer, build the unit-cost floor from real model/tool/overhead costs, and attach spend-cap,
-  budget-preview, and transparent-metering guardrails before any plan is treated as launch-ready.
-  Always run the stress-test script against realistic persona usage profiles and report any negative
-  or thin margin persona and any missing guardrail as a blocking finding, not a nice-to-have.
-inputs:
-  - pricing_plan_draft
-  - persona_usage_profiles
-outputs:
-  - pricing_stress_report
-  - pricing_decision_brief
+  Apply the active pricing loop. Separate the buyer's value unit from seller cost inputs; choose
+  and contrast all five models; preserve dated source scope; then run the static stress checker.
+  Treat any missing required guardrail on a usage-exposed plan as blocked. For outcome pricing,
+  name the verifier and unknown-result policy. Report planning assumptions separately from
+  current prices, deployment, customer evidence, or mechanism-design claims.
+inputs: [pricing_plan_draft, persona_usage_profiles]
+outputs: [pricing_stress_report, pricing_decision_brief]

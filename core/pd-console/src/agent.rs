@@ -224,9 +224,12 @@ impl SseParser {
 /// `~/.port-daddy/daemon.port`, then the canonical stable berth. In-app berth
 /// changes are process-local; they never become an abandoned file that can pin a
 /// later launch to a dead development daemon. See [`DaemonClient::discover`].
+#[path = "controlled_http.rs"]
+pub mod controlled_http;
+
 pub struct DaemonClient {
     base: String,
-    http: reqwest::Client,
+    http: controlled_http::ControlledHttp,
     /// ADR-0040 daemon-minted actor credential captured from this console's
     /// own `POST /sugar/begin` (#8877 / ADR-0122). Attributed daemon writes —
     /// `/sugar/done`, `POST /sessions/:id/files` — are rejected 401 without
@@ -636,11 +639,7 @@ impl DaemonClient {
     pub fn new(base: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
-            http: reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(3))
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .expect("reqwest client with static config cannot fail to build"),
+            http: controlled_http::ControlledHttp::new(),
             actor_credential: std::sync::Mutex::new(None),
         }
     }
@@ -660,7 +659,7 @@ impl DaemonClient {
     }
 
     /// Attach the actor credential (when held) to an outgoing request.
-    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    fn with_actor_credential(&self, req: controlled_http::ControlledRequest) -> controlled_http::ControlledRequest {
         match self.actor_credential() {
             Some(credential) => req.header("x-actor-credential", credential),
             None => req,
@@ -701,7 +700,7 @@ impl DaemonClient {
                     response = Some(value);
                     break;
                 }
-                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) if attempt == 0 && controlled_http::is_timeout(&error) => continue,
                 Err(error) => return Err(error).context("POST Surface Gateway WorkIntent"),
             }
         }
@@ -758,7 +757,7 @@ impl DaemonClient {
                     response = Some(value);
                     break;
                 }
-                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) if attempt == 0 && controlled_http::is_timeout(&error) => continue,
                 Err(error) => return Err(error).context("POST Surface Gateway WorkIntent start"),
             }
         }
@@ -920,9 +919,8 @@ impl DaemonClient {
         transcript_turns(&value)
     }
 
-    /// Expose the underlying reqwest client so panes can issue arbitrary requests
-    /// to the daemon without re-implementing discovery.
-    pub fn http_client(&self) -> &reqwest::Client {
+    /// Expose only a gated client: daemon and relay panes share local Off.
+    pub fn http_client(&self) -> &controlled_http::ControlledHttp {
         &self.http
     }
 
@@ -993,7 +991,7 @@ impl DaemonClient {
     }
 
     /// Broadcast a snapshot **reference** frame up a file's EDIT-lane channel
-    /// ([`crate::editor_sync::channel_for_path`]). Same wire as [`tube_send`](Self::tube_send),
+    /// ([`crate::editor_sync::channel_for_document`]). Same wire as [`tube_send`](Self::tube_send),
     /// stamped `sender = "snapshot"` so a log reader can tell the durability lane
     /// apart. `frame_text` is [`crate::editor_sync::encode_snapshot_frame`].
     pub async fn broadcast_snapshot_ref(&self, channel: &str, frame_text: &str) -> Result<()> {
@@ -1011,7 +1009,7 @@ impl DaemonClient {
 
     /// Send a coordination-control-plane signal (claim acquire/release, conflict
     /// predicted) up a file's **coordination** channel
-    /// ([`crate::editor_sync::coordination_channel_for_path`]) — a SEPARATE tube
+    /// ([`crate::editor_sync::coordination_channel_for_document`]) — a SEPARATE tube
     /// channel from the edit lane, so a keystroke burst on the edit channel cannot
     /// starve this latency-sensitive lane (the ref-03 §3 isolation contract; proven
     /// structurally by `editor_sync::LaneQueues`). `frame_text` is
@@ -1380,6 +1378,7 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
+                if crate::local_control::ensure_allowed().is_err() { return; }
                 // Long-lived SSE: override the client's 15s total-request
                 // deadline (which exists to keep pane refreshes from wedging
                 // the console) — only connect_timeout should govern a stream.
@@ -1421,6 +1420,7 @@ impl DaemonClient {
                 let mut body = resp.bytes_stream();
                 loop {
                     let chunk = tokio::select! {
+                        _ = controlled_http::wait_until_off() => return,
                         _ = tx.closed() => return,
                         chunk = body.next() => chunk,
                     };
@@ -1466,7 +1466,7 @@ impl DaemonClient {
     /// Open the live SSE feed for a pub/sub tube channel
     /// (`GET /msg/:channel/subscribe`) and yield each published [`TubeMsg`] on an
     /// mpsc channel. This is the Harbor Editor's LAN-multiplayer receive path (P2
-    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_path`],
+    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_document`],
     /// and each `TubeMsg::text` is a Loro op frame the caller folds into a buffer
     /// via [`crate::editor_sync::decode_frame`] + `apply_frame`.
     ///
@@ -1489,6 +1489,7 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
+                if crate::local_control::ensure_allowed().is_err() { return; }
                 let mut req = http.get(&url);
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
@@ -1525,6 +1526,7 @@ impl DaemonClient {
                 let mut body = resp.bytes_stream();
                 loop {
                     let chunk = tokio::select! {
+                        _ = controlled_http::wait_until_off() => return,
                         _ = tx.closed() => return,
                         chunk = body.next() => chunk,
                     };

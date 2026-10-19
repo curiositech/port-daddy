@@ -1,0 +1,83 @@
+{
+  "surfaceKind": "wireframe",
+  "readerMode": "task",
+  "patienceBudget": {
+    "seconds": 180,
+    "rationale": "Assumption, not telemetry: a developer evaluating a tool during a work break. Replace with a real median-session figure before quoting any number from this run."
+  },
+  "entryNodes": [
+    { "id": "landing", "weight": 3 },
+    { "id": "connect-repo", "weight": 1 }
+  ],
+  "payoffNodes": ["first-run"],
+  "nodes": [
+    {
+      "id": "landing",
+      "label": "Frame 1 — Landing / value statement",
+      "kind": "hero",
+      "costSeconds": 12,
+      "newConcepts": ["fleet", "agent-session"],
+      "payoff": 0.1,
+      "hook": 0.7,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 9,
+        "figureGroundClarity": 9,
+        "continuityClarity": 9,
+        "commonRegionClarity": 8
+      },
+      "links": [{ "to": "connect-repo", "kind": "cta", "weight": 4 }]
+    },
+    {
+      "id": "connect-repo",
+      "label": "Frame 2 — Connect a repository",
+      "kind": "form",
+      "costSeconds": 35,
+      "requiresConcepts": ["fleet"],
+      "payoff": 0.2,
+      "hook": 0.6,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 9,
+        "figureGroundClarity": 8,
+        "continuityClarity": 9,
+        "commonRegionClarity": 9
+      },
+      "links": [{ "to": "pick-task", "kind": "sequential", "weight": 1 }]
+    },
+    {
+      "id": "pick-task",
+      "label": "Frame 3 — Pick the first task",
+      "kind": "screen",
+      "costSeconds": 25,
+      "newConcepts": ["task-claim"],
+      "requiresConcepts": ["agent-session"],
+      "payoff": 0.3,
+      "hook": 0.8,
+      "attentionElements": 4,
+      "gestalt": {
+        "groupingClarity": 8,
+        "figureGroundClarity": 9,
+        "continuityClarity": 8,
+        "commonRegionClarity": 9
+      },
+      "links": [{ "to": "first-run", "kind": "sequential", "weight": 1 }]
+    },
+    {
+      "id": "first-run",
+      "label": "Frame 4 — First run, live diff on screen",
+      "kind": "screen",
+      "costSeconds": 40,
+      "requiresConcepts": ["task-claim"],
+      "payoff": 1.0,
+      "hook": 0.6,
+      "attentionElements": 4,
+      "gestalt": {
+        "groupingClarity": 9,
+        "figureGroundClarity": 9,
+        "continuityClarity": 9,
+        "commonRegionClarity": 9
+      }
+    }
+  ]
+}

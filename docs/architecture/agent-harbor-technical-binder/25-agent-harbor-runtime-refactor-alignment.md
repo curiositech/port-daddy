@@ -122,3 +122,51 @@ Read the diagram literally:
   and rebuilds surface projections from the cool bus.
 - A remote Agent Run shows its authority domain, account harbor sync path,
   budget owner, retention policy, revocation controls, and receipt location.
+
+## One-body WorkIntent materialization (source implementation)
+
+`POST /spawn` is now intake for `WorkIntent` plus a daemon-authored `single-node`
+`WorkPlan`. `lib/agent-harbor/work-intent-spawn.ts` replaces its direct spawner
+call with Conductor admission using inherited workspace and no PR publication.
+The explicit `executionKind: single-body` prevents the same intent from also
+materializing as a Dispatch. Legacy verb metadata never chooses execution.
+This bounded materializer does not implement the general multi-node planner.
+
+Admission and plan persistence share a transaction with the existing typed
+`AgentRunReceipt` store. Before the first backend turn, a mandatory witness after
+managed session binding writes linked AgentNode and AgentRun facts, attaching the
+exact session, transcript, intent, plan, and Conductor launch. Environment values
+remain ephemeral; only the request fingerprint is persisted. Supported spawn
+options pass through the Conductor's explicit allowlist.
+
+The HTTP result retains synchronous output and adds `runReceipt`.
+`GET /spawn/receipts/:id` reads the durable observation; canonical WorkIntent
+list/get also projects it as `governed-single-body`. The immutable materialization
+plan is projected as attached, review-ready, canceled or blocked from that
+receipt. A missing receipt and interrupted execution remain unknown/blocked.
+These receipts are execution observations, not signed or sealed WorkReceipts,
+and do not claim a stronger compliance level or independent lifecycle authority.
+
+An optional `Idempotency-Key` identifies one request. Concurrent retries share
+one execution. Changed requests conflict; later retries read the saved receipt
+before dynamic preflight, even when budget/readiness has changed. Across a
+restart, unfinished observations become `unknown` and never authorize automatic
+relaunch. A receipt-only replay does not invent missing historical stdout.
+
+A stop request is acknowledged as requested. Only an observed killed backend
+settles the receipt as canceled; a halted launch followed by unconfirmed late
+success remains unknown. Backend, transcript, canonical binding and managed
+session settlement failures cannot yield a completed receipt. Conductor halt
+preserves the halted launch and releases each reservation once.
+
+Proof boundary: offline injected-route, in-memory ledger, managed-session-double,
+production transcript-bridge and inert-backend tests cover these source paths.
+No local daemon, hook, app or real backend was started for this slice. Installed,
+deployed, restart and whole-product claims still require separately authorized
+runtime evidence.
+
+The transcript bridge binds the admitted session and canonical run before copying
+the first stored prompt into the Harbor timeline. Session-event readback therefore
+uses the same session ID as the receipt; a failure before session admission keeps
+its transcript row without manufacturing a session join. A halt while harbor
+admission is pending is honored by the start witness before the first backend turn.

@@ -1,83 +1,17 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://port-daddy.dev/schemas/agentic-app-spec.schema.json",
-  "title": "Agentic App Architecture Spec",
-  "description": "Describes an agentic LLM application's shape across five architecture axes: interaction transparency, state/history/memory, context & caching economics, capability integration, and execution substrate & side effects.",
-  "type": "object",
-  "required": ["transparency", "stateModel", "contextStrategy", "capabilities", "execution"],
-  "additionalProperties": true,
-  "properties": {
-    "appName": { "type": "string", "description": "Human-readable name of the app being architected." },
-    "transparency": {
-      "type": "object",
-      "description": "Axis 1: interaction surface & transparency of thinking/tool use.",
-      "required": ["thinkingVisible", "toolUseVisible", "planBeforeAct", "interruptible"],
-      "properties": {
-        "thinkingVisible": { "type": "boolean", "description": "Agent reasoning/thinking is streamed or shown to the human, inline or collapsible." },
-        "toolUseVisible": { "type": "boolean", "description": "Tool calls and their results are visible, not hidden behind a bare chat bubble." },
-        "planBeforeAct": { "type": "boolean", "description": "A plan is shown before consequential actions execute." },
-        "interruptible": { "type": "boolean", "description": "The human can interrupt/steer the agent mid-run, not just before it starts." }
-      }
-    },
-    "stateModel": {
-      "type": "object",
-      "description": "Axis 2: state, history & memory beyond the raw conversation transcript.",
-      "required": ["durableHistory", "forking", "rename", "episodicMemory"],
-      "properties": {
-        "durableHistory": { "type": "boolean", "description": "Conversation history persists across process restarts and is resumable." },
-        "forking": { "type": "boolean", "description": "A thread can be forked to explore alternates without destroying the main line." },
-        "rename": { "type": "boolean", "description": "Sessions/threads can be renamed and organized." },
-        "episodicMemory": { "type": "boolean", "description": "Salient facts are promoted to durable memory with TTLs/blob-promotion, recallable by relevance." }
-      }
-    },
-    "contextStrategy": {
-      "type": "object",
-      "description": "Axis 3: context-window budgeting and caching economics.",
-      "required": ["caching", "eviction", "memoryPromotion"],
-      "properties": {
-        "caching": { "type": "boolean", "description": "Prompt caching is used for stable prefixes (system prompt, tool schemas, pinned context)." },
-        "eviction": { "type": "boolean", "description": "Stale turns are evicted or summarized instead of growing the window unbounded." },
-        "memoryPromotion": { "type": "boolean", "description": "Durable facts are promoted out of the context window into memory rather than re-paid-for every turn." }
-      }
-    },
-    "capabilities": {
-      "type": "object",
-      "description": "Axis 4: how the agent gains powers (tools, skills, MCP) and how secrets reach them.",
-      "required": ["tools", "skills", "mcp", "secretCustody"],
-      "properties": {
-        "tools": { "type": "boolean", "description": "The agent has tool-use capability (function calling / tool schemas)." },
-        "skills": { "type": "boolean", "description": "The agent has progressive-disclosure skill packs available." },
-        "mcp": {
-          "type": "object",
-          "required": ["coreSize", "perProjectSpecialists"],
-          "properties": {
-            "coreSize": { "type": "integer", "minimum": 0, "description": "Number of MCP servers always loaded globally (the always-on core)." },
-            "perProjectSpecialists": { "type": "boolean", "description": "Project-specific MCP servers are configured per-project rather than folded into the global core." }
-          }
-        },
-        "secretCustody": {
-          "type": "object",
-          "required": ["mode"],
-          "properties": {
-            "mode": {
-              "type": "string",
-              "enum": ["hidden-stdin", "secret-store", "env-scoped", "argv", "inline", "none"],
-              "description": "How secrets reach tool invocations. hidden-stdin/secret-store/env-scoped are safe; argv/inline/none are not."
-            }
-          }
-        }
-      }
-    },
-    "execution": {
-      "type": "object",
-      "description": "Axis 5: where the agent's actions land and how side effects are gated.",
-      "required": ["agentType", "isolation", "sideEffectHumanGate", "artifactReceipts"],
-      "properties": {
-        "agentType": { "type": "string", "enum": ["coding", "non-coding"], "description": "Whether the agent's substrate is a code repo or a non-coding artifact/side-effect surface." },
-        "isolation": { "type": "boolean", "description": "Coding: per-writer worktree/branch isolation. Non-coding: sandboxed execution for side effects." },
-        "sideEffectHumanGate": { "type": "boolean", "description": "Irreversible or outward-facing actions require an explicit human checkpoint before executing." },
-        "artifactReceipts": { "type": "boolean", "description": "Side-effecting work produces a durable, artifact-backed receipt." }
-      }
-    }
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "$id":"https://port-daddy.dev/schemas/agentic-app-spec.schema.json",
+  "title":"Agentic App Architecture Declaration",
+  "description":"A design-time declaration. Validity checks supplied fields; it does not prove deployment, enforcement, provider behavior, or account state.",
+  "type":"object",
+  "additionalProperties":true,
+  "required":["appName","transparency","stateModel","contextStrategy","capabilities","execution"],
+  "properties":{
+    "appName":{"type":"string","pattern":"\\S"},
+    "transparency":{"type":"object","required":["actionDisclosure","evidenceDisclosure","uncertaintyDisclosure","privateReasoningPolicy","interruptMode","rationale"],"properties":{"actionDisclosure":{"enum":["not-applicable","summary","detailed"]},"evidenceDisclosure":{"enum":["not-applicable","summary","detailed"]},"uncertaintyDisclosure":{"enum":["not-applicable","summary","detailed"]},"privateReasoningPolicy":{"enum":["not-requested","redacted-summary-only"]},"interruptMode":{"enum":["not-applicable","before-dispatch","between-steps","mid-run"]},"rationale":{"type":"string","pattern":"\\S"}}},
+    "stateModel":{"type":"object","required":["conversationTranscript","durableTaskState","userMemory","provenanceEvidence","retention","restoreForkPolicy","rationale"],"properties":{"conversationTranscript":{"enum":["used","not-applicable"]},"durableTaskState":{"enum":["used","not-applicable"]},"userMemory":{"enum":["used","not-applicable"]},"provenanceEvidence":{"enum":["used","not-applicable"]},"retention":{"type":"string","pattern":"\\S"},"restoreForkPolicy":{"type":"string","pattern":"\\S"},"rationale":{"type":"string","pattern":"\\S"}}},
+    "contextStrategy":{"type":"object","required":["strategies","rationale"],"properties":{"strategies":{"type":"array","minItems":1,"items":{"enum":["bounded-input","provider-cache","eviction-or-summary","memory-promotion"]},"uniqueItems":true},"providerCache":{"type":"object","required":["provider","modelOrFamily","documentationUrl","checkedOn"],"properties":{"provider":{"type":"string","pattern":"\\S"},"modelOrFamily":{"type":"string","pattern":"\\S"},"documentationUrl":{"type":"string","pattern":"^https://[^/]+"},"checkedOn":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$"}}},"rationale":{"type":"string","pattern":"\\S"}}},
+    "capabilities":{"type":"object","required":["tools","skills","mcp","secretCustody","rationale"],"properties":{"tools":{"enum":["used","not-applicable"]},"skills":{"enum":["used","not-applicable"]},"mcp":{"type":"object","required":["status","rationale"],"properties":{"status":{"enum":["used","not-applicable"]},"coreSize":{"type":"integer","minimum":0},"perProjectSpecialists":{"type":"boolean"},"rationale":{"type":"string","pattern":"\\S"}}},"secretCustody":{"type":"object","required":["required","mode","scope","rationale"],"properties":{"required":{"type":"boolean"},"mode":{"enum":["not-applicable","secret-store-reference","scoped-environment","stdin","argv","inline"]},"scope":{"type":"string","pattern":"\\S"},"rationale":{"type":"string","pattern":"\\S"}}},"rationale":{"type":"string","pattern":"\\S"}}},
+    "execution":{"type":"object","required":["agentType","effectClass","isolation","control","authority","receiptPolicy","rationale"],"properties":{"agentType":{"enum":["coding","non-coding"]},"effectClass":{"enum":["none","reversible-local","external-or-irreversible"]},"isolation":{"enum":["not-applicable","declared"]},"control":{"type":"object","required":["kind","rationale"],"properties":{"kind":{"enum":["not-applicable","automated-policy","human-approval"]},"rationale":{"type":"string","pattern":"\\S"}}},"authority":{"type":"string","pattern":"\\S"},"receiptPolicy":{"type":"string","pattern":"\\S"},"rationale":{"type":"string","pattern":"\\S"}}}
   }
 }

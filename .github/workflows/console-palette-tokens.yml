@@ -1,0 +1,59 @@
+name: Console Palette Tokens
+
+# Guards core/pd-console/src/palette.rs (the GPU console's Rust color roles)
+# against the website's semantic design tokens
+# (website-v2/src/styles/tokens.semantic.css, tokens.roles.css). The two are
+# supposed to agree — see the module comment on `Theme` in palette.rs — and
+# nothing enforced that until this workflow: the check script
+# (website-v2/scripts/check-console-palette-tokens.mjs) existed and was wired
+# to `npm run test:console-palette`, but no workflow ever invoked it, so it
+# rotted red on main after a legitimate console restructure moved the tokens
+# it was pinned to.
+#
+# Dependency-free (node:fs/node:path only), so no `npm ci` here — just Node
+# and the script.
+#
+# Queue-safe by the same reasoning as whitepaper-metadata.yml: `merge_group:`
+# below carries NO path filter. A path-filtered workflow produces no check
+# context when the paths don't match, so if this became a required check, a
+# queued PR that doesn't touch these paths would hang the merge queue waiting
+# for a context that never appears. Running unconditionally on every
+# merge_group keeps it queue-safe; the check itself is a few milliseconds.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/pd-console/src/palette.rs'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/src/styles/tokens.roles.css'
+      - 'website-v2/scripts/check-console-palette-tokens.mjs'
+      - 'website-v2/package.json'
+      - '.github/workflows/console-palette-tokens.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'core/pd-console/src/palette.rs'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/src/styles/tokens.roles.css'
+      - 'website-v2/scripts/check-console-palette-tokens.mjs'
+      - 'website-v2/package.json'
+      - '.github/workflows/console-palette-tokens.yml'
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  console-palette-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: pd-console palette matches the website's semantic tokens
+        run: node website-v2/scripts/check-console-palette-tokens.mjs

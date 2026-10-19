@@ -1,0 +1,66 @@
+{
+  "dag-planner": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/dag-planner/SKILL.md",
+    "sha256": "da3561a0d8a1ad6b4e921b6ff081390e643cb16c39012e50e2e7ac9738868725",
+    "headings": [
+      "# DAG Planner",
+      "## Decision Points",
+      "### 1. When to decompose a task into DAG nodes",
+      "### 2. Choosing node types by certainty level",
+      "### 3. Determining granularity (critical decision)",
+      "### 4. Handling conflicts and dependencies",
+      "### 5. Dynamic modification triggers",
+      "## Failure Modes",
+      "### Schema Drift",
+      "### Circular Dependency Trap",
+      "### Granularity Explosion  ",
+      "### Ghost Dependencies",
+      "### Wave Starvation",
+      "## Worked Examples",
+      "### Example 1: Simple Analysis Task",
+      "### Example 2: Complex Research Task",
+      "### Example 3: Dynamic Replanning Scenario  ",
+      "## Quality Gates",
+      "## NOT-FOR Boundaries"
+    ],
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "dag-dynamic-replanner": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/dag-dynamic-replanner/SKILL.md",
+    "sha256": "400a2e822010e16c041bb25464f3e50fea56b9fae1828066671c13b552e62639",
+    "headings": [
+      "## Decision Points",
+      "## Failure Modes",
+      "## Worked Examples",
+      "### Example 1: Mid-Workflow New Requirement",
+      "### Example 2: Cascading Failure Recovery",
+      "### Example 3: Resource Constraint Forcing Rewire",
+      "## Quality Gates",
+      "## NOT-FOR Boundaries"
+    ],
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "dag-task-scheduler": {
+    "path": "/Users/erichowens/coding/tmp/agent-skills-expansion-20260924/skills/dag-task-scheduler/SKILL.md",
+    "sha256": "3ab4c6678d07598b9127ecf5da52ac00c21060b8f72900d3ba8d86451ad80aa1",
+    "headings": [
+      "## DECISION POINTS",
+      "### 1. Resource Contention Resolution",
+      "### 2. Wave Overflow Handling",
+      "### 3. Priority Conflicts",
+      "### 4. Runtime Adaptation Triggers",
+      "## FAILURE MODES",
+      "## WORKED EXAMPLES",
+      "### Example: Research Pipeline Scheduling",
+      "## QUALITY GATES",
+      "## NOT-FOR BOUNDARIES"
+    ],
+    "files": [
+      "SKILL.md"
+    ]
+  }
+}

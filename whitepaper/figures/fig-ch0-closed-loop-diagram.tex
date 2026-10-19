@@ -1,0 +1,69 @@
+% fig-ch0-closed-loop-diagram.tex -- redrawn to the house figure language (v2).
+% Reader question: what flows between the three tiers, and which tier is
+% the authority?
+% Claim: three architectural tiers separate probabilistic deliberation from
+% deterministic kernel coordination. Intent descends from deliberation
+% through confined execution into governance, which verifies capability and
+% commits an attestation; receipts ascend the same path back. Governance is
+% the authority -- it is the one tier that can refuse.
+% Grammar chosen: a block stack (tpl-block-stack.tex) of three full-width
+% bands, heaviest (focus-filled) at governance, with the loop drawn as two
+% margin arrows -- intent down the left, receipts up the right -- each
+% carrying one numbered badge keyed to a two-row legend, rather than
+% repeating the loop at every tier boundary.
+% Rejected: the three-banner-card illustration this fragment used to be
+% (a blue "DELIBERATION LAYER" banner over a context-buffer icon, an
+% open-book-with-code icon, a checkmark-and-lock "Output Validation Gate"
+% pill; a slate "EXECUTION LAYER" banner over a shield-and-lock "Seatbelt
+% Sandbox Enclave," a terminal-and-gear icon, a "Spend Cap Monitor" pill; a
+% navy "GOVERNANCE LAYER" banner over a padlock-sealed "Evidence Ledger"
+% pill and two gold "TCB" pills) -- the banners and pills recolor the same
+% three tiers four more times without adding a fact a plain band and a
+% short label list do not already carry.
+% Facts: whitepaper/chapter-0-prerequisites.tex Sec. "Closed-Loop
+% Attestation and Execution Verification" and its \pdwidecaption for
+% fig:pre-agent-loop (the three tiers, their contents, and the governance
+% tier's authority).
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\w{9.50}   \def\h{1.55}
+  \def\R{13.60}  % legend rule width
+  \begin{scope}[xshift=1.65cm]
+  \foreach \i/\name/\gives/\s in {%
+    2/{deliberation}/{LLM reasoning, context buffer, output validation}/{pd neutral fill},
+    1/{execution}/{seatbelt sandbox, host subprocess, spend cap}/{pd neutral fill},
+    0/{governance}/{WAL ledger, capability checks, Merkle attestation}/{pd focus fill}}{
+      \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
+      \node[pd title,anchor=west] at (0.22,{\i*\h+\h/2}) {\name};
+      \node[pd label,anchor=east,text width=4.6cm,align=right]
+        at ({\w-.22},{\i*\h+\h/2}) {\gives};}
+  \draw[pd rule] (0,0) rectangle (\w,{3*\h});
+  \draw[pd hairline] (0,\h) -- (\w,\h);
+  \draw[pd hairline] (0,{2*\h}) -- (\w,{2*\h});
+  % ---- the loop: intent descends on the left, receipts ascend the right --
+  \draw[pd focus arrow] (-1.00,{3*\h-.15}) -- (-1.00,.15);
+  \node[pd badge] at (-1.00,{1.5*\h}) {1};
+  \node[pd focus label,rotate=90] at (-1.55,{1.5*\h}) {intent};
+  \draw[pd focus arrow] ({\w+1.00},.15) -- ({\w+1.00},{3*\h-.15});
+  \node[pd badge] at ({\w+1.00},{1.5*\h}) {2};
+  \node[pd focus label,rotate=90] at ({\w+1.55},{1.5*\h}) {receipts};
+  \end{scope}
+  % ---- the legend: each arrow, what it carries -----------------------------
+  \def\ly{-0.80}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {flow};
+  \node[pd title,anchor=north west] at (2.15,{\ly-.30}) {direction};
+  \node[pd title,anchor=north west] at (5.55,{\ly-.30}) {carries};
+  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\h/\l/\s in {%
+    0/1/{intent}/{deliberation $\to$ governance}/{a proposed action, checked against capability and leased scope before any syscall},
+    1/2/{receipts}/{governance $\to$ deliberation}/{the signed WAL entry and Merkle attestation the action committed}}{
+      \node[pd badge] at (.28,{\ly-1.35-\i*1.00}) {\n};
+      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*1.00}) {\h};
+      \node[pd label,anchor=base west,align=left,text width=3.15cm] at (2.15,{\ly-1.35-\i*1.00}) {\l};
+      \node[pd label,anchor=base west,align=left,text width=7.80cm] at (5.55,{\ly-1.35-\i*1.00}) {\s};}
+  \node[pd note,anchor=north west,text width=13.0cm] at (.05,{\ly-1.35-1*1.00-.60})
+    {governance is the one tier that can refuse: it is the only authority
+    that turns an intent into either an attestation or a rejection.};
+\end{tikzpicture}

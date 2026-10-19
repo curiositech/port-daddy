@@ -32,7 +32,7 @@ export function LibraryBanner() {
             height={2300}
             loading="lazy"
             decoding="async"
-            alt="Jacket of The Harbor, the Person, and the Economy"
+            alt="Jacket of Governing AI Agents: The Harbor, the Person, and the Economy"
             className="block h-auto w-[96px] shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-strong)] sm:w-[168px]"
           />
           <div className="grid min-w-0 flex-1 gap-x-[var(--space-5)] gap-y-[var(--space-2)] py-[var(--space-3)] sm:grid-cols-2 sm:items-center sm:py-[var(--space-2)]">

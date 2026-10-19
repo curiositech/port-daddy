@@ -1,0 +1,79 @@
+% Redraw of fig-ch0-cnp-protocol to the tikz-diagram-craft standard (Book figure
+% language v2): a message-sequence ladder in place of two infographic panels.
+% Brief.
+%  Reader question: who sends what to whom, in what order, and where does the
+%    money move?
+%  Claim: a Manager broadcasts one call for proposals; contractors answer with a
+%    bid or an explicit refusal; one bid wins an exclusive worktree lease;
+%    execution yields content-addressed diff receipts and a verified test, and
+%    only those receipts unlock the escrow settlement (the one gold arrow).
+%  Evidence: whitepaper/chapter-0-prerequisites.tex, the Contract Net Protocol
+%    subsection (Smith 1980) and the figure it replaces (payloads kept in the
+%    legend: task build-kernel-ffi, lease token 0x09b, rep 0.98, rep +0.02).
+%  Must distinguish: broadcast vs reply; bid vs refusal; the award (the one
+%    exclusive grant) vs the settlement (the one payment); contractors never
+%    address each other.
+%  Grammar: message-sequence ladder, Manager in the centre so the broadcast fans
+%    out with no lifeline crossed. Rejected: the two-panel card flow it replaces,
+%    which reads as a pipeline and hides that a refusal is a message, not silence.
+%  Five-second test: "the manager calls, one contractor bids, one refuses, the
+%    winner gets the lease, and the gold arrow is paid only after the receipts."
+% Wrapper: a minipage at the full measure so the legend stacks under the picture
+% inside the chapter's \pdpagecentered box (an LR box).
+\begin{minipage}{\pdfullwidth}\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % a comma-joined style list cannot live inside a \foreach macro field (the
+  % node-options parser splits on RAW commas before macro expansion, so a
+  % macro holding "roleA,roleB" is read back as one literal unknown key); a
+  % named compound style is the fix, composed only from existing pd roles.
+  \tikzset{
+    pd breach badge/.style={pd badge,pd breach fill},
+    pd legible badge/.style={pd badge,pd legible fill},
+    pd value badge/.style={pd badge,pd value fill},
+    pd value focus arrow/.style={pd value rule,->},
+  }
+  % ---- one grid, declared once ---------------------------------------------
+  \def\dy{1.05}    % message pitch
+  \def\gap{5.30}   % lifeline spacing: contractor 1 | manager | contractor 2
+  \def\yo{-1.35}   % centre line of message 1
+  % ---- heads and lifelines -------------------------------------------------
+  \foreach \i/\name in {0/Contractor 1, 1/Manager, 2/Contractor 2}{
+    \node[pd state,minimum width=2.7cm] (h\i) at ({\i*\gap},0) {\name};
+    \draw[pd guide] ({\i*\gap},-0.52) -- ({\i*\gap},{\yo-5*\dy-0.80});}
+  % ---- messages: from, to, number, arrow, badge -----------------------------
+  % Every arrow slopes forward in time (tail above head).  Hue is meaning:
+  % ink = ordinary traffic, focus = the award, red dashed = the refusal,
+  % teal = evidence, gold = the only payment.  What each numbered message IS
+  % lives once, in the ruled legend below -- not repeated as a word on the
+  % arrow too (S7: a relation word beside its edge, never stacked on a badge
+  % that already carries a legend entry).
+  \foreach \a/\b/\k/\s/\bs in {%
+    1/0/1/{pd arrow}/{pd badge},
+    1/2/1/{pd arrow}/{pd badge},
+    0/1/2/{pd arrow}/{pd badge},
+    2/1/3/{pd breach arrow}/{pd breach badge},
+    1/0/4/{pd focus arrow}/{pd focus badge},
+    0/1/5/{pd legible arrow}/{pd legible badge},
+    1/0/6/{pd value focus arrow}/{pd value badge}}{
+      \pgfmathsetmacro{\yk}{\yo-(\k-1)*\dy}
+      \pgfmathsetmacro{\xm}{(\a+\b)*\gap/2}
+      \node[\bs] (m\a\b\k) at ({\xm},{\yk}) {\k};
+      \draw[\s,-,pd to badge]  ({\a*\gap},{\yk+0.12}) -- (m\a\b\k);
+      \draw[\s,pd from badge]  (m\a\b\k) -- ({\b*\gap},{\yk-0.12});}
+\end{tikzpicture}
+\par\vspace{4pt}
+\footnotesize
+\begin{tabular}{@{}c l l@{}}
+\toprule
+\# & message & payload \\
+\midrule
+1 & call for proposals & task \texttt{build-kernel-ffi}; spend cap \$0.00; tools \texttt{cargo}, \texttt{git}, \texttt{seatbelt} \\
+2 & bid & eta 12\,min; cost \$0.00; reputation 0.98 \\
+3 & refusal & lock contention --- the contractor is busy \\
+4 & award & exclusive worktree lease, token \texttt{0x09b} \\
+5 & receipts & content-addressed diff plus a signed oracle test run \\
+6 & settlement & escrow closes atomically; reputation $+0.02$ \\
+\bottomrule
+\end{tabular}
+\end{minipage}

@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Dockmaster wooden tally board with pegged ivory counters and one cobalt blue marker peg. Analogy for discrete unit economics per executed agent run.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "fb6ea05896cf64c5f7da046e686b2e63fdea8756c3fbfd1b0354267bd71462ef",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

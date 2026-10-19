@@ -23,6 +23,7 @@
   },
   "include": [
     "lib/**/*.ts",
+    "lib/github-publisher-stamp.mjs",
     "routes/**/*.ts",
     "shared/**/*.ts",
     "bin/**/*.ts",

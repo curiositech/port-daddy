@@ -30,7 +30,7 @@ The paper's taxonomy (Table 1, p. 16) describes situations involving incompatibl
 
 **Why it's worse than Situation 2b**: At least in 2b, the agent got *something* from deliberation (a marginally better option). Here, the agent gets *nothing* — it spends resources to confirm what it already knew.
 
-**Diagnostic**: Track deliberations that don't result in plan changes. If deliberation frequently (>30%?) results in confirming the original plan, your override mechanism is triggering on false alarms.
+**Diagnostic**: Track deliberations that don't result in plan changes. If deliberation often confirms the original plan, test whether the observed rate predicts excess delay or rework for this task class; no fixed percentage is a universal threshold.
 
 **For agent systems**: An agent reconsiders its implementation approach, spends time evaluating alternatives, and concludes "my original approach was best." This happens when override rules are too coarse — they detect potential problems that aren't actual problems.
 

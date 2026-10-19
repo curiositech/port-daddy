@@ -1,0 +1,71 @@
+% Redraw of fig-swk-race-dramatization to the tikz-diagram-craft standard
+% (v2): a message-sequence ladder in place of a hand-placed 3-column
+% convergence diagram sized to a 6.6cm canvas that forced the Book's safety
+% net to shrink its labels under the 7pt floor.
+% Brief.
+%  Reader question: two agents race for the same port a millisecond apart --
+%    who wins, and what does the loser actually learn?
+%  Claim: the single-writer kernel serializes both acquires through one
+%    connection; the first insert wins and is granted the port; the second
+%    hits the primary-key uniqueness constraint and is rejected atomically,
+%    with the active holder's identity and lease handed back, not a bare
+%    error.
+%  Evidence: whitepaper/single-writer-kernel.tex sec:resource, alg:acquire,
+%    and the chapter's own worked dramatization paragraph above the figure.
+%  Must distinguish: the two requests (symmetric, both "acquire") from the
+%    two outcomes (asymmetric: one grant, one conflict carrying the winner's
+%    identity).
+%  Grammar: message-sequence ladder, three lifelines (claude:worker-1,
+%    Kernel, codex:bench), so the kernel sits where both requests converge
+%    and both outcomes diverge. Rejected: the original free-coordinate
+%    two-lane convergence diagram -- its 6.6cm-tall canvas triggered the same
+%    shrink-to-fit safety net as its sibling figure, landing every label
+%    under the 7pt floor (T1).
+%  Five-second test: "both ask at once; one gets 201, the other gets 409 and
+%    the winner's name."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pd ready badge/.style={pd badge,pd ready fill},
+    pd breach badge/.style={pd badge,pd breach fill},
+  }
+  % ---- one grid, declared once ---------------------------------------------
+  \def\dy{1.20}    % message pitch
+  \def\gap{3.00}   % lifeline spacing: worker-1 | Kernel | bench -- kept well
+                   % inside the column so the margin-set caption has room.
+  \def\yo{-1.55}   % centre line of message 1
+  % ---- heads and lifelines -------------------------------------------------
+  \foreach \i/\name in {0/claude:worker-1, 1/Kernel, 2/codex:bench}{
+    \node[pd state,minimum width=2.55cm] (h\i) at ({\i*\gap},0) {\name};
+    \draw[pd guide] ({\i*\gap},-0.52) -- ({\i*\gap},{\yo-3*\dy-0.80});}
+  % ---- messages: from, to, number, arrow, badge -----------------------------
+  % Both requests are ordinary traffic (plain arrow); the kernel's two
+  % verdicts carry the meaning -- ready (granted) and breach (refused).
+  \foreach \a/\b/\k/\s/\bs in {%
+    0/1/1/{pd arrow}/{pd badge},
+    2/1/2/{pd arrow}/{pd badge},
+    1/0/3/{pd ready arrow}/{pd ready badge},
+    1/2/4/{pd breach arrow}/{pd breach badge}}{
+      \pgfmathsetmacro{\yk}{\yo-(\k-1)*\dy}
+      \pgfmathsetmacro{\xm}{(\a+\b)*\gap/2}
+      \node[\bs] (m\a\b\k) at ({\xm},{\yk}) {\k};
+      \draw[\s,-,pd to badge]  ({\a*\gap},{\yk+0.14}) -- (m\a\b\k);
+      \draw[\s,pd from badge]  (m\a\b\k) -- ({\b*\gap},{\yk-0.14});}
+\end{tikzpicture}
+\par\vspace{4pt}
+\footnotesize
+\begin{tabular}{@{}c l p{6.0cm}@{}}
+\toprule
+\# & message & payload \\
+\midrule
+1 & acquire & pid 9421, $t = 0.000$\,s \\
+2 & acquire & pid 9428, $t = +0.001$\,s \\
+3 & granted & \texttt{201 Created}; lease \texttt{tk\_94a2} (60\,s) \\
+4 & conflict & \texttt{409}; holder \texttt{claude:worker-1}; fallback 7422 \\
+\bottomrule
+\end{tabular}
+\caption{A primary-key uniqueness constraint serializes the race: the kernel grants the first insert and returns the active holder atomically to the loser. [internal, alg:acquire]}
+\label{fig:swk-race-dramatization}
+\end{figure}

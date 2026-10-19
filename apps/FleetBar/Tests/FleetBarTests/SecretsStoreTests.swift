@@ -269,6 +269,7 @@ final class SecretsStoreTests: XCTestCase {
             autoStart: false,
             baseURL: "http://127.0.0.1:9999",
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             pasteboard: board,
             clipboardTTL: 45,
             revealTTL: 30,
@@ -329,6 +330,7 @@ final class SecretsStoreTests: XCTestCase {
             autoStart: false,
             baseURL: "http://127.0.0.1:9999",
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             pasteboard: FakePasteboard(),
             clipboardTTL: 20,
             revealTTL: 30
@@ -434,6 +436,7 @@ final class SecretsStoreTests: XCTestCase {
             autoStart: false,
             baseURL: "http://127.0.0.1:9999",
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             pasteboard: pasteboard
         )
     }

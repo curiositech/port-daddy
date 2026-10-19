@@ -1,0 +1,42 @@
+% TEMPLATE: Quantitative PGFPlots Chart with Operating Regimes
+% Standard: Harbor Figure Language v2 (Swiss typography, standard weight ladder)
+% Clearance Invariants: Direct line labeling (no legend box), clip mode=individual.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  pd axis,
+  width=11.4cm,
+  height=6.2cm,
+  xmin=0, xmax=100,
+  ymin=0, ymax=100,
+  xlabel={System Load / Active Leases (\%)},
+  ylabel={Coordination Latency ($\mu$s)},
+  clip mode=individual,
+  clip=false
+]
+  % 1. Regime Shading (Safe Zone vs Contention Zone)
+  \fill[fill=pdcobalt!6] (axis cs:0,0) rectangle (axis cs:70,100);
+  \node[font=\pdfiglabelsize, text=pdcobalt, align=center] at (axis cs:35,90) {\textbf{Uncontested Regime}\\[1pt]{\pdfigsub $\rho < 0.70$}};
+
+  \fill[fill=pderror!6] (axis cs:70,0) rectangle (axis cs:100,100);
+  \node[font=\pdfiglabelsize, text=pderror, align=center] at (axis cs:85,88) {\textbf{Contention}\\[1pt]\textbf{Regime}};
+
+  % 2. Critical Threshold Line & Label
+  \draw[pd breach rule, dashed] (axis cs:70,0) -- (axis cs:70,100);
+  \node[anchor=south, font=\pdfiglabelsize, text=pderror] at (axis cs:70,101) {Threshold $\rho^* = 0.70$};
+
+  % 3. Curves with Direct Endpoint Labels
+  % Baseline Uncoordinated System (Exponential Blowup)
+  \addplot[pd rule, draw=pderror, line width=0.9pt, domain=0:74, smooth] {12 + 0.015*x^2};
+  \node[anchor=south east, font=\pdfiglabelsize, text=pderror] at (axis cs:58,66) {Uncoordinated};
+
+  % Single-Writer Kernel (Serialized Constant Service Time)
+  \addplot[pd focus rule, draw=pdcobalt, line width=1.6pt, domain=0:90, smooth] {14 + 0.18*x};
+  \node[anchor=south west, font=\pdfiglabelsize, text=pdcobalt] at (axis cs:25,20) {\textbf{Kernel (Serialized WAL)}};
+\end{axis}
+\end{tikzpicture}
+\caption{Coordination latency across system utilization. Below the critical threshold $\rho^* = 0.70$, uncoordinated retries exhibit quadratic latency cascades. The single-writer kernel maintains deterministic linear service times across high concurrency. [template, Quantitative Plot]}
+\label{fig:template-pgfplots-regime}
+\end{figure}

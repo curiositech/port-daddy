@@ -1,8 +1,8 @@
 # References
 
-Load only the file that matches the question in front of you.
-
-- `discourse-topologies.md`: discourse topologies — when to parley, when to keep agents on independent work.
-- `parley-protocol-rcp3.md`: after-wave reconvention protocol — peer-output observation, vague-node negotiation, and contract-net typed proposals.
-- `tentative-commitment-signals.md`: commitment levels as per-turn briefing signals — COMMITTED / TENTATIVE / EXPLORATORY.
-- `wave-execution-model.md`: transitive-closure wave scheduling versus plain topological sort.
+- method-boundaries.md: Smith, FIPA, and local-protocol boundary.
+- wave-execution-model.md: all-wave evidence and non-success outcomes.
+- tentative-commitment-signals.md: local label and revision boundary.
+- discourse-topologies.md: optional evidence-gathering shapes.
+- parley-protocol-rcp3.md: custom protocol sketch, not FIPA conformance.
+- schema-enforcement.md: Ajv 8 Draft 2020 structural gate and declaration/admission distinction.

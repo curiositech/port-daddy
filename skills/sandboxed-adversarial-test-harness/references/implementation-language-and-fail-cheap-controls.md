@@ -271,7 +271,7 @@ zero-packet test, not a setting label.
 
 ## Real-provider fail-cheap contract
 
-The T3 broker is a separate signed package and process. It holds one run-scoped
+The T3A billable broker is a separate signed package and process. It holds one run-scoped
 credential for one dedicated provider account/project/payment cell. The internal
 ledger limits protocol authority. A provider control limits actual loss only when
 its documented and measured overshoot is included in the approved exposure.
@@ -287,10 +287,10 @@ not interchangeable guarantees.
 
 If the provider cannot supply a dedicated cell, a stable worst-case unit price,
 and a finite measured or documented overshoot bound, mark
-`financialCustody: unproven` and deny T3. T0-T2 remain available. Never convert an
+`financialCustody: unproven` and deny T3A. T0-T2 remain available. Never convert an
 unknown overshoot into a generous safety margin.
 
-Initial T3 limits are intentionally severe:
+Initial T3A limits are intentionally severe:
 
 | Dimension | First canary |
 |---|---:|
@@ -432,7 +432,9 @@ from a cache is not receipt proof.
 - [ ] Every authoring or promotion path is a fresh linked worktree on a
       non-default branch, and before/after receipts prove canonical HEAD, index,
       worktree, untracked inventory, object store, and refs unchanged.
-- [ ] First T3 has one request, one attempt, no tool, one dedicated custody cell, and a durable forced-open path.
+- [ ] First T3A has one request, one attempt, no tool, one dedicated custody cell, and a durable forced-open path.
+- [ ] First T3B has one request, one attempt, no tool, schema-valid native-unit
+      evidence, an atomic p95-plus-checkpoint-tail reservation, and no hard-cash-cap claim.
 - [ ] No automatic refill, promotion, breaker half-open, agent spawn, or retry exists.
 - [ ] Switchboard can revoke and kill without Observatory or guest cooperation.
 - [ ] Every UI claim zooms to immutable evidence and stale/unknown never appears healthy.

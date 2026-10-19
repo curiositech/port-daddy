@@ -62,7 +62,7 @@ const MAX_CATALOG_FILES = 2_000;
 const MAX_TRANSACTION_FILES = 12_000;
 const MAX_TRANSACTION_BYTES = 256 * 1024 * 1024;
 const NATIVE_PROOF_MAX_AGE_MS = 60 * 60 * 1_000;
-export const NATIVE_JURY_RIG_HOOK_SHA256 = '3b56048547ed0115659138ac387aac8038b2ba564f1b070e12f274d45dd706bd';
+export const NATIVE_JURY_RIG_HOOK_SHA256 = 'c16fb82aeb5eada43068203bb46622565ccff4b32506ccb911d477663751436e';
 // Preserve one-way removal without retaining the retired product token in the tree.
 const LEGACY_NAME = ['win', 'dags'].join('');
 const AUTHORITY_KEYCHAIN_ACCOUNT = 'master-key';

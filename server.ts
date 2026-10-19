@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import './lib/runtime-entry-guard.js';
+
 /**
  * Port Daddy - Semantic Port Management Service
  *
@@ -50,7 +52,7 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
-import { createHaltWatch, haltSentinelPath, distressFilePath } from './lib/halt-watch.js';
+import { createHaltWatch, haltSentinelPath, distressFilePath, runHaltStopPlan } from './lib/halt-watch.js';
 import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
@@ -78,6 +80,7 @@ import { buildHandoffFromTranscript } from './lib/dispatch/handoff-from-transcri
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createWorkIntentSpawn } from './lib/agent-harbor/work-intent-spawn.js';
 import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
 import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
@@ -955,6 +958,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 // ownership remains in the existing session store, not this physical recheck map.
 const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
+  runtimeAllowed: () => !haltWatch.check(),
   costTracker, counters, bonds, harbors, transcripts,
   harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
@@ -1224,6 +1228,7 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 // publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
 const dispatchQueue = createDispatchQueue({ db });
 const workIntentService = createWorkIntentService({ db });
+const workIntentSpawn = createWorkIntentSpawn({ db, workIntentService, conductor });
 const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
 const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
 const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
@@ -1249,6 +1254,7 @@ const DISPATCH_FAILOVER_CHAIN = (process.env.PD_DISPATCH_FAILOVER_CHAIN ?? '')
 
 const dispatchWorker = DISPATCH_WORKER_ENABLED
   ? createDispatchWorker({
+      runtimeAllowed: () => !haltWatch.check(),
       queue: dispatchQueue,
       logger,
       maxConcurrency: DISPATCH_CONCURRENCY,
@@ -1278,7 +1284,6 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       spawnAdapter: createConductorSpawnAdapter(conductor),
     })
   : null;
-if (dispatchWorker) dispatchWorker.start();
 
 // ── Auto-merge sweep (merge_policy='auto') ──────────────────────────────────
 // A DIFFERENT loop from the dispatch worker above: this one doesn't run
@@ -1296,6 +1301,7 @@ const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMer
 let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
 if (DISPATCH_AUTOMERGE_ENABLED) {
   const tick = () => {
+    if (haltWatch.check()) return;
     runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
       if (result.merged.length > 0 || result.errors.length > 0) {
         logger.info('dispatch_auto_merge_sweep', {
@@ -1367,6 +1373,7 @@ const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
 // Fleet daemon — always-on fleet subsystem (multi-project)
 const fleetDaemon = createFleetDaemon({
+  runtimeAllowed: () => !haltWatch.check(),
   projects,
   messaging,
   tuples,
@@ -1408,10 +1415,28 @@ const haltWatch = createHaltWatch({
   logger,
   onHalt: (halt) => {
     logger.warn('halt_entered', { ref: halt.ref, line: halt.line });
-    if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
-    try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
-    if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
-    try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
+    runHaltStopPlan([
+      { name: 'cleanup sweep', stop: () => {
+        if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
+      } },
+      { name: 'dispatch worker', stop: () => { dispatchWorker?.stop(); } },
+      { name: 'auto-merge sweep', stop: () => {
+        if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
+      } },
+      { name: 'fleet daemon', stop: () => { fleetDaemon.stop(); } },
+      { name: 'active backends', stop: () => {
+        // Existing cancellation is not proof of OS-wide containment or
+        // reversal of accepted remote spend.
+        for (const agent of spawner.list()) {
+          if (agent.status === 'running') spawner.kill(agent.agentId);
+        }
+      } },
+    ], (name, error) => {
+      logger.warn('halt_stop_failed', {
+        component: name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   },
 });
 
@@ -1851,7 +1876,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, workIntentSpawn, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
     contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
@@ -1969,6 +1994,9 @@ cleanupTimer = setInterval(() => cleanupStale(), config.cleanup.interval_ms);
 // hoisted flag is `halted` — sweeps off, SEEN/COMPLIED written — before it
 // serves a single request.
 haltWatch.start();
+// Dispatch start performs immediate recovery and polling. Never admit it before
+// the halt watch has synchronously checked every canonical/selected Off marker.
+if (!haltWatch.check()) dispatchWorker?.start();
 
 setInterval(() => {
   const now = Date.now();
@@ -2034,6 +2062,10 @@ function shutdown(signal: string): void {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGHUP', () => {
+  if (haltWatch.check()) {
+    logger.warn('fleet_reload_refused_local_off');
+    return;
+  }
   logger.info('sighup_received', { action: 'fleet_reload' });
   try {
     fleetDaemon.reload();

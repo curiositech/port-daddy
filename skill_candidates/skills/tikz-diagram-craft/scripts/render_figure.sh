@@ -34,8 +34,15 @@
 # Exit status: 0 when precheck, compile and figcheck all pass; non-zero on the
 # first failure, with the failing step named on stderr.
 #
-# Requires: bash, python3 with pymupdf, and a tectonic on PATH (export
-# TECTONIC_CACHE_DIR first to reuse a warm cache).
+# Requires: bash, python3 with pymupdf, and a TeX engine. The compile is done
+# by harbor-chartwork's compile_fragment.sh, which resolves its own engine:
+# tectonic when one is on PATH (export TECTONIC_CACHE_DIR first to reuse a warm
+# cache), otherwise a local TeX Live through `latexmk -xelatex`. Nothing here
+# needs tectonic specifically. The local fallback does NOT auto-fetch packages,
+# so a missing .sty is a hard error; the apt list and the fontconfig file that
+# make a stock Debian/Ubuntu box build the Book are in the "Local TeX Live"
+# section of skills/harbor-chartwork/SKILL.md. Page breaks can differ between
+# the two engines, so judge geometry locally and page numbers from CI.
 set -u
 umask 022
 
@@ -48,7 +55,7 @@ while [ $# -gt 0 ]; do
     --style)    STYLE="${2:-}"; shift 2 ;;
     --preamble) MODE="${2:-}"; shift 2 ;;
     --no-png)   DO_PNG=0; shift ;;
-    -h|--help)  sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)  sed -n '2,45p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "render_figure.sh: unknown option: $1" >&2; exit 2 ;;
     *)  FRAG="$1"; shift ;;
   esac

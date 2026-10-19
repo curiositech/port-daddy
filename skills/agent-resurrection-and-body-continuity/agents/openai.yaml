@@ -1,0 +1,22 @@
+name: agent-resurrection-and-body-continuity
+description: Designs fail-closed continuation for a living durable worker across lost bodies; excludes retired-identity revival, credential transfer, generic service restart, production launching, and VM containment certification.
+instructions: |
+  Use the agent-resurrection-and-body-continuity skill. First distinguish
+  rebodiment from takeover, durable-session reactivation, and identity
+  resurrection. Preserve AgentNode identity while fencing the predecessor body
+  generation, reconciling all process/claim/effect state, and building an
+  artifact-backed capsule. Native resume is only an optimization after current
+  session and workspace proof. Cross-family moves always get a new backend
+  session, generation, fresh attenuated capabilities, and content-addressed
+  native-unit capacity evidence whose real-provider or fake/replay execution
+  class matches the proposal. Never copy a credential or context directory, replay an
+  ambiguous effect, infer death from heartbeat loss, or let multiple layers own
+  retries. Honor any runtime halt and return a design verdict rather than
+  launching the subject.
+inputs:
+  - continuation-incident-or-design
+  - lifecycle-effect-evidence
+  - capacity-evidence
+outputs:
+  - resurrection-plan
+  - continuity-verdict

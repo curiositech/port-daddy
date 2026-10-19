@@ -1,0 +1,641 @@
+{
+  "scope": "Synthetic source-extracted projection test; scanners stubbed; no PD runtime or providers.",
+  "run": "run-03",
+  "node": "v26.7.0",
+  "script_sha256": "6d719f45d94362248cab0979024ab7ce14606d0916c24acd36fe73c931461593",
+  "protocol_sha256": "816b486707b4279f0aa017e8d3629824724a0a02eca089aee54615887fadf32c",
+  "source_evidence": [
+    {
+      "path": "lib/handoff-capsule.ts",
+      "sha256": "5da9ae1f277b4f1b81bca1f12279cf5758267e0fdef2471b43b0830a1b54b60e",
+      "ranges": [
+        [
+          7,
+          505
+        ],
+        [
+          568,
+          644
+        ]
+      ],
+      "extracted_sha256": "48633535a318e667b7a9da99c26bd89dfcc9960b7afe6799989cea62ded77ba9"
+    },
+    {
+      "path": "lib/dispatch/handoff-from-transcript.ts",
+      "sha256": "684c7cd5a7b6d3bbc981ddf8ebcfd689c7a3c36bddb8e8fdd03cd647033283e5",
+      "ranges": [
+        [
+          59,
+          65
+        ],
+        [
+          123,
+          237
+        ],
+        [
+          250,
+          255
+        ]
+      ],
+      "extracted_sha256": "82c730c0be344cf217b7f1adbac3be02b57d8084b7f3676930d222843fd02873"
+    }
+  ],
+  "erased_source_sha256": "f9c62617f1dd6dfc495af98b6d18a30960b3db3b77453b9913852f04ad43bc9d",
+  "scanner_boundary": "Identity redaction and clean scanner stubs; no security-scanner efficacy claim.",
+  "observations": [
+    {
+      "fixture": "recent",
+      "input": {
+        "id": "recent",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "Working locally.",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "user",
+            "content": "OBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          }
+        ],
+        "requiredText": "OBL-01: preserve the existing acceptance criteria."
+      },
+      "required_ledger": [
+        {
+          "id": "OBL-01",
+          "allowed_source_ids": [
+            "turn-0"
+          ],
+          "text": "OBL-01: preserve the existing acceptance criteria.",
+          "text_sha256": "4c78f67a3159ac85da645c37c9925f2c353f85d99a78680337d9dd505e95e554"
+        }
+      ],
+      "source_messages": 2,
+      "source_operator_turns": 1,
+      "retained_operator_ids": [
+        "turn-0"
+      ],
+      "draft_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-recent",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 406,
+      "hash_matches": true,
+      "capsule_hash": "ae4fe89fa4c976bcfc2dc6a00405c266ca15d22783e4dbbe976b1a9a18730563",
+      "prompt_contains_instruction": true,
+      "truncation_marker": false,
+      "missing_obligations": [],
+      "retained_operator_records": [
+        {
+          "id": "turn-0",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "OBL-01: preserve the existing acceptance criteria."
+        }
+      ]
+    },
+    {
+      "fixture": "old",
+      "input": {
+        "id": "old",
+        "messages": [
+          {
+            "role": "user",
+            "content": "OBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 0",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 1",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 2",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 3",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 0",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 1",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 2",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 3",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 4",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 5",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 6",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 7",
+            "timestamp": 1800000000001
+          }
+        ],
+        "requiredText": "OBL-01: preserve the existing acceptance criteria."
+      },
+      "required_ledger": [
+        {
+          "id": "OBL-01",
+          "allowed_source_ids": [
+            "turn-0"
+          ],
+          "text": "OBL-01: preserve the existing acceptance criteria.",
+          "text_sha256": "4c78f67a3159ac85da645c37c9925f2c353f85d99a78680337d9dd505e95e554"
+        }
+      ],
+      "source_messages": 13,
+      "source_operator_turns": 5,
+      "retained_operator_ids": [
+        "turn-1",
+        "turn-2",
+        "turn-3",
+        "turn-4"
+      ],
+      "draft_omitted": {
+        "tail": 5,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-old",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 605,
+      "hash_matches": true,
+      "capsule_hash": "fdecbf7d2c4359e77ba3d05492ee435e35879b0a166c0d443fdf2af9a1d40825",
+      "prompt_contains_instruction": false,
+      "truncation_marker": false,
+      "missing_obligations": [
+        "OBL-01"
+      ],
+      "retained_operator_records": [
+        {
+          "id": "turn-1",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 0"
+        },
+        {
+          "id": "turn-2",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 1"
+        },
+        {
+          "id": "turn-3",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 2"
+        },
+        {
+          "id": "turn-4",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 3"
+        }
+      ]
+    },
+    {
+      "fixture": "fourth-from-last",
+      "input": {
+        "id": "fourth-from-last",
+        "messages": [
+          {
+            "role": "user",
+            "content": "OBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 0",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 1",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 2",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 0",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 1",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 2",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 3",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 4",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 5",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 6",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 7",
+            "timestamp": 1800000000001
+          }
+        ],
+        "requiredText": "OBL-01: preserve the existing acceptance criteria."
+      },
+      "required_ledger": [
+        {
+          "id": "OBL-01",
+          "allowed_source_ids": [
+            "turn-0"
+          ],
+          "text": "OBL-01: preserve the existing acceptance criteria.",
+          "text_sha256": "4c78f67a3159ac85da645c37c9925f2c353f85d99a78680337d9dd505e95e554"
+        }
+      ],
+      "source_messages": 12,
+      "source_operator_turns": 4,
+      "retained_operator_ids": [
+        "turn-0",
+        "turn-1",
+        "turn-2",
+        "turn-3"
+      ],
+      "draft_omitted": {
+        "tail": 4,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-fourth-from-last",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 623,
+      "hash_matches": true,
+      "capsule_hash": "5c989f921a9f7036af108e6d82d667307e7ce9018f568c34a6d1526a06d08afe",
+      "prompt_contains_instruction": true,
+      "truncation_marker": false,
+      "missing_obligations": [],
+      "retained_operator_records": [
+        {
+          "id": "turn-0",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "OBL-01: preserve the existing acceptance criteria."
+        },
+        {
+          "id": "turn-1",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 0"
+        },
+        {
+          "id": "turn-2",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 1"
+        },
+        {
+          "id": "turn-3",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 2"
+        }
+      ]
+    },
+    {
+      "fixture": "long-item",
+      "input": {
+        "id": "long-item",
+        "messages": [
+          {
+            "role": "user",
+            "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxOBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          }
+        ],
+        "requiredText": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxOBL-01: preserve the existing acceptance criteria."
+      },
+      "required_ledger": [
+        {
+          "id": "OBL-01",
+          "allowed_source_ids": [
+            "turn-0"
+          ],
+          "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxOBL-01: preserve the existing acceptance criteria.",
+          "text_sha256": "e20bf6cd7a18ee52d59093e25ec284a780ed601491b97881da6f357aa6396670"
+        }
+      ],
+      "source_messages": 1,
+      "source_operator_turns": 1,
+      "retained_operator_ids": [
+        "turn-0"
+      ],
+      "draft_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-long-item",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 1380,
+      "hash_matches": true,
+      "capsule_hash": "858aaa893a333fe9314446f9df228b320025e04d82c921c1a17ff8c64128b02e",
+      "prompt_contains_instruction": false,
+      "truncation_marker": true,
+      "missing_obligations": [
+        "OBL-01"
+      ],
+      "retained_operator_records": [
+        {
+          "id": "turn-0",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n…[truncated for the handoff brief]"
+        }
+      ]
+    },
+    {
+      "fixture": "reaffirmed",
+      "input": {
+        "id": "reaffirmed",
+        "messages": [
+          {
+            "role": "user",
+            "content": "OBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 0",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 1",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 2",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "user",
+            "content": "Unrelated formatting request 3",
+            "timestamp": 1800000000000
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 0",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 1",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 2",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 3",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 4",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 5",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 6",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "assistant",
+            "content": "Local drafting step 7",
+            "timestamp": 1800000000001
+          },
+          {
+            "role": "user",
+            "content": "OBL-01: preserve the existing acceptance criteria.",
+            "timestamp": 1800000000000
+          }
+        ],
+        "requiredText": "OBL-01: preserve the existing acceptance criteria."
+      },
+      "required_ledger": [
+        {
+          "id": "OBL-01",
+          "allowed_source_ids": [
+            "turn-0",
+            "turn-5"
+          ],
+          "text": "OBL-01: preserve the existing acceptance criteria.",
+          "text_sha256": "4c78f67a3159ac85da645c37c9925f2c353f85d99a78680337d9dd505e95e554"
+        }
+      ],
+      "source_messages": 14,
+      "source_operator_turns": 6,
+      "retained_operator_ids": [
+        "turn-2",
+        "turn-3",
+        "turn-4",
+        "turn-5"
+      ],
+      "draft_omitted": {
+        "tail": 6,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-reaffirmed",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 624,
+      "hash_matches": true,
+      "capsule_hash": "60b635a7bbf114f582b5f964559ae6256ea4c34e1373b423e6540f15a24ee0f6",
+      "prompt_contains_instruction": true,
+      "truncation_marker": false,
+      "missing_obligations": [],
+      "retained_operator_records": [
+        {
+          "id": "turn-2",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 1"
+        },
+        {
+          "id": "turn-3",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 2"
+        },
+        {
+          "id": "turn-4",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Unrelated formatting request 3"
+        },
+        {
+          "id": "turn-5",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "OBL-01: preserve the existing acceptance criteria."
+        }
+      ]
+    },
+    {
+      "fixture": "unconstrained",
+      "input": {
+        "id": "unconstrained",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Use plain prose.",
+            "timestamp": 1800000000000
+          }
+        ],
+        "requiredText": null
+      },
+      "required_ledger": [],
+      "source_messages": 1,
+      "source_operator_turns": 1,
+      "retained_operator_ids": [
+        "turn-0"
+      ],
+      "draft_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "sanitized_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "brief_omitted": {
+        "tail": 0,
+        "artifacts": 0
+      },
+      "capsule_transcript_ref": "transcript-unconstrained",
+      "brief_contains_transcript_ref": false,
+      "approximate_tokens": 372,
+      "hash_matches": true,
+      "capsule_hash": "ef35d3808cd8f4f936f7984258a021da2af59f22a0f75c6e53b028b17552bb3e",
+      "prompt_contains_instruction": false,
+      "truncation_marker": false,
+      "missing_obligations": [],
+      "retained_operator_records": [
+        {
+          "id": "turn-0",
+          "at": "2027-01-15T08:00:00.000Z",
+          "text": "Use plain prose."
+        }
+      ]
+    }
+  ],
+  "controls": {
+    "forged_source_id_rejected": true,
+    "edited_text_rejected": true,
+    "assistant_only_copy_rejected": true,
+    "restored_operator_evidence_passes": true,
+    "weak_hash_gate_accepts_old_loss": true,
+    "weak_counter_gate_accepts_old_loss": true,
+    "output_derived_denominator_accepts_old_loss": true
+  },
+  "checks": {
+    "old_loses_obligation_with_valid_hash": true,
+    "prior_omissions_reset": true,
+    "recent_preserved": true,
+    "fourth_from_last_preserved": true,
+    "clipped_suffix_disclosed": true,
+    "reaffirmation_restores": true,
+    "no_false_requirement": true,
+    "all_hashes_match": true,
+    "full_capsule_retains_reference": true,
+    "rendered_brief_omits_reference": true,
+    "controls_all_expected": true
+  },
+  "pass": true
+}

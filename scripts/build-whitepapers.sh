@@ -24,6 +24,24 @@
 #
 # Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
+#
+# Engine, and why this script never asks for tectonic. tectonic is the figure
+# toolchain's reference engine (skills/harbor-chartwork/scripts/compile_fragment.sh)
+# and CI installs it for the per-figure gates, but the published PDFs have always
+# come off a plain TeX Live: latexmk driving pdflatex, and xelatex for the Book.
+# So this script needs no tectonic fallback — it IS the local path. What it does
+# need is a TeX Live complete enough to satisfy the Book, and fontconfig able to
+# see TeX Gyre Pagella / TeX Gyre Heros / Source Code Pro, which the Book's
+# preamble binds BY NAME through fontspec. A stock apt TeX Live installs those
+# faces under texmf-dist without registering them with fontconfig, and then every
+# edition dies on "The font ... cannot be found". The one-command setup (apt list
+# + the /etc/fonts/conf.d drop-in) is in the "Local TeX Live" section of
+# skills/harbor-chartwork/SKILL.md; run it once per container.
+#
+# Honest limit, the same one the figure toolchain has: a missing .sty is a hard
+# error here. Nothing in this path downloads packages. And TeX Live versions do
+# not agree on page breaks — see the toolchain note below — so a local page count
+# is evidence about THIS machine, not about the published artifact.
 
 set -uo pipefail
 
@@ -39,9 +57,7 @@ clean_build_dir() {
   [ -d "$BUILD_DIR" ] || return 0
   find "$BUILD_DIR" -depth -mindepth 1 -delete
 }
-clean_build_dir
 mkdir -p "$BUILD_DIR"
-trap clean_build_dir EXIT
 
 # Toolchain note. SOURCE_DATE_EPOCH is pinned per paper (see paper_epoch), so a
 # rebuild of unchanged source on the SAME renderer is byte-identical. It is not
@@ -57,15 +73,13 @@ trap clean_build_dir EXIT
 # which is what paper_changed_since / --list-unchanged-since exist to answer.
 #
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
+#
+# The eight chapters no longer publish a standalone PDF of their own (retired:
+# they were an A4 render of the same words with no margin column, a worse
+# layout of the Book's 7x10in trim). Their .tex sources stay in the tree —
+# the Book still assembles from them — but this list now builds only the one
+# artifact the site actually serves per chapter: the Book itself.
 PAPERS=(
-  "$PUB|agent-transactions-whitepaper.tex|$PUB/agent-transactions-whitepaper.pdf"
-  "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
-  "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
-  "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
-  "$PUB|sealed-harbor.tex|$PUB/sealed-harbor-whitepaper.pdf"
-  "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
-  "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
-  "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
   "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
@@ -141,9 +155,21 @@ paper_sources() {
       # its own source.
       printf '%s\n' "$srcdir/coordination-papers-mega-volume.tex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
         "$srcdir/coordination-papers-mega-volume-seams.tex" \
+        "$srcdir/coordination-papers-mega-volume-chapter-0.tex" \
         "$srcdir/coordination-papers-mega-volume-appendices.tex" \
         "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
+        "$srcdir/coordination-papers-mega-volume-epigraph-review-spreads.tex" \
         "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
+      # The Book preamble imports this helper, whose glyph path is assembled
+      # from explicit icon-family assignments rather than a literal \input.
+      # Declare the consumed PDFs even when missing: enumerating existing files
+      # would hide a deleted dependency from both change detection and epochs.
+      printf '%s\n' "$srcdir/figures/pd-semantic-blocks.tex"
+      local icon
+      for icon in book-open calculator file-text flask-conical key-round \
+        list-checks lock-keyhole scroll-text workflow; do
+        printf '%s\n' "$srcdir/figures/lucide/$icon.pdf"
+      done
       # Art plates (jacket, part and chapter openers) are Book inputs too.
       if [ -d "$srcdir/plates" ]; then
         find "$srcdir/plates" -type f | sort
@@ -238,6 +264,10 @@ build_one() {
         }
         node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
       fi
+      # Reference licensed fonts in place; never copy them into public/.
+      if command -v python3 >/dev/null 2>&1; then
+        python3 scripts/prepare-book-fonts.py "$outdir" || return 1
+      fi
       ;;
   esac
 
@@ -246,16 +276,27 @@ build_one() {
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
+    # answers.sty writes chapter solution streams into -output-directory.
+    # XeTeX's \input does not search that directory without TEXINPUTS, even
+    # when \IfFileExists finds the file there. Keep default TeX paths via the
+    # trailing colon; every solution is still required and rendered.
+    export TEXINPUTS="$outdir:${TEXINPUTS:-}:"
     # The Book sets its monospace face through fontspec (a Unicode-engine
     # package) and turns off XeTeX's glyph-metric line boxes, so it is
-    # compiled with xelatex; the standalone chapters stay on pdfTeX.
+    # compiled with xelatex. Every row this script can reach is a
+    # coordination-papers-mega-volume* root now that the standalone chapters
+    # are retired, so the case below always fires and this default is dead.
+    # It stays because pdfTeX is still a first-class engine in this repository
+    # -- docs/harbor-research/Makefile builds the seven research papers with
+    # it, from the same pinned TeX Live digest -- so a future plain-pdflatex
+    # root here would be a new row, not a new engine.
     local engine=pdflatex latexmk_engine=-pdf
     case "$roottex" in
       coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
     esac
     if command -v latexmk >/dev/null 2>&1; then
       latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
-              -outdir="$outdir" "$roottex"
+              -e '$max_repeat=8;' -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
       # bibliographies, so bounded pdflatex passes are a complete fallback:
@@ -263,6 +304,9 @@ build_one() {
       # cover the rare long-TOC case that still reports changed labels.
       if ! command -v "$engine" >/dev/null 2>&1; then
         echo "error: whitepaper build requires latexmk or $engine" >&2
+        echo "       install a local TeX Live: see the 'Local TeX Live' section of" >&2
+        echo "       skills/harbor-chartwork/SKILL.md for the apt list and the" >&2
+        echo "       fontconfig drop-in the Book's by-name font binding needs." >&2
         exit 127
       fi
       local pass
@@ -300,10 +344,14 @@ list_unchanged_since() {
 }
 
 main() {
-  local row srcdir roottex dest base
+  local row srcdir roottex dest base matched=0
   if [ -n "$LIST_UNCHANGED_SINCE" ]; then
     list_unchanged_since "$LIST_UNCHANGED_SINCE"
     return 0
+  fi
+  if [ -z "$CHANGED_SINCE" ] && [ -z "$FILTER" ]; then
+    clean_build_dir
+    mkdir -p "$BUILD_DIR"
   fi
   # A named filter can also reach an edition that is not in the default build
   # list; a full run, --changed-since and --list-unchanged-since never do.
@@ -317,6 +365,7 @@ main() {
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue
     fi
+    matched=1
     if [ -n "$CHANGED_SINCE" ] && ! paper_changed_since "$CHANGED_SINCE" "$srcdir" "$roottex"; then
       echo "skip $roottex (no imported TeX changed since $CHANGED_SINCE)"
       continue
@@ -327,6 +376,11 @@ main() {
       FAILED+=("$roottex")
     fi
   done
+
+  if [ -n "$FILTER" ] && [ "$matched" -eq 0 ]; then
+    echo "error: '$FILTER' is not a Book target; chapter PDFs are retired" >&2
+    exit 2
+  fi
 
   echo ""
   echo "built ${#BUILT[@]} PDF(s); ${#FAILED[@]} failure(s)"

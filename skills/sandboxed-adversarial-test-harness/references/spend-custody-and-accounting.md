@@ -32,7 +32,7 @@ Current provider controls illustrate why this separation is mandatory:
 
 A Drydock profile must include a conservative finite tolerance supported by current
 documentation and a dedicated-cell probe. If no finite bound can be established,
-the financial-loss ceiling is unknown and T3 is denied; the system must not hide
+the financial-loss ceiling is unknown and T3A is denied; the system must not hide
 that uncertainty in a large “safety margin.”
 
 Primary sources:
@@ -136,7 +136,7 @@ writes, delayed provider responses, cancellation races, and two concurrent actor
 
 ## Provider-custody qualification
 
-A T3 real-provider lane is eligible only when all are true:
+A T3A billable-provider lane is eligible only when all are true:
 
 1. The account, project, key, or payment rail is dedicated to one run or one
    non-overlapping budget cell.

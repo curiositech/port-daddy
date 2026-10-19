@@ -155,6 +155,39 @@ class AtlasCoverageTests(unittest.TestCase):
         self.assertEqual(len(roots), 8)
         self.assertEqual(coverage.canonical_root_drift(repo_root, roots), [])
 
+    def test_build_table_may_name_no_chapter_root(self) -> None:
+        """A chapter builds no standalone PDF, so the table names no chapter.
+
+        Absence is the shipped state, not drift; only a chapter root the atlas
+        does not declare canonical is.
+        """
+        repo_root = Path(__file__).resolve().parents[3]
+        self.assertEqual(coverage.canonical_roots_from_build_script(repo_root), set())
+
+    def test_canonical_root_drift_rejects_a_noncanonical_build_entry(self) -> None:
+        repo_root = Path(__file__).resolve().parents[3]
+        roots = coverage.canonical_roots_from_textbook(repo_root)
+        with tempfile.TemporaryDirectory() as directory:
+            fake_root = Path(directory)
+            (fake_root / "scripts").mkdir()
+            (fake_root / "whitepaper").mkdir()
+            (fake_root / "scripts/build-whitepapers.sh").write_text(
+                'PAPERS=(\n'
+                '  "$PUB|coordination-papers-mega-volume.tex|'
+                '$PUB/coordination-papers-mega-volume.pdf"\n'
+                '  "whitepaper|ninth-chapter.tex|$PUB/ninth-chapter.pdf"\n'
+                ')\n',
+                encoding="utf-8",
+            )
+            (fake_root / "whitepaper/textbook.json").write_text(
+                (repo_root / "whitepaper/textbook.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            drift = coverage.canonical_root_drift(fake_root, roots)
+        self.assertEqual(
+            drift, ["build-whitepapers:extra=whitepaper/ninth-chapter.tex"]
+        )
+
     def test_canonical_root_parity_rejects_swapped_volume_mapping(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
         swapped = coverage.extract_atlas_volume_roots(self.live_atlas(repo_root))
@@ -286,20 +319,11 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        # 66 again, and the round trip is the lesson. It was 66, then 61 on
-        # 2026-09-08 when five volume-IV rows left the atlas because chapter 6
-        # had stopped re-inputting drawings chapters 7 and 8 develop -- the Book
-        # was printing each of them twice under two figure numbers -- and 66
-        # once more the same day, because deleting them was half a fix.
-        # harbor-economy.tex is also the source of a standalone submission
-        # paper, and rewriting its prose to point at chapters removed five
-        # figures from a PDF whose reader has no other chapters to be pointed
-        # at. The whole fix is \ifpdbook: the Book takes the cross-reference,
-        # the paper keeps its copy, and the SOURCE therefore still carries all
-        # 66. A pinned count is the right shape for this assertion; it just has
-        # to move when the corpus does, and it has now moved twice.
-        self.assertEqual(report["source_count"], 66)
-        self.assertEqual(report["atlas_count"], 66)
+        # Pin the reviewed corpus so simultaneous source/atlas deletion cannot
+        # silently pass. The current canonical roots contain 132 environments;
+        # every single-row deletion must still fail the mutation checks below.
+        self.assertEqual(report["source_count"], 132)
+        self.assertEqual(report["atlas_count"], 132)
         # Five, and the previous revision of this comment is why the assertion
         # was kept at zero rather than deleted: it said it would "notice when a
         # contract legitimately reappears -- a standalone paper carrying its own

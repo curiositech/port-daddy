@@ -61,6 +61,7 @@ export interface SweepResult {
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
+  shipwrightThreadMessagesPruned: number;
   seamanshipCachePruned: number;
   snipeChatsPruned: number;
   chatSpendPruned: number;
@@ -169,6 +170,13 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'shipwright_chats',
   );
+  const shipwrightThreadMessagesPruned = await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_thread_messages WHERE created_at < ?',
+    now - SHIPWRIGHT_RETENTION_DAYS * DAY_SECONDS,
+    errors,
+    'shipwright_thread_messages',
+  );
 
   // R1c — the Seamanship frontmatter cache. A cache with no eviction is a
   // mirror, and a mirror of this catalog is exactly what the operator ruled
@@ -267,6 +275,35 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
   // R3 — complete erasure: hard-delete users soft-deleted > 30 days ago, and
   // any sessions still attached to them (defensive; erase already purged them).
   const erasureHorizon = now - ERASURE_HARD_DELETE_DAYS * DAY_SECONDS;
+  // Publisher rows form an explicit FK chain. Revoke/delete it child-first so
+  // a crash before eraseUser completed cannot leave authority alive or make
+  // the final users delete fail under foreign-key enforcement.
+  for (const [sql, label] of [
+    [`DELETE FROM github_publisher_capability_uses_v2
+       WHERE grant_id IN (SELECT grant_id FROM publisher_grants
+                           WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?))`,
+     'github_publisher_capability_uses_v2(erased)'],
+    [`DELETE FROM publisher_grants
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'publisher_grants(erased)'],
+    [`DELETE FROM github_publisher_capability_uses
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_capability_uses_v1(erased)'],
+    [`DELETE FROM github_publisher_intents
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_intents(erased)'],
+    [`DELETE FROM github_publisher_credentials
+       WHERE account_user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+     'github_publisher_credentials(erased)'],
+  ] as const) {
+    await deleteWhere(
+      env.DB,
+      sql,
+      sql.includes(' OR session_id IN') ? [erasureHorizon, erasureHorizon] : [erasureHorizon],
+      errors,
+      label,
+    );
+  }
   await deleteOlderThan(
     env.DB,
     'DELETE FROM web_sessions WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
@@ -290,6 +327,22 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     erasureHorizon,
     errors,
     'shipwright_chats(erased)',
+  );
+  // Scoped raw messages and durable repo records are removed on account
+  // erasure. Threads cascade through messages/proposals; memory is direct.
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_repo_memory WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_repo_memory(erased)',
+  );
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_threads WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_threads(erased)',
   );
   // Defensive, same shape: eraseUser already dropped the account's Seamanship
   // cache rows and its public listing. These catch anything a crash between
@@ -356,6 +409,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
+    shipwrightThreadMessagesPruned,
     seamanshipCachePruned,
     snipeChatsPruned,
     chatSpendPruned,

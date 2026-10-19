@@ -19,6 +19,7 @@ import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 import {
   isLegacyPortDaddyPostCommitHook,
   isScopedPortDaddyPostCommitHook,
+  isCurrentPortDaddyPostCommitHook,
   loadPostCommitHookTemplate,
 } from '../utils/post-commit-hook.js';
 
@@ -226,8 +227,10 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
       if (existsSync(hookPath)) {
         const { chmodSync, readFileSync } = await import('node:fs');
         const existing = readFileSync(hookPath, 'utf-8');
-        if (isScopedPortDaddyPostCommitHook(existing)) {
+        if (isCurrentPortDaddyPostCommitHook(existing)) {
           ui.info('Post-commit hook already publishes to the project-scoped git:committed channel');
+        } else if (isScopedPortDaddyPostCommitHook(existing)) {
+          warnings.push('Existing scoped post-commit hook lacks the current Off gate. Preserve its custom work and repair its Port Daddy blocks before re-enabling hooks.');
         } else if (isLegacyPortDaddyPostCommitHook(existing)) {
           writeFileSync(hookPath, loadPostCommitHookTemplate());
           chmodSync(hookPath, 0o755);

@@ -1,0 +1,10 @@
+{
+  "status": "historical-identity-metadata-only",
+  "source": {
+    "commit": "00ab2c9ab2197ff97e85edc173370b7446fdb2ef",
+    "canonical_path": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice/_raw_response.md",
+    "raw_response_sha256": "472e422e0cd6afd6a725a4765e1c5a3b8c13fad05426824a1b58be9f86625336",
+    "book_identity_preimage_sha256": "af5f7924c9a1ddb5068cd12d20df94668babca12255c0fd5ea65347f8f4a075d"
+  },
+  "active_claim_boundary": "Historical generated material is inactive identity evidence. It does not establish paper fidelity, implementation behavior, runtime authority, Book placement, or novelty."
+}

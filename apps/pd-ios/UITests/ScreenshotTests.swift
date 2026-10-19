@@ -21,8 +21,9 @@ final class ScreenshotTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // The four RootTab titles, in the order RootView lays them out.
-        let tabs = ["Roadmap", "Harbors", "Asks", "Controls"]
+        // The intent-first RootTab titles, in RootView order. Harbors moved to
+        // the Roadmap toolbar and Controls fold into each agent's detail.
+        let tabs = ["Roadmap", "Agents", "Artifacts", "Ideas", "Asks"]
 
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(
@@ -46,6 +47,23 @@ final class ScreenshotTests: XCTestCase {
             attachment.name = String(format: "%02d-%@", index + 1, title.lowercased())
             attachment.lifetime = .keepAlways
             add(attachment)
+        }
+
+        // Drill into the first durable agent to capture the transcript-tail
+        // detail. This is the surface the operator most asked for: follow a
+        // durable agent, read its transcript.
+        tabBar.buttons["Agents"].tap()
+        let firstAgent = app.buttons["agent-row-0"]
+        if firstAgent.waitForExistence(timeout: 10) {
+            firstAgent.tap()
+            Thread.sleep(forTimeInterval: 1.2)
+            let detail = XCUIScreen.main.screenshot()
+            let attachment = XCTAttachment(screenshot: detail)
+            attachment.name = "06-agent-detail"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        } else {
+            XCTFail("agent-row-0 should exist on the Agents tab")
         }
     }
 }

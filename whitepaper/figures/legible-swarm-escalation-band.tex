@@ -1,0 +1,62 @@
+% Brief (tikz-diagram-craft), register row ch4-22.
+% Reader question: at a given attention budget, does any dismissal debit
+%   exist that keeps the distress lane both uncrowded and low-miss, or is
+%   the feasible band empty?
+% Claim: the feasible debit interval [delta_min,delta_max] is bounded below
+%   by the alarm-load wall (decreasing in A) and above by a fixed miss-loss
+%   wall; the band is empty below A*~3.108 and opens above it, exactly as
+%   at the chapter's own A=2.0 (empty) and A=3.3 ([0.035,0.072]) points.
+% Evidence: delta_max=0.071975 (constant, R3 constants); delta_min(2.0)=
+%   0.395644, delta_min(3.3)=0.034993 [verified closed forms,
+%   b7_escalation_band.py, run this pass].
+% Must distinguish: the empty-band regime (delta_min>delta_max) from the
+%   feasible band; that delta_max does not move with A while delta_min does.
+% Grammar chosen: threshold/regime plot, feasible band shaded between the
+%   two walls (fillbetween naturally splits at their crossing), two worked
+%   points marked.
+% Grammar rejected: a bar chart of the two named A values' band widths would
+%   state the two cases but hide that emptiness is a real, continuous
+%   threshold in A, not a property of the two examples alone -- the
+%   chapter's own point that the fix is capacity, not tuning.
+% Five-second test: "at A=2.0, does the alarm-load wall sit above or below
+%   the miss-loss wall, and what does that mean for delta?"
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,
+  declare function={
+    xA(\A) = (-1+sqrt(1+10*\A))/5;
+    dmin(\A) = max(0,(1-xA(\A))/xA(\A));
+  }]
+\begin{axis}[pd axis,
+  width=7.8cm,height=5.2cm,
+  xmin=1.9,xmax=6,ymin=0,ymax=0.45,
+  xtick={2.0,3.3,4,5,6},
+  xticklabels={2.0,3.3,4,5,6},
+  ytick={0,0.072,0.2,0.3,0.4},
+  yticklabels={0,0.072,0.2,0.3,0.4},
+  xlabel={attention budget $A$},
+  ylabel={dismissal debit $\delta$}]
+  \addplot[name path=dmaxline,draw=none,forget plot,domain=1.9:6,samples=2] {0.071975};
+  \addplot[name path=dminline,draw=none,forget plot,domain=1.9:6,samples=80] {min(dmin(x),0.45)};
+  \addplot[pd focus fill,forget plot] fill between[of=dmaxline and dminline,soft clip={domain=3.108:6}];
+  \addplot[pd rule,line width=.9pt,domain=1.9:6,samples=2] {0.071975};
+  \addplot[pd focus rule,line width=1.05pt,domain=1.9:6,samples=80] {min(dmin(x),0.45)};
+  \draw[pd guide,dashed] (axis cs:3.108,0) -- (axis cs:3.108,0.37);
+  \node[pd label,anchor=south west] at (axis cs:4.1,0.40) {$\delta_{\max}$ (miss-loss wall)};
+  \node[pd focus label,anchor=north west,text width=2.8cm,align=left] at (axis cs:4.55,0.335) {$\delta_{\min}(A)$\\(alarm-load wall)};
+  \node[pd label,anchor=west,text width=1.9cm,align=left] at (axis cs:3.15,0.20)
+    {band opens at $A^\star{\approx}3.11$};
+  \node[pd datum] at (axis cs:2.0,0.395644) {};
+  \draw[pd guide] (axis cs:2.0,0.395644) -- (axis cs:2.12,0.425);
+  \node[pd label,anchor=south west] at (axis cs:2.15,0.425)
+    {$A{=}2.0$: empty};
+  \node[pd focus datum] at (axis cs:3.3,0.034993) {};
+  \draw[pd guide] (axis cs:3.3,0.034993) -- (axis cs:3.42,0.105);
+  \node[pd focus label,anchor=south west] at (axis cs:3.45,0.105)
+    {$A{=}3.3$: $[0.035,0.072]$};
+\end{axis}
+\end{tikzpicture}
+\caption{For the R3 constants, no dismissal debit meets both constraints below $A^\star\approx3.11$. At $A=3.3$, the feasible interval is $[0.035,0.072]$. An empty band requires more capacity or better evidence. [verified, \protect\path{b7_escalation_band.py}]}
+\label{fig:escalation-band}
+\end{figure}

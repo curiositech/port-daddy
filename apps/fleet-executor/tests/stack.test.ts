@@ -47,6 +47,7 @@ const SPARK_YAML = [
   '    spark:',
   '      trigger: pull_request:opened',
   '      class: ideation',
+  '      participation: { default: advisory, rules: [] }',
   '      fallbacks:',
   '        - backend: cloudflare',
   "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
@@ -167,8 +168,8 @@ describe('stack proposals — happy path', () => {
     const bodies = commentBodiesOf(state);
     expect(bodies.some(b => b.includes('#8001') && b.includes('coded this solution itself'))).toBe(true);
 
-    // Advisory as ever: the gate is untouched.
-    expect(state.completed[0].conclusion).toBe('success');
+    // The proposal remains advisory, but an advisory-only roster has no voting quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('opens at most ONE stack PR per ship per run (first valid stack proposal wins)', async () => {
@@ -259,8 +260,7 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('sandbox validation FAILED');
-    // Advisory ship: the gate is still success.
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('a 403 on git writes degrades to a named-permission transcript note', async () => {
@@ -270,7 +270,7 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('contents: write');
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('a missing head branch name degrades instead of opening a misbased PR', async () => {

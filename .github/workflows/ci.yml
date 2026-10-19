@@ -35,6 +35,27 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  swiss-normalization-guard:
+    # Wave 0 of taking the Book's Swiss visual system (flat colour blocks,
+    # square corners, no elevation/blur/gradient, every value from a token) to
+    # the website. This is a RATCHET, not a gate: about a fifth of the 315
+    # in-scope files (website-v2/src/{components,pages}/**) still carry
+    # pre-Swiss drift, and a hard gate would fail every PR on day one. It
+    # fails only on NEW drift, WORSENING drift in a file the ratchet already
+    # lists, or a STALE entry (a listed file cleaned up without its ratchet
+    # count being updated) — see website-v2/scripts/check-swiss-normalization.mjs
+    # and the adjacent swiss-normalization-ratchet.json.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Swiss normalization guard (colour/radius/elevation drift ratchet)
+        working-directory: website-v2
+        run: node scripts/check-swiss-normalization.mjs
+
   relay-decode-guard:
     # No raw `decodeURIComponent` anywhere in the configured Relay source
     # files outside their sanctioned decode helper's own body.
@@ -62,6 +83,7 @@ jobs:
     # of running it unconditionally is an AST parse of ~71 TypeScript files
     # with no install beyond Node — negligible next to the Rust and iOS jobs
     # in this same workflow.
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -273,7 +295,7 @@ jobs:
           # relay-only PR that retypes a column must run this job — the shape
           # mismatch it would otherwise introduce is invisible on the relay side.
           # ci.yml changes re-run it so the gate can be edited under test.
-          if printf '%s\n' "$changed" | grep -qE '^(apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -qE '^(apps/PortholeMediaKit/|apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
             echo "pd-ios=true" >> "$GITHUB_OUTPUT"
           else
             echo "pd-ios=false" >> "$GITHUB_OUTPUT"
@@ -281,7 +303,7 @@ jobs:
           # Native Porthole Stage is a self-contained SwiftPM package plus its
           # strict ad-hoc CI packager. Merge-group and API-error runs fail safe
           # to true above, while unrelated pull requests avoid a macOS runner.
-          if printf '%s\n' "$changed" | grep -qE '^(apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -qE '^(apps/PortholeMediaKit/|apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
             echo "porthole-stage=true" >> "$GITHUB_OUTPUT"
           else
             echo "porthole-stage=false" >> "$GITHUB_OUTPUT"
@@ -317,6 +339,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
+
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
@@ -333,6 +358,12 @@ jobs:
         # Routed per-file by tests/purser/ROUTING.json; the jest-shaped ones ran
         # in the step above, these target node:test.
         run: npm run test:purser
+
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
@@ -374,6 +405,9 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
+
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
@@ -388,6 +422,12 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
 
       - name: Test CLI tools
         run: |
@@ -420,6 +460,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+
+      - name: Hydrate LFS review media for manifest checks
+        run: node scripts/hydrate-r2-media.mjs
 
       - name: Install dependencies
         run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
@@ -649,6 +692,11 @@ jobs:
       - name: Auditor unit tests
         run: python3 -m unittest discover -s skills/skill-hygiene/tests -p 'test_*.py' -v
 
+      - name: Verify candidate-controlled interview bundles
+        run: |
+          python3 scripts/check-interview-bundles.py
+          python3 -m unittest discover -s tests -p 'test_interview_bundle_guard.py' -v
+
       - name: Verify agent-surface skill mirrors are in sync
         # Mirrors under .codex/.claude/.agents/.gemini must stay byte-identical
         # to their canonical skills/<name>. If this fails, run:
@@ -659,6 +707,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Offline repository inventory and Clearance regression tests
+        run: node --test skills/project-epistemology-reconciliation/tests/artifact_inventory.test.mjs skills/project-epistemology-reconciliation/tests/harbor_clearance.test.mjs
+
+      - name: Offline inventory tarball installation proof
+        run: node skills/project-epistemology-reconciliation/tests/package_smoke.mjs
 
       - name: The whole catalog can still fan out to every runtime
         # WHY A FRESH BASE AND NOT --check. The per-runtime link trees
@@ -772,9 +826,51 @@ jobs:
           # Retried: a third-party release host blipping should not red a
           # build. Already lands in a file, so a retry replaces the download
           # rather than appending to a half-consumed one.
-          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
-            -o "$HOME/.local/bin/agg" \
-            "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
+          #
+          # `curl --retry 5 --retry-delay 3` is six attempts at a FIXED 3s
+          # spacing -- ~15s of total coverage. That redded the whole ci-gate
+          # aggregate on an unrelated PR during a brief GitHub release-CDN
+          # outage (PR #10192, run 34859200846, job 104026683362): six
+          # `curl: (22) ... 504` lines 3s apart, then exit 22, while a plain
+          # re-run passed in 4s -- confirming it was purely an external blip,
+          # not anything this repo broke.
+          #
+          # So the download itself is retried in a loop with a widening
+          # backoff (5s, 10s, 20s, 30s -- 65s of coverage, well past the CDN's
+          # observed ~15s blip), `if` rather than a bare call because errexit
+          # is suspended inside a condition, and the final failure says
+          # plainly this is a network failure and not a recorder/test finding
+          # so the next person reading a red gate doesn't go looking at the
+          # recordings instead.
+          delays="5 10 20 30"
+          attempt=1
+          ok=0
+          for delay in $delays 0; do
+            if curl -fsSL --max-time 600 \
+              -o "$HOME/.local/bin/agg" \
+              "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"; then
+              ok=1
+              break
+            fi
+            if [ "$delay" -eq 0 ]; then
+              break
+            fi
+            echo "agg download attempt $attempt failed; retrying in ${delay}s"
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::agg could not be downloaded after 5 attempts over 65s of backoff. This is a network failure on GitHub's release CDN, NOT a recorder or test finding -- no GIFs were regenerated in this run."
+            exit 1
+          fi
+          # A partial/corrupt download is worse than a failed one: it would
+          # leave this step green and every step below failing for a reason
+          # that looks like a recorder or test bug. Assert the binary is
+          # actually there, executable, and really runs before moving on.
+          if [ ! -s "$HOME/.local/bin/agg" ]; then
+            echo "::error::agg download reported success but left no (or an empty) file at $HOME/.local/bin/agg"
+            exit 1
+          fi
           chmod +x "$HOME/.local/bin/agg"
           "$HOME/.local/bin/agg" --version
 
@@ -1166,7 +1262,9 @@ jobs:
         run: brew install librsvg
 
       - name: Test the Stage policy and capture core
-        run: swift test --package-path apps/porthole-stage-capture
+        run: |
+          swift test --package-path apps/PortholeMediaKit
+          swift test --package-path apps/porthole-stage-capture
 
       - name: Assemble two ad-hoc CI packages from one release build
         env:
@@ -1520,6 +1618,7 @@ jobs:
       - rust-console-gpui
       - rust-kernel
       - skill-hygiene
+      - swiss-normalization-guard
       - unit-tests
       - version-drift-guard
     steps:

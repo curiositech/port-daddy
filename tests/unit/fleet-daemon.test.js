@@ -19,6 +19,9 @@ const mockRealpathSync = Object.assign(jest.fn((path) => path), {
 const mockFsWatch = jest.fn(() => ({ close: jest.fn() }));
 
 jest.unstable_mockModule('node:fs', () => ({
+  accessSync: jest.fn(),
+  constants: { R_OK: 4, X_OK: 1 },
+  lstatSync: jest.fn(),
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
   realpathSync: mockRealpathSync,
@@ -85,12 +88,40 @@ jest.unstable_mockModule('node:child_process', () => ({
 const { createFleetDaemon } = await import('../../lib/fleet-daemon.js');
 const createdDaemons = [];
 
+describe('local Off is not cleared by Fleet start or reload', () => {
+  test('blocks all manual starts, resumes and hails without loading configs', async () => {
+    const deps = makeDeps({ runtimeAllowed: () => false });
+    const daemon = makeDaemon(deps);
+    daemon.start();
+    daemon.reload();
+    expect(daemon.startProject('/test/project').success).toBe(false);
+    expect(daemon.resumeAgent('worker').success).toBe(false);
+    expect((await daemon.hailAgent('worker')).success).toBe(false);
+    expect(mockStartAll).not.toHaveBeenCalled();
+    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
+    expect(mockHailAgent).not.toHaveBeenCalled();
+    expect(daemon.getStatus().running).toBe(false);
+  });
+
+  test('unavailable control latches and later marker removal cannot restart Fleet', () => {
+    let allowed = false;
+    const daemon = makeDaemon(makeDeps({ runtimeAllowed: () => allowed }));
+    daemon.start();
+    allowed = true;
+    daemon.reload();
+    daemon.start();
+    expect(mockStartAll).not.toHaveBeenCalled();
+    expect(daemon.getStatus().running).toBe(false);
+  });
+});
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function makeDeps(overrides = {}) {
   const lockState = new Map();
 
   return {
+    runtimeAllowed: () => true,
     projects: {
       list: jest.fn(() => []),
     },

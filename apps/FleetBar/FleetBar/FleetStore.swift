@@ -515,6 +515,7 @@ class FleetStore: ObservableObject {
     /// port-0 sentinel. Mutable so the operator can switch berths via `rebind`.
     private var endpoint: DaemonEndpoint
     private let endpointResolver: () -> DaemonEndpoint
+    private let control: LocalRuntimeControl
     /// A manual berth choice is authoritative for this process lifetime. Polling
     /// may refresh discovery-managed publications, but must never steal an
     /// operator-selected endpoint.
@@ -522,10 +523,10 @@ class FleetStore: ObservableObject {
 
     /// The base URL FleetBar targets, or `nil` when the control plane is
     /// unavailable. Call sites build requests only when this is non-nil.
-    var daemonURL: String? { endpoint.url }
+    var daemonURL: String? { control.blockedReason == nil ? endpoint.url : nil }
 
     /// True when a live control-plane endpoint has been resolved.
-    var isControlPlaneAvailable: Bool { endpoint.isAvailable }
+    var isControlPlaneAvailable: Bool { daemonURL != nil }
 
     /// Provenance of the current endpoint (explicit URL, named profile, the
     /// published daemon.port, …) for the connection header and berth tooltips.
@@ -564,6 +565,7 @@ class FleetStore: ObservableObject {
     // Menu bar display. Daemon health is the DOMINANT signal: a critical daemon
     // turns the menu-bar icon into an alarm triangle regardless of fleet state.
     var menuBarIcon: String {
+        guard control.blockedReason == nil else { return "power" }
         guard isDaemonRunning else { return "sailboat" }
         switch daemonSeverity {
         case .critical: return "exclamationmark.triangle.fill"
@@ -575,6 +577,7 @@ class FleetStore: ObservableObject {
     }
 
     var menuBarTone: FleetMenuBarTone {
+        guard control.blockedReason == nil else { return .dormant }
         guard isDaemonRunning else { return .dormant }
         switch daemonSeverity {
         case .critical: return .critical
@@ -611,11 +614,13 @@ class FleetStore: ObservableObject {
 
     init(
         autoStart: Bool = true,
-        endpointResolver: @escaping () -> DaemonEndpoint = DaemonLocation.resolve
+        endpointResolver: @escaping () -> DaemonEndpoint = DaemonLocation.resolve,
+        control: LocalRuntimeControl = .shared
     ) {
         self.preferences = FleetBarPreferenceStore.load()
         self.endpointResolver = endpointResolver
         self.endpoint = endpointResolver()
+        self.control = control
 
         guard autoStart else { return }
 
@@ -641,6 +646,10 @@ class FleetStore: ObservableObject {
     // MARK: - Daemon Lifecycle
 
     func startDaemon() {
+        if let reason = control.blockedReason {
+            settingsMessage = reason
+            return
+        }
         guard !isStartingDaemon else { return }
         isStartingDaemon = true
 
@@ -710,6 +719,14 @@ class FleetStore: ObservableObject {
     // MARK: - HTTP API
 
     func refresh() async {
+        if let reason = control.blockedReason {
+            sseTask?.cancel()
+            isConnected = false
+            isDaemonRunning = false
+            daemonStatus = nil
+            settingsMessage = reason
+            return
+        }
         refreshDiscoveredEndpoint()
 
         // Fail closed: with no resolved endpoint, construct no request and show
@@ -722,7 +739,7 @@ class FleetStore: ObservableObject {
         let registeredProjectsURL = URL(string: "\(baseURL)/projects")
         let daemonStatusURL = URL(string: "\(baseURL)/status")
         do {
-            let (data, response) = try await URLSession.shared.data(from: fleetURL)
+            let (data, response) = try await URLSession.shared.pdData(from: fleetURL, control: control)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 isDaemonRunning = false
                 daemonStatus = nil
@@ -732,7 +749,7 @@ class FleetStore: ObservableObject {
             let status = try JSONDecoder().decode(FleetStatusResponse.self, from: data)
             let registeredProjects: [RegisteredProjectResponse]
             if let projectsURL = registeredProjectsURL,
-               let (projectsData, projectsHTTPResponse) = try? await URLSession.shared.data(from: projectsURL),
+               let (projectsData, projectsHTTPResponse) = try? await URLSession.shared.pdData(from: projectsURL, control: control),
                let projectsHTTP = projectsHTTPResponse as? HTTPURLResponse,
                projectsHTTP.statusCode == 200,
                let decoded = try? JSONDecoder().decode(RegisteredProjectsResponse.self, from: projectsData) {
@@ -741,7 +758,7 @@ class FleetStore: ObservableObject {
                 registeredProjects = []
             }
             if let daemonStatusURL,
-               let (statusData, statusHTTPResponse) = try? await URLSession.shared.data(from: daemonStatusURL),
+               let (statusData, statusHTTPResponse) = try? await URLSession.shared.pdData(from: daemonStatusURL, control: control),
                let statusHTTP = statusHTTPResponse as? HTTPURLResponse,
                statusHTTP.statusCode == 200,
                let decodedStatus = try? JSONDecoder().decode(DaemonStatusResponse.self, from: statusData) {
@@ -796,7 +813,7 @@ class FleetStore: ObservableObject {
         if let projectDir { body["projectDir"] = projectDir }
         if let enabledAgents { body["enabledAgents"] = enabledAgents }
         request.httpBody = (try? JSONSerialization.data(withJSONObject: body.isEmpty ? [:] : body))
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -810,7 +827,7 @@ class FleetStore: ObservableObject {
         } else {
             request.httpBody = "{}".data(using: .utf8)
         }
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -820,7 +837,7 @@ class FleetStore: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = "{}".data(using: .utf8)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -838,7 +855,7 @@ class FleetStore: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["usdPerDay": usdPerDay])
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.pdData(for: request, control: control)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 settingsMessage = "Budget update failed"
                 await refresh()
@@ -857,7 +874,7 @@ class FleetStore: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -867,7 +884,7 @@ class FleetStore: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -877,7 +894,7 @@ class FleetStore: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await URLSession.shared.pdData(for: request, control: control)
         await refresh()
     }
 
@@ -893,7 +910,7 @@ class FleetStore: ObservableObject {
         let uid = String(getuid())
         return runProcess(
             executable: URL(fileURLWithPath: "/bin/launchctl"),
-            arguments: ["kickstart", "-k", "gui/\(uid)/com.portdaddy.daemon"]
+            arguments: ["kickstart", "-k", "gui/\(uid)/homebrew.mxcl.port-daddy"]
         ) == 0
     }
 
@@ -922,7 +939,7 @@ class FleetStore: ObservableObject {
         process.standardError = nil
 
         do {
-            try process.run()
+            try process.pdRun(control: control)
             process.waitUntilExit()
             return process.terminationStatus
         } catch {
@@ -934,18 +951,18 @@ class FleetStore: ObservableObject {
 
     private func connectSSE() {
         sseTask?.cancel()
-        sseTask = Task { [weak self, baseURL = daemonURL] in
+        sseTask = Task { [weak self, baseURL = daemonURL, control] in
             guard let baseURL, let url = URL(string: "\(baseURL)/fleet/events") else { return }
             while !Task.isCancelled {
                 do {
-                    let (stream, response) = try await URLSession.shared.bytes(from: url)
+                    let (stream, response) = try await URLSession.shared.pdLines(from: url, control: control)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                         try await Task.sleep(for: .seconds(5))
                         continue
                     }
                     await MainActor.run { self?.isConnected = true }
 
-                    for try await line in stream.lines {
+                    for try await line in stream {
                         guard !Task.isCancelled else { break }
                         guard line.hasPrefix("data: ") else { continue }
                         let jsonStr = String(line.dropFirst(6))
@@ -1175,7 +1192,7 @@ class FleetStore: ObservableObject {
         var loadedAny = false
         await withTaskGroup(of: (String, [OperatorActorResponse]?).self) { group in
             for project in nextProjects {
-                group.addTask { [baseURL] in
+                group.addTask { [baseURL, control] in
                     guard var components = URLComponents(string: "\(baseURL)/operator/actors") else {
                         return (project.id, nil)
                     }
@@ -1185,7 +1202,7 @@ class FleetStore: ObservableObject {
                     ]
                     guard let url = components.url else { return (project.id, nil) }
                     do {
-                        let (data, response) = try await URLSession.shared.data(from: url)
+                        let (data, response) = try await URLSession.shared.pdData(from: url, control: control)
                         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                             return (project.id, nil)
                         }
@@ -1355,7 +1372,7 @@ class FleetStore: ObservableObject {
         var nextProjects = projects
         await withTaskGroup(of: (String, FleetBriefing?).self) { group in
             for project in nextProjects {
-                group.addTask { [baseURL] in
+                group.addTask { [baseURL, control] in
                     guard var components = URLComponents(string: "\(baseURL)/briefing/\(project.name)") else {
                         return (project.id, nil)
                     }
@@ -1363,7 +1380,7 @@ class FleetStore: ObservableObject {
                     components.queryItems = [URLQueryItem(name: "projectRoot", value: project.projectDir)]
                     guard let url = components.url else { return (project.id, nil) }
                     do {
-                        let (data, response) = try await URLSession.shared.data(from: url)
+                        let (data, response) = try await URLSession.shared.pdData(from: url, control: control)
                         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                             return (project.id, nil)
                         }

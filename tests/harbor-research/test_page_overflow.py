@@ -70,11 +70,12 @@ class MarginCollisionTests(unittest.TestCase):
             build(page)
             path = Path(directory) / "p.pdf"
             doc.save(path)
-            doc = pymupdf.open(path)
-            page = doc[0]
-            x0, x1, outer = po.column(page, 1)
-            self.assertEqual((round(x0), round(x1), outer), (round(X0), round(X1), "R"))
-            return po.margin_collisions(page, x0, x1, outer)
+            doc.close()
+            with pymupdf.open(path) as doc:
+                page = doc[0]
+                x0, x1, outer = po.column(page, 1)
+                self.assertEqual((round(x0), round(x1), outer), (round(X0), round(X1), "R"))
+                return po.margin_collisions(page, x0, x1, outer)
 
     def test_two_notes_printed_on_top_of_each_other_are_found(self):
         def build(page):
@@ -168,10 +169,11 @@ class OffTheFootTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "p.pdf"
             path.write_bytes(raw_pdf_with_text_at(pdf_y))
-            page = pymupdf.open(path)[0]
-            self.assertEqual((round(page.rect.width), round(page.rect.height)), (round(PAPER_W), round(PAPER_H)))
-            visible = [b for b in page.get_text("blocks") if "Recall" in b[4]]
-            below = [b for b in po.text_blocks_unclipped(page) if b[3] > po.PAPER_H + 0.5]
+            with pymupdf.open(path) as doc:
+                page = doc[0]
+                self.assertEqual((round(page.rect.width), round(page.rect.height)), (round(PAPER_W), round(PAPER_H)))
+                visible = [b for b in page.get_text("blocks") if "Recall" in b[4]]
+                below = [b for b in po.text_blocks_unclipped(page) if b[3] > po.PAPER_H + 0.5]
             return below, visible
 
     def test_a_note_below_the_foot_is_found_and_is_invisible_otherwise(self):
@@ -209,7 +211,7 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
         # Name what is missing rather than failing later with a bare KeyError.
         # A key commented out or renamed in the preamble still fails this test --
         # it cannot pass having read nothing -- but it should say which key.
-        for required in ("paperwidth", "paperheight", "left", "right"):
+        for required in ("paperwidth", "paperheight", "inner", "outer"):
             self.assertIn(required, out, f"{required} is not set in \\geometry{{}} in {self.GEOMETRY}")
         return out
 
@@ -220,11 +222,11 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
 
     def test_the_text_block_matches(self):
         geometry = self.geometry()
-        self.assertAlmostEqual(po.INNER, geometry["left"], places=3)
+        self.assertAlmostEqual(po.INNER, geometry["inner"], places=3)
         # The measure is what the trim leaves after both margins; the preamble
         # sets the margins and never names the width, so derive it the same way.
         self.assertAlmostEqual(
-            po.TEXTW, geometry["paperwidth"] - geometry["left"] - geometry["right"], places=3,
+            po.TEXTW, geometry["paperwidth"] - geometry["inner"] - geometry["outer"], places=3,
         )
 
 
@@ -252,13 +254,15 @@ class ImageOffThePaperTests(unittest.TestCase):
             page.insert_image(rect, pixmap=pix)
             path = Path(directory) / "p.pdf"
             doc.save(path)
-            page = pymupdf.open(path)[0]
+            doc.close()
             out = []
-            for info in page.get_image_info():
-                r = pymupdf.Rect(info["bbox"])
-                off = max(0, -r.x0, r.x1 - po.PAPER_W, -r.y0, r.y1 - po.PAPER_H)
-                if off > 0.5:
-                    out.append(round(off, 1))
+            with pymupdf.open(path) as doc:
+                page = doc[0]
+                for info in page.get_image_info():
+                    r = pymupdf.Rect(info["bbox"])
+                    off = max(0, -r.x0, r.x1 - po.PAPER_W, -r.y0, r.y1 - po.PAPER_H)
+                    if off > 0.5:
+                        out.append(round(off, 1))
             return out
 
     def test_a_portrait_above_the_head_is_found(self):
@@ -286,9 +290,11 @@ class FootIntrusionTests(unittest.TestCase):
             build(page)
             path = Path(directory) / "p.pdf"
             doc.save(path)
-            page = pymupdf.open(path)[0]
-            x0, x1, _ = po.column(page, 1)
-            return po.foot_intrusions(page, x0, x1)
+            doc.close()
+            with pymupdf.open(path) as doc:
+                page = doc[0]
+                x0, x1, _ = po.column(page, 1)
+                return po.foot_intrusions(page, x0, x1)
 
     def test_a_table_row_over_the_running_foot_is_found(self):
         def build(page):

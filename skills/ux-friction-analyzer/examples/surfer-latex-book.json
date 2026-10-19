@@ -1,0 +1,174 @@
+{
+  "surfaceKind": "latex-book",
+  "readerMode": "skim",
+  "patienceBudget": {
+    "seconds": 900,
+    "rationale": "Assumption: the 15 minutes a prospective reader spends in a bookshop or on a sample PDF before deciding to buy or to close the tab. Not a measured figure."
+  },
+  "entryNodes": [
+    {
+      "id": "preface",
+      "weight": 2
+    },
+    {
+      "id": "ch3-model",
+      "weight": 1
+    }
+  ],
+  "payoffNodes": [
+    "ch4-theorem"
+  ],
+  "readerPaths": [
+    {
+      "id": "practitioner",
+      "label": "Practitioner route, as printed in the Reader's Map",
+      "persona": "Quant who needs the model and the result, not the construction",
+      "nodes": [
+        "preface",
+        "ch3-model",
+        "ch4-theorem"
+      ],
+      "patienceBudgetSeconds": 3600
+    },
+    {
+      "id": "theorist",
+      "label": "Theorist route, as printed in the Reader's Map",
+      "persona": "Graduate student reading for the construction",
+      "nodes": [
+        "preface",
+        "ch1-prelims",
+        "ch2-calculus",
+        "ch3-model",
+        "ch4-theorem"
+      ],
+      "readerMode": "study",
+      "patienceBudgetSeconds": 21600
+    }
+  ],
+  "nodes": [
+    {
+      "id": "preface",
+      "label": "Preface",
+      "kind": "prose",
+      "costSeconds": 120,
+      "payoff": 0.1,
+      "hook": 0.3,
+      "attentionElements": 2,
+      "gestalt": {
+        "groupingClarity": 8,
+        "figureGroundClarity": 8
+      },
+      "links": [
+        {
+          "to": "ch1-prelims",
+          "kind": "sequential",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "ch1-prelims",
+      "label": "Ch 1 \u2014 Measure-theoretic preliminaries",
+      "kind": "definition",
+      "costSeconds": 1800,
+      "newConcepts": [
+        "sigma-algebra",
+        "measure",
+        "lebesgue-integral",
+        "radon-nikodym",
+        "filtration",
+        "martingale"
+      ],
+      "requiresConcepts": [
+        "topology",
+        "banach-space"
+      ],
+      "payoff": 0.0,
+      "hook": 0.1,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 6,
+        "figureGroundClarity": 7
+      },
+      "links": [
+        {
+          "to": "ch2-calculus",
+          "kind": "sequential",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "ch2-calculus",
+      "label": "Ch 2 \u2014 Stochastic calculus",
+      "kind": "theorem",
+      "costSeconds": 1800,
+      "newConcepts": [
+        "ito-integral",
+        "quadratic-variation"
+      ],
+      "requiresConcepts": [
+        "martingale",
+        "filtration",
+        "measure"
+      ],
+      "payoff": 0.1,
+      "hook": 0.2,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 7,
+        "figureGroundClarity": 7
+      },
+      "links": [
+        {
+          "to": "ch3-model",
+          "kind": "sequential",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "ch3-model",
+      "label": "Ch 3 \u2014 The model",
+      "kind": "prose",
+      "costSeconds": 900,
+      "newConcepts": [
+        "pricing-kernel"
+      ],
+      "requiresConcepts": [
+        "ito-integral",
+        "radon-nikodym"
+      ],
+      "payoff": 0.3,
+      "hook": 0.5,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 8,
+        "figureGroundClarity": 8
+      },
+      "links": [
+        {
+          "to": "ch4-theorem",
+          "kind": "sequential",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "ch4-theorem",
+      "label": "Ch 4 \u2014 Main theorem",
+      "kind": "theorem",
+      "costSeconds": 600,
+      "requiresConcepts": [
+        "pricing-kernel"
+      ],
+      "payoff": 1.0,
+      "hook": 0.6,
+      "attentionElements": 3,
+      "gestalt": {
+        "groupingClarity": 8,
+        "figureGroundClarity": 8
+      }
+    }
+  ]
+}

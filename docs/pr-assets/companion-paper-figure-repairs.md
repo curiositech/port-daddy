@@ -21,9 +21,9 @@ Generated papers:
 
 Visual evidence:
 
-- `companion-paper-figure-repairs.jpg` — labeled contact sheet, SHA-256
+- `https://media.portdaddy.dev/sha256/c1/c1a0587e40b0df4fef63a0aa4cf738a6a97f313f4449ad1c61de42068c7bfc65.jpg` — labeled contact sheet, SHA-256
   `c1a0587e40b0df4fef63a0aa4cf738a6a97f313f4449ad1c61de42068c7bfc65`;
-- `companion-paper-figure-tour.gif` — labeled five-frame tour, SHA-256
+- `https://media.portdaddy.dev/sha256/b4/b46f6a8462fd2df69155d244896245346df8d62b9d79c64328a96643dc2bcb28.gif` — labeled five-frame tour, SHA-256
   `b46f6a8462fd2df69155d244896245346df8d62b9d79c64328a96643dc2bcb28`.
 
 No overfull boxes, undefined references, or undefined citations appear in the

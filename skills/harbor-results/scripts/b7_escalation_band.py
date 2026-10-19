@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-B7 — Costly-escalation signaling: threshold equilibrium + the debit tuning band
+B7 — Costly-escalation signaling: threshold best response + the debit tuning band
 ===============================================================================
 Portfolio §B7 / whitepaper §escalation ("crying wolf has a price"). Setting:
 an agent privately observes urgency u ~ F on [0,1]. Escalating surfaces the
@@ -12,14 +12,16 @@ increasing. Not escalating yields 0. Escalation payoff:
 
     Pi_delta(u) = b(u) - delta*w*(1 - V(u))                              (Pi)
 
-THEOREM 1 (threshold equilibrium). If b is strictly increasing and V is
-nondecreasing, Pi_delta is strictly increasing in u, hence crosses 0 at most
-once. With Pi_delta(0) < 0 < Pi_delta(1) there is a unique u*(delta) solving
-b(u*) = delta*w*(1 - V(u*)), and the unique best response is the THRESHOLD
-rule "escalate iff u >= u*(delta)" — a separating equilibrium in the Spence
-mold: the dismissal debit is money-burning only high-urgency types risk.
-(Corner cases: Pi(0) >= 0 => u* = 0, all escalate; Pi(1) <= 0 => u* = 1,
-silence.)
+THEOREM 1 (threshold best response). Let w > 0, delta >= 0, and b,V be
+continuous, with b strictly increasing and V:[0,1]->[0,1] nondecreasing.
+Here b is expected benefit before the dismissal debit. Pi_delta is strictly
+increasing, hence has at most one zero. With Pi_delta(0) < 0 < Pi_delta(1),
+continuity gives a unique interior u*(delta). Escalation at indifference fixes
+the rule "escalate iff u >= u*(delta)". This fixes the validator's policy;
+it is not a joint-equilibrium proof for an optimizing validator.
+(Corner cases: Pi(0) >= 0 => all escalate; Pi(1) < 0 => none. At Pi(1) = 0,
+only u=1 escalates under the tie rule. The numeric routine uses endpoint
+sentinels for these cases; the continuous worked distributions have no atoms.)
 
 THEOREM 2 (monotone comparative statics). u*(delta) is nondecreasing in
 delta; at an interior differentiable crossing,
@@ -38,7 +40,9 @@ define per-item
     alarm load  L(delta)  = INT_{u*}^{1} [c_att + C_fa*(1-V(u))] dF(u)
     miss loss   ML(delta) = C_miss * max(0, F(u*(delta)) - F(u_crit)).
 L is nonincreasing and ML nondecreasing in delta (both via Thm 2), so the
-feasible set {delta : L <= A, ML <= M} is an INTERVAL [delta_min, delta_max]:
+feasible set {delta : L <= A, ML <= M} is an INTERVAL. Closed endpoints also
+require continuity of L and ML, as in the worked continuous distributions;
+a finite upper endpoint requires a binding upper constraint. In that case:
 below delta_min the operator's alarm-fatigue budget A is violated; above
 delta_max the distress lane silences more genuine-distress mass than the miss
 budget M tolerates. Uniform-linear closed forms (w=1):
@@ -193,7 +197,7 @@ for i in range(N_ATK):
             lo_loud = np.where(esc)[0]
             witness = (i, amp, k, w, delta, grid[lo_loud[0]], grid[hi_silent[0]])
 check(multi > 0, f"attack landed: {multi}/{N_ATK} non-monotone instances have "
-                 f">1 crossing (threshold equilibrium FAILS there)")
+                 f">1 crossing (threshold response FAILS there)")
 if witness:
     i, amp, k, w, delta, u_lo, u_hi = witness
     print(f"  witness i={i}: amp={amp:.3f} k={k} w={w:.3f} delta={delta:.3f} — "
@@ -293,7 +297,7 @@ check(L_closed(d_big) <= A, "  (and it 'passes' the fatigue wall alone — one-s
 # ---------- verdict -------------------------------------------------------
 print("\n=== VERDICT ===")
 if not failures:
-    print("  [verified] threshold equilibrium + monotone statics survive 4000")
+    print("  [verified] threshold response + monotone statics survive 4000")
     print("  monotone draws; the attack breaks non-monotone families as the")
     print("  theorem's condition predicts; the band [delta_min, delta_max] is an")
     print(f"  interval, nonempty at A=3.3 ([{band(3.3)[0]:.4f}, {band(3.3)[1]:.4f}]),")

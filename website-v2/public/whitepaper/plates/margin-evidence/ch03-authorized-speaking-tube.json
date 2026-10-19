@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Shipboard brass acoustic speaking tube with cobalt blue whistle stopper plug. Analogy for strictly mediated communication across isolation boundaries.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "06009b0a8713a8efaa77eb8f8a19dce1c9f7cba6a53de1c5ad982aa64a1066fb",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

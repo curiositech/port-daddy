@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [textbook, pedagogy, exposition, exercise-design, harbor]
-  version: 1.1.0
+  version: 1.4.0
   pairs-with:
     - skill: harbor-exposition
       reason: Shares the honesty-ledger and express-lane discipline; harbor-exposition governs one result, this skill governs a chapter of many
@@ -263,10 +263,16 @@ argument — the *Gödel, Escher, Bach* dialogue slot, not the argument's
 premise (`references/chapter-template.md` §Interludes). More than one, or one
 woven unlabeled into the body, is exactly what the reviewers flagged as
 recurring detours worth cutting.
-**Detection**: `scripts/chapter_lint.py`'s `at_most_one_interlude` floor
-(titled sections/subsections matching "Interlude"); an untitled philosophical
-aside inside ordinary prose is invisible to the script and needs a human
-read.
+**Detection**: partial, and the floor says so. `scripts/chapter_lint.py`'s
+`at_most_one_labelled_interlude` floor counts sections and subsections
+*titled* "Interlude": two or more is a measured violation and fails; one or
+none is reported `REVIEW`, never `PASS`, because an aside woven unlabelled
+into ordinary prose leaves no mechanical trace. That is not a gap waiting for
+a cleverer regex — a keyword list of philosopher names would be a guess
+wearing a measurement's clothes, and this repository has spent enough effort
+unwinding that kind of false precision. `whitepaper/legible-swarm.tex` is the
+standing example: Hobbes as its spine, Scott as its governing warning, both
+unlabelled, and the floor counts zero. Only a human read settles it.
 
 ### Boxes for Everything
 **Novice**: Reach for a tinted box (or a bulleted callout, or a pull-quote
@@ -312,58 +318,21 @@ first `theorem`/`definition`.
 
 ## Scripts
 
-- `python3 scripts/chapter_lint.py [CHAPTER.tex ...] [--json|--md] [--strict] [--table]` —
-  a DO-CONFIRM checklist (Gawande, `references/canon.md`) that strips TeX
-  comments (an unescaped `%`, the same idiom `check_plate_provenance.py` uses
-  in the harbor-research scripts, not yet merged to main <!-- cite-exempt -->)
-  before every regex pass, then reports, against this
-  skill's floors:
-  - **`worked_example_per_section`** — every top-level section has >=1
-    worked example (`pdexample`/`example`) before its general statement.
-  - **`claims_carry_epistemic_kind`** — every claim-like environment
-    (theorem/lemma/definition/property/corollary, or `pdclaim{KIND}{...}`)
-    carries an epistemic-kind tag *inside its own body* (a brace-and-env
-    -balanced extent, not a fixed character window that can borrow a
-    neighboring claim's tag).
-  - **`no_tinted_box_macros`** — a legacy `\newcommand` that draws a
-    `fill=` node is dead only if `whitepaper/figures/pd-pedagogy.tex`'s own
-    `\AtBeginDocument` block actually re-`\long\def`'s that exact macro
-    name (parsed from the file itself, not inferred from whether the
-    chapter happens to `\input` it — see SKILL.md's Page grammar section).
-  - **`imports_pd_pedagogy_twin`** — the chapter `\input{s}`
-    `figures/pd-pedagogy` at all, independent of whether any legacy macro
-    happens to be neutralized: without it the chapter gets no shared page
-    grammar (claim boxes, boundaries, worked examples, exercises).
-  - **`exercises_at_chapter_end`** (advisory) — every `pdexercise` cluster
-    sits inside the chapter's own closing `\section{Exercises}`, not
-    scattered mid-body. Advisory because the Book's chapters have not all
-    been relocated to this rule yet.
-  - **`chapter_opener_and_claim_labeling`** (advisory) — the chapter's
-    first `\section` opens with prose or an epigraph macro rather than a
-    cold table or claim, and every claim-like environment is tagged.
-    Advisory because no chapter in the corpus yet opens with an epigraph.
-  - **`at_most_one_interlude`**, **`chapter_close_apparatus`** — unchanged
-    structural counts (interlude titles; Review/History/boundary sections
-    present by title keyword).
-
-  Report-only by default (exit 0); `--strict` exits 1 if any **blocking**
-  (non-advisory) floor is violated — an advisory floor left unmet is
-  reported (status `WARN`) but never trips `--strict`. Given more than one
-  chapter, or `--table`, the report becomes one consolidated table (chapter,
-  floor, status, detail) instead of N separate reports; given no chapter at
-  all, the chapter list is read from `whitepaper/textbook.json` (the same
-  convention `skills/tufte-evidence-design/scripts/margin_lint.py` uses), so
-  neither this script's CLI nor its CI step hard-codes the Book's chapter
-  paths. Tested on `whitepaper/single-writer-kernel.tex` (see
-  `examples/chapter1-lint-report.txt`) and, consolidated across all eight
-  Book chapters, in `examples/consolidated-lint-report.txt` — the same
-  report `library-checks.yml`'s CI step reads (advisory today: two blocking
-  floors already fail on several chapters, pre-dating this script, so the
-  step is `continue-on-error` until that content catches up). Unit tests:
-  `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
-  skills/textbook-craft/tests -p 'test_*.py'`).
+Run `python3 scripts/chapter_lint.py [CHAPTER.tex ...] --apparatus
+whitepaper/chapter-apparatus.json --strict` for chapter structure and claim
+labels. Run `python3 scripts/readers_eye.py [CHAPTER.tex ...] --selftest`
+for the countable reader-followability checks. Read
+`references/checker-contracts.md` for exact floors, status semantics,
+exit codes, fixture limitations, and CI debt policy. Read
+`references/chapter-lint-apparatus.md` before editing section-role metadata.
 
 ## References
+
+- `references/checker-contracts.md` — Read for lint rules, exit codes,
+  advisory checks, and known baseline debt.
+
+- `references/chapter-lint-apparatus.md` — Read for apparatus sidecar schema,
+  exclusions, exit codes, and the measured CI baseline.
 
 - `references/chapter-template.md` — Read when drafting or reviewing a
   chapter opener, its proof discipline, or its closing sequence.
@@ -375,3 +344,13 @@ first `theorem`/`definition`.
   makes and why it is worth stealing (or, for Rudin, why it is not).
 - `references/sources.md` — Read when citing this skill's own provenance, or
   checking a claim's tier before repeating it in a review comment.
+- `references/readers-eye.md` — Read before reviewing a chapter for prose a
+  reader cannot follow, before changing a threshold in `readers_eye.py`, and
+  whenever running the Layer-2 judge pass.
+- `references/readers-eye-lexicon.json` — the word lists `scripts/readers_eye.py`
+  matches against (metaphor domains, abstraction vocabulary, register
+  markers). Read or edit when a rule is firing on prose it should not, or
+  missing prose it should catch: the fix usually belongs in this data file
+  rather than in the script, on the same separation
+  `skills/make_copy_and_media_human` uses, where the tells live in
+  `references/catalog.json` and the script measures only densities and ratios.

@@ -469,10 +469,20 @@ export class StewardDO {
       repo === 'unbound'
         ? { ran: false, skipped: 'seat not yet bound to a repo', docketText: '' }
         : await runTick(this.env, repo, now, fetch, undefined, this.state.storage);
+    // The walk is reported, not just its headline. A tick that judged 25 PRs
+    // and found nothing new is a materially different event from one that
+    // judged a single PR — and the old line, which named only `docket[0]`,
+    // made a starved seat look identical to a working one for two production
+    // wakes running. Whatever the seat DID must be legible from this sentence.
+    const walk = tick.ran && tick.scanned !== undefined
+      ? ` [judged ${tick.scanned}, recorded ${tick.ledgered ?? 0}, unchanged ${tick.unchanged ?? 0}]`
+      : '';
     const tickLine = tick.ran
       ? tick.verdict
-        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}${tick.landing ? ` | ${tick.landing.reason}` : ''}`
-        : `Tick: ${tick.docketText}`
+        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}${tick.landing ? ` | ${tick.landing.reason}` : ''}${walk}`
+        : tick.scanned
+          ? `Tick: nothing new — every one of ${tick.scanned} judged PR(s) already holds the verdict the seat would render${walk}`
+          : `Tick: ${tick.docketText}`
       : `Tick held: ${tick.skipped}`;
 
     // A frozen seat says so on EVERY wake, not only the one that tripped —
@@ -496,6 +506,9 @@ export class StewardDO {
         docket: tick.docketText,
         verdict: tick.verdict ?? null,
         landing: tick.landing ?? null,
+        walk: tick.scanned === undefined
+          ? null
+          : { scanned: tick.scanned, ledgered: tick.ledgered ?? 0, unchanged: tick.unchanged ?? 0 },
       }),
       wakeEvents: events.length,
       createdAt: Math.floor(now / 1000),

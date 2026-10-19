@@ -1,50 +1,49 @@
-% Figure --- recursive audit closes by measurable contraction, not by height.
+% Reader question: why does recursive evaluator audit terminate, and what
+% assumption remains open? Claim: recursive auditing becomes finite only
+% because remaining corrupt opportunity G_k contracts each level under sealed
+% sampling; height alone proves nothing. Evidence: the chapter's reported
+% depths, heterogeneous sealed sampling across C=8 disjoint cliques reaching
+% the honest-root boundary near level 27, a monoculture (C=1) needing roughly
+% 53 levels; the governing conditions rho*d*B>=G_k and G_(k+1)=(1-rho*d)*G_k.
+% Must distinguish: the parameterized contraction curve from an asserted
+% termination, and the exogenously honest root (not manufactured by the
+% theorem) from the contraction result itself. Grammar: a recursive
+% contraction tower with a theorem/conditions panel, rejected: a two-tier
+% loop or infinite spiral (asserts recursion without the contraction that
+% bounds it) and self-looping bubbles (no measured quantity). Five-second
+% test: a reader says "heterogeneous pools reach the floor twice as fast."
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.15)
-    {remaining corrupt opportunity across audit levels};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (6.4,-2.10);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (-6.0,2.55);
-  \node[pd axis label,anchor=west] at (6.5,-2.10) {audit level $k$};
-  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {$G_k$ (log scale)};
-
-  \foreach \x/\lab in {-5.8/0,-3.75/10,-1.7/20,.35/30,2.4/40,4.45/50,5.7/56} {
-    \draw[pd tick] (\x,-2.22) -- (\x,-1.98);
-    \node[pd axis label,anchor=north] at (\x,-2.32) {\lab};
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west] at (0,5.65) {remaining corrupt opportunity across audit levels};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (9.10,0);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (0.9,4.65);
+  \node[pd label,anchor=north east] at (9.10,-.75) {audit level $k$};
+  \node[pd label,anchor=south,rotate=90,text width=2.6cm,align=center] at (0.20,2.30) {$G_k$ (log scale)};
+  \foreach \x/\lab in {0.9/0,2.19/10,3.47/20,4.76/30,6.05/40,7.34/50,8.43/56} {
+    \draw[pd tick] (\x,-.12) -- (\x,.12);
+    \node[pd label,anchor=north] at (\x,-.22) {\lab};
   }
-  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd guide] (-5.95,\y) -- (6.0,\y);
-
-  % Parameterized example: heterogeneous pools contract faster.
+  \foreach \y in {2.30,3.45,4.60} \draw[pd guide] (0.9,\y) -- (9.10,\y);
+  % ---- parameterized example: heterogeneous pools contract faster -----------
   \draw[pd focus rule,line width=1.55pt]
-    plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
-  \draw[pd caution rule,dashed,line width=1.55pt]
-    plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
-  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
-    {$C=8$: heterogeneous cliques\\[-1pt]{\tiny reaches root near level 27}};
-  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
-    {$C=1$: monoculture\\[-1pt]{\tiny reaches root near level 53}};
-
-  % The theorem ends at a separately owed root.
-  \fill[hhamber!9] (-5.95,-1.95) rectangle (6.0,-1.45);
-  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
-  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
+    plot[smooth] coordinates {(0.9,4.30) (1.84,3.55) (2.77,2.70) (3.55,1.70) (4.35,1.30)};
+  \draw[pd warn rule,line width=1.55pt]
+    plot[smooth] coordinates {(0.9,4.30) (2.19,3.65) (3.47,2.95) (4.76,2.15) (6.05,1.30) (7.70,1.30)};
+  \node[pd focus label,anchor=south] at (4.10,1.60) {$C=8$};
+  \node[pd label,anchor=south] at (6.05,1.50) {$C=1$};
+  % ---- the theorem ends at a separately owed root ----------------------------
+  \draw[pd warn fill] (0.9,-0.28) rectangle (9.10,0.95);
+  \node[pd tag,anchor=center,text width=7.6cm,align=center,fill=pdpage,inner sep=2pt] at (5.0,0.42)
     {exogenously honest root required; the contraction theorem does not manufacture it};
-
-  \node[pd direct label,anchor=west] at (-5.75,-3.05)
+  \node[pd label,anchor=north west,text width=3.0cm] at (0.9,-1.35)
     {$\rho d B\ge G_k$ at each level};
-  \node[pd direct label,anchor=west] at (-.65,-3.05)
+  \node[pd label,anchor=north west,text width=4.6cm] at (4.10,-1.35)
     {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
-\end{tikzpicture}}
-\caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
-contracts.} The parameterized example plots the chapter's reported depths:
-heterogeneous sealed sampling across $C=8$ cliques reaches the honest-root boundary
-near level 27, while a monoculture ($C=1$) requires roughly 53 levels. More boxes
-or more height would not prove this result; the governing conditions are local
-deterrence $\rho dB\ge G_k$ and contraction
-$G_{k+1}=(1-\rho d)G_k$. The amber floor is deliberately separate: the imported
-theorem bounds the tower but does not supply its exogenously honest root or the
-telemetry that estimates $d$.}
+\end{tikzpicture}
+\caption{In this parameterized example, eight cliques reach the honest-root
+boundary near level 27; one clique needs roughly 53. The bound assumes an
+honest root---it does not create one. [internal]}
 \label{fig:rate-raters}
 \end{figure}

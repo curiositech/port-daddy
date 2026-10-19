@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { hookRuntimePreamble } from './hook-runtime-gate.js';
 
 const LEGACY_GIT_CHANNEL = '/msg/git:committed';
 const SCOPED_CHANNEL_MARKER = 'CHANNEL="project:';
@@ -22,6 +23,15 @@ export function isLegacyPortDaddyPostCommitHook(content: string): boolean {
 
 export function isScopedPortDaddyPostCommitHook(content: string): boolean {
   return isPortDaddyPostCommitHook(content) && content.includes(SCOPED_CHANNEL_MARKER);
+}
+
+/**
+ * Purpose: channel scoping alone does not prove an installed hook honors Off.
+ * @param content Installed hook source, which may contain unrelated user work.
+ * @returns Whether both project scoping and the current gate are present.
+ */
+export function isCurrentPortDaddyPostCommitHook(content: string): boolean {
+  return isScopedPortDaddyPostCommitHook(content) && content.includes(hookRuntimePreamble());
 }
 
 export function loadPostCommitHookTemplate(): string {

@@ -1,3 +1,4 @@
+import { readAgentRunReceipt, type AgentRunReceipt } from '../agent-run-receipts.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import type {
@@ -88,11 +89,11 @@ export interface WorkPlanPayload extends HarborPayload {
   planId: string;
   intentId: string;
   idempotencyKey: string;
-  shape: 'unshaped';
-  state: 'intent-captured';
+  shape: 'unshaped' | 'single-node';
+  state: 'intent-captured' | 'materializing' | 'runs-attached' | 'review-ready' | 'canceled' | 'blocked';
   confidence: number;
   evidence: string;
-  nodeSpecs: [];
+  nodeSpecs: Array<Record<string, unknown>>;
   placeholders: Array<{
     placeholderId: string;
     role: string;
@@ -105,7 +106,7 @@ export interface WorkPlanPayload extends HarborPayload {
     reason: string;
     status: 'pending';
   }>;
-  requiresApproval: true;
+  requiresApproval: boolean;
   createdAt: string;
 }
 
@@ -139,6 +140,7 @@ export interface CaptureResult {
 export interface WorkIntentSnapshot {
   intent: WorkIntentPayload;
   plan: WorkPlanPayload | null;
+  runReceipt?: AgentRunReceipt | null;
 }
 
 export interface CaptureWithInitialPlanResult extends CaptureResult {
@@ -433,10 +435,22 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     return txn();
   }
 
+  function snapshotForIntent(intent: WorkIntentPayload): WorkIntentSnapshot {
+    const plan = readPlanForIntent(db, intent.intentId);
+    if (intent.constraints?.executionKind !== 'single-body') return { intent, plan };
+    const runReceipt = typeof intent.constraints.runReceiptId === 'string'
+      ? readAgentRunReceipt(db, intent.constraints.runReceiptId) : null;
+    const linked = runReceipt?.intentId === intent.intentId && runReceipt?.planId === plan?.planId ? runReceipt : null;
+    const state = !linked || linked.status === 'unknown' || linked.status === 'failed' || linked.status === 'over_budget' || linked.status === 'no_runtime'
+      ? 'blocked' : linked.status === 'completed' ? 'review-ready' : linked.status === 'cancelled'
+        ? 'canceled' : linked.status === 'accepted' ? 'materializing' : 'runs-attached';
+    return { intent, plan: plan ? { ...plan, state } : null, runReceipt: linked };
+  }
+
   function get(intentId: string): WorkIntentSnapshot | null {
     ensureEventLedgerSchema(db);
     const intent = readIntentByEventIdIfExists(db, intentId);
-    return intent ? { intent, plan: readPlanForIntent(db, intent.intentId) } : null;
+    return intent ? snapshotForIntent(intent) : null;
   }
 
   function list(limit = 100): WorkIntentSnapshot[] {
@@ -449,7 +463,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
       .all(boundedLimit) as Array<{ payload_json: string }>;
     return rows.map((row) => {
       const intent = JSON.parse(row.payload_json) as WorkIntentPayload;
-      return { intent, plan: readPlanForIntent(db, intent.intentId) };
+      return snapshotForIntent(intent);
     });
   }
 
@@ -457,6 +471,9 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     const snapshot = get(intentId);
     if (!snapshot) {
       throw new Error(`WorkIntent ${intentId} not found`);
+    }
+    if (snapshot.intent.constraints?.executionKind === 'single-body') {
+      throw new Error('Single-body WorkIntent already belongs to its run receipt; dispatch cannot start it');
     }
     const dispatchId = snapshot.intent.compat?.dispatchId
       ?? dispatchIdForWorkIntent(snapshot.intent.intentId);

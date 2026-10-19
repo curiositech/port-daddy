@@ -16,6 +16,7 @@ import { readFileSync, existsSync, statSync, mkdtempSync, mkdirSync, rmSync } fr
 import { homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createLocalRuntimeGate } from './local-runtime-control.js';
 import type { CostTracker } from './cost-tracker.js';
 import { getEffectiveContextWindow } from './context-window-tracker.js';
 import type { Counters } from './counters.js';
@@ -243,6 +244,10 @@ export interface SpawnSpec {
    * as transcript initialization.
    */
   onStarted?: (receipt: SpawnStartedReceipt) => void;
+  /** Internal canonical run identity, supplied by WorkIntent materialization. */
+  canonicalRunId?: string;
+  /** Fail-closed canonical run binding after session admission, before any backend turn. */
+  onReady?: (receipt: SpawnStartedReceipt & { sessionId: string }) => void;
 }
 
 export interface SpawnStartedReceipt {
@@ -393,6 +398,8 @@ export interface ResolvedSpawnRuntime {
 }
 
 interface SpawnerDeps {
+  /** Injectable control observation for inert tests; defaults to canonical Off. */
+  runtimeAllowed?: () => boolean;
   costTracker?: CostTracker;
   counters?: Counters;
   bonds?: Bonds;
@@ -590,11 +597,13 @@ interface ChildRunOpts {
   timeout?: number;
   stdio?: ('ignore' | 'pipe')[];
   onChild?: (child: ChildProcess) => void;
+  beforeSpawn?: () => void;
 }
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
     const timeoutMs = typeof opts.timeout === 'number' && opts.timeout > 0 ? opts.timeout : null;
+    opts.beforeSpawn?.();
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
@@ -703,6 +712,11 @@ interface ConfinedChildOpts {
 async function runConfinedChild(
   opts: ConfinedChildOpts,
 ): Promise<{ output: string; error: string | null; child: ChildProcess; coastGuardReceipt: CoastGuardReceipt }> {
+  const runtimeAllowed = createLocalRuntimeGate(opts.context?.runtimeAllowed);
+  const requireRuntimeAdmission = () => {
+    if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; child launch refused');
+  };
+  requireRuntimeAdmission();
   const cwd = opts.cwd ?? opts.spec.workdir;
   // Scope-tier write confinement (ADR-VI containment): derive the same priced
   // tier from the spawn's capabilities that the bond was priced on, so a
@@ -740,6 +754,8 @@ async function runConfinedChild(
       timeout: opts.timeout,
       stdio: opts.stdio,
       onChild: opts.context?.onChildProcess,
+      // Synchronous: an async witness callback is not the final effect boundary.
+      beforeSpawn: requireRuntimeAdmission,
     });
     return { ...res, coastGuardReceipt: cg.receipt() };
   } finally {
@@ -780,6 +796,8 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Private lifetime-latched Off observation, never supplied by a spawn request. */
+  runtimeAllowed?: () => boolean;
   /** Prevent a child launch if its managed lifecycle ended during sandbox setup. */
   signal?: AbortSignal;
   /** Private daemon witness check, repeated after asynchronous sandbox setup. */
@@ -853,6 +871,11 @@ async function runClaude(
 
   const sink = apiDeltaSink(context);
   try {
+    // The optional SDK import above yielded; do not authorize a paid request
+    // using the observation from before that await.
+    if (!createLocalRuntimeGate(context?.runtimeAllowed)()) {
+      throw new Error('Local Port Daddy is Off; provider request refused');
+    }
     const client = new (Anthropic as new (opts?: { apiKey?: string }) => {
       messages: {
         create(opts: Record<string, unknown>): Promise<{
@@ -1252,6 +1275,7 @@ async function runCliTube(
     workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
     signal: context?.signal,
     beforeChildLaunch: context?.beforeChildLaunch,
+    runtimeAllowed: context?.runtimeAllowed,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -1936,6 +1960,7 @@ function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): 
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export function createSpawner(deps: SpawnerDeps = {}) {
+  const runtimeAllowed = createLocalRuntimeGate(deps.runtimeAllowed);
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
   const {
@@ -2055,6 +2080,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   // prompts from SpawnSpec.
   const transcriptHarborRuns = new Map<string, {
     agentId: string;
+    sessionId: string | null;
+    runId: string;
+    startedAt: number;
+    identity: string | null;
     sourceAdapter: string;
     model: string;
     project: string | null;
@@ -2105,7 +2134,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     });
     if (id && harborBridge) {
       transcriptHarborRuns.set(id, {
-        agentId,
+        agentId, sessionId: null, runId: spec.canonicalRunId ?? id,
+        startedAt, identity: spec.identity ?? null,
         sourceAdapter: runtime.effectiveBackend,
         model: runtime.effectiveModel,
         project: getProjectName(spec.identity) ?? null,
@@ -2114,13 +2144,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           ? spec.estimatedPromptTokens
           : null,
       });
-      harborBridge.registerNode(agentId, spec.identity ?? null, startedAt);
-      harborBridge.appendTranscriptEvent(agentId, 'session_started', startedAt, {
-        transcriptId: id,
-        sourceAdapter: runtime.effectiveBackend,
-        model: runtime.effectiveModel,
-      });
-      harborBridge.syncTranscript(agentId, id);
     }
     return id;
   }
@@ -2135,7 +2158,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     });
     const run = transcriptHarborRuns.get(transcriptId);
-    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
+    if (run?.sessionId && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   /** Record the backend's full structured conversation (reasoning / tool
@@ -2150,7 +2173,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       }
     });
     const run = transcriptHarborRuns.get(transcriptId);
-    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
+    if (run?.sessionId && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
@@ -2163,7 +2186,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       transcripts.appendMessage(transcriptId, message);
     });
     const run = transcriptHarborRuns.get(transcriptId);
-    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
+    if (run?.sessionId && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
@@ -2192,7 +2215,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     });
     const run = transcriptHarborRuns.get(transcriptId);
-    if (run && harborBridge) {
+    if (run?.sessionId && harborBridge) {
       harborBridge.syncTranscript(run.agentId, transcriptId);
       harborBridge.appendTranscriptEvent(run.agentId, 'session_end', endedAt, {
         transcriptId,
@@ -2204,8 +2227,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         : null;
       harborBridge.recordContext({
         agentNodeId: run.agentId,
-        sessionId: run.agentId,
-        runId: transcriptId,
+        sessionId: run.sessionId,
+        runId: run.runId,
         transcriptId,
         sourceAdapter: run.sourceAdapter,
         model: run.model,
@@ -2224,8 +2247,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // can never surface as an unhandled rejection out of a synchronous
       // finalize call.
       void harborBridge.runProbeAndRecord(run.agentId).catch(() => {});
-      transcriptHarborRuns.delete(transcriptId);
     }
+    transcriptHarborRuns.delete(transcriptId);
   }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
@@ -2305,6 +2328,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off or control state is unavailable; spawn refused');
     // Snapshot before the first await. Callers may reuse/mutate their spec while
     // harbor or session admission waits; that must not redirect an admitted run.
     spec = {
@@ -2669,10 +2693,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       }
     }
 
-    // Transition bond: escrowed → running. The markRunning call is what
-    // cost-tracker's budget-guard hook looks at — bond must be 'running'
-    // before any charge can slash it.
-    if (bonds && bondId) {
+    // Transition bond: escrowed → running. A start witness may already have
+    // halted the body and refunded its escrow; never resurrect that terminal
+    // bond and refund it a second time during cleanup.
+    if (record.status !== 'killed' && bonds && bondId) {
       try { bonds.markRunning(bondId); } catch {}
     }
 
@@ -2797,6 +2821,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       }
     }
 
+    // Bind the real session before copying even the opening prompt into the
+    // Harbor timeline. Pre-admission failures retain only their transcript row;
+    // no agent id is manufactured into a session id.
+    const harborRun = transcriptId ? transcriptHarborRuns.get(transcriptId) : null;
+    if (harborRun && harborBridge && record.coordinationSessionId) {
+      harborRun.sessionId = record.coordinationSessionId;
+      harborBridge.registerNode(agentId, harborRun.identity, startedAt,
+        { sessionId: harborRun.sessionId, runId: harborRun.runId });
+      harborBridge.appendTranscriptEvent(agentId, 'session_started', startedAt, {
+        transcriptId, runId: harborRun.runId, sourceAdapter: runtime.effectiveBackend, model: runtime.effectiveModel,
+      });
+      harborBridge.syncTranscript(agentId, transcriptId!);
+    }
+
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
       const pid = registryPidFor(record);
@@ -2840,7 +2878,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         throw new Error('Killed by spawner before backend execution');
       }
       await revalidateManagedWorktree?.();
+      if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; backend execution refused');
       record.lifecycleAbort.signal.throwIfAborted();
+      if (spec.onReady) {
+        if (!record.coordinationSessionId || !transcriptId) {
+          throw new Error('Canonical run requires an exact session and transcript before backend execution');
+        }
+        spec.onReady({ agentId, transcriptId, sessionId: record.coordinationSessionId,
+          backend: runtime.effectiveBackend, model: runtime.effectiveModel, startedAt });
+        if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; backend execution refused');
+        record.lifecycleAbort.signal.throwIfAborted();
+      }
       const executionSpec: SpawnSpec = {
         ...spec,
         backend: runtime.effectiveBackend,
@@ -2862,8 +2910,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           agentId,
+          runtimeAllowed,
           signal: record.lifecycleAbort.signal,
-          beforeChildLaunch: revalidateManagedWorktree,
+          beforeChildLaunch: async () => {
+            await revalidateManagedWorktree?.();
+            if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; child launch refused');
+          },
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;

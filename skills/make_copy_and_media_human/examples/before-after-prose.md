@@ -4,6 +4,8 @@ The same announcement, machine accent vs. edited. Every change is annotated with
 
 ## Before (as generated)
 
+<!-- humanize:ignore-start -->
+
 > 🚀 **Introducing FlowState — Your New Productivity Superpower**
 >
 > It's not just another task manager — it's a fundamental rethink of how work gets done.
@@ -33,17 +35,19 @@ The same announcement, machine accent vs. edited. Every change is annotated with
 >
 > [Try it](https://example.com) — setup is two OAuth clicks, and your first scheduled block lands today.
 
+<!-- humanize:ignore-end -->
+
 ## The line items
 
 | Ism | Where | Fix applied |
 |---|---|---|
-| emoji-as-structure | 🚀 header | deleted; the headline carries it |
-| not-x-but-y | "not just another task manager —" ×2 | stated what it is instead |
-| staccato-delivery | "Fast. Focused. Frictionless." | deleted; adjectives without referents |
-| heres-the-thing pivot | "Here's the thing:" | deleted; the claim stands alone |
-| bold-label-colon-bullets | Key features grid | folded into one concrete sentence |
-| unattributed-quote | "The best tool is..." | deleted; nobody said it |
-| audience-trifecta | "solo founder, growing team, enterprise" | replaced with the actual price/tier fact |
+| emoji-section-headers | 🚀 header | deleted; the headline carries it |
+| negation-contrast-frame | "not just another task manager —" ×2 | stated what it is instead |
+| staccato-fragment-triplet | "Fast. Focused. Frictionless." | deleted; adjectives without referents |
+| heres-the-thing-pivot | "Here's the thing:" | deleted; the claim stands alone |
+| bold-label-colon-bullet | Key features grid | folded into one concrete sentence |
+| unattributed-floating-quote | "The best tool is..." | deleted; nobody said it |
+| false-range-spectrum-framing | "solo founder, growing team, enterprise" | replaced with the actual price/tier fact |
 | in-todays-fast-paced-world | closing paragraph | deleted whole |
 | transform-cta | "transform your workflow / Get started today" | replaced with what actually happens on click |
 | zero-specifics | throughout | added price, setup steps, and one honest production detail |

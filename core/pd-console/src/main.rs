@@ -45,6 +45,7 @@ mod interruptions_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
+mod local_control;
 mod maritime;
 mod mission_callbacks;
 mod mission_view;
@@ -200,6 +201,7 @@ fn augmented_tool_path() -> String {
 /// captured stderr otherwise (surfaced as a HITL alert, never swallowed).
 fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     use anyhow::{bail, Context};
+    local_control::ensure_allowed()?;
     let proto = work_graph_proto_dir();
     let script = proto.join("scripts").join("capture.sh");
     if !script.exists() {
@@ -222,6 +224,7 @@ fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     // PATH FIX: a macOS .app launched from Finder does NOT inherit a login shell's
     // PATH, so `cargo` inside capture.sh is "command not found". We hand the child
     // an augmented PATH (~/.cargo/bin + …) so the release build resolves.
+    local_control::ensure_allowed()?;
     let status = std::process::Command::new("bash")
         .arg(&script)
         .arg(&input)
@@ -442,19 +445,19 @@ fn main() {
         eprintln!("{warning}");
     }
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
-    // the stable berth default. All fallback logic lives in
-    // DaemonClient::discover(); no literals here. Discovery is infallible now —
-    // with nothing registered the console opens against the stable berth and the
-    // panes render reachability honestly instead of panicking pre-window.
-    let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery is infallible")
-        .base()
-        .to_string();
-
     let cli_args = parse_console_args(std::env::args());
+    if cli_args.inspect_off {
+        local_control::enter_inspection_mode();
+    }
+    // The Off button and local editor must exist without a discoverable daemon.
+    // An empty endpoint is disconnected, never guessed startup authority.
+    let daemon_url = (!cli_args.inspect_off).then(DaemonClient::discover).and_then(Result::ok)
+        .map(|client| client.base().to_string())
+        .unwrap_or_default();
+
     let initial_pane = cli_args.initial_pane.clone();
-    let control_sock = cli_args.control_sock.clone();
+    let control_sock = if cli_args.inspect_off { None } else { cli_args.control_sock.clone() };
+    let inspect_off = cli_args.inspect_off;
 
     // `--display <selector>` opens the window on a specific display instead of the
     // primary one. `selector` is a 0-based index into the display list (see
@@ -511,21 +514,32 @@ fn main() {
         // window. Launch failure stays visible in the drawer; it never aborts the
         // operator console or degrades into a fake command dispatcher.
         let shell_cwd = shell_drawer::default_cwd();
-        let (shell, mut shell_rx) = match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
-            Ok(session) => session,
-            Err(error) => {
-                let failure = shell_drawer::ShellFailure::new(
-                    "PTY_LAUNCH_FAILED",
-                    "The CLI shell could not be launched.",
-                    format!("{error:#}"),
-                    "Choose a valid login shell, then relaunch pd-console.",
-                );
-                eprintln!("{}", failure.operator_message());
-                let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
-                (
-                    shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
-                    event_rx,
-                )
+        let (shell, mut shell_rx) = if inspect_off {
+            let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+            (
+                shell_drawer::ShellTerminal::disconnected(
+                    shell_cwd,
+                    "Inspection mode has no CLI shell.",
+                ),
+                event_rx,
+            )
+        } else {
+            match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
+                Ok(session) => session,
+                Err(error) => {
+                    let failure = shell_drawer::ShellFailure::new(
+                        "PTY_LAUNCH_FAILED",
+                        "The CLI shell could not be launched.",
+                        format!("{error:#}"),
+                        "Choose a valid login shell, then relaunch pd-console.",
+                    );
+                    eprintln!("{}", failure.operator_message());
+                    let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+                    (
+                        shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
+                        event_rx,
+                    )
+                }
             }
         };
 
@@ -547,12 +561,12 @@ fn main() {
                 },
                 |window, cx| {
                     window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
-                    let control_tx = control_tx.clone();
+                    let control_tx = (!inspect_off).then(|| control_tx.clone());
                     let view = cx.new(|cx| {
                         ConsoleView::with_control(
                             daemon_url.clone(),
                             initial_pane.clone(),
-                            Some(control_tx),
+                            control_tx,
                             shell,
                             cx,
                         )
@@ -633,10 +647,12 @@ fn main() {
         // answers with full ConsoleView access (`--control-sock` / env).
         let (script_tx, script_rx) = mpsc::channel::<script::ScriptEnvelope>();
         if let Some(sock) = control_sock.clone() {
-            script::start_server(sock, script_tx);
+            if local_control::ensure_allowed().is_ok() {
+                script::start_server(sock, script_tx);
+            }
         }
         let url = daemon_url.clone();
-        std::thread::spawn(move || {
+        if !inspect_off { std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -747,9 +763,25 @@ fn main() {
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
 
+                    if local_control::ensure_allowed().is_err() || client.base().is_empty() {
+                        // No queued action is replayed after Off or reconnection.
+                        while control_rx.try_recv().is_ok() {}
+                        lane_stream = None;
+                        harbor_stream = None;
+                        editor_stream = None;
+                        if tx.send((Vec::new(), None, galaxy.snapshot(), false, hitl.gate())).is_err() {
+                            break;
+                        }
+                        continue;
+                    }
+
                     // Operator control: drain any Interrupt requests from the UI and
                     // perform them against the agent the lane is watching.
                     while let Ok(msg) = control_rx.try_recv() {
+                        if local_control::ensure_allowed().is_err() {
+                            let _ = alert_tx.send(pane::Alert::error("Local Off", "Queued action cancelled; no new request was sent."));
+                            continue;
+                        }
                         // Every arm captures the daemon's outcome and, on failure,
                         // pushes a full-detail Alert up the bus. No `let _ =` swallow.
                         match msg {
@@ -893,7 +925,9 @@ fn main() {
                                             // it update in-pane.
                                             let _ = work_tx.send(app::WorkUpdate::Png(png.clone()));
                                             // Surface the PNG to the operator (best-effort `open`).
-                                            let _ = std::process::Command::new("open").arg(&png).status();
+                                            if local_control::ensure_allowed().is_ok() {
+                                                let _ = std::process::Command::new("open").arg(&png).status();
+                                            }
                                             let _ = alert_tx.send(pane::Alert::info(
                                                 format!("rendered “{title}”"),
                                                 format!("Vello PNG written + opened: {}", png.display()),
@@ -1224,21 +1258,24 @@ fn main() {
                             // identity, load its Loro buffer, and force a (re)subscribe so
                             // the drain block below follows its edit-sync + coordination
                             // channels. A fresh pane drops any prior file's buffer/streams.
-                            app::ControlMsg::OpenEditor { path, region } => {
-                                let identity = editor_pane::resolve_operator_identity();
-                                let mut pane = editor_pane::EditorPane::new_with_identity(
-                                    path, region, identity,
-                                );
-                                pane.load();
-                                editor = Some(pane);
+                            app::ControlMsg::OpenEditor { path, region, document, snapshot, viewer_peer } => {
+                                editor = match editor_pane::EditorPane::mirror(path, region, document, &snapshot, viewer_peer) {
+                                    Ok(pane) => Some(pane),
+                                    Err(error) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor mirror unavailable", error.to_string()));
+                                        None
+                                    }
+                                };
                                 editor_stream = None; // resubscribe to the new file's channels
                             }
                             app::ControlMsg::EditorLocalChange {
                                 path,
+                                document,
                                 frame,
                                 presence,
                             } => {
-                                let Some(ed) = editor.as_mut().filter(|ed| ed.path_str() == path) else {
+                                let Some(ed) = editor.as_mut().filter(|ed| ed.document() == &document) else {
                                     let _ = alert_tx.send(pane::Alert::error(
                                         "editor change not mirrored",
                                         format!("live lane is not bound to {path}"),
@@ -1248,14 +1285,16 @@ fn main() {
                                 let mut changed = false;
                                 if let Some(frame) = frame {
                                     changed |= ed.ingest_local_frame(&frame);
-                                    if let Err(error) = client
-                                        .tube_send(ed.channel(), &frame, "editor")
-                                        .await
-                                    {
-                                        let _ = alert_tx.send(pane::Alert::error(
-                                            "editor delta broadcast failed",
-                                            error.to_string(),
-                                        ));
+                                    if ed.subscription().is_some() {
+                                        if let Err(error) = client
+                                            .tube_send(ed.channel(), &frame, "editor")
+                                            .await
+                                        {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                "editor delta broadcast failed",
+                                                error.to_string(),
+                                            ));
+                                        }
                                     }
                                 }
                                 ed.set_local_presence(presence);
@@ -1263,7 +1302,7 @@ fn main() {
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .map(|duration| duration.as_millis() as i64)
                                     .unwrap_or_default();
-                                if let Some(frame) = ed.take_presence_broadcast(now_ms) {
+                                if let Some(frame) = ed.subscription().and_then(|_| ed.take_presence_broadcast(now_ms)) {
                                     if let Err(error) = client.send_presence(ed.channel(), &frame).await {
                                         let _ = alert_tx.send(pane::Alert::error(
                                             "editor presence broadcast failed",
@@ -1274,6 +1313,7 @@ fn main() {
                                 if changed {
                                     let _ = editor_tx.send(app::EditorUpdate {
                                         path: ed.path_str().to_string(),
+                                        document: ed.document().clone(),
                                         blocks: ed.view(),
                                         remote_frames: Vec::new(),
                                     });
@@ -1517,6 +1557,7 @@ fn main() {
                         if editor_dirty {
                             let _ = editor_tx.send(app::EditorUpdate {
                                 path: ed.path_str().to_string(),
+                                document: ed.document().clone(),
                                 blocks: ed.view(),
                                 remote_frames,
                             });
@@ -1567,7 +1608,7 @@ fn main() {
                     }
                 }
             });
-        });
+        }); }
 
         // Consumer: GPUI foreground task — drains channel every 500ms on main thread.
         let bg = cx.background_executor().clone();
@@ -1577,6 +1618,15 @@ fn main() {
                 let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
+                    let _ = async_cx.update(|app| {
+                        let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
+                            let control_changed = view.refresh_local_control();
+                            let save_changed = view.poll_editor_saves();
+                            if control_changed || save_changed {
+                                present_changed_frame(window, cx, &mut size_nudged);
+                            }
+                        });
+                    });
                     while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected, hitl_gate)) =
                         rx.try_recv()
                     {

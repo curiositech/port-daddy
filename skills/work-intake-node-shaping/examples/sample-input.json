@@ -1,17 +1,1 @@
-{
-  "workIntent": {
-    "id": "wi-2026-07-03-fix-symbol-index-fd-leak",
-    "signals": {
-      "coupling": "low",
-      "contextPressure": "low",
-      "skillBoundary": "single",
-      "reviewIndependence": "shared",
-      "budget": "small",
-      "operatorBurden": "low"
-    }
-  },
-  "selectedArchetypes": ["node"],
-  "legacyRoutes": [
-    { "verb": "spawn", "writesIndependentState": false }
-  ]
-}
+{"workIntent":{"id":"wi-constructed-1","signals":{"coupling":"low","contextPressure":"low","skillBoundary":"single","reviewIndependence":"shared","budget":"small","operatorBurden":"low"},"signalReasons":{"coupling":"one coherent file surface","contextPressure":"short acceptance trace","skillBoundary":"one documented skill","reviewIndependence":"review is shared for this low-risk draft","budget":"local policy permits a small trial","operatorBurden":"operator requested no steering"}},"selectedArchetypes":["node"],"runnerUp":{"archetype":"scout","reasonLost":"acceptance evidence is already concrete"},"canonicalTarget":{"callTraceRef":"trace:constructed-workintent-workplan","persistedStateRef":"readback:constructed-workplan"},"approval":{"required":false,"present":false,"blockedAction":""},"assignment":{"authority":true,"resources":true},"legacyRoutes":[{"verb":"spawn","callTraceRef":"trace:constructed-call-chain-7","persistedStateRef":"readback:constructed-state-9","writesIndependentState":false}]}

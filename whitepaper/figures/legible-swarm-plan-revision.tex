@@ -1,0 +1,48 @@
+% Reader question: which receipts remain usable after a plan revision?
+% Claim: source, acceptance, and authority changes have different receipt
+% consequences; an earlier unknown effect survives every plan edit.
+% Evidence: constructed three-row contract from the campaign brief, not a
+% measured invalidation algorithm or runtime feature.
+% Grammar: aligned decision matrix; a graph would hide the conditional cells.
+% Five-second test: authority revocation blocks publication in its own column.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \path[use as bounding box] (0,-.45) rectangle (11.2,5.45);
+  \node[pd panel title,anchor=west] at (.1,5.08) {Plan revision};
+  \node[pd panel title,anchor=west] at (4.0,5.08) {Compile};
+  \node[pd panel title,anchor=west] at (6.45,5.08) {Accept};
+  \node[pd panel title,anchor=west] at (8.55,5.08) {Publish};
+  \draw[pd rule] (0,4.78)--(11.2,4.78);
+  \node[pd direct label,anchor=west,text width=3.5cm] at (.1,4.18)
+    {Source input changed};
+  \node[pd panel title,anchor=west] at (4.0,4.18) {STALE};
+  \node[pd panel title,anchor=west] at (6.45,4.18) {STALE};
+  \node[pd direct label,anchor=west] at (8.55,4.18) {Revalidate};
+  \draw[pd hairline] (0,3.68)--(11.2,3.68);
+  \node[pd direct label,anchor=west,text width=3.5cm] at (.1,3.05)
+    {Acceptance policy changed};
+  \node[pd direct label,anchor=west] at (4.0,3.05) {Reuse?};
+  \node[pd panel title,anchor=west] at (6.45,3.05) {STALE};
+  \node[pd direct label,anchor=west] at (8.55,3.05) {Revalidate};
+  \draw[pd hairline] (0,2.55)--(11.2,2.55);
+  \node[pd direct label,anchor=west,text width=3.5cm] at (.1,1.9)
+    {Authority revoked};
+  \node[pd direct label,anchor=west] at (4.0,1.9) {Reuse?};
+  \node[pd direct label,anchor=west] at (6.45,1.9) {Reuse?};
+  \node[pd panel title,anchor=west] at (8.55,1.9) {BLOCK};
+  \draw[pd rule] (0,1.43)--(11.2,1.43);
+  \node[pd direct label,anchor=west,text width=11cm] at (.1,.97)
+    {Reuse? requires matching receipt bindings; it is never automatic.};
+  \node[pd direct label,anchor=west,text width=11cm] at (.1,.35)
+    {Earlier UNKNOWN effect: reconcile its key and status separately.};
+  \draw[pd caution rule] (0,-.12)--(11.2,-.12);
+\end{tikzpicture}
+\caption{A proposed receipt-disposition rule for three constructed plan
+revisions. Changed source invalidates compile and acceptance evidence; changed
+acceptance policy may leave compile evidence reusable only after binding checks;
+revoked authority blocks publication. A previously attempted external effect
+remains unresolved until its key is reconciled. This is a teaching contract,
+not an implemented minimal invalidation algorithm [constructed example].}
+\label{fig:ls-plan-revision}
+\end{figure}

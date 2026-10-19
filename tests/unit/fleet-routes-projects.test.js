@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import * as realFs from 'node:fs';
 
 const mockReadFileSync = jest.fn();
 const mockWriteFileSync = jest.fn();
@@ -10,6 +11,7 @@ const mockFindFleetConfigPath = jest.fn();
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
 
 jest.unstable_mockModule('node:fs', () => ({
+  ...realFs,
   chmodSync: jest.fn(),
   existsSync: mockExistsSync,
   mkdirSync: jest.fn(),

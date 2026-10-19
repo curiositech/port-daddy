@@ -1,0 +1,60 @@
+% TEMPLATE: Binary Wire Protocol & Record Memory Layout
+% Standard: Harbor Figure Language v2 (Swiss typography, standard weight ladder)
+% Clearance Invariants: Proportional byte width cells, shared borders without double stroke.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \useasboundingbox (0, 0) rectangle (11.4, 7.6);
+
+  % 1. Byte Offset Ruler (Top)
+  \draw[pd hairline] (0.5, 6.4) -- (10.9, 6.4);
+  \foreach \x/\b in {0.5/{0}, 3.1/{8}, 5.7/{16}, 8.3/{24}, 10.9/{32}} {
+    \draw[pd tick] (\x, 6.4) -- (\x, 6.55);
+    \node[anchor=south, font=\pdfiglabelsize, text=pdink!60] at (\x, 6.55) {+\b B};
+  }
+
+  % 2. Row 1: Header & Epoch (Bytes 0 to 15)
+  % Magic Tag (4B, 0..4)
+  \draw[pd panel, fill=pdcobalt!10] (0.5, 5.0) rectangle (3.1, 6.2);
+  \node[font=\pdfiglabelsize, align=center] at (1.8, 5.6) {
+    \textbf{\color{pdcobalt}magic} (4B)\\[1pt]
+    \texttt{\pdfiglabelmono 0x50444341}
+  };
+
+  % Version & Flags (4B, 4..8)
+  \draw[pd panel, fill=pdteal!8] (3.1, 5.0) rectangle (5.7, 6.2);
+  \node[font=\pdfiglabelsize, align=center] at (4.4, 5.6) {
+    \textbf{\color{pdteal}version} (4B)\\[1pt]
+    \texttt{\pdfiglabelmono v4 $\cdot$ flags}
+  };
+
+  % Monotonic Epoch (8B, 8..16)
+  \draw[pd panel, fill=pdviolet!8] (5.7, 5.0) rectangle (10.9, 6.2);
+  \node[font=\pdfiglabelsize, align=center] at (8.3, 5.6) {
+    \textbf{\color{pdviolet}epoch} (8B)\\[1pt]
+    \texttt{\pdfiglabelmono u64 $\cdot$ monotonic counter}
+  };
+
+  % 3. Row 2: Capability Digest (Bytes 16 to 47, 32B SHA-256)
+  \draw[pd panel, fill=pdink!4] (0.5, 3.4) rectangle (10.9, 4.6);
+  \node[font=\pdfiglabelsize, align=center] at (5.7, 4.0) {
+    \textbf{capability\_digest} (32B)\\[1pt]
+    \texttt{\pdfiglabelmono SHA-256 hash of attenuated scope envelope}
+  };
+
+  % 4. Row 3: Cryptographic Signature (Bytes 48 to 111, 64B Ed25519)
+  \draw[pd panel, fill=pdcobalt!12] (0.5, 1.8) rectangle (10.9, 3.0);
+  \node[font=\pdfiglabelsize, align=center] at (5.7, 2.4) {
+    \textbf{\color{pdcobalt}ed25519\_signature} (64B)\\[1pt]
+    \texttt{\pdfiglabelmono Sig(sk\_kernel, magic $\parallel$ version $\parallel$ epoch $\parallel$ digest)}
+  };
+
+  % 5. Invariant Banner at Bottom
+  \node[pd state, fill=pdink!3, draw=pdink!30, text width=10.8cm, align=center, inner ysep=4pt] at (5.7, 0.5) {
+    \textbf{Wire Frame Invariant:} All capability cards carry fixed-width monotonic epochs and cryptographic signatures. Deserialization fails closed on unknown magic words or truncated byte spans.
+  };
+\end{tikzpicture}
+\caption{Binary wire layout of the Harbor Capability Card. The 112-byte contiguous struct packs protocol magic, monotonic epoch, capability digest, and Ed25519 kernel signature without byte padding. [template, Record / Memory Layout]}
+\label{fig:template-record-byte-layout}
+\end{figure}

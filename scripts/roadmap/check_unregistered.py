@@ -113,6 +113,35 @@ def declarations() -> list[dict]:
                     continue
                 line = text[: m.start()].count("\n") + 1
                 found.append({"slug": slug, "file": rel, "line": line, "how": "linked"})
+    # Consolidation must not make unregistered work disappear. The original
+    # declarations remain exact source text in the canonical research ledger.
+    ledger_path = REPO / 'docs/harbor-research/omni-ledger.json'
+    if ledger_path.exists():
+        ledger = json.loads(ledger_path.read_text(encoding='utf-8'))
+        for source in ledger['sources']:
+            rel = source['path']
+            if source['disposition'] != 'retire' or not rel.endswith('.md'):
+                continue
+            if any(skip in f'/{rel}' for skip in SKIP_PATTERNS):
+                continue
+            text = source['text']
+            destination = 'docs/harbor-research/OMNI-LEDGER.md#source-' + source['id'].lower()
+            for match in DECLARATION_RE.finditer(text):
+                body = match.group('body').strip()
+                if NONE_RE.match(body):
+                    continue
+                for raw in re.split(r'[,\s]+', body):
+                    slug = raw.strip().strip('`.,;')
+                    if SLUG_RE.match(slug) and slug not in NOT_WORK:
+                        found.append({'slug': slug, 'file': destination,
+                                      'line': text[:match.start()].count('\n') + 1,
+                                      'how': 'consolidated declaration; source line'})
+            for match in LINK_RE.finditer(text):
+                slug = match.group('slug')
+                if slug not in NOT_WORK:
+                    found.append({'slug': slug, 'file': destination,
+                                  'line': text[:match.start()].count('\n') + 1,
+                                  'how': 'consolidated link; source line'})
     return found
 
 

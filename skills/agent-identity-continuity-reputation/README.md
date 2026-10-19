@@ -1,29 +1,17 @@
 # Agent Identity, Continuity & Reputation
 
-Design (or audit) the chain: memory+checkpoint → continuity → a durable
-person (not a spawn) → registered outcomes → reputation (Elo/TrueSkill/
-bandit) → a hireable/sellable asset → a market — and know exactly where each
-link silently turns to theater.
+Start in [SKILL.md](SKILL.md): record issuer, actor, key and session separately,
+then attribute outcomes before selecting an estimator. The CLI checks supplied
+declarations. It has no external access and does not prove a delivery,
+credential, signature, calibration, or enforcement.
 
-Use this skill when you need agent identity that survives a process death,
-an outcome ledger that reputation can actually key on, a reputation
-estimator for backends or agents, or a review of whether an existing design
-is Sybil-resistant, oracle-bound, de-biased, and honestly labeled.
+The tools require Node 20 or newer and Ajv 8. Install dependencies in this
+bundle with your normal Node package workflow, then run:
 
-## Quick Start
+    node scripts/reputation_soundness_audit.mjs --input examples/sample-input.json
+    node --test tests/reputation_soundness_audit.test.mjs
 
-1. Read `SKILL.md` — work the five Decision Points in order; earlier links
-   gate later ones (identity gates continuity gates outcomes gates
-   reputation gates the market).
-2. Load `references/failure-modes-and-defenses.md` for the eight named
-   failure modes (Sybil-reset, whitewashing, Goodhart ×2, exploration
-   starvation, LLM-judge bias, unstaked sanctions, weak continuity), each
-   with its source citation and defense.
-3. Fill `templates/output-template.md` for the task at hand, or write a
-   design plan matching `schemas/reputation-plan.schema.json` directly.
-4. Run `node scripts/reputation_soundness_audit.mjs --input plan.json`.
-
-A design that scores `pass: true` has closed every chain-break this skill
-knows how to name. It has *not* proven the underlying work was good — only
-that delivery was proven against an oracle on a clock the agent didn't set.
-That honest-ceiling caveat belongs in every design this skill produces.
+The schema deliberately permits extra properties. It rejects missing required
+declarations, blank required strings, and invalid enum values. CLI exit status is
+zero for passing plans, including intentional medium scope findings; it is
+nonzero for schema or high/critical consistency rejection.

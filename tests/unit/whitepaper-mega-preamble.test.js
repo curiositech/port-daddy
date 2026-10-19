@@ -14,10 +14,20 @@ const preamblePath = resolve(
   repoRoot,
   'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex',
 );
+// The maturity vocabulary (\Built/\BuiltWeak/\Designed/\Vision) used to be
+// defined a second time here, duplicating the chapter preambles; it is now
+// defined once, for the Book and for every standalone chapter, in this file
+// (see scripts/harbor-research/check_duplicate_macros.py), which the
+// preamble \input{}s.
+const pedagogyPath = resolve(
+  repoRoot,
+  'website-v2/public/whitepaper/figures/pd-pedagogy.tex',
+);
 
 describe('collected-volume LaTeX preamble', () => {
   test('pins the publication palette and compatibility grammar', () => {
     const preamble = readFileSync(preamblePath, 'utf8');
+    const pedagogy = readFileSync(pedagogyPath, 'utf8');
 
     for (const color of [
       '\\definecolor{hhink}{HTML}{1B1712}',
@@ -29,11 +39,17 @@ describe('collected-volume LaTeX preamble', () => {
       expect(preamble).toContain(color);
     }
 
+    expect(preamble).toContain('\\input{figures/pd-pedagogy}');
     for (const command of [
       '\\newcommand{\\Built}',
       '\\newcommand{\\BuiltWeak}',
       '\\newcommand{\\Designed}',
       '\\newcommand{\\Vision}',
+    ]) {
+      expect(pedagogy).toContain(command);
+    }
+
+    for (const command of [
       '\\newcommand{\\pdchapter}',
       '\\newcommand{\\pdchapterappendix}',
       '\\newcommand{\\pullquote}',

@@ -1,0 +1,75 @@
+% One source-contract candidate; see BRIEF.md and REPORT.md for limits.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\SGMeasuredFigure{II/fig:swk-enforcement-layers}{%
+\begin{tikzpicture}[pd figure,x=1pt,y=-1pt,
+  el text/.style={pd label,anchor=west,inner sep=0pt,outer sep=0pt,align=left},
+  el edge/.style={pd label,anchor=center,inner sep=0pt,outer sep=0pt},
+  el flow/.style={pd arrow,line width=.8pt}]
+  % An unchecked effect route remains outside the optional pre-effect check.
+  \node[el edge] (bypasslabel) at (156,7) {Unchecked same-user bypass};
+  \draw[el flow,draw=pdamber,dash pattern=on 3pt off 2pt]
+    (28,40)--(28,28)--(281,28)--(281,44);
+  \node[el text,text width=60pt] (agent) at (0,65) {Same-user\\process};
+  \draw[el flow,draw=pdteal] (70,65)--(102,65);
+  \node[el edge] (invoke) at (87,48) {invoke};
+  \draw[draw=pdteal,line width=.8pt,fill=pdteal!5] (110,44) rectangle (192,87);
+  \node[el text,font=\pdfiglabelbold] (check) at (122,57) {Guard / shim};
+  \node[el text] (optional) at (122,74) {if invoked};
+  \draw[el flow,draw=pdteal] (200,65)--(252,65);
+  \node[el edge] (allow) at (226,48) {allow};
+  \node[el text,font=\pdfiglabelbold] (effect) at (264,65) {Effect};
+  \node[el text] (example) at (264,82) {e.g. push};
+  % Conditional refusal ends this checked request, before its effect.
+  \draw[el flow] (151,95)--(151,113);
+  \draw[pd rule] (144,119)--(158,119);
+  \node[el text] (refuse) at (164,107) {refuse};
+  \node[el text] (preeffect) at (111,137) {before effect};
+
+  % Observation is a separate, conditional relation, not universal coverage.
+  \draw[el flow,draw=pdinkmuted,dash pattern=on 1pt off 2pt]
+    (282,96)--(282,158)--(37,158)--(37,170);
+  \node[el text] (witnessed) at (202,141) {if witnessed};
+  \draw[draw=pdinkmuted,line width=.7pt] (0,178) rectangle (102,222);
+  \node[el text,font=\pdfiglabelbold] (monitor) at (12,192) {Policy monitor};
+  \node[el text] (posteffect) at (12,209) {after effect};
+  \draw[el flow,draw=pdinkmuted] (110,200)--(151,200);
+  \node[el edge] (respond) at (132,183) {on violation};
+  \node[el text] (response) at (163,191) {Flag / halt / compensate};
+  \node[el text] (notprevent) at (163,210) {cannot prevent that effect};
+  \node[el text] (coverage) at (0,234)
+    {No promise that every bypass is witnessed.};
+
+  % Mechanism grades do not imply this machine is running these mechanisms.
+  \node[el text,font=\pdfiglabelbold] (mechanismhead) at (0,251) {Mechanism};
+  \node[el text,font=\pdfiglabelbold] (statushead) at (245,251) {Source grade};
+  \draw[pd hairline] (0,264)--(320,264);
+  \node[el text] (guardrow) at (0,279) {Guard / git shim};
+  \node[el text] (guardgrade) at (245,279) {\Built};
+  \node[el text] (hookrow) at (0,298) {Hook harness};
+  \node[el text] (hookgrade) at (245,298) {\Designed};
+  \node[el text] (pushrow) at (0,317) {Branch protection + push broker};
+  \node[el text] (pushgrade) at (245,317) {\Designed};
+  \node[el text] (credentialrow) at (0,336) {Credential broker};
+  \node[el text] (credentialgrade) at (245,336) {\Vision};
+  \node[el text] (isolationrow) at (0,360) {OS/VM isolation + protected state};
+  \node[el text] (mediation) at (0,377) {\textbf{and} forced mediation};
+  \node[el text] (isolationgrade) at (245,368) {\Vision};
+  \node[el text] (cryptorow) at (0,401) {Macaroon cryptography};
+  \node[el text] (cryptograde) at (245,401) {\Built};
+  \node[el text] (notcompulsory) at (0,418)
+    {Authorization proof, not compulsory use.};
+
+  \foreach \name in {bypasslabel,agent,invoke,check,optional,allow,effect,
+    example,refuse,preeffect,witnessed,monitor,posteffect,respond,response,
+    notprevent,coverage,mechanismhead,statushead,guardrow,guardgrade,
+    hookrow,hookgrade,pushrow,pushgrade,credentialrow,credentialgrade,
+    isolationrow,mediation,isolationgrade,cryptorow,cryptograde,notcompulsory}{%
+    \path let \p1=(\name.north west),\p2=(\name.south east) in
+      \pgfextra{\typeout{EL-NODE: \name,\x1,\y1,\x2,\y2}};}
+\end{tikzpicture}%
+}
+\caption{Refusal is not compulsory mediation. Grades are source-reported, not an independent runtime audit.}
+\label{fig:swk-enforcement-layers}
+\end{figure}

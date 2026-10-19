@@ -1,459 +1,272 @@
 {
- "figure": "fig-fh-xfer-ceremony",
- "page_count": 1,
- "params": {
-  "min_font_pt": 7.0,
-  "textwidth_cm": 16.3
- },
- "checks": {
-  "T1": {
-   "status": "fail",
-   "count": 16,
-   "findings": [
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      121.33094787597656,
-      128.0297088623047,
-      127.55326080322266,
-      134.76380920410156
-     ],
-     "text": "A",
-     "size_pt": 6.73,
-     "message": "text 'A' renders at 6.73pt, below the 7.00pt floor"
+  "figure": "fig-fh-xfer-ceremony",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      398.3262634277344,
-      121.89227294921875,
-      400.79095458984375,
-      128.62637329101562
-     ],
-     "text": "\u2032",
-     "size_pt": 6.73,
-     "message": "text '\u2032' renders at 6.73pt, below the 7.00pt floor"
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      397.69183349609375,
-      128.4123077392578,
-      403.9343566894531,
-      135.1464080810547
-     ],
-     "text": "B",
-     "size_pt": 6.73,
-     "message": "text 'B' renders at 6.73pt, below the 7.00pt floor"
+    "T3": {
+      "status": "fail",
+      "count": 3,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            383.3312072753906,
+            115.40115356445312,
+            393.1898498535156,
+            126.46160125732422
+          ],
+          "other_bbox": [
+            390.2274475097656,
+            116.88774871826172,
+            422.42474365234375,
+            128.2480926513672
+          ],
+          "text": "C\u2032",
+          "other_text": "B \u2286CA",
+          "overlap_fraction": 0.26,
+          "message": "text 'C\u2032' overlaps 'B \u2286CA' by 26.0% of the smaller bbox"
+        },
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            200.004638671875,
+            69.548095703125,
+            217.11009216308594,
+            81.30557250976562
+          ],
+          "other_bbox": [
+            207.31451416015625,
+            77.06822204589844,
+            213.10507202148438,
+            83.3350601196289
+          ],
+          "text": "R(e)",
+          "other_text": "A",
+          "overlap_fraction": 0.676,
+          "message": "text 'R(e)' overlaps 'A' by 67.6% of the smaller bbox"
+        },
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            303.0456237792969,
+            148.0581817626953,
+            320.1510925292969,
+            159.815673828125
+          ],
+          "other_bbox": [
+            310.3554992675781,
+            155.57830810546875,
+            316.16485595703125,
+            161.84515380859375
+          ],
+          "text": "R(e)",
+          "other_text": "B",
+          "overlap_fraction": 0.676,
+          "message": "text 'R(e)' overlaps 'B' by 67.6% of the smaller bbox"
+        }
+      ]
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      424.3343200683594,
-      126.69271850585938,
-      430.556640625,
-      133.42681884765625
-     ],
-     "text": "A",
-     "size_pt": 6.73,
-     "message": "text 'A' renders at 6.73pt, below the 7.00pt floor"
+    "T4": {
+      "status": "fail",
+      "count": 6,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            123.86708068847656,
+            117.51937866210938,
+            212.8708038330078,
+            127.2780532836914
+          ],
+          "text": "CA: source authority",
+          "line_segment": [
+            [
+              137.15896606445312,
+              199.810302734375
+            ],
+            [
+              137.15896606445312,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'CA: source authority'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            221.08181762695312,
+            71.90300750732422,
+            288.29364013671875,
+            81.30326843261719
+          ],
+          "text": "bound into o\ufb00er",
+          "line_segment": [
+            [
+              244.14535522460938,
+              199.810302734375
+            ],
+            [
+              244.14535522460938,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'bound into o\ufb00er'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            324.122802734375,
+            150.41310119628906,
+            399.2308349609375,
+            159.8133544921875
+          ],
+          "text": "+ attenuated card",
+          "line_segment": [
+            [
+              351.1321105957031,
+              199.810302734375
+            ],
+            [
+              351.1321105957031,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text '+ attenuated card'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            188.10284423828125,
+            165.97682189941406,
+            300.2197265625,
+            175.37709045410156
+          ],
+          "text": "Harbor A still participates",
+          "line_segment": [
+            [
+              244.14535522460938,
+              199.810302734375
+            ],
+            [
+              244.14535522460938,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'Harbor A still participates'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            349.8070068359375,
+            165.97682189941406,
+            459.4609680175781,
+            175.37709045410156
+          ],
+          "text": "destination veri\ufb01es locally",
+          "line_segment": [
+            [
+              351.1321105957031,
+              199.810302734375
+            ],
+            [
+              351.1321105957031,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'destination veri\ufb01es locally'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            128.42779541015625,
+            194.04466247558594,
+            466.8841552734375,
+            203.44493103027344
+          ],
+          "text": "revocation remains an asynchronous epoch-root dependency, not a hot-path call",
+          "line_segment": [
+            [
+              137.15896606445312,
+              199.810302734375
+            ],
+            [
+              137.15896606445312,
+              61.61895751953125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'revocation remains an asynchronous epoch-root dependency, not a hot-path call'"
+        }
+      ]
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      202.98785400390625,
-      72.62200164794922,
-      206.2336883544922,
-      79.35610961914062
-     ],
-     "text": "(",
-     "size_pt": 6.73,
-     "message": "text '(' renders at 6.73pt, below the 7.00pt floor"
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      206.23031616210938,
-      72.62034606933594,
-      210.1967010498047,
-      79.35445404052734
-     ],
-     "text": "e",
-     "size_pt": 6.73,
-     "message": "text 'e' renders at 6.73pt, below the 7.00pt floor"
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      210.1967315673828,
-      72.62200164794922,
-      213.44256591796875,
-      79.35610961914062
-     ],
-     "text": ")",
-     "size_pt": 6.73,
-     "message": "text ')' renders at 6.73pt, below the 7.00pt floor"
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      202.93209838867188,
-      80.70117950439453,
-      209.1544189453125,
-      87.43528747558594
-     ],
-     "text": "A",
-     "size_pt": 6.73,
-     "message": "text 'A' renders at 6.73pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      314.0112609863281,
-      156.9859619140625,
-      317.2571105957031,
-      163.72006225585938
-     ],
-     "text": "(",
-     "size_pt": 6.73,
-     "message": "text '(' renders at 6.73pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      317.25372314453125,
-      156.9842987060547,
-      321.2201232910156,
-      163.71839904785156
-     ],
-     "text": "e",
-     "size_pt": 6.73,
-     "message": "text 'e' renders at 6.73pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      321.2201232910156,
-      156.9859619140625,
-      324.4659729003906,
-      163.72006225585938
-     ],
-     "text": ")",
-     "size_pt": 6.73,
-     "message": "text ')' renders at 6.73pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      313.95550537109375,
-      165.0651397705078,
-      320.1980285644531,
-      171.7992401123047
-     ],
-     "text": "B",
-     "size_pt": 6.73,
-     "message": "text 'B' renders at 6.73pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      322.3619689941406,
-      258.4656677246094,
-      328.3525085449219,
-      265.43951416015625
-     ],
-     "text": "A",
-     "size_pt": 6.97,
-     "message": "text 'A' renders at 6.97pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      352.56500244140625,
-      253.22714233398438,
-      354.8594055175781,
-      260.20098876953125
-     ],
-     "text": "\u2032",
-     "size_pt": 6.97,
-     "message": "text '\u2032' renders at 6.97pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      351.8524169921875,
-      259.71533203125,
-      357.870849609375,
-      266.6891784667969
-     ],
-     "text": "B",
-     "size_pt": 6.97,
-     "message": "text 'B' renders at 6.97pt, below the 7.00pt floor"
-    },
-    {
-     "check": "T1",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      379.7516174316406,
-      258.4656677246094,
-      385.7421569824219,
-      265.43951416015625
-     ],
-     "text": "A",
-     "size_pt": 6.97,
-     "message": "text 'A' renders at 6.97pt, below the 7.00pt floor"
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     }
-   ]
   },
-  "T2": {
-   "status": "pass",
-   "count": 0,
-   "findings": []
-  },
-  "T3": {
-   "status": "fail",
-   "count": 3,
-   "findings": [
+  "ink": [
     {
-     "check": "T3",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      390.8924560546875,
-      121.89227294921875,
-      400.79095458984375,
-      132.40992736816406
-     ],
-     "other_bbox": [
-      397.69183349609375,
-      123.26528930664062,
-      430.556640625,
-      135.47264099121094
-     ],
-     "text": "C\u2032",
-     "other_text": "B \u2286CA",
-     "overlap_fraction": 0.272,
-     "message": "text 'C\u2032' overlaps 'B \u2286CA' by 27.2% of the smaller bbox"
-    },
-    {
-     "check": "T3",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      195.74705505371094,
-      72.62034606933594,
-      213.44256591796875,
-      84.62273406982422
-     ],
-     "other_bbox": [
-      202.93209838867188,
-      80.70117950439453,
-      209.1544189453125,
-      87.43528747558594
-     ],
-     "text": "R(e)",
-     "other_text": "A",
-     "overlap_fraction": 0.582,
-     "message": "text 'R(e)' overlaps 'A' by 58.2% of the smaller bbox"
-    },
-    {
-     "check": "T3",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      306.77044677734375,
-      156.9842987060547,
-      324.4659729003906,
-      168.9866943359375
-     ],
-     "other_bbox": [
-      313.95550537109375,
-      165.0651397705078,
-      320.1980285644531,
-      171.7992401123047
-     ],
-     "text": "R(e)",
-     "other_text": "B",
-     "overlap_fraction": 0.582,
-     "message": "text 'R(e)' overlaps 'B' by 58.2% of the smaller bbox"
+      "page": 0,
+      "ink_fraction": 0.2522,
+      "edge_density": 0.0947,
+      "distinct_colors": 2030,
+      "flags": [
+        "edge_density=0.095 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
     }
-   ]
-  },
-  "T4": {
-   "status": "fail",
-   "count": 5,
-   "findings": [
-    {
-     "check": "T4",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      114.53158569335938,
-      124.76811981201172,
-      202.89036560058594,
-      134.76380920410156
-     ],
-     "text": "CA: source authority",
-     "line_segment": [
-      [
-       125.19303894042969,
-       212.5951690673828
-      ],
-      [
-       125.19303894042969,
-       64.10001373291016
-      ]
-     ],
-     "message": "a drawn line crosses through the interior of text 'CA: source authority'"
-    },
-    {
-     "check": "T4",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      217.44851684570312,
-      75.6417007446289,
-      284.5920104980469,
-      84.62051391601562
-     ],
-     "text": "bound into o\ufb00er",
-     "line_segment": [
-      [
-       240.15652465820312,
-       212.5951690673828
-      ],
-      [
-       240.15652465820312,
-       64.10001373291016
-      ]
-     ],
-     "message": "a drawn line crosses through the interior of text 'bound into o\ufb00er'"
-    },
-    {
-     "check": "T4",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      328.471923828125,
-      160.0056610107422,
-      403.51678466796875,
-      168.98446655273438
-     ],
-     "text": "+ attenuated card",
-     "line_segment": [
-      [
-       355.1204528808594,
-       212.5951690673828
-      ],
-      [
-       355.1204528808594,
-       64.10001373291016
-      ]
-     ],
-     "message": "a drawn line crosses through the interior of text '+ attenuated card'"
-    },
-    {
-     "check": "T4",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      184.8466033935547,
-      177.33447265625,
-      295.42962646484375,
-      186.31329345703125
-     ],
-     "text": "Harbor A still participates",
-     "line_segment": [
-      [
-       240.15652465820312,
-       212.5951690673828
-      ],
-      [
-       240.15652465820312,
-       64.10001373291016
-      ]
-     ],
-     "message": "a drawn line crosses through the interior of text 'Harbor A still participates'"
-    },
-    {
-     "check": "T4",
-     "severity": "fail",
-     "page": 0,
-     "bbox": [
-      130.58810424804688,
-      206.50352478027344,
-      464.55462646484375,
-      215.4823455810547
-     ],
-     "text": "revocation remains an asynchronous epoch-root dependency, not a hot-path call",
-     "line_segment": [
-      [
-       240.15652465820312,
-       212.5951690673828
-      ],
-      [
-       240.15652465820312,
-       64.10001373291016
-      ]
-     ],
-     "message": "a drawn line crosses through the interior of text 'revocation remains an asynchronous epoch-root dependency, not a hot-path call'"
-    }
-   ]
-  },
-  "T5": {
-   "status": "pass",
-   "count": 0,
-   "findings": []
-  },
-  "T6": {
-   "status": "pass",
-   "count": 0,
-   "findings": []
-  },
-  "T7": {
-   "status": "pass",
-   "count": 0,
-   "findings": []
-  }
- },
- "summary": {
-  "result": "fail",
-  "failed_checks": [
-   "T1",
-   "T3",
-   "T4"
   ],
-  "warned_checks": []
- }
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T3",
+      "T4"
+    ],
+    "warned_checks": []
+  }
 }

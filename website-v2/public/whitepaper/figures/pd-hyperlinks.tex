@@ -36,17 +36,24 @@
 \providecommand{\pdchaplink}[2]{#2}
 \DeclareRobustCommand{\pdchapref}[2]{\pdchaplink{#1}{\emph{#2}}}
 
-% \ifpdbook -- true in the assembled Book, false in a standalone paper.
+% \ifpdbook -- true in the assembled Book, false otherwise.
 %
-% WHY THIS EXISTS. A drawing that two chapters both \input prints twice in the
+% WHY THIS EXISTED. A drawing that two chapters both \input prints twice in the
 % Book, under two figure numbers. The fix is for the chapter that develops the
-% idea to keep the figure and the other to point at it -- but a standalone
-% paper has nowhere to point, and rewriting the prose outright removed five
-% figures from harbor-economy-whitepaper.pdf and left it telling a conference
-% reader that a ceremony is "drawn in The Federated Harbor", a document that
-% reader does not have.
+% idea to keep the figure and the other to point at it -- but the standalone
+% edition of a chapter had nowhere to point, and rewriting the prose outright
+% removed five figures from harbor-economy-whitepaper.pdf and left it telling a
+% conference reader that a ceremony is "drawn in The Federated Harbor", a
+% document that reader did not have.
 %
-% So the divergence is per-build. A CONDITIONAL and not a two-argument macro:
+% WHERE IT STANDS NOW. The per-chapter PDFs are retired: the Book is the one
+% document, so \ifpdbook is true in every build that renders, and the \else
+% branches are source with no output. They are still here, and still read by
+% check_duplicate_figures.py (which must not count an \else \input as a Book
+% input) -- but nothing prints them, and nothing new should be put in one.
+% Whether to delete them is an open question; see the retirement PR.
+%
+% The divergence was per-build. A CONDITIONAL and not a two-argument macro:
 % the generator inlines each \input, so a figure branch is a whole table or
 % tikzpicture, and as a macro argument that is scanned as one token list --
 % which is how \pdinbook produced "runaway argument" on the first attempt.

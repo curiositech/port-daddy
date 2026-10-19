@@ -9,6 +9,7 @@ import {
   SITE_ORIGIN,
   siteMetadataRoutes,
 } from '../src/data/siteMetadata.ts'
+import { WHITE_PAPERS } from '../src/data/whitePapers.ts'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const publicDir = resolve(scriptDir, '../public')
@@ -97,13 +98,16 @@ function llmsTxt() {
     '/blog',
     '/library',
     '/whitepaper',
-    '/whitepaper/legible-swarm',
-    '/whitepaper/single-writer-kernel',
-    '/whitepaper/spawn-to-person',
-    '/whitepaper/harbor-economy',
-    '/whitepaper/anchor-protocol',
-    '/whitepaper/bonded-commons',
-    '/whitepaper/federated-harbor',
+    // Every chapter of the Book, in the Book's own order — derived, never
+    // typed out. `WHITE_PAPERS` is sorted by chapter number where it is
+    // defined, and its entries come from whitepaper/textbook.json, so a
+    // chapter added there reaches this list with no second edit. The hand-
+    // written list this replaced held seven paths and never grew an eighth:
+    // The Sealed Harbor (chapter 3) landed after the list was typed and was
+    // absent from llms.txt's entry points from the day it was published.
+    // `siteMetadata.ts` spreads the same array for its route registry, which
+    // is why the sitemap had the chapter all along and this file did not.
+    ...WHITE_PAPERS.map((paper) => paper.readerHref),
   ]
     .map((path) => indexableRoutes.find((route) => route.path === path))
     .filter(Boolean)

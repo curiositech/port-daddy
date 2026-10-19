@@ -30,6 +30,8 @@ export type OutputRegistry = Map<OutputSinkKind, OutputSink>;
 export interface BuildOutputRegistryDeps {
   /** PD internal sink needs in-process daemon hooks (no HTTP round-trip). */
   pd: PdOutputDeps;
+  /** Final effect-level admission witness for sinks that await before writing. */
+  runtimeAllowed?: () => boolean;
 }
 
 /**
@@ -39,7 +41,7 @@ export function buildOutputRegistry(deps: BuildOutputRegistryDeps): OutputRegist
   const sinks: OutputSink[] = [
     new GitHubOutputSink(),
     new MacOSNotificationSink(),
-    new CalendarOutputSink(),
+    new CalendarOutputSink({ runtimeAllowed: deps.runtimeAllowed }),
     new EmailOutputSink(),
     new SmsOutputSink(),
     new WebhookOutputSink(),

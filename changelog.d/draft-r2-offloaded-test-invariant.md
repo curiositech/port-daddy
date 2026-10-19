@@ -1,0 +1,3 @@
+type: fixed
+
+- **A test named "no offloaded asset is something a build reads" was checking two hardcoded path prefixes against themselves.** It was green the whole time `tests/unit/spawn-whitepaper-contract.test.js` was hashing two of the manifest's files and parsing one's PNG IHDR for exact dimensions, and `apps/FleetBar/Tests/FleetBarTests/SquidHarnessSnapshotTests.swift` was reading three more — so ADR-0142 §9's claim that Phase 2 "does not break `npm test`" was false, and the test written to catch that was the same list-against-list shape the ADR's own §10 condemns. It is renamed to what it actually checks, and the real invariant — nothing but prose ever referenced this file — is asserted against `media/r2-offloaded.json` by scanning every tracked text file.

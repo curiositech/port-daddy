@@ -1,14 +1,15 @@
 ---
 license: Apache-2.0
 name: dag-cycle-analysis
-description: Graph algorithms for detecting and resolving cycles in directed graphs and workflow definitions
-category: Agent & Orchestration
-tags:
-  - dag
-  - cycle-detection
-  - graph-theory
-  - validation
-  - algorithms
+description: Analyze undirected cycle structure within a valid DAG using the source paper's orientation and contraction method. Use for cycle-basis analysis with explicit graph and reduction choices. NOT for directed feedback loops, workflow deadlocks, or runtime resilience claims.
+metadata:
+  category: Agent & Orchestration
+  tags:
+    - dag
+    - cycle-detection
+    - graph-theory
+    - validation
+    - algorithms
 ---
 
 # Hierarchical Cycle Analysis
@@ -16,6 +17,17 @@ tags:
 **Skill ID**: `hierarchical-cycle-analysis`  
 **Domain**: Complex systems, network science, information architecture  
 **Source**: Vasiliauskaite, Evans & Expert — "Cycle Analysis of Directed Acyclic Graphs"
+
+## Method boundary and source correction
+
+This method starts from an undirected cycle basis and restores direction from
+explicit ordering metadata for a valid simple DAG. A directed feedback witness
+invalidates that premise and belongs to SCC/directed-cycle diagnosis first.
+Record whether analysis uses the original DAG or its transitive reduction: the
+reduction preserves reachability but changes the underlying cycle space, and an
+MCB need not be unique. The four paper images follow its orientation and
+wedge-contraction procedure; they do not prove resilience, payload fusion, or
+runtime safety. Keep this Apache-2.0 bundle's license unchanged.
 
 ## Description
 
@@ -71,32 +83,16 @@ Purely topological metrics (node count, edge count, clustering) **cannot disting
 
 See `diagrams/01_flowchart_hierarchical_cycle_analysis_de.md` for a visual rendering of this decision tree.
 
-```
-IF analyzing system behavior/comparison
-├── THEN decompose DAG = undirected graph + directional metadata
-├── IF need functional differences between similar topologies
-│   └── THEN use metadata metrics (height, stretch, balance) + topology
-└── IF need structural simplification
-    └── THEN apply transitive reduction first
-
-IF detecting cycles in DAG
-├── IF raw cycle count needed
-│   └── THEN use DFS on undirected substrate
-├── IF functional classification needed
-│   ├── THEN apply path-wedge contraction first
-│   └── THEN classify: feedback/shortcut/diamond/mixer
-└── IF comparing cycle organization
-    └── THEN compute antichain structure + metadata positioning
-
-IF system shows unexpected behavior despite "good" topology
-├── THEN check antichain structure (parallel vs sequential)
-├── THEN measure cycle height/stretch/balance distribution
-└── IF still unclear, THEN load metadata-localizes-topology framework
-
-IF redesigning hierarchical process
-├── IF need resilience THEN preserve/add diamonds (parallel alternatives)
-├── IF need integration THEN check mixer positioning (multi-level convergence)
-└── IF optimizing efficiency THEN identify shortcuts for potential removal
+```mermaid
+flowchart TD
+  A[Directed graph and ordering metadata] --> B{Simple acyclic DAG?}
+  B -->|no| X[Report directed witness or SCC; repair premise]
+  B -->|yes| C{Choose original graph or transitive reduction}
+  C --> D[Extract underlying undirected graph]
+  D --> E[Compute a recorded cycle basis]
+  E --> F[Restore orientation and contract eligible neutral wedges]
+  F --> G[Report paper class as structural descriptor]
+  G --> H[Validate domain interpretation separately]
 ```
 
 ### Stopping Criteria
@@ -104,7 +100,7 @@ IF redesigning hierarchical process
 - **Stop iterating** when TR converges (no more transitive edges to remove)
 - **Stop analysis** when all cycles classified into four classes
 - **Stop decomposition** when undirected substrate + metadata separated
-- **Escalate to domain expert** if >50% of cycles are mixers (unusual integration pattern)
+- **Escalate to domain review** when interpretation would attach functional or policy meaning to a structural descriptor.
 
 ## Failure Modes
 

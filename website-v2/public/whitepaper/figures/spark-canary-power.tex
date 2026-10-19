@@ -1,0 +1,33 @@
+% Margin sparkline: detection power curve P(k) = 1 - beta^k.
+% Domain k in [1, 8]; curves for beta=0.2 (primary, legible) and beta=0.5
+% (muted reference). Fits inside the 1.3in book margin column.
+% Reader question: how many smuggled canaries does it take before detection
+%   is near-certain, and how much does a weaker beta cost you?
+% Claim: at beta=0.2 the power curve reaches 0.8 after a single canary and
+%   saturates fast; the muted beta=0.5 reference needs far more canaries for
+%   the same confidence.
+% Source: thm:sealed-power (Canaries with a power curve).
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[pd figure,x=7.5pt,y=44pt]
+  % Baseline and ceiling: neutral references, never a drawn edge.
+  \draw[pd hairline] (1,0) -- (8,0);
+  \draw[pd guide] (1,1) -- (8,1);
+  % Reference curve beta=0.5: a neutral, muted comparison, not a concept.
+  \draw[draw=pdinkmuted!70,line width=.9pt,dash pattern=on 2pt off 1.5pt]
+    plot[domain=1:8,samples=29] (\x,{1 - 0.5^\x});
+  % Primary curve beta=0.2 (legible: the chapter's own evidentiary case).
+  \draw[pd legible,line width=.9pt] plot[domain=1:8,samples=29]
+    (\x,{1 - 0.2^\x});
+  \foreach \k in {1,2,3,5,8}{
+    \node[pd legible datum] at (\k,{1 - 0.2^\k}) {};}
+  % Labels: the starting value, the ceiling, the formula, the worked range --
+  % each offset clear of its own datum mark and of both curves.
+  \node[pd label,anchor=south east] at (0.80,0.72) {$0.8$};
+  \node[pd label,anchor=south west] at (8,1.05) {$1.0$};
+  \node[pd direct label,anchor=south] at (2.0,0.10) {$1-\beta^k$};
+  \node[pd label,anchor=north] at (4.5,0) {$k: 1\longrightarrow 8$};
+\end{tikzpicture}
+\makeatother\endgroup

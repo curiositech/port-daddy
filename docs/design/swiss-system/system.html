@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harbor Swiss System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;125,700;125,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   HARBOR SWISS SYSTEM
+   One grotesk. One grid. Colour as information, not decoration.
+   Every token below is the source; nothing in this file is a literal.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── surface ── the three papers and the four inks ───────────────── */
+  --paper:        #f4f0e8;
+  --paper-raised: #ece6d9;
+  --paper-deep:   #e2dac8;
+  --ink:          #1a1815;
+  --ink-soft:     #3a3631;
+  --ink-mute:     #6a655c;
+  --ink-ghost:    #98928a;
+  --hair:         rgba(26,24,21,.14);
+  --hair-strong:  rgba(26,24,21,.32);
+
+  /* ── slabs ── one hue per meaning. Light-mode values only; these are
+        the print values, so a slab reads the same on paper and screen. */
+  --machine:   #003fb8;   /* kernel, truth, the single writer          */
+  --operator:  #006b5f;   /* legibility, the swarm made readable       */
+  --person:    #7e3a92;   /* identity, continuity, the ledger position */
+  --market:    #63670a;   /* value, bonds, price                       */
+
+  /* ── status ── six, and only six ─────────────────────────────────── */
+  --st-run:     #003fb8;
+  --st-ok:      #2e7d5b;
+  --st-warn:    #b8801f;
+  --st-error:   #b5392e;
+  --st-blocked: #6b3f8a;
+  --st-idle:    #98928a;
+
+  /* ── the grid ── 8pt base, nothing off it ────────────────────────── */
+  --u: 8px;
+  --s1: 4px;  --s2: 8px;   --s3: 12px;  --s4: 16px;  --s5: 24px;
+  --s6: 32px; --s7: 48px;  --s8: 64px;  --s9: 96px;  --s10: 128px;
+  --gutter: clamp(20px, 4vw, 64px);
+  --measure: 68ch;
+
+  /* ── type ── one grotesk does the work; mono is for machine truth ── */
+  --display: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --track-display: -0.025em;
+  --track-eyebrow:  0.14em;
+
+  /* ── motion ── transform and opacity only. Nothing else animates. ── */
+  --t-tap:   120ms;   /* acknowledge a press                          */
+  --t-move:  180ms;   /* a thing moves or changes state               */
+  --t-enter: 260ms;   /* a thing arrives                              */
+  --t-slab:  420ms;   /* a full-bleed slab resolves                   */
+  --ease-out:    cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --lift: 0;          /* set per-component; never a shadow            */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:        #14130f;
+    --paper-raised: #1d1b16;
+    --paper-deep:   #26231c;
+    --ink:          #f2eee4;
+    --ink-soft:     #cdc7ba;
+    --ink-mute:     #948e82;
+    --ink-ghost:    #6a655c;
+    --hair:         rgba(242,238,228,.16);
+    --hair-strong:  rgba(242,238,228,.34);
+    /* Slabs lift in dark so the paper-coloured text on them still clears
+       4.5:1. The hue is the same; only the lightness moves. */
+    --machine:   #3f74e8;
+    --operator:  #2a9d8c;
+    --person:    #b471c9;
+    --market:    #9aa018;
+    --st-run:     #3f74e8;
+    --st-ok:      #4fae7e;
+    --st-warn:    #d9a23c;
+    --st-error:   #e0685a;
+    --st-blocked: #a87cc4;
+    --st-idle:    #6a655c;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:        #14130f;
+  --paper-raised: #1d1b16;
+  --paper-deep:   #26231c;
+  --ink:          #f2eee4;
+  --ink-soft:     #cdc7ba;
+  --ink-mute:     #948e82;
+  --ink-ghost:    #6a655c;
+  --hair:         rgba(242,238,228,.16);
+  --hair-strong:  rgba(242,238,228,.34);
+  --machine:   #3f74e8;
+  --operator:  #2a9d8c;
+  --person:    #b471c9;
+  --market:    #9aa018;
+  --st-run:     #3f74e8;
+  --st-ok:      #4fae7e;
+  --st-warn:    #d9a23c;
+  --st-error:   #e0685a;
+  --st-blocked: #a87cc4;
+  --st-idle:    #6a655c;
+}
+
+/* ═══ base ═══════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1rem/1.6 var(--display);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: var(--track-display); text-wrap: balance; }
+p { margin: 0 0 var(--s4); max-width: var(--measure); color: var(--ink-soft); }
+a { color: inherit; }
+/* Relative sizing compounds: .92em inside a 0.9375rem paragraph lands at
+   13.8px, under the 14px floor. max() states the floor as the rule it is,
+   so inline code can never be dragged under it by its container. */
+code, .mono { font-family: var(--mono); font-size: max(0.875rem, .92em); letter-spacing: .01em; }
+
+.wrap { padding-inline: var(--gutter); max-width: 1360px; margin-inline: auto; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.75rem; font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* ═══ 1 · THE SLAB ═══════════════════════════════════════════════════
+   Full-bleed colour, paper-coloured text, square corners, no outline,
+   no shadow. The slab IS the boundary — that is border pattern 8.     */
+.slab {
+  background: var(--slab, var(--machine));
+  color: var(--paper);
+  padding-block: var(--s9);
+  position: relative;
+  overflow: hidden;
+}
+.slab h1, .slab h2 { color: var(--paper); }
+.slab p { color: var(--paper); opacity: .88; }
+.slab .eyebrow { color: var(--paper); opacity: .7; }
+
+/* The numeral. Oversized, expanded, cropped by the slab edge on purpose. */
+.numeral {
+  font-family: var(--display);
+  font-variation-settings: "wdth" 125;
+  font-weight: 800;
+  font-size: clamp(7.5rem, 26vw, 21.25rem);
+  line-height: .76;
+  letter-spacing: -0.05em;
+  color: var(--paper);
+  opacity: .17;
+  position: absolute;
+  right: calc(var(--gutter) * -0.12);
+  bottom: -0.1em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.masthead-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22ch);
+  gap: var(--s7);
+  align-items: end;
+  position: relative;
+  z-index: 1;
+}
+/* Deliberate exception to the 1.05 heading-leading floor: display type at
+   this size is set tight in this tradition. Applies at >=48px only. */
+.masthead-grid h1 { font-size: clamp(2.375rem, 6.4vw, 5.25rem); line-height: 1.0; max-width: 16ch; }
+@media (max-width: 760px) { .masthead-grid { grid-template-columns: 1fr; gap: var(--s5); } }
+
+/* ═══ 2 · THE CROSSING ═══════════════════════════════════════════════
+   Text that changes colour because of what is behind it. One copy in
+   ink; a second copy, identical, painted paper and clipped to exactly
+   the slab's rectangle. The switch is hard-edged because it is a clip,
+   not a blend — and it costs nothing per frame: the clip geometry is
+   written once per resize into two custom properties.                 */
+.crossing { position: relative; padding-block: var(--s8); overflow: hidden; }
+.crossing-type {
+  position: relative;
+  font-size: clamp(1.875rem, 5.6vw, 4.25rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: var(--track-display);
+  max-width: 20ch;
+  color: var(--ink);
+  /* The band's geometry, in em of this very block. The band and the clip
+     read the SAME two values, so the edge is exact by construction — no
+     measurement, no resize handler, nothing to drift when the web font
+     lands and every line box changes height. */
+  --band-top: 1.04em;   /* one line down  */
+  --band-h:   2.08em;   /* two lines tall */
+}
+.crossing-type::before {                 /* the band itself, bled full width */
+  content: "";
+  position: absolute; z-index: -1;
+  top: var(--band-top); height: var(--band-h);
+  left: -50vw; right: -50vw;             /* .crossing clips the overhang */
+  background: var(--slab, var(--person));
+}
+.crossing-type::after {                  /* the paper-coloured twin */
+  content: attr(data-text);
+  position: absolute; inset: 0;
+  color: var(--paper);
+  clip-path: inset(var(--band-top) 0 calc(100% - var(--band-top) - var(--band-h)) 0);
+  pointer-events: none;
+}
+
+/* ═══ 3 · THE DOT ════════════════════════════════════════════════════
+   Six states. One dot. It pulses only while work is actually in flight;
+   every other state is still, because a moving dot that means nothing
+   trains the eye to ignore movement that does.                        */
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--dot, var(--st-idle));
+  position: relative; flex: none;
+  display: inline-block; vertical-align: middle;
+}
+.dot[data-state="running"] { --dot: var(--st-run); }
+.dot[data-state="ok"]      { --dot: var(--st-ok); }
+.dot[data-state="warn"]    { --dot: var(--st-warn); }
+.dot[data-state="error"]   { --dot: var(--st-error); }
+.dot[data-state="blocked"] { --dot: var(--st-blocked); }
+.dot[data-state="idle"]    { --dot: var(--st-idle); }
+.dot[data-state="running"]::after {
+  content: "";
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-run);
+  animation: halo 1.8s var(--ease-out) infinite;
+}
+@keyframes halo {
+  0%   { transform: scale(.8);  opacity: .8; }
+  100% { transform: scale(1.9); opacity: 0;  }
+}
+
+.dot-table { display: grid; gap: 1px; background: var(--hair); border-block: 1px solid var(--hair); }
+.dot-row {
+  display: grid;
+  grid-template-columns: 20px 12ch minmax(0,1fr) 9ch;
+  gap: var(--s4);
+  align-items: center;
+  padding: var(--s3) 0;
+  background: var(--paper);
+}
+.dot-row .st { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.dot-row .means { color: var(--ink-soft); font-size: .9375rem; }
+.dot-row .motion { font-family: var(--mono); font-size: .875rem; color: var(--ink-mute); text-align: right; }
+@media (max-width: 720px) {
+  .dot-row { grid-template-columns: 20px 1fr; gap: var(--s2) var(--s3); }
+  .dot-row .means { grid-column: 2; }
+  .dot-row .motion { grid-column: 2; text-align: left; }
+}
+
+/* ═══ 4 · THE EIGHT BORDERS ══════════════════════════════════════════
+   Every one drawn live, none faked with an image. The verdict under
+   each is the one from the research: use, maybe, or skip.             */
+.pat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--s5);
+}
+.pat { display: flex; flex-direction: column; gap: var(--s3); }
+.pat-demo {
+  height: 116px;
+  position: relative;
+  background: var(--paper-raised);
+  display: grid; place-items: center;
+}
+.pat-demo .inner {
+  font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+.pat-name { font-size: .9375rem; font-weight: 700; letter-spacing: -.012em; }
+.pat-note { font-size: .875rem; line-height: 1.5; color: var(--ink-mute); margin: 0; max-width: none; }
+.pat-verdict { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.v-use   { color: var(--st-ok); }
+.v-maybe { color: var(--st-warn); }
+.v-skip  { color: var(--ink-ghost); }
+
+/* 4.1 corner brackets (L-tick) */
+.p-brackets::before, .p-brackets::after,
+.p-brackets .c3, .p-brackets .c4 {
+  content: ""; position: absolute; width: 16px; height: 16px;
+  border-color: var(--machine); border-style: solid; border-width: 0;
+}
+.p-brackets::before { top: 10px; left: 10px;  border-top-width: 2px; border-left-width: 2px; }
+.p-brackets::after  { top: 10px; right: 10px; border-top-width: 2px; border-right-width: 2px; }
+.p-brackets .c3 { bottom: 10px; left: 10px;  border-bottom-width: 2px; border-left-width: 2px; }
+.p-brackets .c4 { bottom: 10px; right: 10px; border-bottom-width: 2px; border-right-width: 2px; }
+
+/* 4.2 two diagonal corners */
+.p-diagonal::before, .p-diagonal::after {
+  content: ""; position: absolute; width: 20px; height: 20px;
+  border-color: var(--ink); border-style: solid; border-width: 0;
+}
+.p-diagonal::before { top: 10px; left: 10px;      border-top-width: 2px; border-left-width: 2px; }
+.p-diagonal::after  { bottom: 10px; right: 10px;  border-bottom-width: 2px; border-right-width: 2px; }
+
+/* 4.3 midline rules */
+.p-midline::before, .p-midline::after {
+  content: ""; position: absolute; left: 33.33%; right: 33.33%; height: 1px; background: var(--hair-strong);
+}
+.p-midline::before { top: 0; }
+.p-midline::after  { bottom: 0; }
+
+/* 4.4 left-edge accent stripe */
+.p-stripe { border-left: 3px solid var(--operator); }
+
+/* 4.5 segmented stroke */
+.p-segmented { outline: 2px dashed var(--ink-ghost); outline-offset: -10px; }
+
+/* 4.6 open-corner frame */
+.p-open::before, .p-open::after {
+  content: ""; position: absolute; border-color: var(--ink-mute); border-style: solid; border-width: 0;
+}
+.p-open::before { top: 10px; bottom: 10px; left: 22px; right: 22px; border-top-width: 1.5px; border-bottom-width: 1.5px; }
+.p-open::after  { top: 22px; bottom: 22px; left: 10px; right: 10px; border-left-width: 1.5px; border-right-width: 1.5px; }
+
+/* 4.7 crop-mark anchors */
+.p-crop .m { position: absolute; background: var(--ink); }
+.p-crop .m.h { width: 12px; height: 1.5px; }
+.p-crop .m.v { width: 1.5px; height: 12px; }
+
+/* 4.8 colour zone as frame */
+.p-zone { background: var(--market); }
+.p-zone .inner { color: var(--paper); }
+
+/* the two-max rule, demonstrated */
+.rule-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s5); }
+.panel { background: var(--paper-raised); padding: var(--s5); position: relative; }
+.panel h3 { font-size: .9375rem; margin-bottom: var(--s2); }
+.panel p { font-size: .875rem; margin: 0; color: var(--ink-mute); }
+/* good: exactly two — panel-scope brackets (4.1) + row stripe (4.4) */
+.panel.good { border-left: 3px solid var(--machine); }
+.panel.good::before, .panel.good::after {
+  content: ""; position: absolute; width: 14px; height: 14px; border: solid var(--machine); border-width: 0;
+}
+.panel.good::before { top: 8px; right: 8px; border-top-width: 2px; border-right-width: 2px; }
+.panel.good::after  { bottom: 8px; right: 8px; border-bottom-width: 2px; border-right-width: 2px; }
+/* bad: five at once. This is the failure mode, drawn on purpose. */
+.panel.bad {
+  border-left: 3px solid var(--st-error);
+  outline: 2px dashed var(--st-warn); outline-offset: -8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.22);
+  background: linear-gradient(var(--paper-raised), var(--paper-deep));
+}
+.panel.bad::before, .panel.bad::after {
+  content: ""; position: absolute; width: 14px; height: 14px; border: solid var(--person); border-width: 0;
+}
+.panel.bad::before { top: 6px; left: 6px; border-top-width: 2px; border-left-width: 2px; }
+.panel.bad::after  { bottom: 6px; right: 6px; border-bottom-width: 2px; border-right-width: 2px; }
+
+/* ═══ 5 · MOTION ═════════════════════════════════════════════════════ */
+.motion-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--s5); }
+.m-demo { background: var(--paper-raised); padding: var(--s5); cursor: pointer; user-select: none; }
+.m-demo .bar {
+  height: 6px; background: var(--machine); width: 22%;
+  transform-origin: left;
+  transition: transform var(--dur) var(--ease-out);
+}
+.m-demo.on .bar { transform: scaleX(4.1); }
+.m-demo .lbl { font-family: var(--mono); font-size: .875rem; color: var(--ink-mute); margin-top: var(--s3); }
+.m-demo .nm  { font-size: .9375rem; font-weight: 700; margin-bottom: var(--s3); }
+
+/* Arrival. The masthead resolves on load, as a CSS animation that always
+   finishes — nothing on this page is ever parked invisible waiting for a
+   scroll observer to rescue it. Everything below the fold is simply there,
+   at full opacity, the moment the document paints. */
+.rise { animation: rise var(--t-slab) var(--ease-out) both; }
+.rise-2 { animation-delay: 70ms; }
+.rise-3 { animation-delay: 140ms; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+/* The slab's own colour resolves under it, left to right. */
+.slab::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--paper);
+  transform-origin: right;
+  animation: wipe var(--t-slab) var(--ease-in-out) both;
+  pointer-events: none;
+}
+@keyframes wipe { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ═══ 6 · SIGNAL FACES ═══════════════════════════════════════════════
+   Two-block micro-faces that keep the real flag's colours. They carry
+   a registered ICS meaning; they are not decorative aliases.          */
+.flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--s4); }
+.flag { display: flex; flex-direction: column; gap: var(--s2); }
+.flag .face { height: 46px; width: 100%; display: grid; }
+.flag .lt { font-family: var(--mono); font-size: .875rem; line-height: 1.45; letter-spacing: .04em; color: var(--ink-mute); }
+.flag .lt b { color: var(--ink); font-weight: 600; }
+.f-split-v { grid-template-columns: 1fr 1fr; }
+.f-split-h { grid-template-rows: 1fr 1fr; }
+.f-bands3  { grid-template-columns: 1fr 1fr 1fr; }
+.f-cross   { position: relative; }
+
+/* ═══ section scaffolding ════════════════════════════════════════════ */
+section { padding-block: var(--s9); }
+section > .wrap > .eyebrow { display: block; margin-bottom: var(--s3); }
+.sec-head {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(0, 34ch);
+  gap: var(--s7); align-items: start; margin-bottom: var(--s7);
+  padding-bottom: var(--s5); border-bottom: 1px solid var(--hair-strong);
+}
+.sec-head h2 { font-size: clamp(1.625rem, 3.6vw, 2.75rem); line-height: 1.02; }
+.sec-head p { margin: 0; font-size: .9375rem; }
+@media (max-width: 860px) { .sec-head { grid-template-columns: 1fr; gap: var(--s4); } }
+
+.typespec { display: grid; gap: var(--s6); }
+.spec-row { display: grid; grid-template-columns: 16ch minmax(0,1fr); gap: var(--s5); align-items: baseline; padding-block: var(--s4); border-top: 1px solid var(--hair); }
+.spec-row .k { font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.spec-row .big { font-size: clamp(1.875rem, 5vw, 3.625rem); font-weight: 700; letter-spacing: var(--track-display); line-height: 1; }
+.spec-row .wide { font-variation-settings: "wdth" 125; font-weight: 800; font-size: clamp(2.5rem,7vw,5.375rem); line-height: .9; letter-spacing: -.045em; }
+@media (max-width: 720px) { .spec-row { grid-template-columns: 1fr; gap: var(--s2); } }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; }
+.sw { padding: var(--s5) var(--s4); min-height: 128px; display: flex; flex-direction: column; justify-content: space-between; color: var(--paper); }
+.sw .n { font-size: .9375rem; font-weight: 700; }
+.sw .h { font-family: var(--mono); font-size: .875rem; opacity: .82; }
+.sw .m { font-size: .875rem; opacity: .86; line-height: 1.45; }
+
+.themebtn {
+  position: fixed; right: var(--s4); bottom: var(--s4); z-index: 40;
+  font-family: var(--mono); font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--ink); color: var(--paper); border: 0; padding: 10px 14px; cursor: pointer;
+  transition: transform var(--t-tap) var(--ease-out);
+}
+.themebtn:active { transform: scale(.96); }
+:focus-visible { outline: 2px solid var(--machine); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+</style>
+</head>
+<body>
+
+<button class="themebtn" id="themebtn" type="button" aria-pressed="false">Theme</button>
+
+<!-- ═══ MASTHEAD ═══════════════════════════════════════════════════ -->
+<header class="slab" style="--slab: var(--machine)">
+  <div class="wrap masthead-grid">
+    <div>
+      <span class="eyebrow rise">Port Daddy · design system · draft 1</span>
+      <h1 class="rise rise-2" style="margin-top:var(--s4)">The Swiss system, taken off the page and onto the screen.</h1>
+    </div>
+    <div class="rise rise-3">
+      <p style="font-size:.9375rem">One grotesk. An 8pt grid nothing leaves. Colour that carries meaning rather than mood. Six dot states, eight border patterns, four motion durations — and hard rules about how few of them you may use at once.</p>
+    </div>
+  </div>
+  <div class="numeral" aria-hidden="true">01</div>
+</header>
+
+<!-- ═══ TYPE ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">§ 01 · type</span>
+        <h2 style="margin-top:var(--s3)">One grotesk, working at every size.</h2>
+      </div>
+      <p>Müller-Brockmann did not pair faces; he set one well. Archivo is the grotesk here — a real Helvetica-lineage design with a variable width axis, so the oversized numerals are an <em>expanded cut of the same family</em> rather than a second font pretending to belong. IBM Plex Mono carries machine truth: ids, timestamps, hexes, anything the system asserts rather than says.</p>
+    </div>
+
+    <div class="typespec">
+      <div class="spec-row">
+        <span class="k">Display · 700</span>
+        <div><div class="big">Coordination is a record, not a conversation</div></div>
+      </div>
+      <div class="spec-row">
+        <span class="k">Numeral · wdth 125 · 800</span>
+        <div><div class="wide">0123456789</div></div>
+      </div>
+      <div class="spec-row">
+        <span class="k">Body · 400 / 1.6</span>
+        <div><p style="margin:0">A single writer serialises every mutation, so the record can never disagree with itself. Everything above it — the claims, the receipts, the bonds — is an interpretation of one ordered log, and the interpretations are allowed to be wrong only in ways the log can later settle.</p></div>
+      </div>
+      <div class="spec-row">
+        <span class="k">Mono · 500</span>
+        <div><div class="mono" style="font-size:.9375rem">wu_01JQ8F3K · committed 2026-09-11T14:02:07Z · δ* = 0.3425</div></div>
+      </div>
+      <div class="spec-row">
+        <span class="k">Eyebrow · 600</span>
+        <div><span class="eyebrow">Part three · the person · chapter five</span></div>
+      </div>
+    </div>
+
+    <p style="margin-top:var(--s7); font-size:.9375rem; color:var(--ink-mute)"><strong style="color:var(--ink)">Chosen by register, not by habit.</strong> The house typography reference sorts faces by the register a thing is written in, and this book and this site sit in <em>Quiet Swiss / neo-grotesque</em>. Its libre answer for that register is Archivo — which is also its named replacement for Helvetica and Neue Haas, on the grounds that "neutral" stopped being neutral the moment everyone agreed it was.</p>
+    <p style="font-size:.9375rem; color:var(--ink-mute)"><strong style="color:var(--ink)">Rejected, and why.</strong> Inter is "competent and invisible to the point of anonymity". Geist "ships with every Next.js starter — I scaffolded this an hour ago". Fraunces is "the soft serif that became <em>the</em> indie-SaaS display serif", and a display serif fights a Swiss grid rather than sitting in it. Those three plus a gradient are a recognised look — the one that reads as generated rather than designed. The research report this system descends from used all three; it comes back to the repository re-cut onto this stack.</p>
+    <p style="font-size:.9375rem; color:var(--ink-mute)"><strong style="color:var(--ink)">Two families, and a mono makes three.</strong> The pairing rule is one workhorse plus one voice, capped at two families — with a monospace permitted as the third when it carries code or data. Here the workhorse and the voice are the same family at different widths, which is the tightest form of the rule, and IBM Plex Mono is the third, doing only machine truth.</p>
+  </div>
+</section>
+
+<!-- ═══ CROSSING ══════════════════════════════════════════════════ -->
+<section style="padding-block:0">
+  <div class="wrap">
+    <div class="sec-head" style="padding-top:var(--s9)">
+      <div>
+        <span class="eyebrow">§ 02 · the crossing</span>
+        <h2 style="margin-top:var(--s3)">Type that changes colour because of what is behind it.</h2>
+      </div>
+      <p>The headline is drawn once in ink and once in paper. The paper copy is clipped to exactly the slab's rectangle, so the switch is a hard edge, not a blend — and it costs nothing per frame: the clip is written into two custom properties on resize and never touched again. Drag the window and watch the edge stay exact.</p>
+    </div>
+  </div>
+  <div class="crossing" style="--slab: var(--person)">
+    <div class="wrap">
+      <div class="crossing-type" data-text="A spawn is not a soul. It is a position in a ledger that other positions are willing to settle against.">A spawn is not a soul. It is a position in a ledger that other positions are willing to settle against.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ COLOUR ════════════════════════════════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">§ 03 · colour</span>
+        <h2 style="margin-top:var(--s3)">Hue is the meaning, not the mood.</h2>
+      </div>
+      <p>Four slab colours, one per part of the argument, and they never trade places. A slab is always full-bleed, always square-cornered, always carries paper-coloured text, and never has an outline or a shadow — the colour <em>is</em> the boundary. In dark mode the hue is identical and only the lightness moves, so a part is the same colour on paper and on a screen at night.</p>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:var(--machine)"><div><div class="n">The Machine</div><div class="h">--machine</div></div><div class="m">Kernel, truth, the single writer. Also every link and every focus ring.</div></div>
+      <div class="sw" style="background:var(--operator)"><div><div class="n">The Operator</div><div class="h">--operator</div></div><div class="m">Legibility. The swarm made readable to one person.</div></div>
+      <div class="sw" style="background:var(--person)"><div><div class="n">The Person</div><div class="h">--person</div></div><div class="m">Identity and continuity — the ledger position, not the soul.</div></div>
+      <div class="sw" style="background:var(--market)"><div><div class="n">The Market</div><div class="h">--market</div></div><div class="m">Value, bonds, price. Gold doing its literal job.</div></div>
+    </div>
+    <p style="margin-top:var(--s5); font-size:.9375rem; color:var(--ink-mute)">Status tones are a separate register and never borrow a part colour, with one deliberate exception: <span class="mono" style="color:var(--ink)">running</span> is the machine blue, because a thing in flight is the kernel working.</p>
+  </div>
+</section>
+
+<!-- ═══ THE DOT ═══════════════════════════════════════════════════ -->
+<section class="slab" style="--slab: var(--operator)">
+  <div class="wrap">
+    <span class="eyebrow">§ 04 · liveness</span>
+    <h2 style="margin-top:var(--s3); font-size:clamp(1.625rem,3.6vw,2.75rem)">Six states. One dot. No spinner beside it.</h2>
+    <p style="margin-top:var(--s4)">A dot may pulse only while fresh heartbeat or stream evidence is actually arriving. Every other state is still. A dot that animates when nothing is happening teaches the eye to ignore movement — and then the one moving dot that matters goes unread.</p>
+  </div>
+  <div class="numeral" aria-hidden="true">6</div>
+</section>
+
+<section style="padding-top:var(--s8)">
+  <div class="wrap">
+    <div class="dot-table" id="dottable">
+      <div class="dot-row"><span class="dot" data-state="running"></span><span class="st" style="color:var(--st-run)">running</span><span class="means">Work is in flight right now and evidence is arriving.</span><span class="motion">pulses</span></div>
+      <div class="dot-row"><span class="dot" data-state="ok"></span><span class="st" style="color:var(--st-ok)">ok</span><span class="means">A durable receipt exists. The claim is settled.</span><span class="motion">still</span></div>
+      <div class="dot-row"><span class="dot" data-state="warn"></span><span class="st" style="color:var(--st-warn)">warn</span><span class="means">Proceeding, but into something the operator should see.</span><span class="motion">still</span></div>
+      <div class="dot-row"><span class="dot" data-state="error"></span><span class="st" style="color:var(--st-error)">error</span><span class="means">Failed, with a typed code and exactly one next action.</span><span class="motion">still</span></div>
+      <div class="dot-row"><span class="dot" data-state="blocked"></span><span class="st" style="color:var(--st-blocked)">blocked</span><span class="means">Waiting on a human, a guard, or an arbitration.</span><span class="motion">still</span></div>
+      <div class="dot-row"><span class="dot" data-state="idle"></span><span class="st" style="color:var(--ink-mute)">idle</span><span class="means">Stopped and making no way. Not a failure.</span><span class="motion">still</span></div>
+    </div>
+    <p style="margin-top:var(--s5); font-size:.9375rem; color:var(--ink-mute)">The dot restates a colour the row already carries in its left stripe, so the state survives colour-blindness and monochrome printing. There is no seventh state: "unknown" is <span class="mono" style="color:var(--ink)">idle</span> with the text saying so, because inventing a colour for absence of knowledge is how status systems rot.</p>
+  </div>
+</section>
+
+<!-- ═══ BORDERS ═══════════════════════════════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">§ 05 · fractional borders</span>
+        <h2 style="margin-top:var(--s3)">Eight patterns. Use two. Mix none.</h2>
+      </div>
+      <p>Three lineages meet here: register marks from offset lithography, colour blocks from Swiss modernism, and instrumentation from Bauhaus and Braun. Each pattern must mark something specific — panel scope, selection, focus, state. Three or more in one surface reads as decorated chaos, which is the opposite of restraint.</p>
+    </div>
+
+    <div class="pat-grid">
+      <div class="pat">
+        <div class="pat-demo p-brackets"><i class="c3"></i><i class="c4"></i><span class="inner">2.1</span></div>
+        <div><div class="pat-name">Corner brackets · L-tick</div><p class="pat-note">Four L-ticks. "This is a framed area" without the weight of full enclosure.</p></div>
+        <span class="pat-verdict v-use">Use · panel scope</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-diagonal"><span class="inner">2.2</span></div>
+        <div><div class="pat-name">Two diagonal corners</div><p class="pat-note">Top-left and bottom-right only. A quotation-mark frame; beautiful in print, half-rendered at small sizes.</p></div>
+        <span class="pat-verdict v-maybe">Maybe · large only</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-midline"><span class="inner">2.3</span></div>
+        <div><div class="pat-name">Midline rules</div><p class="pat-note">Hairlines spanning only the middle third. Divided horizontally, continuous vertically.</p></div>
+        <span class="pat-verdict v-use">Use · between sections</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-stripe"><span class="inner">2.4</span></div>
+        <div><div class="pat-name">Left-edge accent stripe</div><p class="pat-note">2–4px of colour on one edge. The border, the status and the row divider, all at once — the one pattern doing the most work in modern tooling.</p></div>
+        <span class="pat-verdict v-use">Feature pattern</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-segmented"><span class="inner">2.5</span></div>
+        <div><div class="pat-name">Segmented stroke</div><p class="pat-note">An interrupted perimeter. Reads as "draft" or "drop zone", and dates fast on anything persistent.</p></div>
+        <span class="pat-verdict v-skip">Skip · dated</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-open"><span class="inner">2.6</span></div>
+        <div><div class="pat-name">Open-corner frame</div><p class="pat-note">Four edges stopping short of meeting. Structured but breathing — until the gaps vanish at small sizes.</p></div>
+        <span class="pat-verdict v-skip">Skip · gaps vanish</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-crop" id="cropdemo"><span class="inner">2.7</span></div>
+        <div><div class="pat-name">Crop-mark anchors</div><p class="pat-note">Ticks outside the content's invisible bounding box. The highest-class editorial signal, and far too print-poster for a control surface.</p></div>
+        <span class="pat-verdict v-maybe">Maybe · masthead only</span>
+      </div>
+      <div class="pat">
+        <div class="pat-demo p-zone"><span class="inner">2.8</span></div>
+        <div><div class="pat-name">Colour zone as frame</div><p class="pat-note">No border at all. A saturated panel becomes its own boundary against the neutral matrix. The Vignelli move, and the one this system leans on hardest.</p></div>
+        <span class="pat-verdict v-use">Use · primary state</span>
+      </div>
+    </div>
+
+    <h3 style="margin-top:var(--s9); font-size:1.25rem">The two-at-most rule, shown both ways</h3>
+    <p style="margin-top:var(--s2)">Left: exactly two patterns, each meaning something — a left stripe for state (2.4) and corner brackets for panel scope (2.1). Right: five at once, drawn deliberately badly.</p>
+    <div class="rule-pair" style="margin-top:var(--s5)">
+      <div class="panel good">
+        <h3>Two patterns</h3>
+        <p>The stripe says which state this row is in. The brackets say where the panel ends. Remove either and you lose a specific piece of information — which is the test.</p>
+      </div>
+      <div class="panel bad">
+        <h3>Five patterns</h3>
+        <p>Stripe, dashed outline, corner brackets, a gradient and a drop shadow. Nothing here marks anything; the chrome is standing in for a hierarchy the layout does not have.</p>
+      </div>
+    </div>
+    <p style="margin-top:var(--s5); font-size:.9375rem; color:var(--ink-mute)"><strong style="color:var(--ink)">The diagnostic.</strong> Remove every fractional border. Does the surface still communicate its hierarchy through colour, spacing and type alone? If yes, the brackets are refinement. If no, they are hiding the absence of a system.</p>
+  </div>
+</section>
+
+<!-- ═══ MOTION ════════════════════════════════════════════════════ -->
+<section class="slab" style="--slab: var(--market)">
+  <div class="wrap">
+    <span class="eyebrow">§ 06 · motion</span>
+    <h2 style="margin-top:var(--s3); font-size:clamp(1.625rem,3.6vw,2.75rem)">Four durations. Two easings. Transform and opacity only.</h2>
+    <p style="margin-top:var(--s4)">Everything that moves moves on the compositor — no width, no height, no top, no left, no filter, nothing that forces layout. That is what "jitter-free" actually means in practice, and it is why this page does not stutter when you scroll it during an animation.</p>
+  </div>
+  <div class="numeral" aria-hidden="true">4</div>
+</section>
+
+<section style="padding-top:var(--s8)">
+  <div class="wrap">
+    <div class="motion-grid">
+      <div class="m-demo" style="--dur: var(--t-tap)" tabindex="0" role="button"><div class="nm">Tap · 120ms</div><div class="bar"></div><div class="lbl">--t-tap · acknowledge a press</div></div>
+      <div class="m-demo" style="--dur: var(--t-move)" tabindex="0" role="button"><div class="nm">Move · 180ms</div><div class="bar"></div><div class="lbl">--t-move · a state changes</div></div>
+      <div class="m-demo" style="--dur: var(--t-enter)" tabindex="0" role="button"><div class="nm">Enter · 260ms</div><div class="bar"></div><div class="lbl">--t-enter · a thing arrives</div></div>
+      <div class="m-demo" style="--dur: var(--t-slab)" tabindex="0" role="button"><div class="nm">Slab · 420ms</div><div class="bar"></div><div class="lbl">--t-slab · a full-bleed block resolves</div></div>
+    </div>
+    <p style="margin-top:var(--s5); font-size:.9375rem; color:var(--ink-mute)">Click or focus-and-press any panel. Both easings are asymmetric on purpose: <span class="mono" style="color:var(--ink)">--ease-out</span> for anything the operator caused, so it answers instantly and settles; <span class="mono" style="color:var(--ink)">--ease-in-out</span> for anything the system caused, so it reads as a considered move rather than a jolt. Every animation on this page stops dead under <span class="mono" style="color:var(--ink)">prefers-reduced-motion</span>, including the dot's halo.</p>
+  </div>
+</section>
+
+<!-- ═══ FLAGS ═════════════════════════════════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <span class="eyebrow">§ 07 · signal faces</span>
+        <h2 style="margin-top:var(--s3)">Every page flies one flag.</h2>
+      </div>
+      <p>Two-block micro-faces that keep the real flag's colours, from the 1969 International Code of Signals. They carry a registered meaning and are never decorative aliases — a page that flies Papa is saying "prepared to proceed", and if it is not, it must not fly Papa.</p>
+    </div>
+    <div class="flags">
+      <div class="flag"><div class="face f-split-v"><i style="background:#003fb8"></i><i style="background:#f4f0e8"></i></div><span class="lt"><b>P</b> · Papa — prepared to proceed</span></div>
+      <div class="flag"><div class="face f-split-v"><i style="background:#f4f0e8"></i><i style="background:#b5392e"></i></div><span class="lt"><b>H</b> · Hotel — pilot aboard</span></div>
+      <div class="flag"><div class="face f-split-v"><i style="background:#f4f0e8"></i><i style="background:#003fb8"></i></div><span class="lt"><b>A</b> · Alfa — keep clear, launch in progress</span></div>
+      <div class="flag"><div class="face f-split-h"><i style="background:#b5392e"></i><i style="background:#b8801f"></i></div><span class="lt"><b>O</b> · Oscar — someone overboard</span></div>
+      <div class="flag"><div class="face f-bands3"><i style="background:#b5392e"></i><i style="background:#f4f0e8"></i><i style="background:#b5392e"></i></div><span class="lt"><b>F</b> · Foxtrot — disabled, communicate</span></div>
+      <div class="flag"><div class="face f-split-h"><i style="background:#b8801f"></i><i style="background:#1a1815"></i></div><span class="lt"><b>D</b> · Delta — manoeuvring with difficulty</span></div>
+      <div class="flag"><div class="face f-bands3" style="grid-template-rows:1fr 1fr 1fr; grid-template-columns:1fr"><i style="background:#b5392e"></i><i style="background:#f4f0e8"></i><i style="background:#b5392e"></i></div><span class="lt"><b>V</b> · Victor — require assistance</span></div>
+      <div class="flag"><div class="face f-split-v"><i style="background:#b8801f"></i><i style="background:#003fb8"></i></div><span class="lt"><b>K</b> · Kilo — wish to communicate</span></div>
+      <div class="flag"><div class="face f-split-h"><i style="background:#003fb8"></i><i style="background:#f4f0e8"></i></div><span class="lt"><b>J</b> · Juliett — grave danger, keep clear</span></div>
+      <div class="flag"><div class="face f-split-v"><i style="background:#003fb8"></i><i style="background:#f4f0e8"></i></div><span class="lt"><b>M</b> · Mike — stopped, making no way</span></div>
+    </div>
+    <p style="margin-top:var(--s5); font-size:.9375rem; color:var(--ink-mute)">Romeo has no single-letter meaning in the 1969 code — it is the procedure acknowledgement "Received", and the "way is off my ship" gloss is 1931 folklore that survives on decorative flag charts. This system does not repeat it.</p>
+  </div>
+</section>
+
+<!-- ═══ RULES ═════════════════════════════════════════════════════ -->
+<section class="slab" style="--slab: var(--person)">
+  <div class="wrap">
+    <span class="eyebrow">§ 08 · the rules</span>
+    <h2 style="margin-top:var(--s3); font-size:clamp(1.625rem,3.6vw,2.75rem)">What earns its place, and what dates immediately.</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:var(--s7); margin-top:var(--s6)">
+      <div>
+        <div class="eyebrow" style="margin-bottom:var(--s3)">Earns its place</div>
+        <ul style="margin:0; padding-left:1.1em; color:var(--paper); opacity:.9; font-size:.9375rem; line-height:1.7">
+          <li>Brackets ≥ 12px, landing on the 8pt grid</li>
+          <li>Each pattern marks one specific thing — scope, focus, state</li>
+          <li>One accent, at most two, against a strict neutral matrix</li>
+          <li>The grid underneath is invisible but real</li>
+          <li>Removing the brackets would cost refinement, not hierarchy</li>
+        </ul>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:var(--s3)">Dates immediately</div>
+        <ul style="margin:0; padding-left:1.1em; color:var(--paper); opacity:.9; font-size:.9375rem; line-height:1.7">
+          <li>Brackets under 10px — reads as a render glitch</li>
+          <li>Three or more bracket styles in one view</li>
+          <li>Decoration without semantics: every card bracketed, so none mean anything</li>
+          <li>Three accent colours competing on one panel</li>
+          <li>Dashed strokes as persistent UI — always reads as a draft</li>
+          <li>A box-shadow stacked under a fractional border — collapses the whole idea</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="numeral" aria-hidden="true">08</div>
+</section>
+
+<footer style="padding-block:var(--s8); border-top:1px solid var(--hair)">
+  <div class="wrap">
+    <p class="mono" style="font-size:.875rem; color:var(--ink-mute); max-width:none">Harbor Swiss System · draft 1 · every value on this page is a token; nothing is a literal · light and dark are the same hues at different lightness · reduced motion honoured throughout</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── theme ─────────────────────────────────────────────────────── */
+  var btn = document.getElementById('themebtn');
+
+  function effectiveTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr) return attr;
+    var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return dark ? 'dark' : 'light';
+  }
+
+  /* The button's visible label ("Theme") already gives it an accessible
+     name, so it needs no aria-label. What it lacks without this is any
+     announced STATE -- a screen-reader user has no way to tell which
+     theme is active. aria-pressed is the correct role for a two-state
+     toggle button (this is not a disclosure, so aria-expanded does not
+     apply); set it once at load from the theme actually in effect, then
+     keep it in lockstep with data-theme on every click. */
+  btn.setAttribute('aria-pressed', String(effectiveTheme() === 'dark'));
+
+  btn.addEventListener('click', function () {
+    var root = document.documentElement;
+    var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    btn.setAttribute('aria-pressed', String(next === 'dark'));
+  });
+
+  /* The crossing needs no JavaScript at all. Its band and its clip are
+     driven by the same two em values on the same element, so the edge is
+     exact by construction and survives the web font landing, a resize, a
+     zoom, and a theme flip with nothing to recompute. */
+
+  /* ── crop marks (pattern 2.7) ──────────────────────────────────── */
+  var crop = document.getElementById('cropdemo');
+  if (crop) {
+    var corners = [[14, 14, 0, 0], [14, 14, 1, 0], [14, 14, 0, 1], [14, 14, 1, 1]];
+    corners.forEach(function (c) {
+      var x = c[2] ? 'right' : 'left', y = c[3] ? 'bottom' : 'top';
+      var h = document.createElement('i'); h.className = 'm h';
+      h.style[x] = '6px'; h.style[y] = '22px'; crop.appendChild(h);
+      var v = document.createElement('i'); v.className = 'm v';
+      v.style[x] = '22px'; v.style[y] = '6px'; crop.appendChild(v);
+    });
+  }
+
+  /* ── motion demos ──────────────────────────────────────────────── */
+  Array.prototype.forEach.call(document.querySelectorAll('.m-demo'), function (el) {
+    function toggle() { el.classList.toggle('on'); }
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+
+  /* No scroll-triggered reveals live here, on purpose. Arrival motion is
+     three CSS animations on the masthead that always complete; everything
+     below the fold is readable the instant the document paints, with
+     JavaScript off, mid-load, and in a screenshot. A page that hides its
+     own content behind an observer is one failed callback from blank. */
+})();
+</script>
+</body>
+</html>

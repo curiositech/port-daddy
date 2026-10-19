@@ -20,7 +20,11 @@ import type { Database } from 'better-sqlite3';
 import { randomBytes } from 'node:crypto';
 import { keychain, KEYCHAIN_SERVICE } from '../keychain.js';
 import type { LeaseFacts, RentPolicy } from '../coast-guard/compulsion.js';
-import { mintPushGrant, dischargeRentPaid, type DischargeResult } from './discharge.js';
+import {
+  mintActorBoundPushGrant,
+  dischargeRentPaid,
+  type DischargeResult,
+} from './discharge.js';
 import { verifyPushGrant, type GateResult } from './gate.js';
 import type { Macaroon, RequestContext } from './types.js';
 
@@ -59,12 +63,14 @@ export class InMemorySecretStore implements SecretStore {
   }
 }
 
-const rootAccount = (grantId: string) => `macaroon/grant/${grantId}/root`;
-const rentAccount = (grantId: string) => `macaroon/grant/${grantId}/rent`;
+const rootAccount = (grantId: string) => `macaroon/actor-bound-push/${grantId}/root`;
+const rentAccount = (grantId: string) => `macaroon/actor-bound-push/${grantId}/rent`;
 
 export interface MintGrantOptions {
   /** Repository the grant authorizes pushes to. */
   repoId: string;
+  /** Canonical daemon-minted actor principal. */
+  actor: string;
   /** Session the grant is bound to. */
   session: string;
   /** Hard expiry of the grant (unix ms). */
@@ -87,6 +93,7 @@ export interface MintGrantResult {
 export interface GrantRow {
   grantId: string;
   repo: string;
+  actor: string;
   session: string;
   expiresMs: number;
   rentCaveatId: string;
@@ -116,9 +123,10 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
   };
 
   runDDL(`
-    CREATE TABLE IF NOT EXISTS macaroon_grants (
+    CREATE TABLE IF NOT EXISTS actor_bound_push_grants (
       grant_id        TEXT PRIMARY KEY,
       repo            TEXT NOT NULL,
+      actor           TEXT NOT NULL,
       session         TEXT NOT NULL,
       expires_ms      INTEGER NOT NULL,
       rent_caveat_id  TEXT NOT NULL,
@@ -126,7 +134,7 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
       revoked_at      INTEGER
     )
   `);
-  runDDL(`CREATE INDEX IF NOT EXISTS idx_macaroon_grants_session ON macaroon_grants(session)`);
+  runDDL(`CREATE INDEX IF NOT EXISTS idx_actor_bound_push_grants_session ON actor_bound_push_grants(session)`);
 
   // Positional `?` placeholders, NOT @named object binding: under bun:sqlite
   // (the compiled daemon's runtime via lib/sqlite-runtime.ts) @named binding can
@@ -135,18 +143,21 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
   // still use @named; this module avoids it deliberately. See the bun:sqlite
   // binding note in lib/roadmap-items.ts:163-169.
   const insertGrant = db.prepare(`
-    INSERT INTO macaroon_grants
-      (grant_id, repo, session, expires_ms, rent_caveat_id, created_at, revoked_at)
-    VALUES (?, ?, ?, ?, ?, ?, NULL)
+    INSERT INTO actor_bound_push_grants
+      (grant_id, repo, actor, session, expires_ms, rent_caveat_id, created_at, revoked_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
   `);
-  const selectGrant = db.prepare(`SELECT * FROM macaroon_grants WHERE grant_id = ?`);
-  const markRevoked = db.prepare(`UPDATE macaroon_grants SET revoked_at = ? WHERE grant_id = ?`);
+  const selectGrant = db.prepare(`SELECT * FROM actor_bound_push_grants WHERE grant_id = ?`);
+  const markRevoked = db.prepare(
+    `UPDATE actor_bound_push_grants SET revoked_at = ? WHERE grant_id = ?`,
+  );
 
   function rowToGrant(r: Record<string, unknown> | undefined): GrantRow | null {
     if (!r) return null;
     return {
       grantId: r.grant_id as string,
       repo: r.repo as string,
+      actor: r.actor as string,
       session: r.session as string,
       expiresMs: r.expires_ms as number,
       rentCaveatId: r.rent_caveat_id as string,
@@ -160,25 +171,27 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
      * Mint a push grant: generate fresh root + caveat keys, stash them in the
      * secret store, persist the metadata, and return the agent-safe macaroon.
      * `grantId` and the rent nonce are derived from fresh randomness here (this
-     * is the impure, stateful boundary — the pure `mintPushGrant` takes them as
+     * is the impure, stateful boundary — the pure actor-bound recipe takes them as
      * inputs so it stays testable).
      */
     mintGrant(opts: MintGrantOptions): MintGrantResult {
-      const grantId = `grant-${randomBytes(12).toString('hex')}`;
+      const grantSeed = `grant-${randomBytes(12).toString('hex')}`;
       const rentNonce = randomBytes(12).toString('hex');
       const rootKey = randomBytes(32);
       const caveatKey = randomBytes(32);
 
-      const { macaroon, rentCaveatId } = mintPushGrant({
+      const { macaroon, rentCaveatId } = mintActorBoundPushGrant({
         rootKey,
-        grantId,
+        grantId: grantSeed,
         repoId: opts.repoId,
+        actor: opts.actor,
         session: opts.session,
         expiresMs: opts.expiresMs,
         caveatKey,
         rentNonce,
         protectedBranch: opts.protectedBranch,
       });
+      const grantId = macaroon.identifier;
 
       // Fail closed: persist the secrets FIRST and only write the metadata row
       // if both succeeded. If the secret store is unavailable (no keychain),
@@ -199,6 +212,7 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
         insertGrant.run(
           grantId,
           opts.repoId,
+          opts.actor,
           opts.session,
           opts.expiresMs,
           rentCaveatId,
@@ -263,7 +277,14 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
         const caveatHex = secrets.get(rentAccount(grant.identifier));
         return caveatHex ? Buffer.from(caveatHex, 'hex') : null;
       };
-      return verifyPushGrant(grant, Buffer.from(rootHex, 'hex'), discharges, ctx, resolveCaveatKey);
+      return verifyPushGrant(
+        grant,
+        Buffer.from(rootHex, 'hex'),
+        discharges,
+        row.actor,
+        ctx,
+        resolveCaveatKey,
+      );
     },
 
     /**

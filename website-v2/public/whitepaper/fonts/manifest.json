@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "fonts/source-serif/SourceSerif4-It.otf",
+      "sha256": "f8062257f4693e438a8e317c9fe2b4393f0d4eed84d897edcbfd733c30a1c1a1"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4-Regular.otf",
+      "sha256": "edf160d0d584deee8a3bb2c3371b2a7624ca63580fbe02c57c1f4c91e84d8787"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4-Semibold.otf",
+      "sha256": "25e034392847d9965c92f98971b3646436b7ab919ece9118b0c0e5ec94c02efc"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4-SemiboldIt.otf",
+      "sha256": "fc22addcea5d5ab982dfef6d388fff6bdb3e31ae46c37e0015b8312e634a6e9b"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Caption-It.otf",
+      "sha256": "eac5467fa1e9eefe466da00e5ac409857cb7610aa4e07611dcb82c52e5d5b9dd"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Caption-Regular.otf",
+      "sha256": "312a15e15369b7b54527c288e2391ff14cb73bcf41520d3a5c34b4c259e99a3a"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Caption-Semibold.otf",
+      "sha256": "9efb82f0a6310771d7bec17dfe38c30b145b857f5781a554990b48edadf54cb0"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Caption-SemiboldIt.otf",
+      "sha256": "49456d846253d8930e9f139349df61b84e56178f01ea7e39d41ef3f013925e26"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Display-It.otf",
+      "sha256": "653bba042213020d624a147c55d84662b3c20c1e12355bc691ae53c7051785ca"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Display-Regular.otf",
+      "sha256": "0525aba71e1d7293d3ef645f5a9b56101432d1f6c676cba388f800523c7b2111"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Display-Semibold.otf",
+      "sha256": "0f2b3699c57dd032db8c8d93b34f7dac72e60fa2638d209aa2e428dfb6eb6400"
+    },
+    {
+      "path": "fonts/source-serif/SourceSerif4Display-SemiboldIt.otf",
+      "sha256": "2f548ebe7b4e535e4e5e9a3d6f7bff4436387e837c0925fef782be2736b6f982"
+    },
+    {
+      "path": "fonts/source-sans/SourceSans3-It.otf",
+      "sha256": "430b9f0eb1170be0981706d14b6cf87122efba9d86c373bbdf69daf276421462"
+    },
+    {
+      "path": "fonts/source-sans/SourceSans3-Regular.otf",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6"
+    },
+    {
+      "path": "fonts/source-sans/SourceSans3-Semibold.otf",
+      "sha256": "36f1cd2c344aa3109e64429bce41a41e4b2b923beb2db19b8dbf9bb56f05a4f9"
+    },
+    {
+      "path": "fonts/source-sans/SourceSans3-SemiboldIt.otf",
+      "sha256": "81204ed282543df2d93db214c98b5ec1c9ce735c4c82e4323d5ae5ee69c6b8b7"
+    },
+    {
+      "path": "fonts/source-serif/LICENSE.md",
+      "sha256": "c21d7293d87b6d7ab1d0229a2f55b77f33a7613a6a4e66f6693d68d7d8d09464"
+    },
+    {
+      "path": "fonts/source-sans/LICENSE.md",
+      "sha256": "56af9b9c6715597e458284a474dc118a50a4150e9d547c70f7b4a33c3e6a9328"
+    }
+  ]
+}

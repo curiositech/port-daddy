@@ -1,0 +1,59 @@
+% Brief (grammar: staircase over four threat rows, one closure frontier;
+%   new addition, not in the original figure list -- addendum: names this a
+%   "wonderful" foundling. Source: whitepaper-foundlings/.../
+%   fig-anchor-four-phases.tex, redrawn to v2 roles; facts checked against
+%   Table tab:anchor-four-phases before adoption -- phase names, threat
+%   names and "stays closed because" column all match).
+% Reader question: does a later protocol phase ever reopen a threat an
+%   earlier phase closed?
+% Claim: threat closure is cumulative, never substitutive -- each phase
+%   closes exactly one more attack surface while every earlier closure holds.
+% Evidence: Table tab:anchor-four-phases (4 phases, 4 threats, the "stays
+%   closed because" column argues no later phase reopens an earlier one)
+%   [internal].
+% Must distinguish: a threat still open (breach hue, left of its own closure
+%   point) from one already closed (chapter hue, right of it) -- the
+%   staircase itself is the one thing a table of four rows cannot show,
+%   that closure moves strictly forward.
+% Grammar chosen: staircase (nearest template: tpl-step-chart). Rejected: a
+%   fifth table column narrating "cumulative" in prose -- a reader cannot see
+%   monotonicity in a paragraph the way a strictly-rightward staircase shows
+%   it geometrically.
+% Five-second test: "four rows, four closure points, one staircase moving
+%   only right: nothing reopens."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.79cm,y=1cm]
+  \def\xmin{0}
+  \def\xmax{9.2}
+  \foreach \y/\threat/\close in {
+    3.3/{header-selected algorithm}/1.9,
+    2.2/{shared-secret theft}/4.1,
+    1.1/{downstream privilege growth}/6.3,
+    0/{post-issue authority}/8.5} {
+    \node[pd label,anchor=east,align=right,text width=3.3cm] at (\xmin-.3,\y) {\threat};
+    \draw[pd breach rule] (\xmin,\y) -- (\close,\y);
+    \draw[pd focus rule] (\close,\y) -- (\xmax,\y);
+    \node[pd focus datum,minimum size=4.5pt,inner sep=0pt] at (\close,\y) {};
+  }
+
+  \draw[pd warn rule] (1.9,3.3) -- (1.9,2.2) -- (4.1,2.2) -- (4.1,1.1) --
+    (6.3,1.1) -- (6.3,0) -- (8.5,0);
+  \node[pd label,anchor=south west,text width=3.0cm] at (0,3.62)
+    {closure frontier: strictly rightward, never back};
+
+  \foreach \x/\n/\name in {
+    1.9/1/{HS256 pinning},
+    4.1/2/{Ed25519 identity},
+    6.3/3/{delegation},
+    8.5/4/{revocation}} {
+    \draw[pd tick] (\x,-.42) -- (\x,-.58);
+    \node[pd label,anchor=north,align=center,text width=1.5cm] at (\x,-.66)
+      {\textbf{phase \n}\\ \name};
+  }
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-.5) -- (\xmax+.3,-.5);
+\end{tikzpicture}
+\caption{Each phase adds a check without removing earlier checks. The marked transition closes the named threat; later phases preserve that closure. [internal, Table~\ref{tab:anchor-four-phases}]}
+\label{fig:anchor-four-phases}
+\end{figure}

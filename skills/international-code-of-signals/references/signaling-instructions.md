@@ -52,7 +52,7 @@ sequenceDiagram
     TX->>RX: Hoist group (+ identity of addressee, else "all stations in visual range")
     RX->>TX: Answering pennant AT THE DIP (= hoist seen)
     RX->>TX: Answering pennant CLOSE UP (= hoist understood)
-    TX->>RX: Haul down; next hoist
+    TX->>RX: Haul down, then next hoist
     RX->>TX: Dip, then close up again per hoist
     TX->>RX: Answering pennant hoisted SINGLY (= signal completed)
 ```

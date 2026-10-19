@@ -10,6 +10,11 @@
  *   POST /v1/publish
  *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
  *   POST /v1/fleetbot/publish                (account bearer; governed GitHub App actions)
+ *   GET  /account/publisher-grants            (browser session; exact-repo standing grants)
+ *   POST /account/publisher-grants/create     (same-origin browser; fresh GitHub authority)
+ *   POST /account/publisher-grants/revoke     (same-origin browser; immediate revocation)
+ *   GET  /v1/fleetbot/publisher-grants/:id    (signed workload; current grant snapshot)
+ *   POST /v1/fleetbot/publisher-receipts/recover (signed workload; finalized receipt only)
  *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
  *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
  *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
@@ -76,9 +81,15 @@
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
- *   GET  /v1/shipwright/history                 (session; own chat history)
- *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
- *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/thread                  (session; issue repo-bound thread)
+ *   GET  /v1/shipwright/threads                 (session; bounded resume inventory)
+ *   GET  /v1/shipwright/context                 (session; durable context preview)
+ *   POST /v1/shipwright/onboarding              (session; save scoped answers + draft)
+ *   POST /v1/shipwright/ai-context-consent      (session; record/revoke explicit AI-context request)
+ *   GET  /v1/shipwright/history                 (session; scoped thread history)
+ *   POST /v1/shipwright/chat                    (session; scoped Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete raw thread history)
+ *   POST /v1/shipwright/repo-clear              (session; clear durable repo context)
  *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
  *                                                installation's repo — validated
  *                                                rosters only, server re-checks)
@@ -162,8 +173,10 @@ import {
   safeDecodeSegment,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
-import { handleFleetbotPublisher } from './github-publisher.js';
+import { handleFleetbotPublisher, handleFleetbotPublisherReceiptRecovery } from './github-publisher.js';
 import { handleRepoShips } from './repo-ships-page.js';
+import { handlePublisherGrantsPage } from './publisher-grants-page.js';
+import { handlePublisherGrantSnapshot } from './publisher-grants.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleRunReport } from './run-report.js';
 import { recordSloSample } from './mercy-hooks.js';
@@ -269,6 +282,12 @@ import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightCreateThread,
+  handleShipwrightThreads,
+  handleShipwrightContext,
+  handleShipwrightOnboarding,
+  handleShipwrightAiContextConsent,
+  handleShipwrightRepoClear,
   handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
@@ -476,6 +495,12 @@ export default {
     else if (pathname === '/v1/fleetbot/publish' && method === 'POST') {
       response = await handleFleetbotPublisher(request, env);
     }
+    else if (pathname === '/v1/fleetbot/publisher-receipts/recover' && method === 'POST') {
+      response = await handleFleetbotPublisherReceiptRecovery(request, env);
+    }
+    else if (method === 'GET' && /^\/v1\/fleetbot\/publisher-grants\/pdg_[0-9a-f]{32}$/.test(pathname)) {
+      response = await handlePublisherGrantSnapshot(request, env.DB, pathname.slice(pathname.lastIndexOf('/') + 1));
+    }
 
     // ── Fleet control-plane (operator-gated) ─────────────────────────────────
     else if (pathname === '/v1/fleet/config' && method === 'GET') {
@@ -662,6 +687,13 @@ export default {
     else if ((pathname === '/account/ships' && method === 'GET') || (pathname === '/account/ships/set' && method === 'POST')) {
       response = await handleRepoShips(request, env);
     }
+    // Human-only standing publisher grants. These routes deliberately accept
+    // browser sessions, never pdu_ bearers or workload credentials.
+    else if ((pathname === '/account/publisher-grants' && method === 'GET')
+      || (pathname === '/account/publisher-grants/create' && method === 'POST')
+      || (pathname === '/account/publisher-grants/revoke' && method === 'POST')) {
+      response = await handlePublisherGrantsPage(request, env);
+    }
     else if (pathname === '/account/repos' && method === 'GET') {
       response = await handleRepoSettingsPage(request, env);
     }
@@ -843,6 +875,21 @@ export default {
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/thread' && method === 'POST') {
+      response = await handleShipwrightCreateThread(request, env);
+    }
+    else if (pathname === '/v1/shipwright/threads' && method === 'GET') {
+      response = await handleShipwrightThreads(request, env);
+    }
+    else if (pathname === '/v1/shipwright/context' && method === 'GET') {
+      response = await handleShipwrightContext(request, env);
+    }
+    else if (pathname === '/v1/shipwright/onboarding' && method === 'POST') {
+      response = await handleShipwrightOnboarding(request, env);
+    }
+    else if (pathname === '/v1/shipwright/ai-context-consent' && method === 'POST') {
+      response = await handleShipwrightAiContextConsent(request, env);
+    }
     else if (pathname === '/v1/shipwright/history' && method === 'GET') {
       response = await handleShipwrightHistory(request, env);
     }
@@ -851,6 +898,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/repo-clear' && method === 'POST') {
+      response = await handleShipwrightRepoClear(request, env);
     }
     else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
       response = await handleShipwrightOpenPr(request, env);

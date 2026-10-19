@@ -1,0 +1,454 @@
+{
+  "schemaVersion": 1,
+  "status": "preparation",
+  "preparedAt": "2026-09-28",
+  "sourceRepository": "curiositech/port-daddy",
+  "sourceCommit": "4a9f8c2b2c1f80e6ae6f47b5755ea8e79d1cc1c4",
+  "targetPopulation": "consequential agent-infrastructure code-change defects",
+  "requiredProjects": 3,
+  "requiredSlots": 24,
+  "requiredPerClass": 8,
+  "classes": [
+    "authority_admission",
+    "retry_durability",
+    "evidence_provenance"
+  ],
+  "randomizationSeed": null,
+  "freezeDigest": null,
+  "roleResolution": null,
+  "costCalibration": null,
+  "slots": [
+    {
+      "id": "RD-01",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/operator-permissions.test.js",
+        "blob": "29febe9bcb1f8ee8a9d9aa4e4f64f7012f78762d",
+        "text": "picks most-specific prefix (longest match wins)",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A broad auto pattern overrides a narrower ask pattern.",
+      "candidateConstruction": "Alter prefix ranking at the permission decision boundary for one overlapping project pair.",
+      "oraclePlan": "Fresh fixture with broad auto and narrow ask; assert narrow action never auto-executes.",
+      "cleanControlPlan": "Refactor pattern iteration while retaining narrow ask and broad auto behavior.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-02",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/operator-permissions.test.js",
+        "blob": "29febe9bcb1f8ee8a9d9aa4e4f64f7012f78762d",
+        "text": "kind is scoped — different kind returns ask even if project matches",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A project grant leaks from one action kind to another.",
+      "candidateConstruction": "Drop kind from one matching branch while retaining normal same-kind grants.",
+      "oraclePlan": "Grant read kind, request write kind for same project; assert ask and no side effect.",
+      "cleanControlPlan": "Rename action-kind labels without changing scope binding.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-03",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/operator-permissions.test.js",
+        "blob": "29febe9bcb1f8ee8a9d9aa4e4f64f7012f78762d",
+        "text": "approve→deny→approve resets streak",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "An intervening denial fails to reset promotion evidence.",
+      "candidateConstruction": "Make candidate promotion count nonconsecutive approvals.",
+      "oraclePlan": "Replay approval, denial, approvals; assert no auto candidate before three consecutive approvals.",
+      "cleanControlPlan": "Reorder stored metadata updates but preserve consecutive-only promotion.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-04",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/permission-tiers.test.js",
+        "blob": "a8c372542b2b296981032498d9053a334d7cc32e",
+        "text": "pd salvage claim is destructive",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A mutating verb is assigned a read tier.",
+      "candidateConstruction": "Change classification for one mutating subcommand while leaving sibling read verb intact.",
+      "oraclePlan": "Invoke tier resolver on both forms; assert claim requires destructive gate and list remains read tier.",
+      "cleanControlPlan": "Reorganize tier registry entries with identical resolved classifications.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-05",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/permission-tiers.test.js",
+        "blob": "a8c372542b2b296981032498d9053a334d7cc32e",
+        "text": "pd release without --expired is notify; --expired is destructive",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A force-like flag bypasses confirmation classification.",
+      "candidateConstruction": "Treat the flagged and unflagged release forms as the same tier.",
+      "oraclePlan": "Table-drive both forms with side-effect spy; flagged form must request destructive authority.",
+      "cleanControlPlan": "Normalize flag parsing while preserving both tier outcomes.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-06",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/repo-authority-contracts.test.js",
+        "blob": "4c8b24eb2106151968a35cf4acd315f804577000",
+        "text": "active harbor issuance is phase 2 Ed25519",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A newly minted harbor authority uses a weaker legacy signing path.",
+      "candidateConstruction": "Route active issuance through the compatibility signing branch for one principal class.",
+      "oraclePlan": "Mint under fresh fixture; verify algorithm and acceptance policy independently, including rejection of forged legacy active token.",
+      "cleanControlPlan": "Reorganize active-issuance dispatch with identical algorithm and signatures.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-07",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/relay-seal.test.ts",
+        "blob": "f063cb79c6157c62cae5188c90f1c87d013d96fe",
+        "text": "signature verifies against the binding and dies when the routing tuple moves",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A signed relay envelope is accepted after routing context changes.",
+      "candidateConstruction": "Remove one routing tuple field from binding computation.",
+      "oraclePlan": "Seal at harbor/channel A, replay with altered channel or harbor; verifier must refuse before payload delivery.",
+      "cleanControlPlan": "Canonicalize field order while retaining binding to every routing component.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-08",
+      "project": "curiositech/port-daddy",
+      "failureClass": "authority_admission",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/agent-run-receipts-admission.test.js",
+        "blob": "29e9755791caa0beed8e5f2b0deb70aa659751a2",
+        "text": "same key with a different request fails closed",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "An idempotency key authorizes a different request body.",
+      "candidateConstruction": "Relax canonical request comparison after key lookup.",
+      "oraclePlan": "Use same key for two distinct budgets/actions; assert second admission rejects and original receipt unchanged.",
+      "cleanControlPlan": "Refactor canonical JSON normalization with same-key distinct-body rejection retained.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-09",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/agent-run-receipts-admission.test.js",
+        "blob": "29e9755791caa0beed8e5f2b0deb70aa659751a2",
+        "text": "same key and canonical request replay one durable receipt",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Lost-response retry mints a second run.",
+      "candidateConstruction": "Make replay use fresh insert path for equivalent canonical requests.",
+      "oraclePlan": "Simulate accepted write then lost response; retry and count exactly one durable row/run.",
+      "cleanControlPlan": "Change response serialization while replay remains one row.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-10",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/agent-run-receipts-admission.test.js",
+        "blob": "29e9755791caa0beed8e5f2b0deb70aa659751a2",
+        "text": "the database enforces idempotency when the store is bypassed",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Bypassing application store permits duplicate durable rows.",
+      "candidateConstruction": "Remove uniqueness in a candidate isolated schema migration.",
+      "oraclePlan": "Directly issue concurrent same-key inserts against fresh DB; assert one durable row.",
+      "cleanControlPlan": "Add an index naming change that retains equivalent uniqueness.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-11",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/agent-run-receipts-admission.test.js",
+        "blob": "29e9755791caa0beed8e5f2b0deb70aa659751a2",
+        "text": "a storage layer that loses the RETURNING row fails closed",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Storage ambiguity is misreported as successful admission.",
+      "candidateConstruction": "On missing RETURNING row, synthesize a receipt object.",
+      "oraclePlan": "Inject missing returning row after accepted SQL; assert no fabricated success or spawned work.",
+      "cleanControlPlan": "Refactor error propagation while retaining explicit ambiguous failure.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-12",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/agent-run-receipts-admission.test.js",
+        "blob": "29e9755791caa0beed8e5f2b0deb70aa659751a2",
+        "text": "N concurrent accepts of the same key yield exactly one insert",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Concurrent accepts race into distinct owners.",
+      "candidateConstruction": "Move owner selection outside the atomic acceptance statement.",
+      "oraclePlan": "Barrier-start concurrent accepts and inspect row/owner count plus receipt consistency.",
+      "cleanControlPlan": "Refactor SQL parameters while preserving one atomic owner.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-13",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/sugar-begin-retry-idempotency-key.test.js",
+        "blob": "68d0dab0499e750a8444c1f4b5b270843c849262",
+        "text": "the re-send WITH an identity is not answered 403",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "An authenticated retry loses the original session after a transport failure.",
+      "candidateConstruction": "Resolve replay authorization against a fresh actor instead of recorded actor.",
+      "oraclePlan": "Drop first response then retry with the same credential and identity; assert original session.",
+      "cleanControlPlan": "Reformat successful replay response while retaining original session.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-14",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/sugar-begin-retry-idempotency-key.test.js",
+        "blob": "68d0dab0499e750a8444c1f4b5b270843c849262",
+        "text": "a re-send with --force still replays",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Force flag defeats an existing idempotency key.",
+      "candidateConstruction": "Prioritize force branch before key lookup.",
+      "oraclePlan": "Retry same key with force after lost response; assert no second session.",
+      "cleanControlPlan": "Refactor option ordering while key still takes precedence.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-15",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/sugar-begin-retry-idempotency-key.test.js",
+        "blob": "68d0dab0499e750a8444c1f4b5b270843c849262",
+        "text": "a key from ANOTHER identity is refused",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A recorded retry key discloses or reopens another actor session.",
+      "candidateConstruction": "Remove actor binding in key lookup response.",
+      "oraclePlan": "Present same key as another identity; assert refusal and no session metadata leak.",
+      "cleanControlPlan": "Redact diagnostic wording while retaining identity binding.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-16",
+      "project": "curiositech/port-daddy",
+      "failureClass": "retry_durability",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/purser/concurrency-idempotency.test.js",
+        "blob": "bc5996cb7ce5288bb22fc294fc6b9e129dbdb28c",
+        "text": "prevents duplicate inserts for same digestDate",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Concurrent upload creates duplicate digest rows.",
+      "candidateConstruction": "Move digest-date existence check before the insert without a unique constraint.",
+      "oraclePlan": "Barrier two uploads with same digestDate; assert one durable row and stable returned identity.",
+      "cleanControlPlan": "Refactor upload parsing while retaining digest-date uniqueness.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-17",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/guard-receipt-freshness.test.js",
+        "blob": "f9354f8cc42bd36b08296eb5173b7d91ec5fd5a8",
+        "text": "writer B cannot refresh promoter A through shared lastTouchedAt",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Another author makes an old receipt appear fresh.",
+      "candidateConstruction": "Use shared lastTouchedAt instead of note-author timestamp.",
+      "oraclePlan": "Write A then B after freshness limit; assert A cannot promote on B activity.",
+      "cleanControlPlan": "Reindex receipt lookup while preserving per-author freshness.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-18",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/guard-receipt-freshness.test.js",
+        "blob": "f9354f8cc42bd36b08296eb5173b7d91ec5fd5a8",
+        "text": "same-label substring, absent author and a rollback-future receipt do not count",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Ambiguous or future receipt is accepted as current own evidence.",
+      "candidateConstruction": "Loosen exact label/author/time checks for one malformed row.",
+      "oraclePlan": "Inject same-label, authorless and future rows; assert none satisfy receipt requirement.",
+      "cleanControlPlan": "Normalize timestamp format while keeping exact author/label/time checks.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-19",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/guard-roadmap-receipts.test.js",
+        "blob": "11d5efbeeca7dcb7febd90a93762334dfcbc8cc4",
+        "text": "an exact 404 means missing, with no broader harbor",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Missing scoped receipt is replaced with unrelated broader result.",
+      "candidateConstruction": "On exact lookup 404, fall back to harbor-wide search.",
+      "oraclePlan": "Serve 404 for linked receipt and positive unrelated harbor row; assert missing.",
+      "cleanControlPlan": "Refactor 404 diagnostic while retaining scoped failure.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-20",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/guard-roadmap-receipts.test.js",
+        "blob": "11d5efbeeca7dcb7febd90a93762334dfcbc8cc4",
+        "text": "a full page cannot prove absence; return incomplete, not missing",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Truncated search is treated as proof of receipt absence.",
+      "candidateConstruction": "Map a full bounded page with no match to missing.",
+      "oraclePlan": "Feed full page followed by hidden matching row; assert incomplete, not definitive absence.",
+      "cleanControlPlan": "Change page-size plumbing while retaining incomplete result.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-21",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/relay-seal.test.ts",
+        "blob": "f063cb79c6157c62cae5188c90f1c87d013d96fe",
+        "text": "the sealed body cannot be opened under a spliced context",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Ciphertext opens after its context is spliced.",
+      "candidateConstruction": "Omit context field from vault additional authenticated data.",
+      "oraclePlan": "Seal at one context and attempt open at another; assert no plaintext.",
+      "cleanControlPlan": "Refactor context serialization while retaining authentication.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-22",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/relay-seal.test.ts",
+        "blob": "f063cb79c6157c62cae5188c90f1c87d013d96fe",
+        "text": "an unsigned envelope does not classify",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "Unsigned transit data is accepted as classified evidence.",
+      "candidateConstruction": "Allow empty signature through classification gate.",
+      "oraclePlan": "Construct unsigned but otherwise valid envelope; assert no classified transit and no payload delivery.",
+      "cleanControlPlan": "Improve signature error handling while still rejecting unsigned envelope.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-23",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/note-encryption-permissions.test.js",
+        "blob": "59beea4f84953026e3039dba6d798fe3a7c718d3",
+        "text": "throws when key file permissions are wrong and chmod fails",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A failed key-file permission repair silently downgrades encryption.",
+      "candidateConstruction": "Catch chmod failure and return disabled state as success.",
+      "oraclePlan": "Inject chmod failure on world-readable key; assert operation fails closed before note write.",
+      "cleanControlPlan": "Improve permission error text while retaining refusal.",
+      "casePackage": null,
+      "adjudication": null
+    },
+    {
+      "id": "RD-24",
+      "project": "curiositech/port-daddy",
+      "failureClass": "evidence_provenance",
+      "status": "planned",
+      "sourceAnchor": {
+        "path": "tests/unit/note-encryption-permissions.test.js",
+        "blob": "59beea4f84953026e3039dba6d798fe3a7c718d3",
+        "text": "throws when directory permissions are wrong and chmod fails",
+        "repository": "curiositech/port-daddy"
+      },
+      "defectHypothesis": "A failed directory permission repair is ignored.",
+      "candidateConstruction": "Swallow directory chmod error and continue key use.",
+      "oraclePlan": "Inject unfixable open directory permissions; assert no secret use or note write.",
+      "cleanControlPlan": "Refactor directory checks while preserving fail-closed behavior.",
+      "casePackage": null,
+      "adjudication": null
+    }
+  ]
+}

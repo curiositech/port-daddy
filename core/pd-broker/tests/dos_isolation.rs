@@ -3,12 +3,13 @@
 //!
 //! These prove the two high-severity findings are closed end-to-end, not just at
 //! the framing-unit level:
-//!   * a client that streams a >256KiB line with NO newline is answered with a
-//!     `bad-request` and the broker does not buffer it without bound;
+//!   * a client that streams a >256KiB line with NO newline is answered with at
+//!     most one `bad-request`, then disconnected without unbounded buffering;
 //!   * a client holding a half-open / oversized-write connection cannot starve a
 //!     SECOND concurrent client — Ping still gets Pong within a short deadline.
-//!     This is the load-bearing proof that a stalled client cannot DoS the
-//!     broker: it could only pass if serving runs OFF the single accept thread.
+//!     This proves one stalled peer cannot pin the acceptor. The fixed
+//!     connection cap, one-request lifetime, and read timeout bound each peer;
+//!     they do not claim confinement against a coordinated same-UID flood.
 //!
 //! The binary is located via Cargo's `CARGO_BIN_EXE_pd-broker` env var (set for
 //! integration tests of a crate that ships a binary). We give it a unique socket
@@ -16,6 +17,7 @@
 //! dev keys are accepted.
 
 use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::{Child, Command};
@@ -39,11 +41,17 @@ impl Drop for BrokerProc {
 }
 
 fn spawn_broker(socket_path: &Path) -> BrokerProc {
+    std::fs::set_permissions(
+        socket_path.parent().unwrap(),
+        std::fs::Permissions::from_mode(0o700),
+    )
+    .unwrap();
     let bin = env!("CARGO_BIN_EXE_pd-broker");
     let child = Command::new(bin)
         .env("PD_BROKER_SOCKET", socket_path)
         .env("PD_BROKER_SECRET", "ghp_dummy_secret_for_dos_test_only")
-        .env("PD_BROKER_DEV", "1") // debug build → dev macaroon/ticket keys accepted
+        .env("PD_BROKER_DEV", "1") // debug build → dev macaroon/capability keys accepted
+        .env("PD_BROKER_STATE_DB", socket_path.with_extension("sqlite3"))
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -107,9 +115,8 @@ fn oversized_unterminated_line_gets_bad_request_not_unbounded_buffer() {
     let total = MAX_REQUEST_BYTES + 64 * 1024;
     let mut written = 0;
     while written < total {
-        // Best-effort: once the broker hits the cap it stops reading and replies,
-        // so later writes may fail with EPIPE — that is the expected behavior, not
-        // a test failure.
+        // Best-effort: once the broker hits the cap it replies and closes, so
+        // later writes may fail with EPIPE — expected fail-closed behavior.
         if conn.write_all(&chunk).is_err() {
             break;
         }
@@ -136,16 +143,16 @@ fn stalled_client_cannot_dos_a_second_concurrent_client() {
     wait_until_ready(&socket, Duration::from_secs(5));
 
     // Client 1: open a connection and write a large chunk with NO newline, then
-    // hold the connection open (slowloris / oversized half-open). This occupies a
-    // handler thread. If serving ran on the single accept thread, this would
-    // wedge the acceptor and the second client below would hang.
+    // retain the client handle. The broker must close its side after one bounded
+    // refusal; if serving ran on the single accept thread, the write/read path
+    // could still wedge the acceptor and the second client below would hang.
     let mut stalled = UnixStream::connect(&socket).expect("connect stalled client");
     // 512 KiB, no newline — exceeds the cap, never terminates a request.
     let big = vec![b'x'; 512 * 1024];
     let _ = stalled.write_all(&big); // may partially write before the cap reply
     let _ = stalled.flush();
-    // Deliberately do NOT read the reply and keep the socket open: keep the
-    // handler thread "busy"/draining while we test the second client.
+    // Deliberately do NOT read the refusal. Keeping the local handle alive must
+    // not keep the broker-side handler or connection slot alive.
 
     // Client 2: a fresh connection must still get Pong promptly. A 3s deadline is
     // generous; if the acceptor were pinned this would time out.

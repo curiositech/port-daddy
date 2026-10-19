@@ -1,12 +1,9 @@
 # Changelog — pilot-hypertree-execution
 
+This is a historical chronology. Its wording about “always” and named execution roles records the 2026-08-22 draft; active doctrine and its limits are in [SKILL.md](SKILL.md).
+
 ## 2026-08-22
 
-- Initial doctrine authored from the operator directive: port-daddy planning
-  always uses hypertree context-cluster execution, with the pilot working as
-  `manager-driven-team-orchestrator` + `dag-isolation-manager` +
-  `dag-parallel-executor` and per-node prompts per `skillful-node-prompt`.
-- Worked example records the real 2026-08-22 wave-1 partition
-  (identity / cli-tube / receipts / website / roadmap-merge).
-- References `hypertree-planning` by name; that skill arrives via its own
-  import PR (#8908).
+- Initial local context-cluster doctrine recorded, including the identity / cli-tube / receipts / website / roadmap-merge fixture.
+- The historical draft associated this doctrine with several internal planning skills and a separate HTP import.
+- Current active interpretation: hard artifacts gate a named consumer; order edges are review/merge preferences; file non-overlap is a collision signal rather than a semantic proof; the 6–7 range is policy rather than empirical capacity evidence.

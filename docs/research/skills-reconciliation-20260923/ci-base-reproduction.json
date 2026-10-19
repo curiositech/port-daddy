@@ -1,0 +1,53 @@
+{
+  "base": "42bbdc2382a8f934b4ceffe1dddfc28acda84234",
+  "head": "4aa09e6deccbd553817a9a642f28ef3b4296726b",
+  "identical_files": [
+    {
+      "path": "docs/harbor-research/tex/paper8.tex",
+      "base_blob": "74f87278d1e9837a86972ff3e6adcfccca13adae",
+      "head_blob": "74f87278d1e9837a86972ff3e6adcfccca13adae",
+      "sha256": "626a2decfb814cc9671b87ededd0e726cc6c1114c35ab19fc8d875de82240cce"
+    },
+    {
+      "path": "scripts/harbor-research/check_citations.py",
+      "base_blob": "b3af5be101acf687065db4036d5ee8f224bf8061",
+      "head_blob": "b3af5be101acf687065db4036d5ee8f224bf8061",
+      "sha256": "a9f93a3e7128dfb1e1c163eda0dc0b88646c7ab4e47ebfd1b39b174592a23c8e"
+    },
+    {
+      "path": ".github/workflows/library-checks.yml",
+      "base_blob": "7379c87c83ea55c1daaceaa8c60f0a6297043fd3",
+      "head_blob": "7379c87c83ea55c1daaceaa8c60f0a6297043fd3",
+      "sha256": "68e2624d6a1938c66ffdb61339032cfca83a950bbbd9cf24fd2d26bf94ef6685"
+    },
+    {
+      "path": "scripts/check-doc-citations.mjs",
+      "base_blob": "3b1f22d825892e3439a63e448ddf22551db5fa8b",
+      "head_blob": "3b1f22d825892e3439a63e448ddf22551db5fa8b",
+      "sha256": "946fe2ef29697b47326ce2b728bdad31f93d218b0f7532c51edf9bb3beb50ae0"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "base_blob": "8973d9f4478e6e6df10a271f731119910c1d2b30",
+      "head_blob": "8973d9f4478e6e6df10a271f731119910c1d2b30",
+      "sha256": "8335ceb8a77bb1cf0548d413218522dd66984584673e950d8d50698bcdc53a57"
+    }
+  ],
+  "unchanged_clean_input_trees": [
+    "docs/harbor-research",
+    "whitepaper",
+    "website-v2/public/whitepaper"
+  ],
+  "library_base_reproduction": {
+    "command": "Load git show 42bbdc2382a8f934b4ceffe1dddfc28acda84234:scripts/harbor-research/check_citations.py in memory; set __file__ to verified identical worktree script; invoke main()",
+    "exit_code": 1,
+    "stdout": "Scanned 43 top-level .tex file(s) across 3 corpora:\n  docs/harbor-research/tex/*.tex  (26 file(s))\n  whitepaper/*.tex  (2 file(s))\n  website-v2/public/whitepaper/*.tex  (15 file(s))\n\n==============================================================================\nCHECK 2 \u2014 Orphaned \\bibitem (defined, never \\cite'd): 10 found\n==============================================================================\n  docs/harbor-research/tex/paper8.tex:807: \\bibitem{hansen-ghrist} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:808: \\bibitem{bodnar} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:809: \\bibitem{caru} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:810: \\bibitem{sheng} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:811: \\bibitem{robinson} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:812: \\bibitem{curry} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:813: \\bibitem{spielman-teng} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:814: \\bibitem{abramsky-brandenburger} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:815: \\bibitem{owens-r6} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n  docs/harbor-research/tex/paper8.tex:816: \\bibitem{owens-hypertrees} is defined but never \\cite'd anywhere in docs/harbor-research/tex/paper8.tex\n\n==============================================================================\nCHECK 3 \u2014 Dangling \\cite (no matching \\bibitem): 0 found\n==============================================================================\n\n==============================================================================\nCHECK 4 \u2014 Confidence-register mismatches (advisory, non-blocking): 2 found\n==============================================================================\n  docs/harbor-research/tex/paper3.tex:229: \\bibitem{tirole1986} (cited in docs/harbor-research/tex/paper3.tex) looks like a probable candidate from docs/harbor-research/deep-dives/BIBLIOGRAPHY.md: \"J. Tirole. \"Hierarchies and Bureaucracies: On the Role of Collusion in Organizations.\" *Journal of Law, Economics, and Organization* 2(2):181\u2013214, 1986.\" [shared words: bureaucracies, collusion, hierarchies, organization, organizations, role, tirole; shared year: 1986]\n  website-v2/public/whitepaper/spawn-to-person.tex:3479: \\bibitem{tirole1986} (cited in website-v2/public/whitepaper/spawn-to-person.tex) looks like a probable candidate from docs/harbor-research/deep-dives/BIBLIOGRAPHY.md: \"J. Tirole. \"Hierarchies and Bureaucracies: On the Role of Collusion in Organizations.\" *Journal of Law, Economics, and Organization* 2(2):181\u2013214, 1986.\" [shared words: bureaucracies, collusion, hierarchies, organization, organizations, role, tirole; shared year: 1986]\n\n==============================================================================\nSUMMARY: 10 orphaned bibitem(s), 0 dangling cite(s), 0 duplicate bibitem(s), 2 advisory confidence mismatch(es)\n==============================================================================\n"
+  },
+  "interpretation": "The manuscript citation failure reproduces on unchanged complete base input trees. It is not an introduced skill import failure.",
+  "doc_citation_initial": {
+    "count": 52,
+    "introduced_imported_skill_diagnostics": 51,
+    "introduced_report_diagnostics": 1,
+    "status": "repairs tracked in ci-followup.md"
+  }
+}

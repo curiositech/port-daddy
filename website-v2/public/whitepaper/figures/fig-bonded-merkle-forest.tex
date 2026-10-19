@@ -1,0 +1,22 @@
+% Reader question: how is one note linked to the signed harbor root?
+% One continuous inclusion path. The ordering guarantee and byte calculation
+% belong to the adjacent prose, not additional diagram lanes.
+% Counter-reading: inclusion does not establish that the note is true.
+\begin{figure}[htbp]
+\centering
+\caption{Two inclusion paths connect a note to a signed root. Here, the hashes and signature occupy 736 bytes. [hand-derived]}
+\label{fig:bonded-merkle-forest}
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{receipt root/.style={pd artifact,text width=3.3cm,
+    minimum height=1.05cm,inner xsep=8pt,inner ysep=7pt,align=center}}
+  \node[receipt root] (note) at (2.05,5.8) {Note hash};
+  \node[receipt root] (session) at (2.05,3.25) {Session root\\100 notes};
+  \node[receipt root] (harbor) at (2.05,0.7) {Signed harbor root\\10,000 sessions};
+  % Shafts exceed 1 cm after tip shortening; labels never mask them.
+  \draw[pd arrow,shorten <=3pt,shorten >=3pt] (note.south) -- (session.north);
+  \draw[pd arrow,shorten <=3pt,shorten >=3pt] (session.south) -- (harbor.north);
+  \node[pd label,anchor=west,align=left] at (2.65,4.525) {+ 7 sibling hashes};
+  \node[pd label,anchor=west,align=left] at (2.65,1.975) {+ 14 sibling hashes};
+\end{tikzpicture}
+\end{figure}

@@ -1,0 +1,81 @@
+% Redraw of fig-swk-fencing-epoch to the tikz-diagram-craft standard (v2):
+% a message-sequence ladder in place of a hand-placed 4-lane diagram sized to
+% a 9.4cm canvas that forced the Book's safety net to shrink its labels under
+% the 7pt floor.
+% Brief.
+%  Reader question: a paused holder wakes up and writes anyway -- what stops
+%    its late write from corrupting the resource?
+%  Claim: the kernel's fencing epoch, not the lock itself, is the guard. A
+%    grant carries epoch 104; when claude:auth pauses past its 60s TTL, the
+%    kernel reassigns the lease to codex:worker at epoch 105; codex:worker's
+%    write at 105 is accepted; claude:auth's late write still carrying the
+%    stale epoch 104 is rejected by the downstream storage broker, not by the
+%    kernel itself.
+%  Evidence: whitepaper/single-writer-kernel.tex Theorem~\ref{thm:exclusion}
+%    (thm:exclusion) and the figure's own caption ("isolates that guard as a
+%    four-step sequence").
+%  Must distinguish: a message (something sent) from a local state change
+%    (the pause itself); the two kernel actions (grant, reassign) from the
+%    two broker verdicts (accepted, rejected); which epoch each write carries.
+%  Grammar: message-sequence ladder, four lifelines (claude:auth, Kernel,
+%    codex:worker, Storage Broker) so causal order reads off vertical
+%    position, not a caption. Rejected: the original free-coordinate 4-lane
+%    diagram with a prose "Fencing Invariant" banner repeating the theorem --
+%    the banner duplicated prose already on the page, and its 9.4cm-tall
+%    canvas triggered the Book's shrink-to-fit safety net, landing every
+%    label under the 7pt floor (T1) with a rule drawn through at least one of
+%    them (T4).
+%  Five-second test: "the late write is rejected because it still says 104,
+%    and 105 has already shipped."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \tikzset{
+    pd ready badge/.style={pd badge,pd ready fill},
+    pd breach badge/.style={pd badge,pd breach fill},
+  }
+  % ---- one grid, declared once ---------------------------------------------
+  \def\dy{1.20}    % message pitch
+  \def\gap{2.70}   % lifeline spacing: auth | Kernel | worker | Broker --
+                   % kept well inside the 4.5in column so the Book's
+                   % margin-set caption has clear room beside the ladder
+                   % (a wider ladder collided with the caption's first line).
+  \def\yo{-1.55}   % centre line of message 1
+  % ---- heads and lifelines -------------------------------------------------
+  \foreach \i/\name in {0/claude:auth, 1/Kernel, 2/codex:worker, 3/Broker}{
+    \node[pd state,minimum width=1.95cm] (h\i) at ({\i*\gap},0) {\name};
+    \draw[pd guide] ({\i*\gap},-0.52) -- ({\i*\gap},{\yo-3*\dy-0.80});}
+  % ---- one pd note: the local state change, not a message between parties -
+  \node[pd note,anchor=west,text width=2.15cm] at (0.20,{\yo-\dy+0.32})
+    {paused 65\,s $>$ 60\,s TTL};
+  % ---- messages: from, to, number, arrow, badge -----------------------------
+  % Kernel's own two acts (grant, reassign) in the chapter hue; the broker's
+  % two verdicts in ready (accepted) and breach (rejected, dashed).  Meaning
+  % lives in the legend below, never stacked on the arrow itself.
+  \foreach \a/\b/\k/\s/\bs in {%
+    1/0/1/{pd focus arrow}/{pd focus badge},
+    1/2/2/{pd focus arrow}/{pd focus badge},
+    2/3/3/{pd ready arrow}/{pd ready badge},
+    0/3/4/{pd breach arrow}/{pd breach badge}}{
+      \pgfmathsetmacro{\yk}{\yo-(\k-1)*\dy}
+      \pgfmathsetmacro{\xm}{(\a+\b)*\gap/2}
+      \node[\bs] (m\a\b\k) at ({\xm},{\yk}) {\k};
+      \draw[\s,-,pd to badge]  ({\a*\gap},{\yk+0.14}) -- (m\a\b\k);
+      \draw[\s,pd from badge]  (m\a\b\k) -- ({\b*\gap},{\yk-0.14});}
+\end{tikzpicture}
+\par\vspace{4pt}
+\footnotesize
+\begin{tabular}{@{}c l p{6.0cm}@{}}
+\toprule
+\# & message & payload \\
+\midrule
+1 & grant & epoch 104, TTL 60\,s \\
+2 & reassign & TTL expired; epoch 104 $\to$ 105 \\
+3 & accepted & epoch 105 write; \texttt{200 OK} \\
+4 & rejected & stale epoch 104; \texttt{412 Precondition Failed} \\
+\bottomrule
+\end{tabular}
+\caption{The epoch, not the lock, is the guard: the broker accepts the epoch-105 write and rejects the stale epoch-104 write. [internal, Theorem~\ref{thm:exclusion}]}
+\label{fig:swk-fencing-epoch}
+\end{figure}

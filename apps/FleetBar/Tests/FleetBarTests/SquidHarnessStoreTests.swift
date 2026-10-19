@@ -163,7 +163,7 @@ final class SquidHarnessStoreTests: XCTestCase {
         configuration.protocolClasses = [ContextContinuityURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let ready = readyJSON
-        let store = SquidHarnessStore(baseURL: "https://continuity.test", session: session) { _ in
+        let store = SquidHarnessStore(baseURL: "https://continuity.test", session: session, control: fixtureRuntimeControl()) { _ in
             SquidCommandResult(status: 0, stdout: ready, stderr: "")
         }
 

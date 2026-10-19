@@ -7,11 +7,15 @@ import {
 } from '../src/run-intent.js';
 
 const JOB: FleetRunJob = {
+  schemaVersion: 2,
+  tenantAccountId: 'fta_test',
   deliveryId: 'delivery-8889',
   eventType: 'pull_request',
   action: 'synchronize',
   repoFullName: 'curiositech/port-daddy',
   installationId: 1,
+  repositoryId: 2,
+  githubAccountId: 3,
   prNumber: 8889,
   payloadMinimal: {},
 };

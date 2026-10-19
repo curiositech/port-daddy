@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0 — 2026-09-14
+
+- Added a dependency-free semantic-review receipt auditor bound to exact local
+  source bytes and line-range digests.
+- Required distinct declared extraction, semantic-review and quality-review
+  identities before promotion to `agent-reviewed`.
+- Failed closed on incomplete field coverage, rejected quality, stale anchors,
+  partial source reads and malformed receipt shapes.
+- Bound promotion to a separately supplied review contract and returned exact
+  source, contract and receipt digests; bounded CLI reads to regular files.
+- Preserved rejected attempts and documented that the receipt does not prove
+  reviewer identity, semantic correctness, deletion safety or authorization.
+
+## 0.3.0 — 2026-09-13
+
+- Replaced Clearance's recursive census with one bounded shared scanner.
+- Added a dependency-free, read-only inventory tarball for arbitrary local repos:
+  Markdown, HTML, skill and structured-text discovery, exact-copy groups and
+  explicit coverage gaps.
+- Added supplied Harbor and portable registry exports with native identities,
+  exact source bytes, safe numeric boundaries and unverified authority.
+- Added adversarial limits, path, registry, installation-entry and effect-denial
+  tests. No semantic reconciliation, deletion or public package release.
+
 ## 0.2.0 — 2026-09-10
 
 - Added a dependency-free, local-only Harbor Clearance projection over frozen

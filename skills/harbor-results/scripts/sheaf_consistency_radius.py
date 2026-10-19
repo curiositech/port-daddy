@@ -1,201 +1,40 @@
 #!/usr/bin/env python3
-"""
-CONSISTENCY-RADIUS THEOREM for the completion-residual equivocation detector
-(W8 tail — gates Paper 7 "The Cohomology of Equivocation").
+"""Numerical checks for Paper 7's edge-data consistency radius.
 
-The detector under proof is EXACTLY the one validated by sheaf_harness_v2.py
-(compendium R6 update, verdict COMMIT): stalks R^D, shared-prefix coordinate
-restrictions P_e, coboundary (delta x)_e = P_e(x_u - x_v), three-tier edge
-visibility COMPARED / RELAYED / SEVERED, observed disagreement cochain g on
-known edges K = C u R only, and the completion residual
+This script uses synthetic real-valued reports, coordinate-selection
+restrictions, and three visibility states: compared, relayed, and severed.
+It is not a signed-log implementation or an operational detector. Its
+least-squares statistic is
 
-    r  =  min_x || g_K - (delta x)|_K ||_2  =  || Pi_K g_K ||_2 ,
+    r = min_x ||g_K - delta_K x||_2 = ||Pi_K g_K||_2,
 
-Pi_K = orthogonal projector onto im(delta_K)^perp = coker(delta_K), the
-observed complex's cocycle space.  Anchors: Robinson consistency radius
-(arXiv:1805.08927, Compositionality 2020); Hansen-Ghrist JACT 2019 (harmonic
-residual); Sheng et al. CCS 2021 (forensic impossibility = the boundary);
-Caru arXiv:1701.00656/1807.04203 (abelianization gap).
+where K contains compared and relayed edges and Pi_K projects onto the
+orthogonal complement of the visible coboundary image. Severed rows are
+omitted. For each coordinate, the projection is onto the cycle space of
+the visible coordinate graph. A nonzero r proves that the encoded edge
+differences lack a vertex potential in this exact noise-free model. It
+does not identify a sender or establish that raw authenticated claims
+would evade direct comparison.
 
-==========================================================================
-SETTING
-==========================================================================
-G = (V, E), |V| = n, edges oriented u < v.  Stalk dim D; per-edge prefix
-size s_e <= L (<= D); P_e = selection of coordinates 0..s_e-1.  Honest
-vertex u holds one state x_u in R^D and reports rho_u^e = P_e x_u on every
-incident edge.  An equivocator q reports rho_q^e = P_e(x_q + o_q^e) with a
-PER-NEIGHBOR offset o_q^e (the lie).  The analyst holds, for each known
-edge, the disagreement g_e = rho_u^e - rho_v^e; severed edges contribute no
-data (free blocks).  Writing eps_e = P_e(o_u^e - o_v^e) for the injected
-edge perturbation, every execution satisfies
+The sampled checks cover the unrestricted edge-perturbation lower bound,
+a one-edge effective-resistance formula, sender-operator singular-value
+bounds, cycle support, noise sensitivity, and decomposition into scalar
+graph problems. In this script all shared-prefix coordinates come from
+one D-dimensional universe; the general system count is the size of the
+union of visible edge-coordinate sets, not the largest edge dimension.
+The exact minimum edge-data change is r; a change constrained to one
+sender can require more or be infeasible. The singular bound uses the
+kernel of Pi_K A_q. One-sender offsets in that kernel can include genuine
+split views, such as the triangle-with-leaf counterexample in the paper.
 
-    g_K = (delta x*)_K + eps_K + eta_K            (eta = measurement noise,
-                                                   zero in the exact model).
+Synthetic timing slopes are observations for the sampled graphs and
+machine. They do not prove a per-round runtime bound. The comparison
+with a radius over compared edges is a separate fixture; a positive
+residual on relayed data need not make any compared-edge radius positive.
+A matched-evidence study against direct sender-claim checking and exact
+cycle sums remains necessary before claiming practical detection value.
 
-LEMMA 1 (coordinate decomposition; the algebra behind everything below).
-Because every P_e is a coordinate-subset selection, row (e, c) of delta_K
-has exactly two nonzeros: +1 at (u, c), -1 at (v, c).  Grouping rows and
-columns by coordinate c splits delta_K into a direct sum over c = 0..D-1 of
-SIGNED GRAPH INCIDENCE matrices B_c of the coordinate subgraphs
-G_c = (V, E_c),  E_c = { e in K : s_e > c }.  Hence
-  (i)   r^2 = sum_c dist(g^c, im B_c)^2 = sum_c || Proj_{Z(G_c)} g^c ||^2,
-        where Z(G_c) = ker(B_c^T) = the CYCLE SPACE (circulations) of G_c;
-  (ii)  the residual vector rho = Pi_K g_K vanishes on every bridge of
-        every G_c (a circulation nets zero across any 1-edge cut);
-  (iii) dim coker(delta_K) = sum_c beta_1(G_c)  (the harness's structural
-        self-check identity).
-Proof. im(B_c)^perp = ker(B_c^T) is flow conservation at every vertex =
-the cycle space; a circulation's value on a bridge equals its net flow
-across the cut the bridge induces, which is zero.                    QED
-
-==========================================================================
-THEOREM CR-1 (soundness: r is a certified lower bound on the lie)
-==========================================================================
-(i) [Exactness / honest silence]  r = 0  iff  some global assignment x
-    explains every observed disagreement ((delta x)_K = g_K).  In the
-    noise-free model, honest executions give g_K = (delta x*)_K, so r = 0
-    exactly — for EVERY visibility pattern, including severed blocks and
-    cut edges.  Contrapositive: r > 0 PROVES no global section explains
-    the compared+relayed data, i.e. someone equivocated.
-(ii) [Size of the lie — any number of liars]  Every offset pattern
-    consistent with the observed data satisfies
-        || eps_K ||_2  >=  r ,
-    with equality achieved by the least-squares completion eps^ = Pi_K g_K
-    (it explains the data: g_K - eps^ in im delta_K).  So r is the EXACT
-    minimum norm of edge-space perturbation any adversary must have
-    injected.  In report-offset space: sum of per-report offset norms
-    >= ||eps_K|| >= r (triangle ineq.), and total l2 offset >= r/sqrt(2)
-    (>= r when at most one endpoint of each edge lies).
-    Per-cycle certificate: for every unit circulation z of G_c,
-        |<z, g^c>| = |<z, eps^c>| <= ||eps^c||,
-    and r^2 = sum over an orthobasis of the cycle spaces of <z_i, g>^2.
-    Proof. g_K = (delta x*)_K + eps_K and Pi_K kills im(delta_K), so
-    r = ||Pi_K eps_K|| <= ||eps_K|| (orthogonal projection contracts);
-    <z, delta x> = 0 gives the certificate.                          QED
-(iii) [Single equivocator: the constant c(topology)]  Let q lie on its
-    known incident edges with read offsets o (the coordinates c < s_e of
-    o_q^e; unread coordinates are invisible in principle).  Then
-    eps_K = A_q o where A_q's columns are distinct signed standard basis
-    vectors (A_q^T A_q = I), so with M_q = Pi_K A_q ("inject, then project
-    to the observed cocycle space"):
-        sigma_min+(M_q) * dist(o, ker M_q)  <=  r  <=  dist(o, ker M_q),
-    where sigma_min+ is the smallest NONZERO singular value — the promised
-    c(topology), the smallest singular value of delta's data-side
-    complement restricted to the reachable cocycle space.  ker M_q is the
-    in-principle-invisible lie space: it contains (a) the uniform lie
-    o_q^e = t for all e (a consistent alternative state — not an
-    equivocation), (b) offsets on edges that are bridges of their G_c,
-    (c) offsets across severed edges, (d) unread/private coordinates.
-    CLOSED FORM for a lie of size s on a single edge e, coordinate c:
-        r = |s| * sqrt(1 - R_eff_{G_c}(e)),
-    R_eff = effective resistance between e's endpoints in G_c (with e
-    present): ||Proj_Z 1_e||^2 = 1 - 1_e^T B(B^T B)^+ B^T 1_e =
-    1 - R_eff(e), the edge's complementary leverage score.  On C_n this is
-    1 - (n-1)/n = 1/n:  r = |s|/sqrt(n)  — C_6, s = 3: r = 3/sqrt(6) =
-    1.2247, the R6 number; on a bridge R_eff = 1: r = 0.             QED
-    SINGLE-EQUIVOCATOR CONDITION (located by the sweep below): bound (iii)
-    is single-liar.  Two coordinated liars on a common cycle can choose
-    individually-detectable offsets whose SUM is a coboundary (a
-    consistent counterfactual world): r = 0 with ||eps|| large.  (ii)
-    still holds — r never overstates — but r can understate a COALITION's
-    lie all the way to zero.  Detection lower bounds are per-equivocator.
-
-==========================================================================
-THEOREM CR-2 (localization)
-==========================================================================
-Noise-free, single equivocator q: the per-edge residual vector
-rho = Pi_K eps_K satisfies
-    supp(rho)  is contained in  { edges lying on a cycle of some G_c
-                                  passing THROUGH q }.
-In particular, whenever r > 0 the maximum-residual edge lies on a cycle of
-the known graph through the equivocator (equivalently: in a biconnected
-block of G_K that contains q and has >= 3 vertices).  This is the
-harness's measured 200/200, now a theorem.
-Proof. By Lemma 1 work per coordinate.  eps^c = sum_{e inc q} (+-) o^e_c 1_e,
-so it suffices to show supp(Proj_Z 1_e) is inside the set of edges sharing
-a cycle with e (e = (u,v) incident to q, so such cycles pass through q).
-Proj_Z 1_e = 1_e - J^e, where J^e = B L^+ B^T 1_e is the unit electrical
-current from u to v (L = B^T B the graph Laplacian): potentials
-p = L^+(chi_u - chi_v), J^e_f = p_a - p_b on f = (a, b).  Let f != e carry
-J^e_f != 0.  Current is conserved at every vertex except u (source) and v
-(sink), and strictly decreases p along every nonzero-current edge; so from
-f's lower-potential endpoint, repeatedly following an outgoing
-nonzero-current edge strictly descends in p and must terminate at v, and
-symmetrically ascends from f's upper endpoint to u.  Strict monotonicity
-makes the concatenation a simple u-v path through f; it cannot use
-e = (u,v) itself (a strictly monotone u-v path containing edge (u,v) is
-that single edge).  Path + e is a cycle through e and f.  Supports of sums
-lie in unions of supports; bridges carry no circulation (Lemma 1(ii)). QED
-BOUNDED-NOISE VERSION.  With honest per-report noise (g = delta x + eps +
-eta):  if  2 ||eta_K||_2 < max_f ||(Pi_K eps_K)_f||,  the argmax-residual
-edge still lies on a cycle through q.
-Proof. Off-support edges show only ||(Pi eta)_f|| <= ||eta_K||; the clean
-top edge still shows >= max_f ||(Pi eps)_f|| - ||eta_K|| > ||eta_K||.  QED
-The noise threshold where localization empirically degrades is measured
-below and REPORTED as the honest boundary (it is a property of the
-signal-to-noise geometry, not a failure of the theorem, whose sufficient
-condition is verified to have zero violations).
-
-==========================================================================
-THEOREM CR-3 (complexity: one least-squares solve, and it decomposes)
-==========================================================================
-Computing r exactly is ONE linear least-squares solve on delta_K, which has
-<= |E| L rows and exactly 2 nonzeros per row.  By Lemma 1 it splits into
-<= L independent SCALAR graph least-squares problems  min_z ||g^c - B_c z||
-(graph Laplacian systems L_c z = B_c^T g^c) on the coordinate subgraphs:
-  (a) assembly: O(|E| L);
-  (b) iterative: conjugate gradients cost O(|E_c|) per matvec, so
-      O(|E| L * k(kappa, tol)) total, with k independent of n on
-      expander-like graphs (bounded condition number); with SDD Laplacian
-      solvers (Spielman-Teng lineage) O~(|E| L log(1/tol)) — linear in the
-      least-squares dimension up to logs;
-  (c) exact dense fallback: O(L n^3 + |E| L); the harness's full-system
-      dense lstsq is O((|E| L)(nD)^2) and is the wasteful option.
-COROLLARY (Robinson sup-radius; the assessment's Theorem-3 track).  The
-sup-version consistency radius over COMPARED pairs, max_{e in C} ||g_e||,
-is one O(|E| L) pass; it is 2x the l-infinity consistency radius of the
-compared report assignment (either endpoint's report is >= ||g_e||/2 from
-any single edge value) and is zero iff no compared edge witnesses
-equivocation.  Bridge to the l2 radius: for any vertex assignment x,
-per-edge  ||P_e x_u - rho_u||^2 + ||P_e x_v - rho_v||^2
-          >= ||(delta x)_e - g_e||^2 / 2,
-so the l2 consistency radius of the two-reports-per-edge assignment is
->= r / sqrt(2):  r > 0 forces a positive Robinson radius, and r is itself
-exactly the consistency radius of the quotient (disagreement) assignment
-g_K relative to the subspace of globally explainable cochains.
-Bach's #P-hardness (J. Symb. Comput. 27(4), 1999) concerns coherent
-sheaves on projective space, not finite cellular sheaves over R — this
-computation is small linear algebra, stated to preempt the objection.
-
-==========================================================================
-WHAT r DOES NOT GIVE (theorem-adjacent boundary; verified where testable)
-==========================================================================
-- NO ATTRIBUTION (Sheng et al. CCS 2021): a lie o by q toward w on edge
-  (q, w) and a lie -o by w toward q produce BIT-IDENTICAL observed data;
-  r localizes cycles, signatures attribute.  Demonstrated below.
-- VANISHING r IS NOT AN ALL-CLEAR: (a) uniform lies = consistent
-  alternative states (ker M_q); (b) coalition cancellation (CR-1(iii)
-  condition); (c) severed edges are provably dark, cut edges silent by
-  algebra (R6); (d) the abelianization gap (Caru): set-valued log states
-  embedded in R can be genuinely inconsistent with vanishing R-residual —
-  outside this vector model, cited as the standing external boundary.
-- Under noise, honest r concentrates near ||Pi eta|| > 0: soundness "r > 0
-  proves a lie" is exact only in the noise-free model; noisy deployments
-  need a threshold above the noise floor (measured below).
-
-VERIFICATION PLAN (falsification-first: every claim attacked numerically;
-seeded mutation must turn the honest-silence contract red; exit nonzero on
-any failure): [1] soundness inequality + achievability, 600 trials;
-closed-form c(topology) vs effective resistance; sigma_min+ bounds tight;
-adversarial cancellation sweep -> single-equivocator condition.
-[2] noise-free localization 200/200 (two blocks topologies + severed
-expanders); noise sweep with threshold report + zero violations of the
-sufficient condition.  [3] decomposition equality, CG agreement, timing
-slopes (CG linear-ish in |E|, dense not).  [4] attribution twins,
-severed darkness.  [5] mutation: unmasked-severed r (old D2 bug) must
-violate honest silence; no-equivocator control clean.
-
-Deps: numpy, networkx.  Program seed 20260816.
+Dependencies: numpy and networkx. Seed: 20260816.
 """
 import sys
 import time
@@ -482,7 +321,7 @@ def liar_matrix(nverts, edges, P, slices, status, q):
 # --------------------------------------------------------------------------
 def section0():
     print("=" * 74)
-    print("[0] CLOSED FORM vs the R6 mechanism numbers (CR-1(iii))")
+    print("[0] CLOSED FORM vs the R6 one-edge mechanism numbers")
     print("=" * 74)
     n, edges = cycle_edges(6)
     sizes = {e: 1 for e in edges}
@@ -523,8 +362,8 @@ def section1():
     print("=" * 74)
 
     # -- 1a soundness inequality + achievability, 600 trials, 3 topologies
-    print("\n  1a. r <= ||eps_K|| (any liar set), min-norm explanation "
-          "achieves r  [200 trials x 3 topologies]")
+    print("\n  1a. r <= ||eps_K|| (any liar set); unrestricted edge "
+          "correction has norm r  [200 trials x 3 topologies]")
     viol = 0
     ach_viol = 0
     slacks = []
@@ -572,8 +411,8 @@ def section1():
           f"min slack ||eps||-r = {min(slacks):.3e}   "
           f"median slack = {np.median(slacks):.3f}")
     check(viol == 0, "soundness r <= ||eps_K||: 0/600 violations")
-    check(ach_viol == 0, "achievability: A^T (Pi g) == 0 (min-norm "
-                         "explanation exists with norm exactly r), 600/600")
+    check(ach_viol == 0, "orthogonal projected residual: A^T (Pi g) == 0 "
+                         "in 600/600 synthetic trials")
 
     # -- 1b closed-form constant vs effective resistance
     print("\n  1b. single-edge lie: r == |s| * sqrt(1 - R_eff(e))")
@@ -714,8 +553,8 @@ def section1():
           f"{max_joint:.2e} with ||eps|| ~ |s|*sqrt(2)")
     check(max_joint < TOL_SILENT and min_solo >= 1.0 / np.sqrt(8) - 1e-9,
           "cancellation CONFIRMED: two coordinated liars on a common cycle "
-          "drive r to 0 — CR-1(iii) detection bound is SINGLE-EQUIVOCATOR; "
-          "CR-1(ii) survives (r never overstates)")
+          "drive r to 0; the unrestricted projection lower bound "
+          "survives (r never overstates)")
 
 
 # --------------------------------------------------------------------------
@@ -960,7 +799,7 @@ def section3():
           f"dense full-system slope {slope_de:.2f} clearly superlinear "
           f"(the decomposition is what buys linearity)")
 
-    print("\n  3c. Robinson sup-radius corollary: one O(|E|*L) pass")
+    print("\n  3c. Compared-edge radius and relayed-data radius: one fixture")
     rng = np.random.default_rng([SEED, 34])
     n, edges = two_path(12)
     sizes = {e: int(rng.integers(2, 5)) for e in edges}
@@ -1005,8 +844,8 @@ def section3():
     fuse = float(np.linalg.norm(bF - AF @ xf))
     check(r <= np.sqrt(2) * fuse + 1e-9,
           f"l2 bridge: r = {r:.4f} <= sqrt(2) * fuse-radius = "
-          f"{np.sqrt(2) * fuse:.4f} (r > 0 forces positive Robinson "
-          f"consistency radius)")
+          f"{np.sqrt(2) * fuse:.4f} (the full visible-report "
+          f"consistency radius is positive when r > 0)")
 
 
 # --------------------------------------------------------------------------
@@ -1108,8 +947,8 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
     print("CONSISTENCY-RADIUS THEOREM VERIFIER   seed", SEED,
           f"  stalk dim D={D}  trials/arm={TRIALS}")
-    print("detector under proof: completion residual r of "
-          "sheaf_harness_v2.py (R6 update, COMMIT)")
+    print("statistic under test: completion residual r of "
+          "sheaf_harness_v2.py on synthetic edge differences")
     section0()
     section1()
     section2()
@@ -1122,11 +961,10 @@ def main():
         for f in FAILURES:
             print("  -", f)
         sys.exit(1)
-    print("RESULT: all checks passed — CR-1 (soundness + c(topology)), "
-          "CR-2\n(localization, noise-free exact + bounded-noise "
-          "sufficient condition),\nCR-3 (decomposed least-squares, "
-          "linear-ish CG scaling) verified;\nboundaries demonstrated; "
-          "mutation suite red where required.")
+    print("RESULT: all programmed numerical checks passed: projected "
+          "residual, one-edge sensitivity, localization fixtures, "
+          "coordinate decomposition, and mutations. These synthetic "
+          "checks do not establish a practical detection advantage.")
     sys.exit(0)
 
 

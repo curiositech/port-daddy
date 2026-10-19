@@ -1,33 +1,99 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Agent Control Command Contract",
-  "description": "Input shape for scripts/control_contract_audit.mjs — a normalized description of the operator control verbs (steer/interrupt/pause/kill/checkpoint/fork), which backends support them, and where command authorization reads its truth from.",
+  "title": "Agent Control Command Declaration",
+  "description": "Static declaration input. Schema validity does not establish runtime behavior, current authority, effect observation, or a safe clickable UI.",
   "type": "object",
-  "required": ["verbs", "backends", "authorizationSource", "matrix"],
-  "additionalProperties": true,
+  "additionalProperties": false,
+  "required": [
+    "profile",
+    "verbs",
+    "backends",
+    "authorization",
+    "matrix"
+  ],
   "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "../schemas/control-contract.schema.json"
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "basis",
+        "requiredVerbs",
+        "requiredLifecycleStates"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this profile's required verb set applies. A profile is an explicit local product choice.",
+          "pattern": "\\S"
+        },
+        "requiredVerbs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "requiredLifecycleStates": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "policy-denied",
+              "queued",
+              "delivered",
+              "acknowledged",
+              "effect-observed",
+              "failed",
+              "expired-before-delivery",
+              "outcome-unknown"
+            ]
+          }
+        }
+      }
+    },
     "verbs": {
       "type": "array",
       "minItems": 1,
-      "description": "Every operator control verb modeled as a distinct claim. interrupt, pause, kill, and steer must each appear as their own entry — see the collapsed-verbs finding.",
       "items": {
         "type": "object",
-        "required": ["name", "terminalStates"],
-        "additionalProperties": true,
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "intent"
+        ],
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1,
-            "description": "e.g. steer, interrupt, pause, kill, checkpoint, fork."
+            "pattern": "\\S"
           },
-          "terminalStates": {
-            "type": "array",
-            "minItems": 1,
-            "description": "Which delivery-lifecycle states this verb's commands can settle into. Must be a subset of the six allowed states; delivered/acknowledged/failed/expired are required for every verb.",
-            "items": {
-              "type": "string",
-              "enum": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"]
-            }
+          "intent": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
           }
         }
       }
@@ -35,39 +101,186 @@
     "backends": {
       "type": "array",
       "minItems": 1,
-      "description": "Every agent-body backend a command might target (local same-UID process, remote Cloudflare body, hook-only session, observed import, ...).",
       "items": {
         "type": "object",
-        "required": ["name", "supportedVerbs"],
-        "additionalProperties": true,
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "supportedVerbs"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
           "supportedVerbs": {
             "type": "array",
-            "description": "Verb names this backend can actually execute. A verb absent here means the backend cannot perform it and must expose an honest 'unsupported' terminal instead.",
-            "items": { "type": "string" }
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
           }
         }
       }
     },
-    "authorizationSource": {
-      "type": "string",
-      "enum": ["authoritative-lease", "authoritative-event", "cached-projection", "ui-state"],
-      "description": "Where a control command's authorization check reads its truth from at the moment of authorization. authoritative-lease/authoritative-event read live daemon state; cached-projection/ui-state can be stale by construction and must never authorize a command."
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "checkedAtAdmission",
+        "bindings",
+        "checks"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "lease-store",
+            "event-store",
+            "policy-service",
+            "cached-projection",
+            "ui-state"
+          ]
+        },
+        "checkedAtAdmission": {
+          "type": "boolean"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "principal",
+            "target",
+            "scope",
+            "policyRevision",
+            "expiresAt",
+            "fencingEpoch"
+          ],
+          "properties": {
+            "principal": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "policyRevision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "expiresAt": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "fencingEpoch": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          }
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "principal",
+            "target",
+            "scope",
+            "currentPolicy",
+            "notExpired",
+            "fencingEpoch"
+          ],
+          "properties": {
+            "principal": {
+              "type": "boolean"
+            },
+            "target": {
+              "type": "boolean"
+            },
+            "scope": {
+              "type": "boolean"
+            },
+            "currentPolicy": {
+              "type": "boolean"
+            },
+            "notExpired": {
+              "type": "boolean"
+            },
+            "fencingEpoch": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
     },
     "matrix": {
       "type": "array",
-      "description": "Cross product of verb x backend proving (or disproving) a real, distinct delivery lifecycle for that combination. Every combination a backend claims to support, and every combination it does not, needs a cell here — an absent cell is treated as an unproven gap, not a pass.",
       "items": {
         "type": "object",
-        "required": ["verb", "backend", "hasDistinctTerminalStates"],
-        "additionalProperties": true,
+        "additionalProperties": false,
+        "required": [
+          "verb",
+          "backend",
+          "support",
+          "lifecycleStates"
+        ],
         "properties": {
-          "verb": { "type": "string", "minLength": 1 },
-          "backend": { "type": "string", "minLength": 1 },
-          "hasDistinctTerminalStates": {
-            "type": "boolean",
-            "description": "True only if this verb/backend pair has its own tracked terminal-state sequence, not one collapsed with another verb's outcome."
+          "verb": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "backend": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "support": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported"
+            ]
+          },
+          "lifecycleStates": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "requested",
+                "policy-denied",
+                "queued",
+                "delivered",
+                "acknowledged",
+                "effect-observed",
+                "failed",
+                "expired-before-delivery",
+                "outcome-unknown",
+                "unsupported"
+              ]
+            }
           }
         }
       }

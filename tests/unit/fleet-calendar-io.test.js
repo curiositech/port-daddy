@@ -21,9 +21,11 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { jest } from '@jest/globals';
 
 const { CalendarTriggerSource } = await import('../../lib/fleet/triggers/calendar.js');
 const { CalendarOutputSink } = await import('../../lib/fleet/outputs/calendar.js');
+const { GoogleCalendarClient } = await import('../../lib/fleet/calendar-google.js');
 const { ConsentGate, setSharedConsentGate } = await import('../../lib/fleet/consent-gate.js');
 const { parseTriggerSpec } = await import('../../lib/fleet/types.js');
 
@@ -167,6 +169,7 @@ describe('CalendarOutputSink', () => {
       setSharedConsentGate(grantedGate(dir));
       const created = [];
       const sink = new CalendarOutputSink({
+        runtimeAllowed: () => true,
         eventKit: {
           status: async () => ({ available: true, authorized: true }),
           createEvent: async (input) => { created.push(input); return { id: 'ek-1', calendar: input.calendar ?? 'Default' }; },
@@ -200,6 +203,7 @@ describe('CalendarOutputSink', () => {
     try {
       setSharedConsentGate(grantedGate(dir));
       const sink = new CalendarOutputSink({
+        runtimeAllowed: () => true,
         eventKit: {
           status: async () => ({ available: true, authorized: true }),
           createEvent: async () => { throw new Error('must not be called'); },
@@ -223,6 +227,7 @@ describe('CalendarOutputSink', () => {
     try {
       setSharedConsentGate(new ConsentGate({ configPath: join(dir, 'none.json'), auditLogPath: join(dir, 'a.log') }));
       const sink = new CalendarOutputSink({
+        runtimeAllowed: () => true,
         eventKit: {
           status: async () => ({ available: true, authorized: true }),
           createEvent: async () => { throw new Error('must not be called'); },
@@ -243,6 +248,7 @@ describe('CalendarOutputSink', () => {
       setSharedConsentGate(grantedGate(dir));
       const created = [];
       const sink = new CalendarOutputSink({
+        runtimeAllowed: () => true,
         google: { createEvent: async (input) => { created.push(input); return { id: 'g-1', url: 'https://cal/x' }; } },
       });
       const res = await sink.dispatch({
@@ -252,6 +258,28 @@ describe('CalendarOutputSink', () => {
       expect(created).toHaveLength(1);
       expect(res.url).toBe('https://cal/x');
       expect(res.receipt.backend).toBe('google');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('Off refuses EventKit at the final write boundary', async () => {
+    const dir = makeScratch();
+    try {
+      setSharedConsentGate(grantedGate(dir));
+      const createEvent = jest.fn();
+      const sink = new CalendarOutputSink({
+        runtimeAllowed: () => false,
+        eventKit: {
+          status: async () => ({ available: true, authorized: true }),
+          createEvent,
+        },
+      });
+      await expect(sink.dispatch({
+        sink: 'calendar', type: 'create-event', title: 'Held',
+        start: '2026-07-07T10:00:00Z', end: '2026-07-07T10:30:00Z',
+      })).rejects.toThrow(/Off/);
+      expect(createEvent).not.toHaveBeenCalled();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -298,5 +326,27 @@ describe('GoogleCalendarClient', () => {
     expect(events[0].seriesId).toBe('series-a');
     expect(events[0].organizer).toBe('o@x.com');
     expect(events[1].allDay).toBe(true);
+  });
+
+  test('Off asserted during OAuth prevents the calendar insert request', async () => {
+    let allowed = true;
+    const calls = [];
+    const fakeFetch = async (url) => {
+      calls.push(String(url));
+      if (String(url).includes('oauth2.googleapis.com')) {
+        allowed = false;
+        return { ok: true, json: async () => ({ access_token: 'tok', expires_in: 3600 }), text: async () => '' };
+      }
+      throw new Error('calendar insert must not be called');
+    };
+    const client = new GoogleCalendarClient(
+      { clientId: 'c', clientSecret: 's', refreshToken: 'r', calendarId: 'primary' },
+      fakeFetch,
+      () => allowed,
+    );
+    await expect(client.createEvent({
+      title: 'Held', start: '2026-07-07T10:00:00Z', end: '2026-07-07T10:30:00Z',
+    })).rejects.toThrow(/Off/);
+    expect(calls).toEqual(['https://oauth2.googleapis.com/token']);
   });
 });

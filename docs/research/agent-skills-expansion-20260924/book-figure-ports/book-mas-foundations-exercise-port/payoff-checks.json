@@ -1,0 +1,74 @@
+{
+  "encoding": "0=A, 1=B",
+  "scope": "pure-profile enumeration; one pure counterexample refutes universal claim even allowing mixed equilibria; changed game not solved",
+  "rows": [
+    {
+      "profile": [
+        0,
+        0
+      ],
+      "payoff": [
+        3,
+        3
+      ],
+      "unilateral_deviation_payoffs": [
+        0,
+        0
+      ],
+      "pure_nash": true,
+      "sum": 6,
+      "feasible_after_A_capacity_one": false
+    },
+    {
+      "profile": [
+        0,
+        1
+      ],
+      "payoff": [
+        0,
+        0
+      ],
+      "unilateral_deviation_payoffs": [
+        2,
+        3
+      ],
+      "pure_nash": false,
+      "sum": 0,
+      "feasible_after_A_capacity_one": true
+    },
+    {
+      "profile": [
+        1,
+        0
+      ],
+      "payoff": [
+        0,
+        0
+      ],
+      "unilateral_deviation_payoffs": [
+        3,
+        2
+      ],
+      "pure_nash": false,
+      "sum": 0,
+      "feasible_after_A_capacity_one": true
+    },
+    {
+      "profile": [
+        1,
+        1
+      ],
+      "payoff": [
+        2,
+        2
+      ],
+      "unilateral_deviation_payoffs": [
+        0,
+        0
+      ],
+      "pure_nash": true,
+      "sum": 4,
+      "feasible_after_A_capacity_one": true
+    }
+  ]
+}

@@ -1,23 +1,15 @@
 ---
 name: rust-data-structures-advanced
-version: 0.1.0
-description: >
-  Pick the advanced Rust data structure that makes ownership trivial instead of fighting
-  the borrow checker. Covers arena allocation & generational indices (slotmap,
-  generational-arena, id-arena, typed-arena) as the idiomatic alternative to Rc<RefCell>
-  for graphs/trees; petgraph for real graph algorithms; small/inline vectors (smallvec,
-  tinyvec, arrayvec); Rc/Arc + Weak for breaking cycles; lock-free & concurrent
-  (crossbeam channels/epoch/queue, flume, dashmap, atomics, the ABA problem); intrusive
-  collections; copy-on-write (Cow, im/rpds persistent structures); ECS / struct-of-arrays
-  for cache locality; string/symbol interning; bitsets (roaring); and choosing among
-  BTreeMap / HashMap / hashbrown / fxhash / ahash / indexmap. Use when a Rust ownership
-  problem is really a data-structure choice, when Rc<RefCell> or lifetimes are spiraling,
-  or when a hot path needs a cache-friendlier or concurrent container. NOT for beginner
-  Rust syntax, generic borrow-checker tutoring unrelated to structure choice, async
-  runtime selection, or non-Rust data-structure theory.
+description: >-
+  Select a Rust container or relationship model when ownership, deletion, cache
+  locality, concurrency, or stable handles depend on structure choice. Use for
+  arenas, generational IDs, graphs, inline vectors, maps, interning, bitsets,
+  channels, and persistent collections. NOT for basic borrow-checker iteration,
+  public API typestate, measured optimization after selection, or runtime debugging.
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
+  version: 0.1.0
   category: Code Architecture & Performance
   tags: [rust, data-structures, arena, generational-index, slotmap, petgraph, lock-free, crossbeam, cache-locality, ecs, performance]
   pairs-with:
@@ -27,7 +19,7 @@ metadata:
       reason: A structure swap (arena, smallvec, dashmap) is only a win if the idiom and the benchmark agree
     - skill: rust-debugging-mastery
       reason: Diagnosing a hand-rolled lock-free bug (ABA, use-after-free) or a Miri/Loom failure hands off to this skill's debugging depth
-    - skill: rust-with-claude-code
+    - skill: rust-development-workflow
       reason: Shares the toolchain/testing workflow this skill's worked examples and quality gates plug into when pairing with an agent
   provenance:
     kind: first-party
@@ -53,6 +45,8 @@ metadata:
 ---
 
 # rust-data-structures-advanced
+
+**Activation boundary:** use this when an ownership or performance problem turns on the container or relationship representation. API typestate/traits belong to `advanced-rust-patterns`; evidence-driven speed work after the structure is chosen belongs to `rust-performance-and-idioms`; diagnosing a crash or race belongs to `rust-debugging-mastery`.
 
 The skill for when a Rust *ownership* problem is actually a *data-structure* problem.
 

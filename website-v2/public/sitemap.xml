@@ -235,7 +235,7 @@
     <loc>https://portdaddy.dev/docs/cli/down</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/docs/cli/embed-text</loc>
+    <loc>https://portdaddy.dev/docs/cli/embed-subcommand</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/env</loc>

@@ -24,6 +24,7 @@ import {
   formatDistressLine,
   haltSentinelPath,
   readHaltSentinel,
+  runHaltStopPlan,
 } from '../../lib/halt-watch.js';
 
 const SCRATCH = join(process.cwd(), '.scratch', `halt-watch-test-${process.pid}`);
@@ -33,6 +34,18 @@ const SENTINEL = join(HOME, 'HALT');
 const DISTRESS = join(HOME, 'DISTRESS');
 const REPO_DISTRESS = join(REPO, '.portdaddy', 'DISTRESS');
 const HALT_LINE = '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md';
+
+test('halt stop plans attempt every component and reject partial compliance', () => {
+  const attempted: string[] = [];
+  const failures: string[] = [];
+  expect(() => runHaltStopPlan([
+    { name: 'dispatch worker', stop: () => { attempted.push('dispatch'); throw new Error('worker stuck'); } },
+    { name: 'fleet daemon', stop: () => { attempted.push('fleet'); } },
+    { name: 'active backends', stop: () => { attempted.push('backends'); throw new Error('child stuck'); } },
+  ], (name) => failures.push(name))).toThrow(/dispatch worker, active backends/);
+  expect(attempted).toEqual(['dispatch', 'fleet', 'backends']);
+  expect(failures).toEqual(['dispatch worker', 'active backends']);
+});
 
 function logSink() {
   const events: Array<{ level: string; event: string; meta?: Record<string, unknown> }> = [];
@@ -52,6 +65,7 @@ function makeWatch(overrides: Partial<Parameters<typeof createHaltWatch>[0]> = {
   const watch = createHaltWatch({
     entity: 'daemon:prod',
     sentinelPath: SENTINEL,
+    controlPaths: { canonicalRoot: HOME, selectedRoot: HOME, env: {} },
     distressPath: DISTRESS,
     repoDistressPath: REPO_DISTRESS,
     now: () => clock,
@@ -97,8 +111,8 @@ describe('halt-watch: paths and wire format', () => {
   });
 
   test('readHaltSentinel: absent → null; present → first non-empty line and its timestamp as ref', () => {
-    expect(readHaltSentinel(SENTINEL, () => 1)).toBeNull();
     mkdirSync(HOME, { recursive: true });
+    expect(readHaltSentinel(SENTINEL, () => 1)).toBeNull();
     writeFileSync(SENTINEL, `\n\n${HALT_LINE}\nsecond line ignored\n`);
     const info = readHaltSentinel(SENTINEL, () => 42);
     expect(info).toEqual({ line: HALT_LINE, ref: '2026-09-05T14:02:11Z', detectedAt: 42, complied: false });
@@ -119,6 +133,28 @@ describe('halt-watch: paths and wire format', () => {
 });
 
 describe('halt-watch: the listening watch', () => {
+  test('canonical hooks.disabled cannot be bypassed with a selected sentinel', () => {
+    mkdirSync(HOME, { recursive: true });
+    const selected = join(SCRATCH, 'selected');
+    mkdirSync(selected, { recursive: true });
+    writeFileSync(join(HOME, 'hooks.disabled'), 'Off');
+    const { watch, onHalt } = makeWatch({
+      sentinelPath: join(selected, 'HALT'),
+      controlPaths: { canonicalRoot: HOME, selectedRoot: selected, env: {} },
+    });
+    expect(watch.check()).toBe(true);
+    expect(onHalt).toHaveBeenCalledTimes(1);
+    rmSync(join(HOME, 'hooks.disabled'));
+    expect(watch.check()).toBe(true);
+  });
+
+  test('an unavailable explicit control path fails closed', () => {
+    mkdirSync(HOME, { recursive: true });
+    const { watch, onHalt } = makeWatch({ sentinelPath: join(SCRATCH, 'missing-parent', 'HALT') });
+    expect(watch.check()).toBe(true);
+    expect(onHalt).toHaveBeenCalledTimes(1);
+    expect(watch.halt()?.line).toContain('unavailable');
+  });
   test('nominal with no sentinel; a missing ~/.port-daddy is not an error; timer checks every 30 s', () => {
     const { watch, onHalt, tick } = makeWatch();
     watch.start();

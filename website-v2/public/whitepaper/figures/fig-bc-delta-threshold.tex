@@ -1,0 +1,55 @@
+% Analytic gain functions: U3=1-2(delta+delta^2+delta^3), Uinf=1-2delta/(1-delta).
+% Map: x=38+244*delta pt, y=100-28*gain pt (downward-positive canvas).
+% Full finite domain [0,1]; grim stops at gain=-5.3, then a short continuation.
+% Archived TLC delta=.30: (441700000-425100000)/100^4 = .166.
+\begin{figure}[H]
+\centering
+\begingroup
+\SGMeasuredFigure{bc-delta-threshold}{%
+\begin{tikzpicture}[x=1pt,y=-1pt,font=\small,text=pdink,
+  bc note/.style={font=\footnotesize,inner sep=0pt,align=left},
+  bc axis/.style={draw=pdink!45,line width=.4pt}]
+% Reserved comparison key: line styles and distinct zero-gain thresholds.
+\draw[pdteal,line width=1pt] (0,0)--(19,0);
+\node[bc note,anchor=west] at (26,0) {Three rounds};
+\node[bc note,anchor=east] at (316,0) {zero gain at $\delta^*_3\approx.342508$};
+\draw[pdink,line width=.9pt,dash pattern=on 4pt off 2pt] (0,18)--(19,18);
+\node[bc note,anchor=west] at (26,18) {Grim trigger};
+\node[bc note,anchor=east] at (316,18) {zero gain at $\delta^*_\infty=1/3$};
+\node[bc note,anchor=west] at (0,44) {Net deviation gain (stage-game payoff units)};
+% Both policies share these scales; zero, not the bottom, is indifference.
+\draw[bc axis] (38,64)--(38,256)--(282,256);
+\draw[pdink!65,line width=.45pt] (38,100)--(282,100);
+\foreach \gain in {1,0,-1,-2,-3,-4,-5}{
+  \draw[bc axis] (35,{100-28*\gain})--(38,{100-28*\gain});
+  \node[bc note,anchor=east] at (30,{100-28*\gain}) {$\gain$};}
+\foreach \delta in {0,.2,.4,.6,.8,1}{
+  \draw[bc axis] ({38+244*\delta},256)--({38+244*\delta},260);
+  \node[bc note,anchor=north] at ({38+244*\delta},265) {$\delta$};}
+\draw[pdteal,line width=1pt]
+  plot[domain=0:1,samples=121] ({38+244*\x},{100-28*(1-2*(\x+\x*\x+\x*\x*\x))});
+\draw[pdink,line width=.9pt,dash pattern=on 4pt off 2pt]
+  plot[domain=0:0.7590361446,samples=121] ({38+244*\x},{100-28*(1-2*\x/(1-\x))});
+% Continue the grim curve along its downward tangent, above the tick-label rail.
+\draw[pdink,line width=.9pt,-{Stealth[length=3pt,width=3pt]}]
+  (223.205,248.4)--(225,255.5);
+% The square is an archived finite-model witness, not a sample from a market.
+\filldraw[fill=white,draw=pdgold,line width=1pt] (109.2,93.352) rectangle (113.2,97.352);
+\draw[pdgold,line width=.55pt] (111.2,92.35)--(103,63);
+\node[bc note,anchor=south west,text=pdgold] at (105,66) {TLC: $.30,\ +.166$};
+% The open circle is the chapter's worked point on the finite curve.
+\filldraw[fill=white,draw=pdteal,line width=.9pt] (257.6,208.584) circle[radius=1.8pt];
+\draw[pdteal,line width=.5pt] (258.8,206.9)--(295,162);
+\node[bc note,anchor=south east,text=pdteal] at (310,155) {$U_3(.9)=-3.878$};
+\fill[pdteal] (282,240) circle[radius=1.3pt];
+\node[bc note,anchor=west,text=pdteal] at (289,240) {$-5$};
+\node[bc note,anchor=north] at (160,285) {Discount factor $\delta$ (next-round weight)};
+\node[bc note,anchor=north west] at (38,305)
+  {Grim continues to $-\infty$ as $\delta\to1$; no value at $1$.};
+\end{tikzpicture}}
+\endgroup
+\caption{Three-round punishment caps the loss; grim punishment does not.
+The curves assume shared, correct observations. The square is the archived
+four-round TLC counterexample, not a measured payoff series.}
+\label{fig:bc-delta-threshold}
+\end{figure}

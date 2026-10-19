@@ -1,0 +1,123 @@
+{
+  "scope": "Omni consolidation local validation; no mathematical recertification or runtime activation",
+  "base_commit": "53ced1c030dc916d686d5e14350bf17aff0ca7bc",
+  "source_archive_sha256": "936e843cbf087a321df953bada86d92db68351c8e1b2f06082b052201e94ed61",
+  "sources": 181,
+  "records": 1875,
+  "retired_source_files": 141,
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/omni_ledger.py",
+        "check"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/test_omni_ledger.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_library_index.py",
+        "--check-md"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_research_program.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_critique_ledger.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/render_critique_ledger.py",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_figure_register.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/render_figure_audit.py",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/build_figure_desk.py",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_citations.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check-whitepaper-corpus.mjs"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check-orphan-assets.mjs"
+      ],
+      "returncode": 0
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 -B scripts/roadmap/check_unregistered.py --check",
+      "result": "pass; original 12 unregistered slugs preserved"
+    },
+    {
+      "command": "unittest test_check_*.py",
+      "result": "200 existing consumer tests passed by worker"
+    },
+    {
+      "command": "python3 -B scripts/harbor-research/test_omni_ledger.py",
+      "result": "9 new deletion/projection integrity tests pass"
+    }
+  ]
+}

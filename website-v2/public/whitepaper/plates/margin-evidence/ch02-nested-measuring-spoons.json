@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Graduated set of nested metal measuring spoons on a split ring, smallest inner spoon cobalt blue. Analogy for monotonic capability restriction.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "bc69dd3f2fc28a21380bc1c5014be9fee84393b93f60c63f94c3e879c86e95e1",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

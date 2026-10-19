@@ -1,0 +1,35 @@
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,pd panel title/.append style={inner sep=0pt},pd direct label/.append style={inner xsep=0pt}]
+\path[use as bounding box] (0,-9.1) rectangle (11.4,.65);
+\node[pd panel title,anchor=west] at (0,.45) {Four relations in the same agent system};
+\node[pd panel title,anchor=west] at (0,-.35) {1\quad Dependencies};
+\node[pd panel title,anchor=west] at (6,-.35) {2\quad Evidence routes};
+\draw[pd hairline] (0,-.65)--(5.4,-.65) (6,-.65)--(11.4,-.65);
+\node[pd direct label,anchor=center] at (1,-1.35) {Task A};
+\node[pd direct label,anchor=center] at (4.35,-1.35) {Task B};
+\draw[pd arrow] (1.85,-1.35)--(3.5,-1.35);
+\node[pd direct label,anchor=center] at (2.65,-1.9) {must precede};
+\node[pd direct label,anchor=center] at (7,-1.35) {Agent A};
+\node[pd direct label,anchor=center] at (10.35,-1.35) {Agent B};
+\draw[pd arrow,dashed] (7.9,-1.35)--(9.45,-1.35);
+\node[pd direct label,anchor=center] at (8.65,-1.9) {sends evidence};
+\node[pd direct label,anchor=north west,text width=5.3cm] at (0,-2.4) {A scheduling relation does not choose the message route.};
+\node[pd direct label,anchor=north west,text width=5.3cm] at (6,-2.4) {A received report does not prove that an effect occurred.};
+\node[pd panel title,anchor=west] at (0,-3.85) {3\quad Decision authority};
+\node[pd panel title,anchor=west] at (6,-3.85) {4\quad Execution resources};
+\draw[pd hairline] (0,-4.15)--(5.4,-4.15) (6,-4.15)--(11.4,-4.15);
+\node[pd direct label,anchor=center] at (.65,-4.85) {Proposal};
+\node[pd direct label,anchor=center] at (2.7,-4.85) {Decider};
+\node[pd direct label,anchor=center] at (4.75,-4.85) {Action};
+\draw[pd arrow] (1.45,-4.85)--(1.9,-4.85);
+\draw[pd focus arrow] (3.5,-4.85)--(4.02,-4.85);
+\node[pd direct label,anchor=center] at (2.7,-5.4) {approval path};
+\node[pd direct label,anchor=center] at (7.1,-4.85) {Queue};
+\node[pd direct label,anchor=center] at (10.15,-4.85) {Tool or gate};
+\draw[pd arrow] (7.85,-4.85)--(9.05,-4.85);
+\node[pd direct label,anchor=center] at (8.65,-5.4) {dispatch path};
+\node[pd direct label,anchor=north west,text width=5.3cm] at (0,-5.9) {A dependency edge does not grant permission to act.};
+\node[pd direct label,anchor=north west,text width=5.3cm] at (6,-5.9) {Name the mechanism that actually mediates the effect.};
+\draw[pd rule] (0,-7.3)--(11.4,-7.3);
+\node[pd panel title,anchor=west] at (0,-7.75) {Read every edge with its status};
+\node[pd direct label,anchor=north west,text width=11.2cm] at (0,-8.15) {Advisory intent, enforced rule, and observed event are different claims. An arrow alone establishes none of them.};
+\end{tikzpicture}

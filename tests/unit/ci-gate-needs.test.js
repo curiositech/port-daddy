@@ -24,6 +24,7 @@ const REQUIRED_CI_JOBS = [
   'rust-console-gpui',
   'rust-kernel',
   'skill-hygiene',
+  'swiss-normalization-guard',
   'unit-tests',
   'version-drift-guard',
 ];

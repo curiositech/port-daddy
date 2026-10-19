@@ -1,0 +1,57 @@
+% IV/fig:he-succession-price: analytical queue comparison, not measured data.
+% Inputs: lambda=1 task/h, xi=.5/h, eta=.25/h; stability requires mu_s>3.
+% Exact forms: W_bd=8/3+11/(mu_s-3), W_naive=8/3+3/(mu_s-3).
+% Read the canary at mu_s=5 and the common limiting floor above pool cost.
+% Right-hand labels have their own gutter; leaders never replace data marks.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  scale only axis,width=6.5cm,height=5.1cm,
+  xmin=3,xmax=12,ymode=log,ymin=.8,ymax=256,
+  xtick={3,5,8,12},ytick={1,4,16,64,256},
+  yticklabels={1,4,16,64,256},
+  xlabel={service rate $\mu_s$ (tasks/h)},
+  ylabel={mean wait $W$ (h; log scale)},clip=false]
+  \addplot[pd muted series,mark=none,domain=3:12,samples=2] {1.0362};
+  \addplot[pd guide,mark=none,domain=3:12,samples=2] {8/3};
+  \addplot[pd warn series,mark=none,domain=3.05:12,samples=180]
+    {8/3+3/(x-3)};
+  \addplot[pd focus series,draw=pdteal,mark=none,domain=3.05:12,samples=180]
+    {8/3+11/(x-3)};
+  \draw[pd guide] (axis cs:5,.8)--(axis cs:5,49/6);
+  \node[pd focus datum,fill=pdteal,draw=pdteal] at (axis cs:5,49/6) {};
+  \node[pd datum] at (axis cs:5,25/6) {};
+  \node[pd label,anchor=west,align=left] at (axis cs:6,28)
+    {At $\mu_s=5$:\\correct $8.17$ h\\naive $4.17$ h};
+
+  % Independent label territory, with leaders starting at true endpoints.
+  \draw[pdteal,line width=.5pt] (axis cs:12,35/9)
+    --(axis description cs:1.08,.42);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.42) {correct mean};
+  \draw[pdamber,line width=.5pt,dashed] (axis cs:12,3)
+    --(axis description cs:1.08,.29);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.29) {naive sum};
+  \draw[pdinkmuted,line width=.5pt,dotted] (axis cs:12,8/3)
+    --(axis description cs:1.08,.16);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.16) {floor $2.67$ h};
+  \draw[pdinkmuted,line width=.5pt] (axis cs:12,1.0362)
+    --(axis description cs:1.08,.03);
+  \node[pd label,anchor=west,inner sep=3pt]
+    at (axis description cs:1.08,.03) {pool cost $K$};
+
+  \node[pd note,anchor=south west,align=left,text width=9cm]
+    at (axis description cs:0,1.08)
+    {Both means diverge as $\mu_s\downarrow3$.\\
+     Curves shown for $3.05\le\mu_s\le12$.};
+\end{axis}
+\end{tikzpicture}
+\caption{Chosen rates: $\lambda=1$ task/h, $\xi=.5$/h and $\eta=.25$/h.
+The limiting floor exceeds the pool's $K=1.04$ h-equivalent cost, so
+increased skill alone cannot win here. Analytic model, not measurements.}
+\label{fig:he-succession-price}
+\end{figure}

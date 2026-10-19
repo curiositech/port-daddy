@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.2.0",
+  "anchor": "6c2c30d74b889b4d8037ce5d43b265bfbf21a686",
+  "truthState": "T0_STATIC",
+  "runtimeAuthority": "NONE",
+  "positions": [
+    {
+      "id": "P1",
+      "authority": "Containment and TCB",
+      "question": "Which effects can an independent boundary actually prevent?",
+      "file": "positions/P1-containment-and-tcb.md",
+      "sealed": true
+    },
+    {
+      "id": "P2",
+      "authority": "Anchor evidence and verification",
+      "question": "Which claims do signatures, commitments, witnesses, and reconciliation prove?",
+      "file": "positions/P2-anchor-evidence-and-verification.md",
+      "sealed": true
+    },
+    {
+      "id": "P3",
+      "authority": "Identity and resurrection",
+      "question": "What survives a body, and which authority must be reissued?",
+      "file": "positions/P3-identity-resurrection-and-effects.md",
+      "sealed": true
+    },
+    {
+      "id": "P4",
+      "authority": "Hypertree execution and coordination",
+      "question": "How are births, leases, gathers, review, and termination bounded?",
+      "file": "positions/P4-hypertree-execution-and-coordination.md",
+      "sealed": true
+    },
+    {
+      "id": "P5",
+      "authority": "Capability constitution and effects",
+      "question": "What permission may cross each person, body, tool, repo, and effect boundary?",
+      "file": "positions/P5-capability-and-consequential-effects.md",
+      "sealed": true
+    },
+    {
+      "id": "P6",
+      "authority": "Capacity and economics",
+      "question": "How are subscription allowance, money, compute, attention, and uncertainty reserved and settled?",
+      "file": "positions/P6-capacity-economics-and-conservation.md",
+      "sealed": true
+    },
+    {
+      "id": "P7",
+      "authority": "Context integrity and cognition",
+      "question": "What is remembered, compacted, quarantined, translated, or discarded?",
+      "file": "positions/P7-context-integrity-memory-and-cognition.md",
+      "sealed": true
+    },
+    {
+      "id": "P8",
+      "authority": "Deterministic evaluation and formal limits",
+      "question": "What can simulation, replay, property tests, and models honestly establish?",
+      "file": "positions/P8-deterministic-evaluation-and-formal-limits.md",
+      "sealed": true
+    },
+    {
+      "id": "P9",
+      "authority": "Governance labor and mechanism design",
+      "question": "Who benefits, who bears risk, how are agents paid, and how is gaming bounded?",
+      "file": "positions/P9-governance-labor-and-mechanism-design.md",
+      "sealed": true
+    },
+    {
+      "id": "P10",
+      "authority": "Human factors and operator sovereignty",
+      "question": "Can a person understand, interrupt, trust, and want this product?",
+      "file": "positions/P10-human-factors-and-operator-sovereignty.md",
+      "sealed": true
+    }
+  ],
+  "pairings": [
+    {
+      "a": "P1",
+      "b": "P9",
+      "rationale": "Containment authority must confront institutional legitimacy and risk distribution."
+    },
+    {
+      "a": "P2",
+      "b": "P8",
+      "rationale": "Cryptographic evidence must confront the exact limits of simulation and formal proof."
+    },
+    {
+      "a": "P3",
+      "b": "P7",
+      "rationale": "Operational body continuity must confront cognitive and memory continuity."
+    },
+    {
+      "a": "P4",
+      "b": "P6",
+      "rationale": "Coordination topology and births must confront conserved capacity and settlement."
+    },
+    {
+      "a": "P5",
+      "b": "P10",
+      "rationale": "Machine capability authority must confront human comprehension and consent."
+    }
+  ],
+  "realityChecks": [
+    {
+      "role": "ENGINEERING",
+      "file": "reality-checks/engineering.md",
+      "sealed": true
+    },
+    {
+      "role": "PRODUCT",
+      "file": "reality-checks/product.md",
+      "sealed": true
+    },
+    {
+      "role": "DESIGN",
+      "file": "reality-checks/design.md",
+      "sealed": true
+    }
+  ],
+  "outputs": {
+    "managerSynthesis": "synthesis/final-product-roadmap.md",
+    "packetLineage": "synthesis/packet-lineage.md",
+    "packetSeal": "sealed-packet-v2.json",
+    "skillGraftMatrix": "skill-graft-matrix.md",
+    "operatorPrototype": "operator-prototype/index.html",
+    "operatorPrototypeValidator": "operator-prototype/validate-static-prototype.mjs"
+  },
+  "limits": {
+    "positionCount": 10,
+    "reciprocalReviewCount": 10,
+    "correctionsPerPosition": 1,
+    "realityCheckCount": 3,
+    "finalPackets": 1,
+    "recursiveBirths": 0
+  }
+}

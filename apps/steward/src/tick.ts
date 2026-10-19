@@ -14,6 +14,7 @@ import {
 } from './landing.js';
 import { isFrozen, readClusterfudge, tripClusterfudge } from './clusterfudge.js';
 import type { Env, MergeLedgerEntry } from './types.js';
+import { readStewardMergeLedger } from '../../shared/steward-ledgers.js';
 
 /**
  * The tick — one bounded deliberation of the Steward's seat (P1 PR 2 + PR 3
@@ -48,6 +49,38 @@ export interface LandingOutcome {
   reason: string;
 }
 
+/**
+ * How many docket entries one tick will judge.
+ *
+ * DESIGN — the docket is ranked, so the first N are the N most important
+ * things in the repo; judging beyond that buys precision on work the seat is
+ * not going to reach anyway. The bound also keeps a wake's cost flat as the
+ * backlog grows: 45 open PRs and 450 cost the same tick. Deciding is pure and
+ * cheap ({@link decideVerdict} does no I/O) — what this really bounds is the
+ * D1 writes underneath it.
+ */
+export const TICK_SCAN_LIMIT = 25;
+
+/**
+ * How many verdict rows one tick will append.
+ *
+ * Separate from {@link TICK_SCAN_LIMIT} on purpose: the first tick over a cold
+ * backlog forms an opinion on everything at once, and writing all of them in
+ * one alarm is the one case that could run long. After that first pass almost
+ * every judgement is unchanged and writes nothing, so this cap is invisible in
+ * steady state and only smooths the cold start.
+ */
+export const TICK_LEDGER_LIMIT = 25;
+
+/**
+ * How far back to read the seat's own verdicts when suppressing repeats.
+ *
+ * Wide enough to cover a full docket several times over, so a PR's current
+ * verdict has not fallen out of the window. If it has, the tick simply
+ * re-records it — the failure direction is a duplicate row, never a silence.
+ */
+export const VERDICT_MEMORY = 200;
+
 /** What one tick did, folded into the wake's deck-log entry by the caller. */
 export interface TickResult {
   /** True when the tick ran (token present, survey succeeded). */
@@ -56,8 +89,14 @@ export interface TickResult {
   skipped?: string;
   /** The printed docket (audit block for the deck log). */
   docketText: string;
-  /** The verdict rendered on the docket's top PR, when one was. */
+  /** The verdict the tick ACTED on — a LAND, or the first new opinion it formed. */
   verdict?: MergeLedgerEntry;
+  /** How many docket entries this tick actually judged. */
+  scanned?: number;
+  /** How many verdicts were new information and therefore recorded. */
+  ledgered?: number;
+  /** How many were skipped because the seat already holds that same verdict. */
+  unchanged?: number;
   /** True when the verdict row landed in D1. */
   verdictLedgered?: boolean;
   /** What the landing arm did, present exactly when the verdict was LAND. */
@@ -154,26 +193,107 @@ export async function runTick(
 
   const docket = buildDocket(prs);
   const docketText = renderDocket(docket);
-  const top = docket[0];
-  if (!top) {
-    return { ran: true, docketText };
+  if (docket.length === 0) {
+    return { ran: true, docketText, scanned: 0, ledgered: 0, unchanged: 0 };
   }
 
-  const { verdict, evidence } = decideVerdict(top);
-  const row: MergeLedgerEntry = {
-    repo,
-    prNumber: top.pr.number,
-    verdict,
-    evidence,
-    requestedBy: 'tick',
-    createdAt: Math.floor(nowMs / 1000),
-  };
-  const verdictLedgered = await appendMergeVerdict(env.DB, row);
-  if (verdict !== 'LAND') {
-    return { ran: true, docketText, verdict: row, verdictLedgered };
+  // What the seat already believes, so a re-judged PR whose answer has not
+  // moved costs nothing. One read for the whole walk, not one per PR.
+  const held = await lastVerdictByPr(env.DB, repo);
+
+  let scanned = 0;
+  let ledgered = 0;
+  let unchanged = 0;
+  let acted: MergeLedgerEntry | undefined;
+  let actedLedgered: boolean | undefined;
+
+  for (const entry of docket.slice(0, TICK_SCAN_LIMIT)) {
+    scanned += 1;
+    const { verdict, evidence } = decideVerdict(entry);
+    const row: MergeLedgerEntry = {
+      repo,
+      prNumber: entry.pr.number,
+      verdict,
+      evidence,
+      requestedBy: 'tick',
+      createdAt: Math.floor(nowMs / 1000),
+    };
+
+    if (verdict === 'LAND') {
+      // The one case that always gets recorded and always stops the walk: a
+      // landing is an action, and an action's ledger row is the record of it.
+      actedLedgered = await appendMergeVerdict(env.DB, row);
+      ledgered += 1;
+      const landing = await executeLanding(env, owner, name, entry.pr.number, nowMs, fetchImpl, store);
+      return { ran: true, docketText, verdict: row, verdictLedgered: actedLedgered, landing,
+               scanned, ledgered, unchanged };
+    }
+
+    if (held.get(entry.pr.number) === verdict) {
+      unchanged += 1;
+      continue;
+    }
+    if (ledgered < TICK_LEDGER_LIMIT) {
+      const ok = await appendMergeVerdict(env.DB, row);
+      ledgered += 1;
+      // Report the first NEW opinion as the tick's headline when no LAND is
+      // found, so the deck log names something that actually changed.
+      if (!acted) { acted = row; actedLedgered = ok; }
+    }
   }
-  const landing = await executeLanding(env, owner, name, top.pr.number, nowMs, fetchImpl, store);
-  return { ran: true, docketText, verdict: row, verdictLedgered, landing };
+
+  return { ran: true, docketText, verdict: acted, verdictLedgered: actedLedgered,
+           scanned, ledgered, unchanged };
+}
+
+/**
+ * The seat's most recent verdict per PR, for suppressing repeats.
+ *
+ * WHY THIS EXISTS — the livelock it fixes: the tick used to judge `docket[0]`
+ * and stop. The docket ranking is stable and carries no memory, so a top PR
+ * that is permanently red (a fleet-owned PR whose checks nobody fixes) was
+ * re-judged identically on every single wake while the other forty-odd PRs
+ * were never reached. Every individual decision was correct and the seat
+ * could still never reach a LAND on anything — classic head-of-line blocking,
+ * measured in production: two wakes, two identical `NEEDS-WORK on #6419`.
+ *
+ * Walking the docket fixes the starvation but would trade it for noise: the
+ * same forty NEEDS-WORK rows re-appended every six hours would bury the merge
+ * ledger, which is the repo's merge history of record and only worth having
+ * if a human will still read it. So a verdict is recorded when it is NEW
+ * INFORMATION — the first opinion on a PR, or a changed one — and skipped
+ * when the seat already holds that exact answer.
+ *
+ * DEGRADES TO EMPTY, NEVER THROWS — and enforces that here rather than
+ * inheriting it. `readStewardMergeLedger` already swallows its own errors, so
+ * this catch is unreachable today; it exists because the guarantee is claimed
+ * at THIS boundary and the function providing it lives in a different package.
+ * If that reader ever loses its try/catch, the failure would not be a bad
+ * read — it would be `runTick` throwing, the wake's deck-log write never being
+ * reached, and the seat falling silent. That is §5.3's exact failure mode, and
+ * a promise this important should not depend on a neighbour keeping its own.
+ *
+ * The empty map is the safe direction: the tick then re-records rather than
+ * going quiet. A duplicate row in an append-only ledger is recoverable; a
+ * verdict skipped because the seat wrongly believed it already held it is not.
+ *
+ * @param db - The D1 binding, or undefined when the seat runs unbound.
+ * @param repo - `owner/repo` the seat serves.
+ * @returns PR number → the verdict most recently recorded for it.
+ */
+async function lastVerdictByPr(
+  db: Env['DB'],
+  repo: string,
+): Promise<Map<number, MergeLedgerEntry['verdict']>> {
+  const seen = new Map<number, MergeLedgerEntry['verdict']>();
+  try {
+    const rows = await readStewardMergeLedger(db, repo, VERDICT_MEMORY);
+    // Newest first, so the FIRST row seen for a PR is its current verdict.
+    for (const r of rows) if (!seen.has(r.prNumber)) seen.set(r.prNumber, r.verdict);
+  } catch (err) {
+    console.error(`[steward] verdict-memory read failed repo=${repo}: ${String(err)}`);
+  }
+  return seen;
 }
 
 /**

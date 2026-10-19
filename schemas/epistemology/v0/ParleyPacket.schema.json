@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/epistemology/v0/ParleyPacket.schema.json",
+  "title": "ParleyPacket",
+  "description": "Structured conflict escalation packet containing contradictory claims, minimal unsatisfiable cores, consequences, and designated human decision authorities.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "pd.epistemology.parley-packet.v0"
+    },
+    "packetId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this parley escalation packet."
+    },
+    "incidentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier tying this contradiction incident to cross-project review and audit records."
+    },
+    "ladderLevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Contradiction Ladder level where conflict was trapped: 0 (schema), 1 (exact constraint), 2 (program contract), 3 (candidate semantic), 4 (human parley)."
+    },
+    "conflictingClaimIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 2,
+      "description": "Identifiers of the mutually incompatible claim envelopes."
+    },
+    "incompatiblePropositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claimId": { "type": "string" },
+          "subject": { "type": "string" },
+          "summary": { "type": "string" },
+          "sourceRepository": { "type": "string" },
+          "assumptions": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["claimId", "subject", "summary"]
+      }
+    },
+    "unsatisfiableCore": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Minimal subset of claims/assumptions that cannot simultaneously hold true."
+    },
+    "consequenceMatrix": {
+      "type": "array",
+      "description": "Exploration of alternatives: consequences and trade-offs of adopting each conflicting claim or rejecting all.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "option": { "type": "string" },
+          "favorsClaimId": { "type": ["string", "null"] },
+          "impact": { "type": "string" },
+          "affectedWork": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["option", "impact", "affectedWork"]
+      }
+    },
+    "authorizedDecisionMakers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Human principal IDs with governance authority to resolve this policy/semantic conflict."
+    },
+    "quiescentState": {
+      "type": "object",
+      "description": "Instructions for safe pause: which dependent tasks must wait, and which independent tasks may continue.",
+      "properties": {
+        "pausedTaskIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "safeIndependentTaskIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "timeoutSeconds": { "type": "integer" }
+      },
+      "required": ["pausedTaskIds", "safeIndependentTaskIds"]
+    },
+    "resolution": {
+      "type": "object",
+      "description": "Record of human decision settlement once parley concludes.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "resolved", "rejected"]
+        },
+        "chosenOption": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "resolutionTimestamp": { "type": "string", "format": "date-time" },
+        "newDecisionClaimId": { "type": "string" }
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "packetId",
+    "incidentId",
+    "ladderLevel",
+    "conflictingClaimIds",
+    "incompatiblePropositions",
+    "unsatisfiableCore",
+    "consequenceMatrix",
+    "authorizedDecisionMakers",
+    "quiescentState"
+  ]
+}

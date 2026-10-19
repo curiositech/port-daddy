@@ -20,7 +20,8 @@
  */
 
 import { parse as parseYaml } from 'yaml';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import {
   DAILY_MESSAGES_DEFAULT,
   DAILY_TOKENS_DEFAULT,
@@ -44,13 +45,28 @@ import {
   snipeProposalVerdicts,
 } from '../src/snipe-chat.js';
 import { handleShipwrightChat } from '../src/shipwright.js';
-import { hashHex } from '../src/crypto.js';
+import { base64UrlEncode, fromHex, hashHex } from '../src/crypto.js';
 import { makeTestD1, seedSession, seedSuggestion, type TestD1 } from './support/d1-sqlite.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
 const COOKIE = 'sess-value-abc';
 const DAY = 24 * 60 * 60;
+const WRAP_KEY = 'ac'.repeat(32);
+const SHIPWRIGHT_THREAD = `swt_${'a'.repeat(48)}`;
+const SHIPWRIGHT_INSTALLATION = 88;
+const SHIPWRIGHT_REPO = 'octocat/widgets';
+const SHIPWRIGHT_APP_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
+  .export({ type: 'pkcs8', format: 'pem' }).toString();
+
+afterEach(() => vi.unstubAllGlobals());
+
+async function sealForTest(token: string): Promise<{ enc: string; iv: string }> {
+  const key = await crypto.subtle.importKey('raw', fromHex(WRAP_KEY), 'AES-GCM', false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token)));
+  return { enc: base64UrlEncode(ct), iv: base64UrlEncode(iv) };
+}
 
 /** A model binding that records what it was asked and answers with canned text. */
 function mockAi(result: unknown) {
@@ -79,6 +95,35 @@ function withSession(over: Record<string, unknown> = {}): { t: TestD1; env: Env;
   const t = makeTestD1();
   const { userId } = seedSession(t, { tokenHash: hashHex(COOKIE) });
   return { t, env: makeEnv(t, over), userId };
+}
+
+async function withScopedShipwrightSession(over: Record<string, unknown> = {}): Promise<{ t: TestD1; env: Env; userId: string }> {
+  const t = makeTestD1();
+  const sealed = await sealForTest('gho_user_token');
+  const { userId } = seedSession(t, { tokenHash: hashHex(COOKIE), sealed });
+  t.raw.prepare(
+    'INSERT INTO shipwright_threads (id,user_id,installation_id,repo_full_name,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+  ).run(SHIPWRIGHT_THREAD, userId, SHIPWRIGHT_INSTALLATION, SHIPWRIGHT_REPO, 1, 1);
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (url.endsWith('/repos/octocat/widgets/installation')) return Response.json({ id: SHIPWRIGHT_INSTALLATION });
+    if (url.includes(`/user/installations/${SHIPWRIGHT_INSTALLATION}/repositories`)) {
+      return Response.json({ total_count: 1, repositories: [{ full_name: SHIPWRIGHT_REPO, permissions: { pull: true } }] });
+    }
+    return new Response('unexpected GitHub request', { status: 500 });
+  }));
+  const kv = { get: async () => null, put: async () => undefined, delete: async () => undefined } as unknown as KVNamespace;
+  return {
+    t,
+    userId,
+    env: makeEnv(t, {
+      USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
+      GITHUB_APP_ID: '12345',
+      GITHUB_APP_PRIVATE_KEY: SHIPWRIGHT_APP_KEY,
+      KV: kv,
+      ...over,
+    }),
+  };
 }
 
 // ── The budget arithmetic ────────────────────────────────────────────────────
@@ -177,7 +222,7 @@ describe('snipe chat — the cap is enforced in the request path', () => {
       (env as { AI?: Ai }).AI = ai;
 
       const first = await handleSnipeChat(chatReq('/v1/snipe/chat', { message: 'hello', stream: false }), env);
-      expect(first.status).toBe(200);
+      expect(first.status, await first.clone().text()).toBe(200);
       expect(seen).toHaveLength(1);
 
       const second = await handleSnipeChat(chatReq('/v1/snipe/chat', { message: 'again', stream: false }), env);
@@ -294,16 +339,16 @@ describe('the first chat surface runs on the SAME engine, so it is capped too', 
     // This is the regression that matters: the cap must not be a thing the
     // Engineman's surface remembered to do. It is a step in the shared engine,
     // so a surface that predates the cap gets it by construction.
-    const { t, env } = withSession({ CHAT_DAILY_MESSAGES: '1' });
+    const { t, env } = await withScopedShipwrightSession({ CHAT_DAILY_MESSAGES: '1' });
     try {
       (env as { AI?: Ai }).AI = mockAi({ response: 'aye' }).ai;
       const first = await handleShipwrightChat(
-        chatReq('/v1/shipwright/chat', { message: 'design me a fleet', stream: false }),
+        chatReq('/v1/shipwright/chat', { threadId: SHIPWRIGHT_THREAD, message: 'design me a fleet', stream: false }),
         env,
       );
       expect(first.status).toBe(200);
       const second = await handleShipwrightChat(
-        chatReq('/v1/shipwright/chat', { message: 'again', stream: false }),
+        chatReq('/v1/shipwright/chat', { threadId: SHIPWRIGHT_THREAD, message: 'again', stream: false }),
         env,
       );
       expect(second.status).toBe(429);
@@ -314,20 +359,20 @@ describe('the first chat surface runs on the SAME engine, so it is capped too', 
   });
 
   it('the two surfaces keep separate budgets and separate conversations', async () => {
-    const { t, env, userId } = withSession({ CHAT_DAILY_MESSAGES: '1' });
+    const { t, env, userId } = await withScopedShipwrightSession({ CHAT_DAILY_MESSAGES: '1' });
     try {
       (env as { AI?: Ai }).AI = mockAi({ response: 'aye' }).ai;
       await handleSnipeChat(chatReq('/v1/snipe/chat', { message: 'snipe turn', stream: false }), env);
       // The other surface still has its own allowance.
       const other = await handleShipwrightChat(
-        chatReq('/v1/shipwright/chat', { message: 'other turn', stream: false }),
+        chatReq('/v1/shipwright/chat', { threadId: SHIPWRIGHT_THREAD, message: 'other turn', stream: false }),
         env,
       );
       expect(other.status).toBe(200);
       // ...and neither can see the other's turns.
       const snipeRows = await agentChatStore(SNIPE_AGENT_ID).list(t.db, userId, 50);
       expect(snipeRows.map((r) => r.content)).toEqual(['snipe turn', 'aye']);
-      const shipRows = t.raw.prepare('SELECT content FROM shipwright_chats ORDER BY id').all() as {
+      const shipRows = t.raw.prepare('SELECT content FROM shipwright_thread_messages ORDER BY id').all() as {
         content: string;
       }[];
       expect(shipRows.map((r) => r.content)).toEqual(['other turn', 'aye']);

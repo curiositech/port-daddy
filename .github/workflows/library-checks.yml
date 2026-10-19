@@ -48,6 +48,9 @@ on:
       - 'website-v2/src/**'
       - 'website-v2/public/**'
       - 'scripts/lint/**'
+      - 'scripts/check-orphan-assets.mjs'
+      - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   push:
     branches: [main]
@@ -79,6 +82,9 @@ on:
       - 'website-v2/src/**'
       - 'website-v2/public/**'
       - 'scripts/lint/**'
+      - 'scripts/check-orphan-assets.mjs'
+      - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
   # appears (a path-filtered workflow that does not match would hang the
@@ -93,7 +99,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The protocol checkpoint tests verify ancestry to their pinned source base.
+      # Keep commit history available without downloading historical file blobs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-node@v4
         with:
@@ -148,6 +159,11 @@ jobs:
       - name: Reviewer corrections reached every site that echoes them
         run: python3 scripts/harbor-research/check_propagated_corrections.py
 
+      - name: Omni research ledger integrity and deletion safeguards
+        run: |
+          python3 -B scripts/harbor-research/omni_ledger.py check
+          python3 -B scripts/harbor-research/test_omni_ledger.py
+
       - name: Library index matches the corpora it claims to index
         run: python3 scripts/harbor-research/check_library_index.py
 
@@ -159,6 +175,9 @@ jobs:
 
       - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
         run: python3 scripts/harbor-research/check_research_program.py
+
+      - name: Reviewer study preparation and readiness boundaries
+        run: python3 scripts/harbor-research/check_reviewer_protocol.py --self-test
 
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: |
@@ -179,14 +198,39 @@ jobs:
             echo "::error::the harbor-research suite failed; its output is above"
             exit 1
           fi
+          # The floor is the count the suite actually has, raised whenever it
+          # grows -- it sat at 212 while the suite had grown to 291, which is a
+          # floor that would no longer have caught the missing-import case it
+          # was written for.
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 212 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 428 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 428 it has; a module failed to import"
             exit 1
           fi
 
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
+
+      # The step above, and every other guard in this job, runs reference -> file:
+      # does the thing a source names exist? None of them runs file -> reference, so
+      # a plate or fragment nothing points at is invisible to all of them. That is
+      # how 147 dead asset files accumulated before a human proved each one dead with
+      # a repo-wide grep (PR #10171) -- correct, and unreproducible. This is the
+      # missing direction, gated only on the plate and figure directories where an
+      # orphan is a defect by construction; the whole-tree report is advisory and
+      # runs with `npm run report:orphan-assets`. Placed immediately after the
+      # provenance check because the two are a pair: that one fails a plate with no
+      # record, this one fails a plate nothing prints.
+      - name: No plate or figure fragment is committed with nothing referencing it
+        run: npm run check:orphan-assets
+
+      # The gate's own mutation tests, both directions: an unreferenced asset is
+      # named, and one reachable only through a template literal, a LaTeX macro
+      # parameter or a runtime-derived dark sibling is NOT. A reference checker that
+      # marks everything referenced passes "it ran green" forever, so the suite
+      # deletes the last reference to a live asset and asserts it appears.
+      - name: Orphan-asset check mutation tests (both directions)
+        run: node --test scripts/check-orphan-assets.test.mjs
 
       # The only steps here that are not stdlib-only. They have to decode a
       # plate's pixels to find where its artwork starts, and render a page to
@@ -232,17 +276,19 @@ jobs:
       - name: Every \begin has its \end, and every source file balances
         run: python3 scripts/harbor-research/check_tex_environments.py
 
-      # Every chapter source is also a submission paper. An edit made for the
-      # Book -- five figure sites in chapter 6 rewritten to point at the
-      # chapters that own the drawings -- took five figures out of
-      # harbor-economy-whitepaper.pdf, and the only thing that noticed was a
-      # regen commit 50 KB lighter. This reads the \else side of every
-      # \ifpdbook, which is what the standalone paper compiles, and compares
-      # its figure sites with the committed record; a paper that lost a site
-      # fails, and so does a stale record (refresh it with --write when the
-      # change to the paper is the point).
-      - name: No Book-side edit has shrunk a standalone paper
-        run: python3 scripts/harbor-research/check_standalone_figures.py
+      # RETIRED WITH THE ARTIFACT IT GUARDED: "No Book-side edit has shrunk a
+      # standalone paper" (check_standalone_figures.py). It existed because a
+      # chapter source was also a submission paper -- an edit for the Book took
+      # five figures out of harbor-economy-whitepaper.pdf and only a lighter
+      # regen commit noticed. There is no second artifact now, so the check had
+      # no subject; worse, it had turned around. The very edit it was built to
+      # catch, pointing a figure site at the chapter that owns the drawing, is
+      # what the duplicate check below WANTS, and this gate failed it until
+      # someone refreshed a record of a rendering nobody publishes. The \else
+      # branches stay in the sources and the scanner that reads them stays --
+      # the duplicate checks depend on it, and tests/harbor-research/
+      # test_pdbook_branch.py covers it. Deciding the fate of those branches is
+      # its own change; see the retirement PR.
 
       # A drawing shared by two chapters is invisible in either chapter's source
       # and invisible in either standalone PDF; it shows only in the assembled
@@ -256,16 +302,77 @@ jobs:
       # can reuse a name without the Book failing to compile -- which is also
       # what let chapters 6 and 8 each print the conditional escrow bound
       # under their own number, with different titles, until someone read
-      # both. The label is the signal, so the check keys on it. The two
-      # definitions allowed here are restated on purpose in different words
-      # (the cross-operator attestation problem in chapters 5 and 6, the float
-      # plan in chapters 6 and 7); each is a known duplicate still waiting for
-      # an owner, and the allow is the record of that, not a verdict that a
-      # reader should meet either twice.
-      - name: No theorem is stated twice in the Book
+      # both. The label is the signal, so the check keys on it. The
+      # attestation and float-plan definitions now use chapter-specific raw
+      # IDs; the gate runs without exceptions. This checks label collisions,
+      # not semantic equivalence between differently named statements.
+      - name: Statement raw IDs are unique in the Book
+        run: python3 scripts/harbor-research/check_duplicate_theorems.py
+
+      # Unique names do not resolve the Float Plan schema/ownership conflict.
+      # Keep that accepted debt visible until the structured ledger records completion.
+      - name: Report remaining Float Plan semantic duplication
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          rows = json.loads(Path("docs/harbor-research/critique-ledger.json").read_text())
+          matches = [row for row in rows if row.get("#") == "CA-014"]
+          if len(matches) != 1:
+              raise SystemExit("Expected exactly one CA-014 critique ledger row")
+          status = matches[0]["Status"]
+          complete = isinstance(status, str) and re.fullmatch(r"DONE \S.*", status) is not None
+          if complete:
+              message = "CA-014 is recorded complete in the critique ledger. The raw-ID gate checks labels only."
+          else:
+              message = "CA-014 remains open: Float Plan semantic/schema duplication still needs the Book owner's reconciliation. Unique raw IDs do not resolve it."
+              print("::warning title=Book semantic duplication remains open::" + message)
+          if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+              with Path(summary).open("a", encoding="utf-8") as stream:
+                  stream.write(message + "\n")
+          PY
+
+      # The two steps above fixed half of what an outside reader found and then
+      # went green over the other half. The reader wrote that "the four-message
+      # cross-harbor transfer appears in both Chapter 6 and Chapter 8"; the
+      # shared *drawing* moved into \ifpdbook and both checks passed, while the
+      # ceremony itself stayed written out twice -- a labelled Protocol in
+      # chapter 6, a hand-written enumerate in chapter 8. Neither sibling can
+      # see that: there is no shared \input and no shared \label. A green check
+      # over the half that was fixed is worse than no check, because it reads
+      # as coverage, so this is the other half. That duplication is now closed:
+      # chapter 8 owns the ceremony, chapter 6's Protocol moved into its \else
+      # branch so the standalone paper keeps its copy and the Book does not,
+      # and this step runs with no --allow at all. Adding one back should take
+      # an argument about who owns the ceremony, not a flag.
+      - name: No message ceremony is written out twice in the Book
+        run: python3 scripts/harbor-research/check_duplicate_protocols.py
+
+      # Figure 4.5's caption used to tell the reader its sweep CSV "is not yet
+      # present", and this step carried an --allow for exactly that one debt.
+      # The CSV is now committed (whitepaper/figures/data/r1-floor.csv, emitted
+      # by a7_experiment.py at seed 20260816), the caption states what the
+      # measurement shows, and the allow is gone. This step now runs with no
+      # --allow at all: any caption anywhere in the corpus that says its data
+      # is absent fails it.
+      - name: No figure caption says the data behind it is absent
+        run: python3 scripts/harbor-research/check_absent_data_captions.py
+
+      # Chapter 1 splits "delegation chain" into the cryptographic authorization
+      # chain and the coordination lineage and promises, in its own prose, never
+      # to write the phrase bare again. Nothing enforced that promise, and bare
+      # uses had survived in five other chapters (with chapter 4 running a third
+      # name, "delegation trace", for the coordination lineage). The four allowed
+      # below are permanent editorial decisions rather than debt: two are the
+      # descriptive genus used right after naming the object, two name the
+      # ProVerif query that pairs with the committed chain-replay.pv.
+      - name: No chapter writes bare "delegation chain"
         run: >-
-          python3 scripts/harbor-research/check_duplicate_theorems.py
-          --allow def:0040b --allow def:float-plan
+          python3 scripts/harbor-research/check_delegation_chain_vocabulary.py
+          --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
+          --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
+          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain replay (\S\ref{sec:delegation}'
+          --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
@@ -290,29 +397,86 @@ jobs:
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
+      - name: Atlas-coverage unit tests
+        run: python3 -m unittest discover -s skills/whitepaper-figure-system/tests -p 'test_*.py'
+
+      - name: TikZ figure-engineering unit tests
+        run: python3 -m unittest discover -s skills/tikz-figure-engineering/tests -p 'test_*.py'
+
+      # The figure gate's own tests. A suite that checks the checkers and is
+      # not itself checked is the same defect one layer up -- this one was red
+      # for six days because nothing ran it.
+      #
+      # The count floor is this job's convention and this job's reason: a module
+      # that cannot import is ONE error in a run that still prints "Ran N
+      # tests", which is how 11 page-measurement tests went missing above.
+      # Raise the floor when the suite grows.
+      #
+      # Retain the regression cases from PR #10201 alongside the newer checks.
+      - name: figcheck T1-T10 and tikz_precheck unit tests (the figure gate's own tests)
+        run: |
+          set -euo pipefail
+          out=$(python3 -m unittest discover -s skills/harbor-chartwork/tests -p 'test_*.py' 2>&1) || suite_failed=1
+          echo "$out"
+          if [ "${suite_failed:-0}" = "1" ]; then
+            echo "::error::the harbor-chartwork figure-gate suite failed; its output is above"
+            exit 1
+          fi
+          ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
+          if [ "${ran:-0}" -lt 197 ]; then
+            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 197 it has; a module failed to import"
+            exit 1
+          fi
+
       - name: Banned phrases ("held to account", "load-bearing") never appear in prose
         run: node scripts/lint/check-banned-phrases.mjs
 
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
 
-      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
-      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
-      # (worked_example_per_section, claims_carry_epistemic_kind) already
-      # fail on 6 of the 8 Book chapters today, pre-dating this check --
-      # making the step required now would freeze every PR that merely
-      # touches a whitepaper path (this job also runs unconditionally on
-      # merge_group, so a required failure here would freeze the whole
-      # queue). Drop continue-on-error once those two floors are clean
-      # chapter-by-chapter; the floors made advisory in the linter itself
-      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
-      # advisory here too -- --strict only fails on a BLOCKING floor.
-      - name: Chapter template floors hold across every Book chapter (advisory)
-        continue-on-error: true
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+      # The conservative authored-role map excludes only recap and grouped
+      # exercise sections. All literature, teaching appendices and substantive
+      # boundaries remain body. Re-measured at cf07690b03: 15 blocking floors.
+      # This aggregate ceiling prevents debt growth without hiding existing
+      # failures. Metadata/read errors remain fatal regardless of the budget.
+      - name: Book chapter floor regression budget
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus whitepaper/chapter-apparatus.json --max-blocking 15
 
-      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+      - name: readers_eye unit tests
+        run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v
+
+      # The clean-vs-bad fixture pair, as a gate. This one IS required: it
+      # does not read the Book at all, it only asserts that the check still
+      # separates a paragraph a reader can follow from one they cannot. If
+      # that stops holding, every advisory number below is noise.
+      - name: The reader's-eye check still separates clean prose from bad
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --selftest
+
+      # Advisory: this prose check has no measured regression ceiling yet.
+      # The corpus is not clean for these rules (149 findings across the eight
+      # chapters at the time of landing, 92 of them the single systemic
+      # "this paper" register issue), and a check nobody has cleaned up after
+      # must not freeze the merge queue on the day it lands. Promote one rule
+      # at a time to a required step -- `--rule caption-carries-the-fact
+      # --strict` first, it has the highest precision -- as the corpus clears.
+      # The baseline table it is measured against is
+      # skills/textbook-craft/references/readers-eye.md section 6.
+      - name: Book prose is followable by a reader who lacks the vocabulary (advisory)
+        continue-on-error: true
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --strict --limit 6
+
+      - name: Figure register and triage are well-formed, and the register's figure join resolves both ways
         run: python3 scripts/harbor-research/check_figure_register.py
+
+      # Before asking whether the digest is a fresh render OF the records, ask
+      # whether the records are about figures that still ship. In September 2026
+      # they were not: 79 records described a corpus of 56 drawings, 27 of them
+      # reporting geometry for fragments deleted or renamed waves earlier and 4
+      # live drawings never checked at all -- and every downstream artefact was
+      # a faithful, fresh render of a corpus that no longer existed. This is the
+      # existence half the step below cannot see.
+      - name: figcheck records and the live \input-derived figure corpus name the same fragments
+        run: python3 scripts/harbor-research/check_figcheck_corpus.py --verbose
 
       - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
         run: python3 scripts/harbor-research/render_figure_audit.py --check

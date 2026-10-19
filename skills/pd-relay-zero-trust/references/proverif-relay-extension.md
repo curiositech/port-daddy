@@ -95,15 +95,19 @@ query attacker(payload_after_rotation).
 
 ## File layout
 
-Add under `analyses/`:
+Add under `analyses/`. None of these exist yet — each is a deliverable this
+skill obliges a run to produce, not a file you can open today:
 
-- `analyses/relay-handshake.pv` — handshake auth and session binding
-- `analyses/relay-publish.pv` — capability enforcement at publish
-- `analyses/relay-attenuation.pv` — Phase 3 caveat containment
-- `analyses/relay-e2e.pv` — secrecy of payload from relay
-- `analyses/relay-merkle.pv` — chain integrity and non-equivocation
-- `analyses/relay-revocation.pv` — revocation effectiveness with propagation delay
-- `analyses/README-relay.md` — narrative, query results, known limitations
+- `analyses/relay-handshake.pv` (proposed) — handshake auth and session binding
+- `analyses/relay-publish.pv` (proposed) — capability enforcement at publish
+- `analyses/relay-attenuation.pv` (proposed) — Phase 3 caveat containment
+- `analyses/relay-e2e.pv` (proposed) — secrecy of payload from relay
+- `analyses/relay-merkle.pv` (proposed) — chain integrity and non-equivocation
+- `analyses/relay-revocation.pv` (proposed) — revocation effectiveness with propagation delay
+- `analyses/README-relay.md` (proposed) — narrative, query results, known limitations
+
+The one relay model that *does* exist on `main` is `analyses/relay_e2e_secrecy.pv`
+(wired into the `proverif-estate` CI job); start from it rather than from scratch.
 
 ## What ProVerif handles well vs not
 
@@ -161,7 +165,7 @@ Before:
 ## Reading list
 
 - ProVerif manual (Blanchet et al.) — esp. on equational theories and correspondence assertions
-- Existing `analyses/escrow_secrecy.pv` — our prior pattern
+- Existing `analyses/harbor_card_v4_escrow_secrecy.pv` — our prior pattern
 - ADR-0014 — protocol claims to verify
 - Tamarin tutorials — for parts where ProVerif falls short
 - "Symbolic Models for Cryptographic Protocols" (Cremers & Mauw, 2012) — methodology

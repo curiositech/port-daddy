@@ -1,21 +1,22 @@
 ---
 license: BSL-1.1
 name: dag-convergence-monitor
-description: Tracks iteration progress toward task completion goals. Monitors quality trends, detects plateauing, and recommends when to stop iterating. Activate on 'convergence tracking', 'iteration progress', 'quality trend', 'stop iterating', 'progress monitoring'. NOT for iteration detection (use dag-iteration-detector) or feedback synthesis (use dag-feedback-synthesizer).
+description: Monitors a specified object against explicit stopping criteria and distinguishes
+  replica convergence, iterative progress, and workflow terminal state. NOT for execution
+  or setting goals.
 allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-category: Agent & Orchestration
-tags:
+- Read
+- Write
+- Edit
+- Glob
+- Grep
+metadata:
+  tags:
   - dag
-  - feedback
   - convergence
   - monitoring
-  - quality-trends
-pairs-with:
+  - stopping
+  pairs-with:
   - skill: dag-iteration-detector
     reason: Uses iteration decisions
   - skill: dag-feedback-synthesizer
@@ -26,148 +27,63 @@ pairs-with:
     reason: Provides convergence patterns
 ---
 
-You are a DAG Convergence Monitor. You track iteration progress, detect plateaus, and recommend when to stop iterating.
+# DAG convergence monitor
 
-## DECISION POINTS
+First state what is converging. Replica-state convergence, numerical or editorial iteration progress, and DAG terminal completion are different claims with different evidence. A stable-looking score, a quiet replica, or a completed node does not establish the other two.
 
-### Primary Stopping Decision Tree
-```
-1. Goal Achievement Check:
-   └─ Quality ≥ target AND no blocking issues?
-      ├─ YES → ACCEPT (target quality)
-      └─ NO → Check acceptability
+## 1. Declare the monitored object and stopping rule
 
-2. Acceptability Check:
-   └─ Quality ≥ acceptable threshold?
-      ├─ YES → Budget Check
-      └─ NO → Plateau Check
+Record the object identity/version, observations and clock source, goal or invariant, criterion, window, owner, resource budget, and action authority. For an iterative artifact, use a task-defined verifier or rubric and compare changes on a fixed evaluation set. For a DAG run, inspect declared completion predicates and blockers. For replicated data, identify merge semantics, delivery assumptions, and the validity invariant.
 
-3. Budget Check (if acceptable quality):
-   └─ Remaining iterations ≤ 1?
-      ├─ YES → ACCEPT (acceptable quality)
-      └─ NO → Progress Check
-
-4. Plateau Check (if below acceptable):
-   └─ Plateaued for 3+ iterations?
-      ├─ YES → ESCALATE (stuck)
-      └─ NO → Trend Check
-
-5. Trend Check:
-   └─ Quality declining for 3+ iterations?
-      ├─ YES → ESCALATE (degrading)
-      └─ NO → Achievability Check
-
-6. Achievability Check:
-   └─ Can reach target within remaining budget?
-      ├─ YES → CONTINUE
-      └─ NO → ESCALATE (unachievable)
+```mermaid
+flowchart LR
+  O[Monitored object and revision] --> K{Kind of claim}
+  K -->|fixed evaluation set| I[Iterative artifact progress]
+  K -->|declared predicates| D[DAG terminal completion]
+  K -->|merge and delivery assumptions| R[Replica-state convergence]
+  I --> C[Task-specific stopping criterion]
+  D --> C
+  R --> C
+  C --> E[Evidence, uncertainty, and action]
 ```
 
-### Edge Case Decision Matrix
-| Situation | Quality | Budget | Trend | Action |
-|-----------|---------|--------|-------|---------|
-| Conflicting signals | Acceptable | Low | Plateaued | ACCEPT with caveats |
-| Budget pressure | Below acceptable | Very low | Improving | ESCALATE for extension |
-| Unachievable goal | Below target | Any | Plateaued | ESCALATE with trade-offs |
-| Late improvement | Below target | Low | Just improved | CONTINUE (1 more) |
-| Validation failing | High quality | Any | Improving | CONTINUE until validated |
+## 2. Evaluate the right evidence
 
-## FAILURE MODES
+An iterative monitor may report improvement, regression, oscillation, or insufficient observations without using arbitrary iteration counts or universal slopes. A changed evaluation set, goal, or artifact contract starts a new monitored revision; do not compare it as a continuous trend. A DAG monitor traces blockers, retries, cancellation confirmation, and effect receipts rather than assuming nodes “converge.”
 
-### 1. False Plateau Detection
-**Symptom**: System declares plateau after temporary stagnation
-**Detection Rule**: If variance < 0.01 for only 2 iterations AND slope was positive in previous 3 iterations
-**Diagnosis**: Insufficient data for plateau detection
-**Fix**: Require minimum 3 iterations of stagnation AND check if recent changes were minor improvements
+Strong eventual convergence for a CRDT is a claim about replicas with the same updates reaching equivalent state under the CRDT's merge semantics; it does not show agent consensus, quality improvement, or terminal workflow success. CALM-style coordination results also concern particular formal program properties, not a generic rule to stop agents.
 
-### 2. Premature Convergence Acceptance
-**Symptom**: Accepting results when more improvement is clearly possible
-**Detection Rule**: If recommending ACCEPT but trend slope > 0.05 AND budget > 2 iterations remaining
-**Diagnosis**: Over-optimistic about current quality level
-**Fix**: Continue for at least 1 more iteration when strong upward trend exists
+```mermaid
+flowchart TB
+  R[Replica observations] --> M[Same update set and defined merge]
+  M --> V{Equivalent state?}
+  V -->|yes| C[Replica convergence evidence]
+  V -->|no or unknown| H[Hold claim and inspect missing updates]
+  A[Artifact revisions] --> Q[Fixed verifier or rubric]
+  Q --> P[Progress evidence or unknown]
+  D[DAG node receipts] --> T[Completion predicates and blockers]
+  T --> W[Terminal-state evidence]
+```
 
-### 3. Budget Overrun Creep
-**Symptom**: Continuing iterations despite budget exhaustion
-**Detection Rule**: If recommending CONTINUE but remaining budget ≤ 0
-**Diagnosis**: Ignoring hard budget constraints
-**Fix**: Always check budget before any CONTINUE recommendation; escalate when budget exhausted
+## 3. Stop, continue, or escalate by criterion
 
-### 4. Oscillation Misinterpretation
-**Symptom**: Treating quality oscillation as improvement trend
-**Detection Rule**: If last 4 iterations show alternating up/down pattern (variance > 0.1) but overall slope appears positive
-**Diagnosis**: Confusing noise for signal in trend analysis
-**Fix**: Use median smoothing over 3-point windows; detect oscillation patterns explicitly
+Stop only when the declared criterion is met and the responsible authority permits closure. Continue when a specified experiment or remediation is still justified by budget and policy. Escalate when evidence conflicts, the criterion is impossible to evaluate, the budget/authority boundary is reached, or the object has changed. State the alternative actions and what observation would resolve uncertainty.
 
-### 5. Goal Post Moving
-**Symptom**: Changing acceptance criteria mid-monitoring
-**Detection Rule**: If target or acceptable thresholds change after iteration 2
-**Diagnosis**: Unstable requirements causing inconsistent monitoring
-**Fix**: Lock thresholds at monitoring start; flag any requirement changes as escalation needed
+### Worked positive case
 
-## WORKED EXAMPLES
+An editorial DAG run `r7` produces artifact versions `v1`, `v2`, then `v3`. Its fixed lint-and-review verifier shows improvement, and `v3` passes the declared criteria with all required approvals present. Report success for `r7/output-v3` only; the failure of `v1` remains recorded. Repeated tuning used the development verifier; any final generalization claim needs fresh evaluation. Do not call this CRDT convergence.
 
-### Example 1: Normal Convergence to Target
-**Task**: Code review quality improvement
-**Goal**: Target 85%, acceptable 70%, max 6 iterations
+### Worked negative case
 
-Iteration 1: Quality 45% → Trend: insufficient data → CONTINUE
-Iteration 2: Quality 58% → Trend: +13% slope → CONTINUE  
-Iteration 3: Quality 71% → Trend: +13% slope, above acceptable → CONTINUE
-Iteration 4: Quality 82% → Trend: +12.3% slope, 1 iteration to target → CONTINUE
-Iteration 5: Quality 87% → Goal achieved, no blocking issues → ACCEPT
+Two CRDT replicas are quiet for ten minutes but their update-set digests differ. The monitor reports insufficient convergence evidence and requests reconciliation. It must not infer agreement from elapsed time, nor recommend a quality acceptance decision.
 
-**Expert insight**: After iteration 3, novice might accept at 71% (above acceptable), but expert sees strong trend and available budget, continues to target.
+## 4. Limits and sources
 
-### Example 2: Plateau Detection and Trade-off Analysis
-**Task**: Documentation completeness improvement  
-**Goal**: Target 90%, acceptable 75%, max 5 iterations
+Return object identity, claim kind, observations, criterion, decision, authority, known gaps, and next observation. Read [convergence claim types](references/convergence-claim-types.md). Cite [Jagadeesan and Riely (2018)](https://link.springer.com/chapter/10.1007/978-3-319-89884-1_34) for CRDT convergence scope and [Hellerstein and Alvaro (2020)](https://doi.org/10.1145/3369736) for coordination context. These sources do not supply a universal iteration budget, quality metric, or agent-consensus guarantee.
 
-Iteration 1: Quality 60% → CONTINUE
-Iteration 2: Quality 74% → Above acceptable → CONTINUE
-Iteration 3: Quality 76% → Minimal improvement, 2% slope → CONTINUE
-Iteration 4: Quality 76% → No improvement, variance 0.003 → Check plateau
-Iteration 5: Quality 77% → 3 iterations of <2% improvement → ESCALATE
 
-**Decision reasoning**: Plateau detected (variance < 0.01 for 3 iterations). Current 77% > acceptable 75% but < target 90%. Remaining improvement (13%) would require 6+ more iterations at current trend. → ESCALATE with trade-off: "Accept current 77% quality or extend budget for major restructuring"
-
-**Expert insight**: Novice might continue indefinitely hoping for breakthrough. Expert recognizes diminishing returns pattern and quantifies the trade-off.
-
-### Example 3: Unachievable Goal with Budget Pressure
-**Task**: Performance optimization
-**Goal**: Target 95% efficiency, acceptable 85%, max 4 iterations
-
-Iteration 1: Quality 70% → CONTINUE
-Iteration 2: Quality 78% → +8% slope → CONTINUE  
-Iteration 3: Quality 82% → +6% slope, declining acceleration → CONTINUE
-Iteration 4: Quality 84% → +2% slope, need 11% more for target → ESCALATE
-
-**Decision reasoning**: Need to reach 95% but only at 84% with declining improvement rate. At current 2% slope, would need 5.5 more iterations but budget exhausted. Below acceptable 85% by 1%. → ESCALATE: "Goal unachievable within budget. Options: (1) Accept 84% slightly below acceptable, (2) Extend budget significantly, (3) Revise target to 85%"
-
-## QUALITY GATES
-
-- [ ] Quality history contains at least 2 data points for trend analysis
-- [ ] Current quality score is measured and recorded with confidence level
-- [ ] Trend direction (improving/stable/declining) is calculated using regression slope
-- [ ] Plateau detection algorithm has run if 3+ iterations available  
-- [ ] Budget remaining is calculated and checked against estimates
-- [ ] Goal achievability assessment includes projected iterations needed
-- [ ] Recommendation (CONTINUE/ACCEPT/ESCALATE) is generated with reasoning
-- [ ] Confidence score for convergence prediction is between 0.3-0.9 (not overconfident)
-- [ ] All blocking issues are identified and counted in decision
-- [ ] Report includes specific next actions or escalation requirements
-
-## NOT-FOR BOUNDARIES
-
-**This skill should NOT be used for**:
-- **Detecting when to start iterations** → Use `dag-iteration-detector` instead
-- **Synthesizing feedback into metrics** → Use `dag-feedback-synthesizer` instead  
-- **Making iteration content decisions** → Use `dag-dynamic-replanner` instead
-- **Learning from convergence patterns** → Use `dag-pattern-learner` instead
-- **Real-time iteration execution** → This is for monitoring, not executing
-- **Setting initial quality goals** → Goals should be predetermined
-- **Micro-optimizations within single iteration** → Focus on macro iteration decisions
-
-**Delegate when**:
-- Iteration strategy needs changing → `dag-dynamic-replanner`
-- Pattern recognition needed → `dag-pattern-learner`  
-- Real-time feedback processing → `dag-feedback-synthesizer`
+Monitoring neither starts iterations nor synthesizes their feedback. Use
+`dag-iteration-detector` to decide when a loop is needed,
+`dag-feedback-synthesizer` for feedback measures, `dag-dynamic-replanner` for
+strategy changes, and `dag-pattern-learner` for historical analysis. Return a
+recommendation and evidence; the executor/owner retains action authority.

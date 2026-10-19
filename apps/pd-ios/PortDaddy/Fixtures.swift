@@ -31,6 +31,9 @@ public enum PortDaddyFixture: String, CaseIterable, Sendable {
     case interruptions = "interruptions.fixture"
     case maritimeSignals = "maritime-signals.fixture"
     case controlContract = "control-contract.fixture"
+    case agents = "agents.fixture"
+    case artifacts = "artifacts.fixture"
+    case ideas = "ideas.fixture"
 }
 
 public enum FixtureError: Error, CustomStringConvertible {
@@ -87,6 +90,18 @@ public enum PortDaddyFixtures {
 
     public static func interruptions() throws -> InterruptionListResponse {
         try decode(InterruptionListResponse.self, from: .interruptions)
+    }
+
+    public static func agents() throws -> AgentRoster {
+        try decode(AgentRoster.self, from: .agents)
+    }
+
+    public static func artifacts() throws -> ArtifactFeed {
+        try decode(ArtifactFeed.self, from: .artifacts)
+    }
+
+    public static func ideas() throws -> IdeasFeed {
+        try decode(IdeasFeed.self, from: .ideas)
     }
 }
 

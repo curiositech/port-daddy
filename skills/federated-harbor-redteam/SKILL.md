@@ -227,8 +227,8 @@ is detectable. If the paper does not commit to a witness
 mechanism, the smell is "no equivocation defense."
 
 **Artifact obligation.** ProVerif at
-`proofs/federated/equivocation/witness-cross-check.pv`
-(placeholder). Authenticity query: any two observers' accepted
+`proofs/federated/equivocation/witness-cross-check.pv` (placeholder).
+Authenticity query: any two observers' accepted
 tree-heads at epoch e are equal *or* a witness emitted a
 `Disagreement` event.
 

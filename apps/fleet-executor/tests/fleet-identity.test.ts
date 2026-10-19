@@ -11,7 +11,7 @@ import { classifyPrAuthorship, FLEET_BRANCH_PREFIXES } from '../src/fleet-identi
 
 const APP = 'port-daddy[bot]';
 
-describe('classifyPrAuthorship — the strong signal', () => {
+describe('classifyPrAuthorship — App identity and Fleet branch are both required', () => {
   it('recognizes the fleet App as fleet-authored', () => {
     const r = classifyPrAuthorship({
       authorLogin: APP,
@@ -20,7 +20,7 @@ describe('classifyPrAuthorship — the strong signal', () => {
       fleetAppLogin: APP,
     });
     expect(r.fleetAuthored).toBe(true);
-    expect(r.signal).toBe('app-identity');
+    expect(r.signal).toBe('app-and-branch');
     expect(r.branchMatches).toBe(true);
   });
 
@@ -31,19 +31,20 @@ describe('classifyPrAuthorship — the strong signal', () => {
       headRef: 'fleet/qa-pr-9-fix',
       fleetAppLogin: APP,
     });
-    expect(r.signal).toBe('app-identity');
+    expect(r.signal).toBe('app-and-branch');
   });
 
-  it('recognizes the App even on a non-fleet branch name', () => {
+  it('reviews an App-published non-Fleet branch because the App may be only the transport', () => {
     const r = classifyPrAuthorship({
       authorLogin: APP,
       authorType: 'Bot',
-      headRef: 'some/other-branch',
+      headRef: 'codex/fleet-pause-fail-closed-20260914',
       fleetAppLogin: APP,
     });
-    expect(r.fleetAuthored).toBe(true);
-    expect(r.signal).toBe('app-identity');
+    expect(r.fleetAuthored).toBe(false);
+    expect(r.signal).toBe('none');
     expect(r.branchMatches).toBe(false);
+    expect(r.reason).toContain('publication transport, not authorship');
   });
 });
 
@@ -82,17 +83,17 @@ describe('classifyPrAuthorship — a branch name is never enough', () => {
   });
 });
 
-describe('classifyPrAuthorship — the weak signal is labelled weak', () => {
-  it('accepts bot + fleet branch when the App login is unresolvable, but marks it weak', () => {
+describe('classifyPrAuthorship — unresolved identity fails toward review', () => {
+  it('reviews bot + Fleet branch when the App login is unresolvable', () => {
     const r = classifyPrAuthorship({
       authorLogin: 'port-daddy[bot]',
       authorType: 'Bot',
       headRef: 'purser/pr-4763-tests',
       fleetAppLogin: null,
     });
-    expect(r.fleetAuthored).toBe(true);
-    expect(r.signal).toBe('bot-and-branch');
-    expect(r.reason).toContain('WEAK');
+    expect(r.fleetAuthored).toBe(false);
+    expect(r.signal).toBe('none');
+    expect(r.reason).toContain('review is required');
   });
 
   it('refuses a bot on a non-fleet branch when the App login is unresolvable', () => {

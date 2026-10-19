@@ -22,6 +22,9 @@ const mockWriteFileSync = jest.fn();
 const mockMkdirSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
+  accessSync: jest.fn(),
+  constants: { R_OK: 4, X_OK: 1 },
+  lstatSync: jest.fn(),
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
   writeFileSync: mockWriteFileSync,
@@ -83,7 +86,10 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner: createFleetRunnerBase, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+function createFleetRunner(config, projectDir, options = {}) {
+  return createFleetRunnerBase(config, projectDir, { runtimeAllowed: () => true, ...options });
+}
 const { parseFleetSource, astToConfig } = await import('../../lib/fleet-ast.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { resolveModel } = await import('../../lib/model-registry.js');
@@ -193,6 +199,81 @@ afterEach(() => {
   delete process.env.PD_FLEET_DEFAULT_BACKEND;
   delete process.env.PD_FLEET_DEFAULT_MODEL;
   delete process.env.PD_MODEL_TIER_CLAUDE_CLI_LOW;
+});
+
+describe('local Off at Fleet execution boundaries', () => {
+  test('retains a failed late-trigger cleanup handle and reports retry failure', async () => {
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    const stop = jest.fn().mockRejectedValue(new Error('synthetic stop failure'));
+    const source = jest.spyOn(IoDispatch.prototype, 'startTrigger').mockResolvedValue({
+      started: false, reason: 'Off; late trigger cleanup failed', cleanupHandle: { stop },
+    });
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const config = makeConfig({ trigger: 'file:changed(path:/fixture/project)' });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => true });
+    try {
+      runner.startAgent(config.agents[0]);
+      await runner.whenTriggersReady();
+      expect(source).toHaveBeenCalledTimes(1);
+      expect(stop).not.toHaveBeenCalled();
+      runner.stopAll();
+      await Promise.resolve();
+      expect(stop).toHaveBeenCalledTimes(1);
+      expect(errors).toHaveBeenCalledWith(expect.stringContaining('shutdown remains unverified'), expect.stringContaining('synthetic stop failure'));
+    } finally {
+      runner.stopAll();
+      source.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
+  test('a completion received after Off does not dispatch declared outputs', async () => {
+    let allowed = true;
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    const outputs = jest.spyOn(IoDispatch.prototype, 'dispatchOutputs').mockResolvedValue([]);
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => {
+      allowed = false;
+      return { agentId: 'fixture-agent', status: 'spawned' };
+    } });
+    const config = makeConfig({ backend: 'cli:codex', outputs: ['file:fixture'] });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => allowed });
+    try {
+      await runner.hailAgent(config.agents[0].name);
+      expect(global.fetch).toHaveBeenCalled();
+      expect(outputs).not.toHaveBeenCalled();
+    } finally {
+      runner.stopAll();
+      outputs.mockRestore();
+    }
+  });
+
+  test('Off prevents both automatic start and manual hail', async () => {
+    const runner = createFleetRunner(makeConfig(), '/fixture/project', { runtimeAllowed: () => false });
+    runner.startAll();
+    const result = await runner.hailAgent('test-agent');
+    expect(result.success).toBe(false);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    runner.stopAll();
+  });
+
+  test('Off pressed while queued for a permit releases it without spawn', async () => {
+    let allowed = true;
+    let grant;
+    const release = jest.fn();
+    const acquire = jest.fn(() => new Promise((resolve) => { grant = resolve; }));
+    const config = makeConfig({ backend: 'cli:codex' });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => allowed, acquirePermit: acquire });
+    const outcome = runner.hailAgent(config.agents[0].name);
+    expect(acquire).toHaveBeenCalledTimes(1);
+    allowed = false;
+    grant(release);
+    expect((await outcome).success).toBe(false);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+    runner.stopAll();
+  });
 });
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────

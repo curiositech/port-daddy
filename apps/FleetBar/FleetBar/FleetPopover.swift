@@ -122,6 +122,8 @@ struct FleetPopover: View {
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            LocalOffSection(compact: true)
+            Divider().opacity(0.5)
             // HITL first: operator interruptions (docs/hitl-interruptions.md §4)
             // and spawns held by the trust gate lead everything else in the
             // dropdown — a pending human gate is unmissable.

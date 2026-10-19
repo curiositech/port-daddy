@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { readRetiredDocument } from '../helpers/omni-retired-source.js';
 
-const content = readFileSync(
-  new URL('../../docs/roadmap/whitepaper-research-program.md', import.meta.url),
-  'utf8',
-);
+const content = readRetiredDocument('docs/roadmap/whitepaper-research-program.md');
 const heading = '### Publication receipt contract';
 const start = content.indexOf(heading);
 const nextHeading = content.indexOf('\n### ', start + heading.length);

@@ -1,0 +1,85 @@
+% Brief (tikz-diagram-craft).
+% Reader question: which instrument does which job, and why can one token
+%   not do all four?
+% Claim: Payment compensates delivered labour; Collateral bonds and prices
+%   bounded failure; Evidence proves completion cryptographically; Settlement
+%   closes the obligation atomically, and Settlement is the only instrument
+%   that touches the other three.
+% Evidence: chapter-0-prerequisites.tex, Proposition 6 paragraph -- the
+%   contractor posts collateral C >= V(risk), produces evidence E, and only
+%   when E satisfies the verifier contract does settlement S execute,
+%   disbursing payment P and returning collateral C. [internal]
+% Must distinguish: four separate instruments, one shared actor (the
+%   contractor) for three of them, and the single convergence point where
+%   all three meet settlement.
+% Grammar: a four-column grid (one instrument per column, three rows of
+%   facts per column) with three converging arrows into the settlement
+%   column -- the convergence IS the "only settlement touches all three"
+%   claim. Rejected: the four-card infographic with person icons, a safe, a
+%   terminal window and a warning triangle, none of which distinguishes an
+%   instrument from an icon of one, and none of which can show convergence
+%   without a paragraph of prose underneath it.
+% Five-second test: "three gold/teal lines run into the fourth box; nothing
+%   runs between the first three."
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\cw{3.15}   % column (card) width
+  \def\cg{0.55}   % gutter between columns
+  \def\x0{0.15}   % left margin
+  \def\yTitle{8.55}
+  \def\yKind{8.05}
+  \def\yParty{7.55}
+  \def\yArt{6.05}    % artifact box centre
+  \def\yOut{4.55}    % outcome text centre
+  \def\yCP{2.55}     % the convergence point, below the grid
+  \def\yNote{1.15}
+  % column i (1..4) centre: \x0 + (i-1)*(\cw+\cg) + \cw/2
+  \pgfmathsetmacro{\cxA}{\x0+0*(\cw+\cg)+0.5*\cw}
+  \pgfmathsetmacro{\cxB}{\x0+1*(\cw+\cg)+0.5*\cw}
+  \pgfmathsetmacro{\cxC}{\x0+2*(\cw+\cg)+0.5*\cw}
+  \pgfmathsetmacro{\sx}{\x0+3*(\cw+\cg)+0.5*\cw}
+  % ---- 1. payment (pd value): compensates delivered labor ----------------
+  \node[pd title] at (\cxA,\yTitle) {1. Payment};
+  \node[pd kind] at (\cxA,\yKind) {compensates labor};
+  \node[pd label] at (\cxA,\yParty) {contractor};
+  \node[pd value state,text width=2.75cm,minimum height=1.35cm] (art-pay)
+    at (\cxA,\yArt) {tokens / fiat $P$};
+  \node[pd label,text width=2.75cm] (out-pay) at (\cxA,\yOut) {paid on delivery};
+  \draw[pd value arrow] (art-pay.south) -- (out-pay.north);
+  \draw[pd value arrow] (out-pay.south) -- (\sx,\yCP);
+  % ---- 2. collateral (pd value): bonds and prices bounded failure --------
+  \node[pd title] at (\cxB,\yTitle) {2. Collateral};
+  \node[pd kind] at (\cxB,\yKind) {bonds failure};
+  \node[pd label] at (\cxB,\yParty) {contractor};
+  \node[pd value state,text width=2.75cm,minimum height=1.35cm] (art-col)
+    at (\cxB,\yArt) {bond $C \ge \mathcal{V}(\text{risk})$};
+  \node[pd label,text width=2.75cm] (out-col) at (\cxB,\yOut) {escrowed, slashable};
+  \draw[pd value arrow] (art-col.south) -- (out-col.north);
+  \draw[pd value arrow] (out-col.south) -- (\sx,\yCP);
+  % ---- 3. evidence (pd legible): proves completion cryptographically -----
+  \node[pd title] at (\cxC,\yTitle) {3. Evidence};
+  \node[pd kind] at (\cxC,\yKind) {proves completion};
+  \node[pd label] at (\cxC,\yParty) {contractor};
+  \node[pd legible state,text width=2.75cm,minimum height=1.35cm] (art-evi)
+    at (\cxC,\yArt) {hash chain \& trace $\mathcal{E}$};
+  \node[pd label,text width=2.75cm] (out-evi) at (\cxC,\yOut) {checked, not assumed};
+  \draw[pd legible arrow] (art-evi.south) -- (out-evi.north);
+  \draw[pd legible arrow] (out-evi.south) -- (\sx,\yCP);
+  % the convergence: every instrument's outcome feeds settlement, and
+  % nothing here feeds any OTHER instrument -- that is the separation.
+  % ---- settlement: the one instrument the other three converge on --------
+  \node[pd title] at (\sx,\yTitle) {4. Settlement};
+  \node[pd kind] at (\sx,\yKind) {closes obligation};
+  \node[pd label] at (\sx,\yParty) {both parties};
+  \node[pd climax state,text width=2.75cm,minimum height=1.9cm] (art-settle)
+    at (\sx,{(\yArt+\yOut)/2}) {pays $P$, returns $C$\\[2pt]
+      {\pdfigsub only once $\mathcal{E}$ clears}};
+  \draw[pd focus arrow,line width=1.6pt] (\sx,\yCP) -- (art-settle.south);
+  \node[pd tag,anchor=north,text width=3.4cm,align=center] at (\sx,{\yCP-0.18})
+    {the only instrument touching the other three};
+  % ---- the hazard: conflating the four into one token or score ----------
+  \node[pd note,anchor=north west,text width=13.6cm] at (\x0,\yNote)
+    {Conflating these four instruments into a single token or score
+     creates adverse selection and moral hazard (Prop.~6).};
+\end{tikzpicture}

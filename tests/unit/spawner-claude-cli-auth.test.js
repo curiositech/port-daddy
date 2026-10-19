@@ -14,6 +14,7 @@
  */
 
 import { jest } from '@jest/globals';
+import * as realFs from 'node:fs';
 
 // ---------------------------------------------------------------------------
 // Mock node:fs — provide a .env.local containing ANTHROPIC_API_KEY
@@ -39,6 +40,7 @@ const mockReaddirSync = jest.fn((p) => (
 ));
 
 jest.unstable_mockModule('node:fs', () => ({
+  ...realFs,
   existsSync:    mockExistsSync,
   accessSync:    mockAccessSync,
   constants:     { X_OK: 1 },
@@ -91,6 +93,7 @@ function createSpawner(deps = {}) {
   }
   return createSpawnerBase({
     ...deps,
+    runtimeAllowed: deps.runtimeAllowed ?? (() => true),
     enforceTelemetryPolicy: false,
     enforceTranscriptPolicy: deps.enforceTranscriptPolicy ?? false,
     telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,

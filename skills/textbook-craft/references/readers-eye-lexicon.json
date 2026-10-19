@@ -1,0 +1,116 @@
+{
+  "$comment": "Data file for skills/textbook-craft/scripts/readers_eye.py (Layer 1). Edit this, not the script: the script carries no prose judgements and no word lists inline. Same separation as skills/make_copy_and_media_human/references/catalog.json, which keeps its tells in JSON and its measurements in Python.",
+  "version": 1,
+  "figurative_domains": {
+    "$comment": "A metaphor is a word borrowed from another domain. Two borrowings from two different domains in one paragraph, with nothing defined, is the shape of prose a reader cannot follow: each figure asks the reader to carry an analogy, and no analogy is ever cashed. The lists below are deliberately SMALL and deliberately curated against THIS Book's literal vocabulary -- see excluded_because_literal. A term earns its place only if, in a book about daemons and SQLite files, its appearance is almost always figurative.",
+    "anatomy": [
+      "organ", "organs", "connective tissue", "tissue", "bloodstream",
+      "nervous system", "skeleton", "skeletal", "sinew", "ligament",
+      "vertebra", "limb", "limbs", "artery", "arteries", "capillary",
+      "membrane", "anatomy", "anatomical", "viscera", "ribcage", "marrow",
+      "cartilage", "musculature"
+    ],
+    "medicine": [
+      "symptom", "symptoms", "symptomatic", "pathology", "pathological",
+      "disease", "contagion", "contagious", "prognosis", "convalescence",
+      "autopsy", "surgical", "surgery", "inoculate", "inoculation",
+      "anaesthetic", "anesthetic", "palliative", "haemorrhage", "hemorrhage"
+    ],
+    "architecture": [
+      "scaffold", "scaffolding", "pillar", "pillars", "cornerstone",
+      "buttress", "girder", "masonry", "blueprint", "storey", "facade",
+      "keystone", "lintel", "edifice", "plinth", "ceiling", "the floor",
+      "rafters", "foundation stone"
+    ],
+    "warfare": [
+      "siege", "besiege", "battlefield", "arsenal", "frontline",
+      "front line", "salvo", "flank", "flanking", "trench", "ammunition",
+      "war chest", "beachhead", "skirmish", "garrison", "fortify",
+      "fortification", "rampart", "phalanx", "bulwark", "sentry",
+      "war footing", "conscript"
+    ],
+    "theatre": [
+      "backstage", "understudy", "spotlight", "choreograph", "choreography",
+      "dress rehearsal", "proscenium", "soliloquy", "playbill", "stagecraft",
+      "greasepaint", "in the wings", "curtain"
+    ],
+    "geology": [
+      "bedrock", "sediment", "sedimentary", "tectonic", "fault line",
+      "erosion", "erode", "strata", "stratum", "seismic", "magma",
+      "outcrop", "silt"
+    ],
+    "nautical_figurative": [
+      "keel", "bilge", "flotsam", "jetsam", "rigging", "mainmast",
+      "gunwale", "ballast", "scuttle", "capsize", "shipwreck", "lifeboat",
+      "tiller", "becalmed", "cast off"
+    ]
+  },
+  "excluded_because_literal": {
+    "$comment": "Words that ARE metaphors in ordinary English but are literal house vocabulary in this Book, so including them would make the collision rule fire on nearly every paragraph and the check would be thrown away. This list is the record of what precision cost us; every entry here is a recall loss the judge pass (Layer 2) is expected to cover.",
+    "nautical_house_vocabulary": [
+      "harbor", "harbour", "port", "anchor", "berth", "dock", "moor",
+      "mooring", "bosun", "pilot", "watch", "manifest", "charter",
+      "captain", "crew", "voyage", "helm", "beacon", "buoy", "signal",
+      "flag", "lighthouse", "quay", "wharf", "cargo", "freight"
+    ],
+    "security_and_systems": [
+      "attack", "adversary", "threat", "defense", "defence", "breach",
+      "guard", "monitor", "kill", "daemon", "demon", "spawn", "zombie",
+      "orphan", "parent", "child", "inherit", "ancestry", "lineage",
+      "heartbeat", "handshake", "quarantine", "triage", "diagnosis",
+      "diagnostic", "immune", "infection", "virus", "memory", "bus"
+    ],
+    "economics_is_a_whole_part_of_this_book": [
+      "market", "currency", "credit", "debt", "bond", "escrow", "price",
+      "settlement", "auction", "broker", "bankrupt", "dividend", "rent"
+    ],
+    "moral_character": {
+      "$comment": "'discipline', 'integrity', 'honesty', 'obligation', 'commitment' are all moral-character borrowings AND all literal house terms in this Book (the honesty ledger, the commitments table, data integrity). 'tables with discipline' in the specimen paragraph is a real fifth metaphor and Layer 1 cannot see it without also firing on the commitments table. It is pushed to the judge.",
+      "terms": ["discipline", "integrity", "honesty", "virtue", "conscience", "penance", "absolution"]
+    }
+  },
+  "definition_anchors": {
+    "$comment": "A paragraph that borrows from two domains is fine if it stops and says what the borrowed word means. These are the shapes a definition takes in this Book; a paragraph containing any of them is exempt from the metaphor-collision rule. Note that an appositive ('each a contract the daemon must hold') is deliberately NOT here: the specimen has one, and it is still unreadable, because an appositive defines the word and then abandons it.",
+    "macros": ["pdgloss", "pddefine", "pdterm"],
+    "environments": ["definition", "pddefinition"],
+    "phrases": [
+      "we define",
+      "is defined as",
+      "we call ",
+      "by which we mean",
+      "that is to say,",
+      "in other words,",
+      "concretely,",
+      "\\emph{means}",
+      "throughout this chapter,",
+      "that is: "
+    ]
+  },
+  "slash_pair_allowlist": {
+    "$comment": "word/word pairs that are established technical compounds, not house coinages. Only pairs whose BOTH sides are >= 6 characters need to be listed: the rule ignores shorter pairs (read/write, key/value, and/or, TCP/IP) outright, because a short pair is almost never a coinage and the length floor buys more precision than an ever-growing allowlist would.",
+    "pairs": [
+      "client/server", "publish/subscribe", "request/response",
+      "producer/consumer", "reader/writer", "writer/reader",
+      "leader/follower", "primary/replica", "encrypt/decrypt",
+      "serialize/deserialize", "marshal/unmarshal", "commit/rollback",
+      "online/offline", "synchronous/asynchronous", "liveness/safety",
+      "safety/liveness", "permission/prohibition", "before/after",
+      "hardware/operating", "checkpoint/restore", "serializable/linearizable",
+      "commit/abort", "encode/decode", "import/export"
+    ],
+    "$added_from_corpus_run": "hardware/operating (from 'the hardware/operating-system boundary'), checkpoint/restore (CRIU's own name for itself) and serializable/linearizable (Herlihy and Wing's pairing) were the false positives the first corpus run produced. Each is an established compound a systems reader already owns, which is exactly the allowlist's criterion."
+  },
+  "artifact_register": {
+    "$comment": "The eight sources are chapters of a Book that are also standalone papers, so 'this paper' is correct inside an \\ifpdbook else-branch and wrong everywhere else. The rule skips else-branches for exactly that reason. Deictic self-reference only: 'the legibility paper', 'a systems paper', 'Lamport's 1978 paper' all name some other artifact and are none of the check's business.",
+    "deictic_self_reference": [
+      "this paper",
+      "these papers",
+      "the paper's",
+      "the paper’s",
+      "our paper",
+      "the present paper",
+      "this article"
+    ],
+    "book_word": "chapter"
+  }
+}

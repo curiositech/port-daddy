@@ -4,9 +4,14 @@ import { writeSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
+import os from 'node:os';
 import { syncBuiltinESMExports } from 'node:module';
 
 const mode = process.env.SALVAGE_FIXTURE_MODE;
+if (!process.env.SALVAGE_FIXTURE_HOME) throw new Error('Explicit fixture control root required');
+// Bind the filesystem observer only inside this preloaded fake-transport test.
+// Never change HOME or read the operator's actual control files.
+os.homedir = () => process.env.SALVAGE_FIXTURE_HOME;
 if (!['two', 'full-page', 'reject', 'http-error', 'invalid-json', 'empty', 'abort'].includes(mode)) {
   throw new Error('Explicit salvage fixture mode required');
 }

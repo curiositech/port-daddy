@@ -202,12 +202,16 @@ pub enum ControlMsg {
     OpenEditor {
         path: String,
         region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef,
+        snapshot: Vec<u8>,
+        viewer_peer: crate::buffer::PeerId,
     },
     /// One accepted foreground keystroke as the exact incremental Loro delta,
     /// plus its resulting caret/selection. The producer imports this frame into
     /// its live-lane mirror and broadcasts it; it never recreates the edit.
     EditorLocalChange {
         path: String,
+        document: crate::editor_sync::DocumentRef,
         frame: Option<String>,
         presence: PresenceState,
     },
@@ -219,6 +223,7 @@ pub enum ControlMsg {
 #[derive(Debug, Clone)]
 pub struct EditorUpdate {
     pub path: String,
+    pub document: crate::editor_sync::DocumentRef,
     pub blocks: Vec<Block>,
     pub remote_frames: Vec<String>,
 }
@@ -1842,7 +1847,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .cursor_pointer()
                 .hover(|surface| surface.bg(rgb(current_theme().raised)))
                 .on_click(move |_event, _window, _cx| {
-                    let _ = std::process::Command::new("open").arg(&target).spawn();
+                    if crate::local_control::ensure_allowed().is_ok() {
+                        let _ = std::process::Command::new("open").arg(&target).spawn();
+                    }
                 })
                 .child(
                     div()
@@ -2204,8 +2211,10 @@ pub struct ConsoleView {
     /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
     /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
     /// static file re-read that never saw the collaboration lanes.
-    editor_blocks: Option<(String, Vec<Block>)>,
+    editor_blocks: Option<(crate::editor_sync::DocumentRef, Vec<Block>)>,
     daemon_url: String,
+    local_control: crate::local_control::State,
+    local_off_receipt: Option<String>,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
     /// Stable focus handle — created once and focused on open. Recreating it per
@@ -2346,6 +2355,7 @@ struct EditorSurfaceState {
     show_blame: bool,
     blame: EditorBlameState,
     blame_rx: Option<mpsc::Receiver<std::result::Result<Vec<crate::git_blame::BlameLine>, String>>>,
+    save_rx: Option<mpsc::Receiver<crate::editor_pane::SaveCompletion>>,
 }
 
 #[derive(Clone)]
@@ -2364,6 +2374,7 @@ struct EditorRenderOptions {
     blame: Option<std::sync::Arc<[crate::git_blame::BlameLine]>>,
     blame_status: String,
     syntax_label: String,
+    save_status: String,
     viewport_width: Option<f32>,
 }
 
@@ -2443,6 +2454,7 @@ fn editor_surface_state(
         show_blame: false,
         blame: EditorBlameState::Off,
         blame_rx: None,
+        save_rx: None,
     }
 }
 
@@ -2603,6 +2615,11 @@ impl ConsoleView {
         shell: ShellTerminal,
         cx: &mut Context<Self>,
     ) -> Self {
+        let local_control = crate::local_control::current_state();
+        let disconnected = !local_control.allows_effects() || daemon_url.is_empty();
+        let local_off_receipt = (!local_control.allows_effects()).then(|| format!(
+            "{} This console admits no new requests or shell input. Already running services, detached children and remote effects are not verified stopped; hosted settings are unchanged.", local_control.detail()
+        ));
         // Initialize one slot per NAV entry with a "connecting…" placeholder
         let pane_blocks = NAV
             .iter()
@@ -2626,6 +2643,8 @@ impl ConsoleView {
             pane_blocks,
             editor_blocks: None,
             daemon_url,
+            local_control,
+            local_off_receipt,
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
@@ -2656,7 +2675,7 @@ impl ConsoleView {
             // Flipped true once the first pane refresh lands (see update_panes).
             // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
             // lives in render()'s gate, not here.
-            booted: false,
+            booted: disconnected,
             daemon_connected: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
@@ -2725,6 +2744,45 @@ impl ConsoleView {
         }
     }
 
+    /// The 500ms foreground consumer calls this even when no unrelated pane
+    /// update arrives; a completed disk write must leave the SAVING state.
+    pub fn poll_editor_saves(&mut self) -> bool {
+        let mut changed = false;
+        let mut save_error = None;
+        for state in self.editors.values_mut() {
+            let received = state.save_rx.as_ref().map(mpsc::Receiver::try_recv);
+            match received {
+                Some(Ok(completion)) => {
+                    let verified_only = completion.is_verification();
+                    match state.pane.complete_save(completion) {
+                        Ok(()) if verified_only => {
+                            self.control_flash = Some("Local file matched at check".into());
+                        }
+                        Ok(()) if state.pane.save_status() == "UNSAVED LOCAL" => {
+                            self.control_flash = Some("Earlier revision saved; newer edits remain".into());
+                        }
+                        Ok(()) => self.control_flash = Some("Saved local file".into()),
+                        Err(reason) => save_error = Some(reason),
+                    }
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Disconnected)) => {
+                    let reason = "editor save worker stopped before returning a result".to_string();
+                    state.pane.fail_save_worker(reason.clone());
+                    save_error = Some(reason);
+                    state.save_rx = None;
+                    changed = true;
+                }
+                Some(Err(mpsc::TryRecvError::Empty)) | None => {}
+            }
+        }
+        if let Some(reason) = save_error {
+            self.control_flash = Some(format!("Editor save refused: {reason}"));
+        }
+        changed
+    }
+
     /// The opening layout: a fleet overview beside a stacked agent-lane /
     /// roadmap column — proof of multiplex on first launch. `initial` (if a
     /// known nav id) becomes the focused pane's surface.
@@ -2738,6 +2796,36 @@ impl ConsoleView {
     // ── Active-tab accessors ─────────────────────────────────────────────────
     fn ws(&self) -> &Workspace {
         &self.tabs[self.active_tab].workspace
+    }
+
+    pub fn refresh_local_control(&mut self) -> bool {
+        let state = crate::local_control::current_state();
+        if state == self.local_control { return false; }
+        if !state.allows_effects() {
+            self.daemon_connected = false;
+            self.booted = true;
+            if let Err(error) = self.shell.stop_for_local_off() {
+                self.local_off_receipt = Some(format!("Local Off blocks new work. Owned shell stop failed: {error}. Other process shutdown is unverified."));
+            }
+        }
+        self.local_control = state;
+        true
+    }
+
+    fn turn_local_off(&mut self, cx: &mut Context<Self>) {
+        let persisted = crate::local_control::turn_off();
+        let shell_result = self.shell.stop_for_local_off();
+        self.local_control = crate::local_control::current_state();
+        self.daemon_connected = false;
+        self.booted = true;
+        self.local_off_receipt = Some(match persisted {
+            Ok(()) => "Local Off saved. No new console requests or shell input. Already running services, detached children and remote effects are not verified stopped. Hosted account/global settings are unchanged.".into(),
+            Err(error) => format!("This console is blocked, but saving persistent Off failed: {error}. Do not assume restart protection or process shutdown."),
+        });
+        if let Err(error) = shell_result {
+            self.local_off_receipt.as_mut().unwrap().push_str(&format!(" Owned shell termination failed: {error}."));
+        }
+        cx.notify();
     }
     fn ws_mut(&mut self) -> &mut Workspace {
         &mut self.tabs[self.active_tab].workspace
@@ -2759,7 +2847,14 @@ impl ConsoleView {
             placement,
         )?;
         if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+            if let Some(state) = self.editors.get(&editor_key(&path, region)) {
+                if let Some(snapshot) = state.pane.snapshot_blob() {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path, region, document: state.pane.document().clone(), snapshot,
+                        viewer_peer: state.pane.buffer().expect("snapshot requires buffer").local_peer(),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -2814,8 +2909,10 @@ impl ConsoleView {
         let live_failed = self
             .editor_blocks
             .as_ref()
-            .is_some_and(|(live_path, blocks)| {
-                live_path == path && editor_error_from_blocks(blocks).is_some()
+            .is_some_and(|(document, blocks)| {
+                self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document)
+                    && editor_error_from_blocks(blocks).is_some()
             });
         (local_failed || live_failed).then(|| path.clone())
     }
@@ -2953,8 +3050,9 @@ impl ConsoleView {
             // no live snapshot has landed yet — or it's for a different file — fall back
             // to the persistent `self.editors` state (opened once by
             // `ensure_editor_states`) so the surface still renders honestly.
-            if let Some((live_path, blocks)) = &self.editor_blocks {
-                if live_path == path {
+            if let Some((document, blocks)) = &self.editor_blocks {
+                if self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document) {
                     return blocks.clone();
                 }
             }
@@ -3309,7 +3407,7 @@ impl ConsoleView {
                     invalidate_editor_blame(state);
                     let presence = Self::presence_for_editor(state, &after);
                     state.pane.set_local_presence(presence);
-                    Ok((state.pane.path_str().to_string(), frame, presence))
+                    Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
                 }
                 Err(reason) => {
                     state.input = prior_input;
@@ -3318,21 +3416,83 @@ impl ConsoleView {
             }
         };
 
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    fn save_focused_editor(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else { return false; };
+        let Some(state) = self.editors.get_mut(&key) else { return false; };
+        match state.pane.prepare_save() {
+            Ok(request) => {
+                let checking = request.is_verification();
+                let (tx, rx) = mpsc::channel();
+                state.save_rx = Some(rx);
+                std::thread::spawn(move || { let _ = tx.send(request.run()); });
+                self.control_flash = Some(if checking { "Checking local file…" } else { "Saving local file…" }.into());
+            }
+            Err(reason) => self.control_flash = Some(reason),
+        }
+        cx.notify();
+        true
+    }
+
+    fn apply_focused_editor_history(
+        &mut self,
+        direction: crate::buffer::HistoryDirection,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let Some(state) = self.editors.get_mut(&key) else {
+            return false;
+        };
+        let outcome = match state.pane.apply_history(direction, &mut state.input) {
+            Ok(Some(frame)) => {
+                let after = state.pane.text().unwrap_or_default();
+                invalidate_editor_blame(state);
+                let presence = Self::presence_for_editor(state, &after);
+                state.pane.set_local_presence(presence);
+                Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
+            }
+            Ok(None) => {
+                self.control_flash = Some(match direction {
+                    crate::buffer::HistoryDirection::Undo => "Nothing local to undo",
+                    crate::buffer::HistoryDirection::Redo => "Nothing local to redo",
+                }.into());
+                cx.notify();
+                return true;
+            }
+            Err(reason) => Err(reason),
+        };
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    /// Typing and history share one repaint/mirror path. An undo is a newly
+    /// authored CRDT operation, not a foreground-only visual rollback.
+    fn finish_editor_change(
+        &mut self,
+        outcome: Result<(String, crate::editor_sync::DocumentRef, String, PresenceState), String>,
+        cx: &mut Context<Self>,
+    ) {
         match outcome {
-            Ok((path, frame, presence)) => {
+            Ok((path, document, frame, presence)) => {
                 // The foreground buffer paints the keystroke immediately. The
                 // producer's collaboration Blocks return after importing this
                 // exact delta; until then they must not cover the newer local view.
                 if self
                     .editor_blocks
                     .as_ref()
-                    .is_some_and(|(live_path, _)| live_path == &path)
+                    .is_some_and(|(live_document, _)| live_document == &document)
                 {
                     self.editor_blocks = None;
                 }
                 if let Some(tx) = &self.control_tx {
                     let _ = tx.send(ControlMsg::EditorLocalChange {
                         path,
+                        document,
                         frame: Some(frame),
                         presence,
                     });
@@ -3344,7 +3504,6 @@ impl ConsoleView {
             }
         }
         cx.notify();
-        true
     }
 
     fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
@@ -3364,11 +3523,12 @@ impl ConsoleView {
             update(&mut state.input, &text);
             let presence = Self::presence_for_editor(state, &text);
             state.pane.set_local_presence(presence);
-            (state.pane.path_str().to_string(), presence)
+            (state.pane.path_str().to_string(), presence, state.pane.document().clone())
         };
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::EditorLocalChange {
                 path: change.0,
+                document: change.2,
                 frame: None,
                 presence: change.1,
             });
@@ -3384,6 +3544,20 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        let save_primary = if cfg!(target_os = "macos") {
+            modifiers.platform && !modifiers.control
+        } else {
+            modifiers.control && !modifiers.platform
+        };
+        if key == "s" && save_primary && !modifiers.alt && !modifiers.shift {
+            return self.save_focused_editor(cx);
+        }
+        if let Some(direction) = crate::editor_input::history_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.apply_focused_editor_history(direction, cx);
+        }
         match key {
             "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
             "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
@@ -4250,6 +4424,9 @@ impl ConsoleView {
     pub fn handle_script(&mut self, req: crate::script::ScriptRequest) -> serde_json::Value {
         use crate::script::{alert_to_json, block_to_json, ScriptRequest};
         use serde_json::json;
+        if let Err(error) = crate::local_control::ensure_allowed() {
+            return json!({"ok": false, "error": error.to_string()});
+        }
         match req {
             ScriptRequest::Ping => json!({
                 "ok": true,
@@ -4611,16 +4788,16 @@ impl ConsoleView {
     pub fn apply_editor_update(&mut self, update: EditorUpdate) {
         for frame in &update.remote_frames {
             for state in self.editors.values_mut() {
-                if state.pane.path_str() == update.path {
-                    let _ = state.pane.ingest_frame(frame);
-                    if let Some(text) = state.pane.text() {
-                        state.input.reconcile(&text);
+                if state.pane.document() == &update.document {
+                    if state.pane.ingest_preserving_selection(frame, &mut state.input) {
+                        invalidate_editor_blame(state);
                     }
-                    invalidate_editor_blame(state);
                 }
             }
         }
-        self.editor_blocks = Some((update.path, update.blocks));
+        if self.editors.values().any(|state| state.pane.document() == &update.document) {
+            self.editor_blocks = Some((update.document, update.blocks));
+        }
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -4787,6 +4964,7 @@ impl ConsoleView {
                         blame,
                         blame_status,
                         syntax_label: crate::syntax::lang_for_path(path).label().to_string(),
+                        save_status: state.pane.save_status(),
                         viewport_width: state
                             .input_bounds
                             .map(|bounds| f32::from(bounds.size.width)),
@@ -7919,6 +8097,7 @@ fn render_editor_toolbar(
 ) -> AnyElement {
     let t = current_theme();
     let wrap_key = editor_key.clone();
+    let save_key = editor_key.clone();
     let blame_key = editor_key;
     let wrap_on = options.wrap_lines;
     let blame_on = options.show_blame;
@@ -7950,6 +8129,24 @@ fn render_editor_toolbar(
             "COLUMN REPLICA"
         }))
         .child(div().flex_1())
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-save-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(t.line))
+                .text_color(rgb(t.ink2))
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.focused_editor_key().as_deref() == Some(save_key.as_str()) {
+                        this.save_focused_editor(cx);
+                    }
+                }))
+                .child(options.save_status.clone()),
+        )
         .child(
             div()
                 .id(SharedString::from(format!("editor-wrap-toggle-{id}")))
@@ -9194,6 +9391,27 @@ fn render_shell_drawer(
 
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if crate::local_control::inspection_mode() {
+            // Deliberately separate from the live pane tree: no editor reads,
+            // action callbacks, launch affordances, or misleading stale data.
+            return div()
+                .size_full()
+                .flex().flex_col().items_center().justify_center()
+                .gap(px(18.0)).p(px(40.0))
+                .bg(rgb(current_theme().panel))
+                .text_color(rgb(current_theme().ink2))
+                .child(div().text_size(px(32.0)).font_weight(FontWeight::BOLD)
+                    .child("INSPECTION MODE"))
+                .child(div().text_size(px(17.0)).font_weight(FontWeight::SEMIBOLD)
+                    .child("This console is sealed from Port Daddy automation."))
+                .child(div().text_size(px(15.0))
+                    .child("No daemon discovery or connection, refresh worker, shell, scripting socket, or agent request is started by this window."))
+                .child(div().text_size(px(15.0))
+                    .child("Host daemon absence: UNKNOWN. Future starts by launchd, Bosun, another app, or another user: NOT PREVENTED."))
+                .child(div().text_size(px(14.0))
+                    .child("The local HALT marker is cooperative control. This window provides no host-wide Verified Off claim."))
+                .into_any_element();
+        }
         // Persistent editor state for every open Editor surface — created once
         // per file here (the only `&mut self` point before the tree renders),
         // NEVER inside render_leaf (the old per-frame construct + disk read).
@@ -9450,6 +9668,11 @@ impl Render for ConsoleView {
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
                 let platform = ev.keystroke.modifiers.platform;
+                if ctrl && ev.keystroke.modifiers.shift && key == "escape" {
+                    this.turn_local_off(cx);
+                    cx.stop_propagation();
+                    return;
+                }
                 let zoom_action = presentation::action_for_shortcut(&key, platform);
                 if let Some(action) = zoom_action {
                     this.apply_presentation_zoom(action, window, cx);
@@ -9722,6 +9945,23 @@ impl Render for ConsoleView {
                             )),
                     )),
             )
+            .child(
+                div().id("local-off-control").px(px(16.0)).py(px(10.0))
+                    .flex().items_center().gap(px(14.0))
+                    .bg(rgb(current_theme().panel)).border_b_1().border_color(rgb(current_theme().line))
+                    .child(div().flex_1().flex().flex_col().gap(px(4.0))
+                        .text_size(px(14.0)).text_color(rgb(current_theme().ink2))
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(
+                            if self.local_control.allows_effects() { "Port Daddy · Local control" } else { "Port Daddy · Off / blocked on this Mac" }
+                        ))
+                        .child(self.local_off_receipt.clone().unwrap_or_else(|| self.local_control.detail().to_string())))
+                    .child(div().id("turn-port-daddy-off").px(px(12.0)).py(px(9.0))
+                        .text_size(px(14.0)).font_weight(FontWeight::SEMIBOLD)
+                        .border_1().border_color(rgb(current_theme().gated))
+                        .text_color(rgb(current_theme().ink2)).cursor_pointer()
+                        .hover(|button| button.bg(rgb(current_theme().raised)))
+                        .child("Turn Off · Ctrl⇧Esc")
+                        .on_click(cx.listener(|this, _, _, cx| this.turn_local_off(cx)))))
             .child(render_story_nav_bar(active_nav.as_deref(), cx))
             // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any
             // open operator ask is surfaced window-wide within one poll (≤30 s
@@ -9767,7 +10007,9 @@ impl Render for ConsoleView {
                             // Deep-link only: the web surface is where a HUMAN
                             // session answers or acks (bearer tokens can't).
                             if link.starts_with("http") {
-                                let _ = std::process::Command::new("open").arg(&link).spawn();
+                                if crate::local_control::ensure_allowed().is_ok() {
+                                    let _ = std::process::Command::new("open").arg(&link).spawn();
+                                }
                             }
                         }),
                 )
@@ -9917,6 +10159,7 @@ impl Render for ConsoleView {
             .children(launcher)
             // Splash paints last so it sits above all chrome while booting.
             .children(splash)
+            .into_any_element()
     }
 }
 

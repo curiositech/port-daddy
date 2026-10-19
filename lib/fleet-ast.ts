@@ -96,6 +96,8 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   name:           StringNode;
   /** Explicit false removes the declaration from the executable FleetConfig. */
   enabled?:       BoolNode;
+  /** Hosted-executor-only declarations remain inspectable but never enter the local runtime. */
+  cloudOnly?:     BoolNode;
   prompt?:        StringNode;
   trigger?:       ChannelRefNode;
   /** Additive plural trigger list (kind:type grammar or legacy channels). */
@@ -341,6 +343,15 @@ function parseAgentMap(
           kind: 'bool' as const,
           range: gr(nodeRange(m.get('enabled', true))),
           value: false,
+        })
+      : undefined,
+    // This is a local-runtime admission boundary. A malformed declaration
+    // fails closed to hosted-only rather than quietly spawning on this machine.
+    cloudOnly:     m.has('cloud_only')
+      ? (gBool(m, 'cloud_only', gr) ?? {
+          kind: 'bool' as const,
+          range: gr(nodeRange(m.get('cloud_only', true))),
+          value: true,
         })
       : undefined,
     prompt:        gStr(m, 'prompt', gr),
@@ -589,6 +600,11 @@ export function astToConfig(ast: FleetAst): FleetConfig {
     // Disabled declarations remain available in the source-aware AST for
     // inspection/editing, but never cross into the executable runtime config.
     if (a.enabled?.value === false) continue;
+    // The hosted executor has its own deterministic projection of pd-fleet.yml
+    // and supplies an immutable PR diff. The local runtime does neither for a
+    // webhook-triggered static reviewer, so a cloud-only ship must not acquire
+    // a local backend merely because one is otherwise reachable.
+    if (a.cloudOnly?.value === true) continue;
 
     const agentBackendVal = a.backend?.value?.trim() || undefined;
     const defsBackendVal  = defs?.backend?.value?.trim() || undefined;

@@ -62,7 +62,7 @@ final class CoastGuardReceiptStore: ObservableObject {
             return
         }
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 receipts = []
                 return

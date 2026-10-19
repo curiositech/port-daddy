@@ -1,0 +1,887 @@
+{
+  "method": "Independent rational normal-equation projection/greedy reimplementation and separate integer propagation oracle; only two supplied fixtures; no canonical module import or runtime.",
+  "sever": {
+    "removed": [
+      [
+        2,
+        3
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "cost": 6,
+    "rounds": 2,
+    "trace": [
+      {
+        "active": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "g": [
+          "-1",
+          "-3",
+          "-3",
+          "-2",
+          "0"
+        ],
+        "residual": [
+          "-1/4",
+          "1/4",
+          "-1/2",
+          "1/4",
+          "-1/4"
+        ],
+        "residual_squared": "1/2",
+        "scores": {
+          "0": "1/96",
+          "1": "1/96",
+          "2": "1/20",
+          "3": "1/144",
+          "4": "1/16"
+        }
+      },
+      {
+        "active": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "g": [
+          "-1",
+          "-3",
+          "-3",
+          "-2",
+          "0"
+        ],
+        "residual": [
+          "-1/3",
+          "1/3",
+          "-1/3",
+          "0"
+        ],
+        "residual_squared": "1/3",
+        "scores": {
+          "0": "1/54",
+          "1": "1/54",
+          "2": "1/45",
+          "3": "0"
+        }
+      },
+      {
+        "active": [
+          0,
+          1,
+          3
+        ],
+        "g": [
+          "-1",
+          "-3",
+          "-3",
+          "-2",
+          "0"
+        ],
+        "residual": [
+          "0",
+          "0",
+          "0"
+        ],
+        "residual_squared": "0",
+        "scores": {
+          "0": "0",
+          "1": "0",
+          "3": "0"
+        }
+      }
+    ]
+  },
+  "exact_optimum": {
+    "removed": [
+      [
+        1,
+        2
+      ]
+    ],
+    "cost": 5,
+    "consistent": true,
+    "potential": [
+      0,
+      1,
+      3,
+      3
+    ]
+  },
+  "all_32_subsets": [
+    {
+      "removed": [],
+      "cost": 0,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ]
+      ],
+      "cost": 6,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ]
+      ],
+      "cost": 6,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "cost": 12,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          1,
+          2
+        ]
+      ],
+      "cost": 5,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "cost": 11,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "cost": 11,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "cost": 17,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        2,
+        2
+      ]
+    },
+    {
+      "removed": [
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 9,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 15,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 15,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        4,
+        4
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 21,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 14,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 20,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 20,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "cost": 26,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 1,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 7,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        2
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 7,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        4,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 13,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        2
+      ]
+    },
+    {
+      "removed": [
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 6,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 12,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        2
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 12,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        0,
+        3
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 18,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "removed": [
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 10,
+      "consistent": false,
+      "potential": null
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 16,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 16,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 22,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 15,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        3,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 21,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 21,
+      "consistent": true,
+      "potential": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "removed": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "cost": 27,
+      "consistent": true,
+      "potential": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "reconcile": {
+    "removed": [
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "cost": 6,
+    "rounds": 3,
+    "trace": [
+      {
+        "active": [
+          0,
+          1,
+          2
+        ],
+        "g": [
+          "2",
+          "2",
+          "1"
+        ],
+        "residual": [
+          "1/3",
+          "-1/3",
+          "1/3"
+        ],
+        "residual_squared": "1/3",
+        "scores": {
+          "0": "1/9",
+          "1": "1/18",
+          "2": "1/27"
+        }
+      },
+      {
+        "active": [
+          1,
+          2
+        ],
+        "g": [
+          "0",
+          "2",
+          "1"
+        ],
+        "residual": [
+          "-1/3",
+          "1/3",
+          "-1/3"
+        ],
+        "residual_squared": "1/3",
+        "scores": {
+          "1": "1/18",
+          "2": "1/27"
+        }
+      },
+      {
+        "active": [
+          2
+        ],
+        "g": [
+          "0",
+          "0",
+          "1"
+        ],
+        "residual": [
+          "1/3",
+          "-1/3",
+          "1/3"
+        ],
+        "residual_squared": "1/3",
+        "scores": {
+          "2": "1/27"
+        }
+      },
+      {
+        "active": [],
+        "g": [
+          "0",
+          "0",
+          "0"
+        ],
+        "residual": [
+          "0",
+          "0",
+          "0"
+        ],
+        "residual_squared": "0",
+        "scores": {}
+      }
+    ]
+  }
+}

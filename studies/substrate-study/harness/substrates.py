@@ -26,7 +26,7 @@ _SIM_ENV_EXTRA = {
 
 def _run(cwd, args, check=True, timeout=60):
     import subprocess
-    env = dict(**_env_base(), **_SIM_ENV_EXTRA)
+    env = {**_env_base(), **_SIM_ENV_EXTRA}
     # A bridging diff (see corpus.py) can sweep a binary file's content into
     # `git show`/`git diff` output (e.g. overwrite_files reading a binary
     # blob via `git show sha:path`); decode leniently so that never crashes
@@ -274,7 +274,11 @@ class GitWorkspace:
             return False
 
         target = self.queue_head_sha
-        rebase_res = _run(d, ["rebase", "--quiet", "--apply", target], check=False)
+        # The historical parent is the boundary of this task's single local
+        # commit. Using target as both upstream and destination would replay
+        # unrelated historical ancestors that are not in the simulated queue.
+        rebase_res = _run(d, ["rebase", "--quiet", "--apply", "--no-fork-point",
+                              "--onto", target, task.parent_sha, branch], check=False)
         if rebase_res.returncode != 0:
             _run(d, ["rebase", "--abort"], check=False)
             return False

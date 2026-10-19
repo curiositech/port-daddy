@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "prompt": "Propeller drive-shaft sleeve coupling with cobalt blue shear pin snapped in two. Analogy for sacrificial slashing protecting the host system.",
+  "aspect": "3:4",
+  "image_size": "1K",
+  "sha256": "5209f3860c7ed19702d02ff2ffa0a8090dda01785924cf646750519ca3c774c2",
+  "role": "generated editorial analogy, not measured evidence",
+  "references_uploaded": []
+}

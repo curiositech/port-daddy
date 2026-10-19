@@ -35,6 +35,7 @@ function fleetYaml(
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
@@ -307,12 +308,13 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'map-chunk',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',
     ]);
     // seq is monotonic from 0 for the recorder's own steps.
-    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -325,7 +327,6 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
       cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
       blocking: true,
-      needsExecution: false,
       purser: false,
       ideation: false,
     });
@@ -370,6 +371,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',
@@ -395,7 +397,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
 });
 
 describe('transcript is best-effort (never changes the gate)', () => {
-  it('D1 down ⇒ run still completes the check with the correct conclusion', async () => {
+  it('D1 down ⇒ managed billing completes neutral with zero AI', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -414,9 +416,11 @@ describe('transcript is best-effort (never changes the gate)', () => {
       })),
     ).resolves.toBeUndefined();
 
-    // The gate still concluded correctly (blocking BLOCK ⇒ failure).
+    // Billing authority is unavailable, so the provider is never called.
+    expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('No AI was run');
     // Writes were attempted but all swallowed → nothing captured.
     expect(d1.runCalls).toBeGreaterThan(0);
     expect(d1.runs).toHaveLength(0);
@@ -439,13 +443,13 @@ describe('transcript is best-effort (never changes the gate)', () => {
     ]));
   });
 
-  it('D1 down ⇒ transcript failure telemetry cannot hold run completion open', async () => {
+  it('transcript-only failure telemetry cannot hold run completion open', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.failAll = true;
+    d1.failTranscriptWrites = true;
 
     const originalFetch = globalThis.fetch;
     let telemetryCalls = 0;
@@ -483,6 +487,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
     await telemetryStarted;
     expect(telemetryCalls).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
+    expect(ai.calls).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
   });
 
@@ -492,7 +497,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.failAll = true;
+    d1.failTranscriptWrites = true;
 
     const msg = fakeMessage(makeJob());
     await handler.queue!(
@@ -503,6 +508,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(1);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
     expect(d1.runCalls).toBeGreaterThan(0);
@@ -510,17 +516,17 @@ describe('transcript is best-effort (never changes the gate)', () => {
     expect(d1.steps).toHaveLength(0);
   });
 
-  it('a missing DB binding ⇒ run still completes (writes are no-ops)', async () => {
+  it('a missing DB binding ⇒ managed billing completes neutral with zero AI', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
 
-    // No DB in env at all.
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai }));
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: undefined }));
 
+    expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('neutral');
   });
 });
 

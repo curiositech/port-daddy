@@ -28,8 +28,8 @@
 //!     They do not prove complete sequence-zero history, abandonment, verified
 //!     actor/scope, canonical terminal state, or claim-transfer authority.
 //!   - **Channel isolation.** The high-frequency doc-op / presence lane
-//!     ([`channel_for_path`]) is split OFF the low-frequency, latency-sensitive
-//!     coordination control plane ([`coordination_channel_for_path`] — claims,
+//!     ([`channel_for_document`]) is split OFF the low-frequency, latency-sensitive
+//!     coordination control plane ([`coordination_channel_for_document`] — claims,
 //!     guard, conflict-predict) onto a **separate tube channel**, so "a burst of
 //!     keystrokes from five agents must never starve a `conflicts/predict` call"
 //!     (ref 03 §3 Decision Point + Quality Gate). [`classify_channel`] routes a
@@ -62,6 +62,68 @@
 use crate::buffer::{HarborBuffer, PeerId};
 use base64::Engine as _;
 use std::collections::{BTreeMap, VecDeque};
+use sha2::{Digest, Sha256};
+
+/// Stable document identity. These are references to existing canonical scope,
+/// Harbor, repository and worktree/ref records, never local filesystem paths.
+/// This routing value is NOT a capability or a verified membership assertion.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "DocumentRefFields")]
+pub struct DocumentRef {
+    scope_id: String,
+    harbor_id: String,
+    repository_id: String,
+    world_id: String,
+    document_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DocumentRefFields {
+    scope_id: String,
+    harbor_id: String,
+    repository_id: String,
+    world_id: String,
+    document_id: String,
+}
+
+impl TryFrom<DocumentRefFields> for DocumentRef {
+    type Error = String;
+    fn try_from(value: DocumentRefFields) -> Result<Self, Self::Error> {
+        Self::new(value.scope_id, value.harbor_id, value.repository_id,
+            value.world_id, value.document_id)
+    }
+}
+
+impl DocumentRef {
+    pub fn new(scope_id: String, harbor_id: String, repository_id: String,
+        world_id: String, document_id: String) -> Result<Self, String> {
+        for value in [&scope_id, &harbor_id, &repository_id, &world_id, &document_id] {
+            if value.is_empty() || value.len() > 256 || value.trim() != value
+                || value.chars().any(char::is_control) {
+                return Err("document identity requires bounded, nonempty canonical references".into());
+            }
+        }
+        Ok(Self { scope_id, harbor_id, repository_id, world_id, document_id })
+    }
+
+    /// A new local draft has no shared admission. Its ID is independent of the
+    /// selected path, so equal paths in different projects cannot auto-join.
+    pub fn local_draft() -> Self {
+        Self::new(format!("local:{}", uuid::Uuid::new_v4()), "local-only".into(),
+            "local-only".into(), "local-only".into(), uuid::Uuid::new_v4().to_string())
+            .expect("generated local document reference")
+    }
+
+    fn routing_digest(&self) -> String {
+        // Fixed ordered tuple + domain tag avoids delimiter ambiguity and makes
+        // both lanes bind ALL scope dimensions. This is routing, not admission.
+        let bytes = serde_json::to_vec(&("pd.document-ref.v1", &self.scope_id,
+            &self.harbor_id, &self.repository_id, &self.world_id, &self.document_id))
+            .expect("serialize fixed document reference");
+        format!("{:x}", Sha256::digest(bytes))
+    }
+}
 
 /// The wire `kind` discriminant for a Loro **durable** update frame — the op
 /// stream. Kept as a string (not a bare bool) so the slice-2 `presence.ephemeral`
@@ -75,33 +137,14 @@ const KIND_UPDATE: &str = "loro.update";
 /// drift never blanks the lane — the util.rs tolerance rule).
 const FRAME_V: u8 = 1;
 
-/// Channel-name prefix for a Harbor Editor file sync channel. The suffix is a hex
-/// digest of the file path, so the whole name is `^[a-zA-Z0-9._:*-]+$`-safe (the
-/// daemon's `validateChannel` charset) and well under its 100-char cap.
+/// Routing digest of the exact DocumentRef, never of a local path. A channel
+/// name alone grants neither subscription nor publication authority.
 const CHANNEL_PREFIX: &str = "harbor-editor:";
 
-/// Derive the deterministic tube channel two replicas editing the same file must
-/// both land on.
-///
-/// The path is hashed with FNV-1a(64) and rendered as 16 lowercase hex digits, so
-/// the channel is `harbor-editor:<16-hex>` — charset-safe for `validateChannel`
-/// (raw paths contain `/` and would be rejected) and stable across processes so a
-/// reconnecting peer rejoins the *same* channel.
-///
-/// **Honest limitation:** this hashes the path string as given. Two peers must
-/// pass the same spelling (e.g. both an absolute path) to converge; canonicalizing
-/// divergent spellings to one identity is a slice-2 presence concern, not part of
-/// the transport proof.
-pub fn channel_for_path(path: &str) -> String {
-    // FNV-1a 64-bit — same family as buffer.rs's peer id mint: deterministic,
-    // dependency-free, and collision-unlikely enough for a channel key. (FNV is
-    // NOT cryptographic — this is a routing digest, never a security boundary.)
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in path.as_bytes() {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    format!("{CHANNEL_PREFIX}{hash:016x}")
+/// Bind routing to scope, Harbor, repository, worktree/ref and document identity.
+/// Devices with different path mappings use the same canonical DocumentRef.
+pub fn channel_for_document(document: &DocumentRef) -> String {
+    format!("{CHANNEL_PREFIX}{}", document.routing_digest())
 }
 
 /// A decoded editor op frame: which replica authored the ops, and the raw Loro
@@ -648,8 +691,8 @@ impl OpLog {
 // "Isolate the edit-sync channel from the coordination control plane so editor load
 // never regresses claim latency. A burst of keystrokes from five agents must never
 // starve a `conflicts/predict` call." So doc-ops + presence ride
-// `channel_for_path` (high frequency, lossy-tolerant) and claims / guard /
-// conflict-predict ride a SEPARATE `coordination_channel_for_path` (low frequency,
+// `channel_for_document` (high frequency, lossy-tolerant) and claims / guard /
+// conflict-predict ride a SEPARATE `coordination_channel_for_document` (low frequency,
 // latency-sensitive). They are physically separate at every hop: the daemon keeps a
 // per-channel message list + per-channel subscriber (routes/messaging.ts), and the
 // client opens ONE `subscribe_channel` — its own tokio task + its own `mpsc(256)` —
@@ -659,20 +702,28 @@ impl OpLog {
 /// signals, and conflict-prediction pings for that file. Distinct prefix from
 /// [`CHANNEL_PREFIX`] so the edit-sync lane and the coordination lane are always
 /// different channel strings (and thus different daemon queues + client
-/// subscriptions), while sharing the path digest so they pair up per file.
+/// subscriptions), while sharing the DocumentRef digest so they pair per document.
 const COORD_CHANNEL_PREFIX: &str = "harbor-coord:";
 
-/// Derive the deterministic **coordination** channel for a file — the control-plane
-/// twin of [`channel_for_path`]. Same FNV-1a(64) path digest, different prefix, so
-/// `coordination_channel_for_path(p) != channel_for_path(p)` for every path while
-/// both are stable and charset-safe for the daemon's `validateChannel`.
-pub fn coordination_channel_for_path(path: &str) -> String {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in path.as_bytes() {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    format!("{COORD_CHANNEL_PREFIX}{hash:016x}")
+/// Same scoped DocumentRef digest as the edit lane, with a separate prefix/queue.
+pub fn coordination_channel_for_document(document: &DocumentRef) -> String {
+    format!("{COORD_CHANNEL_PREFIX}{}", document.routing_digest())
+}
+
+#[cfg(test)]
+pub fn fixture_document(id: &str) -> DocumentRef {
+    DocumentRef::new("scope-fixture".into(), "harbor-fixture".into(),
+        "repo-fixture".into(), "world-fixture".into(), id.into()).unwrap()
+}
+
+#[cfg(test)]
+pub fn fixture_channel(id: &str) -> String {
+    channel_for_document(&fixture_document(id))
+}
+
+#[cfg(test)]
+pub fn fixture_coordination_channel(id: &str) -> String {
+    coordination_channel_for_document(&fixture_document(id))
 }
 
 /// Which isolated lane a channel belongs to. A `Copy` scalar enum — a channel
@@ -681,9 +732,9 @@ pub fn coordination_channel_for_path(path: &str) -> String {
 /// a channel key per frame (the operator's "don't clone String keys every frame").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lane {
-    /// Doc-ops, presence, and snapshot refs — `channel_for_path`. High frequency.
+    /// Doc-ops, presence, and snapshot refs — `channel_for_document`. High frequency.
     EditSync,
-    /// Claims, guard, conflict-predict — `coordination_channel_for_path`.
+    /// Claims, guard, conflict-predict — `coordination_channel_for_document`.
     Coordination,
 }
 
@@ -743,7 +794,7 @@ struct WireCoord {
 
 /// Encode a coordination signal for the coordination lane — the string handed to
 /// [`crate::agent::DaemonClient::send_coord_signal`] with the file's
-/// [`coordination_channel_for_path`].
+/// [`fixture_coordination_channel`].
 pub fn encode_coord_frame(signal: CoordSignal) -> String {
     let frame = WireCoord {
         v: FRAME_V,
@@ -848,13 +899,56 @@ impl LaneQueues {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::{peer_id_for_identity, HarborBuffer};
+    use crate::buffer::{fixture_peer_id, HarborBuffer};
+
+    #[test]
+    fn document_routing_is_scope_bound_and_independent_of_local_paths() {
+        let document = fixture_document("field-notebook");
+        let wire = serde_json::to_string(&document).unwrap();
+        let remote: DocumentRef = serde_json::from_str(&wire).unwrap();
+        let abe = ("/Users/abe/notebook.ts", &document);
+        let becky = ("/home/becky/research/notebook.ts", &remote);
+        assert_ne!(abe.0, becky.0);
+        assert_eq!(channel_for_document(abe.1), channel_for_document(becky.1));
+        for field in ["scope_id", "harbor_id", "repository_id", "world_id", "document_id"] {
+            let mut other = serde_json::to_value(&document).unwrap();
+            other[field] = "different-immutable-id".into();
+            let other: DocumentRef = serde_json::from_value(other).unwrap();
+            assert_ne!(channel_for_document(&document), channel_for_document(&other));
+            assert_ne!(coordination_channel_for_document(&document), coordination_channel_for_document(&other));
+        }
+    }
+
+    #[test]
+    fn document_reference_rejects_missing_blank_or_unknown_scope_fields() {
+        let valid = serde_json::to_value(fixture_document("notebook")).unwrap();
+        for field in ["scope_id", "harbor_id", "repository_id", "world_id", "document_id"] {
+            let mut missing = valid.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(serde_json::from_value::<DocumentRef>(missing).is_err());
+            for bad in ["", " ", "trailing ", "control\n"] {
+                let mut invalid = valid.clone();
+                invalid[field] = bad.into();
+                assert!(serde_json::from_value::<DocumentRef>(invalid).is_err());
+            }
+        }
+        let mut invalid = valid;
+        invalid["path"] = "/shared/same-name.rs".into();
+        assert!(serde_json::from_value::<DocumentRef>(invalid).is_err());
+    }
+
+    #[test]
+    fn document_tuple_cannot_alias_through_delimiter_ambiguity() {
+        let a = DocumentRef::new("a:b".into(), "c".into(), "repo".into(), "world".into(), "doc".into()).unwrap();
+        let b = DocumentRef::new("a".into(), "b:c".into(), "repo".into(), "world".into(), "doc".into()).unwrap();
+        assert_ne!(channel_for_document(&a), channel_for_document(&b));
+    }
 
     #[test]
     fn channel_is_deterministic_charset_safe_and_bounded() {
-        let a = channel_for_path("/Users/erich/coding/port-daddy/core/pd-console/src/mux.rs");
-        let b = channel_for_path("/Users/erich/coding/port-daddy/core/pd-console/src/mux.rs");
-        let c = channel_for_path("/Users/erich/coding/port-daddy/core/pd-console/src/pane.rs");
+        let a = fixture_channel("/Users/erich/coding/port-daddy/core/pd-console/src/mux.rs");
+        let b = fixture_channel("/Users/erich/coding/port-daddy/core/pd-console/src/mux.rs");
+        let c = fixture_channel("/Users/erich/coding/port-daddy/core/pd-console/src/pane.rs");
         assert_eq!(a, b, "same path must map to the same channel (peers converge)");
         assert_ne!(a, c, "different files get different channels");
         // The daemon's validateChannel charset + length contract.
@@ -868,7 +962,7 @@ mod tests {
 
     #[test]
     fn frame_round_trips_peer_and_ops() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
         let ops = vec![0u8, 1, 2, 250, 251, 255, 42];
         let text = encode_frame(peer, &ops);
         let decoded = decode_frame(&text).expect("well-formed frame decodes");
@@ -916,8 +1010,6 @@ mod tests {
 
         let human_id = "port-daddy:console:human";
         let agent_id = "port-daddy:editor:agent-A";
-        let human_peer = peer_id_for_identity(human_id);
-        let agent_peer = peer_id_for_identity(agent_id);
 
         // Replica A opens the file; its ops become a frame on the tube.
         let replica_a = HarborBuffer::open(path.to_str().unwrap(), human_id).unwrap();
@@ -926,6 +1018,8 @@ mod tests {
         // Replica B receives the frame text off its channel subscription and folds
         // it in — the transport landing, not a direct buffer handoff.
         let replica_b = HarborBuffer::empty(agent_id);
+        let human_peer = replica_a.local_peer();
+        let agent_peer = replica_b.local_peer();
         let frame = decode_frame(&a_to_b).expect("A's frame decodes on B's side");
         apply_frame(&replica_b, &frame).expect("A's ops land in B");
         assert_eq!(
@@ -968,7 +1062,7 @@ mod tests {
 
     #[test]
     fn presence_frame_round_trips_peer_and_blob() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
         let eph = vec![1u8, 2, 3, 250, 255, 0, 7];
         let text = encode_presence_frame(peer, &eph);
         let decoded = decode_presence_frame(&text).expect("well-formed presence frame decodes");
@@ -987,7 +1081,7 @@ mod tests {
     /// versa, so a receiver can route by kind without one lane eating the other.
     #[test]
     fn presence_and_op_frames_do_not_cross_lanes() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:x");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:x");
         let op_frame = encode_frame(peer, &[1, 2, 3]);
         let presence_frame = encode_presence_frame(peer, &[4, 5, 6]);
 
@@ -1027,8 +1121,8 @@ mod tests {
     /// PeerId, with B's own presence excluded.
     #[test]
     fn remote_cursor_rides_the_frame_and_pools_by_peer() {
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b_peer = peer_id_for_identity("port-daddy:console:human-B");
+        let a_peer = fixture_peer_id("port-daddy:editor:agent-A");
+        let b_peer = fixture_peer_id("port-daddy:console:human-B");
         assert_ne!(a_peer, b_peer);
 
         let store_a = PresenceStore::new(a_peer);
@@ -1065,8 +1159,8 @@ mod tests {
     /// is the invariant the idle 0-re-render gate leans on.
     #[test]
     fn replayed_presence_is_a_noop() {
-        let a_peer = peer_id_for_identity("port-daddy:editor:a");
-        let b_peer = peer_id_for_identity("port-daddy:editor:b");
+        let a_peer = fixture_peer_id("port-daddy:editor:a");
+        let b_peer = fixture_peer_id("port-daddy:editor:b");
         let store_a = PresenceStore::new(a_peer);
         let store_b = PresenceStore::new(b_peer);
 
@@ -1109,7 +1203,7 @@ mod tests {
 
     #[test]
     fn snapshot_ref_frame_round_trips_and_validates_blob_id() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
         let blob_id = "a".repeat(64); // a well-formed sha256 hex /blob id
         let text = encode_snapshot_frame(peer, &blob_id);
         let decoded = decode_snapshot_frame(&text).expect("well-formed snapshot ref decodes");
@@ -1131,7 +1225,7 @@ mod tests {
     /// accepts only its own kind, so a receiver routes by kind unambiguously.
     #[test]
     fn snapshot_ref_does_not_cross_op_or_presence_lanes() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:x");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:x");
         let snap = encode_snapshot_frame(peer, &"c".repeat(64));
         assert!(decode_frame(&snap).is_none(), "op decoder rejects a snapshot ref");
         assert!(decode_presence_frame(&snap).is_none(), "presence decoder rejects a snapshot ref");
@@ -1144,8 +1238,8 @@ mod tests {
 
     #[test]
     fn oplog_note_round_trips_and_skips_foreign_notes() {
-        let channel = channel_for_path("/x/y.rs");
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let channel = fixture_channel("/x/y.rs");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
         let ops = vec![7u8, 8, 9, 250, 255, 0];
         let content = encode_oplog_note(&channel, peer, 3, &ops);
         let entry = decode_oplog_note(&content).expect("op-log note decodes");
@@ -1169,11 +1263,9 @@ mod tests {
     #[test]
     fn oplog_dedups_and_replays_to_reconstruct_the_buffer() {
         let path = "/repo/src/parse_header.rs";
-        let channel = channel_for_path(path);
+        let channel = fixture_channel(path);
         let human_id = "port-daddy:console:human";
         let agent_id = "port-daddy:editor:agent-A";
-        let human_peer = peer_id_for_identity(human_id);
-        let agent_peer = peer_id_for_identity(agent_id);
 
         // The live doc: operator seeds two lines, an agent merges a third. After each
         // edit we persist the authoring replica's update-log as an op-log NOTE — the
@@ -1185,6 +1277,8 @@ mod tests {
         let note1 = encode_oplog_note(&channel, op.local_peer(), 1, &op.export_ops());
 
         let agent = HarborBuffer::empty(agent_id);
+        let human_peer = op.local_peer();
+        let agent_peer = agent.local_peer();
         agent.apply_remote_ops(&op.export_ops()).unwrap();
         agent.append_line("agent refactored parse_header");
         let note_a = encode_oplog_note(&channel, agent.local_peer(), 0, &agent.export_ops());
@@ -1219,7 +1313,7 @@ mod tests {
     #[test]
     fn snapshot_plus_oplog_tail_reconstructs_the_live_doc() {
         let path = "/repo/src/lib.rs";
-        let channel = channel_for_path(path);
+        let channel = fixture_channel(path);
         let human_id = "port-daddy:console:human";
 
         let live = HarborBuffer::empty(human_id);
@@ -1244,7 +1338,7 @@ mod tests {
         assert_eq!(restored.lines().len(), 4, "all four lines present after reconnect");
         assert_eq!(
             restored.lines()[3].author_peer,
-            Some(peer_id_for_identity(human_id)),
+            Some(live.local_peer()),
             "the tail line's authorship survives snapshot+replay"
         );
     }
@@ -1254,8 +1348,8 @@ mod tests {
     #[test]
     fn edit_and_coordination_channels_are_distinct_lanes() {
         for path in ["/a.rs", "/very/long/path/to/some/file.rs", "core/pd-console/src/mux.rs"] {
-            let edit = channel_for_path(path);
-            let coord = coordination_channel_for_path(path);
+            let edit = fixture_channel(path);
+            let coord = fixture_coordination_channel(path);
             assert_ne!(edit, coord, "a file's edit lane and coordination lane are different channels");
             assert_eq!(classify_channel(&edit), Some(Lane::EditSync));
             assert_eq!(classify_channel(&coord), Some(Lane::Coordination));
@@ -1272,7 +1366,7 @@ mod tests {
 
     #[test]
     fn coord_frame_round_trips_and_stays_off_the_edit_lanes() {
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
         let signal = CoordSignal { peer, kind: CoordKind::ClaimAcquire, start_line: 12, end_line: 40 };
         let text = encode_coord_frame(signal);
         assert_eq!(decode_coord_frame(&text), Some(signal), "a coordination signal round-trips whole");
@@ -1295,9 +1389,9 @@ mod tests {
     #[test]
     fn keystroke_burst_on_edit_lane_does_not_starve_coordination() {
         let path = "/repo/src/hot_file.rs";
-        let edit = channel_for_path(path);
-        let coord = coordination_channel_for_path(path);
-        let peer: PeerId = peer_id_for_identity("port-daddy:editor:agent-A");
+        let edit = fixture_channel(path);
+        let coord = fixture_coordination_channel(path);
+        let peer: PeerId = fixture_peer_id("port-daddy:editor:agent-A");
 
         // Five agents hammering the buffer: 10_000 op frames — ~40x the queue cap.
         let burst = 10_000usize;

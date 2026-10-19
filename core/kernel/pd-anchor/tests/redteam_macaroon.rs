@@ -26,6 +26,7 @@ use std::ffi::{c_char, CStr};
 const ROOT: &[u8] = b"root-key-32-bytes-padding-padxxx";
 const CKEY: &[u8] = b"caveat-key-32-bytes-padding-padx";
 const RENT_LOC: &str = "pd://daemon/rent";
+const ACTOR: &str = "01K3YR6M1WPZB8Q6V1J8K7D4MC";
 
 fn always(_: &str) -> bool {
     true
@@ -37,10 +38,11 @@ fn no_key(_: &str) -> Option<Vec<u8>> {
 /// A standard, valid push grant + its known caveat key (we supply it, so we know
 /// it). Attacks mutate the grant or its discharge and assert rejection.
 fn grant_with(root: &[u8], grant_id: &str, session: &str, nonce: &str) -> PushGrant {
-    mint_push_grant(MintPushGrant {
+    mint_actor_bound_push_grant(MintActorBoundPushGrant {
         root_key: root,
         grant_id,
         repo: "curiositech/port-daddy",
+        actor: ACTOR,
         session,
         expires_ms: 2_000_000,
         caveat_key: CKEY.to_vec(),
@@ -63,6 +65,10 @@ fn push_ctx() -> RequestContext {
         now_ms: 1_000_000,
         ..Default::default()
     }
+}
+
+fn check_push_caveat(predicate: &str) -> bool {
+    predicate == format!("actor = {ACTOR}") || check_caveat(predicate, &push_ctx())
 }
 
 /// Paid discharge, request-bound to the given grant — the only thing that
@@ -248,7 +254,7 @@ fn discharge_replayed_across_grants_rejected() {
     );
 
     let bound_to_a = bound_paid_discharge(&a);
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == b.rent_caveat_id).then(|| CKEY.to_vec());
     let res = verify(
         &b.macaroon,
@@ -278,7 +284,7 @@ fn discharge_for_near_miss_caveat_id_rejected() {
         .add_first_party_caveat(expires_caveat(1_000_000 + DISCHARGE_TTL_MS))
         .unwrap();
     let bound = g.macaroon.prepare_for_request(&d).unwrap();
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &resolve);
     assert!(
@@ -302,7 +308,7 @@ fn discharge_with_prefix_of_caveat_id_rejected() {
         .add_first_party_caveat(expires_caveat(1_000_000 + DISCHARGE_TTL_MS))
         .unwrap();
     let bound = g.macaroon.prepare_for_request(&d).unwrap();
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     assert!(
         !verify(&g.macaroon, ROOT, &[bound], &check, &resolve).ok,
@@ -328,7 +334,7 @@ fn unbound_discharge_rejected() {
     )
     .unwrap()
     .unwrap();
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     assert!(
         !verify(&g.macaroon, ROOT, &[d], &check, &resolve).ok,
@@ -342,7 +348,7 @@ fn wrong_caveat_key_at_resolver_rejected() {
     // yields a DIFFERENT key than the one committed, the commitment check fails.
     let g = std_grant();
     let bound = bound_paid_discharge(&g);
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let wrong =
         |id: &str| (id == g.rent_caveat_id).then(|| b"WRONG-key-32-bytes-padding-padxx".to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &wrong);
@@ -369,7 +375,7 @@ fn attacker_forged_discharge_without_caveat_key_rejected() {
     .add_first_party_caveat(expires_caveat(1_000_000 + DISCHARGE_TTL_MS))
     .unwrap();
     let bound = g.macaroon.prepare_for_request(&forged).unwrap();
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     assert!(
         !verify(&g.macaroon, ROOT, &[bound], &check, &resolve).ok,
@@ -597,7 +603,7 @@ proptest! {
 fn positive_control_valid_paid_bound_grant_authorizes() {
     let g = std_grant();
     let bound = bound_paid_discharge(&g);
-    let check = |p: &str| check_caveat(p, &push_ctx());
+    let check = check_push_caveat;
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &resolve);
     assert!(

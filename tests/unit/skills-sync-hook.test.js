@@ -19,9 +19,9 @@ describe('skills sync hook', () => {
     );
     const entries = settings.hooks?.UserPromptSubmit ?? [];
     const commands = entries.flatMap((e) => e.hooks ?? []).map((h) => h.command ?? '');
-    expect(
-      commands.some((c) => c.includes('scripts/sync-skills.ts') && c.includes('--scope user')),
-    ).toBe(true);
+    expect(commands).toContain('/bin/sh "${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle" sync-skills');
+    const wrapper = readFileSync(join(REPO, 'hooks/repo-lifecycle'), 'utf8');
+    expect(wrapper).toContain('npx tsx scripts/sync-skills.ts --scope user --quiet');
   });
 
   test('sync-skills resolves the repo catalog into a fresh base (integration)', () => {

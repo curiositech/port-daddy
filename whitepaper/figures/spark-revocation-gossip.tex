@@ -1,0 +1,27 @@
+% Margin sparkline: epidemic gossip convergence F(r) = 1 / (1 + (m-1)e^{-k r}).
+% Fits inside the 1.3in book margin column.
+% Reader question: how fast does a revocation reach every daemon in the mesh?
+% Claim: the informed fraction F(r) saturates to 1 within O(log m) rounds --
+%   at m=8, by round r=3 (log2 8), the mesh is already fully informed.
+% Source: ch2 Theorem (Conditional Gossip Expectation), Theta(log m) rounds.
+\begingroup\makeatletter
+\ifdefined\pd@typesetpicturebox
+  \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
+\fi
+\begin{tikzpicture}[pd figure,x=18pt,y=42pt]
+  % Baseline and ceiling: neutral references, never a drawn edge.
+  \draw[pd hairline] (0,0) -- (4.0,0);
+  \draw[pd guide] (0,1.0) -- (4.0,1.0);
+  % Convergence curve for m=8 daemons, log2(8)=3 rounds.
+  \draw[pd legible,line width=.9pt] plot[domain=0:4.0,samples=31]
+    (\x,{1.0 / (1.0 + 7.0 * exp(-1.2 * \x))});
+  % The start and the worked point (m=8 -> 3 rounds), dropped to their value.
+  \node[pd legible datum] at (0,0.125) {};
+  \node[pd legible datum] at (3,{1.0 / (1.0 + 7.0 * exp(-3.6))}) {};
+  % Labels: end values, the limit, and the worked range -- nothing else.
+  \node[pd label,anchor=east] at (0,0) {$0$};
+  \node[pd label,anchor=west,inner xsep=3pt] at (4.0,1.0) {$1$};
+  \node[pd direct label,anchor=south] at (1.2,0.62) {$F(r)\to 1$};
+  \node[pd label,anchor=north] at (2.0,0) {$r \sim \log_2 m$};
+\end{tikzpicture}
+\makeatother\endgroup

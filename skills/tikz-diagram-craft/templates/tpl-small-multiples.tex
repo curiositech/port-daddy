@@ -1,0 +1,42 @@
+% TEMPLATE: small multiples (a groupplot of panels sharing one scale, one
+% parameter labelled per panel). The panel-to-panel difference is the
+% finding: every panel keeps the same axes, the same box size and the same
+% threshold, so only the title changes. Per-panel crossings are marked with a
+% guide and a datum rather than a per-panel tick, so the shared tick set
+% never drifts panel to panel (S11's "tick list includes its coordinate"
+% yields to the small-multiples contract of one scale for all panels).
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+\begin{groupplot}[
+  group style={group size=3 by 1,horizontal sep=0.35cm,ylabels at=edge left},
+  pd axis,width=2.9cm,height=2.7cm,
+  xmin=0,xmax=64,ymin=0,ymax=1,
+  xtick={32,64},ytick={0.5,1}]
+\nextgroupplot[title={$r=0.85$},ylabel={weight $w(t)$}]
+  \addplot[pd warn series,domain=0:64] {0.05};
+  \addplot[pd series,mark=none,domain=0:64,samples=65] {0.85^x};
+  \draw[pd guide] (axis cs:18,0) -- (axis cs:18,0.054);
+  \node[pd datum] at (axis cs:18,0.054) {};
+\nextgroupplot[title={$r=0.90$},xlabel={ticks since deposit}]
+  \addplot[pd warn series,domain=0:64] {0.05};
+  \addplot[pd series,mark=none,domain=0:64,samples=65] {0.90^x};
+  \draw[pd guide] (axis cs:28,0) -- (axis cs:28,0.052);
+  \node[pd datum] at (axis cs:28,0.052) {};
+\nextgroupplot[title={$r=0.95$ chapter}]
+  \addplot[pd warn series,domain=0:64] {0.05};
+  \addplot[pd focus series,mark=none,domain=0:64,samples=65] {0.95^x};
+  \draw[pd guide] (axis cs:58,0) -- (axis cs:58,0.051);
+  \node[pd focus datum] at (axis cs:58,0.051) {};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Marker weight $w(t)=r^{t}$ against the prune threshold of $0.05$
+(dashed), one panel per decay rate on identical axes. The panel this chapter
+uses, $r=0.95$, is drawn in the chapter hue: its marker survives past tick
+58, roughly three times as long as $r=0.85$'s tick 18 and twice
+$r=0.90$'s tick 28, for the same five-hundredths threshold. Reading the three
+panels left to right is reading the calibration's sensitivity to $r$.
+[internal, illustrative]}
+\label{fig:tpl-small-multiples}
+\end{figure}

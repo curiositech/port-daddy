@@ -1,0 +1,50 @@
+{
+  "note": "Hand-authored fixture — the artifact index endpoint is not built. Receipts are browsable evidence; verify resolves against the receipt chain, not this app.",
+  "artifacts": [
+    {
+      "id": "pr-91",
+      "kind": "pr",
+      "title": "PR #91 — feedback route hardening",
+      "byLine": "Approver",
+      "meta": "+142 −18 · CI green",
+      "verdict": null,
+      "receiptID": null
+    },
+    {
+      "id": "adr-0121",
+      "kind": "doc",
+      "title": "ADR-0121 — durable agent roster",
+      "byLine": "Documentarian",
+      "meta": "merged · 3 pages",
+      "verdict": null,
+      "receiptID": null
+    },
+    {
+      "id": "index-map",
+      "kind": "render",
+      "title": "index-map.svg — symbol graph",
+      "byLine": "Cartographer",
+      "meta": "render · 1,840 nodes",
+      "verdict": null,
+      "receiptID": null
+    },
+    {
+      "id": "rcpt-9f2c41",
+      "kind": "receipt",
+      "title": "Approved force-push",
+      "byLine": "you → Cartographer",
+      "meta": "signed on device · 87ms over the tunnel",
+      "verdict": "approved",
+      "receiptID": "rcpt_9f2c41"
+    },
+    {
+      "id": "rcpt-8b11d0",
+      "kind": "receipt",
+      "title": "Denied checkout -- src/",
+      "byLine": "you → Cartographer",
+      "meta": "sealed · agent could not undo on its own",
+      "verdict": "denied",
+      "receiptID": "rcpt_8b11d0"
+    }
+  ]
+}

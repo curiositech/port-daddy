@@ -1,0 +1,73 @@
+% fig-spark-prop4-supervision.tex -- redrawn to the house figure language (v2).
+% Reader question: how does an operator get from a one-line fleet digest to a
+% byte-level trace without losing the thread?
+% Claim: a digest is not a separate artifact from the evidence -- it is a
+% reversible, low-entropy projection of the same append-only Merkle log the
+% kernel already committed. Four resolutions of that one projection (digest,
+% fleet status, execution receipt, syscall trace) each index into the same
+% log; drilling down costs a narrower index, never a recomputation.
+% Grammar chosen: a block stack of the four resolutions (one projection, read
+% top to bottom, numbered 1-4) with a single Merkle-log artifact beside it
+% that every level points into, keyed to a ruled legend.  Rejected: the
+% firehose-to-hexagon-to-FleetBar-window infographic from the prior draft --
+% five colour-coded "streams", a faceted hexagon icon and a mocked-up console
+% window draw three unrelated scenes (ingestion, filtering, display) that
+% compete for the one claim this figure owes the prose: that every
+% resolution reads the SAME log, not that a filter looks like a gem.
+% Facts: whitepaper/coordination-papers-mega-volume-chapter-0.tex Sec.
+% "Proposition 4: Supervision Has an Information Cost" -- "a summary is
+% therefore an index into evidence, not a substitute for it"; "allowing
+% instant drilling down from high-level status to raw syscall traces"; the
+% execution receipt $\rho_i$ and the $O(\log N)$ bounded operator view from
+% the paragraph immediately below the figure.
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\h{1.30}     % band height / pitch
+  \def\w{8.00}     % band width
+  \def\stackH{5.20}% 4*\h -- the log's height matches the stack's
+  \def\gx{-0.85}   % badge gutter, left of the stack
+  \def\lx{9.00}    % left edge of the Merkle-log artifact (\w + 1.00 gap)
+  \def\lw{2.80}    % log width
+  \def\Lx{-1.10}   % left edge of the legend rule, under the badges
+  \def\R{11.80}    % right edge of the legend rule, under the log
+  % ---- the one projection, four resolutions, numbered top to bottom ------
+  \foreach \i/\name/\detail/\n in {%
+    3/{digest}/{one line, whole fleet}/1,
+    2/{fleet status}/{per-project breakdown, $\sim$12 projects}/2,
+    1/{execution receipt}/{one invocation $\rho_i$, cost included}/3,
+    0/{syscall trace}/{byte-level open/read/write calls}/4}{
+      \draw[pd legible fill] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
+      \node[pd title,anchor=west] at (0.22,{\i*\h+\h/2}) {\name};
+      \node[pd label,anchor=east,text width=4.3cm,align=right]
+        at ({\w-.22},{\i*\h+\h/2}) {\detail};
+      \node[pd badge] at (\gx,{\i*\h+\h/2}) {\n};
+      \draw[pd truth arrow] (\w,{\i*\h+\h/2}) -- (\lx,{\i*\h+\h/2});}
+  % ---- the single artifact every resolution indexes into -----------------
+  \node[pd truth state,minimum width=\lw cm,minimum height=\stackH cm]
+    (LOG) at ({\lx+\lw/2},{\stackH/2}) {};
+  \foreach \k in {1,...,7}{
+    \draw[pd hairline] (\lx,{\k*\stackH/8}) -- ({\lx+\lw},{\k*\stackH/8});}
+  \node[pd title,anchor=south] at ({\lx+\lw/2},{\stackH+0.22})
+    {Merkle evidence log};
+  % ---- the legend: each resolution, what it shows, same leaves every time
+  \def\ly{-0.55}
+  \draw[pd rule] (\Lx,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at ({\Lx+.05},{\ly-.30}) {resolution};
+  \node[pd title,anchor=north west] at ({\Lx+3.50},{\ly-.30}) {indexes into};
+  \draw[pd hairline] (\Lx,{\ly-.95}) -- (\R,{\ly-.95});
+  \foreach \i/\n/\f/\s in {%
+    0/1/{digest}/{the log's leaves, viewed whole},
+    1/2/{fleet status}/{the same leaves, grouped by project},
+    2/3/{execution receipt}/{one committed leaf: invocation $\rho_i$},
+    3/4/{syscall trace}/{the raw bytes hashed into that leaf}}{
+      \node[pd badge] at ({\Lx+.30},{\ly-1.35-\i*.62}) {\n};
+      \node[pd label,anchor=base west] at ({\Lx+.62},{\ly-1.35-\i*.62}) {\f};
+      \node[pd label,anchor=base west,align=left,text width=6.6cm]
+        at ({\Lx+3.50},{\ly-1.35-\i*.62}) {\s};}
+  \node[pd note,anchor=north west,text width=12.7cm]
+    at ({\Lx+.05},{\ly-1.35-3*.62-.55})
+    {every resolution reads the same append-only leaves: the operator's view
+     narrows from an $O(\log N)$ digest to one receipt without a byte being
+     recomputed.};
+\end{tikzpicture}

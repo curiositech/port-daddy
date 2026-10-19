@@ -23,6 +23,8 @@ mod activity_pane;
 mod adrs_pane;
 #[path = "../agent.rs"]
 mod agent;
+#[path = "../local_control.rs"]
+mod local_control;
 // Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
 #[allow(dead_code)]

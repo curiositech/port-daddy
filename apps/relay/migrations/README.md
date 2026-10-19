@@ -64,3 +64,12 @@ this file in review as an incident, not a convenience.
 ```sh
 npx wrangler d1 migrations apply port-daddy-relay --local
 ```
+
+## Shipwright scoped-context rollback warning
+
+After `2026-09-14-shipwright-scoped-context.sql` is deployed, the database is
+structurally compatible with an older Worker, but the old Shipwright runtime is
+not tenant-isolation compatible: it resumes user-only prompts from
+`shipwright_chats`. A rollback across that release boundary must disable the
+Shipwright routes until the scoped Worker is restored. Do not describe schema
+compatibility as a safe application rollback.

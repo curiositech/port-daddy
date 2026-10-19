@@ -6,12 +6,17 @@ agent runtimes. It separates seven proof domains that are often blurred:
 1. Trusted-language, process, package, and release boundaries.
 2. VM and host isolation.
 3. Typed I/O and capability brokering.
-4. Broker-authorized spend versus externally bounded financial loss, including
-   provider enforcement lag and overshoot.
+4. Broker-authorized spend versus externally bounded billable loss, plus a
+   separate subscription-native capacity envelope that is never called free.
 5. Durable agent admission, process witnessing, crash recovery, and spawn-storm
    breakers.
 6. Deterministic fault and schedule exploration.
 7. Sealed provenance and externally witnessed receipts.
+
+Production continuity and allowance policy stay in their owning skills:
+`agent-resurrection-and-body-continuity` produces the normative rebodiment plan,
+and `context-economics-for-agent-swarms` produces capacity evidence. Drydock
+attempts to falsify their concrete implementation at an exact tier.
 
 The legacy JSON schema and `containment_audit.mjs` remain available for narrow T0
 policy-shape lint. Their `pass` result is not runtime containment evidence and does

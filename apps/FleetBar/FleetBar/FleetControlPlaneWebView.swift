@@ -34,12 +34,19 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
         context.coordinator.lastURL = url.absoluteString
         context.coordinator.lastReloadToken = reloadToken
 
-        webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
+        context.coordinator.watchLocalOff(webView)
+        if LocalRuntimeControl.shared.blockedReason == nil {
+            webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
+        }
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.bind(isLoading: $isLoading, errorMessage: $errorMessage)
+        guard LocalRuntimeControl.shared.blockedReason == nil else {
+            context.coordinator.blankForOff(webView)
+            return
+        }
 
         let nextURL = url.absoluteString
         let needsReload = context.coordinator.lastURL != nextURL || context.coordinator.lastReloadToken != reloadToken
@@ -55,6 +62,34 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
         var lastReloadToken: UUID?
         private var isLoadingBinding: Binding<Bool>?
         private var errorBinding: Binding<String?>?
+        private var offWatch: Task<Void, Never>?
+        private var blankedForOff = false
+
+        deinit { offWatch?.cancel() }
+
+        func watchLocalOff(_ webView: WKWebView) {
+            offWatch = Task { @MainActor [weak self, weak webView] in
+                while !Task.isCancelled {
+                    guard let webView else { return }
+                    if LocalRuntimeControl.shared.blockedReason != nil {
+                        self?.blankForOff(webView)
+                        return
+                    }
+                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                }
+            }
+        }
+
+        func blankForOff(_ webView: WKWebView) {
+            guard !blankedForOff else { return }
+            blankedForOff = true
+            webView.stopLoading()
+            // Stop an already-loaded dashboard's script timers as well as its
+            // top-level navigation. In-flight requests are not revocable proof.
+            webView.loadHTMLString("<!doctype html><title>Local Off</title>", baseURL: nil)
+            errorBinding?.wrappedValue = LocalRuntimeControl.shared.blockedReason
+            isLoadingBinding?.wrappedValue = false
+        }
 
         func bind(isLoading: Binding<Bool>, errorMessage: Binding<String?>) {
             isLoadingBinding = isLoading
@@ -71,6 +106,12 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
         ) {
+            if let reason = LocalRuntimeControl.shared.blockedReason {
+                errorBinding?.wrappedValue = reason
+                isLoadingBinding?.wrappedValue = false
+                decisionHandler(navigationAction.request.url?.absoluteString == "about:blank" ? .allow : .cancel)
+                return
+            }
             guard let requestURL = navigationAction.request.url else {
                 decisionHandler(.cancel)
                 return
@@ -91,7 +132,7 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            errorBinding?.wrappedValue = nil
+            errorBinding?.wrappedValue = LocalRuntimeControl.shared.blockedReason
             isLoadingBinding?.wrappedValue = false
         }
 

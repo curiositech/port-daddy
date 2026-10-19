@@ -1,0 +1,470 @@
+{
+  "source": "scripts/sheaf_observability_study.py:run_study, signature_library",
+  "scope": "offline deterministic synthetic fixtures; one integer feature at one watermark; no signatures or real agents verified",
+  "feature": "accepted-workintent-completion-count/v1",
+  "workItem": "synthetic-work-item-17",
+  "schemaVersion": 1,
+  "watermark": 1042,
+  "sourceRoot": "synthetic-ledger-root-1042",
+  "graphs": [
+    {
+      "id": "square",
+      "title": "Square + diagonal",
+      "edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "labelCount": 11,
+      "classCount": 7,
+      "minimumMarginSquared": "0",
+      "distinctMarginSquared": "3/8",
+      "robustRadiusSquared": "3/32",
+      "labels": [
+        {
+          "id": "none",
+          "vector": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "classLabels": [
+            "none"
+          ],
+          "normSquared": "0"
+        },
+        {
+          "id": "edge-0:-1",
+          "vector": [
+            "-3/8",
+            "-3/8",
+            "-1/8",
+            "1/8",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-0:-1",
+            "edge-1:-1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-0:+1",
+          "vector": [
+            "3/8",
+            "3/8",
+            "1/8",
+            "-1/8",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-0:+1",
+            "edge-1:+1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-1:-1",
+          "vector": [
+            "-3/8",
+            "-3/8",
+            "-1/8",
+            "1/8",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-0:-1",
+            "edge-1:-1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-1:+1",
+          "vector": [
+            "3/8",
+            "3/8",
+            "1/8",
+            "-1/8",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-0:+1",
+            "edge-1:+1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-2:-1",
+          "vector": [
+            "-1/8",
+            "-1/8",
+            "-3/8",
+            "3/8",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-2:-1",
+            "edge-3:+1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-2:+1",
+          "vector": [
+            "1/8",
+            "1/8",
+            "3/8",
+            "-3/8",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-2:+1",
+            "edge-3:-1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-3:-1",
+          "vector": [
+            "1/8",
+            "1/8",
+            "3/8",
+            "-3/8",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-2:+1",
+            "edge-3:-1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-3:+1",
+          "vector": [
+            "-1/8",
+            "-1/8",
+            "-3/8",
+            "3/8",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-2:-1",
+            "edge-3:+1"
+          ],
+          "normSquared": "3/8"
+        },
+        {
+          "id": "edge-4:-1",
+          "vector": [
+            "1/4",
+            "1/4",
+            "-1/4",
+            "1/4",
+            "-1/2"
+          ],
+          "classLabels": [
+            "edge-4:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-4:+1",
+          "vector": [
+            "-1/4",
+            "-1/4",
+            "1/4",
+            "-1/4",
+            "1/2"
+          ],
+          "classLabels": [
+            "edge-4:+1"
+          ],
+          "normSquared": "1/2"
+        }
+      ],
+      "edgeConnectivity": 2
+    },
+    {
+      "id": "k4",
+      "title": "K\u2084: add cross-edge 1\u21923",
+      "edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "labelCount": 11,
+      "classCount": 11,
+      "minimumMarginSquared": "1/2",
+      "distinctMarginSquared": "1/2",
+      "robustRadiusSquared": "1/8",
+      "labels": [
+        {
+          "id": "none",
+          "vector": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "classLabels": [
+            "none"
+          ],
+          "normSquared": "0"
+        },
+        {
+          "id": "edge-0:-1",
+          "vector": [
+            "-1/2",
+            "-1/4",
+            "0",
+            "1/4",
+            "1/4",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-0:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-0:+1",
+          "vector": [
+            "1/2",
+            "1/4",
+            "0",
+            "-1/4",
+            "-1/4",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-0:+1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-1:-1",
+          "vector": [
+            "-1/4",
+            "-1/2",
+            "-1/4",
+            "0",
+            "1/4",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-1:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-1:+1",
+          "vector": [
+            "1/4",
+            "1/2",
+            "1/4",
+            "0",
+            "-1/4",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-1:+1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-2:-1",
+          "vector": [
+            "0",
+            "-1/4",
+            "-1/2",
+            "1/4",
+            "-1/4",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-2:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-2:+1",
+          "vector": [
+            "0",
+            "1/4",
+            "1/2",
+            "-1/4",
+            "1/4",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-2:+1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-3:-1",
+          "vector": [
+            "1/4",
+            "0",
+            "1/4",
+            "-1/2",
+            "1/4",
+            "1/4"
+          ],
+          "classLabels": [
+            "edge-3:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-3:+1",
+          "vector": [
+            "-1/4",
+            "0",
+            "-1/4",
+            "1/2",
+            "-1/4",
+            "-1/4"
+          ],
+          "classLabels": [
+            "edge-3:+1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-4:-1",
+          "vector": [
+            "1/4",
+            "1/4",
+            "-1/4",
+            "1/4",
+            "-1/2",
+            "0"
+          ],
+          "classLabels": [
+            "edge-4:-1"
+          ],
+          "normSquared": "1/2"
+        },
+        {
+          "id": "edge-4:+1",
+          "vector": [
+            "-1/4",
+            "-1/4",
+            "1/4",
+            "-1/4",
+            "1/2",
+            "0"
+          ],
+          "classLabels": [
+            "edge-4:+1"
+          ],
+          "normSquared": "1/2"
+        }
+      ],
+      "edgeConnectivity": 3
+    }
+  ],
+  "probes": [
+    {
+      "id": "new-cross-edge-1-3",
+      "edge": [
+        1,
+        3
+      ],
+      "classCount": 11,
+      "minimumMarginSquared": "1/2"
+    },
+    {
+      "id": "independent-repeat-edge-0",
+      "edge": [
+        0,
+        1
+      ],
+      "classCount": 9,
+      "minimumMarginSquared": "0"
+    },
+    {
+      "id": "independent-repeat-edge-1",
+      "edge": [
+        1,
+        2
+      ],
+      "classCount": 9,
+      "minimumMarginSquared": "0"
+    },
+    {
+      "id": "independent-repeat-edge-2",
+      "edge": [
+        2,
+        3
+      ],
+      "classCount": 9,
+      "minimumMarginSquared": "0"
+    },
+    {
+      "id": "independent-repeat-edge-3",
+      "edge": [
+        0,
+        3
+      ],
+      "classCount": 9,
+      "minimumMarginSquared": "0"
+    },
+    {
+      "id": "independent-repeat-edge-4",
+      "edge": [
+        0,
+        2
+      ],
+      "classCount": 7,
+      "minimumMarginSquared": "0"
+    }
+  ],
+  "ledgerDisagreements": 242,
+  "duplicateDetections": 240,
+  "cycleDetections": 226,
+  "perturbations": 243
+}
