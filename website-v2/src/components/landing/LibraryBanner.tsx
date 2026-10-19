@@ -10,6 +10,14 @@ import { COLLECTED_VOLUME, TEXTBOOK } from '@/data/whitePapers'
  * papers" (see the 2026-08-26 `/library` naming-collision fix), so each is
  * named here and nowhere is either called "papers" alone.
  *
+ * 2026-10-19: the copy sells the Book to the site's visitor. The strip used to
+ * open with an edition number and the Book's thesis, which told a stranger
+ * neither what the Book is to this product nor why to open it, and called the
+ * papers "the same results in submission form" before any result had been
+ * mentioned. Now the eyebrow locates the Book (the one the product is built on),
+ * the standfirst names the mechanisms and where the volume came from, and the
+ * papers column says when to choose it instead.
+ *
  * 2026-10-19: the cover is the Book's own page one. Until then this strip
  * showed a watercolor jacket from the maritime edition at thumbnail size, and
  * /whitepaper showed a cut-paper diorama — two pictures of a book, neither of
@@ -50,19 +58,29 @@ export function LibraryBanner() {
           <div className="contents lg:block lg:min-w-0">
             <div className="min-w-0 self-center">
               <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                The Book · {TEXTBOOK.edition.version}
-                <span className="hidden sm:inline"> · {TEXTBOOK.edition.date}</span>
+                The book Port Daddy is built on
               </div>
               <h2 className="mt-[var(--space-2)] max-w-[24ch] text-[clamp(21px,2.1vw,29px)] font-bold leading-[1.08] tracking-[-0.02em] text-[var(--text-primary)]">
                 {TEXTBOOK.edition.title}
               </h2>
             </div>
             <div className="col-span-2 min-w-0 lg:col-span-1">
-              <p className="max-w-[58ch] text-[16px] leading-[1.5] text-[var(--text-secondary)] lg:mt-[var(--space-2)]">
-                {TEXTBOOK.edition.claim}
+              {/* The sell, in the product's own terms. A visitor arrives from the
+                  harness, the tubes or a search result; the Book's title tells them
+                  nothing about why a control plane for coding agents ships a
+                  textbook. Each mechanism named here is a chapter (1, 2, 3, 5 and
+                  6 to 7); "built, modelled, or proposed" is the Book's own
+                  labelling of every claim, and the whitepapers are literally what
+                  this volume was collated from. */}
+              <p className="max-w-[72ch] text-[16px] leading-[1.5] text-[var(--text-secondary)] lg:mt-[var(--space-2)]">
+                Port Daddy is built on an argument about how software can act for you without slipping
+                your hold: one writer at a time, authority that only narrows as it is handed down, a
+                sealed place to run, and a record that gives a spawn a reputation to lose. The
+                whitepapers grew into this textbook; every claim in it says whether it is built,
+                modelled, or proposed.
               </p>
               <p className="mt-[var(--space-2)] font-mono text-[14px] leading-[1.5] text-[var(--text-muted)]">
-                {chapters} chapters in {parts} parts · {COLLECTED_VOLUME.pages} pages · one PDF, free
+                {chapters} chapters in {parts} parts · {COLLECTED_VOLUME.pages} pages · {TEXTBOOK.edition.version} · free PDF
               </p>
               <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-x-[var(--space-5)] gap-y-[var(--space-2)]">
                 <a
@@ -88,11 +106,12 @@ export function LibraryBanner() {
 
           <div className="col-span-2 min-w-0 border-t-2 border-[var(--border-default)] pt-[var(--space-4)] lg:col-span-1 lg:border-l-2 lg:border-t-0 lg:pl-[var(--space-6)] lg:pt-0">
             <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              Standalone papers
+              The papers behind it
             </div>
             <p className="mt-[var(--space-2)] max-w-[44ch] text-[16px] leading-[1.5] text-[var(--text-secondary)]">
-              The same results in submission form: {papers} papers, {RESEARCH_PAPER_TOTAL_PAGES} pages, each
-              with its assumptions, its checker, and its limits stated for a referee.
+              The Book's results as {papers} papers, {RESEARCH_PAPER_TOTAL_PAGES} pages, written to be
+              checked: each states its assumptions, names the tool that checks it, and says where it
+              stops. Start here if you want the proofs without the teaching.
             </p>
             <Link
               to="/research"

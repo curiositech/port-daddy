@@ -475,7 +475,7 @@ export default function WhitepaperPage() {
             </div>
 
             <div className="order-1 lg:order-2">
-              <Eyebrow>The Harbor Library · {TEXTBOOK.edition.version}</Eyebrow>
+              <Eyebrow>The book Port Daddy is built on · {TEXTBOOK.edition.version}</Eyebrow>
               <h1 className="mt-2 max-w-[17ch] text-[clamp(28px,3vw,40px)] font-bold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
                 {TEXTBOOK.edition.title}
               </h1>
