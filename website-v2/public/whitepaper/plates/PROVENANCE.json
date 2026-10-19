@@ -102,6 +102,7 @@
         1429
       ],
       "bytes": 245501,
+      "sha256": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
       "final_aspect": "7:10",
       "use": "the Book's cover on the home-page banner (components/landing/LibraryBanner.tsx) and the masthead of /whitepaper; re-render with --write whenever the committed Book changes, and --check fails when it has not been"
     },

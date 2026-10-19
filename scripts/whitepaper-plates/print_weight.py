@@ -270,6 +270,23 @@ def kept_original(dirrel: str, stem: str) -> Path | None:
     return None
 
 
+def recorded_derivative_sha(dirrel: str, stem: str) -> str | None:
+    """The SHA-256 this tool last recorded for the derivative at <dirrel>/<stem>."""
+    prov = WEB / dirrel / "PROVENANCE.json"
+    if prov.is_file():
+        doc = json.loads(prov.read_text())
+        for section in ("plates", "frontispieces"):
+            entry = (doc.get(section) or {}).get(stem) if isinstance(doc.get(section), dict) else None
+            if isinstance(entry, dict) and isinstance(entry.get("print_weight"), dict):
+                return entry["print_weight"].get("sha256")
+    sidecar = WEB / dirrel / f"{stem}.json"
+    if sidecar.is_file():
+        data = json.loads(sidecar.read_text())
+        if isinstance(data.get("print_master"), dict):
+            return data["print_master"].get("sha256")
+    return None
+
+
 def write(dirs: list[str], force: bool) -> int:
     before = after = 0
     rows = []
@@ -277,11 +294,21 @@ def write(dirs: list[str], force: bool) -> int:
         pol = POLICY[dirrel]
         for src in governed(dirrel, pol):
             original = kept_original(dirrel, src.stem)
-            if original is None and src.suffix.lower() == ".pdf":
+            is_raster = src.suffix.lower() != ".pdf"
+            if original is None and not is_raster:
                 continue  # a wrapper whose source is not on this machine; nothing to re-derive from
+            replaced = False
+            if original is not None and is_raster and sha256(src) != recorded_derivative_sha(dirrel, src.stem):
+                # A raster at the governed path that is not the derivative this
+                # tool wrote is a replacement (or a restored original): it
+                # supersedes the kept original, which would otherwise be re-used
+                # forever and silently discard the new art.
+                original.unlink()
+                original = None
+                replaced = True
             if original is not None and not force:
                 continue  # already a derivative of a kept original
-            if original is None and not violations(dirrel, pol, src) and not force:
+            if original is None and not replaced and not violations(dirrel, pol, src) and not force:
                 continue
             source = original or src
             old_size, old_sha = source.stat().st_size, sha256(source)
@@ -290,6 +317,9 @@ def write(dirs: list[str], force: bool) -> int:
                 keep = ORIGINALS / dirrel / src.name
                 keep.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(keep))
+                for stale in ORIGINALS.joinpath(dirrel).glob(f"{src.stem}.*"):
+                    if stale != keep:
+                        stale.unlink()  # one kept original per stem
             elif src.suffix.lower() != ext:
                 src.unlink()
             dst = src.with_suffix(ext)
