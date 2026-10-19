@@ -63,6 +63,14 @@ export interface ResearchPaper {
   /** The library chapter (Roman numeral) this paper's proof is closest to. */
   /** Id of the Book chapter this paper's results are folded into (a WHITE_PAPERS id, never a number). */
   chapterRef: string
+  /**
+   * How the paper stands to the Book. 'folded' (the default): its results are
+   * taught in the chapter `chapterRef` names. 'related': it extends that
+   * chapter's subject but the Book does not carry its results — the research
+   * deck labels it "Related to" rather than "Folded into", and the home
+   * banner must not count it among the Book's results.
+   */
+  relation?: 'folded' | 'related'
   /** One line on why that chapter needed this proof. */
   chapterWhy: string
   /**
@@ -239,6 +247,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
   {
     id: 'active-sheaf-cohomology-for-swarms',
     number: '8',
+    relation: 'related',
     title: 'The Cohomology of Agent Evidence',
     subtitle: 'Typed Cellular Sheaves, Relative Extension, and Fault Observability',
     pdfPath: '/research/paper8.pdf',
@@ -263,6 +272,10 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
 ]
 
 export const RESEARCH_PAPER_TOTAL_PAGES = RESEARCH_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+export const isFoldedIntoBook = (paper: ResearchPaper) => (paper.relation ?? 'folded') === 'folded'
+/** Papers whose results the Book teaches, and papers that only relate to a chapter. */
+export const RESEARCH_PAPERS_FOLDED = RESEARCH_PAPERS.filter(isFoldedIntoBook)
+export const RESEARCH_PAPERS_RELATED = RESEARCH_PAPERS.filter((paper) => !isFoldedIntoBook(paper))
 
 /**
  * The result ledger (which paper carries which executed result, and where it

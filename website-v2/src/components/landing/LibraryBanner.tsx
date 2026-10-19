@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { PageContainer } from '@/components/site/primitives'
-import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES } from '@/data/researchPapers'
+import {
+  RESEARCH_PAPERS_FOLDED,
+  RESEARCH_PAPERS_RELATED,
+  RESEARCH_PAPER_TOTAL_PAGES,
+} from '@/data/researchPapers'
 import { COLLECTED_VOLUME, TEXTBOOK } from '@/data/whitePapers'
 
 /**
@@ -33,7 +37,8 @@ import { COLLECTED_VOLUME, TEXTBOOK } from '@/data/whitePapers'
 export function LibraryBanner() {
   const chapters = TEXTBOOK.chapters.length
   const parts = TEXTBOOK.parts.length
-  const papers = RESEARCH_PAPERS.length
+  const folded = RESEARCH_PAPERS_FOLDED.length
+  const related = RESEARCH_PAPERS_RELATED.length
 
   return (
     <div className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
@@ -109,9 +114,11 @@ export function LibraryBanner() {
               The papers behind it
             </div>
             <p className="mt-[var(--space-2)] max-w-[44ch] text-[16px] leading-[1.5] text-[var(--text-secondary)]">
-              The Book's results as {papers} papers, {RESEARCH_PAPER_TOTAL_PAGES} pages, written to be
-              checked: each states its assumptions, names the tool that checks it, and says where it
-              stops. Start here if you want the proofs without the teaching.
+              {folded} papers carry the Book's results in a form written to be checked
+              {related > 0 ? `, and ${related} more ${related === 1 ? 'is' : 'are'} related work` : ''}:{' '}
+              {RESEARCH_PAPER_TOTAL_PAGES} pages in all, each stating its assumptions, naming the tool
+              that checks it, and saying where it stops. Start here if you want the proofs without the
+              teaching.
             </p>
             <Link
               to="/research"

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DeckShell, type DeckSignal } from '@/components/library/DeckShell'
-import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES, type ResearchPaper } from '@/data/researchPapers'
+import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES, type ResearchPaper, isFoldedIntoBook } from '@/data/researchPapers'
 import { WHITE_PAPERS } from '@/data/whitePapers'
 
 /**
@@ -55,7 +55,7 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span className="font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-          {paper.number === '8' ? 'Related to' : 'Folded into'} {chapterTitleFor(paper.chapterRef)}
+          {isFoldedIntoBook(paper) ? 'Folded into' : 'Related to'} {chapterTitleFor(paper.chapterRef)}
         </span>
         <span className="font-mono text-[14px] text-[var(--text-ghost)]">
           {paper.resultTags.join(' · ')}
