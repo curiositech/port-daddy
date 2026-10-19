@@ -286,13 +286,22 @@ describe('Pages deployment boundary', () => {
     expect(PAGES_ONLY_EXCLUSIONS).toEqual([])
   })
 
+  // The ceiling scripts/build-whitepapers.sh refuses a Book above. It sits
+  // 3 MiB under Cloudflare's limit whether that limit is read as 25 MiB or
+  // 25 MB, so no rounding or unit confusion can make the old exclusion
+  // retroactively correct. This test said "half the limit" while the Book
+  // weighed 9.3 MiB; the Book published on 2026-10-19 carries 39 margin
+  // analogies and four full-page plates, every one at print weight
+  // (scripts/whitepaper-plates/print_weight.py), and weighs 17.6 MiB, which
+  // is the honest size of that art rather than slack to be squeezed.
+  const BOOK_PUBLICATION_CEILING_BYTES = 22 * 1024 * 1024
+
   test('the collected volume is far below the Pages per-asset limit', () => {
     const abs = resolvePdfPath(COLLECTED_VOLUME.pdfPath)
     const bytes = statSync(abs).size
     expect(bytes).toBeLessThan(PAGES_MAX_ASSET_BYTES)
-    // Not a squeaker: it is under half the limit, so no rounding or
-    // MiB-vs-MB confusion can make the old exclusion retroactively correct.
-    expect(bytes).toBeLessThan(PAGES_MAX_ASSET_BYTES / 2)
+    expect(BOOK_PUBLICATION_CEILING_BYTES).toBeLessThan(25_000_000)
+    expect(bytes).toBeLessThan(BOOK_PUBLICATION_CEILING_BYTES)
   })
 
   test('no shipped public asset meets the Pages per-asset limit', () => {
