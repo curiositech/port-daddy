@@ -91,7 +91,7 @@ function NumberMark({ n, ink, size = 'md' }: { n: number; ink: string; size?: 'm
 function Eyebrow({ children, ink }: { children: React.ReactNode; ink?: string }) {
   return (
     <div
-      className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]"
+      className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]"
       style={ink ? { color: ink } : undefined}
     >
       {children}

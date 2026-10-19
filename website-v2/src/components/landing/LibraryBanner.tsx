@@ -57,7 +57,7 @@ export function LibraryBanner() {
 
           <div className="contents lg:block lg:min-w-0">
             <div className="min-w-0 self-center">
-              <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
                 The book Port Daddy is built on
               </div>
               <h2 className="mt-[var(--space-2)] max-w-[24ch] text-[clamp(21px,2.1vw,29px)] font-bold leading-[1.08] tracking-[-0.02em] text-[var(--text-primary)]">
@@ -105,7 +105,7 @@ export function LibraryBanner() {
           </div>
 
           <div className="col-span-2 min-w-0 border-t-2 border-[var(--border-default)] pt-[var(--space-4)] lg:col-span-1 lg:border-l-2 lg:border-t-0 lg:pl-[var(--space-6)] lg:pt-0">
-            <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
               The papers behind it
             </div>
             <p className="mt-[var(--space-2)] max-w-[44ch] text-[16px] leading-[1.5] text-[var(--text-secondary)]">

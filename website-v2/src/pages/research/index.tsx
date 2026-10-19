@@ -20,7 +20,7 @@ import { WHITE_PAPERS } from '@/data/whitePapers'
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+    <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
       {children}
     </div>
   )
