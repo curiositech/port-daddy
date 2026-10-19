@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "bc69dd3f2fc28a21380bc1c5014be9fee84393b93f60c63f94c3e879c86e95e1",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch02-nested-measuring-spoons.png",
+    "source_sha256": "bc69dd3f2fc28a21380bc1c5014be9fee84393b93f60c63f94c3e879c86e95e1",
+    "file": "ch02-nested-measuring-spoons.pdf",
+    "sha256": "7e3e2f0b82408bf8c70378c8ebda883cee139b4ef2bc6a31a7fe232012c23863",
+    "bytes": 113382,
+    "pixels": [
+      300,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

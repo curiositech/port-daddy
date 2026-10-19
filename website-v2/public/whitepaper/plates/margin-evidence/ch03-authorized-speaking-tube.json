@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "06009b0a8713a8efaa77eb8f8a19dce1c9f7cba6a53de1c5ad982aa64a1066fb",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch03-authorized-speaking-tube.png",
+    "source_sha256": "06009b0a8713a8efaa77eb8f8a19dce1c9f7cba6a53de1c5ad982aa64a1066fb",
+    "file": "ch03-authorized-speaking-tube.pdf",
+    "sha256": "58efa7492bd3c748f0ae2ad90de05058683ab152815052eb5658d79de1c70fb0",
+    "bytes": 106004,
+    "pixels": [
+      445,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch08-quarantine-inspection-lantern.png",
+    "source_sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
+    "file": "ch08-quarantine-inspection-lantern.pdf",
+    "sha256": "1224d5bbdcfa1ce3a50c845599f311c1590783d3110379c0ebd77da7bdceb05c",
+    "bytes": 129072,
+    "pixels": [
+      317,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

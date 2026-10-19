@@ -6,5 +6,20 @@
   "image_size": "953x1198",
   "sha256": "e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch08-local-admission-turnstile.png",
+    "source_sha256": "e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12",
+    "file": "ch08-local-admission-turnstile.pdf",
+    "sha256": "f2c756e0f06a3dc9c947c39103357de4d3be46aff60bf2de112a30a222169f04",
+    "bytes": 94019,
+    "pixels": [
+      573,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

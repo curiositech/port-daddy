@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "618cd92276222bbe9d1e919186b6b79dd14fe7bb1201a487a75765ec15e36791",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch08-interlocking-railway-lever.png",
+    "source_sha256": "618cd92276222bbe9d1e919186b6b79dd14fe7bb1201a487a75765ec15e36791",
+    "file": "ch08-interlocking-railway-lever.pdf",
+    "sha256": "c557b50aa30f1fa7476d0f18cd3daad390d8cbf6bd83e4981f8661a5cd5cf8e2",
+    "bytes": 131411,
+    "pixels": [
+      529,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch04-telegraph-sounder-key.png",
+    "source_sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
+    "file": "ch04-telegraph-sounder-key.pdf",
+    "sha256": "ba898a2cd76b119febf093856a974588a70459ff28f9f22d95c2dd6c65802f34",
+    "bytes": 213627,
+    "pixels": [
+      720,
+      674
+    ],
+    "encoding": "PDF wrapper: JPEG quality 80 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -135,11 +135,13 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch08-transit-customs-seal",
         }
         self.assertEqual(set(placed), expected_placed)
-        # Replace the displayed analogy, not the historical source assets.
-        self.assertTrue((WEB / 'plates/marginalia/movable-type-photo.jpg').is_file())
-        self.assertTrue((WEB / 'plates/marginalia/movable-type-photo.json').is_file())
+        # movable-type-photo.{jpg,json} (the photograph the generated analogy
+        # replaced) were removed on 2026-10-19 with the other unprinted
+        # binaries: 8.3 MB nothing input. Its licence record lives in git.
+        # Each analogy is a print-weight wrapper (JPEG + SMask) beside its
+        # generation sidecar; see scripts/whitepaper-plates/print_weight.py.
         for slug in placed:
-            self.assertTrue((WEB / "plates/margin-evidence" / (slug + ".png")).is_file())
+            self.assertTrue((WEB / "plates/margin-evidence" / (slug + ".pdf")).is_file())
             self.assertTrue((WEB / "plates/margin-evidence" / (slug + ".json")).is_file())
 
     def test_strict_one_percent_target_needs_six_reviewers(self):

@@ -10,5 +10,20 @@
   ],
   "sha256": "03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch07-cleanup-repair-kit.png",
+    "source_sha256": "03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa",
+    "file": "ch07-cleanup-repair-kit.pdf",
+    "sha256": "e444ba0b8da639266545a34a11360a43bff5cc8726a17d881f3c42e5d2e7c319",
+    "bytes": 179804,
+    "pixels": [
+      600,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

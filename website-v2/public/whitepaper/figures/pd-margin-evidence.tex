@@ -60,8 +60,8 @@
 
 \newcommand{\pdmarginanalogy}[4]{%
   \pdmarginexhibit{#1}{#2}{%
-    \IfFileExists{plates/margin-evidence/#3.png}{%
-      \includegraphics[width=\linewidth,height=0.14\textheight,keepaspectratio]{plates/margin-evidence/#3.png}%
+    \IfFileExists{plates/margin-evidence/#3.pdf}{%
+      \includegraphics[width=\linewidth,height=0.14\textheight,keepaspectratio]{plates/margin-evidence/#3.pdf}%
     }{\PackageError{pd-margin-layout}{Missing margin illustration #3}%
       {Generate and inspect the artwork before including it.}}%
   }{#4}}
@@ -72,8 +72,8 @@
 \NewDocumentCommand\pdwrapanalogy{O{r} O{0.40\textwidth} m m m +m}{%
   \begin{wrapfigure}{#1}{#2}%
     \centering\vspace{-4pt}%
-    \IfFileExists{plates/margin-evidence/#5.png}{%
-      \includegraphics[width=\linewidth,keepaspectratio]{plates/margin-evidence/#5.png}%
+    \IfFileExists{plates/margin-evidence/#5.pdf}{%
+      \includegraphics[width=\linewidth,keepaspectratio]{plates/margin-evidence/#5.pdf}%
     }{\PackageError{pd-margin-layout}{Missing illustration #5}%
       {Generate and inspect the artwork before including it.}}%
     \if\relax\detokenize{#4}\relax\else\caption{#4}\fi

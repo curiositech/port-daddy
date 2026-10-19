@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "fb6ea05896cf64c5f7da046e686b2e63fdea8756c3fbfd1b0354267bd71462ef",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch06-grain-tally-board.png",
+    "source_sha256": "fb6ea05896cf64c5f7da046e686b2e63fdea8756c3fbfd1b0354267bd71462ef",
+    "file": "ch06-grain-tally-board.pdf",
+    "sha256": "6941f6852cbe7ef408f53a7c49d2ef02b3c7f94870b5519be4fed502a27d2089",
+    "bytes": 207551,
+    "pixels": [
+      490,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

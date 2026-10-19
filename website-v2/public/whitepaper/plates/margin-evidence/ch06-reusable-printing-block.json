@@ -6,5 +6,20 @@
   "image_size": "1036x863",
   "sha256": "baa8bbc79d4bafeb1191da37c105e01746f260ce26e3ced07b2fbc3911aa6a39",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch06-reusable-printing-block.png",
+    "source_sha256": "baa8bbc79d4bafeb1191da37c105e01746f260ce26e3ced07b2fbc3911aa6a39",
+    "file": "ch06-reusable-printing-block.pdf",
+    "sha256": "ac3bc54504635c19b9d4c9052a20b1b83bac197def64d4878464027d7bf3183a",
+    "bytes": 139591,
+    "pixels": [
+      720,
+      600
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -211,6 +211,19 @@ jobs:
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
 
+      # Provenance says where a plate came from; this says it is light enough
+      # to print. Plates committed at generation weight put the Book over the
+      # 25 MiB Cloudflare Pages ceiling on 2026-10-13 (74.7 MB, rolled back the
+      # same day), and nothing on this list would have named the cause.
+      - name: Every plate the Book prints is at print weight
+        run: python3 scripts/whitepaper-plates/print_weight.py --check
+
+      # The site shows page one of the Book as its cover. When the Book moves
+      # and the cover does not, the home page advertises an edition that is
+      # not the one the link serves; this fails until --write is run again.
+      - name: The site's cover plate is page one of the committed Book
+        run: python3 scripts/whitepaper-plates/render_cover_plate.py --check
+
       # The step above, and every other guard in this job, runs reference -> file:
       # does the thing a source names exist? None of them runs file -> reference, so
       # a plate or fragment nothing points at is invisible to all of them. That is

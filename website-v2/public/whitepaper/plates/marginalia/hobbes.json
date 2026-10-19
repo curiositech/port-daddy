@@ -15,5 +15,20 @@
   "solo_portrait": true,
   "framing": "tight painted head-and-shoulders portrait with dark background",
   "background_clutter": "minimal — dark neutral background",
-  "crop": "none — original file downloaded unchanged"
+  "crop": "none — original file downloaded unchanged",
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "hobbes.jpg",
+    "source_sha256": "8c2fbbe16900f7e6e70be28a04353fbc10ea21e198e4e147b89cfb19e466c521",
+    "file": "hobbes.jpg",
+    "sha256": "e34600ffb5734a95c75261b70a881af8974836cb23f197b6bac349bfe0df860b",
+    "bytes": 123254,
+    "pixels": [
+      949,
+      1000
+    ],
+    "encoding": "JPEG quality 85, progressive, optimized",
+    "transparency": "none"
+  }
 }

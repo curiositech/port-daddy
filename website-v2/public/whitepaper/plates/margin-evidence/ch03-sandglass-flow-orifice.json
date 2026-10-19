@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "bae7947e853ad1b007c8f01e41fd8c20d140c552f3b7f810448d7bacb07e16ef",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch03-sandglass-flow-orifice.png",
+    "source_sha256": "bae7947e853ad1b007c8f01e41fd8c20d140c552f3b7f810448d7bacb07e16ef",
+    "file": "ch03-sandglass-flow-orifice.pdf",
+    "sha256": "0c6be65e5679c62ab589e9af3b0a27033f6c4587edd790d2929effe79334f305",
+    "bytes": 140281,
+    "pixels": [
+      335,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

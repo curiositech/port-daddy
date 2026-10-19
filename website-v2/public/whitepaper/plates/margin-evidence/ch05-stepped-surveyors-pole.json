@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch05-stepped-surveyors-pole.png",
+    "source_sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
+    "file": "ch05-stepped-surveyors-pole.pdf",
+    "sha256": "c84a137c53a789287e8ab153ce027bb75d088a1dca33dd1b46807e454dc0efc7",
+    "bytes": 117518,
+    "pixels": [
+      370,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

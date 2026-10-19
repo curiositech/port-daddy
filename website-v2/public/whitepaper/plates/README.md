@@ -13,6 +13,30 @@ slot and lays the page out without the plate when the file is absent.
 
 The numerals and prefixes come from `whitepaper/textbook.json`.
 
+## Print weight
+
+Every plate the Book prints is governed by `scripts/whitepaper-plates/print_weight.py`:
+a per-directory policy of encoding, longest edge, JPEG quality and a byte budget,
+measured from where each directory's plates land in the production spreads. CI runs
+`--check`; after generating or replacing a plate, run `--write`, which re-encodes the
+offenders in place, moves the generated original to `.cache/plates-originals/`
+(git-ignored) and records both SHA-256s in the plate's provenance. Transparent margin
+art becomes a one-page PDF wrapper (JPEG + lossless SMask), so the paper shows through
+exactly as the generated cutout intended. The reason is dated: on 2026-10-13 a 74.7 MB
+Book was committed and rolled back the same day, because 69 MB of it was plates at
+generation weight, and Cloudflare Pages refuses files over 25 MiB.
+
+## The published cover, on the site
+
+`cover-swiss.jpg` is not a plate the Book inputs: it is page one of the committed
+Book PDF, rasterised at 1000×1429 by `scripts/whitepaper-plates/render_cover_plate.py`,
+and it is what the home-page banner and the masthead of `/whitepaper` show. Run
+`render_cover_plate.py --write` after every Book refresh; `--check` fails when the
+committed PDF's SHA-256 no longer matches the one the plate was rendered from. The
+former `cover-maritime.jpg` / `cover-technical.jpg` rasters were removed on
+2026-10-19: those editions publish nothing, and a raster of an unpublished cover
+is a binary nothing uses.
+
 ## Art system
 
 - **Cover:** a faded watercolor wash (the beached moon: a vast machine sphere

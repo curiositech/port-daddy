@@ -15,5 +15,20 @@
   "solo_portrait": false,
   "framing": "environmental field photograph of a monumental cathedral termite mound constructed via stigmergy",
   "background_clutter": "natural Australian bushland background",
-  "crop": "none — original file downloaded unchanged"
+  "crop": "none — original file downloaded unchanged",
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "termites.jpg",
+    "source_sha256": "2c812ba19c7c74257a62197d202b0a3198013e65f7e5aefffb84a3123bae7352",
+    "file": "termites.jpg",
+    "sha256": "3d79090fc64836f1ccb3271ef1ca8c125300383ef5c26fe914e0bc0cab1e8c5e",
+    "bytes": 292342,
+    "pixels": [
+      1000,
+      750
+    ],
+    "encoding": "JPEG quality 85, progressive, optimized",
+    "transparency": "none"
+  }
 }

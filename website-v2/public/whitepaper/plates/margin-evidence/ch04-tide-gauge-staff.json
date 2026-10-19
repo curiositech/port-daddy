@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch04-tide-gauge-staff.png",
+    "source_sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
+    "file": "ch04-tide-gauge-staff.pdf",
+    "sha256": "b22eeb9462cd61e7013c0a8b0065d9836ce0abce7812afb4a9466f4d19d60966",
+    "bytes": 146499,
+    "pixels": [
+      399,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

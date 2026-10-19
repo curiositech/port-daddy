@@ -10,5 +10,20 @@
   ],
   "sha256": "dad3d9ecbe42b27ceccdf26129d422c8f0f8dd7480b324aefb7d5c8e208f7616",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch05-episodic-card-file.png",
+    "source_sha256": "dad3d9ecbe42b27ceccdf26129d422c8f0f8dd7480b324aefb7d5c8e208f7616",
+    "file": "ch05-episodic-card-file.pdf",
+    "sha256": "150ef2a58c69f3926e00c7224a5c7a37dcdc4d1485500a5cc6cbff48186c6a8b",
+    "bytes": 152681,
+    "pixels": [
+      685,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

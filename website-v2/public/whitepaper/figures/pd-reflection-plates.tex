@@ -24,7 +24,7 @@
   other channels the model excludes.}
 \newcommand{\pdreflectiontocentry}[2]{%
   \begin{minipage}[c]{.19\linewidth}%
-    \includegraphics[width=\linewidth,height=.62in,keepaspectratio]{plates/interstitial/#1.png}%
+    \includegraphics[width=\linewidth,height=.62in,keepaspectratio]{plates/interstitial/#1.jpg}%
   \end{minipage}\hfill
   \begin{minipage}[c]{.76\linewidth}\raggedright\small
     Plate: #2%
@@ -34,7 +34,7 @@
   \begin{minipage}[c]{.90\linewidth}#1\end{minipage}\hfill
   \makebox[.07\linewidth][r]{\small #2}\par\addvspace{7pt}}
 \newcommand{\pd@reflection@render}[1]{%
-  \IfFileExists{plates/interstitial/#1.png}{%
+  \IfFileExists{plates/interstitial/#1.jpg}{%
     \thispagestyle{empty}%
     \ifcsname pd@reflection@title@#1\endcsname
       \phantomsection\label{plate:#1}%
@@ -45,7 +45,7 @@
     \fi
     \protected@write\@auxout{}{\string\pdreflectionrecord{#1}{\thepage}}%
     \AddToShipoutPictureBG*{\AtPageCenter{\makebox(0,0){%
-      \includegraphics[width=6in,height=9in,keepaspectratio]{plates/interstitial/#1.png}}}}%
+      \includegraphics[width=6in,height=9in,keepaspectratio]{plates/interstitial/#1.jpg}}}}%
     \ifcsname pd@reflection@body@#1\endcsname
       \AddToShipoutPictureFG*{\AtPageCenter{\makebox(0,0){\begingroup
         % Page art is not a column figure. Undo the Book's centering wrapper,
@@ -64,7 +64,7 @@
     \fi
     \null\newpage
   }{\PackageError{pd-reflection-plates}{Missing interstitial plate #1}%
-    {Restore plates/interstitial/#1.png and its provenance before building.}}%
+    {Restore plates/interstitial/#1.jpg and its provenance before building.}}%
 }
 \newcommand{\pd@reflection@place}[1]{%
   \clearpage
