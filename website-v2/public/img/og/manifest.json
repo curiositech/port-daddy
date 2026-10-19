@@ -3099,10 +3099,10 @@
     {
       "image": "/img/og/whitepaper.jpg",
       "route": "/whitepaper",
-      "title": "The Harbor, the Person, and the Economy - Port Daddy",
-      "description": "The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.",
+      "title": "Governing AI Agents: The Harbor, the Person, and the Economy - Port Daddy",
+      "description": "A Textbook of Concurrency, Identity, and Accountable Autonomous Work: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.",
       "section": "whitepaper",
-      "sectionLabel": "Whitepaper",
+      "sectionLabel": "The Book",
       "sourceImage": "/img/generated/library-og.jpg"
     }
   ]

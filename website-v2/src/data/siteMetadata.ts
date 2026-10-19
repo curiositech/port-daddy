@@ -139,7 +139,7 @@ const sectionLabels: Record<SiteMetadataSection, string> = {
   integrations: 'Integration',
   templates: 'Agent Templates',
   blog: 'Field Note',
-  whitepaper: 'The Book',
+  whitepaper: 'Whitepaper',
   legacy: 'Archive',
 }
 
@@ -360,7 +360,10 @@ const productRoutes: SiteMetadata[] = [
     '/whitepaper',
     'Governing AI Agents: The Harbor, the Person, and the Economy',
     'A Textbook of Concurrency, Identity, and Accountable Autonomous Work: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.',
-    { section: 'whitepaper' },
+    // The share card names the Book as the header does; the section's shared
+    // label stays 'Whitepaper' for /research, /security, /manifesto and the
+    // chapter readers, which are not the Book.
+    { section: 'whitepaper', ogSectionLabel: 'The Book' },
   ),
   metadata(
     '/research',
