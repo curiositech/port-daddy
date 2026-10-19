@@ -114,7 +114,7 @@ function ChapterEntry({ paperId, rule }: { paperId: string; rule: string }) {
         <h3 className="text-[18px] font-bold leading-tight tracking-[-0.012em] text-[var(--text-primary)]">
           {paper.title}
         </h3>
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+        <span className="font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
           {chapterRoleLabel(paper)}
         </span>
       </div>
@@ -216,7 +216,7 @@ function ProofsPanel() {
                   <h3 className="text-[18px] font-bold leading-tight tracking-[-0.015em] text-[var(--text-primary)]">
                     {paper.title}
                   </h3>
-                  <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: ink }}>
+                  <span className="font-mono text-[14px] font-bold uppercase tracking-[0.1em]" style={{ color: ink }}>
                     {chapterRoleLabel(paper)}
                   </span>
                 </div>
@@ -326,7 +326,7 @@ function ReadPanel() {
             className="group block px-5 py-4 no-underline transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
             style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-foreground)' }}
           >
-            <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] opacity-90">
+            <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] opacity-90">
               {edition.pages > 0 ? `${edition.pages} pages · PDF` : 'building'}
             </div>
             <div className="mt-1.5 text-[18px] font-bold leading-[1.2] tracking-[-0.015em]">
@@ -454,7 +454,7 @@ export default function WhitepaperPage() {
                   loading="eager"
                   decoding="async"
                 />
-                <figcaption className="mt-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                <figcaption className="mt-2 font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
                   Page one of the PDF
                 </figcaption>
               </figure>
