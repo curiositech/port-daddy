@@ -89,7 +89,7 @@ Budget: all plates together must stay under 8 MB so the Book PDF stays under
   of why they looked the way they looked — came back low-res and, in plain
   terms, bad looking: flat, hard-edged Swiss-modern colour blocking (the
   Müller-Brockmann / Armin Hofmann register) painted by Nano Banana Pro from
-  `docs/harbor-research/exposition/SWISS-BRIEF.md`, replacing the edition's
+  the Swiss brief (its prompts and palette are the committed `scripts/whitepaper-plates/swiss_prompts.py`; the brief itself now lives in `docs/harbor-research/OMNI-LEDGER.md` under "SWISS-BRIEF: Swiss Edition art direction"), replacing the edition's
   earlier TikZ-drawn cover and plates — `../coordination-papers-mega-volume-swiss-plates.tex`
   now wires all thirteen in with `\includegraphics`. This round also pulled in
   the zonal colour-blocking and the visible construction grid off the
