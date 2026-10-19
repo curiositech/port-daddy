@@ -94,6 +94,35 @@ class PrintWeight(unittest.TestCase):
         self.assertEqual(side["print_master"]["source_sha256"], source)
         self.assertEqual(side["print_master"]["sha256"], sha(self.dir / "lantern.pdf"))
 
+    def test_a_kept_original_without_a_record_is_not_mistaken_for_a_replacement(self):
+        quiet(pw.write, [DIR], False)
+        kept = self.orig / DIR / "lantern.png"
+        kept_sha = sha(kept)
+        ledger = pw.load_ledger()
+        del ledger["derivatives"][f"{DIR}/lantern"]  # a derivative made before the ledger existed
+        pw.save_ledger(ledger)
+        quiet(pw.write, [DIR], True)
+        self.assertEqual(sha(kept), kept_sha, "the kept original survives a --force run with no recorded digest")
+        self.assertEqual(self.sidecar()["print_master"]["source_sha256"], kept_sha)
+
+    def test_a_derivative_that_fails_a_tightened_policy_is_repaired_without_force(self):
+        quiet(pw.write, [DIR], False)
+        saved = dict(pw.POLICY[DIR])
+        try:
+            pw.POLICY[DIR]["cap"] = 400
+            self.assertEqual(quiet(pw.check, [DIR]), 1)
+            self.assertEqual(quiet(pw.write, [DIR], False), 0)
+            self.assertLessEqual(max(self.sidecar()["print_master"]["pixels"]), 400)
+            self.assertEqual(quiet(pw.check, [DIR]), 0)
+        finally:
+            pw.POLICY[DIR] = saved
+
+    def test_check_fails_a_derivative_changed_by_hand(self):
+        quiet(pw.write, [DIR], False)
+        wrapper = self.dir / "lantern.pdf"
+        wrapper.write_bytes(wrapper.read_bytes() + b"\n%hand-edited")
+        self.assertEqual(quiet(pw.check, [DIR]), 1)
+
     def test_a_replacement_supersedes_the_kept_original(self):
         quiet(pw.write, [DIR], False)
         old_original = sha(self.orig / DIR / "lantern.png")

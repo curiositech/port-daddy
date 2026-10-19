@@ -9,12 +9,14 @@ Each entry includes:
 - Integrity SHA-256 and dimensions
 """
 
+import base64
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 
-ROOT = Path("/Users/erichowens/coding/tmp/book-figures-reconciled")
+ROOT = Path(__file__).resolve().parents[2]
 MARGIN_DIR = ROOT / "website-v2/public/whitepaper/plates/margin-evidence"
 OUT_HTML = ROOT / "docs/harbor-research/exposition/marginalia-contact-sheet.html"
 
@@ -357,25 +359,53 @@ DRAWINGS = [
     }
 ]
 
+PAPER = (0xFB, 0xF7, 0xEF)  # hhpaper, the page the Book prints these on
+
+
+def thumbnail_data_uri(wrapper: Path, width: int = 256) -> str:
+    """Render the print master (a JPEG+SMask PDF wrapper) onto the Book's paper
+    colour, as a JPEG data URI, so the sheet carries its own thumbnails and no
+    binary has to live beside it."""
+    import fitz
+    from PIL import Image
+    with fitz.open(wrapper) as doc:
+        page = doc[0]
+        zoom = width / page.rect.width
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=True)
+        art = Image.frombytes("RGBA", (pix.width, pix.height), pix.samples)
+    sheet = Image.new("RGB", art.size, PAPER)
+    sheet.paste(art, mask=art.getchannel("A"))
+    buf = io.BytesIO()
+    sheet.save(buf, "JPEG", quality=75, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def main():
     print(f"Building Marginalia Contact Sheet for {len(DRAWINGS)} drawings...")
     
-    # Verify every drawing exists
+    # Since 2026-10-19 each drawing is a print-weight wrapper
+    # (scripts/whitepaper-plates/print_weight.py): <slug>.pdf beside its
+    # generation sidecar <slug>.json, whose print_master block pins the wrapper
+    # and the generated PNG it was derived from.
     missing = []
     for d in DRAWINGS:
-        png_path = MARGIN_DIR / f"{d['slug']}.png"
-        if not png_path.exists():
+        wrapper = MARGIN_DIR / f"{d['slug']}.pdf"
+        sidecar = MARGIN_DIR / f"{d['slug']}.json"
+        if not wrapper.exists():
             missing.append(d['slug'])
-        else:
-            d['png_path'] = png_path
-            d['size_bytes'] = png_path.stat().st_size
-            with open(png_path, "rb") as f:
-                d['sha256'] = hashlib.sha256(f.read()).hexdigest()
-    
+            continue
+        d['thumb'] = thumbnail_data_uri(wrapper)
+        d['size_bytes'] = wrapper.stat().st_size
+        d['sha256'] = hashlib.sha256(wrapper.read_bytes()).hexdigest()
+        if sidecar.exists():
+            master = json.loads(sidecar.read_text()).get('print_master') or {}
+            d['source_sha256'] = master.get('source_sha256', '')
+            d['pixels'] = master.get('pixels')
+
     if missing:
-        print(f"WARNING: {len(missing)} drawings missing: {missing}")
+        print(f"NOTE: {len(missing)} drawing(s) have no plate on disk and are listed as retired: {missing}")
     else:
-        print("All 40 drawings verified on disk!")
+        print(f"All {len(DRAWINGS)} drawings verified on disk!")
 
     # Build HTML
     html = []
@@ -615,14 +645,21 @@ def main():
 """)
         
         # Card item
-        rel_img = f"../../../website-v2/public/whitepaper/plates/margin-evidence/{d['slug']}.png"
-        sha_short = d.get('sha256', '')[:16] + "..." if 'sha256' in d else "verified"
-        size_kb = f"{d.get('size_bytes', 0) / 1024:.1f} KB" if 'size_bytes' in d else ""
-        
+        if 'thumb' in d:
+            thumb = f'<img src="{d["thumb"]}" alt="{d["label"]}" loading="lazy">'
+            file_name = f"{d['slug']}.pdf"
+            px = f" · {d['pixels'][0]}×{d['pixels'][1]} px" if d.get('pixels') else ""
+            digest = (f"print master SHA {d['sha256'][:16]}… · {d['size_bytes'] / 1024:.1f} KB{px}"
+                      + (f"<br>generated PNG SHA {d['source_sha256'][:16]}…" if d.get('source_sha256') else ""))
+        else:
+            thumb = '<div style="padding: 2rem 1rem; color: var(--ink-secondary); text-align: center;">No plate: retired 2026-10-19, the Book never printed it.</div>'
+            file_name = f"{d['slug']} (retired)"
+            digest = "removed with the other unprinted binaries; its provenance stays in git history"
+
         html.append(f"""
     <div class="card">
       <div class="thumb-wrap">
-        <img src="{rel_img}" alt="{d['label']}" loading="lazy">
+        {thumb}
       </div>
       <div class="card-body">
         <div class="item-slot">Chapter {cur_ch} · Object</div>
@@ -630,8 +667,8 @@ def main():
         <div class="item-concept">{d['concept']}</div>
         <div class="item-impetus">{d['impetus']}</div>
         <div class="card-footer">
-          <div class="file-name">{d['slug']}.png</div>
-          <div class="digest">SHA: {sha_short} · {size_kb}</div>
+          <div class="file-name">{file_name}</div>
+          <div class="digest">{digest}</div>
         </div>
       </div>
     </div>

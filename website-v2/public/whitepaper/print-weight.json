@@ -1,0 +1,1340 @@
+{
+  "_about": "Every plate derivative written by scripts/whitepaper-plates/print_weight.py, keyed <dir>/<stem>: the derivative's digest and pixels, and the digest of the generated original it was derived from (kept under .cache/plates-originals/, git-ignored). --check compares each file against its entry; --write treats a file whose digest is not the recorded one as a replacement that supersedes the kept original.",
+  "derivatives": {
+    "plates/frontispiece": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "frontispiece.jpg",
+      "source_sha256": "390fb8e85ca2f47065304de81b0f1324f41ee03ea416537a98a4818b5d689571",
+      "file": "frontispiece.jpg",
+      "sha256": "fa7c85f75931bc181b7c308e80213ae918399abc77e7a0f7aa0f100f71788472",
+      "bytes": 342963,
+      "pixels": [
+        1208,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/interstitial/the-controlled-opening": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "the-controlled-opening.png",
+      "source_sha256": "77baa68de90c4aa5c0d0342256202bb93d959fc1a92e5c7c7719b29a20f8ded9",
+      "file": "the-controlled-opening.jpg",
+      "sha256": "1987036d466d73b5c721a43bb2f9f8b9291e8986f79d98f124257fbd5727e91e",
+      "bytes": 231392,
+      "pixels": [
+        1024,
+        1536
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/interstitial/the-paper-crossing": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "the-paper-crossing.png",
+      "source_sha256": "d925fc2cbd6c6a3e1b8142e11e5fd652c89983729a8e6621be1551f077f96d56",
+      "file": "the-paper-crossing.jpg",
+      "sha256": "9d0d7ea784d4f376e9923cc23f05da623152c5018318c20ce4e55bdc580b7a39",
+      "bytes": 366638,
+      "pixels": [
+        1024,
+        1536
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/interstitial/the-unseen-boat": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "the-unseen-boat.png",
+      "source_sha256": "2e582ea7472f67099ecb4987653fc1d4fcbe0b7d9bca5e0907192b232b3b3d91",
+      "file": "the-unseen-boat.jpg",
+      "sha256": "bac67045678e60035b73eceaf5191a2f0f6c1e77991966fc3dedc7a44fb57d59",
+      "bytes": 408132,
+      "pixels": [
+        1024,
+        1536
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/interstitial/the-waiting-body": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "the-waiting-body.png",
+      "source_sha256": "b38b6d00b4faec88b663a36c5d6b5364c52f62876e71ee5294d74d2fc4bb4276",
+      "file": "the-waiting-body.jpg",
+      "sha256": "2297827a60e11ee8028d4d760e6d7f2949ad6d906b0b5762a2f09bacc46e44bb",
+      "bytes": 311331,
+      "pixels": [
+        1024,
+        1536
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/jacket": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "jacket.jpg",
+      "source_sha256": "5e4935d09b4a43adadf271cf78502672e4f1962a8d4893e9f19495fe78ee45a4",
+      "file": "jacket.jpg",
+      "sha256": "10e0e3b4e2b0d5748e1882b18b80cab46ae110455942dba790d5d641a94ff39c",
+      "bytes": 301462,
+      "pixels": [
+        1273,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/margin-evidence/bond-balance": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "bond-balance.png",
+      "source_sha256": "e8947064855a3f7baa8ecca128409c514d3f0a02441994c52c1aa6ae18049d83",
+      "file": "bond-balance.pdf",
+      "sha256": "fa1009e9739a45f461d2999ac00a244c0a8e0710ade77251dad885fbdd843607",
+      "bytes": 129666,
+      "pixels": [
+        720,
+        394
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch01-fairness-ticket-dispenser": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch01-fairness-ticket-dispenser.png",
+      "source_sha256": "6156226a0a48118f77296602de4ec03ace30e83a6bc05b29e08ac913ee23bb6c",
+      "file": "ch01-fairness-ticket-dispenser.pdf",
+      "sha256": "4095250cff8c973499d7a49fc8eb6d26721fd27cd5302e55b6679a0768af628e",
+      "bytes": 130230,
+      "pixels": [
+        584,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch01-flywheel-governor": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch01-flywheel-governor.png",
+      "source_sha256": "d821beb1cffe3189437291a824c47e0f7cfdde6d58f10842649973e3b7e7d9d7",
+      "file": "ch01-flywheel-governor.pdf",
+      "sha256": "a3b856e31dc1e8ab1e92bd98b533c20549a9b62b94a69b763555d60612dc0937",
+      "bytes": 111476,
+      "pixels": [
+        496,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch01-railway-token-staff": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch01-railway-token-staff.png",
+      "source_sha256": "f89ba707e8e8ec99656fa9e5f11f96e4dd2cc15fbbada570ab8c82fc959cfc51",
+      "file": "ch01-railway-token-staff.pdf",
+      "sha256": "c020d446a87f89a1b89eb7855ac63e7845bb14a7f09cabaaaa681f294b9395bf",
+      "bytes": 78604,
+      "pixels": [
+        211,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch01-water-meter-dial": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch01-water-meter-dial.png",
+      "source_sha256": "f05bee6fc762d4db1bb34a1e77e004eca3191b9b5696126a06436fd335e08e68",
+      "file": "ch01-water-meter-dial.pdf",
+      "sha256": "f5b5dadc83455f8eb8471c1bc8299c7402c06e24044b59d82c874009eb8d4c90",
+      "bytes": 212975,
+      "pixels": [
+        720,
+        614
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch02-colander-mesh": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch02-colander-mesh.png",
+      "source_sha256": "fe269190992342929a3d6b3e8b3b43fc583c584a63a507ab449f245adf725918",
+      "file": "ch02-colander-mesh.pdf",
+      "sha256": "cb792db065ad086876765eeb827cd7e4188feb57132983d6de0b5fa6b1697d51",
+      "bytes": 199379,
+      "pixels": [
+        648,
+        543
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch02-couriers-dispatch-pouch": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch02-couriers-dispatch-pouch.png",
+      "source_sha256": "c369922d6ca4b689014f0c4de4f1c245835772262f477aaabe49add229c7914f",
+      "file": "ch02-couriers-dispatch-pouch.pdf",
+      "sha256": "0b877f9b2c8622efb7c5f1e211c3394959e65e447c469c5a62a81487cda2493f",
+      "bytes": 186947,
+      "pixels": [
+        523,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch02-finite-grant-parking-meter": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch02-finite-grant-parking-meter.png",
+      "source_sha256": "3a9030926a55b7c6ca713a540fe559a21b5ae95c6dba1e37cac5516900cfe311",
+      "file": "ch02-finite-grant-parking-meter.pdf",
+      "sha256": "fdbaf4ca6f8c7fa75d9de962f22468d4a815ea702a3c21930aac0caf1fbae3ca",
+      "bytes": 164428,
+      "pixels": [
+        344,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch02-nested-measuring-spoons": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch02-nested-measuring-spoons.png",
+      "source_sha256": "bc69dd3f2fc28a21380bc1c5014be9fee84393b93f60c63f94c3e879c86e95e1",
+      "file": "ch02-nested-measuring-spoons.pdf",
+      "sha256": "7e3e2f0b82408bf8c70378c8ebda883cee139b4ef2bc6a31a7fe232012c23863",
+      "bytes": 113382,
+      "pixels": [
+        300,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch03-authorized-speaking-tube": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch03-authorized-speaking-tube.png",
+      "source_sha256": "06009b0a8713a8efaa77eb8f8a19dce1c9f7cba6a53de1c5ad982aa64a1066fb",
+      "file": "ch03-authorized-speaking-tube.pdf",
+      "sha256": "58efa7492bd3c748f0ae2ad90de05058683ab152815052eb5658d79de1c70fb0",
+      "bytes": 106004,
+      "pixels": [
+        445,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch03-lead-lined-darkslide": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch03-lead-lined-darkslide.png",
+      "source_sha256": "88ee3c8ce740e5cb64177698a1c75c263eb1ef1cd4f9876cffe0b8de15f5b57e",
+      "file": "ch03-lead-lined-darkslide.pdf",
+      "sha256": "aa9ac009776a9849e99a4a0b18f44991dbfd6a27157de831c2bb772e1eb9a219",
+      "bytes": 144264,
+      "pixels": [
+        376,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch03-sandglass-flow-orifice": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch03-sandglass-flow-orifice.png",
+      "source_sha256": "bae7947e853ad1b007c8f01e41fd8c20d140c552f3b7f810448d7bacb07e16ef",
+      "file": "ch03-sandglass-flow-orifice.pdf",
+      "sha256": "0c6be65e5679c62ab589e9af3b0a27033f6c4587edd790d2929effe79334f305",
+      "bytes": 140281,
+      "pixels": [
+        335,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch03-two-shutter-shadowbox": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch03-two-shutter-shadowbox.png",
+      "source_sha256": "5b0d4da5a933e25eab5d3ffa0d140aea4c1f69b0ce05f491039ff1514842ab3a",
+      "file": "ch03-two-shutter-shadowbox.pdf",
+      "sha256": "994322ef5851866b267cdbe371550dba59574b25977c5626a26e936e749d8455",
+      "bytes": 170011,
+      "pixels": [
+        520,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch04-selective-attention-annunciator": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch04-selective-attention-annunciator.png",
+      "source_sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
+      "file": "ch04-selective-attention-annunciator.pdf",
+      "sha256": "e1e708bbb5ae7158dc9f7ce6501b523141c792bf37c9cbb6d03d40b5c353a1f2",
+      "bytes": 112750,
+      "pixels": [
+        440,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch04-sextant-index-mirror": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch04-sextant-index-mirror.png",
+      "source_sha256": "8823fa6f8670914e4e12f19acf516a05effacf47d7e668b63ab40a4f50c492b5",
+      "file": "ch04-sextant-index-mirror.pdf",
+      "sha256": "4780eff22389b812835156ccba6ba0a406dcfd4890e6de0d5bfde9b68d5388b1",
+      "bytes": 165769,
+      "pixels": [
+        609,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch04-telegraph-sounder-key": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch04-telegraph-sounder-key.png",
+      "source_sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
+      "file": "ch04-telegraph-sounder-key.pdf",
+      "sha256": "ba898a2cd76b119febf093856a974588a70459ff28f9f22d95c2dd6c65802f34",
+      "bytes": 213627,
+      "pixels": [
+        720,
+        674
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch04-tide-gauge-staff": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch04-tide-gauge-staff.png",
+      "source_sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
+      "file": "ch04-tide-gauge-staff.pdf",
+      "sha256": "b22eeb9462cd61e7013c0a8b0065d9836ce0abce7812afb4a9466f4d19d60966",
+      "bytes": 146499,
+      "pixels": [
+        399,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch05-continuity-rope-splice": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch05-continuity-rope-splice.png",
+      "source_sha256": "f0893d41e5a42b073c1794f9281736d7c3e701acc06758544f531a1443cedfde",
+      "file": "ch05-continuity-rope-splice.pdf",
+      "sha256": "1d162cf1f8d8eb19656eef37ad936127cd892f209f5a25e97ada275d88316adf",
+      "bytes": 49077,
+      "pixels": [
+        345,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch05-episodic-card-file": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch05-episodic-card-file.png",
+      "source_sha256": "dad3d9ecbe42b27ceccdf26129d422c8f0f8dd7480b324aefb7d5c8e208f7616",
+      "file": "ch05-episodic-card-file.pdf",
+      "sha256": "150ef2a58c69f3926e00c7224a5c7a37dcdc4d1485500a5cc6cbff48186c6a8b",
+      "bytes": 152681,
+      "pixels": [
+        685,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch05-stagecoach-relay-post": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch05-stagecoach-relay-post.png",
+      "source_sha256": "eb8ca5d52ec4232e558dffe92e8d78817d36840cc678ed3d77ffd07b893e8a29",
+      "file": "ch05-stagecoach-relay-post.pdf",
+      "sha256": "a48914364bd44824485e7086871ea53f0ba15d1d9aa375ba35bd88953bf85e9e",
+      "bytes": 203852,
+      "pixels": [
+        567,
+        648
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch05-stepped-surveyors-pole": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch05-stepped-surveyors-pole.png",
+      "source_sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
+      "file": "ch05-stepped-surveyors-pole.pdf",
+      "sha256": "c84a137c53a789287e8ab153ce027bb75d088a1dca33dd1b46807e454dc0efc7",
+      "bytes": 117518,
+      "pixels": [
+        370,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch05-wax-seal-signet": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch05-wax-seal-signet.png",
+      "source_sha256": "c3b6ee09e65820baf2286734b52d91c0c000861f445084f9a15070a0d3b9840c",
+      "file": "ch05-wax-seal-signet.pdf",
+      "sha256": "da2e18bff171d331764a5d460f69e2f36357e25f513d7f3a864b075c569734a3",
+      "bytes": 194494,
+      "pixels": [
+        603,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch06-dockyard-cargo-sling": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch06-dockyard-cargo-sling.png",
+      "source_sha256": "568aeff59dffe2c624b56ba65daca9d64d37ea209cc93b1dd8bed55421a2e534",
+      "file": "ch06-dockyard-cargo-sling.pdf",
+      "sha256": "c5bc7d422ce7de39f33b6bec523ac3ee30e3cd40e7fc8ae9ef150842fca60200",
+      "bytes": 186915,
+      "pixels": [
+        368,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch06-grain-tally-board": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch06-grain-tally-board.png",
+      "source_sha256": "fb6ea05896cf64c5f7da046e686b2e63fdea8756c3fbfd1b0354267bd71462ef",
+      "file": "ch06-grain-tally-board.pdf",
+      "sha256": "6941f6852cbe7ef408f53a7c49d2ef02b3c7f94870b5519be4fed502a27d2089",
+      "bytes": 207551,
+      "pixels": [
+        490,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch06-reusable-printing-block": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch06-reusable-printing-block.png",
+      "source_sha256": "baa8bbc79d4bafeb1191da37c105e01746f260ce26e3ced07b2fbc3911aa6a39",
+      "file": "ch06-reusable-printing-block.pdf",
+      "sha256": "ac3bc54504635c19b9d4c9052a20b1b83bac197def64d4878464027d7bf3183a",
+      "bytes": 139591,
+      "pixels": [
+        720,
+        600
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch06-wharf-steelyard-scale": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch06-wharf-steelyard-scale.png",
+      "source_sha256": "2187d47b78013496221d05e8816c15ace662fc7a22f309bf32a77ef1c4b90999",
+      "file": "ch06-wharf-steelyard-scale.pdf",
+      "sha256": "17abdd9d18ca17127a33d42c7d20de314308fa18ae182da1d40235f6fe6548de",
+      "bytes": 107317,
+      "pixels": [
+        649,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch07-cleanup-repair-kit": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch07-cleanup-repair-kit.png",
+      "source_sha256": "03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa",
+      "file": "ch07-cleanup-repair-kit.pdf",
+      "sha256": "e444ba0b8da639266545a34a11360a43bff5cc8726a17d881f3c42e5d2e7c319",
+      "bytes": 179804,
+      "pixels": [
+        600,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch07-dual-control-escrow-box": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch07-dual-control-escrow-box.png",
+      "source_sha256": "ce07f093860cbf0d836e0f293c32e26bdeb577d4cbddaaeed7b62dba3069a4be",
+      "file": "ch07-dual-control-escrow-box.pdf",
+      "sha256": "24a7db64fb2971cb459875cb3ff6c5cfdea01b80c9b06919d395037562a4008c",
+      "bytes": 210639,
+      "pixels": [
+        648,
+        629
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch07-shear-pin-fuse": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch07-shear-pin-fuse.png",
+      "source_sha256": "5209f3860c7ed19702d02ff2ffa0a8090dda01785924cf646750519ca3c774c2",
+      "file": "ch07-shear-pin-fuse.pdf",
+      "sha256": "d10c243c3174c641cfa9fbbd199e32122d3bfe2a93ce4867d578bbfc6a38e961",
+      "bytes": 209051,
+      "pixels": [
+        703,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch08-closed-traverse-compass": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch08-closed-traverse-compass.png",
+      "source_sha256": "ea1a770e27cf55129e0913df06556e4d312e5fa1993bfd34c31442b492bf8706",
+      "file": "ch08-closed-traverse-compass.pdf",
+      "sha256": "e6cd28be14c8933f9dcb0335da08a64da492082f7ea9d70ca30ec666aabc04d8",
+      "bytes": 143565,
+      "pixels": [
+        472,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch08-interlocking-railway-lever": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch08-interlocking-railway-lever.png",
+      "source_sha256": "618cd92276222bbe9d1e919186b6b79dd14fe7bb1201a487a75765ec15e36791",
+      "file": "ch08-interlocking-railway-lever.pdf",
+      "sha256": "c557b50aa30f1fa7476d0f18cd3daad390d8cbf6bd83e4981f8661a5cd5cf8e2",
+      "bytes": 131411,
+      "pixels": [
+        529,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch08-local-admission-turnstile": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch08-local-admission-turnstile.png",
+      "source_sha256": "e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12",
+      "file": "ch08-local-admission-turnstile.pdf",
+      "sha256": "f2c756e0f06a3dc9c947c39103357de4d3be46aff60bf2de112a30a222169f04",
+      "bytes": 94019,
+      "pixels": [
+        573,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch08-quarantine-inspection-lantern": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch08-quarantine-inspection-lantern.png",
+      "source_sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
+      "file": "ch08-quarantine-inspection-lantern.pdf",
+      "sha256": "1224d5bbdcfa1ce3a50c845599f311c1590783d3110379c0ebd77da7bdceb05c",
+      "bytes": 129072,
+      "pixels": [
+        317,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/ch08-transit-customs-seal": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "ch08-transit-customs-seal.png",
+      "source_sha256": "47c518b7442341b30e259f9ebce15434ba8ca9d3b12e3d41474ec22223e9304b",
+      "file": "ch08-transit-customs-seal.pdf",
+      "sha256": "52e9675210da9ebd25e5c25d632cbd10f1ef971e4a1d4ae7efe22a2295f63544",
+      "bytes": 134033,
+      "pixels": [
+        495,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/map-and-lens": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "map-and-lens.png",
+      "source_sha256": "7469c7f8f2493535a33f59b61cd0a4b77c89d4d655f31a077b7a8ea086add755",
+      "file": "map-and-lens.pdf",
+      "sha256": "2cbb8509a5604f92001bf3e8af860bd3ee68280a05b68d4a5d3d0afdb3caeb89",
+      "bytes": 207875,
+      "pixels": [
+        678,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/movable-type": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "movable-type.png",
+      "source_sha256": "a50c3209d61ea09c2d9ee0bc6b48c77afa5fc9836406d24f1b00748ebd070814",
+      "file": "movable-type.pdf",
+      "sha256": "86e469cf9078141a6f242f4936e10949e0299c978e2db8eedfabad03acb45f96",
+      "bytes": 178836,
+      "pixels": [
+        439,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/one-printing-press": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "one-printing-press.png",
+      "source_sha256": "98633d2f170541ff1444d730960ac6094c110f0e41e07da7b0fb8ecefa51ca75",
+      "file": "one-printing-press.pdf",
+      "sha256": "a8a01a2fb617ddb848bea84916e66b03be2d4ddeeb9790cc17ac9191ae1be8eb",
+      "bytes": 154052,
+      "pixels": [
+        720,
+        659
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/reduced-key": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "reduced-key.png",
+      "source_sha256": "3f8022c83ade0139af9b3e5fada2c3bd83ff2cffa40dfb69741f023604c0e663",
+      "file": "reduced-key.pdf",
+      "sha256": "9cdd9f2b313b58ed9e40e87edbfb0f01028605444d64ac39237d4df3dafc3add",
+      "bytes": 120168,
+      "pixels": [
+        434,
+        720
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/margin-evidence/sealed-specimen": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "sealed-specimen.png",
+      "source_sha256": "cddaa67d201728cdf4b2fbe46494bc2703fcbe9206b1a35500006aaf048ba217",
+      "file": "sealed-specimen.pdf",
+      "sha256": "a8b9ebf2a49b6a416c899178cf95697be3c278eb01a6447975c9bb955016c78f",
+      "bytes": 101725,
+      "pixels": [
+        419,
+        655
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "SMask"
+    },
+    "plates/marginalia/hickman": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "hickman.jpg",
+      "source_sha256": "eb2845bc426834421409b715a8a9f45af99da7ad3c666405e278cda1e66ceeaf",
+      "file": "hickman.jpg",
+      "sha256": "3ad3b688a8b4d39646f04e25f964d1e1e931abdbf70d64b95728e80624513f25",
+      "bytes": 111455,
+      "pixels": [
+        667,
+        1000
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/marginalia/hobbes": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "hobbes.jpg",
+      "source_sha256": "8c2fbbe16900f7e6e70be28a04353fbc10ea21e198e4e147b89cfb19e466c521",
+      "file": "hobbes.jpg",
+      "sha256": "e34600ffb5734a95c75261b70a881af8974836cb23f197b6bac349bfe0df860b",
+      "bytes": 123254,
+      "pixels": [
+        949,
+        1000
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/marginalia/sen": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "sen.jpg",
+      "source_sha256": "51687a60dc2325c9eb4a6ff592b3ca3571e5f04b22e5f077ad44b27acbe381e3",
+      "file": "sen.jpg",
+      "sha256": "ae6f14ad10e4bc873fdfca381b2acfa95a12f3407f3b625a71be90fe318a97b9",
+      "bytes": 85046,
+      "pixels": [
+        1000,
+        667
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/marginalia/termites": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "termites.jpg",
+      "source_sha256": "2c812ba19c7c74257a62197d202b0a3198013e65f7e5aefffb84a3123bae7352",
+      "file": "termites.jpg",
+      "sha256": "3d79090fc64836f1ccb3271ef1ca8c125300383ef5c26fe914e0bc0cab1e8c5e",
+      "bytes": 292342,
+      "pixels": [
+        1000,
+        750
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/part-I": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-I.jpg",
+      "source_sha256": "8c1a883697b4de92b2cef3d5cb379a374f2a1e7e6ea2898cc05d01834a3e196d",
+      "file": "part-I.jpg",
+      "sha256": "d7ebda04065ff27cdb677054ae55dd56a20b1c0e5a800d51036a1599d12e5c5b",
+      "bytes": 313738,
+      "pixels": [
+        1273,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/part-II": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-II.jpg",
+      "source_sha256": "9e218477745a3d5facef33dc9b03e75db75abfae2968287a080975a4f4a1f835",
+      "file": "part-II.jpg",
+      "sha256": "1e4c9f17aa6d8fd0c63f698053f75f240f3902d48753eb49c1489f9bde31d604",
+      "bytes": 302004,
+      "pixels": [
+        1273,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/part-III": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-III.jpg",
+      "source_sha256": "537633a96c992d3ebc231073d1c315b77a5efa1fabae4f882c328908481ad8e4",
+      "file": "part-III.jpg",
+      "sha256": "bae4d70d5c0feb68be904200fd64270f2ba19b9b1cd1f9a2ca19dee993d73966",
+      "bytes": 345559,
+      "pixels": [
+        1273,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/part-IV": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-IV.jpg",
+      "source_sha256": "784a42497abf739af2b156d98023e2baa23c83280dd7a168991ae66cad43a4de",
+      "file": "part-IV.jpg",
+      "sha256": "f426bb38ad2f6c1c2e6278a214d1e5359a0a96377fccbb2244be6f4a4de599f5",
+      "bytes": 349518,
+      "pixels": [
+        1273,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-anchor": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-anchor.jpg",
+      "source_sha256": "baf759477b5bebbf9777cef46ba79075f94fe5193ad39f0ad7a46610710057ca",
+      "file": "chapter-anchor.jpg",
+      "sha256": "12c80df2355648b8565b31aa82ed239b646cc083fa9e70b911c6df920c9ddbe4",
+      "bytes": 257692,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-bonded": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-bonded.jpg",
+      "source_sha256": "fd634754c34a2a7d82f7f1658c38b32298ecaf485ab7bfc1193f0cab3ebb0708",
+      "file": "chapter-bonded.jpg",
+      "sha256": "f8eee25b7a911e5756164dce335df36a8266709b159bc2e1a29a0a022f5be3e6",
+      "bytes": 285527,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-fh": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-fh.jpg",
+      "source_sha256": "33f3c3a9d83c343cce64134674aeb27ad3d7eebdd53ad0fe1195eec7380e9d1c",
+      "file": "chapter-fh.jpg",
+      "sha256": "10ca078b3fa1c51042a19916c6901c97026457554bab08e1cbef3cf653c41af9",
+      "bytes": 241927,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-he": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-he.jpg",
+      "source_sha256": "cc402f361f59292f8898b80db3397ba1cc6d869c16b1f3f568fd08772b2f5288",
+      "file": "chapter-he.jpg",
+      "sha256": "425cd5d4236aa73c826f97142695f96394fa293d8d1ba4adc99be007b5cbc163",
+      "bytes": 258207,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-ls": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-ls.jpg",
+      "source_sha256": "f15aa93b383f756f79ef3a44acd1c47b7351f118e82209fd4c247db69a9ba977",
+      "file": "chapter-ls.jpg",
+      "sha256": "d5de57d2ea8fa7f43f1eefc5c9dae64775109053561890fceea0e39a10592eac",
+      "bytes": 374222,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-prereq": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-prereq.jpg",
+      "source_sha256": "0985ae9b0f216c951c83478811ebd0824b4f352dd17781e4745c37625dca2c8a",
+      "file": "chapter-prereq.jpg",
+      "sha256": "b54f72a22ca9eeee12ecbdeff3f7e30cb9fb09a53ce50692a991ddf0838223e1",
+      "bytes": 179102,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-sealed": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-sealed.jpg",
+      "source_sha256": "8642c0e834a9c6e69d248fcaae6de74e7ab4c5d635071180c8355dcda3f512ae",
+      "file": "chapter-sealed.jpg",
+      "sha256": "8e7e0c14db0214c78d0a0f4c29fb1ffcb303e88270e3b4648265a0550acbef0d",
+      "bytes": 193514,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-stp": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-stp.jpg",
+      "source_sha256": "29e268001aacee217922c2911835faf4cf761c8a7328e52be71fc2764123f25f",
+      "file": "chapter-stp.jpg",
+      "sha256": "f17751a2b90b6b4a2a436086f0e833df98fd8adb59ac924966aa5d816fa49c1f",
+      "bytes": 356203,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/chapter-swk": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "chapter-swk.jpg",
+      "source_sha256": "c2f6b40d759fdd86a0efa1b2b2e74ed87383e745a702386d793887946b16a9dd",
+      "file": "chapter-swk.jpg",
+      "sha256": "bb431d490dfc16f5940fe1363adb6bfeec1537df6cbd10fdd29f06b4d3b67389",
+      "bytes": 178548,
+      "pixels": [
+        1800,
+        900
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/cover": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "cover.jpg",
+      "source_sha256": "6e1036d4839cb6bf8af5fb09223875772f62926ae1f059b529eeccbaaa9e3cf8",
+      "file": "cover.jpg",
+      "sha256": "61a04c5d360f66db23de5fa70bc7e4779c04ef3b929097b3913983e85f61f8f5",
+      "bytes": 139966,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-big-brother-logic": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-big-brother-logic.jpg",
+      "source_sha256": "2bd8c4e9dfb8a4b5af6909e21344134ec5f26ed58127f859cdedcccb46adeab6",
+      "file": "fig-ch0-big-brother-logic.jpg",
+      "sha256": "dc9914072a577ee00b3070b5103090f00e9ed696a571586da25a338cf1c3fddf",
+      "bytes": 78650,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-closed-loop": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-closed-loop.jpg",
+      "source_sha256": "b882da036d159a0e859ce8be37df0e52f066924da5d21feca1a36ed18380a139",
+      "file": "fig-ch0-closed-loop.jpg",
+      "sha256": "feede0446329225fc83cff788155e7ac4ce3b93b7d118e6ffe38b3714ad6faf5",
+      "bytes": 114033,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-cnp-bidding": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-cnp-bidding.jpg",
+      "source_sha256": "39ecf2ee32353dd5b3040818643fc97a13a919b18081fac65452ca32165a2c3c",
+      "file": "fig-ch0-cnp-bidding.jpg",
+      "sha256": "0f123cd7cfe447515d9b557868c8c4ece06ac26504aae418ced50d960330fa97",
+      "bytes": 108341,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-cnp-settlement": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-cnp-settlement.jpg",
+      "source_sha256": "4d19c738f1c6fc0598145145ff06d2102e99134c6630555a02c52ea02d8570a4",
+      "file": "fig-ch0-cnp-settlement.jpg",
+      "sha256": "b1b1f746f74e5847e7e37001666a5e67049933a2bdcb8ecb568aa4fa4dbb92fd",
+      "bytes": 78272,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-lifecycle-hooks": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-lifecycle-hooks.jpg",
+      "source_sha256": "f5e6c87f5ca03f450c8f44d27b2050e89e2f7840226356439b788ace0f8dfaca",
+      "file": "fig-ch0-lifecycle-hooks.jpg",
+      "sha256": "16afc2054ca8b98571c9b9d574a85da2280bd96bc0edef7477c6f8c48a24d09e",
+      "bytes": 93612,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/fig-ch0-skills-logarithmic": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "fig-ch0-skills-logarithmic.jpg",
+      "source_sha256": "41e13f5988b4616760999630e1ddd713c6010589bffaab3345b368c7724e6994",
+      "file": "fig-ch0-skills-logarithmic.jpg",
+      "sha256": "0f331179d0ab809e60faaf28a0139aee4fd69daf9ee6315879577bfad729073a",
+      "bytes": 131029,
+      "pixels": [
+        1376,
+        768
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/frontispiece": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "frontispiece.jpg",
+      "source_sha256": "3e04edde55ce51c6503b867bc7d809a7e36223b210b3f2bc4db73789b1d26266",
+      "file": "frontispiece.jpg",
+      "sha256": "f79f604490f7738833b123633c0a01d149a8d208e8d73bd9b7877cdbc48ca800",
+      "bytes": 186371,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-01": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-01.jpg",
+      "source_sha256": "df3322518e4628e8c13530e0692ac146b0398b21ab69a359f4654aae07353966",
+      "file": "landmark-01.jpg",
+      "sha256": "a4b2b1393aaef233c1313353bbecac6b2801d1d72c313401141d66836c2ab1b6",
+      "bytes": 84551,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-02": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-02.jpg",
+      "source_sha256": "d96f8867551d1942898db209aa4fea0b036ef9628e744aaaf245754353d6f6f9",
+      "file": "landmark-02.jpg",
+      "sha256": "2e23a8a9097e9297643ef813e93fe9a0b7e053763eb97b42b4ae82fa8a2970d7",
+      "bytes": 175099,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-03": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-03.jpg",
+      "source_sha256": "88a59c92de376273b91b18a76648f2b87c317f3dd478415b74c1a1c1db8ee00b",
+      "file": "landmark-03.jpg",
+      "sha256": "960a2b94bd5e5a8da2208c6b935c3710ff50fb953108742b5664a8bbc18d2fca",
+      "bytes": 178696,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-04": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-04.jpg",
+      "source_sha256": "fc85e75cd76424ee99dbc02cca2c8f6e9b1796344a0685207878e61d031d5547",
+      "file": "landmark-04.jpg",
+      "sha256": "260fdeaa465da910d34f3f08164de2e47daee79228b864ead7e010d2b1ac7931",
+      "bytes": 131328,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-05": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-05.jpg",
+      "source_sha256": "72cf2ddef698472e8848b3d961c3cd0633e71e2e80d2e14112a6bbb0a0ae3cb4",
+      "file": "landmark-05.jpg",
+      "sha256": "818865d4a7a66508170483ee78bdc77511a389fca20bae9554beb6157f71b83b",
+      "bytes": 113910,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-06": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-06.jpg",
+      "source_sha256": "1ab78e5fa2fe60b80db87d194aeab0f54310e63a5d8694c6f40f227f520913e9",
+      "file": "landmark-06.jpg",
+      "sha256": "f4253cf8248f636fcf21b4fa0e4201a23d55d132382739137847d020b1d9d03f",
+      "bytes": 90388,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-07": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-07.jpg",
+      "source_sha256": "a5fb37780fdeb5516fbb75fcb182ce1aac1acf4e08ab5fa861b9b6233d790320",
+      "file": "landmark-07.jpg",
+      "sha256": "48392cb735361c465fe1df65085f778bfce2502f9b4ab31d176756531fcdc33b",
+      "bytes": 89424,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-08": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-08.jpg",
+      "source_sha256": "5ef9c494593859c38b8c72eae73a5b18b109e16c22b9a565837a22b87638e079",
+      "file": "landmark-08.jpg",
+      "sha256": "717dc6c57eed4b23e365f6440cd97c7dda83101239fc5c2802dc359ad5ed6d71",
+      "bytes": 258322,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-09": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-09.jpg",
+      "source_sha256": "0e15ba8c47b74640ba5903d3c780b60bd23754c31229ec0583969c2d461caccd",
+      "file": "landmark-09.jpg",
+      "sha256": "71c5459dc37567c414dce6115de70d9c8309ff505806ba8683aecca1b063d28e",
+      "bytes": 176465,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-10": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-10.jpg",
+      "source_sha256": "53b6bce661e370b53046f481e8ff681167c82ee78da9ece1cad9f6e006d742e8",
+      "file": "landmark-10.jpg",
+      "sha256": "4689b5a1c83cc0ab30212e1daebfb9322c77ddfea906dcf17fbba1a56cc5a4ea",
+      "bytes": 184422,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-11": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-11.jpg",
+      "source_sha256": "6b99861ceb36a53eb6b476784c656350a1057f90da2a48340ce3f68ecb49a1fa",
+      "file": "landmark-11.jpg",
+      "sha256": "2d2b2f2e5981427021a69c3718d847e1714455960ed9d4c9817b759448fc6be3",
+      "bytes": 205068,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/landmark-12": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "landmark-12.jpg",
+      "source_sha256": "53d7c0e020d8800c2446998711bf67d23ffd6aeacb0d3b9a2ad4f878bb312f46",
+      "file": "landmark-12.jpg",
+      "sha256": "2b7551da363cc3cb2990b626c80ced0c8bbfe43a273e0d1b27e862173ca342f4",
+      "bytes": 156322,
+      "pixels": [
+        848,
+        1264
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/part-0": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-0.jpg",
+      "source_sha256": "27e4c43bc0ce7c6b0c73bc6dcccb54973e18150f5932248dfb433c817df51153",
+      "file": "part-0.jpg",
+      "sha256": "19007b19b7e03c1d694d9d713adb1e72b2bc8198372a077d399bee7262f2f7c3",
+      "bytes": 138737,
+      "pixels": [
+        1800,
+        1200
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/part-I": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-I.jpg",
+      "source_sha256": "a6401b7af081f5efee7d8aac80251b6c7dc31e3c446964c58d1dafeb1d891313",
+      "file": "part-I.jpg",
+      "sha256": "c97020a2b653106b5b2c88f60f13c53df5aebe3a833c95d7c35071be922e70fe",
+      "bytes": 328991,
+      "pixels": [
+        1800,
+        1200
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/part-II": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-II.jpg",
+      "source_sha256": "e5dfc80d942537eb0388468a97b23fb0a55ed53834f591cbad7b31748a64515d",
+      "file": "part-II.jpg",
+      "sha256": "c1127c128591c328075321e6bad9cd52da317bcac3cda3c9ac5965737074465d",
+      "bytes": 340871,
+      "pixels": [
+        1800,
+        1200
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/part-III": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-III.jpg",
+      "source_sha256": "e8fbd557095d43a7c942d4658d21af3b9f9cba57ffed8725d649447b6a362550",
+      "file": "part-III.jpg",
+      "sha256": "20e7d11adba68ea3274d1b2a4beccf35f4018e3e91c330c2b95cd35e8d755171",
+      "bytes": 384536,
+      "pixels": [
+        1800,
+        1200
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/swiss/part-IV": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "part-IV.jpg",
+      "source_sha256": "210da91daeb41809a3a2af9e38cbc8e52404f3a1b0bfd80c7bc62b993948ae6f",
+      "file": "part-IV.jpg",
+      "sha256": "806ddae927a195bacc82ac3b24251266a7b4f320428eadc82b0f6fc23d9eae01",
+      "bytes": 348996,
+      "pixels": [
+        1800,
+        1200
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/technical/cover": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "cover.jpg",
+      "source_sha256": "2e165d68d13bb94da43d07ca3f8eaf7000cdc4850728bca77a873f096b7834c2",
+      "file": "cover.jpg",
+      "sha256": "329647ecf8cf18b11f5d2c9ef2d42b9554506b8d0a42f1846a30a2eb9bab7bd5",
+      "bytes": 351071,
+      "pixels": [
+        1260,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    },
+    "plates/technical/frontispiece": {
+      "date": "2026-10-19",
+      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "from": "frontispiece.jpg",
+      "source_sha256": "f58aad5194fe29c2d2838425fb2f0a7b38c44d61d3c28a98e562fa8800e65e01",
+      "file": "frontispiece.jpg",
+      "sha256": "e626260aa797cee6fccb6cdfea977dd3778aa1ea1d10031cbd41d19d4c5cd0ce",
+      "bytes": 282698,
+      "pixels": [
+        1208,
+        1800
+      ],
+      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "transparency": "none"
+    }
+  }
+}

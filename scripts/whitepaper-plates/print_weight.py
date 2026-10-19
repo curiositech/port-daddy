@@ -28,6 +28,16 @@ the generated edge, not a flattened one.
 
     python3 scripts/whitepaper-plates/print_weight.py --check
     python3 scripts/whitepaper-plates/print_weight.py --write [--dir plates/swiss] [--force]
+    python3 scripts/whitepaper-plates/print_weight.py --sync-ledger
+
+Every derivative this tool writes is also recorded in
+website-v2/public/whitepaper/print-weight.json (the ledger): its digest, its
+pixels, and the digest of the generated original it came from. The ledger is
+what lets the tool tell its own derivative from a replacement dropped at the
+same path, and what `--check` compares each derivative against, so a plate
+re-encoded or corrupted by hand fails until `--write` has looked at it.
+`--sync-ledger` records derivatives made before the ledger existed, from the
+files and kept originals as found.
 
 Both modes read pixels, so both need the readers every page measurement is
 taken with (scripts/harbor-research/requirements-pdf.txt: Pillow, PyMuPDF).
@@ -48,6 +58,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "website-v2/public/whitepaper"
 ORIGINALS = ROOT / ".cache/plates-originals"
+LEDGER_NAME = "print-weight.json"  # under WEB; every derivative, keyed "<dir>/<stem>"
 TOOL = "scripts/whitepaper-plates/print_weight.py"
 RASTER = (".jpg", ".jpeg", ".png")
 PAPER = (0xFB, 0xF7, 0xEF)  # hhpaper, the Book's page colour (coordination-papers-mega-volume-preamble.tex)
@@ -128,8 +139,28 @@ def violations(dirrel: str, pol: dict, path: Path) -> list[str]:
     return out
 
 
+def ledger_path() -> Path:
+    return WEB / LEDGER_NAME
+
+
+def load_ledger() -> dict:
+    path = ledger_path()
+    if path.is_file():
+        return json.loads(path.read_text())
+    return {
+        "_about": f"Every plate derivative written by {TOOL}, keyed <dir>/<stem>: the derivative's digest and pixels, and the digest of the generated original it was derived from (kept under .cache/plates-originals/, git-ignored). --check compares each file against its entry; --write treats a file whose digest is not the recorded one as a replacement that supersedes the kept original.",
+        "derivatives": {},
+    }
+
+
+def save_ledger(doc: dict) -> None:
+    doc["derivatives"] = dict(sorted(doc["derivatives"].items()))
+    _dump(ledger_path(), doc)
+
+
 def check(dirs: list[str]) -> int:
     failures = []
+    ledger = load_ledger()["derivatives"]
     for dirrel in dirs:
         pol = POLICY[dirrel]
         files = governed(dirrel, pol)
@@ -138,6 +169,12 @@ def check(dirs: list[str]) -> int:
         for p in files:
             for v in violations(dirrel, pol, p):
                 failures.append(f"{dirrel}/{p.name}: {v}")
+            entry = ledger.get(f"{dirrel}/{p.stem}")
+            if entry is not None and entry.get("file") == p.name and entry.get("sha256") != sha256(p):
+                failures.append(f"{dirrel}/{p.name}: changed since {TOOL} derived it (sha256 {sha256(p)[:12]}…, the ledger says {str(entry.get('sha256'))[:12]}…); a replacement or a hand edit either way, run --write so it is derived and recorded")
+        for key, entry in ledger.items():
+            if key.rsplit("/", 1)[0] == dirrel and not (WEB / dirrel / entry.get("file", "")).is_file():
+                failures.append(f"{key}: the ledger records {entry.get('file')} and it is gone; remove the entry if the plate was retired, or restore it")
     if failures:
         print(f"\nFAIL: {len(failures)} plate(s) are not at print weight; run `{TOOL} --write`:")
         for f in failures:
@@ -259,6 +296,10 @@ def record(dirrel: str, stem: str, old_name: str, old_sha: str, new: Path, meta:
         data["print_master"] = note
         _dump(sidecar, data)
         touched.append(str(sidecar.relative_to(ROOT)))
+    ledger = load_ledger()
+    ledger["derivatives"][f"{dirrel}/{stem}"] = note
+    save_ledger(ledger)
+    touched.append(str(ledger_path().relative_to(ROOT)))
     return touched
 
 
@@ -272,6 +313,9 @@ def kept_original(dirrel: str, stem: str) -> Path | None:
 
 def recorded_derivative_sha(dirrel: str, stem: str) -> str | None:
     """The SHA-256 this tool last recorded for the derivative at <dirrel>/<stem>."""
+    entry = load_ledger()["derivatives"].get(f"{dirrel}/{stem}")
+    if isinstance(entry, dict) and entry.get("sha256"):
+        return entry["sha256"]
     prov = WEB / dirrel / "PROVENANCE.json"
     if prov.is_file():
         doc = json.loads(prov.read_text())
@@ -298,16 +342,19 @@ def write(dirs: list[str], force: bool) -> int:
             if original is None and not is_raster:
                 continue  # a wrapper whose source is not on this machine; nothing to re-derive from
             replaced = False
-            if original is not None and is_raster and sha256(src) != recorded_derivative_sha(dirrel, src.stem):
+            recorded = recorded_derivative_sha(dirrel, src.stem)
+            if original is not None and is_raster and recorded is not None and sha256(src) != recorded:
                 # A raster at the governed path that is not the derivative this
-                # tool wrote is a replacement (or a restored original): it
+                # tool recorded is a replacement (or a restored original): it
                 # supersedes the kept original, which would otherwise be re-used
-                # forever and silently discard the new art.
+                # forever and silently discard the new art. Without a recorded
+                # digest nothing can be told apart, so the file is taken to be
+                # the derivative and the kept original stays.
                 original.unlink()
                 original = None
                 replaced = True
-            if original is not None and not force:
-                continue  # already a derivative of a kept original
+            if original is not None and not force and not violations(dirrel, pol, src):
+                continue  # a derivative of a kept original, and still within policy
             if original is None and not replaced and not violations(dirrel, pol, src) and not force:
                 continue
             source = original or src
@@ -338,11 +385,36 @@ def write(dirs: list[str], force: bool) -> int:
     return 0
 
 
+def sync_ledger(dirs: list[str]) -> int:
+    """Record derivatives made before the ledger existed, as found on disk."""
+    ledger = load_ledger()
+    added = 0
+    for dirrel in dirs:
+        pol = POLICY[dirrel]
+        for src in governed(dirrel, pol):
+            key = f"{dirrel}/{src.stem}"
+            original = kept_original(dirrel, src.stem)
+            if key in ledger["derivatives"] or original is None:
+                continue
+            w, h = dims(src)
+            ledger["derivatives"][key] = {
+                "date": _dt.date.today().isoformat(), "tool": f"{TOOL} --sync-ledger", "from": original.name,
+                "source_sha256": sha256(original), "file": src.name, "sha256": sha256(src), "bytes": src.stat().st_size,
+                "pixels": [w, h], "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+                "transparency": "SMask" if src.suffix.lower() == ".pdf" else "none",
+            }
+            added += 1
+    save_ledger(ledger)
+    print(f"ledger: {added} derivative(s) recorded, {len(ledger['derivatives'])} in all")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="fail if any governed plate is not at print weight")
     mode.add_argument("--write", action="store_true", help="re-encode offending plates in place and record it")
+    mode.add_argument("--sync-ledger", action="store_true", help="record derivatives made before the ledger, from the files and kept originals as found")
     ap.add_argument("--dir", action="append", help="limit to one policy directory (repeatable)")
     ap.add_argument("--force", action="store_true", help="with --write: re-encode every governed raster, not only offenders")
     args = ap.parse_args()
@@ -352,6 +424,8 @@ def main() -> int:
         print(f"no policy for {unknown}; known: {list(POLICY)}", file=sys.stderr)
         return 2
     os.chdir(ROOT)
+    if args.sync_ledger:
+        return sync_ledger(dirs)
     return write(dirs, args.force) if args.write else check(dirs)
 
 
