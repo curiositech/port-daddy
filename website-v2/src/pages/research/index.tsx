@@ -54,7 +54,7 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
         {paper.claim}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+        <span className="font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
           {paper.number === '8' ? 'Related to' : 'Folded into'} {chapterTitleFor(paper.chapterRef)}
         </span>
         <span className="font-mono text-[14px] text-[var(--text-ghost)]">
@@ -62,7 +62,7 @@ function PaperRow({ paper }: { paper: ResearchPaper }) {
         </span>
         <a
           href={paper.pdfPath}
-          className="font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
+          className="font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
         >
           PDF · {paper.pages} pp
         </a>
@@ -152,7 +152,7 @@ function DivesPanel() {
             <div key={paper.id} className="border-l-[3px] pl-3" style={{ borderColor: VERDICT_INK[dive.verdict] }}>
               <div className="flex flex-wrap items-baseline gap-2">
                 <span
-                  className="font-mono text-[12px] font-bold uppercase tracking-[0.11em]"
+                  className="font-mono text-[14px] font-bold uppercase tracking-[0.11em]"
                   style={{ color: VERDICT_INK[dive.verdict] }}
                 >
                   {dive.verdict}
@@ -214,7 +214,7 @@ function EstatePanel() {
       */}
       <a
         href="https://github.com/curiositech/port-daddy/blob/main/whitepaper/corpus.json"
-        className="inline-block font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
+        className="inline-block font-mono text-[14px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
       >
         Read the manifest: every artifact, and the job that runs it →
       </a>
