@@ -21,7 +21,7 @@ one the plate was rendered from: a refreshed Book with a stale cover is a
 mismatch between the site and the download, which is the drift this exists to
 stop. Run it after every Book refresh (scripts/whitepaper-plates/README.md).
 """
-import argparse, hashlib, io, json, os, sys
+import argparse, hashlib, io, json, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -73,7 +73,16 @@ def main() -> int:
         if want != have:
             print(f"FAIL: {OUT.relative_to(REPO)} was rendered from a Book with sha256 {str(want)[:12]}…, "
                   f"the committed Book is {have[:12]}…; run --write after refreshing the Book"); return 1
-        print(f"ok: cover plate matches the committed Book ({have[:12]}…)"); return 0
+        # The plate itself is pinned too: a cover replaced, re-encoded or
+        # corrupted while the Book stood still would otherwise pass, because
+        # the source check only says which Book the record claims it came from.
+        plate_want, plate_have = entry.get("sha256"), sha256(OUT)
+        if plate_want != plate_have:
+            print(f"FAIL: {OUT.relative_to(REPO)} has sha256 {plate_have[:12]}…, the record says {str(plate_want)[:12]}…; "
+                  f"the plate was changed without re-rendering it; run --write"); return 1
+        if entry.get("bytes") != OUT.stat().st_size:
+            print(f"FAIL: {OUT.relative_to(REPO)} is {OUT.stat().st_size} bytes, the record says {entry.get('bytes')}; run --write"); return 1
+        print(f"ok: cover plate matches the committed Book ({have[:12]}…) and its record ({plate_have[:12]}…)"); return 0
     data = render(a.pdf)
     OUT.write_bytes(data)
     prov["plates"][KEY] = {
@@ -84,6 +93,7 @@ def main() -> int:
         "render": "scripts/whitepaper-plates/render_cover_plate.py --write: page one rasterised at 1000x1429 with PyMuPDF and JPEG-encoded at quality 90; no image model was involved",
         "size": list(SIZE),
         "bytes": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
         "final_aspect": "7:10",
         "use": "the Book's cover on the home-page banner (components/landing/LibraryBanner.tsx) and the masthead of /whitepaper; re-render with --write whenever the committed Book changes, and --check fails when it has not been",
     }
