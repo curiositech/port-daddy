@@ -170,6 +170,7 @@ import {
   handleSetIssuer,
   handleInvalidateJwks,
   handleAudit,
+  safeDecodeSegment,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
 import { handleFleetbotPublisher, handleFleetbotPublisherReceiptRecovery } from './github-publisher.js';
@@ -374,27 +375,6 @@ function corsCredentialed(response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
-/**
- * Decode one URL path segment FAIL-CLOSED, for the transcript-family routes.
- *
- * WHY: malformed percent-encoding (`%zz`) makes decodeURIComponent throw, and
- * the global boundary would surface that as a 500 — but everything under
- * /fleet/runs/:id answers one indistinguishable 404 to every failure, and a
- * malformed id must not be the single input that earns a distinguishable
- * answer. Returning '' fails the handlers' RUN_ID_RE / ship-name validation,
- * which IS that 404.
- *
- * @param segment The raw (still-encoded) path segment from the route match.
- * @returns The decoded segment, or '' when the encoding is malformed.
- */
-function safeDecodeSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return '';
-  }
-}
-
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
@@ -571,12 +551,12 @@ export default {
       response = await handleFleetHealth(request, env);
     }
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'GET') {
-      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleFleetRun(request, env, runId);
     }
     // DELETE one run + transcript (ADR-0101 export/delete per-tier, repo tier).
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'DELETE') {
-      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleDeleteFleetRun(request, env, runId);
     }
 
@@ -588,11 +568,11 @@ export default {
       response = await handleListInterruptions(request, env);
     }
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/answer') && method === 'POST') {
-      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
+      const id = safeDecodeSegment(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
       response = await handleAnswerInterruption(request, env, id);
     }
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
-      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
+      const id = safeDecodeSegment(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
     }
 
@@ -662,7 +642,7 @@ export default {
       response = await handleListApnsDevices(request, env);
     }
     else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
-      const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
+      const deviceId = safeDecodeSegment(pathname.slice('/v1/push/apns/devices/'.length));
       response = await handleUnregisterApnsDevice(request, env, deviceId);
     }
 
@@ -676,7 +656,7 @@ export default {
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
-      const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/fleet/runs/'.length));
       response = await handleFleetRunPage(request, env, runId);
     }
 
@@ -817,11 +797,11 @@ export default {
       response = await handlePublicSkillsListing(request, env);
     }
     else if (pathname.startsWith('/skills/') && method === 'GET') {
-      const qualified = decodeURIComponent(pathname.slice('/skills/'.length));
+      const qualified = safeDecodeSegment(pathname.slice('/skills/'.length));
       response = await handlePublicSkillPage(request, env, qualified);
     }
     else if (pathname.startsWith('/v1/skills/') && method === 'GET') {
-      const qualified = decodeURIComponent(pathname.slice('/v1/skills/'.length));
+      const qualified = safeDecodeSegment(pathname.slice('/v1/skills/'.length));
       response = await handlePublicSkillBody(request, env, qualified);
     }
     // ── Parley HTML surface (session + harbor-member gated; parleys-page.ts) ─
@@ -832,28 +812,19 @@ export default {
     else if (pathname === '/account/parleys' && method === 'GET') {
       response = await handleParleysIndex(request, env);
     } else if (pathname.startsWith('/account/parleys/')) {
-      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). Left
-      // unguarded, that threw past the routing into the global boundary, which
-      // answers 500 INTERNAL_ERROR — a visibly different reply from the 404
-      // every other unservable parley URL gets. This surface answers 404 for
-      // everything it will not serve precisely so a non-member and a
-      // nonexistent parley are one response; an undecodable segment joins them
-      // rather than announcing itself with a different status. Same guard the
-      // /account/harbors/ branch below already carries.
-      let seg: string[] | null = null;
-      try {
-        seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      } catch {
-        seg = null;
-      }
-      const [pns, pname, pid, pverb] = seg ?? [];
-      if (seg && pns && pname && seg.length === 2 && method === 'GET') {
+      // An undecodable segment becomes '' and joins every other unservable
+      // parley URL in this surface's indistinguishable 404 bucket — the same
+      // guard the /account/harbors/ branch below carries, through the same
+      // shared helper rather than a second try/catch reimplementation of it.
+      const seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(safeDecodeSegment);
+      const [pns, pname, pid, pverb] = seg;
+      if (pns && pname && seg.length === 2 && method === 'GET') {
         response = await handleParleyListPage(request, env, pns, pname);
-      } else if (seg && pns && pname && pid && seg.length === 3 && method === 'GET') {
+      } else if (pns && pname && pid && seg.length === 3 && method === 'GET') {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
-      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
-      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
         response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
         // The SAME page a nonexistent parley gets, byte for byte — not a bare
@@ -883,19 +854,11 @@ export default {
     else if (pathname === '/account/harbors' && method === 'GET') {
       response = await handleHarborsPage(request, env);
     } else if (pathname.startsWith('/account/harbors/')) {
-      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). The
-      // global boundary below would catch it, but it would answer 500 for what
-      // is only a bad URL — and this surface answers 404 for everything it will
-      // not serve, so that a non-member and a nonexistent harbor are one
-      // response. An undecodable segment joins them rather than standing out.
-      let seg: string[] | null = null;
-      try {
-        seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      } catch {
-        seg = null;
-      }
-      const [hns, hname] = seg ?? [];
-      if (seg && hns && hname && seg.length === 2 && method === 'GET') {
+      // An undecodable segment becomes '' and joins every other unservable
+      // harbor URL in this surface's indistinguishable 404 bucket.
+      const seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(safeDecodeSegment);
+      const [hns, hname] = seg;
+      if (hns && hname && seg.length === 2 && method === 'GET') {
         response = await handleHarborDetailPage(request, env, hns, hname);
       } else {
         // The SAME page a nonexistent harbor gets, byte for byte — not a bare
@@ -987,13 +950,13 @@ export default {
       response = await handleStripeWebhook(request, env);
     }
     else if (pathname.startsWith('/billing/balance/') && method === 'GET') {
-      const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
+      const installationId = safeDecodeSegment(pathname.slice('/billing/balance/'.length));
       response = await handleBillingBalance(request, env, installationId);
     }
 
     // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
     else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
-      const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
+      const harborFp = safeDecodeSegment(pathname.slice('/v1/quotas/'.length));
       response = await handleQuotaStatus(request, env, harborFp, ctx);
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
@@ -1034,7 +997,7 @@ export default {
       // :name is the qualified `namespace/name` — namespace/name detail, or a
       // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts),
       // /parleys[/:id[/respond]] (X4, src/parleys.ts).
-      const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
+      const parts = pathname.slice('/v1/harbors/'.length).split('/').map(safeDecodeSegment);
       const ns = parts[0];
       const name = parts[1];
       const sub = parts.length >= 3 ? parts[2] : undefined;
@@ -1113,13 +1076,13 @@ export default {
 
     // ── Issuer config (acceptance criterion #1) ───────────────────────────────
     else if (pathname.startsWith('/v1/config/issuers/') && method === 'PUT') {
-      const issuerId = decodeURIComponent(pathname.slice('/v1/config/issuers/'.length));
+      const issuerId = safeDecodeSegment(pathname.slice('/v1/config/issuers/'.length));
       response = await handleSetIssuer(request, env, issuerId);
     }
 
     // ── JWKS cache invalidation (acceptance criterion #3) ─────────────────────
     else if (pathname.startsWith('/v1/cache/jwks/') && method === 'DELETE') {
-      const issuerId = decodeURIComponent(pathname.slice('/v1/cache/jwks/'.length));
+      const issuerId = safeDecodeSegment(pathname.slice('/v1/cache/jwks/'.length));
       response = await handleInvalidateJwks(request, env, issuerId);
     }
 
