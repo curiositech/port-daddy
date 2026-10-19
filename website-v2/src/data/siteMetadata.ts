@@ -139,7 +139,7 @@ const sectionLabels: Record<SiteMetadataSection, string> = {
   integrations: 'Integration',
   templates: 'Agent Templates',
   blog: 'Field Note',
-  whitepaper: 'Whitepaper',
+  whitepaper: 'The Book',
   legacy: 'Archive',
 }
 
