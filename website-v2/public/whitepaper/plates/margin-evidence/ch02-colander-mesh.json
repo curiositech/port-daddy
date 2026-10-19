@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "fe269190992342929a3d6b3e8b3b43fc583c584a63a507ab449f245adf725918",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch02-colander-mesh.png",
+    "source_sha256": "fe269190992342929a3d6b3e8b3b43fc583c584a63a507ab449f245adf725918",
+    "file": "ch02-colander-mesh.pdf",
+    "sha256": "cb792db065ad086876765eeb827cd7e4188feb57132983d6de0b5fa6b1697d51",
+    "bytes": 199379,
+    "pixels": [
+      648,
+      543
+    ],
+    "encoding": "PDF wrapper: JPEG quality 70 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

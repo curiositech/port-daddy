@@ -15,5 +15,20 @@
   "solo_portrait": true,
   "framing": "formal half-body portrait, centered in the original landscape frame",
   "background_clutter": "moderate — warm architectural/event background, face unobscured",
-  "crop": "none — original file downloaded unchanged"
+  "crop": "none — original file downloaded unchanged",
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "sen.jpg",
+    "source_sha256": "51687a60dc2325c9eb4a6ff592b3ca3571e5f04b22e5f077ad44b27acbe381e3",
+    "file": "sen.jpg",
+    "sha256": "ae6f14ad10e4bc873fdfca381b2acfa95a12f3407f3b625a71be90fe318a97b9",
+    "bytes": 85046,
+    "pixels": [
+      1000,
+      667
+    ],
+    "encoding": "JPEG quality 85, progressive, optimized",
+    "transparency": "none"
+  }
 }

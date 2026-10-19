@@ -91,20 +91,6 @@
       "note": "chapter swk wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
       "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a small stone lighthouse at the end of a mole, its lamp lit at dusk, and behind it, filling the whole sky, the smooth curved flank of a descended sphere so vast its edge cannot be seen; the harbor water flat and pale. Palette: pale ochre and sea-green washes faded almost to paper, mist everywhere, one warm lamp-glow. Composition even sparser: the small thing in a lower corner, the colossal thing cut off by the frame."
     },
-    "cover-maritime": {
-      "file": "cover-maritime.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf, page 1 — the cover of the maritime edition, built by whitepaper-build.yml",
-      "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
-      "size": [
-        1000,
-        1429
-      ],
-      "bytes": 205335,
-      "final_aspect": "7:10",
-      "use": "retired from the site when Swiss became the central edition; kept as the record of the maritime cover, which still builds from its own driver root",
-      "brief": "scripts/whitepaper-plates/leviathan_cover_brief.txt",
-      "brief_note": "The written brief the cover was generated from: full-bleed copper-plate etching after the frontispiece of Hobbes's Leviathan, four registers, gold leaf as trim only. It was committed without a pointer from this record, which is why a reviewer found it orphaned."
-    },
     "cover-swiss": {
       "file": "cover-swiss.jpg",
       "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf, page 1 — the cover of the Swiss edition, built by whitepaper-build.yml (that PDF is no longer committed; it builds on demand via scripts/build-whitepapers.sh with a named --filter)",
@@ -116,18 +102,6 @@
       "bytes": 105680,
       "final_aspect": "7:10",
       "use": "the bookseller panel on /library — the cover of the Book as published, since the canonical PDF renders the Swiss edition"
-    },
-    "cover-technical": {
-      "file": "cover-technical.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf, page 1 — the cover of the technical edition, built by whitepaper-build.yml (that PDF is no longer committed; it builds on demand via scripts/build-whitepapers.sh with a named --filter)",
-      "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
-      "size": [
-        1000,
-        1429
-      ],
-      "bytes": 136247,
-      "final_aspect": "7:10",
-      "use": "not shown on the site; kept as the record of the technical cover, which still builds from its own driver root"
     },
     "frontispiece": {
       "file": "frontispiece.jpg",

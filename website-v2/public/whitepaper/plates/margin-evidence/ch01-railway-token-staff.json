@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "f89ba707e8e8ec99656fa9e5f11f96e4dd2cc15fbbada570ab8c82fc959cfc51",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch01-railway-token-staff.png",
+    "source_sha256": "f89ba707e8e8ec99656fa9e5f11f96e4dd2cc15fbbada570ab8c82fc959cfc51",
+    "file": "ch01-railway-token-staff.pdf",
+    "sha256": "c020d446a87f89a1b89eb7855ac63e7845bb14a7f09cabaaaa681f294b9395bf",
+    "bytes": 78604,
+    "pixels": [
+      211,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "568aeff59dffe2c624b56ba65daca9d64d37ea209cc93b1dd8bed55421a2e534",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch06-dockyard-cargo-sling.png",
+    "source_sha256": "568aeff59dffe2c624b56ba65daca9d64d37ea209cc93b1dd8bed55421a2e534",
+    "file": "ch06-dockyard-cargo-sling.pdf",
+    "sha256": "c5bc7d422ce7de39f33b6bec523ac3ee30e3cd40e7fc8ae9ef150842fca60200",
+    "bytes": 186915,
+    "pixels": [
+      368,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

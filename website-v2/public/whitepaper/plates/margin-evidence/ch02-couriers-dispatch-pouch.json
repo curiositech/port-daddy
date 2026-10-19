@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "c369922d6ca4b689014f0c4de4f1c245835772262f477aaabe49add229c7914f",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch02-couriers-dispatch-pouch.png",
+    "source_sha256": "c369922d6ca4b689014f0c4de4f1c245835772262f477aaabe49add229c7914f",
+    "file": "ch02-couriers-dispatch-pouch.pdf",
+    "sha256": "0b877f9b2c8622efb7c5f1e211c3394959e65e447c469c5a62a81487cda2493f",
+    "bytes": 186947,
+    "pixels": [
+      523,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

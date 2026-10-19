@@ -6,5 +6,20 @@
   "image_size": "589x1229",
   "sha256": "f0893d41e5a42b073c1794f9281736d7c3e701acc06758544f531a1443cedfde",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch05-continuity-rope-splice.png",
+    "source_sha256": "f0893d41e5a42b073c1794f9281736d7c3e701acc06758544f531a1443cedfde",
+    "file": "ch05-continuity-rope-splice.pdf",
+    "sha256": "1d162cf1f8d8eb19656eef37ad936127cd892f209f5a25e97ada275d88316adf",
+    "bytes": 49077,
+    "pixels": [
+      345,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

@@ -331,6 +331,21 @@ build_one() {
   fi
   cp "$outdir/$base.pdf" "$dest"
   echo "wrote $dest ($(wc -c < "$dest") bytes)"
+  # The Book is served by Cloudflare Pages, which refuses any file over
+  # 25 MiB. A Book over this ceiling is not a Book anyone can read, however
+  # well it compiled: on 2026-10-13 a 74.7 MB build was committed and had to
+  # be rolled back the same day, and until 2026-10-19 nothing here would
+  # have said why. The usual cause is a plate committed at generation
+  # weight; scripts/whitepaper-plates/print_weight.py --check names it.
+  if [ "$base" = "coordination-papers-mega-volume" ]; then
+    local bytes ceiling=$((22 * 1024 * 1024))
+    bytes=$(wc -c < "$dest" | tr -d ' ')
+    if [ "$bytes" -gt "$ceiling" ]; then
+      echo "::error::$dest is $bytes bytes, over the $ceiling byte publication ceiling (Cloudflare Pages refuses files over 25 MiB); run scripts/whitepaper-plates/print_weight.py --check"
+      echo "::endgroup::"
+      return 1
+    fi
+  fi
   echo "::endgroup::"
   return 0
 }

@@ -5,5 +5,20 @@
   "image_size": "655x1075",
   "sha256": "a50c3209d61ea09c2d9ee0bc6b48c77afa5fc9836406d24f1b00748ebd070814",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "movable-type.png",
+    "source_sha256": "a50c3209d61ea09c2d9ee0bc6b48c77afa5fc9836406d24f1b00748ebd070814",
+    "file": "movable-type.pdf",
+    "sha256": "86e469cf9078141a6f242f4936e10949e0299c978e2db8eedfabad03acb45f96",
+    "bytes": 178836,
+    "pixels": [
+      439,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

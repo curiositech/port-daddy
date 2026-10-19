@@ -5,5 +5,20 @@
   "image_size": "1K",
   "sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "ch04-selective-attention-annunciator.png",
+    "source_sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
+    "file": "ch04-selective-attention-annunciator.pdf",
+    "sha256": "e1e708bbb5ae7158dc9f7ce6501b523141c792bf37c9cbb6d03d40b5c353a1f2",
+    "bytes": 112750,
+    "pixels": [
+      440,
+      720
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

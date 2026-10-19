@@ -5,5 +5,20 @@
   "image_size": "419x655",
   "sha256": "cddaa67d201728cdf4b2fbe46494bc2703fcbe9206b1a35500006aaf048ba217",
   "role": "generated editorial analogy, not measured evidence",
-  "references_uploaded": []
+  "references_uploaded": [],
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "sealed-specimen.png",
+    "source_sha256": "cddaa67d201728cdf4b2fbe46494bc2703fcbe9206b1a35500006aaf048ba217",
+    "file": "sealed-specimen.pdf",
+    "sha256": "a8b9ebf2a49b6a416c899178cf95697be3c278eb01a6447975c9bb955016c78f",
+    "bytes": 101725,
+    "pixels": [
+      419,
+      655
+    ],
+    "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
+    "transparency": "SMask"
+  }
 }

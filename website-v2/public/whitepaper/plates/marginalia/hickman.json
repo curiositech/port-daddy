@@ -15,5 +15,20 @@
   "solo_portrait": true,
   "framing": "vertical informal event portrait, three-quarter body with face clearly identifiable",
   "background_clutter": "moderate — Comic-Con signage, lanyard, and event furniture remain visible",
-  "crop": "none — original file downloaded unchanged"
+  "crop": "none — original file downloaded unchanged",
+  "print_master": {
+    "date": "2026-10-19",
+    "tool": "scripts/whitepaper-plates/print_weight.py",
+    "from": "hickman.jpg",
+    "source_sha256": "eb2845bc426834421409b715a8a9f45af99da7ad3c666405e278cda1e66ceeaf",
+    "file": "hickman.jpg",
+    "sha256": "3ad3b688a8b4d39646f04e25f964d1e1e931abdbf70d64b95728e80624513f25",
+    "bytes": 111455,
+    "pixels": [
+      667,
+      1000
+    ],
+    "encoding": "JPEG quality 85, progressive, optimized",
+    "transparency": "none"
+  }
 }
