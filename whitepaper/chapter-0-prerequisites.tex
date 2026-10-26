@@ -431,17 +431,24 @@ The operational execution cycle is governed by three deterministic or priority-d
   \item $S_I(is) = i$: Selects which intention stack advances its execution step in the current cycle.
 \end{enumerate}
 
-When an action $a$ in plan $p$ fails during host execution, AgentSpeak semantics do not silently abort the agent; instead, the failure transition posts a failure event $-!g$ to $\mathcal{E}$, popping the failed plan frame and invoking explicit recovery plans:
-\begin{equation}
-\frac{\epsilon = \langle te, i \rangle, \quad \mathrm{App}(\mathrm{Rel}(te, ps), bs) = \emptyset}{\langle bs, ps, is, \mathcal{E}, A \rangle \;\longrightarrow\; \langle bs, ps, is, \mathcal{E} \cup \{\langle -!g, \mathrm{pop}(i) \rangle\}, A \rangle}
-\end{equation}
+Failure handling here follows the Jason variant of AgentSpeak~\pdcite{jasonfaq,jasonfailureimplementation}.
+An empty applicable-plan set is a plan-selection failure, not evidence that a
+host action was attempted and failed; reported action failure is a separate cause.
+For an intention pursuing achievement goal $g$, Jason can seek a matching
+$-!g$ handler in that goal's context or an enclosing goal's context. A handler
+is usable only if its trigger matches and its context holds under the current
+beliefs. Failure can propagate, and an intention without a usable handler may be
+dropped. These cases follow separate interpreter paths.
+Neither a failure event nor handler eligibility guarantees next-cycle execution
+or eventual recovery, and earlier external effects are not automatically undone.
 
-Figure~\ref{fig:bdi-execution-flow} synthesizes this operational choice architecture, illustrating how autonomous systems select between reactive rules, static classical planning, and dynamic BDI execution.
+Figure~\ref{fig:bdi-execution-flow} shows how event, applicable-plan and intention
+selection advance the BDI cycle, with a conditional return through goal-failure handling.
 
 \begin{figure}[tp]
   \centering
   \input{figures/fig-ch0-bdi-execution.tex}%
-  \pdwidecaption{\textbf{BDI selection flow.} Event, applicable-plan and intention selection determine the next action. A failed plan produces a recovery event. The diagram illustrates operational control flow; successful execution still depends on environment feedback.}[fig:bdi-execution-flow]
+  \pdwidecaption{\textbf{BDI selection flow.} Event, applicable-plan and intention selection determine the next action. Goal-failure handling needs a matching, applicable plan; recovery is not guaranteed. The diagram illustrates control flow, not successful execution.}[fig:bdi-execution-flow]
 \end{figure}
 
 \subsubsection{Normative Extensions: Deontic Constraints and Regret Minimization}
@@ -1641,6 +1648,12 @@ J.~Zhou, Y.~Sheng, H.~Lou, Y.~Yang, and J.~Fu.
 
 \bibitem{anthropic2026hooks}
 Anthropic. \newblock \emph{Hooks reference}. \newblock Claude Code documentation, accessed 15 October 2026. \newblock \href{https://code.claude.com/docs/en/hooks}{Official documentation}.
+
+\bibitem{jasonfaq}
+Jason developers. \newblock \emph{Jason FAQ: AgentSpeak Language}. \newblock Official documentation, accessed 26 October 2026. \newblock \href{https://jason-lang.github.io/doc/faq.html}{Primary documentation}.
+
+\bibitem{jasonfailureimplementation}
+Jason developers. \newblock \emph{Jason interpreter: goal-failure handling}. \newblock Source revision \texttt{4b98ddb1f9c8}, accessed 26 October 2026. \newblock \href{https://github.com/jason-lang/jason/blob/4b98ddb1f9c88d3ecdd84c6559f8effbf20f8287/jason-interpreter/src/main/java/jason/asSemantics/TransitionSystem.java}{Pinned source}.
 
 \end{thebibliography}
 
