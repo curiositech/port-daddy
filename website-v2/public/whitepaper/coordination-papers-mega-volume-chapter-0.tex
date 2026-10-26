@@ -449,15 +449,27 @@ selection advance the BDI cycle, with a conditional return through goal-failure 
   \pdwidecaption{\textbf{BDI selection flow.} Event, applicable-plan and intention selection determine the next action. Goal-failure handling needs a matching, applicable plan; recovery is not guaranteed. The diagram illustrates control flow, not successful execution.}[fig:bdi-execution-flow]
 \end{figure}
 
-\subsubsection{Normative Extensions: Deontic Constraints and Regret Minimization}
+\subsubsection{Normative Extensions: Deontic Constraints and Sanction Costs}
 
-In institutional multi-agent systems, agents are constrained by external norms (deontic logic). A norm is defined as a 6-tuple $N = \langle \mathrm{id}, \mathrm{Type}, \phi_{\text{act}}, \phi_{\text{tgt}}, d, \mathrm{Sanction} \rangle$, where $\mathrm{Type} \in \{\mathcal{O}, \mathcal{F}, \mathcal{P}\}$ (Obligation, Prohibition, Permission), $\phi_{\text{act}}$ is the activation context, $\phi_{\text{tgt}}$ is the target state, $d$ is the deadline, and $\mathrm{Sanction}$ is the penalty for violation.
+In institutional multi-agent systems, agents are constrained by external norms (deontic logic). For this example, represent a norm by the six-tuple $N = \langle \mathrm{id}, \mathrm{Type}, \phi_{\text{act}}, \phi_{\text{tgt}}, d, \mathrm{Sanction} \rangle$, where $\mathrm{Type} \in \{\mathcal{O}, \mathcal{F}, \mathcal{P}\}$ (Obligation, Prohibition, Permission), $\phi_{\text{act}}$ is the activation context, $\phi_{\text{tgt}}$ is the target state, $d$ is the deadline, and $\mathrm{Sanction}$ is the penalty for violation.
 
-To reconcile institutional norms with internal intentions, agents maintain an \textbf{Abstract Norm Base} ($ANB$) and evaluate instantiated norms in the \textbf{Norm Instance Base} ($NIB$). When norm instances conflict with active goals ($\mathrm{Plans}(is \cup N) = \emptyset$), the agent resolves the normative conflict by partitioning candidate norms into \textbf{Maximal Non-Conflicting Subsets} (MNCS), selecting the subset that minimizes maximum penalty under a \textbf{minimax regret} criterion:
+An implementation may store general norms in an \textbf{Abstract Norm Base}
+($ANB$) and instantiate them in a \textbf{Norm Instance Base} ($NIB$).
+For a finite decision example, let $\mathcal N$ be the active norm set and let
+$\emptyset\ne\Omega\subseteq 2^{\mathcal N}$ be a finite family of subsets that
+are feasible under the stated action constraints and conflict-free under the
+stated norm-conflict relation. Give each norm a stipulated finite nonnegative
+sanction cost $c(n)$ for omission. One possible \textbf{worst-case sanction-cost}
+rule is
 \begin{equation}
-S^* \;=\; \arg\min_{S \in \Omega} \max_{n_v \in N \setminus S} \mathrm{Cost}(\mathrm{Sanction}(n_v))
+S^*\in\arg\min_{S\in\Omega}
+\max\bigl(\{c(n):n\in\mathcal N\setminus S\}\cup\{0\}\bigr).
 \end{equation}
-This ensures that any deliberate norm violation is recorded in an immutable ledger alongside its formal justification.
+Here $\mathcal N$ is finite; including $0$ makes the maximum zero when no norm
+is omitted. This minimizes the largest stipulated omitted sanction, not regret
+relative to a counterfactual alternative. It supplies no audit record by itself.
+If immutable evidence is required, a separate logging mechanism must commit the
+chosen subset, any deliberate violations and their justification.
 
 \subsubsection{Why BDI Matters for LLMs: Curing Intention Drift and Hallucinatory Abandonment}
 \label{sec:why-bdi-matters}
