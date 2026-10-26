@@ -140,7 +140,7 @@
 \let\pd@headingstartsection\@startsection
 \renewcommand{\@startsection}[6]{%
   \pd@headingstartsection{#1}{#2}{#3}{#4}{#5}{%
-    #6\hyphenpenalty=10000\exhyphenpenalty=10000\relax}}
+    #6\raggedright\hyphenpenalty=10000\exhyphenpenalty=10000\relax}}
 \makeatother
 % Breakable frames use \vsplit, whose retry loop cannot resolve an infinite
 % penalty at the only usable split. Keep strong preferences inside frames,
