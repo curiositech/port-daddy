@@ -24,7 +24,7 @@
   \node[pd label,text=pderror,anchor=east] at ({\rx-.18},{3.5*\dy}) {$-!g$};
   \node[pd badge] at (\rx,3.0) {4};
   \node[pd label,text=pderror,text width=2.8cm,align=center]
-    at (8.8,2.45) {failure event; recovery selected next cycle};
+    at (8.8,2.45) {goal failure; recovery may follow};
   \draw[pd focus arrow,rounded corners=3pt]
     (XA.west)--(\lx,\dy)--(\lx,{4*\dy})--(E.west);
   \node[pd focus label,rotate=90] at ({\lx-.40},{2.5*\dy}) {perceive};
@@ -36,6 +36,6 @@
 1 $S_E(\mathcal E)$ & Choose an event: perception or an added goal. \\
 2 $S_O(\mathrm{App})$ & Choose an applicable plan; push it on the intention stack. \\
 3 $S_I(is)$ & Choose the intention that advances by one action. \\
-4 $-!g$ & Pop the failed frame and add a failure event; later selections may choose a recovery plan. \\\bottomrule
+4 $-!g$ & A goal-context failure may raise a matching handler event; recovery needs a currently applicable plan and later selection. \\\bottomrule
 \end{tabularx}}
 \end{minipage}
