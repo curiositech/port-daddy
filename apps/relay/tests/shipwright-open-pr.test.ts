@@ -266,7 +266,7 @@ function stubGithub(
         token: 'ghs_scoped_test_token',
         expires_at: new Date(Date.now() + 3_600_000).toISOString(),
         repositories: [{ id: 7, name: 'widgets', full_name: 'octo/widgets' }],
-        permissions: { contents: 'write', pull_requests: 'write' },
+        permissions: { metadata: 'read', contents: 'write', pull_requests: 'write' },
       });
     }
     if (url.endsWith('/installation/token') && method === 'DELETE') {
@@ -498,7 +498,7 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     const mint = seen.find((c) => c.url.endsWith(`/app/installations/${INSTALLATION_ID}/access_tokens`) && c.method === 'POST');
     expect(JSON.parse(mint!.body!)).toEqual({
       repositories: ['widgets'],
-      permissions: { contents: 'write', pull_requests: 'write' },
+      permissions: { metadata: 'read', contents: 'write', pull_requests: 'write' },
     });
     expect(seen.some((c) => c.url.endsWith('/installation/token') && c.method === 'DELETE')).toBe(true);
 

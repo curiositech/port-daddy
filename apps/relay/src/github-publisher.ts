@@ -669,7 +669,7 @@ async function fetchJson<T>(
       method,
       headers: githubHeaders(token),
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     });
   } catch {
@@ -2098,7 +2098,6 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     if ('reused' in reservation) return json(200, { code: 'OK', receipt: reservation.reused });
     leaseFence = reservation.fence;
 
-    const app = await getGitHubAppIdentity(config.appId, config.privateKey, env.KV);
     const minted = await mintRepositoryInstallationToken(
       config.appId,
       config.privateKey,
@@ -2108,6 +2107,7 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       permissionsFor(action.operation, payload),
     );
     appToken = minted.token;
+    const app = await getGitHubAppIdentity(config.appId, config.privateKey, env.KV, appToken);
     executionResult = await execute(action, payload, appToken, app, account.user.id, () => { mutationAttempted = true; });
     const cleanup = await revokeInstallationToken(appToken);
     appToken = null;
