@@ -36,6 +36,7 @@
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \usepackage{pgfplots}\pgfplotsset{compat=1.18}
 \usepackage{float}
+\usepackage{placeins}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage[backref=page]{hyperref}
@@ -287,6 +288,8 @@ Figure~\ref{fig:stp-dependency-spine} orders the prerequisites for trading on an
 agent's reputation. Continuity must survive a process before outcomes can be
 attached to a persistent participant; those outcomes are the basis of reputation.
 \input{figures/fig-stp-dependency-spine}
+% Keep the dependency exhibit ahead of the complete limitations paragraph.
+\FloatBarrier
 The reference system does not complete this chain. Reputation remains
 \DESIGNED-to-\VISION. Restart forwards a summary, not execution state, so it is
 not full checkpointing. The chapter's identity root is local to one operator;
