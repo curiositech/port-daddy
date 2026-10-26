@@ -66,7 +66,7 @@ function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLDivEl
   return (
     <div
       data-slot="card-description"
-      className={cn('text-sm text-[var(--text-muted)]', className)}
+      className={cn('text-sm text-[var(--text-meta)]', className)}
       {...props}
     />
   )

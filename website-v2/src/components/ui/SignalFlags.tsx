@@ -201,7 +201,7 @@ export function SignalFlagLegend({ size = 'md', className, verbose = false }: Si
               {verbose && (
                 <span
                   className="text-[length:var(--type-meta-size)] leading-tight"
-                  style={{ color: 'var(--text-muted)' }}
+                  style={{ color: 'var(--text-meta)' }}
                 >
                   {meta.usedFor}
                 </span>

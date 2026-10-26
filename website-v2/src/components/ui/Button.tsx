@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
   [
-    'inline-flex items-center justify-center gap-2',
+    'inline-flex min-h-11 items-center justify-center gap-2',
     'cursor-pointer select-none whitespace-nowrap border-2 border-[var(--border-strong)]',
     'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]',
     'transition-all duration-[180ms]',
@@ -26,7 +26,7 @@ const buttonVariants = cva(
         sm: 'px-3 py-2',
         md: 'px-4 py-2.5',
         lg: 'px-5 py-3',
-        icon: 'h-10 w-10 p-0',
+        icon: 'h-11 w-11 p-0',
       },
     },
     defaultVariants: {
@@ -57,12 +57,12 @@ const variantStyles: Record<string, {
     hover: { background: 'var(--code-header-bg)', borderColor: 'var(--code-text)', boxShadow: 'none' },
   },
   danger: {
-    base: { background: 'var(--status-error)', boxShadow: 'none' },
-    hover: { background: 'var(--status-error)', boxShadow: 'none' },
+    base: { background: 'var(--status-error-on-tint)', boxShadow: 'none' },
+    hover: { background: 'var(--status-error-on-tint)', boxShadow: 'none' },
   },
   outline: {
-    base: { background: 'var(--brand-accent)', boxShadow: 'none' },
-    hover: { background: 'var(--brand-accent)', boxShadow: 'none' },
+    base: { background: 'var(--brand-accent-on-tint)', boxShadow: 'none' },
+    hover: { background: 'var(--brand-accent-on-tint)', boxShadow: 'none' },
   },
 }
 

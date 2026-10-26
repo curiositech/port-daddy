@@ -9,7 +9,7 @@ afterEach(cleanup)
 
 function renderThemed(theme: Theme, props: Parameters<typeof ThemedImage>[0]) {
   return render(
-    <ThemeContext.Provider value={{ theme, toggle: () => {} }}>
+    <ThemeContext.Provider value={{ theme, preference: 'system', setPreference: () => {}, toggle: () => {} }}>
       <ThemedImage {...props} />
     </ThemeContext.Provider>,
   )
@@ -78,7 +78,7 @@ describe('ThemedImage', () => {
   it('re-attempts the dark sibling after the src changes', () => {
     const props = { alt: 'x' }
     const { container, rerender } = render(
-      <ThemeContext.Provider value={{ theme: 'dark', toggle: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'dark', preference: 'system', setPreference: () => {}, toggle: () => {} }}>
         <ThemedImage src="/img/a.webp" {...props} />
       </ThemeContext.Provider>,
     )
@@ -87,7 +87,7 @@ describe('ThemedImage', () => {
     expect(getImg(container).getAttribute('src')).toBe('/img/a.webp')
     // A different src should optimistically try its dark sibling again.
     rerender(
-      <ThemeContext.Provider value={{ theme: 'dark', toggle: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'dark', preference: 'system', setPreference: () => {}, toggle: () => {} }}>
         <ThemedImage src="/img/b.webp" {...props} />
       </ThemeContext.Provider>,
     )

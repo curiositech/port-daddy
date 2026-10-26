@@ -84,7 +84,7 @@ export function FigureCarousel({ slides }: { slides: FigureSlide[] }) {
       {/* Controls — pager · ticks · arrows, one row, no border. */}
       <div className="mt-[var(--space-4)] flex items-center justify-between gap-[var(--space-3)]">
         <div className="flex items-center gap-[var(--space-3)]">
-          <span className="font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
             {String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
           </span>
           <div className="flex flex-wrap gap-[var(--space-2)]">

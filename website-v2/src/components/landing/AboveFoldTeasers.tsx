@@ -67,10 +67,10 @@ export function AboveFoldTeasers() {
               className="min-w-[5.25rem] border-r-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] text-center last:border-r-0"
               key={stat.label}
             >
-              <div className="font-mono text-[1.25rem] font-black leading-none text-[var(--brand-primary)]">
+              <div className="font-mono text-[1.25rem] font-black leading-none text-[var(--text-brand-primary)]">
                 {stat.value}
               </div>
-              <div className="mt-[var(--space-1)] font-sans text-[0.66rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <div className="mt-[var(--space-1)] font-sans text-[0.66rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                 {stat.label}
               </div>
             </div>
@@ -124,7 +124,7 @@ function FeaturedTeaser({ teaser }: { teaser: HomepageTeaser }) {
         <div className="space-y-[var(--space-3)]">
           <div className="flex flex-wrap items-center gap-[var(--space-2)]">
             <TeaserBadge teaser={teaser} />
-            <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
               {teaser.eyebrow}
             </span>
           </div>
@@ -141,14 +141,14 @@ function FeaturedTeaser({ teaser }: { teaser: HomepageTeaser }) {
 
         <div className="flex items-center justify-between gap-[var(--space-3)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
           <div className="min-w-0">
-            <div className="font-mono text-[0.72rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            <div className="font-mono text-[0.72rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
               {teaser.meta}
             </div>
             <div className="mt-[var(--space-1)] text-sm font-semibold text-[var(--text-primary)]">
               {teaser.proof}
             </div>
           </div>
-          <span className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)] transition-colors group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-primary-foreground)]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-brand-primary)] transition-colors group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-primary-foreground)]">
             <ArrowUpRight size={18} aria-hidden="true" />
           </span>
         </div>
@@ -179,7 +179,7 @@ function CompactTeaser({ teaser, index, total }: { teaser: HomepageTeaser; index
             <TeaserBadge teaser={teaser} />
             <ArrowUpRight
               aria-hidden="true"
-              className="mt-[2px] shrink-0 text-[var(--text-muted)] transition-colors group-hover:text-[var(--brand-primary)]"
+              className="mt-[2px] shrink-0 text-[var(--text-meta)] transition-colors group-hover:text-[var(--text-brand-primary)]"
               size={16}
             />
           </div>
@@ -195,7 +195,7 @@ function CompactTeaser({ teaser, index, total }: { teaser: HomepageTeaser; index
         </div>
 
         <div className="grid gap-[var(--space-1)] border-t border-[var(--border-subtle)] pt-[var(--space-2)]">
-          <span className="font-mono text-[0.66rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+          <span className="font-mono text-[0.66rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
             {teaser.eyebrow} / {teaser.meta}
           </span>
           <span className="text-sm font-semibold text-[var(--text-primary)]">{teaser.proof}</span>
@@ -212,7 +212,7 @@ function TeaserImage({ teaser, featured = false }: { teaser: HomepageTeaser; fea
         aria-hidden="true"
         className="grid min-h-[10rem] place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
       >
-        <div className="grid h-16 w-16 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+        <div className="grid h-16 w-16 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-brand-primary)]">
           {teaser.kind === 'Guide' ? <Route size={26} /> : <BookOpenText size={26} />}
         </div>
       </div>

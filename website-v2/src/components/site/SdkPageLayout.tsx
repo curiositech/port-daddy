@@ -64,7 +64,7 @@ export function SdkPageHeader({
         <div className="space-y-[var(--panel-gap)] lg:col-span-8">
           <nav
             aria-label="Breadcrumb"
-            className="flex flex-wrap items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]"
+            className="flex flex-wrap items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]"
           >
             {breadcrumbs.map((crumb, index) => (
               <span key={`${crumb.label}-${index}`} className="inline-flex items-center gap-[var(--space-2)]">
@@ -103,7 +103,7 @@ export function SdkParamTable({ params }: { params: SdkParam[] }) {
           <div
             key={heading}
             className={`p-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] ${
-              idx < 2 ? 'border-r-2 border-[color:var(--brand-primary-foreground-subtle)]' : ''
+              idx < 2 ? 'border-r-2 border-[color:var(--action-primary-text)]' : ''
             }`}
           >
             {heading}
@@ -117,7 +117,7 @@ export function SdkParamTable({ params }: { params: SdkParam[] }) {
             className="grid gap-[var(--space-2)] p-[var(--space-4)] md:grid-cols-[minmax(0,0.32fr)_minmax(0,0.22fr)_minmax(0,0.46fr)] md:gap-[var(--space-3)]"
           >
             <div className="flex flex-wrap items-center gap-[var(--space-2)]">
-              <code className="font-mono text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--brand-primary)]">
+              <code className="font-mono text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-brand-primary)]">
                 {param.name}
               </code>
               {param.required ? (
@@ -125,7 +125,7 @@ export function SdkParamTable({ params }: { params: SdkParam[] }) {
                   required
                 </span>
               ) : (
-                <span className="border border-[var(--border-default)] px-[var(--space-2)] py-[1px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                <span className="border border-[var(--border-default)] px-[var(--space-2)] py-[1px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                   optional
                 </span>
               )}

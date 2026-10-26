@@ -62,7 +62,7 @@ export function LibraryBanner() {
 
           <div className="contents lg:block lg:min-w-0">
             <div className="min-w-0 self-center">
-              <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-meta)]">
                 The book Port Daddy is built on
               </div>
               <h2 className="mt-[var(--space-2)] max-w-[24ch] text-[clamp(21px,2.1vw,29px)] font-bold leading-[1.08] tracking-[-0.02em] text-[var(--text-primary)]">
@@ -84,7 +84,7 @@ export function LibraryBanner() {
                 whitepapers grew into this textbook; every claim in it says whether it is built,
                 modelled, or proposed.
               </p>
-              <p className="mt-[var(--space-2)] font-mono text-[14px] leading-[1.5] text-[var(--text-muted)]">
+              <p className="mt-[var(--space-2)] font-mono text-[14px] leading-[1.5] text-[var(--text-meta)]">
                 {chapters} chapters in {parts} parts · {COLLECTED_VOLUME.pages} pages · {TEXTBOOK.edition.version} · free PDF
               </p>
               <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-x-[var(--space-5)] gap-y-[var(--space-2)]">
@@ -96,7 +96,7 @@ export function LibraryBanner() {
                 </a>
                 <Link
                   to="/whitepaper"
-                  className="group inline-flex items-center gap-[var(--space-2)] whitespace-nowrap font-mono text-[14px] font-bold uppercase tracking-[0.08em] text-[var(--text-primary)] no-underline hover:text-[var(--brand-primary)]"
+                  className="group inline-flex items-center gap-[var(--space-2)] whitespace-nowrap font-mono text-[14px] font-bold uppercase tracking-[0.08em] text-[var(--text-primary)] no-underline hover:text-[var(--text-brand-primary)]"
                 >
                   Contents
                   <ArrowRight
@@ -110,7 +110,7 @@ export function LibraryBanner() {
           </div>
 
           <div className="col-span-2 min-w-0 border-t-2 border-[var(--border-default)] pt-[var(--space-4)] lg:col-span-1 lg:border-l-2 lg:border-t-0 lg:pl-[var(--space-6)] lg:pt-0">
-            <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <div className="font-mono text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-meta)]">
               The papers behind it
             </div>
             <p className="mt-[var(--space-2)] max-w-[44ch] text-[16px] leading-[1.5] text-[var(--text-secondary)]">
@@ -122,7 +122,7 @@ export function LibraryBanner() {
             </p>
             <Link
               to="/research"
-              className="group mt-[var(--space-3)] inline-flex items-center gap-[var(--space-2)] font-mono text-[14px] font-bold uppercase tracking-[0.08em] text-[var(--text-primary)] no-underline hover:text-[var(--story-indigo)]"
+              className="group mt-[var(--space-3)] inline-flex items-center gap-[var(--space-2)] font-mono text-[14px] font-bold uppercase tracking-[0.08em] text-[var(--text-primary)] no-underline hover:text-[var(--text-story-indigo)]"
             >
               Read the papers
               <ArrowRight

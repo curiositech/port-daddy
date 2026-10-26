@@ -53,7 +53,7 @@ const variantStyles: Record<string, React.CSSProperties> = {
     background: 'var(--surface-raised)',
     border: '1px solid var(--status-error)',
     boxShadow: 'none',
-    color: 'var(--status-error-on-tint)',
+    color: 'var(--text-status-error)',
   },
   teal: {
     background: 'var(--surface-raised)',
@@ -65,19 +65,19 @@ const variantStyles: Record<string, React.CSSProperties> = {
     background: 'var(--surface-raised)',
     border: '1px solid var(--brand-accent)',
     boxShadow: 'none',
-    color: 'var(--brand-accent-on-tint)',
+    color: 'var(--text-brand-accent)',
   },
   success: {
     background: 'var(--surface-raised)',
     border: '1px solid var(--status-success)',
     boxShadow: 'none',
-    color: 'var(--status-success-on-tint)',
+    color: 'var(--text-status-success)',
   },
   warning: {
     background: 'var(--surface-raised)',
     border: '1px solid var(--status-warning)',
     boxShadow: 'none',
-    color: 'var(--status-warning-on-tint)',
+    color: 'var(--text-status-warning)',
   },
   outline: {
     background: 'transparent',

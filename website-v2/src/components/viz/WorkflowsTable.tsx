@@ -31,17 +31,17 @@ export function WorkflowsTable() {
   };
 
   if (loading) return <motion.div className="p-8 text-center opacity-50 font-black uppercase tracking-widest text-[12px] font-sans">Hailing Pipelines...</motion.div>;
-  if (error) return <motion.div className="p-8 text-center text-[var(--status-error)] font-bold font-sans">Harbor Error: {error}</motion.div>;
+  if (error) return <motion.div className="p-8 text-center text-[var(--text-status-error)] font-bold font-sans">Harbor Error: {error}</motion.div>;
 
   return (
     <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-sm font-sans">
       <motion.div className="px-8 py-6 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-overlay)] font-sans">
         <motion.div className="font-sans">
           <motion.h2 className="text-lg font-bold flex items-center gap-2 font-display">
-            <Zap size={20} className="text-[var(--brand-accent)]" />
+            <Zap size={20} className="text-[var(--text-brand-accent)]" />
             Reactive Pipelines
           </motion.h2>
-          <motion.p className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-widest mt-1 font-sans">
+          <motion.p className="text-xs text-[var(--text-meta)] font-medium uppercase tracking-widest mt-1 font-sans">
             Event-driven agent orchestration
           </motion.p>
         </motion.div>
@@ -57,7 +57,7 @@ export function WorkflowsTable() {
       <motion.div className="flex-1 overflow-y-auto font-sans">
         <motion.table className="w-full text-left border-collapse font-sans">
           <motion.thead className="font-sans">
-            <motion.tr className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] border-b border-[var(--border-subtle)] font-sans">
+            <motion.tr className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text-meta)] border-b border-[var(--border-subtle)] font-sans">
               <motion.th className="px-8 py-4 font-sans">Status</motion.th>
               <motion.th className="px-4 py-4 font-sans">Rule Name</motion.th>
               <motion.th className="px-4 py-4 font-sans">Trigger (Channel)</motion.th>
@@ -80,7 +80,7 @@ export function WorkflowsTable() {
                   <motion.span className="font-bold text-sm font-sans" style={{ color: 'var(--text-primary)' }}>{rule.name}</motion.span>
                 </motion.td>
                 <motion.td className="px-4 py-5 font-sans">
-                  <motion.code className="px-2 py-1 rounded bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--brand-primary)]">
+                  <motion.code className="px-2 py-1 rounded bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-brand-primary)]">
                     {rule.channelPattern}
                   </motion.code>
                 </motion.td>
@@ -101,7 +101,7 @@ export function WorkflowsTable() {
                   <motion.div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity font-sans">
                     <motion.button 
                       onClick={() => handleRun(rule)}
-                      className="p-2 rounded-lg hover:bg-[var(--interactive-active)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors font-sans"
+                      className="p-2 rounded-lg hover:bg-[var(--interactive-active)] text-[var(--text-meta)] hover:text-[var(--text-brand-primary)] transition-colors font-sans"
                       title="Trigger manually"
                       whileHover={{ scale: 1.1 }}
                     >
@@ -109,7 +109,7 @@ export function WorkflowsTable() {
                     </motion.button>
                     <motion.button 
                       onClick={() => handleDelete(rule.id)}
-                      className="p-2 rounded-lg hover:bg-[var(--status-error)]/10 text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors font-sans"
+                      className="p-2 rounded-lg hover:bg-[var(--status-error)]/10 text-[var(--text-meta)] hover:text-[var(--text-status-error)] transition-colors font-sans"
                       title="Delete rule"
                       whileHover={{ scale: 1.1 }}
                     >
@@ -121,7 +121,7 @@ export function WorkflowsTable() {
             ))}
             {(!rules || rules.length === 0) && (
               <motion.tr className="font-sans">
-                <motion.td colSpan={5} className="px-8 py-20 text-center text-[var(--text-muted)] font-sans">
+                <motion.td colSpan={5} className="px-8 py-20 text-center text-[var(--text-meta)] font-sans">
                   <motion.div className="flex flex-col items-center gap-4 opacity-40 font-sans">
                     <Zap size={48} />
                     <motion.p className="text-sm font-medium font-sans">No reactive pipelines defined yet.</motion.p>

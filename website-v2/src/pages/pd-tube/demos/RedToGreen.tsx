@@ -267,11 +267,11 @@ export function RedToGreen() {
         {/* Right column: the agent's diagnosis + suggested diff */}
         <SurfacePanel className="flex flex-col gap-[var(--space-4)] self-start">
           <div className="flex items-center justify-between gap-[var(--space-3)]">
-            <PanelEyebrow className={passed ? 'text-[var(--brand-accent)]' : undefined}>
+            <PanelEyebrow className={passed ? 'text-[var(--text-brand-accent)]' : undefined}>
               {passed ? 'Agent reply · suggested fix' : 'Suggested fix'}
             </PanelEyebrow>
             {usingSample ? (
-              <span className="shrink-0 border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <span className="shrink-0 border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                 Sample shape
               </span>
             ) : null}
@@ -293,7 +293,7 @@ export function RedToGreen() {
               aria-disabled="true"
               title="Demo only — this does not edit files"
               className={cn(
-                'inline-flex cursor-not-allowed items-center gap-[var(--space-2)] border-2 border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] opacity-70',
+                'inline-flex cursor-not-allowed items-center gap-[var(--space-2)] border-2 border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)] opacity-70',
               )}
             >
               Apply this diff
@@ -373,8 +373,8 @@ function BarFill({ tone, label }: { tone: 'fail' | 'pass'; label: string }) {
     <div
       className="flex h-full w-full items-center gap-[var(--space-3)] px-[var(--space-4)]"
       style={{
-        background: isFail ? 'var(--status-error)' : 'var(--brand-accent)',
-        color: isFail ? 'var(--status-error-foreground, #fbf7ef)' : 'var(--brand-accent-foreground)',
+        background: isFail ? 'var(--action-danger-bg)' : 'var(--action-success-bg)',
+        color: isFail ? 'var(--action-danger-text)' : 'var(--action-success-text)',
       }}
     >
       <span
@@ -397,7 +397,7 @@ function BarFill({ tone, label }: { tone: 'fail' | 'pass'; label: string }) {
 function ConsolePanel({ payload }: { payload: typeof FAILURE_PAYLOAD }) {
   const Prompt = ({ children }: { children: React.ReactNode }) => (
     <div className="flex gap-[var(--space-2)]">
-      <span aria-hidden="true" className="select-none font-mono text-[var(--brand-primary)]">
+      <span aria-hidden="true" className="select-none font-mono text-[var(--text-brand-primary)]">
         $
       </span>
       <span className="min-w-0">{children}</span>
@@ -407,8 +407,8 @@ function ConsolePanel({ payload }: { payload: typeof FAILURE_PAYLOAD }) {
   return (
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
       <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
-        <PanelEyebrow className="text-[var(--brand-primary)]">console · vitest</PanelEyebrow>
-        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+        <PanelEyebrow className="text-[var(--text-brand-primary)]">console · vitest</PanelEyebrow>
+        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
           {payload.suite}
         </span>
       </div>
@@ -417,16 +417,16 @@ function ConsolePanel({ payload }: { payload: typeof FAILURE_PAYLOAD }) {
           <span className="text-[var(--text-secondary)]">pnpm test</span>
         </Prompt>
         <div className="pl-[var(--space-4)]">
-          <div className="font-bold text-[var(--status-error)]">
+          <div className="font-bold text-[var(--text-status-error)]">
             FAIL {payload.suite}
           </div>
-          <div className="text-[var(--status-error)]">  ✕ {payload.test}</div>
+          <div className="text-[var(--text-status-error)]">  ✕ {payload.test}</div>
           <div className="mt-[var(--space-2)] text-[var(--text-primary)]">
             {payload.assertion}
           </div>
-          <div className="text-[var(--brand-accent)]">    {payload.expected}</div>
-          <div className="text-[var(--status-error)]">    {payload.received}</div>
-          <div className="mt-[var(--space-2)] space-y-[2px] text-[var(--text-muted)]">
+          <div className="text-[var(--text-brand-accent)]">    {payload.expected}</div>
+          <div className="text-[var(--text-status-error)]">    {payload.received}</div>
+          <div className="mt-[var(--space-2)] space-y-[2px] text-[var(--text-meta)]">
             {payload.stack.map((line) => (
               <div key={line}>{line}</div>
             ))}
@@ -454,11 +454,11 @@ function DiffCard({
   const toneFor = (kind: DiffLine['kind']) => {
     switch (kind) {
       case 'add':
-        return { color: 'var(--brand-accent)', bg: 'color-mix(in srgb, var(--brand-accent) 9%, transparent)' }
+        return { color: 'var(--text-brand-accent)', bg: 'color-mix(in srgb, var(--brand-accent) 9%, transparent)' }
       case 'del':
-        return { color: 'var(--status-error)', bg: 'color-mix(in srgb, var(--status-error) 8%, transparent)' }
+        return { color: 'var(--text-status-error)', bg: 'color-mix(in srgb, var(--status-error) 8%, transparent)' }
       case 'meta':
-        return { color: 'var(--text-muted)', bg: 'transparent' }
+        return { color: 'var(--text-meta)', bg: 'transparent' }
       default:
         return { color: 'var(--text-secondary)', bg: 'transparent' }
     }
@@ -474,7 +474,7 @@ function DiffCard({
       <div className="border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
         <PanelEyebrow>unified diff</PanelEyebrow>
       </div>
-      <div className="overflow-x-auto px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]">
+      <div role="region" tabIndex={0} aria-label="Unified diff" className="overflow-x-auto px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]">
         {lines.map((line, i) => {
           const tone = toneFor(line.kind)
           return (

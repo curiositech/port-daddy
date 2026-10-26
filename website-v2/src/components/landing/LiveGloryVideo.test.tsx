@@ -41,7 +41,7 @@ vi.mock('framer-motion', () => ({
 function renderLiveGloryVideo() {
   return render(
     <MemoryRouter>
-      <ThemeContext.Provider value={{ theme: 'dark', toggle: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'dark', preference: 'system', setPreference: () => {}, toggle: () => {} }}>
         <LiveGloryVideo />
       </ThemeContext.Provider>
     </MemoryRouter>,

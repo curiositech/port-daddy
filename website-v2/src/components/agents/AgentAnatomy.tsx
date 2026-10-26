@@ -168,8 +168,8 @@ const ANNOTATION_BY_REF = new Map(ANNOTATIONS.map((a) => [a.ref, a]))
  * the caller, so this only ever sees structural YAML.
  */
 const C = {
-  key: 'text-[var(--brand-primary)]',
-  punct: 'text-[var(--text-muted)]',
+  key: 'text-[var(--text-brand-primary)]',
+  punct: 'text-[var(--text-meta)]',
   string: 'text-[var(--brand-secondary)]',
   number: 'font-semibold text-[var(--text-primary)]',
   bool: 'font-semibold text-[var(--text-primary)]',
@@ -246,25 +246,25 @@ export function AgentAnatomy() {
         </PanelBody>
       </div>
 
-      <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* The real YAML, syntax-highlighted, with numbered hover-card call-outs. */}
-        <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+        <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)]">
             <span className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-secondary)]">
               pd-fleet.yml
             </span>
-            <span className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            <span className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
               real, unedited
             </span>
           </div>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} aria-label="Annotated fleet YAML" className="min-w-0 overflow-x-auto">
             <pre className="m-0 p-[var(--space-3)] font-mono text-[14px] leading-[1.7]">
               {LINES.map((line, i) => {
                 const active = line.ref != null && line.ref === activeRef
                 const interactive = line.ref != null
                 const body =
                   line.kind === 'comment'
-                    ? <span className="italic text-[var(--text-muted)]">{line.text || ' '}</span>
+                    ? <span className="italic text-[var(--text-meta)]">{line.text || ' '}</span>
                     : line.kind === 'prompt'
                       ? <span className="text-[var(--text-secondary)]">{line.text || ' '}</span>
                       : highlightYaml(line.text)
@@ -331,7 +331,7 @@ export function AgentAnatomy() {
                 <p className="mt-[var(--space-2)] font-sans text-[14px] leading-[1.55] text-[var(--text-secondary)]">
                   {note.what}
                 </p>
-                <p className="mt-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                <p className="mt-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                   {note.where}
                 </p>
               </li>
@@ -356,7 +356,7 @@ export function AgentAnatomy() {
           <p className="mt-[var(--space-2)] font-sans text-[14px] leading-[1.55] text-[var(--text-secondary)]">
             {hovered.what}
           </p>
-          <p className="mt-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+          <p className="mt-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
             {hovered.where}
           </p>
         </div>
@@ -396,7 +396,7 @@ function RefChip({ ref, active }: { ref: number; active: boolean }) {
 }
 
 function Mono({ children, className }: { children: ReactNode; className?: string }) {
-  return <code className={cn('font-mono text-[var(--brand-primary)]', className)}>{children}</code>
+  return <code className={cn('font-mono text-[var(--text-brand-primary)]', className)}>{children}</code>
 }
 
 function AnatomyDocLink({ to, children }: { to: string; children: ReactNode }) {

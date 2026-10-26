@@ -40,7 +40,7 @@ function PrincipleRow({ p }: { p: Principle }) {
     <li
       className="grid grid-cols-[auto,1fr] items-start gap-x-[var(--space-3)] border-2 p-[var(--space-3)]"
       style={{
-        borderColor: p.emphasis ? 'var(--brand-accent)' : 'var(--border-default)',
+        borderColor: p.emphasis ? 'var(--text-brand-accent)' : 'var(--border-default)',
         background: p.emphasis ? 'color-mix(in oklab, var(--brand-accent) 10%, var(--surface-base))' : 'var(--surface-base)',
       }}
     >
@@ -48,9 +48,9 @@ function PrincipleRow({ p }: { p: Principle }) {
         aria-hidden="true"
         className="grid h-[1.875rem] w-[1.875rem] place-items-center border-2 font-mono text-[length:var(--text-base)] font-black leading-none"
         style={{
-          background: p.emphasis ? 'var(--brand-accent)' : 'var(--surface-raised)',
+          background: p.emphasis ? 'var(--action-accent-bg)' : 'var(--surface-raised)',
           color: p.emphasis ? 'var(--brand-accent-foreground)' : 'var(--text-primary)',
-          borderColor: p.emphasis ? 'var(--brand-accent)' : 'var(--border-strong)',
+          borderColor: p.emphasis ? 'var(--text-brand-accent)' : 'var(--border-strong)',
         }}
       >
         {p.n}
@@ -58,7 +58,7 @@ function PrincipleRow({ p }: { p: Principle }) {
       <div className="min-w-0 space-y-[var(--space-1)]">
         <p
           className="font-sans text-[length:var(--text-base)] font-black leading-[var(--leading-nav)]"
-          style={{ color: p.emphasis ? 'var(--brand-accent)' : 'var(--text-primary)' }}
+          style={{ color: p.emphasis ? 'var(--text-brand-accent)' : 'var(--text-primary)' }}
         >
           {p.label}
         </p>
@@ -99,7 +99,7 @@ export function CommonsGovernance() {
 
         {/* Principle 5, expanded into the bond-slash ladder it drives. */}
         <div className="border-2 border-[var(--brand-accent)] bg-[var(--surface-base)] p-[var(--space-4)]">
-          <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-accent)]">
+          <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-accent)]">
             Principle 5 in action &mdash; graduated sanctions &rarr; bond slash
           </p>
           <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] sm:grid-cols-3">

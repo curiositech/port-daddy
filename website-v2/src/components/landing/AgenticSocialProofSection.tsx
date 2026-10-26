@@ -74,7 +74,7 @@ export function AgenticSocialProofSection() {
                     {item.name}
                   </PanelTitle>
                 </div>
-                <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-brand-primary)]">
                   <Quote size={18} />
                 </span>
               </div>

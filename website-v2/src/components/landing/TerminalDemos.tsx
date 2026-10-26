@@ -83,12 +83,12 @@ export function TerminalDemos() {
               >
                 <div className="flex items-center gap-2">
                   {activeDemo.id === demo.id ? (
-                    <Play size={14} className="text-[var(--brand-primary)]" fill="var(--brand-primary)" />
+                    <Play size={14} className="text-[var(--text-brand-primary)]" fill="var(--brand-primary)" />
                   ) : (
-                    <Square size={14} className="text-[var(--text-muted)]" />
+                    <Square size={14} className="text-[var(--text-meta)]" />
                   )}
                   <PanelTitle as="span" size="nav" className={`max-w-none ${
-                    activeDemo.id === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                    activeDemo.id === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-meta)]'
                   }`}>
                     {demo.title}
                   </PanelTitle>

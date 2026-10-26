@@ -109,7 +109,7 @@ export function LiveOrchestrationGraph({
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       >
-        <Network className="text-[var(--brand-primary)]" size={32} />
+        <Network className="text-[var(--text-brand-primary)]" size={32} />
         <motion.div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
            <motion.span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">pd-daemon</motion.span>
         </motion.div>

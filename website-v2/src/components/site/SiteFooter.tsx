@@ -52,7 +52,7 @@ export function SiteFooter() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
+                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--text-brand-primary)]"
                 >
                   {link.label}
                 </Link>
@@ -69,7 +69,7 @@ export function SiteFooter() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
+                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--text-brand-primary)]"
                 >
                   {link.label}
                 </Link>
@@ -86,7 +86,7 @@ export function SiteFooter() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
+                  className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--text-brand-primary)]"
                 >
                   {link.label}
                 </Link>
@@ -103,7 +103,7 @@ export function SiteFooter() {
                 href="https://github.com/curiositech/port-daddy"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
+                className="inline-flex items-center gap-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--text-brand-primary)]"
               >
                 <Github size={15} />
                 GitHub
@@ -112,7 +112,7 @@ export function SiteFooter() {
                 href="https://github.com/curiositech/port-daddy/discussions"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
+                className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--text-brand-primary)]"
               >
                 Discussions
               </a>

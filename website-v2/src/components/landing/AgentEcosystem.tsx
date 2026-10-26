@@ -17,10 +17,10 @@ interface AgentTool {
 }
 
 const TOOLS: AgentTool[] = [
-  { name: 'Claude Code', tagline: 'MCP Native', how: 'pd mcp install gives every Claude Code session full Port Daddy tools — ports, sessions, notes, pub/sub', icon: Cpu, color: 'var(--brand-primary)', product: 'claude' },
-  { name: 'Aider', tagline: 'pd spawn', how: 'pd spawn --backend aider launches Aider with Port Daddy coordination wired in automatically', icon: Code, color: 'var(--brand-accent)' },
-  { name: 'Ollama', tagline: 'Local LLM', how: 'pd spawn --backend ollama runs any local model with full session tracking and pub/sub', icon: Layers, color: 'var(--brand-primary)', product: 'ollama' },
-  { name: 'Any CLI Tool', tagline: 'Universal', how: 'pd spawn --backend custom wraps any command-line tool with Port Daddy coordination', icon: Terminal, color: 'var(--brand-accent)' },
+  { name: 'Claude Code', tagline: 'MCP Native', how: 'pd mcp install gives every Claude Code session full Port Daddy tools — ports, sessions, notes, pub/sub', icon: Cpu, color: 'var(--text-brand-primary)', product: 'claude' },
+  { name: 'Aider', tagline: 'pd spawn', how: 'pd spawn --backend aider launches Aider with Port Daddy coordination wired in automatically', icon: Code, color: 'var(--text-brand-accent)' },
+  { name: 'Ollama', tagline: 'Local LLM', how: 'pd spawn --backend ollama runs any local model with full session tracking and pub/sub', icon: Layers, color: 'var(--text-brand-primary)', product: 'ollama' },
+  { name: 'Any CLI Tool', tagline: 'Universal', how: 'pd spawn --backend custom wraps any command-line tool with Port Daddy coordination', icon: Terminal, color: 'var(--text-brand-accent)' },
 ]
 
 export function AgentEcosystem() {
@@ -44,7 +44,7 @@ export function AgentEcosystem() {
           <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-[0.25em]">The Integration Layer</Badge>
           <motion.h2 className="text-3xl sm:text-5xl lg:text-7xl font-bold font-display tracking-tight leading-[0.9] mb-10" style={{ color: 'var(--text-primary)' }}>
             One protocol. <br />
-            <motion.span style={{ color: 'var(--brand-primary)' }}>Any Agent.</motion.span>
+            <motion.span style={{ color: 'var(--text-brand-primary)' }}>Any Agent.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed opacity-80 font-sans" style={{ color: 'var(--text-secondary)' }}>
             Port Daddy is framework-agnostic. It provides the low-level primitives needed to make agents from different families work together in a single harbor.
@@ -68,7 +68,7 @@ export function AgentEcosystem() {
                   {tool.product ? (
                     <ProductLogoMark product={tool.product} className="h-11 w-11" />
                   ) : (
-                    <tool.icon size={40} style={{ color: 'var(--brand-accent)' }} />
+                    <tool.icon size={40} style={{ color: 'var(--text-brand-accent)' }} />
                   )}
                 </Surface>
 
@@ -85,7 +85,7 @@ export function AgentEcosystem() {
                 {/* Divider with accent color */}
                 <div className="w-full flex items-center justify-center gap-4 opacity-20 group-hover:opacity-100 transition-opacity">
                    <div className="h-[1px] flex-1" style={{ background: 'linear-gradient(to right, transparent, var(--brand-accent))' }} />
-                   <ChevronRight size={16} style={{ color: 'var(--brand-accent)' }} />
+                   <ChevronRight size={16} style={{ color: 'var(--text-brand-accent)' }} />
                    <div className="h-[1px] flex-1" style={{ background: 'linear-gradient(to left, transparent, var(--brand-accent))' }} />
                 </div>
               </motion.div>
@@ -105,13 +105,13 @@ export function AgentEcosystem() {
           viewport={{ once: true }}
         >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Globe size={600} style={{ color: 'var(--brand-primary)' }} />
+              <Globe size={600} style={{ color: 'var(--text-brand-primary)' }} />
            </div>
 
            <div className="max-w-4xl relative z-10 space-y-12 flex flex-col items-center">
               <Badge variant="gold" className="px-6 py-2 text-[12px] font-black uppercase tracking-widest">Coordination Pattern</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                The <span style={{ color: 'var(--brand-accent)' }}>Daemon</span> <br /> Pattern.
+                The <span style={{ color: 'var(--text-brand-accent)' }}>Daemon</span> <br /> Pattern.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
                 Your agents coordinate through a shared local daemon. One agent claims a port and publishes events, while others subscribe for updates — usually on localhost:9876, but discoverable from the live daemon status when your machine differs.
@@ -128,7 +128,7 @@ export function AgentEcosystem() {
                  >
                     {/* Icon in inset circle */}
                     <Surface depth="inset" radius="full" padding="none" className="w-14 h-14 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                       <MessageSquare style={{ color: 'var(--brand-accent)' }} size={28} />
+                       <MessageSquare style={{ color: 'var(--text-brand-accent)' }} size={28} />
                     </Surface>
                     <div className="space-y-3">
                        <motion.p className="font-black m-0 text-xl tracking-tight" style={{ color: 'var(--text-primary)' }}>Cross-Framework Signaling</motion.p>

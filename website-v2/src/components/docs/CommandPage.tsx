@@ -134,7 +134,7 @@ export function CommandPage({
 
   return (
     <div className="space-y-[var(--space-7)]">
-      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+      <div className="flex items-center gap-2 text-sm text-[var(--text-meta)]">
         <Link to="/docs/cli" className="hover:text-[var(--text-primary)]">
           CLI
         </Link>
@@ -149,7 +149,7 @@ export function CommandPage({
             <>
               {command}
               {shortFlag ? (
-                <span className="ml-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-muted)]">({shortFlag})</span>
+                <span className="ml-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-meta)]">({shortFlag})</span>
               ) : null}
             </>
           }
@@ -182,7 +182,7 @@ export function CommandPage({
           <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-2">
             {resolvedApiSpec.map((entry) => (
               <SurfacePanel key={entry.label} elevation="quiet" padding="compact" className="space-y-[var(--space-1)]">
-                <PanelEyebrow className="max-w-none text-[var(--text-muted)]">
+                <PanelEyebrow className="max-w-none text-[var(--text-meta)]">
                   {entry.label}
                 </PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none font-mono text-[var(--text-primary)]">
@@ -223,7 +223,7 @@ export function CommandPage({
           <div className="space-y-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {flags.map((flag) => (
               <SurfacePanel key={flag.flag} elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
-                <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+                <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--text-brand-primary)]">
                   {flag.flag}
                 </PanelTitle>
                 <PanelBody size="compact" className="max-w-none">
@@ -311,14 +311,14 @@ export function CommandPage({
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-t border-[var(--border-subtle)] pt-[var(--space-5)]">
         <Link
           to="/docs/cli"
-          className="flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          className="flex items-center gap-2 text-sm text-[var(--text-meta)] transition-colors hover:text-[var(--text-primary)]"
         >
           <span aria-hidden="true">←</span>
           <span>All commands</span>
         </Link>
         <Link
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary)]"
+          className="flex items-center gap-2 text-sm text-[var(--text-brand-primary)] transition-colors hover:text-[var(--text-brand-primary)]"
         >
           SDK reference
           <span aria-hidden="true">→</span>

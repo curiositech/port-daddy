@@ -101,7 +101,7 @@ export function DistributionSection() {
                       key={label}
                       className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-2)] sm:grid-cols-[9rem_minmax(0,1fr)]"
                     >
-                      <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                      <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                         {label}
                       </dt>
                       <dd className="font-sans text-[length:var(--text-sm)] font-semibold leading-snug text-[var(--text-primary)]">
@@ -121,14 +121,14 @@ export function DistributionSection() {
                   <PanelBody tone="primary" className="max-w-[42rem]">
                     {primary.description}
                   </PanelBody>
-                  <div className="inline-flex items-start gap-[var(--space-2)] border-t border-[color:var(--brand-primary-foreground-subtle)] pt-[var(--space-3)]">
+                  <div className="inline-flex items-start gap-[var(--space-2)] border-t border-[color:var(--action-primary-text)] pt-[var(--space-3)]">
                     <MonitorCheck className="mt-0.5 shrink-0" size={16} />
                     <PanelBody tone="primary" size="compact" className="max-w-none">
                       Setup installs FleetBar and opens the same control plane the browser uses.
                     </PanelBody>
                   </div>
                 </div>
-                <div className="grid content-start gap-[var(--space-3)] border-l-2 border-[color:var(--brand-primary-foreground-subtle)] pl-[var(--space-4)]">
+                <div className="grid content-start gap-[var(--space-3)] border-l-2 border-[color:var(--action-primary-text)] pl-[var(--space-4)]">
                   <PanelEyebrow tone="primary">Human path</PanelEyebrow>
                   <PanelBody tone="primary" size="compact" className="max-w-none">
                     Run setup, open FleetBar, choose a project, and continue in the GUI. If a hook,
