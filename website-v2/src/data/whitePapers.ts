@@ -260,7 +260,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
   pages: 836,
-  sizeKb: 19150,
+  sizeKb: 17988,
   references: 221,
   // No `editions` while the Book publishes only its central edition. See the
   // CollectedVolumeEdition doc comment above.
