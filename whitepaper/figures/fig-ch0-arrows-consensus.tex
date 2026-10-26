@@ -4,68 +4,49 @@
 % Distinguish: majority non-transitivity, Arrow hypotheses, cardinal comparability.
 % Grammar: paired triangles on the upstream grid, not an unconditional escape.
 % Acceptance: recount each 2-to-1 vote and all three cardinal sums.
+\noindent\begin{minipage}{11.1cm}\centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- one grid, declared once --------------------------------------------
-  \def\PW{6.30}    % panel width
-  \def\PX{7.30}    % right panel's x-shift (= \PW + 1.00 gutter)
-  \def\ytitle{5.00}
-  \def\yra{4.35} \def\yrb{3.90} \def\yrc{3.45}  % the three agents' rows
-  \def\ytop{2.10}  \def\ybase{0.10}             % triangle: shared geometry
-  \def\xA{3.15}    \def\xB{1.10}  \def\xC{5.20} % top / bottom-left / bottom-right
-  \def\Lx{-1.00}   % legend rule, left edge
-  \def\R{12.60}    % legend rule, right edge
-  % ===== LEFT PANEL: three ordinal rankings cycle under majority rule ======
-  \node[pd title,anchor=west] at (0,\ytitle) {ordinal ranking};
-  \node[pd label,anchor=west] at (0.15,\yra) {agent 1:\ \ $A \succ B \succ C$};
-  \node[pd label,anchor=west] at (0.15,\yrb) {agent 2:\ \ $B \succ C \succ A$};
-  \node[pd label,anchor=west] at (0.15,\yrc) {agent 3:\ \ $C \succ A \succ B$};
-  \node[pd automaton state] (La) at (\xA,\ytop)  {$A$};
+  % Paired triangles have the same geometry and native label size.
+  \def\PX{5.65}\def\xA{2.55}\def\xB{1.15}\def\xC{4.00}
+  \def\ytop{1.65}\def\ybase{-0.25}
+  \node[pd title,anchor=west] at (.10,4.45) {ordinal ranking};
+  \node[pd title,anchor=west] at (\PX,4.45) {cardinal utility};
+  \foreach \i/\s in {0/{$A\succ B\succ C$},1/{$B\succ C\succ A$},2/{$C\succ A\succ B$}}{
+    \node[pd label,anchor=west] at (.10,{3.90-\i*.45}) {agent \number\numexpr\i+1\relax:\ \s};}
+  \foreach \i/\s in {0/{$A\,.9$\ $B\,.5$\ $C\,.3$},1/{$A\,.4$\ $B\,.9$\ $C\,.8$},2/{$A\,.6$\ $B\,.2$\ $C\,.9$}}{
+    \node[pd label,anchor=west] at (\PX,{3.90-\i*.45}) {agent \number\numexpr\i+1\relax:\ \s};}
+  \draw[pd hairline] (\PX,2.80) -- (10.80,2.80);
+  \node[pd title,anchor=west] at (\PX,2.50) {$\Sigma$: $A\,1.9$\ $B\,1.6$\ $C\,2.0$};
+  \node[pd automaton state] (La) at (\xA,\ytop) {$A$};
   \node[pd automaton state] (Lb) at (\xB,\ybase) {$B$};
   \node[pd automaton state] (Lc) at (\xC,\ybase) {$C$};
   \draw[pd breach arrow] (La) -- (Lb);
   \draw[pd breach arrow] (Lb) -- (Lc);
   \draw[pd breach arrow] (Lc) -- (La);
-  \draw[pd rule,decorate,decoration={brace,amplitude=4pt,mirror,raise=3pt}]
-    (-0.25,{\yra+.20}) -- (-0.25,{\yrc-.20});
-  \node[pd badge] at (-0.75,\yrb) {1};
-  \draw[pd rule,decorate,decoration={brace,amplitude=4pt,mirror,raise=3pt}]
-    (\xB,{\ybase-.35}) -- (\xC,{\ybase-.35});
-  \node[pd badge] at (\xA,{\ybase-.70}) {3};
-  \node[pd breach label,anchor=north] at (\xA,-.95) {$A \succ B \succ C \succ A$ --- no winner};
-  % ===== RIGHT PANEL: the same three agents, cardinal bids, one total order
-  \node[pd title,anchor=west] at (\PX,\ytitle) {cardinal utility};
-  \node[pd label,anchor=west] at ({\PX+.15},\yra) {agent 1:\ \ $A\,.9$\ \ $B\,.5$\ \ $C\,.3$};
-  \node[pd label,anchor=west] at ({\PX+.15},\yrb) {agent 2:\ \ $A\,.4$\ \ $B\,.9$\ \ $C\,.8$};
-  \node[pd label,anchor=west] at ({\PX+.15},\yrc) {agent 3:\ \ $A\,.6$\ \ $B\,.2$\ \ $C\,.9$};
-  \draw[pd hairline] ({\PX+.15},{\yrc-.30}) -- ({\PX+\PW-.15},{\yrc-.30});
-  \node[pd title,anchor=west] at ({\PX+.15},{\yrc-.58})
-    {$\Sigma$:\ \ $A\,1.9$\ \ $B\,1.6$\ \ $C\,2.0$};
-  \node[pd automaton state]       (Ra) at ({\PX+\xA},\ytop)  {$A$};
-  \node[pd automaton state]       (Rb) at ({\PX+\xB},\ybase) {$B$};
-  \node[pd automaton focus]       (Rc) at ({\PX+\xC},\ybase) {$C$};
+  \node[pd breach label] at (\xA,-1.15) {$A\succ B\succ C\succ A$: no winner};
+  \node[pd automaton state] (Ra) at ({\PX+\xA},\ytop) {$A$};
+  \node[pd automaton state] (Rb) at ({\PX+\xB},\ybase) {$B$};
+  \node[pd automaton focus] (Rc) at ({\PX+\xC},\ybase) {$C$};
   \draw[pd focus arrow] (Rc) -- (Ra);
   \draw[pd focus arrow] (Ra) -- (Rb);
   \draw[pd focus arrow] (Rc) -- (Rb);
-  \node[pd focus label,anchor=north] at ({\PX+\xA},-.95) {$C \succ A \succ B$ --- total order};
-  % ---- the legend: the theorem's four conditions, two of them anchored ---
-  \def\ly{-1.75}
-  \draw[pd rule] (\Lx,\ly) -- (\R,\ly);
-  \node[pd title,anchor=north west] at ({\Lx+.05},{\ly-.30}) {condition};
-  \node[pd title,anchor=north west] at ({\Lx+5.00},{\ly-.30}) {ordinal scope};
-  \draw[pd hairline] (\Lx,{\ly-.95}) -- (\R,{\ly-.95});
-  \foreach \i/\n/\f/\s in {%
-    0/1/{U --- unrestricted domain}/{all strict ranking profiles are admitted},
-    1/2/{P --- weak pareto}/{unanimous pairwise preferences are respected},
-    2/3/{IIA --- independence}/{a pair depends only on its individual comparisons},
-    3/4/{D --- dictatorship}/{forced by U, P, IIA and complete transitivity}}{
-      \node[pd badge] at ({\Lx+.30},{\ly-1.35-\i*.62}) {\n};
-      \node[pd label,anchor=base west] at ({\Lx+.62},{\ly-1.35-\i*.62}) {\f};
-      \node[pd label,anchor=base west]
-        at ({\Lx+5.00},{\ly-1.35-\i*.62}) {\s};}
-  \node[pd note,anchor=north west,text width=13.6cm]
-    at ({\Lx+.05},{\ly-1.35-3*.62-.55})
-    {Cycles are possible, not inevitable. Arrow assumes a complete, transitive
-     social order. Cardinal summation uses additional scale and comparability
-     assumptions; it gives no unconditional governance guarantee.};
+  \node[pd focus label] at ({\PX+\xA},-1.15) {$C\succ A\succ B$: total order};
 \end{tikzpicture}
+\par\smallskip
+{\pdfiglabel\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{@{}p{3.25cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Condition} & \textbf{Ordinal scope}\\
+\midrule
+U: unrestricted domain & All strict ranking profiles are admitted.\\
+P: weak Pareto & Unanimous pairwise preferences are respected.\\
+IIA: independence & A pair depends only on its individual comparisons.\\
+D: dictatorship & Forced by U, P, IIA and complete transitivity.\\
+\bottomrule
+\end{tabularx}}
+\par\smallskip
+{\pdfiglabelitalic\raggedright Cycles are possible, not inevitable. Arrow assumes a complete,
+transitive social order. Cardinal summation uses additional scale and comparability
+assumptions; it gives no unconditional governance guarantee.\par}
+\end{minipage}

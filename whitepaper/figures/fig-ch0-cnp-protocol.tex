@@ -4,7 +4,7 @@
 % Distinguish: proposal, refusal, contractual award, host admission and settlement.
 % Grammar: preserve the upstream message ladder and ruled payload legend.
 % Acceptance: locate the award before the admitted execution receipt.
-\begin{minipage}{\pdfullwidth}\centering
+\noindent\begin{minipage}{11.1cm}\centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % a comma-joined style list cannot live inside a \foreach macro field (the
@@ -18,13 +18,13 @@
     pd value focus arrow/.style={pd value rule,->},
   }
   % ---- one grid, declared once ---------------------------------------------
-  \def\dy{1.05}    % message pitch
-  \def\gap{5.30}   % lifeline spacing: contractor 1 | manager | contractor 2
-  \def\yo{-1.35}   % centre line of message 1
+  \def\dy{0.80}    % message pitch
+  \def\gap{4.10}   % lifeline spacing: contractor 1 | manager | contractor 2
+  \def\yo{-1.05}   % centre line of message 1
   % ---- heads and lifelines -------------------------------------------------
   \foreach \i/\name in {0/Contractor 1, 1/Manager, 2/Contractor 2}{
-    \node[pd state,minimum width=2.7cm] (h\i) at ({\i*\gap},0) {\name};
-    \draw[pd guide] ({\i*\gap},-0.52) -- ({\i*\gap},{\yo-5*\dy-0.80});}
+    \node[pd state,minimum width=2.7cm] (h\i) at ({1.35+\i*\gap},0) {\name};
+    \draw[pd guide] ({1.35+\i*\gap},-0.52) -- ({1.35+\i*\gap},{\yo-5*\dy-0.50});}
   % ---- messages: from, to, number, arrow, badge -----------------------------
   % Every arrow slopes forward in time (tail above head).  Hue is meaning:
   % ink = ordinary traffic, focus = the award, red dashed = the refusal,
@@ -41,14 +41,14 @@
     0/1/5/{pd legible arrow}/{pd legible badge},
     1/0/6/{pd value focus arrow}/{pd value badge}}{
       \pgfmathsetmacro{\yk}{\yo-(\k-1)*\dy}
-      \pgfmathsetmacro{\xm}{(\a+\b)*\gap/2}
+      \pgfmathsetmacro{\xm}{1.35+(\a+\b)*\gap/2}
       \node[\bs] (m\a\b\k) at ({\xm},{\yk}) {\k};
-      \draw[\s,-,pd to badge]  ({\a*\gap},{\yk+0.12}) -- (m\a\b\k);
-      \draw[\s,pd from badge]  (m\a\b\k) -- ({\b*\gap},{\yk-0.12});}
+      \draw[\s,-,pd to badge]  ({1.35+\a*\gap},{\yk+0.12}) -- (m\a\b\k);
+      \draw[\s,pd from badge]  (m\a\b\k) -- ({1.35+\b*\gap},{\yk-0.12});}
 \end{tikzpicture}
 \par\vspace{4pt}
-\footnotesize
-\begin{tabular}{@{}c l l@{}}
+\pdfiglabel
+\begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{2.1cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \# & message & payload \\
 \midrule
@@ -59,7 +59,7 @@
 5 & receipts & admitted execution result, diff and verifier test run \\
 6 & settlement & release, refund or slash under agreed verifier terms \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \par\smallskip
-Local authority is checked before effects; an award does not bypass admission.
+{\pdfiglabelitalic\raggedright Local authority is checked before effects; an award does not bypass admission.\par}
 \end{minipage}

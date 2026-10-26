@@ -1,69 +1,42 @@
-% Reader question: which instrument holds funds, supports judgment or settles?
-% Claim: payment, collateral, evidence and settlement serve distinct contractual roles.
-% Evidence: upstream four-column comparison converging on settlement.
-% Distinguish: buyer payment, worker liabilities, verifier decision, final transfers.
-% Grammar: preserve four columns and convergence; no unconditional incentive claim.
-% Acceptance: settlement applies release, refund or slash after the agreed decision.
-\pdfigurehue{pdcobalt}%
+% Reader question: which contract roles hold funds, support judgment and settle?
+% Claim: distinct payment, collateral and evidence inputs feed settlement.
+% Evidence: schematic contract roles, no empirical or unconditional incentive claim.
+% Distinguish: buyer payment, worker liability, verifier evidence, final transfers.
+% Grammar: aligned three-input accounting flow to one settlement stage.
+% Acceptance: identify who funds each input and what permits the final transfers.
+\begin{minipage}{11.1cm}
+\centering\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- one grid, declared once --------------------------------------------
-  \def\cw{3.15}   % column (card) width
-  \def\cg{0.55}   % gutter between columns
-  \def\x0{0.15}   % left margin
-  \def\yTitle{8.55}
-  \def\yKind{8.05}
-  \def\yParty{7.55}
-  \def\yArt{6.05}    % artifact box centre
-  \def\yOut{4.55}    % outcome text centre
-  \def\yCP{2.55}     % the convergence point, below the grid
-  \def\yNote{1.15}
-  % column i (1..4) centre: \x0 + (i-1)*(\cw+\cg) + \cw/2
-  \pgfmathsetmacro{\cxA}{\x0+0*(\cw+\cg)+0.5*\cw}
-  \pgfmathsetmacro{\cxB}{\x0+1*(\cw+\cg)+0.5*\cw}
-  \pgfmathsetmacro{\cxC}{\x0+2*(\cw+\cg)+0.5*\cw}
-  \pgfmathsetmacro{\sx}{\x0+3*(\cw+\cg)+0.5*\cw}
-  % ---- 1. payment (pd value): compensates delivered labor ----------------
-  \node[pd title] at (\cxA,\yTitle) {1. Payment};
-  \node[pd kind] at (\cxA,\yKind) {accepted work};
-  \node[pd label] at (\cxA,\yParty) {buyer funds};
-  \node[pd value state,text width=2.75cm,minimum height=1.35cm] (art-pay)
-    at (\cxA,\yArt) {tokens / fiat $P$};
-  \node[pd label,text width=2.75cm] (out-pay) at (\cxA,\yOut) {held until accepted};
-  \draw[pd value arrow] (art-pay.south) -- (out-pay.north);
-  \draw[pd value arrow] (out-pay.south) -- (\sx,\yCP);
-  % ---- 2. collateral (pd value): bonds and prices bounded failure --------
-  \node[pd title] at (\cxB,\yTitle) {2. Collateral};
-  \node[pd kind] at (\cxB,\yKind) {specified liabilities};
-  \node[pd label] at (\cxB,\yParty) {contractor};
-  \node[pd value state,text width=2.75cm,minimum height=1.35cm] (art-col)
-    at (\cxB,\yArt) {specified bond $C$};
-  \node[pd label,text width=2.75cm] (out-col) at (\cxB,\yOut) {escrowed, slashable};
-  \draw[pd value arrow] (art-col.south) -- (out-col.north);
-  \draw[pd value arrow] (out-col.south) -- (\sx,\yCP);
-  % ---- 3. evidence (pd legible): proves completion cryptographically -----
-  \node[pd title] at (\cxC,\yTitle) {3. Evidence};
-  \node[pd kind] at (\cxC,\yKind) {supports checking};
-  \node[pd label] at (\cxC,\yParty) {contractor};
-  \node[pd legible state,text width=2.75cm,minimum height=1.35cm] (art-evi)
-    at (\cxC,\yArt) {hash chain \& trace $\mathcal{E}$};
-  \node[pd label,text width=2.75cm] (out-evi) at (\cxC,\yOut) {checked, not assumed};
-  \draw[pd legible arrow] (art-evi.south) -- (out-evi.north);
-  \draw[pd legible arrow] (out-evi.south) -- (\sx,\yCP);
-  % the convergence: every instrument's outcome feeds settlement, and
-  % nothing here feeds any OTHER instrument -- that is the separation.
-  % ---- settlement: the one instrument the other three converge on --------
-  \node[pd title] at (\sx,\yTitle) {4. Settlement};
-  \node[pd kind] at (\sx,\yKind) {closes obligation};
-  \node[pd label] at (\sx,\yParty) {both parties};
-  \node[pd climax state,text width=2.75cm,minimum height=1.9cm] (art-settle)
-    at (\sx,{(\yArt+\yOut)/2}) {release, refund or slash\\[2pt]
-      {\pdfigsub after verifier decision}};
-  \draw[pd focus arrow,line width=1.6pt] (\sx,\yCP) -- (art-settle.south);
-  \node[pd tag,anchor=north,text width=3.4cm,align=center] at (\sx,{\yCP-0.18})
-    {the only instrument touching the other three};
-  % ---- the hazard: conflating the four into one token or score ----------
-  \node[pd note,anchor=north west,text width=13.6cm] at (\x0,\yNote)
-    {Separate payment, collateral, evidence and settlement under explicit
-     contract terms. Their existence alone does not guarantee incentive
-     compatibility or semantic correctness.};
+  \def\cw{3.15}\def\gap{.45}\def\xzero{.05}
+  \def\ytitle{7.90}\def\yparty{7.25}\def\yart{6.15}\def\yout{4.70}
+  \pgfmathsetmacro{\xa}{\xzero+.5*\cw}
+  \pgfmathsetmacro{\xb}{\xa+\cw+\gap}
+  \pgfmathsetmacro{\xc}{\xb+\cw+\gap}
+  \node[pd title,text width=3.1cm] at (\xa,\ytitle) {1. Payment};
+  \node[pd title,text width=3.1cm] at (\xb,\ytitle) {2. Collateral};
+  \node[pd title,text width=3.1cm] at (\xc,\ytitle) {3. Evidence};
+  \node[pd label] at (\xa,\yparty) {buyer funds};
+  \node[pd label] at (\xb,\yparty) {contractor funds};
+  \node[pd label] at (\xc,\yparty) {contractor supplies};
+  \node[pd value state,text width=2.65cm,minimum height=1.2cm] (pay)
+    at (\xa,\yart) {tokens / fiat $P$};
+  \node[pd value state,text width=2.65cm,minimum height=1.2cm] (bond)
+    at (\xb,\yart) {specified bond $C$};
+  \node[pd legible state,text width=2.65cm,minimum height=1.2cm] (ev)
+    at (\xc,\yart) {hash chain and trace $\mathcal E$};
+  \node[pd label,text width=2.9cm] (po) at (\xa,\yout) {held until accepted};
+  \node[pd label,text width=2.9cm] (bo) at (\xb,\yout) {escrowed; liabilities stated};
+  \node[pd label,text width=2.9cm] (eo) at (\xc,\yout) {checked against verifier terms};
+  \draw[pd value arrow] (pay)--(po);
+  \draw[pd value arrow] (bond)--(bo);
+  \draw[pd legible arrow] (ev)--(eo);
+  \node[pd climax state,text width=7.4cm,minimum height=1.45cm] (settle)
+    at (\xb,1.70) {\textbf{4. Settlement}\\Release, refund or slash\\after the agreed verifier decision};
+  \draw[pd value rule] (po.south)--(\xa,3.35)--(\xb,3.35);
+  \draw[pd value rule] (bo.south)--(\xb,3.35);
+  \draw[pd legible rule] (eo.south)--(\xc,3.35)--(\xb,3.35);
+  \draw[pd focus arrow] (\xb,3.35)--(settle.north);
 \end{tikzpicture}
+\par\smallskip{\pdfiglabelitalic Separate contract roles expose accounting and verification
+obligations. Incentive compatibility still depends on payoffs, detection and remedies.\par}
+\end{minipage}
