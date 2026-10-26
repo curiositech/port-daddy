@@ -1,5 +1,18 @@
 :root,
 [data-theme='light'] {
+  /* Readable website foregrounds are separate from native/print identity fills. */
+  --ui-ink-muted: var(--source-ui-ink-muted-light);
+  --ui-ink-red: var(--source-ui-ink-red-light);
+  --ui-ink-green: var(--source-ui-ink-green-light);
+  --ui-ink-yellow: var(--source-ui-ink-yellow-light);
+  --ui-ink-blue: var(--source-ui-ink-blue-light);
+  --ui-ink-violet: var(--source-ui-ink-violet-light);
+  --ui-ink-teal: var(--source-ui-ink-teal-light);
+  --ui-ink-indigo: var(--source-ui-ink-indigo-light);
+  --ui-ink-rust: var(--source-ui-ink-rust-light);
+  --ui-ink-gold: var(--source-ui-ink-gold-light);
+  --ui-ink-slate: var(--source-ui-ink-slate-light);
+
   --surface-base: #f2eee6;
   --surface-raised: #f7f3eb;
   --surface-strong: #e9e2d5;
@@ -244,6 +257,19 @@
 }
 
 [data-theme='dark'] {
+  /* Readable website foregrounds are separate from native/print identity fills. */
+  --ui-ink-muted: var(--source-ui-ink-muted-dark);
+  --ui-ink-red: var(--source-ui-ink-red-dark);
+  --ui-ink-green: var(--source-ui-ink-green-dark);
+  --ui-ink-yellow: var(--source-ui-ink-yellow-dark);
+  --ui-ink-blue: var(--source-ui-ink-blue-dark);
+  --ui-ink-violet: var(--source-ui-ink-violet-dark);
+  --ui-ink-teal: var(--source-ui-ink-teal-dark);
+  --ui-ink-indigo: var(--source-ui-ink-indigo-dark);
+  --ui-ink-rust: var(--source-ui-ink-rust-dark);
+  --ui-ink-gold: var(--source-ui-ink-gold-dark);
+  --ui-ink-slate: var(--source-ui-ink-slate-dark);
+
   --surface-base: #101216;
   --surface-raised: #181c22;
   --surface-strong: #222833;

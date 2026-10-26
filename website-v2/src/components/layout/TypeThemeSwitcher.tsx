@@ -114,7 +114,8 @@ export function TypeThemeSwitcher() {
   const [active, setActive] = useState<string | null>(null)
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    let stored: string | null = null
+    try { stored = localStorage.getItem(STORAGE_KEY) } catch { /* Typography remains usable when storage is denied. */ }
     const theme = THEMES.find((t) => t.id === stored)
     if (theme && theme.id) {
       setActive(theme.id)
@@ -125,11 +126,10 @@ export function TypeThemeSwitcher() {
   const select = (theme: TypeTheme) => {
     setActive(theme.id)
     applyTheme(theme)
-    if (theme.id) {
-      localStorage.setItem(STORAGE_KEY, theme.id)
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
-    }
+    try {
+      if (theme.id) localStorage.setItem(STORAGE_KEY, theme.id)
+      else localStorage.removeItem(STORAGE_KEY)
+    } catch { /* The selected type theme still applies to this tab. */ }
   }
 
   return (

@@ -20,13 +20,13 @@ import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data
 
 const truthTone: Record<TruthState, string> = {
   Live: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-  Roadmap: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+  Roadmap: 'bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]',
 }
 
 const docsCardTone: Record<AccentTone, string> = {
   paper: 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
   blue: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-  accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+  accent: 'bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]',
 }
 
 const panelToneMap: Record<AccentTone, 'default' | 'primary' | 'accent'> = {
@@ -37,8 +37,8 @@ const panelToneMap: Record<AccentTone, 'default' | 'primary' | 'accent'> = {
 
 const surfaceBracketTone: Record<AccentTone, string> = {
   paper: 'border-[var(--border-default)] text-[var(--text-secondary)]',
-  blue: 'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]',
-  accent: 'border-[color:var(--brand-accent-foreground-muted)] text-[var(--brand-accent-foreground)]',
+  blue: 'border-[color:var(--action-primary-text)] text-[var(--brand-primary-foreground)]',
+  accent: 'border-[color:var(--action-accent-text)] text-[var(--brand-accent-foreground)]',
 }
 
 const SurfaceToneContext = createContext<AccentTone>('paper')
@@ -63,8 +63,8 @@ const panelBodySize = {
 
 const panelBodyTone = {
   default: 'text-[var(--text-secondary)]',
-  primary: 'text-[color:var(--brand-primary-foreground-muted)]',
-  accent: 'text-[color:var(--brand-accent-foreground-muted)]',
+  primary: 'text-[color:var(--action-primary-text)]',
+  accent: 'text-[color:var(--action-accent-text)]',
 } as const
 
 const surfaceBodyTone: Record<AccentTone, keyof typeof panelBodyTone> = {
@@ -77,23 +77,23 @@ const navTone = {
   blue: {
     active: 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
     hover: 'hover:border-[var(--border-strong)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]',
-    body: 'text-[color:var(--brand-primary-foreground-muted)]',
+    body: 'text-[color:var(--action-primary-text)]',
     bracket:
-      'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]',
+      'border-[color:var(--action-primary-text)] text-[var(--brand-primary-foreground)]',
   },
   accent: {
-    active: 'border-[var(--border-strong)] bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
-    hover: 'hover:border-[var(--border-strong)] hover:bg-[var(--brand-accent)] hover:text-[var(--brand-accent-foreground)]',
-    body: 'text-[color:var(--brand-accent-foreground-muted)]',
+    active: 'border-[var(--border-strong)] bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]',
+    hover: 'hover:border-[var(--border-strong)] hover:bg-[var(--action-accent-bg)] hover:text-[var(--brand-accent-foreground)]',
+    body: 'text-[color:var(--action-accent-text)]',
     bracket:
-      'border-[color:var(--brand-accent-foreground-muted)] text-[var(--brand-accent-foreground)]',
+      'border-[color:var(--action-accent-text)] text-[var(--brand-accent-foreground)]',
   },
 } as const
 
 const landingStatTone = {
   paper: 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
   blue: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-  accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+  accent: 'bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]',
 } as const
 
 type DocsCodeLanguage = 'cli' | 'text' | 'typescript' | 'yaml'
@@ -210,17 +210,19 @@ export function TruthBadge({ truth }: { truth: TruthState }) {
 export function PanelEyebrow({
   children,
   className,
-  tone = 'default',
+  tone,
 }: {
   children: ReactNode
   className?: string
   tone?: 'default' | 'primary' | 'accent'
 }) {
+  const surface = useSurfaceTone()
+  const resolvedTone = tone ?? panelToneMap[surface]
   const toneClass =
-    tone === 'primary'
-      ? 'text-[color:var(--brand-primary-foreground-subtle)]'
-      : tone === 'accent'
-        ? 'text-[color:var(--brand-accent-foreground-subtle)]'
+    resolvedTone === 'primary'
+      ? 'text-[color:var(--action-primary-text)]'
+      : resolvedTone === 'accent'
+        ? 'text-[color:var(--action-accent-text)]'
         : 'text-[var(--text-secondary)]'
 
   return (
@@ -236,7 +238,7 @@ export function PanelTitle({
   className,
   id,
   size = 'card',
-  tone = 'default',
+  tone,
   caps = false,
 }: {
   as?: ElementType
@@ -248,10 +250,12 @@ export function PanelTitle({
   caps?: boolean
 }) {
   const Component = as ?? 'h2'
+  const surface = useSurfaceTone()
+  const resolvedTone = tone ?? panelToneMap[surface]
   const toneClass =
-    tone === 'primary'
+    resolvedTone === 'primary'
       ? '!text-[var(--brand-primary-foreground)]'
-      : tone === 'accent'
+      : resolvedTone === 'accent'
         ? '!text-[var(--brand-accent-foreground)]'
         : '!text-[var(--text-primary)]'
 
@@ -277,7 +281,7 @@ export function PanelBody({
   children,
   className,
   size = 'default',
-  tone = 'default',
+  tone,
 }: {
   as?: ElementType
   children: ReactNode
@@ -286,11 +290,13 @@ export function PanelBody({
   tone?: keyof typeof panelBodyTone
 }) {
   const Component = as ?? 'p'
+  const surface = useSurfaceTone()
+  const resolvedTone = tone ?? surfaceBodyTone[surface]
 
   return (
     <Component
       data-slot="panel-body"
-      className={cn('max-w-[44rem] font-sans', panelBodySize[size], panelBodyTone[tone], className)}
+      className={cn('max-w-[44rem] font-sans', panelBodySize[size], panelBodyTone[resolvedTone], className)}
     >
       {children}
     </Component>
@@ -527,7 +533,7 @@ export function LandingProofCard({
             className="flex items-center justify-between border-t-2 border-[var(--border-strong)]/12 pt-[var(--space-2)]"
           >
             <PanelEyebrow>{check.label}</PanelEyebrow>
-            <PanelEyebrow className="text-[var(--brand-primary)]">{check.value}</PanelEyebrow>
+            <PanelEyebrow className="text-[var(--text-brand-primary)]">{check.value}</PanelEyebrow>
           </div>
         ))}
       </div>
@@ -626,7 +632,7 @@ export function LandingArchitectureCard() {
                 className={cn(
                   'px-[var(--space-3)] py-[var(--space-2)] text-center',
                   index < 2 ? 'border-r-2 border-[var(--border-strong)]' : '',
-                  item === 'Registry' ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
+                  item === 'Registry' ? 'bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
                 )}
               >
                 <PanelEyebrow
@@ -651,7 +657,7 @@ export function LandingArchitectureCard() {
       <div className="space-y-[var(--panel-gap)]">
         <PanelEyebrow className="text-center">Cryptographic core</PanelEyebrow>
         <div className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]">
-          <div className="border-b-2 border-[color:var(--brand-primary-foreground-subtle)] p-[var(--panel-padding)]">
+          <div className="border-b-2 border-[color:var(--action-primary-text)] p-[var(--panel-padding)]">
             <div className="flex items-center justify-center gap-[var(--panel-gap-tight)]">
               <Lock className="h-[var(--space-5)] w-[var(--space-5)]" />
               <div className="space-y-[var(--space-1)] text-center">
@@ -668,8 +674,8 @@ export function LandingArchitectureCard() {
                 key={item}
                 className={cn(
                   'px-[var(--space-3)] py-[var(--space-2)] text-center',
-                  index % 2 === 0 ? 'border-r border-[color:var(--brand-primary-foreground-subtle)]' : '',
-                  index < 2 ? 'border-b border-[color:var(--brand-primary-foreground-subtle)]' : '',
+                  index % 2 === 0 ? 'border-r border-[color:var(--action-primary-text)]' : '',
+                  index < 2 ? 'border-b border-[color:var(--action-primary-text)]' : '',
                 )}
               >
                 <PanelEyebrow tone="primary" className="justify-center text-center">
@@ -741,7 +747,7 @@ export function LandingCommercialCard({
                   ? 'text-[var(--brand-primary-foreground)]'
                   : track.tone === 'accent'
                     ? 'text-[var(--brand-accent-foreground)]'
-                    : 'text-[var(--brand-primary)]',
+                    : 'text-[var(--text-brand-primary)]',
               )}
               strokeWidth={2.5}
             />
@@ -780,7 +786,7 @@ export function SurfacePanel({
 }) {
   return (
     <SurfaceToneContext.Provider value={tone}>
-      <div
+      <div data-surface-tone={tone}
         className={cn(
           'min-w-0',
           surfaceElevationClass[elevation],
@@ -811,9 +817,9 @@ export function BracketLabel({
   const resolvedSurface = useSurfaceTone(surface)
   const toneClass =
     tone === 'primary'
-      ? 'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]'
+      ? 'border-[color:var(--action-primary-text)] text-[var(--brand-primary-foreground)]'
       : tone === 'accent'
-        ? 'border-[color:var(--brand-accent-foreground-muted)] text-[var(--brand-accent-foreground)]'
+        ? 'border-[color:var(--action-accent-text)] text-[var(--brand-accent-foreground)]'
         : surfaceBracketTone[resolvedSurface]
 
   return (
@@ -858,11 +864,11 @@ export function BracketAnchor({
   const activeToneClass =
     tone === 'blue'
       ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-      : 'border-[var(--border-strong)] bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]'
+      : 'border-[var(--border-strong)] bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]'
   const hoverToneClass =
     tone === 'blue'
       ? 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-primary-foreground)]'
-      : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-accent)] group-hover:text-[var(--brand-accent-foreground)]'
+      : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--action-accent-bg)] group-hover:text-[var(--brand-accent-foreground)]'
 
   return (
     <a
@@ -1208,7 +1214,7 @@ export function BracketLink({
   const hoverToneClass =
     tone === 'blue'
       ? 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-primary-foreground)]'
-      : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-accent)] group-hover:text-[var(--brand-accent-foreground)]'
+      : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--action-accent-bg)] group-hover:text-[var(--brand-accent-foreground)]'
 
   return (
     <Link
@@ -1264,12 +1270,12 @@ export function BracketNavLink({
               ? cn(
                   tone === 'blue'
                     ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-                    : 'border-[var(--border-strong)] bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+                    : 'border-[var(--border-strong)] bg-[var(--action-accent-bg)] text-[var(--brand-accent-foreground)]',
                   interactive.bracket,
                 )
               : tone === 'blue'
                 ? 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-primary-foreground)]'
-                : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--brand-accent)] group-hover:text-[var(--brand-accent-foreground)]',
+                : 'group-hover:border-[var(--border-strong)] group-hover:bg-[var(--action-accent-bg)] group-hover:text-[var(--brand-accent-foreground)]',
           )}
         >
           {children}
@@ -1473,9 +1479,9 @@ export function DocsCard({
           className={cn(
             'inline-flex items-center gap-2 font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]',
             tone === 'blue'
-              ? 'text-[color:var(--brand-primary-foreground-subtle)] group-hover:text-[var(--brand-primary-foreground)]'
+              ? 'text-[color:var(--action-primary-text)] group-hover:text-[var(--brand-primary-foreground)]'
               : tone === 'accent'
-                ? 'text-[color:var(--brand-accent-foreground-subtle)] group-hover:text-[var(--brand-accent-foreground)]'
+                ? 'text-[color:var(--action-accent-text)] group-hover:text-[var(--brand-accent-foreground)]'
                 : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]',
           )}
         >
@@ -1488,8 +1494,8 @@ export function DocsCard({
             'inline-flex items-center gap-2 font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]',
             active
               ? highlightTone === 'blue'
-                ? 'text-[color:var(--brand-primary-foreground-muted)]'
-                : 'text-[color:var(--brand-accent-foreground-muted)]'
+                ? 'text-[color:var(--action-primary-text)]'
+                : 'text-[color:var(--action-accent-text)]'
               : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]',
           )}
         >

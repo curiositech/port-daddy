@@ -78,7 +78,7 @@ export function DemoGallery() {
           <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-[0.25em]">The Evidence</Badge>
           <motion.h2 className="text-4xl sm:text-6xl lg:text-9xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
             Proof of <br />
-            <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
+            <motion.span style={{ color: 'var(--text-brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
             Real features, real coordination. See Port Daddy's core primitives in action.
@@ -108,7 +108,7 @@ export function DemoGallery() {
                    <Play size={16} style={{ color: activeId === demo.id ? 'var(--brand-primary)' : 'var(--text-muted)', opacity: activeId === demo.id ? 1 : 0.4 }} className={activeId === demo.id ? 'animate-pulse' : ''} />
                 </div>
                 <h3 className="text-3xl font-display font-black mb-3" style={{ color: activeId === demo.id ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{demo.title}</h3>
-                <p className="text-base m-0 leading-relaxed font-bold" style={{ color: 'var(--text-muted)' }}>{demo.subtitle}</p>
+                <p className="text-base m-0 leading-relaxed font-bold" style={{ color: 'var(--text-meta)' }}>{demo.subtitle}</p>
 
                 {activeId === demo.id && (
                   <motion.div
@@ -129,7 +129,7 @@ export function DemoGallery() {
               }}
               whileHover={{ boxShadow: 'var(--shadow-sm)' }}
             >
-               <div className="flex items-center gap-3" style={{ color: 'var(--brand-primary)' }}>
+               <div className="flex items-center gap-3" style={{ color: 'var(--text-brand-primary)' }}>
                   <Activity size={24} />
                   <span className="text-[12px] font-black uppercase tracking-[0.25em]">Automation Active</span>
                </div>
@@ -164,7 +164,7 @@ export function DemoGallery() {
                 </div>
                 <div className="flex w-full flex-wrap items-center justify-between gap-4 border-b-2 border-[var(--border-strong)] pb-4">
                   <div>
-                    <div className="text-[12px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--brand-primary)' }}>
+                    <div className="text-[12px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-brand-primary)' }}>
                       Live execution
                     </div>
                     <h3 className="m-0 mt-2 text-2xl font-display font-black" style={{ color: 'var(--text-primary)' }}>
@@ -188,8 +188,8 @@ export function DemoGallery() {
                        }}
                        whileHover={{ y: -8, boxShadow: 'var(--shadow-sm)' }}
                      >
-                        <div className="text-4xl font-display font-black leading-none" style={{ color: 'var(--brand-primary)' }}>{stat.value}</div>
-                        <div className="text-[12px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+                        <div className="text-4xl font-display font-black leading-none" style={{ color: 'var(--text-brand-primary)' }}>{stat.value}</div>
+                        <div className="text-[12px] font-black uppercase tracking-widest" style={{ color: 'var(--text-meta)' }}>{stat.label}</div>
                      </motion.div>
                    ))}
                 </div>
@@ -203,7 +203,7 @@ export function DemoGallery() {
                   }}
                 >
                    <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
-                      <Share2 size={300} style={{ color: 'var(--text-muted)' }} />
+                      <Share2 size={300} style={{ color: 'var(--text-meta)' }} />
                    </div>
                    <p className="text-2xl leading-relaxed m-0 font-sans max-w-3xl mx-auto font-bold" style={{ color: 'var(--text-secondary)' }}>
                      {activeDemo.description}

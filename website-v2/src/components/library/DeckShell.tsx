@@ -200,7 +200,7 @@ export function DeckShell({
                 >
                   <span
                     className="font-mono text-[14px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: selected ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                    style={{ color: selected ? 'var(--text-primary)' : 'var(--text-meta)' }}
                   >
                     {signal.label}
                   </span>
@@ -245,6 +245,7 @@ export function DeckShell({
           {/* Only this scrolls. The page never does. */}
           <div
             id={`panel-${active.id}`}
+            tabIndex={0}
             role="tabpanel"
             aria-labelledby={`tab-${active.id}`}
             className="min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-9 lg:py-7"

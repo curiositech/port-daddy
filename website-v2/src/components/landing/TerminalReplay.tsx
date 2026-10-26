@@ -196,7 +196,7 @@ function TerminalLine({ step, text, isLast }: { step: ReplayStep; text: string; 
       style={{ color: 'var(--code-output)' }}
       className={cn('pl-4')}
     >
-      <span style={text.includes('⚠') ? { color: 'var(--status-warning)' } : {}}>
+      <span style={text.includes('⚠') ? { color: 'var(--text-status-warning)' } : {}}>
         {text}
       </span>
     </div>

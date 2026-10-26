@@ -52,7 +52,7 @@ export function TubeMultiplexSection() {
                 description="Point several agents at one channel. Every listener gets every message, instead of one listener grabbing each message. Send once; three listeners all wake up."
                 titleAs="h2"
               />
-              <div className="space-y-[var(--space-3)] text-[length:var(--text-base)] text-[var(--text-muted)]">
+              <div className="space-y-[var(--space-3)] text-[length:var(--text-base)] text-[var(--text-meta)]">
                 <p>
                   Each listener keeps its own bookmark in the stream, keyed on its{' '}
                   <code>--as</code> name. Two <code>--tail</code> listeners no longer race for the
@@ -72,7 +72,7 @@ export function TubeMultiplexSection() {
                 </Link>
                 <Link
                   to="/docs/cli/tube"
-                  className="inline-flex items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-muted)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
+                  className="inline-flex items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-meta)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
                 >
                   Read the docs
                 </Link>
@@ -119,7 +119,7 @@ SUCCESS: tube: posted id=87 to standup:demo
                 className="block w-full"
                 loading="lazy"
               />
-              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--text-base)] text-[var(--text-muted)]">
+              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--text-base)] text-[var(--text-meta)]">
                 One message, three listeners on distinct <code>--as</code> names. The message fans
                 out to all three terminals.
               </figcaption>
@@ -335,7 +335,7 @@ function FleetBar({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)]">
-      <div className="flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+      <div className="flex items-center gap-[var(--space-2)] text-[var(--text-brand-primary)]">
         <GitFork size={16} aria-hidden="true" />
         <span className="font-mono text-[length:var(--text-base)] font-bold text-[var(--text-primary)]">
           {channel}
@@ -348,13 +348,13 @@ function FleetBar({
           className={cn(
             'inline-block h-[10px] w-[10px] rounded-full',
             repliedCount > 0
-              ? 'bg-[var(--brand-accent)]'
+              ? 'bg-[var(--action-accent-bg)]'
               : live
                 ? 'bg-[var(--brand-primary)]'
                 : 'bg-[var(--text-muted)]',
           )}
         />
-        <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+        <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
           {repliedCount} {repliedCount === 1 ? 'listener' : 'listeners'} replied
         </span>
       </div>
@@ -377,7 +377,7 @@ function SenderPanel({ active, postId }: { active: boolean; postId: number | nul
       <div className="mt-[var(--space-1)] font-display text-[length:var(--text-lg)] font-black text-[var(--text-primary)]">
         {SENDER}
       </div>
-      <div className="mt-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+      <div className="mt-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
         {postId !== null ? `POST → id #${postId}` : 'one POST · standup:demo'}
       </div>
     </div>
@@ -558,16 +558,16 @@ function AgentLane({
             {reply.payload.body ?? '(empty reply)'}
           </span>
         ) : awaiting ? (
-          <span className="text-[var(--text-muted)]">Awake — reading the broadcast…</span>
+          <span className="text-[var(--text-meta)]">Awake — reading the broadcast…</span>
         ) : waiting ? (
-          <span className="text-[var(--text-muted)]">
+          <span className="text-[var(--text-meta)]">
             Waiting for{' '}
-            <code className="font-mono font-bold text-[var(--brand-primary)]">
+            <code className="font-mono font-bold text-[var(--text-brand-primary)]">
               pd tube {FAN_CHANNEL} --as {name}
             </code>
           </span>
         ) : (
-          <span className="text-[var(--text-muted)]">Idle — listening on {FAN_CHANNEL}.</span>
+          <span className="text-[var(--text-meta)]">Idle — listening on {FAN_CHANNEL}.</span>
         )}
       </div>
     </div>
@@ -576,10 +576,10 @@ function AgentLane({
 
 function LaneBadge({ phase }: { phase: LanePhase }) {
   const map: Record<LanePhase, { label: string; tone: string }> = {
-    idle: { label: 'idle', tone: 'text-[var(--text-muted)] border-[var(--border-default)]' },
-    awaiting: { label: '● awake', tone: 'text-[var(--brand-primary)] border-[var(--brand-primary)]' },
-    replied: { label: '● replied', tone: 'text-[var(--brand-accent)] border-[var(--brand-accent)]' },
-    timeout: { label: 'no listener', tone: 'text-[var(--text-muted)] border-[var(--border-default)]' },
+    idle: { label: 'idle', tone: 'text-[var(--text-meta)] border-[var(--border-default)]' },
+    awaiting: { label: '● awake', tone: 'text-[var(--text-brand-primary)] border-[var(--brand-primary)]' },
+    replied: { label: '● replied', tone: 'text-[var(--text-brand-accent)] border-[var(--brand-accent)]' },
+    timeout: { label: 'no listener', tone: 'text-[var(--text-meta)] border-[var(--border-default)]' },
   }
   const { label, tone } = map[phase]
   return (
@@ -615,7 +615,7 @@ function WallStatus({
       break
     case 'awaiting':
       content = (
-        <span className="font-bold text-[var(--brand-primary)]">
+        <span className="font-bold text-[var(--text-brand-primary)]">
           ● one POST out — three lanes watching for their reply…
         </span>
       )
@@ -624,7 +624,7 @@ function WallStatus({
       content =
         repliedCount > 0 ? (
           <>
-            <span className="font-bold text-[var(--brand-accent)]">
+            <span className="font-bold text-[var(--text-brand-accent)]">
               ● {repliedCount} of {LANES.length} replied
             </span>{' '}
             from one broadcast — every listener got the same message.
@@ -632,7 +632,7 @@ function WallStatus({
         ) : (
           <span className="text-[var(--text-primary)]">
             No agent answered. Start a listener with{' '}
-            <code className="font-mono font-bold text-[var(--brand-primary)]">
+            <code className="font-mono font-bold text-[var(--text-brand-primary)]">
               pd tube {FAN_CHANNEL} --as alice
             </code>{' '}
             then broadcast again.
@@ -676,9 +676,9 @@ function BehaviorCard({
 }) {
   return (
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[var(--text-brand-primary)]">
         <Icon size={18} />
-        <span className="text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+        <span className="text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
           Behavior
         </span>
       </div>

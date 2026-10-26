@@ -302,3 +302,31 @@ html[data-type-theme="bricolage"] .font-black,
 html[data-type-theme="archivo"] .font-black {
   font-weight: 800;
 }
+
+/* Website readable ink sources. Native console and print/illustration inks
+   keep their original contracts; these foregrounds are paired with UI wells. */
+:root {
+  --source-ui-ink-muted-light: #39352f;
+  --source-ui-ink-muted-dark: #c7c1b5;
+  --source-ui-ink-red-light: #701616;
+  --source-ui-ink-red-dark: #ffc4c4;
+  --source-ui-ink-green-light: #154c27;
+  --source-ui-ink-green-dark: #adf3c2;
+  --source-ui-ink-yellow-light: #523300;
+  --source-ui-ink-yellow-dark: #ffe0a0;
+  --source-ui-ink-blue-light: #002d83;
+  --source-ui-ink-blue-dark: #dbeaff;
+  --source-ui-ink-violet-light: #56205e;
+  --source-ui-ink-violet-dark: #eec9f5;
+  --source-ui-ink-teal-light: #00443c;
+  --source-ui-ink-teal-dark: #bce8ca;
+  --source-ui-ink-indigo-light: #251e52;
+  --source-ui-ink-indigo-dark: #d5d1ff;
+  --source-ui-ink-rust-light: #663408;
+  --source-ui-ink-rust-dark: #e9c7a4;
+  --source-ui-ink-gold-light: #414600;
+  --source-ui-ink-gold-dark: #f5fa78;
+  --source-ui-ink-slate-light: #343e48;
+  --source-ui-ink-slate-dark: #cbd8e5;
+  --source-code-readable-muted: #a8b5ca;
+}

@@ -49,7 +49,7 @@ export function ProductLogoLockup({
         sizeClass.lockup,
         className,
       )}
-      data-product-logo={product}
+      role="img" data-product-logo={product}
       aria-label={`${meta.company} ${meta.label}`}
       title={`${meta.company} ${meta.label}`}
     >

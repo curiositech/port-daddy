@@ -36,7 +36,7 @@ export function AgentCard({ agent }: AgentCardProps) {
     <Card className="overflow-hidden border-[var(--border-default)] bg-[var(--surface-raised)] shadow-lg hover:shadow-xl transition-all font-sans rounded-3xl">
       <CardHeader className="p-6 border-b border-[var(--border-subtle)] bg-[var(--surface-overlay)] flex flex-row items-center justify-between gap-4 font-sans">
         <motion.div className="flex items-center gap-4 font-sans">
-          <motion.div className={`p-2.5 rounded-xl bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]`}>
+          <motion.div className={`p-2.5 rounded-xl bg-[var(--brand-primary)]/10 text-[var(--text-brand-primary)]`}>
             <Users size={20} />
           </motion.div>
           <motion.div className="font-sans">
@@ -45,7 +45,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               <Badge variant={agent.healthAssessment.liveness === 'alive' ? 'teal' : 'default'} className="text-[9px] px-1.5 py-0 font-sans">
                 {agent.healthAssessment.liveness}
               </Badge>
-              <motion.span className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-tighter">{agent.type}</motion.span>
+              <motion.span className="text-[10px] text-[var(--text-meta)] font-mono uppercase tracking-tighter">{agent.type}</motion.span>
             </motion.div>
           </motion.div>
         </motion.div>
@@ -59,10 +59,10 @@ export function AgentCard({ agent }: AgentCardProps) {
       <CardContent className="p-6 space-y-6 font-sans">
         {/* Identity & Purpose */}
         <motion.div className="space-y-3 font-sans">
-          <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
+          <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-meta)] font-sans">
             <Shield size={12} /> Identity
           </motion.div>
-          <motion.code className="block p-3 rounded-xl bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-[11px] font-mono text-[var(--brand-primary)] truncate font-mono">
+          <motion.code className="block p-3 rounded-xl bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-[11px] font-mono text-[var(--text-brand-primary)] truncate font-mono">
             {agent.identity || 'anonymous'}
           </motion.code>
           <motion.p className="text-sm text-[var(--text-secondary)] font-medium leading-relaxed italic font-sans">
@@ -73,9 +73,9 @@ export function AgentCard({ agent }: AgentCardProps) {
         {/* Progress bar if busy */}
         {agent.status === 'busy' && agent.progress && (
           <motion.div className="space-y-2 font-sans">
-            <motion.div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] font-sans">
+            <motion.div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-meta)] font-sans">
               <motion.span className="flex items-center gap-1 font-sans"><Activity size={10} /> Progress</motion.span>
-              <motion.span className="text-[var(--brand-primary)] font-mono">{agent.progress}</motion.span>
+              <motion.span className="text-[var(--text-brand-primary)] font-mono">{agent.progress}</motion.span>
             </motion.div>
             <motion.div className="h-1.5 w-full bg-[var(--surface-overlay)] rounded-full overflow-hidden">
               <motion.div 
@@ -92,8 +92,8 @@ export function AgentCard({ agent }: AgentCardProps) {
         {isA2A && (
           <motion.div className="pt-4 border-t border-[var(--border-subtle)] space-y-4 font-sans">
             <motion.div className="space-y-3 font-sans">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
-                <Zap size={12} className="text-[var(--brand-accent)]" /> Capabilities
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-meta)] font-sans">
+                <Zap size={12} className="text-[var(--text-brand-accent)]" /> Capabilities
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {capabilities.map((cap: string) => (
@@ -101,12 +101,12 @@ export function AgentCard({ agent }: AgentCardProps) {
                     {cap}
                   </Badge>
                 ))}
-                {capabilities.length === 0 && <motion.span className="text-[10px] text-[var(--text-muted)] italic font-sans">No specific capabilities listed</motion.span>}
+                {capabilities.length === 0 && <motion.span className="text-[10px] text-[var(--text-meta)] italic font-sans">No specific capabilities listed</motion.span>}
               </motion.div>
             </motion.div>
 
             <motion.div className="space-y-3 font-sans">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-meta)] font-sans">
                 <Globe size={12} className="text-[var(--brand-secondary)]" /> Protocols
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
@@ -115,12 +115,12 @@ export function AgentCard({ agent }: AgentCardProps) {
                     {proto}
                   </Badge>
                 ))}
-                {protocols.length === 0 && <motion.span className="text-[10px] text-[var(--text-muted)] italic font-sans">A2A Standard</motion.span>}
+                {protocols.length === 0 && <motion.span className="text-[10px] text-[var(--text-meta)] italic font-sans">A2A Standard</motion.span>}
               </motion.div>
             </motion.div>
 
             {agent.agentCard?.version && (
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] pt-2 font-sans">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-meta)] pt-2 font-sans">
                 <Cpu size={12} /> Agent Spec v{agent.agentCard.version}
               </motion.div>
             )}

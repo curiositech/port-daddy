@@ -4,15 +4,12 @@ import {
   ChevronDown,
   Github,
   Menu,
-  Moon,
   Search,
-  Sun,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
-import { useTheme } from "@/lib/theme-context";
+import { AppearanceControl } from "./AppearanceControl";
 import { AccountChip } from "./AccountChip";
 import { PageContainer, Wordmark } from "./primitives";
 import { useHeroWordmark } from "@/lib/hero-brand-context";
@@ -228,13 +225,13 @@ function CompressedNavMenu() {
           className="z-[120] grid max-h-[calc(100dvh-5rem)] w-[min(calc(100vw-var(--space-6)),22rem)] content-start overflow-y-auto border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] shadow-[var(--shadow-brutal)]"
         >
           <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
-            <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
               Site Menu
             </span>
             <Popover.Close asChild>
               <button
                 type="button"
-                className="inline-flex border-2 border-transparent p-[var(--space-1)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center border-2 border-transparent p-[var(--space-1)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
                 aria-label="Close site navigation"
               >
                 <X size={16} aria-hidden="true" />
@@ -295,7 +292,6 @@ function CompressedNavMenu() {
 }
 
 export function SiteHeader() {
-  const { theme, toggle } = useTheme();
   const { heroWordmarkVisible } = useHeroWordmark();
 
   return (
@@ -360,7 +356,7 @@ export function SiteHeader() {
               <button
                 type="button"
                 onClick={openDocsSearch}
-                className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
                 aria-label="Search documentation"
               >
                 <Search size={16} />
@@ -371,7 +367,7 @@ export function SiteHeader() {
               href="https://github.com/curiositech/port-daddy"
               target="_blank"
               rel="noreferrer"
-              className="hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:inline-flex"
+              className="hidden min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:inline-flex"
               aria-label="Open GitHub repository"
             >
               <Github size={16} />
@@ -381,18 +377,7 @@ export function SiteHeader() {
               <AccountChip />
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={toggle}
-              aria-label="Toggle color theme"
-            >
-              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-              <span className="hidden sm:inline">
-                {theme === "dark" ? "Light" : "Dark"}
-              </span>
-            </Button>
+            <AppearanceControl />
           </div>
         </PageContainer>
       </header>

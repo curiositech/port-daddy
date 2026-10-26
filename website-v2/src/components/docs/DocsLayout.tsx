@@ -22,7 +22,7 @@ function DocsFamilyNav() {
       className="relative z-10 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
     >
       <div className="mx-auto flex max-w-[1440px] items-center gap-[var(--space-2)] overflow-x-auto px-[var(--space-5)] py-[var(--space-3)] lg:px-[var(--space-6)]">
-        <span className="hidden shrink-0 border-r-2 border-[var(--border-strong)] pr-[var(--space-3)] text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wider text-[var(--text-muted)] sm:inline-flex">
+        <span className="hidden shrink-0 border-r-2 border-[var(--border-strong)] pr-[var(--space-3)] text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wider text-[var(--text-meta)] sm:inline-flex">
           Docs
         </span>
         {items.map((item) => (
@@ -49,7 +49,7 @@ export function DocsLayout() {
 
       <main id="main-content" className="relative overflow-hidden border-b-2 border-[var(--border-strong)]">
         <div className="pointer-events-none absolute left-0 top-0 h-[calc(var(--space-10)+var(--space-8))] w-[calc(var(--space-10)+var(--space-8))] bg-[var(--brand-primary)]" />
-        <div className="pointer-events-none absolute right-0 top-[var(--space-8)] hidden h-[calc(var(--space-10)+var(--space-7))] w-[var(--space-10)] bg-[var(--brand-accent)] lg:block" />
+        <div className="pointer-events-none absolute right-0 top-[var(--space-8)] hidden h-[calc(var(--space-10)+var(--space-7))] w-[var(--space-10)] bg-[var(--action-accent-bg)] lg:block" />
 
         <div className="pointer-events-none absolute inset-0 hidden lg:block">
           <div className="absolute inset-y-0 left-1/4 border-l border-[var(--border-strong)]/16" />

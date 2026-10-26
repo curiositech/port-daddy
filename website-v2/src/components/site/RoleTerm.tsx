@@ -165,7 +165,7 @@ export function RoleTerm({
       <button
         type="button"
         aria-describedby={tooltipId}
-        className="cursor-help border-b-2 border-[var(--brand-primary)] bg-transparent p-0 [font:inherit] font-semibold text-[var(--text-primary)] underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--interactive-focus)]"
+        className="min-h-11 min-w-11 cursor-help border-b-2 border-[var(--brand-primary)] bg-transparent p-0 [font:inherit] font-semibold text-[var(--text-primary)] underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--interactive-focus)]"
       >
         {label}
       </button>
@@ -174,7 +174,7 @@ export function RoleTerm({
         role="tooltip"
         className={`pointer-events-none absolute top-[calc(100%+var(--space-2))] z-[80] hidden w-[min(18rem,calc(100vw-var(--space-6)))] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)] text-left shadow-none group-focus-within:block group-hover:block ${tooltipAlignClass}`}
       >
-        <span className="block font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+        <span className="block font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
           {definition.category}
         </span>
         <span className="mt-[var(--space-1)] block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">

@@ -118,7 +118,9 @@ describe('design system contracts', () => {
       (file) =>
         file !== './components/ui/SignalFlags.tsx' &&
         file !== './lib/porthole/vt.ts' &&
-        file !== './lib/porthole/vt.test.ts',
+        file !== './lib/porthole/vt.test.ts' &&
+        // Encoded PTY color fixtures verify reader presentation without changing captured bytes.
+        file !== './lib/porthole/readable-colors.test.ts',
     )
 
     const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
@@ -183,7 +185,7 @@ describe('design system contracts', () => {
   test('hero headline emphasis stays inside the brand token system', () => {
     const hero = read('./components/landing/Hero.tsx')
 
-    expect(hero).toContain('text-[var(--brand-primary)]')
+    expect(hero).toContain('text-[var(--text-brand-primary)]')
     expect(hero).not.toContain('bg-gradient-to-r')
     expect(hero).not.toContain('bg-clip-text')
     expect(hero).not.toContain('text-transparent')
@@ -295,10 +297,10 @@ describe('design system contracts', () => {
     const primitives = read('./components/site/primitives.tsx')
     const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
 
-    expect(badge).toContain('var(--status-error-on-tint)')
-    expect(badge).toContain('var(--brand-accent-on-tint)')
-    expect(badge).toContain('var(--status-success-on-tint)')
-    expect(badge).toContain('var(--status-warning-on-tint)')
+    expect(badge).toContain('var(--text-status-error)')
+    expect(badge).toContain('var(--text-brand-accent)')
+    expect(badge).toContain('var(--text-status-success)')
+    expect(badge).toContain('var(--text-status-warning)')
     expect(codeBlock).toContain('var(--code-channel-scope)')
     expect(codeBlock).toContain('var(--code-channel-sep)')
     expect(primitives).not.toContain('className="opacity-80"')

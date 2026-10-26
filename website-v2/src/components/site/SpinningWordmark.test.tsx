@@ -9,7 +9,7 @@ afterEach(cleanup)
 describe('SpinningWordmark', () => {
   it('generates unique SVG resource ids for each rendered instance', () => {
     render(
-      <ThemeContext.Provider value={{ theme: 'light', toggle: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'light', preference: 'system', setPreference: () => {}, toggle: () => {} }}>
         <SpinningWordmark />
         <SpinningWordmark />
       </ThemeContext.Provider>,

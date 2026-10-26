@@ -61,7 +61,7 @@ export function ColdStartSection() {
               className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)] md:grid-cols-[5rem_minmax(0,1fr)_minmax(260px,0.8fr)] md:p-[var(--space-5)]"
             >
               <div className="flex items-start justify-between gap-[var(--space-3)] md:block">
-                <span className="font-mono text-[length:var(--type-panel-title-card-size)] font-black text-[var(--brand-primary)]">
+                <span className="font-mono text-[length:var(--type-panel-title-card-size)] font-black text-[var(--text-brand-primary)]">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <div className="mt-[var(--space-3)] hidden h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] md:inline-flex">
@@ -76,9 +76,9 @@ export function ColdStartSection() {
                 <PanelBody className="max-w-[44rem]">
                   {step.description}
                 </PanelBody>
-                <div className="inline-flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+                <div className="inline-flex items-center gap-[var(--space-2)] text-[var(--text-brand-primary)]">
                   <ArrowRight size={16} />
-                  <PanelEyebrow className="text-[var(--brand-primary)]">{step.appSurface}</PanelEyebrow>
+                  <PanelEyebrow className="text-[var(--text-brand-primary)]">{step.appSurface}</PanelEyebrow>
                 </div>
               </div>
 

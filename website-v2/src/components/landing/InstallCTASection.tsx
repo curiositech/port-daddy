@@ -41,11 +41,11 @@ pd setup`}
             </div>
 
             <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-              Run <code className="font-mono text-[var(--brand-primary)]">pd doctor</code> if FleetBar,
+              Run <code className="font-mono text-[var(--text-brand-primary)]">pd doctor</code> if FleetBar,
               hooks, MCP, skills, or the daemon stop lining up.{' '}
               <Link
                 to="/docs/quickstart"
-                className="font-semibold text-[var(--brand-primary)] underline-offset-2 hover:underline"
+                className="font-semibold text-[var(--text-brand-primary)] underline-offset-2 hover:underline"
               >
                 Read the quickstart
               </Link>
@@ -55,7 +55,7 @@ pd setup`}
 
           <SurfacePanel elevation="quiet" padding="compact" className="grid content-start gap-[var(--space-4)]">
             <div className="flex items-center gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-              <Terminal size={17} className="text-[var(--brand-primary)]" />
+              <Terminal size={17} className="text-[var(--text-brand-primary)]" />
               <PanelEyebrow>After it installs</PanelEyebrow>
             </div>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
@@ -68,7 +68,7 @@ pd setup`}
                   key={cmd}
                   className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-[var(--space-2)] last:border-b-0 last:pb-0"
                 >
-                  <code className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)]">
+                  <code className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-brand-primary)]">
                     {cmd}
                   </code>
                   <span className="text-right text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
@@ -82,7 +82,7 @@ pd setup`}
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--text-brand-primary)]"
               >
                 <Github size={15} />
                 Source on GitHub
@@ -91,7 +91,7 @@ pd setup`}
                 href={DISCUSSIONS_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--text-brand-primary)]"
               >
                 <MessagesSquare size={15} />
                 Ask in Discussions

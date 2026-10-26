@@ -46,7 +46,7 @@ function GuardControlMock() {
     <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
       <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
         <div className="inline-flex items-center gap-[var(--space-2)]">
-          <MonitorCog size={17} className="text-[var(--brand-primary)]" />
+          <MonitorCog size={17} className="text-[var(--text-brand-primary)]" />
           <PanelEyebrow>FleetBar control</PanelEyebrow>
         </div>
         <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary-foreground)]">
@@ -90,7 +90,7 @@ function GuardControlMock() {
             <span className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
               {label}
             </span>
-            <span className="text-right font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+            <span className="text-right font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
               {value}
             </span>
           </div>
@@ -99,7 +99,7 @@ function GuardControlMock() {
 
       <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
         <div className="inline-flex items-center gap-[var(--space-2)]">
-          <ShieldCheck size={16} className="text-[var(--brand-primary)]" />
+          <ShieldCheck size={16} className="text-[var(--text-brand-primary)]" />
           <PanelEyebrow>Why it matters</PanelEyebrow>
         </div>
         <PanelBody size="compact" className="max-w-none">
@@ -160,7 +160,7 @@ export function CoordinationEnforcementSection() {
           <div className="grid gap-[var(--space-4)]">
             {outcomes.map((outcome) => (
               <SurfacePanel key={outcome.title} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]">
-                <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-brand-primary)]">
                   <outcome.icon size={18} />
                 </span>
                 <div className="grid gap-[var(--space-2)]">

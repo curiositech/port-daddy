@@ -24,6 +24,7 @@
  * widgets (video players, map libraries, D3).
  */
 import { VT, parseCast, sourceTimeAtDisplayTime, type CastJumpCut, type ParsedCast } from "./vt";
+import { readableTerminalStyle } from "./readable-colors";
 import { PORTHOLE_ANSI_THEME } from "./theme";
 
 export interface PortholePlayerOptions {
@@ -47,22 +48,6 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
 
-function styleSpan(st: { fg: string | null; bg: string | null; b: boolean; d: boolean; i: boolean; u: boolean; inv: boolean }): string {
-  let fg = st.fg || "var(--ph-text)";
-  let bg = st.bg;
-  if (st.inv) {
-    const t = fg;
-    fg = bg || "var(--ph-bg)";
-    bg = t;
-  }
-  let s = `color:${fg};`;
-  if (bg) s += `background:${bg};`;
-  if (st.b) s += "font-weight:700;";
-  if (st.d) s += "opacity:0.6;";
-  if (st.i) s += "font-style:italic;";
-  if (st.u) s += "text-decoration:underline;";
-  return s;
-}
 
 type PortholeSemantic = "anchor" | "hook" | "error";
 
@@ -336,7 +321,7 @@ export class PortholePlayer {
         semanticChanged = true;
       }
       if (semanticChanged) refreshActiveClasses();
-      const style = styleSpan(cell.st);
+      const style = readableTerminalStyle(cell.st);
       const classes = activeClasses;
       if (style !== curStyle || classes !== curClasses) {
         flush();
@@ -509,7 +494,7 @@ export class PortholePlayer {
       this.lineEls.length = 0;
       const line = document.createElement("div");
       line.className = "ph-line";
-      line.style.color = "var(--status-error)";
+      line.style.color = "var(--text-status-error)";
       line.textContent = "⚠ this recording is temporarily unavailable";
       this.term.appendChild(line);
       throw err;

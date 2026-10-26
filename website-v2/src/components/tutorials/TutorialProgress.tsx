@@ -62,7 +62,7 @@ export function TutorialProgress({
             <span className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
               Course Progress
             </span>
-            <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] sm:text-right">
+            <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)] sm:text-right">
               {progressSummary}
             </span>
           </div>
@@ -82,7 +82,7 @@ export function TutorialProgress({
             />
           </Surface>
 
-          <div className="flex flex-col gap-px font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-px font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-meta)] sm:flex-row sm:items-center sm:justify-between">
             <span>{completedCount} completed</span>
             <span>
               {remainingCount} remaining (~{remainingTime} min)
@@ -90,7 +90,7 @@ export function TutorialProgress({
           </div>
         </div>
 
-        <span className="self-start font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] sm:self-center">
+        <span className="self-start font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)] sm:self-center">
           {isOpen ? "Hide map" : "Open map"}
         </span>
       </Surface>
@@ -163,15 +163,15 @@ export function TutorialProgress({
                     </div>
 
                     <div className="col-start-2 flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-px justify-self-start sm:col-start-auto sm:flex-nowrap sm:justify-self-end">
-                      <span className="shrink-0 font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+                      <span className="shrink-0 font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-meta)]">
                         {tutorial.readTime}
                       </span>
                       {isCurrent ? (
-                        <span className="shrink-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                        <span className="shrink-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                           Current lesson
                         </span>
                       ) : isCompleted ? (
-                        <span className="shrink-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--status-success)]">
+                        <span className="shrink-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-status-success)]">
                           Complete
                         </span>
                       ) : null}

@@ -40,7 +40,7 @@ export function SpineChain() {
                     {link.word}
                   </span>
                   {link.chapter ? (
-                    <span className="shrink-0 font-mono text-[length:var(--type-meta-size)] font-black text-[var(--brand-primary)]">
+                    <span className="shrink-0 font-mono text-[length:var(--type-meta-size)] font-black text-[var(--text-brand-primary)]">
                       {link.chapter}
                     </span>
                   ) : null}
@@ -52,7 +52,7 @@ export function SpineChain() {
               {index < LINKS.length - 1 ? (
                 <li
                   aria-hidden="true"
-                  className="hidden shrink-0 items-center self-center text-[var(--brand-primary)] sm:flex"
+                  className="hidden shrink-0 items-center self-center text-[var(--text-brand-primary)] sm:flex"
                 >
                   <ArrowRight size={18} strokeWidth={2.5} />
                 </li>

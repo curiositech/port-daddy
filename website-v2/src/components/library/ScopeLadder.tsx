@@ -72,17 +72,17 @@ const LAYERS: Layer[] = [
 
 const STAGE_STYLE: Record<Stage, { fg: string; border: string; bg: string }> = {
   shipped: {
-    fg: 'var(--brand-primary)',
+    fg: 'var(--text-brand-primary)',
     border: 'var(--brand-primary)',
     bg: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)',
   },
   building: {
-    fg: 'var(--brand-accent)',
+    fg: 'var(--text-brand-accent)',
     border: 'var(--brand-accent)',
     bg: 'color-mix(in srgb, var(--brand-accent) 8%, transparent)',
   },
   specified: {
-    fg: 'var(--text-muted)',
+    fg: 'var(--text-meta)',
     border: 'var(--border-default)',
     bg: 'transparent',
   },
@@ -127,7 +127,7 @@ export function ScopeLadder({ compact = false }: { compact?: boolean }) {
                   >
                     <Icon size={18} strokeWidth={2.25} />
                   </span>
-                  <span className="font-mono text-[length:var(--text-sm)] font-black text-[var(--brand-primary)]">
+                  <span className="font-mono text-[length:var(--text-sm)] font-black text-[var(--text-brand-primary)]">
                     {layer.code}
                   </span>
                 </div>
@@ -135,7 +135,7 @@ export function ScopeLadder({ compact = false }: { compact?: boolean }) {
                   <p className="font-display text-[length:var(--text-lg)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
                     {layer.scope}
                   </p>
-                  <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                     for {layer.whom}
                   </p>
                 </div>
@@ -148,7 +148,7 @@ export function ScopeLadder({ compact = false }: { compact?: boolean }) {
               </div>
               {/* The widening arrow between layers — only in the wide ladder. */}
               {!compact && index < LAYERS.length - 1 ? (
-                <div aria-hidden="true" className="hidden items-center justify-center self-center text-[var(--brand-primary)] lg:flex">
+                <div aria-hidden="true" className="hidden items-center justify-center self-center text-[var(--text-brand-primary)] lg:flex">
                   <ArrowRight size={20} strokeWidth={2.5} />
                 </div>
               ) : null}

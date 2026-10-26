@@ -25,7 +25,7 @@ export function ConsoleScreenshotFigure({
           decoding="async"
         />
       </picture>
-      <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+      <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-meta)]">
         {caption}
       </figcaption>
     </figure>

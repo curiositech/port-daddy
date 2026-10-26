@@ -88,7 +88,7 @@ export function Hero() {
                     <Wordmark variant="spin" className="h-full max-w-none" />
                   </motion.span>
                   Run a tight ship.{' '}
-                  <span className="text-[var(--brand-primary)]">
+                  <span className="text-[var(--text-brand-primary)]">
                     Agents sail safer when they coordinate.
                   </span>
                 </>
@@ -102,7 +102,7 @@ export function Hero() {
               {/* Stripe card (ch. 20): card well + hairline edge + 3px cobalt
                   state stripe — secondary surfaces shed enclosure chrome. */}
               <div className="lw-stripe-card p-[var(--space-3)] pl-[var(--space-4)] sm:p-[var(--space-4)] sm:pl-[var(--space-5)]">
-                <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                   Port Daddy is
                 </p>
                 <p className="mt-[var(--space-2)] max-w-[38rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)] sm:text-[length:var(--type-panel-body-size)] sm:leading-[var(--leading-body)]">
@@ -112,7 +112,7 @@ export function Hero() {
 
               {/* Left-anchored midline: "continues from above" (ch. 20 midline
                   dialect) — texture-weight, replaces the heavy 2px rule. */}
-              <div className="lw-midline flex flex-wrap items-center gap-x-[var(--space-2)] gap-y-2 pt-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:pt-[var(--space-3)]">
+              <div className="lw-midline flex flex-wrap items-center gap-x-[var(--space-2)] gap-y-2 pt-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-meta)] sm:pt-[var(--space-3)]">
                 <span className="font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
                   Runs on
                 </span>

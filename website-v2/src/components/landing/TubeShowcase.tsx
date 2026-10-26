@@ -57,7 +57,7 @@ export function TubeShowcase() {
                 </Link>
                 <Link
                   to="/blog/pd-tube-event-reply-loop"
-                  className="inline-flex items-center gap-2 border-2 border-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-muted)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
+                  className="inline-flex items-center gap-2 border-2 border-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-meta)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
                 >
                   Read the post
                 </Link>
@@ -105,7 +105,7 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
                 className="block w-full"
                 aria-label="Screen recording: clicking buttons on a plain web page wakes a local agent that does real work and replies in the page, all over one Port Daddy channel"
               />
-              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
                 A real web page firing a real agent. Each button is a plain <code>fetch()</code> to{' '}
                 <code>ui:clicks</code>; an agent on <code>pd tube ui:clicks</code> does the work and
                 replies — round-trip in ~3s. Page: <code>examples/pd-tube/mission-control.html</code>.
@@ -210,7 +210,7 @@ function BehaviorCard({
 }) {
   return (
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[var(--text-brand-primary)]">
         <Icon size={18} />
       </div>
       <PanelTitle as="h4" size="nav" className="mb-[var(--space-2)]">
