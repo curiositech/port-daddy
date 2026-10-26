@@ -17,5 +17,7 @@
   "acp2025": "OpenAI \\& Stripe 2025, \\textit{Agentic Commerce Protocol}",
   "ucan2024": "UCAN Working Group 2024, \\textit{UCAN 1.0}",
   "hedberg2024openidfed": "Hedberg (ed.) et al. 2024, \\textit{OpenID Federation 1.0}",
-  "rdc": "Nguyen et al. 2026, \\textit{Rate-Distortion-Classification Representation Theory}"
+  "rdc": "Nguyen et al. 2026, \\textit{Rate-Distortion-Classification Representation Theory}",
+  "jasonfaq": "Jason developers, accessed 2026, \\textit{Jason FAQ}",
+  "jasonfailureimplementation": "Jason developers, rev.\\ \\texttt{4b98ddb1f9c8}, \\textit{Goal-failure handling}"
 }
