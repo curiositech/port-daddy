@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "map-and-lens.png",
     "source_sha256": "7469c7f8f2493535a33f59b61cd0a4b77c89d4d655f31a077b7a8ea086add755",
     "file": "map-and-lens.pdf",
-    "sha256": "2cbb8509a5604f92001bf3e8af860bd3ee68280a05b68d4a5d3d0afdb3caeb89",
-    "bytes": 207875,
+    "sha256": "5be3f255959f071efc6fca2f984f6150e8974266c4199e76b2f08c5daf29ff7f",
+    "bytes": 205429,
     "pixels": [
       678,
       720

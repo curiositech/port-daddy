@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch04-telegraph-sounder-key.png",
     "source_sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
     "file": "ch04-telegraph-sounder-key.pdf",
-    "sha256": "ba898a2cd76b119febf093856a974588a70459ff28f9f22d95c2dd6c65802f34",
-    "bytes": 213627,
+    "sha256": "34325edd49e49b66998970f8ed6a1f7456a0d4a609fe377737d5c5de6f8e0a9b",
+    "bytes": 211181,
     "pixels": [
       720,
       674

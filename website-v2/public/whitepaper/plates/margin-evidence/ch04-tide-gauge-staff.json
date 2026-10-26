@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch04-tide-gauge-staff.png",
     "source_sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
     "file": "ch04-tide-gauge-staff.pdf",
-    "sha256": "b22eeb9462cd61e7013c0a8b0065d9836ce0abce7812afb4a9466f4d19d60966",
-    "bytes": 146499,
+    "sha256": "83a4d678b0b8e2450d65bc6c5ce3b713bb77581f0a4c0ad62e7f772b5d86f554",
+    "bytes": 144053,
     "pixels": [
       399,
       720

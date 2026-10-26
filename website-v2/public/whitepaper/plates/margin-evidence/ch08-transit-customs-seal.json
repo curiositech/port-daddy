@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch08-transit-customs-seal.png",
     "source_sha256": "47c518b7442341b30e259f9ebce15434ba8ca9d3b12e3d41474ec22223e9304b",
     "file": "ch08-transit-customs-seal.pdf",
-    "sha256": "52e9675210da9ebd25e5c25d632cbd10f1ef971e4a1d4ae7efe22a2295f63544",
-    "bytes": 134033,
+    "sha256": "8319aaddcc78d4007c0a31683964fd609058402dcd279bd12bc613d8399bc55a",
+    "bytes": 131587,
     "pixels": [
       495,
       720

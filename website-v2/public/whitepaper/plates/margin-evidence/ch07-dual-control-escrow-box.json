@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch07-dual-control-escrow-box.png",
     "source_sha256": "ce07f093860cbf0d836e0f293c32e26bdeb577d4cbddaaeed7b62dba3069a4be",
     "file": "ch07-dual-control-escrow-box.pdf",
-    "sha256": "24a7db64fb2971cb459875cb3ff6c5cfdea01b80c9b06919d395037562a4008c",
-    "bytes": 210639,
+    "sha256": "6b22b2a382347147cef7eb4303280eb223c817903c6554b4362f585d7ee1ca25",
+    "bytes": 208193,
     "pixels": [
       648,
       629

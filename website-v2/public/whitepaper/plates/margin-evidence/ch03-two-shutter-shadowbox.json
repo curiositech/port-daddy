@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch03-two-shutter-shadowbox.png",
     "source_sha256": "5b0d4da5a933e25eab5d3ffa0d140aea4c1f69b0ce05f491039ff1514842ab3a",
     "file": "ch03-two-shutter-shadowbox.pdf",
-    "sha256": "994322ef5851866b267cdbe371550dba59574b25977c5626a26e936e749d8455",
-    "bytes": 170011,
+    "sha256": "b4a348f04719b3aae41ec40b2bf022d92849467be322ea99c802a7c1c8c4f087",
+    "bytes": 167565,
     "pixels": [
       520,
       720
