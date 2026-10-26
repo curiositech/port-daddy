@@ -98,7 +98,7 @@ describe('GitHub App user-token envelope', () => {
 
     expect(refreshed.accessToken).toBe('ghu_access_2');
     expect(githubCredentialNeedsRefresh(expiring(), NOW + 28_700)).toBe(true);
-    expect(sent?.redirect).toBe('error');
+    expect(sent?.redirect).toBe('manual');
     expect(sent?.signal).toBeInstanceOf(AbortSignal);
     expect(JSON.parse(String(sent?.body))).toEqual({
       client_id: 'Iv23.app',

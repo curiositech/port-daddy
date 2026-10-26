@@ -262,7 +262,7 @@ export async function refreshGitHubUserCredential(
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`GitHub user-token refresh failed ${response.status}`);
