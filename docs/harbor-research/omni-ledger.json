@@ -132723,6 +132723,230 @@
           "locator": "equal-information comparator and correction support"
         }
       ]
+    },
+    {
+      "id": "BOOK-INTEGRATION-20261026",
+      "title": "Book mathematical, citation and layout acceptance with hosted publication pending",
+      "papers": [
+        "Book"
+      ],
+      "kind": "publication integration",
+      "queue_state": "current_work",
+      "priority": "P1",
+      "status": "local source and 817-page candidate accepted within recorded scope; hosted CI and publication blocked",
+      "result": "The identified probability, concurrency, control and incentive claims have explicit hypotheses. Conditional Jason failure handling is distinguished from plan-selection failure. A finite worst-case sanction-cost example makes neither a minimax-regret nor an automatic-logging claim. Twelve figures use native role type within the body column. Shared heading and opening styles, sentence-flow repairs and distinct chapter questions/epigraphs support a converged 817-page candidate. All registered PDF checks pass: 263 captions, 1473 margin objects, zero clipping/collision/footer findings, and 622 audited numbered body headings with no split words or body-width violations. Publication and complete data-driven figure standardization remain unfinished.",
+      "assumptions": "Finite mathematical witnesses retain their stated scopes; diagrams distinguish conditional guarantees from universal safety, recovery or incentive claims. Local Port Daddy remains halted. Source integration, local artifact acceptance, hosted CI and authorized publication are distinct states.",
+      "evidence": [
+        "Exact local artifact: source 3b3fb6a081adadbd9846f1f4f0b7e80ab74d556f, tree d7004571fc0eb9b55691c9773cb54f0dd9bf6b2a; PDF SHA-256 d6509361ff37a9ac5b6e80fc293f245a5a8ca0add0d20d8ed42a743c71cc640b; 817 pages, 17595721 bytes, Suisse profile, 5 XeLaTeX passes with complete margin/reference convergence.",
+        "Registered PDF checks passed without relaxed thresholds: 263 captions; 1473/1473 margin objects; zero off-paper loss, margin collisions and footer intrusion; cover/type-over-art checks passed. Ten rendered typography tests passed, including chapter epigraph placement, selected font embedding and evidence-record identifiers.",
+        "The numbered-heading audit inspected 622 semibold body-heading blocks: zero split-word endings and zero body-column width violations with 2pt tolerance. It excludes contents, unnumbered and run-in headings. Independent source review checked grouped starred/optional/run-in section semantics and body-style restoration.",
+        "All nine chapter opening/following spread pairs and the twelve recomposed figure contexts were reviewed through fresh image inspection or independently verified decoded-pixel identity. Anchor Figure2.9 and Sealed Table3.1 contexts were included. This is targeted visual review, not an all-page aesthetic certification.",
+        "Source checks: 72 generator tests, 3 finite mathematical witnesses, 26 mathematical-boundary checks, 7 worked-example contracts, citation/index/shortform checks and five source contracts passed at `1128c2f037`. Subsequent common-heading edits received 13 layout-source checks plus typography/semantic checks and the final full render. No broader mathematical certification or field utility follows from these finite checks.",
+        "Jason references use the official FAQ and interpreter revision `4b98ddb1f9c88d3ecdd84c6559f8effbf20f8287` with access dates, corporate-author shortforms and identical Chapter0 bodies. The finite norm example states a nonempty feasible family, nonnegative costs, zero cost for an empty omitted set and a separate logging requirement.",
+        "All 38 soft masks embedded in the candidate use DeviceGray. The tracked 836-page publication remains byte-identical to its frozen artifact; it has not been refreshed or deployed by this work.",
+        "Remaining editorial advisories: 75 safety-net width reports, 78 whitespace-review pages, two contents entries with split words outside the body-heading audit, occasional normal top-float paragraph continuations and a complete final word on its own heading line. They remain visible rather than being hidden by smaller type.",
+        "PR #10336 remains OPEN at e512336cd04deefae2529c5d736e02cf50ae3442, based on aba51f424d73027403e75e151ea519e86813a35a: 34 successful checks, 9 skipped, 2 failed (Ubuntu unit tests and dependent gate), with the only review thread resolved/outdated. Local test repair `320cd5411b91122ecd8472b5cff770bdfe7e8f67` is unpublished and awaits hosted verification.",
+        "No new source PR, merge or deployment is established. AGENTS.md requires the Fleetbot actuator; the available route cannot adopt/merge the operator-owned PR or carry the complete canonical ledger. The scoped personal-identity exception question remains unanswered. Local runtime and hooks remain halted.",
+        "Final fetch discovered parallel PR #10339 for the four lifecycle fixtures and PR #10338 for Fleetbot GitHub request compatibility. Neither is part of this Book branch or proof of its delivery. Reconcile the parallel fixture change before pushing local `320cd`; its independent hooks-barrier repair is still relevant."
+      ],
+      "verification": {
+        "as_of_utc": "2026-10-26T23:11:56.506738+00:00",
+        "final_artifact": {
+          "source_head": "3b3fb6a081adadbd9846f1f4f0b7e80ab74d556f",
+          "source_tree": "d7004571fc0eb9b55691c9773cb54f0dd9bf6b2a",
+          "font_profile": "suisse",
+          "frozen_publication_preserved": true,
+          "pdf_sha256": "d6509361ff37a9ac5b6e80fc293f245a5a8ca0add0d20d8ed42a743c71cc640b",
+          "pages": 817,
+          "bytes": 17595721,
+          "smasks": 38,
+          "invalid_masks": 0,
+          "convergence_passes": 5,
+          "status": "accepted within named source/visual scope",
+          "pdf_gate_receipt": "263 captions;1473 margin objects;all registered gates pass",
+          "rendered_typography_tests": 10,
+          "numbered_body_heading_audit": {
+            "pdf_sha256": "d6509361ff37a9ac5b6e80fc293f245a5a8ca0add0d20d8ed42a743c71cc640b",
+            "numbered_heading_blocks_checked": 622,
+            "broken_heading_blocks": 0,
+            "findings": [],
+            "body_width_violations": 0,
+            "width_findings": [],
+            "scope": "Body numbered semibold heading blocks >=10.2pt, majority-bold lines, beginning at Chapter0; excludes contents, unnumbered and run-in headings."
+          },
+          "facing_spreads": 18,
+          "figure_contexts": 12,
+          "additional_float_contexts": 2,
+          "editorial_only_pages": []
+        },
+        "source_check_head": "1128c2f03779220f69143caf98840f34c7eb8052",
+        "heading_source_review_head": "9e645e0242896fb4790b51b9dcebabeab13a16f4",
+        "final_heading_style": "ragged right; automatic and explicit hyphen penalties10000 inside the section-format group",
+        "toolchain": "XeTeX3.141592653-2.6-0.999998; TeXLive2026; locally licensed Suisse fonts",
+        "local_evidence_directory": ".scratch/publication-20261026",
+        "ignored_evidence_is_hosted": false,
+        "public_delivery": {
+          "source_pr": null,
+          "pr10336_merged": false,
+          "local_ci_fix": "320cd5411b91122ecd8472b5cff770bdfe7e8f67",
+          "hosted_ci_fix_verified": false,
+          "published_pdf_refreshed": false,
+          "deployed": false,
+          "permission": "scoped identity exception unanswered",
+          "concurrent_pull_requests": [
+            {
+              "number": 10339,
+              "url": "https://github.com/curiositech/port-daddy/pull/10339",
+              "head": "b0d7f463dcfeaf703974646309ebe6a4609ac3e0",
+              "state": "OPEN at readback",
+              "scope": "Parallel lifecycle test isolation; reconcile before applying local320cd fixture edit."
+            },
+            {
+              "number": 10338,
+              "url": "https://github.com/curiositech/port-daddy/pull/10338",
+              "head": "b16356fc474514e2b1b7708226c34ce6aab0167c",
+              "state": "OPEN at readback",
+              "scope": "Fleetbot GitHub no-follow request compatibility; no authority or delivery inferred."
+            }
+          ]
+        },
+        "heading_audit_reproduction": {
+          "runtime": "Python3 with PyMuPDF1.26.7",
+          "invocation": "python audit_heading_breaks.py candidate-book.pdf heading-audit.json",
+          "sha256": "f6d3d98dc667b47be9a34859b55bfebf4f895891273658d77af8960029d8a69f",
+          "source": "from pathlib import Path\nimport fitz, re, json, hashlib, sys\npdf=Path(sys.argv[1]); out=Path(sys.argv[2]); doc=fitz.open(pdf); headings=[]; broken=[]; wide=[]\nbody_start=next(row[2] for row in doc.get_toc() if row[0]==1 and re.match(r'0\\s',row[1]))\nfor pi,page in enumerate(doc):\n if pi+1<body_start:continue\n for block in page.get_text('dict')['blocks']:\n  lines=block.get('lines',[])\n  if not lines:continue\n  texts=[''.join(s['text'] for s in line['spans']).strip() for line in lines]\n  sizes=[s['size'] for s in lines[0]['spans']]\n  if not re.match(r'^\\d+(?:\\.[A-Za-z0-9]+)+(?:\\s|$)',texts[0]) or not sizes or max(sizes)<10.2:continue\n  if not all('Semibold' in s['font'] for s in lines[0]['spans']):continue\n  selected=[(t,l) for t,l in zip(texts,lines) if sum(len(s['text']) for s in l['spans'] if 'Semibold' in s['font']) >= .5*len(t)]\n  texts=[t for t,l in selected]\n  entry={'pdf_page':pi+1,'folio':page.get_label(),'lines':texts};headings.append(entry)\n  left=57.6 if int(page.get_label())%2 else 122.4\n  if any(l['bbox'][0]<left-2 or l['bbox'][2]>left+324+2 for t,l in selected):wide.append(dict(entry,line_boxes=[l['bbox'] for t,l in selected],expected_body=[left,left+324]))\n  if any(re.search(r'[-\\u00ad\\u2010\\u2011]$',line) for line in texts[:-1]):broken.append(entry)\nassert headings, 'No heading evidence found'\nr={'pdf_sha256':hashlib.sha256(pdf.read_bytes()).hexdigest(),'numbered_heading_blocks_checked':len(headings),'broken_heading_blocks':len(broken),'findings':broken,'body_width_violations':len(wide),'width_findings':wide,'scope':'Body numbered semibold heading blocks >=10.2pt, majority-bold lines, beginning at Chapter0; excludes contents, unnumbered and run-in headings.'};out.write_text(json.dumps(r,indent=2)+'\\n');print(json.dumps(r,indent=2));raise SystemExit(bool(broken or wide))\n",
+          "limit": "A bounded rendered-text audit for the fixed Book geometry, not a semantic inventory of every heading or a replacement for visual review."
+        }
+      },
+      "acceptance": [
+        "Local source/PDF acceptance is bound to the exact commit, tree, hash and scope above.",
+        "Hosted delivery requires authorized writes, exact-head CI/review verdicts and separate merge/refresh/public-byte receipts.",
+        "Full figure-family standardization and final-PDF atlas review remain separate incomplete work."
+      ],
+      "next": "Reconcile the parallel lifecycle repair in PR #10339 with the local `320cd` test commit; use authorized publishing identity and obtain passing hosted checks before landing PR #10336. Rebase the Book branch onto actual merged main, verify unchanged Book inputs or rebuild as needed, open the prepared source PR and follow its exact-head reviews/CI. Publish PDF plus metadata through a separately reviewed non-main refresh workflow. Then implement one shared layer registry for stack/table/margin views and the proposed family generators; refresh the atlas against the accepted publication PDF.",
+      "depends_on": [
+        "BOOK-PUBLICATION-20261015",
+        "BOOK-CANON"
+      ],
+      "sources": [
+        {
+          "path": "whitepaper/chapter-0-prerequisites.tex",
+          "locator": "Express Lane; Jason/AgentSpeak failure-handling section"
+        },
+        {
+          "path": "whitepaper/figures/fig-ch0-bdi-execution.tex",
+          "locator": "conditional handler/recovery path"
+        },
+        {
+          "path": "whitepaper/figures/fig-ch0-cnp-protocol.tex",
+          "locator": "native message ladder and wrapped payload legend"
+        },
+        {
+          "path": "whitepaper/figures/fig-ch0-arrows-consensus.tex",
+          "locator": "cycle witness, cardinal assumptions, native-column geometry"
+        },
+        {
+          "path": "whitepaper/figures/legible-swarm-split-ranker.tex",
+          "locator": "shared ordinal tuples and native slopegraph"
+        },
+        {
+          "path": "skills/whitepaper-figure-system/references/semantic-figure-atlas.md",
+          "locator": "II/fig:swk-water-meter-dial; 133 live source identities"
+        },
+        {
+          "path": "tests/harbor-research/test_book_publication_math.py",
+          "locator": "finite mathematical witness discovery"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
+          "locator": "shared heading format, widow/broken-word policy and geometry"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex",
+          "locator": "common chapter opening and handoff alignment"
+        }
+      ]
+    },
+    {
+      "id": "BOOK-VISUAL-ATLAS-20261026",
+      "title": "Preserve the frozen Book visual atlas and separate proposed family generators from current adoption",
+      "papers": [
+        "Book"
+      ],
+      "kind": "visual evidence and design proposal",
+      "queue_state": "current_work",
+      "priority": "P2",
+      "status": "frozen local atlas integrity verified; current-render atlas and full generator standardization incomplete",
+      "result": "Preserved the offline review package and editorial ledger for the frozen 812-page Book: 723 records, 405 scored works in 18 families, 318 excluded audit records and 372 source snapshots. Verified package integrity, source snapshot hashes and bounded review UI interactions. The live semantic catalog is a separate current-source contract. Family payloads, common registries and data-driven generators remain proposed work rather than completed standardization.",
+      "assumptions": "Scores are authored editorial judgments, not theorem, empirical-performance, rights or physical-print certification. Frozen occurrence IDs, review evidence and browser storage are bound to the frozen PDF SHA-256. The old atlas must not be reused as coverage of the 817-page Book candidate.",
+      "evidence": [
+        "Frozen PDF verified directly: 812 pages; SHA-256 5c467da4e10998ba9bb59a18f54b8038e80e588c453f1d12082ccb489e5867e7. Historical BOOK-PUBLICATION-20261015 acceptance remains tied to that artifact.",
+        "Frozen editorial counts: 723 inventory records; 405 scored works in 18 families; 318 excluded fragments/duplicates; 372 hash-bound source snapshots. All 12 manifest-listed evidence files matched their recorded digests.",
+        "Packaged-site validator passed: 1984 preview/context assets, complete active review fields and score arithmetic, matching source snapshots and digest-bound evidence. The unresolved tiny scene pictogram remains excluded and explicitly inventoried.",
+        "Portable ZIP verified: 133750912 bytes; SHA-256 3790b2bfdb15f56967b11c0d9057e94a0cc32f7401ea94ac3c63bc8619215bf4; all 2384 entries passed CRC; no absolute or parent-traversing archive paths.",
+        "Offline browser smoke passed with fresh headless Chrome/Playwright context: comparison, eight review dimensions, 82/78 score and note persistence, wrong-PDF digest rejection, manual ordering, responsive widths 1280/1100/860/720/390 and no page errors. Temporary files stayed under the linked worktree; browser closes on success or failure.",
+        "scripts/book-visual-atlas/test.cjs was originally ignored by *.cjs despite the old delivery receipt describing it as tracked. The current repair batch explicitly tracks the formatted bounded regression and documents its invocation; historical receipts and archive were not rewritten.",
+        "Source drift audit at eb7067d0a7eae06a7b981a6ad12b2a70962ad8d7 found 280 unique inventory source/dependency/asset references: 153 matched that HEAD, 71 tracked paths differed, and 56 were generated/nontracked/external paths. These are snapshot-specific counts, not a claim about the final source revision.",
+        "Existing shared role typography, hues, surfaces, shape styles, templates and several adopted redraws provide real partial standardization. Separate literal layer lists, custom SG drawing tokens and bespoke coordinates remain. Named LayerSystem, StateMachine, ProtocolSequence, Timeline, EvidenceGraph, ComparisonTable, AccountingFlow, NumericPlot and CodeEvidence generator contracts are still proposals; no completed common SVG glyph interface is claimed."
+      ],
+      "verification": {
+        "frozen_pdf_sha256": "5c467da4e10998ba9bb59a18f54b8038e80e588c453f1d12082ccb489e5867e7",
+        "frozen_pdf_pages": 812,
+        "inventory_records": 723,
+        "scored_objects": 405,
+        "families": 18,
+        "excluded_audit_records": 318,
+        "source_snapshots": 372,
+        "audit_source_head": "eb7067d0a7eae06a7b981a6ad12b2a70962ad8d7",
+        "changed_tracked_source_paths_at_audit_head": 71,
+        "current_pdf_atlas": "NOT GENERATED OR REVIEWED",
+        "data_driven_family_generators": "INCOMPLETE; design proposal only",
+        "local_evidence_directory": ".scratch/publication-20261026/atlas-checks"
+      },
+      "acceptance": [
+        "Retain frozen PDF identity, reviewed occurrence IDs, evidence hashes and audit exclusions; distinguish author scores from source reliability and operator overrides.",
+        "Keep offline package validation and bounded browser regression reproducible without external services or operator browser state.",
+        "Create a new digest-bound inventory/review before claiming atlas coverage for a different Book PDF.",
+        "Implement and validate semantic registries, role-token reconciliation, family generators and dependent views before claiming full Book diagram standardization."
+      ],
+      "next": "Implement one authoritative layer registry that generates the full stack, reference table and margin ladder, including chapters spanning multiple layers. Then implement typed comparison/accounting/numeric/protocol families and the shared glyph interface. Review a new digest-bound atlas for the accepted publication PDF; retain the frozen 812-page scores as provenance rather than relabeling them.",
+      "depends_on": [
+        "BOOK-PUBLICATION-20261015"
+      ],
+      "sources": [
+        {
+          "path": "docs/harbor-research/visual-atlas/README.md",
+          "locator": "frozen artifact scope; live-source distinction; regression invocation"
+        },
+        {
+          "path": "docs/harbor-research/visual-atlas/manifest.json",
+          "locator": "frozen PDF identity and evidence hashes"
+        },
+        {
+          "path": "docs/harbor-research/visual-atlas/validation.json",
+          "locator": "723/405/318/372 integrated-site validation"
+        },
+        {
+          "path": "docs/harbor-research/visual-atlas-family-proposal.md",
+          "locator": "proposed semantic registries, nine family contracts and SVG interface"
+        },
+        {
+          "path": "scripts/book-visual-atlas/validate.py",
+          "locator": "asset/source/review structure checks"
+        },
+        {
+          "path": "scripts/book-visual-atlas/test.cjs",
+          "locator": "bounded isolated browser smoke"
+        },
+        {
+          "path": "whitepaper/figures/pd-swiss-evidence.tex",
+          "locator": "SGStackLayers and SGMarginLadder duplicated layer lists"
+        },
+        {
+          "path": "whitepaper/figures/pd-figure-language.tex",
+          "locator": "existing shared role tokens and shapes"
+        }
+      ]
     }
   ],
   "coverage": {
