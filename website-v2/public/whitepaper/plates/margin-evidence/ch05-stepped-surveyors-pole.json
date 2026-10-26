@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch05-stepped-surveyors-pole.png",
     "source_sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
     "file": "ch05-stepped-surveyors-pole.pdf",
-    "sha256": "c84a137c53a789287e8ab153ce027bb75d088a1dca33dd1b46807e454dc0efc7",
-    "bytes": 117518,
+    "sha256": "ada303a0f7a9b881c4957fcab4e1020bf5ceda2055e2282b6068de0dae366a57",
+    "bytes": 115072,
     "pixels": [
       370,
       720

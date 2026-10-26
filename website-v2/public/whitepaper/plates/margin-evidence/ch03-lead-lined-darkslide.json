@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch03-lead-lined-darkslide.png",
     "source_sha256": "88ee3c8ce740e5cb64177698a1c75c263eb1ef1cd4f9876cffe0b8de15f5b57e",
     "file": "ch03-lead-lined-darkslide.pdf",
-    "sha256": "aa9ac009776a9849e99a4a0b18f44991dbfd6a27157de831c2bb772e1eb9a219",
-    "bytes": 144264,
+    "sha256": "f02331df88836482bceb3428d5b83cc3d05b6235b1e8bb0c2f0770c99602bfb1",
+    "bytes": 141814,
     "pixels": [
       376,
       720

@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch04-selective-attention-annunciator.png",
     "source_sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
     "file": "ch04-selective-attention-annunciator.pdf",
-    "sha256": "e1e708bbb5ae7158dc9f7ce6501b523141c792bf37c9cbb6d03d40b5c353a1f2",
-    "bytes": 112750,
+    "sha256": "476e6295f89fd4bd5114cafdb60e0f128eae2bac688f2b3f193f8b77d2cff36f",
+    "bytes": 110304,
     "pixels": [
       440,
       720

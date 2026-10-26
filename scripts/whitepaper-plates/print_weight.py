@@ -114,6 +114,25 @@ def wrapper_dims(path: Path) -> tuple[int, int]:
         return images[0][2], images[0][3]
 
 
+def wrapper_smask_violation(path: Path) -> str | None:
+    """ISO 32000-1 §11.6.5.3 Table 146 requires a soft-mask image XObject to use
+    /ColorSpace /DeviceGray. PyMuPDF defaults to an /ICCBased gray stream, which
+    Poppler (pdftoppm) and strict PDF viewers reject with 'Bad image parameters'."""
+    import fitz
+
+    with fitz.open(path) as doc:
+        for xref in range(1, doc.xref_length()):
+            obj = doc.xref_object(xref)
+            if "/SMask" in obj and "/Subtype /Image" in obj:
+                smask_val = doc.xref_get_key(xref, "SMask")[1]
+                if smask_val.endswith("0 R"):
+                    smask_xref = int(smask_val.split()[0])
+                    cs = doc.xref_get_key(smask_xref, "ColorSpace")[1]
+                    if cs != "/DeviceGray":
+                        return f"SMask XObject {smask_xref} has /ColorSpace {cs} instead of required /DeviceGray"
+    return None
+
+
 def dims(path: Path) -> tuple[int, int]:
     if path.suffix.lower() == ".pdf":
         return wrapper_dims(path)
@@ -130,6 +149,10 @@ def violations(dirrel: str, pol: dict, path: Path) -> list[str]:
         out.append("is a PNG where the Book embeds JPEG")
     if pol["fmt"] == "pdf" and ext != ".pdf":
         out.append("is a raster where the Book embeds a JPEG+SMask wrapper (.pdf)")
+    if ext == ".pdf":
+        smask_err = wrapper_smask_violation(path)
+        if smask_err:
+            out.append(smask_err)
     size = path.stat().st_size
     if size > pol["budget"]:
         out.append(f"{size:,} bytes, over the {pol['budget']:,} byte budget")
@@ -203,6 +226,12 @@ def wrap(rgb_jpeg: bytes, alpha_png: bytes | None, w: int, h: int) -> bytes:
     doc = fitz.open()
     page = doc.new_page(width=w, height=h)
     page.insert_image(page.rect, stream=rgb_jpeg, mask=alpha_png)
+    for xref in range(1, doc.xref_length()):
+        obj = doc.xref_object(xref)
+        if "/SMask" in obj and "/Subtype /Image" in obj:
+            smask_val = doc.xref_get_key(xref, "SMask")[1]
+            if smask_val.endswith("0 R"):
+                doc.xref_set_key(int(smask_val.split()[0]), "ColorSpace", "/DeviceGray")
     data = doc.tobytes(deflate=True, garbage=3)
     doc.close()
     return data
