@@ -50,18 +50,14 @@
     <!-- Canonical -->
     <link rel="canonical" href="https://portdaddy.dev/" />
 
-    <!-- FOWT Prevention: Set theme before any rendering -->
+    <!-- Apply explicit appearance before content paint; missing/invalid means System. -->
     <script>
-      (function() {
-        const theme = localStorage.getItem('pd-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (theme === 'dark' || (!theme && prefersDark)) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
+      (function () {
+        var preference = 'system';
+        try { var stored = localStorage.getItem('pd-theme'); if (stored === 'light' || stored === 'dark') preference = stored; } catch (_) {}
+        var theme = preference === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
       })();
     </script>
     

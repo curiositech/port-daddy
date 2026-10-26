@@ -12,8 +12,8 @@
   --codeblock-border: var(--code-border);
   --codeblock-text: var(--code-text);
   --codeblock-filename: var(--code-comment);
-  --codeblock-copy: var(--text-muted);
-  --codeblock-copy-hover: var(--text-primary);
+  --codeblock-copy: var(--code-comment);
+  --codeblock-copy-hover: var(--code-text);
   --codeblock-dot-red: var(--code-dot-red);
   --codeblock-dot-amber: var(--code-dot-amber);
   --codeblock-dot-green: var(--code-dot-green);
@@ -63,4 +63,61 @@
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
+}
+
+/* UI text roles use paired readable inks; identity/background roles above keep
+   the native-console / print palette. Never borrow a fill as small-text ink. */
+:root {
+  --text-meta: var(--ui-ink-muted);
+  --text-brand-primary: var(--ui-ink-blue);
+  --text-brand-accent: var(--ui-ink-teal);
+  --text-brand-heat: var(--ui-ink-red);
+  --text-brand-warm: var(--ui-ink-yellow);
+  --text-status-success: var(--ui-ink-green);
+  --text-status-warning: var(--ui-ink-yellow);
+  --text-status-error: var(--ui-ink-red);
+  --text-status-info: var(--ui-ink-blue);
+  --text-story-health: var(--ui-ink-green);
+  --text-story-indigo: var(--ui-ink-indigo);
+  --text-story-violet: var(--ui-ink-violet);
+  --text-story-rust: var(--ui-ink-rust);
+  --text-story-gold: var(--ui-ink-gold);
+  --text-story-slate: var(--ui-ink-slate);
+  --code-line-readable: var(--source-code-readable-muted);
+}
+
+/* Terminal interface foregrounds, paired with every explicit SGR highlight. */
+:root {
+  --ph-tone-neutral-ink: var(--text-primary);
+  --ph-tone-neutral-bg: color-mix(in srgb, var(--text-primary) 10%, var(--ph-bg));
+  --ph-tone-muted-ink: var(--ui-ink-muted);
+  --ph-tone-muted-bg: color-mix(in srgb, var(--ui-ink-muted) 10%, var(--ph-bg));
+  --ph-tone-red-ink: var(--ui-ink-red);
+  --ph-tone-red-bg: color-mix(in srgb, var(--ui-ink-red) 10%, var(--ph-bg));
+  --ph-tone-green-ink: var(--ui-ink-green);
+  --ph-tone-green-bg: color-mix(in srgb, var(--ui-ink-green) 10%, var(--ph-bg));
+  --ph-tone-yellow-ink: var(--ui-ink-yellow);
+  --ph-tone-yellow-bg: color-mix(in srgb, var(--ui-ink-yellow) 10%, var(--ph-bg));
+  --ph-tone-blue-ink: var(--ui-ink-blue);
+  --ph-tone-blue-bg: color-mix(in srgb, var(--ui-ink-blue) 10%, var(--ph-bg));
+  --ph-tone-violet-ink: var(--ui-ink-violet);
+  --ph-tone-violet-bg: color-mix(in srgb, var(--ui-ink-violet) 10%, var(--ph-bg));
+  --ph-tone-teal-ink: var(--ui-ink-teal);
+  --ph-tone-teal-bg: color-mix(in srgb, var(--ui-ink-teal) 10%, var(--ph-bg));
+  --ph-comment: var(--text-meta);
+  --ph-prompt: var(--text-status-success);
+  --ph-flag: var(--text-brand-primary);
+  --ph-line-number: var(--text-meta);
+}
+[data-theme='dark'] { --ph-comment: var(--code-comment); --ph-line-number: var(--code-line-readable); }
+
+/* Paired action fills keep normal-size labels readable in both themes. */
+:root {
+  --action-accent-bg: var(--brand-accent-on-tint);
+  --action-accent-text: var(--brand-accent-foreground);
+  --action-primary-text: var(--brand-primary-foreground);
+  --action-danger-bg: var(--status-error-on-tint);
+  --action-danger-text: var(--text-inverse);
+  --action-success-bg: var(--ui-ink-green);
+  --action-success-text: var(--text-inverse);
 }

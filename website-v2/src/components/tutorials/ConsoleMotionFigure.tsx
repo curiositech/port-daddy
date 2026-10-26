@@ -39,7 +39,7 @@ export function ConsoleMotionFigure({
           <source src={darkSrc} type="video/mp4" />
         </video>
       </div>
-      <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+      <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-meta)]">
         {caption}
       </figcaption>
     </figure>

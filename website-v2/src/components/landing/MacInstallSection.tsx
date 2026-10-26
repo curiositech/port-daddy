@@ -134,10 +134,10 @@ export function MacInstallSection() {
           {INSTALL_LANES.map((lane) => (
             <SurfacePanel key={lane.title} className="flex flex-col gap-[var(--space-3)]">
               <div className="flex items-start justify-between gap-[var(--space-3)]">
-                <span className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center border-2 border-[var(--brand-primary)] text-[var(--brand-primary)]">
+                <span className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center border-2 border-[var(--brand-primary)] text-[var(--text-brand-primary)]">
                   <lane.icon size={18} aria-hidden="true" />
                 </span>
-                <PanelEyebrow className="text-right text-[var(--brand-primary)]">{lane.badge}</PanelEyebrow>
+                <PanelEyebrow className="text-right text-[var(--text-brand-primary)]">{lane.badge}</PanelEyebrow>
               </div>
               <PanelTitle as="h3" size="card" className="normal-case">
                 {lane.title}
@@ -155,8 +155,8 @@ export function MacInstallSection() {
         <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.84fr)]">
           <SurfacePanel className="space-y-[var(--space-4)]">
             <div className="flex items-center gap-[var(--space-2)]">
-              <ShieldCheck size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
-              <PanelEyebrow className="text-[var(--brand-primary)]">Included in setup</PanelEyebrow>
+              <ShieldCheck size={18} className="text-[var(--text-brand-primary)]" aria-hidden="true" />
+              <PanelEyebrow className="text-[var(--text-brand-primary)]">Included in setup</PanelEyebrow>
             </div>
             <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-2">
               {INCLUDED.map((item) => (
@@ -179,8 +179,8 @@ export function MacInstallSection() {
 
           <SurfacePanel className="space-y-[var(--space-4)]">
             <div className="flex items-center gap-[var(--space-2)]">
-              <Terminal size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
-              <PanelEyebrow className="text-[var(--brand-primary)]">What doctor watches</PanelEyebrow>
+              <Terminal size={18} className="text-[var(--text-brand-primary)]" aria-hidden="true" />
+              <PanelEyebrow className="text-[var(--text-brand-primary)]">What doctor watches</PanelEyebrow>
             </div>
             <PanelTitle as="h3" size="card">
               Misconfiguration should announce itself.
@@ -193,7 +193,7 @@ export function MacInstallSection() {
             <CopyableCommandBlock label="Check and repair drift" command={DOCTOR_COMMAND} />
             <PanelBody size="compact" className="max-w-none">
               Need the API shape? The full tool reference lives in{' '}
-              <Link to="/docs/mcp" className="font-semibold text-[var(--brand-primary)] underline">
+              <Link to="/docs/mcp" className="font-semibold text-[var(--text-brand-primary)] underline">
                 the MCP docs
               </Link>
               .
@@ -201,7 +201,7 @@ export function MacInstallSection() {
           </SurfacePanel>
         </div>
 
-        <p className="mt-[var(--space-5)] max-w-[62ch] text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-muted)]">
+        <p className="mt-[var(--space-5)] max-w-[62ch] text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-meta)]">
           Privacy boundary: local hooks are named plainly when installed. They do not log or retain user transcripts.
           Any future transcript sync, such as phone control of the daemon, belongs behind explicit product consent,
           encryption, and a privacy agreement.
@@ -212,7 +212,7 @@ export function MacInstallSection() {
 }
 
 function Mono({ children }: { children: ReactNode }) {
-  return <code className="font-mono text-[var(--brand-primary)]">{children}</code>
+  return <code className="font-mono text-[var(--text-brand-primary)]">{children}</code>
 }
 
 /**
@@ -228,7 +228,7 @@ function CopyableInlineCommand({ command }: { command: string }) {
     <button
       type="button"
       onClick={copyCommand}
-      className="group flex min-h-[2.75rem] w-full items-center justify-between gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] text-left font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+      className="group flex min-h-[2.75rem] w-full items-center justify-between gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] text-left font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-brand-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
       aria-label={`Copy command: ${command}`}
       title={copied ? 'Copied' : `Copy ${command}`}
     >

@@ -209,7 +209,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       <button
         data-search-trigger
         onClick={openSearch}
-        className={`flex items-center gap-2 border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] ${variant === 'full' ? 'w-full' : 'w-full min-w-0'} ${className ?? ''}`}
+        className={`flex items-center gap-2 border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-meta)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] ${variant === 'full' ? 'w-full' : 'w-full min-w-0'} ${className ?? ''}`}
       >
         <Search size={16} />
         <span className="flex-1 truncate whitespace-nowrap text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
@@ -231,14 +231,14 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
           <div className="relative w-full max-w-xl overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--border-subtle)]">
-              <Search size={20} className="text-[var(--text-muted)]" />
+              <Search size={20} className="text-[var(--text-meta)]" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search docs, commands, or concepts..."
-                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none text-base"
+                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-meta)] outline-none text-base"
               />
               {query && (
                 <button
@@ -246,12 +246,12 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                     setQuery('')
                     inputRef.current?.focus()
                   }}
-                  className="border border-transparent p-1 text-[var(--text-muted)] hover:border-[var(--border-default)]"
+                  className="border border-transparent p-1 text-[var(--text-meta)] hover:border-[var(--border-default)]"
                 >
                   <X size={16} />
                 </button>
               )}
-              <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:inline-block">
+              <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)] sm:inline-block">
                 ESC
               </kbd>
             </div>
@@ -260,12 +260,12 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
             <div className="max-h-[60vh] overflow-y-auto">
               {results.length === 0 ? (
                 query ? (
-                  <div className="px-4 py-8 text-center text-[var(--text-muted)]">
+                  <div className="px-4 py-8 text-center text-[var(--text-meta)]">
                     No results found for "{query}"
                   </div>
                 ) : (
                   <div className="px-4 py-6">
-                    <p className="text-[length:var(--type-meta-size)] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                    <p className="text-[length:var(--type-meta-size)] font-semibold text-[var(--text-meta)] uppercase tracking-wider mb-3">
                       Quick Links
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -280,7 +280,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                             }}
                             className="flex w-full items-center gap-2 border border-transparent p-2 text-left transition-colors hover:border-[var(--border-default)]"
                           >
-                            <Icon size={16} className="text-[var(--text-muted)]" />
+                            <Icon size={16} className="text-[var(--text-meta)]" />
                             <span className="text-sm text-[var(--text-secondary)] truncate">{item.title}</span>
                           </button>
                         )
@@ -292,7 +292,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                 <div className="py-2">
                   {Object.entries(groupedResults).map(([category, items]) => (
                     <div key={category}>
-                      <div className="px-4 py-2 text-[length:var(--type-meta-size)] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      <div className="px-4 py-2 text-[length:var(--type-meta-size)] font-semibold text-[var(--text-meta)] uppercase tracking-wider">
                         {category}
                       </div>
                       {items.map((item) => {
@@ -313,18 +313,18 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                                 : 'border-transparent hover:border-[var(--border-default)] hover:bg-[var(--interactive-hover)]'
                             } w-[calc(100%-1rem)] text-left`}
                           >
-                            <Icon size={18} className="text-[var(--text-muted)] shrink-0" />
+                            <Icon size={18} className="text-[var(--text-meta)] shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-[var(--text-primary)]">
                                 {item.title}
                               </div>
                               {item.description && (
-                                <div className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] truncate">
+                                <div className="text-[length:var(--type-meta-size)] text-[var(--text-meta)] truncate">
                                   {item.description}
                                 </div>
                               )}
                             </div>
-                            <ChevronRight size={16} className="text-[var(--text-muted)]" />
+                            <ChevronRight size={16} className="text-[var(--text-meta)]" />
                           </button>
                         )
                       })}
@@ -335,7 +335,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
             </div>
             
             {/* Footer */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <kbd className="border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5">↑↓</kbd>

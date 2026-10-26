@@ -274,11 +274,11 @@ export function CodeBlock({
         {copyable && (
           <button
             onClick={handleCopy}
-            className="ml-auto flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 transition-colors duration-150 hover:bg-[var(--surface-base)]"
+            className="ml-auto flex h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 transition-colors duration-150 hover:bg-[var(--surface-base)]"
             aria-label={copied ? "Copied" : "Copy code"}
           >
             {copied ? (
-              <Check size={10} className="text-[var(--status-success)]" />
+              <Check size={10} className="text-[var(--text-status-success)]" />
             ) : (
               <Copy size={10} className="text-[var(--text-primary)]" />
             )}

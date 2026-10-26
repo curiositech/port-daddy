@@ -17,7 +17,7 @@
     "optimize:visuals": "node scripts/generate-gemini-assets.mjs --optimize-existing",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:interface-contrast",
     "test:paper8-review": "node scripts/test-paper8-review-regressions.mjs",
     "generate:seo": "tsx scripts/generate-seo-artifacts.mjs",
     "generate:skill-audit": "node scripts/generate-skill-audit.mjs",
@@ -35,7 +35,9 @@
     "test:install-commands": "node scripts/check-install-commands.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs",
-    "test:porthole": "tsx scripts/check-porthole-casts.mjs"
+    "test:porthole": "tsx scripts/check-porthole-casts.mjs",
+    "test:interface-contrast": "node scripts/check-interface-contrast.mjs",
+    "test:theme:browser": "node scripts/check-theme-browser.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

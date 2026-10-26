@@ -15,7 +15,7 @@
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
+  --color-text-muted: var(--text-meta);
 
   --color-brand-primary: var(--brand-primary);
   --color-brand-secondary: var(--brand-secondary);
@@ -198,7 +198,7 @@ p, li {
   font-weight: inherit;
 }
 
-a {
+:where(a) {
   text-decoration: none;
   transition: color 0.2s ease;
 }
@@ -212,7 +212,7 @@ code:not(pre code) {
   font-variation-settings: normal;
   font-size: 0.82em;
   font-weight: 600;
-  color: var(--brand-primary);
+  color: var(--text-brand-primary);
   background: color-mix(in srgb, var(--surface-sunken) 70%, var(--surface-raised));
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-flat);
@@ -295,7 +295,7 @@ pre code {
 
 /* Links */
 .blog-article a {
-  color: var(--brand-primary);
+  color: var(--text-brand-primary);
   text-decoration: underline;
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
@@ -319,7 +319,7 @@ pre code {
   line-height: 1.6;
 }
 .blog-article li::marker {
-  color: var(--brand-primary);
+  color: var(--text-brand-primary);
 }
 
 /* Blockquotes */
@@ -378,7 +378,7 @@ pre code {
 .blog-article figcaption {
   text-align: left;
   font-size: var(--text-sm);
-  color: var(--text-muted);
+  color: var(--text-meta);
   margin-top: var(--space-3);
   font-style: normal;
 }
@@ -420,7 +420,7 @@ pre code {
  * accent only on the reference marks. */
 .blog-article sup a[data-footnote-ref],
 .blog-article a[data-footnote-ref] {
-  color: var(--brand-primary);
+  color: var(--text-brand-primary);
   font-weight: 700;
   text-decoration: none;
   padding: 0 1px;
@@ -434,7 +434,7 @@ pre code {
   padding-top: var(--space-6);
   border-top: 2px solid var(--border-strong);
   font-size: var(--text-base);              /* 1rem — still ≥ 16px, no text-xs */
-  color: var(--text-muted);
+  color: var(--text-meta);
 }
 .blog-article .footnotes h2.sr-only {
   position: absolute;
@@ -466,11 +466,11 @@ pre code {
   line-height: 1.6;
 }
 .blog-article .footnotes li::marker {
-  color: var(--brand-primary);
+  color: var(--text-brand-primary);
 }
 .blog-article .footnotes a[data-footnote-backref] {
-  color: var(--brand-primary);
-  text-decoration: none;
+  color: var(--text-brand-primary);
+  text-decoration: underline;
   margin-left: 4px;
 }
 
@@ -513,7 +513,7 @@ pre code {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-muted);
+  color: var(--text-meta);
 }
 
 .blog-article .sidenote .sidenote-body {
@@ -758,7 +758,7 @@ pre code {
  *   Card h3:     text-sm font-semibold
  *   Body:        text-sm (cards) text-base (pages)
  *   Overline:    text-xs font-mono uppercase tracking-wide
- *   Muted:       text-[var(--text-muted)]
+ *   Muted:       text-[var(--text-meta)]
  *
  * BORDER RADIUS:
  *   Buttons:     rounded-lg (8px)
@@ -993,3 +993,14 @@ pre code {
     transform: none;
   }
 }
+
+/* Native radio behavior with the same square focus grammar as the header. */
+.appearance-option input { accent-color: var(--text-brand-primary); }
+.appearance-option:has(input:focus-visible) { outline: 3px solid var(--interactive-focus); outline-offset: 2px; }
+
+/* Preserve explicit inline-link distinctions against the base anchor reset. */
+a.underline { text-decoration-line: underline; }
+
+/* Inline code on a filled panel follows its paired foreground. */
+[data-surface-tone="blue"] code:not(pre code) { color: var(--action-primary-text); background: transparent; border-color: currentColor; }
+[data-surface-tone="accent"] code:not(pre code) { color: var(--action-accent-text); background: transparent; border-color: currentColor; }

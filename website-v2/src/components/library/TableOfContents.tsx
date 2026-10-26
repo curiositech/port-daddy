@@ -22,7 +22,7 @@ import { TABLE_OF_CONTENTS, TEXTBOOK, chapterRoleLabel, type WhitePaper } from '
 
 const PART_RULE: Record<string, string> = {
   pdcobalt: 'bg-[var(--brand-primary)]',
-  pdteal: 'bg-[var(--brand-accent)]',
+  pdteal: 'bg-[var(--action-accent-bg)]',
   pdviolet: 'bg-[var(--story-violet)]',
   pdgold: 'bg-[var(--story-gold)]',
 }

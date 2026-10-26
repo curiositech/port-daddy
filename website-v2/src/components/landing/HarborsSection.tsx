@@ -4,12 +4,12 @@ import { Surface } from '@/components/ui/Surface'
 import { Shield, Key, Users, Anchor, Activity } from 'lucide-react'
 
 const CAPABILITIES = [
-  { cap: 'code:read', color: 'var(--brand-primary)' },
-  { cap: 'notes:write', color: 'var(--brand-primary)' },
-  { cap: 'tunnel:create', color: 'var(--brand-accent)' },
-  { cap: 'lock:acquire', color: 'var(--brand-accent)' },
-  { cap: 'msg:publish', color: 'var(--status-success)' },
-  { cap: 'file:claim', color: 'var(--status-success)' },
+  { cap: 'code:read', color: 'var(--text-brand-primary)' },
+  { cap: 'notes:write', color: 'var(--text-brand-primary)' },
+  { cap: 'tunnel:create', color: 'var(--text-brand-accent)' },
+  { cap: 'lock:acquire', color: 'var(--text-brand-accent)' },
+  { cap: 'msg:publish', color: 'var(--text-status-success)' },
+  { cap: 'file:claim', color: 'var(--text-status-success)' },
 ]
 
 function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilities: string[]; delay?: number }) {
@@ -27,16 +27,16 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
         />
         <motion.div className="flex items-center gap-5 mb-8">
           <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Anchor style={{ color: 'var(--brand-primary)' }} size={28} />
+            <Anchor style={{ color: 'var(--text-brand-primary)' }} size={28} />
           </Surface>
           <motion.div className="flex flex-col items-start">
-            <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--text-muted)' }}>Namespace</motion.span>
+            <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--text-meta)' }}>Namespace</motion.span>
             <motion.span className="text-2xl font-display font-black" style={{ color: 'var(--text-primary)' }}>{name}</motion.span>
           </motion.div>
         </motion.div>
 
         <motion.div className="space-y-4">
-          <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-muted)' }}>Signed Capabilities <span className="normal-case tracking-normal opacity-60">(advisory in v3)</span></motion.span>
+          <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-meta)' }}>Signed Capabilities <span className="normal-case tracking-normal opacity-60">(advisory in v3)</span></motion.span>
           <motion.div className="flex flex-wrap gap-2">
             {capabilities.map((cap, i) => {
               const config = CAPABILITIES.find(c => c.cap === cap) || CAPABILITIES[0]
@@ -59,8 +59,8 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
 
         <motion.div className="mt-10 pt-8 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-subtle)' }}>
            <motion.div className="flex items-center gap-2">
-              <Key size={14} style={{ color: 'var(--brand-accent)' }} />
-              <motion.span className="text-[12px] font-mono font-bold opacity-80" style={{ color: 'var(--text-muted)' }}>HMAC-SHA256</motion.span>
+              <Key size={14} style={{ color: 'var(--text-brand-accent)' }} />
+              <motion.span className="text-[12px] font-mono font-bold opacity-80" style={{ color: 'var(--text-meta)' }}>HMAC-SHA256</motion.span>
            </motion.div>
            <Badge variant="teal" className="px-3 py-1 text-[12px] font-black uppercase tracking-widest">Valid</Badge>
         </motion.div>
@@ -91,7 +91,7 @@ export function HarborsSection() {
              <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-[0.25em]">Security Architecture</Badge>
              <motion.h2 className="text-4xl sm:text-6xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
                Cryptographic <br />
-               <motion.span style={{ color: 'var(--brand-primary)' }}>Harbors.</motion.span>
+               <motion.span style={{ color: 'var(--text-brand-primary)' }}>Harbors.</motion.span>
              </motion.h2>
              <motion.p className="text-base max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                Harbors group agents into named permission namespaces with HMAC-signed capability tokens. In v3, capabilities are advisory -- the daemon tracks declarations but does not block access. Enforced boundaries ship in v4.
@@ -103,21 +103,21 @@ export function HarborsSection() {
              {/* Always-On Avatars card */}
              <Surface depth="raised" radius="4xl" padding="xl" className="space-y-6 flex flex-col items-center p-5 sm:p-8 lg:p-10">
                 <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center">
-                   <Shield style={{ color: 'var(--brand-primary)' }} size={28} />
+                   <Shield style={{ color: 'var(--text-brand-primary)' }} size={28} />
                 </Surface>
                 <div className="space-y-2">
                    <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Always-On Avatars (v4)</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will maintain persistent, harbor-scoped state across sessions.</motion.p>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-meta)' }}>Will maintain persistent, harbor-scoped state across sessions.</motion.p>
                 </div>
              </Surface>
              {/* Background Teams card */}
              <Surface depth="raised" radius="4xl" padding="xl" className="space-y-6 flex flex-col items-center p-5 sm:p-8 lg:p-10">
                 <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center">
-                   <Users style={{ color: 'var(--brand-accent)' }} size={28} />
+                   <Users style={{ color: 'var(--text-brand-accent)' }} size={28} />
                 </Surface>
                 <div className="space-y-2">
                    <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Background Teams (Planned)</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-meta)' }}>Will orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
                 </div>
              </Surface>
           </motion.div>
@@ -152,8 +152,8 @@ export function HarborsSection() {
              whileInView={{ opacity: 1 }}
              viewport={{ once: true }}
            >
-              <Activity size={16} style={{ color: 'var(--brand-primary)' }} />
-              <motion.span className="text-[12px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>HMAC Webhook Signing: Active</motion.span>
+              <Activity size={16} style={{ color: 'var(--text-brand-primary)' }} />
+              <motion.span className="text-[12px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-meta)' }}>HMAC Webhook Signing: Active</motion.span>
            </motion.div>
         </motion.div>
       </motion.div>

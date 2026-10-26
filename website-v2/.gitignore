@@ -23,3 +23,6 @@ storybook-static
 *.njsproj
 *.sln
 *.sw?
+
+# Local theme audit artifacts
+.theme-normalization/

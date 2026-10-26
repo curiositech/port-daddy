@@ -38,28 +38,28 @@ export function CliBackendValueProp() {
             <div className="grid gap-[var(--space-3)] sm:grid-cols-3">
               <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
                 <PanelEyebrow>Marginal cost</PanelEyebrow>
-                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
+                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-brand-primary)]">
                   $0.00
                 </p>
-                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                <p className="text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
                   per spawn, on the seat you already pay for
                 </p>
               </div>
               <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
                 <PanelEyebrow>Setup time</PanelEyebrow>
-                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
+                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-brand-primary)]">
                   2 min
                 </p>
-                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                <p className="text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
                   brew install, one env var, fleet up
                 </p>
               </div>
               <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
                 <PanelEyebrow>Backends</PanelEyebrow>
-                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
+                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-brand-primary)]">
                   claude-cli · codex
                 </p>
-                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                <p className="text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
                   first-class; Cloudflare and direct API are fallbacks
                 </p>
               </div>

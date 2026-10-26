@@ -41,7 +41,7 @@ export function ReorientationPanel({
     <div className="mb-[var(--space-6)] border-2 border-[var(--brand-primary)] bg-[color:var(--surface-raised)] p-[var(--space-4)]">
       <div className="flex items-start gap-[var(--space-4)]">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[var(--brand-primary)] bg-[var(--surface-base)]">
-          <RotateCcw size={20} className="text-[var(--brand-primary)]" />
+          <RotateCcw size={20} className="text-[var(--text-brand-primary)]" />
         </div>
 
         <div className="flex-1">

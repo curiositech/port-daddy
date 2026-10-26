@@ -52,7 +52,7 @@ function renderHeroShell() {
 
     return (
       <MemoryRouter>
-        <ThemeContext.Provider value={{ theme: 'dark', toggle: () => {} }}>
+        <ThemeContext.Provider value={{ theme: 'dark', preference: 'system', setPreference: () => {}, toggle: () => {} }}>
           <HeroWordmarkContext.Provider
             value={{ heroWordmarkVisible, setHeroWordmarkVisible }}
           >

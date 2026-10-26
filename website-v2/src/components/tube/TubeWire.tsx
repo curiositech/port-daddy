@@ -364,7 +364,7 @@ export function AgentNode({
       <div
         className={cn(
           'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]',
-          awake ? 'text-[var(--brand-primary-foreground-muted)]' : 'text-[var(--text-secondary)]',
+          awake ? 'text-[var(--action-primary-text)]' : 'text-[var(--text-secondary)]',
         )}
       >
         Listening on {channel}
@@ -451,12 +451,12 @@ export function TubeCard({
         <span
           className={cn(
             'font-sans text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)]',
-            kind === 'reply' ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-primary)]',
+            kind === 'reply' ? 'text-[var(--text-brand-accent)]' : 'text-[var(--text-brand-primary)]',
           )}
         >
           {who}
         </span>
-        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
           #{id}
         </span>
       </div>
@@ -525,7 +525,7 @@ export function TubeSimBadge({
         channel ?? '<channel>'
       }\` locally (or add ?daemon=<url>) for a real round-trip.`}
       className={cn(
-        'inline-flex max-w-full items-center gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]',
+        'inline-flex max-w-full items-center gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]',
         className,
       )}
     >
@@ -559,13 +559,13 @@ export function TubeStatus({
       break
     case 'awaiting':
       content = (
-        <span className="font-bold text-[var(--brand-accent)]">● agent awake — working…</span>
+        <span className="font-bold text-[var(--text-brand-accent)]">● agent awake — working…</span>
       )
       break
     case 'replied':
       content = (
         <>
-          <span className="font-bold text-[var(--brand-accent)]">● replied</span>
+          <span className="font-bold text-[var(--text-brand-accent)]">● replied</span>
           {typeof elapsedMs === 'number' ? <> in {elapsedMs} ms — </> : ' — '}
           <b className="text-[var(--text-primary)]">round-trip over one channel.</b>
         </>
@@ -575,7 +575,7 @@ export function TubeStatus({
       content = (
         <span className="text-[var(--text-primary)]">
           No agent is listening. Run{' '}
-          <code className="font-mono font-bold text-[var(--brand-primary)]">
+          <code className="font-mono font-bold text-[var(--text-brand-primary)]">
             pd tube {channel}
           </code>{' '}
           in a terminal, then try again.

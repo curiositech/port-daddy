@@ -74,7 +74,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-[var(--radius-lg)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all cursor-pointer"
+          className="absolute top-4 right-4 p-2 rounded-[var(--radius-lg)] text-[var(--text-meta)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all cursor-pointer"
           aria-label="Close"
         >
           <X size={20} />
@@ -119,18 +119,18 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
                 >
                   <Icon
                     size={20}
-                    className={intent.primary ? 'text-[var(--brand-primary)]' : 'text-[var(--text-secondary)]'}
+                    className={intent.primary ? 'text-[var(--text-brand-primary)]' : 'text-[var(--text-secondary)]'}
                   />
                 </Surface>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-[var(--text-primary)] mb-0.5">
                     {intent.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-muted)] mb-2">
+                  <p className="text-sm text-[var(--text-meta)] mb-2">
                     {intent.description}
                   </p>
                   <span className={`text-sm font-medium ${
-                    intent.primary ? 'text-[var(--brand-primary)]' : 'text-[var(--text-secondary)]'
+                    intent.primary ? 'text-[var(--text-brand-primary)]' : 'text-[var(--text-secondary)]'
                   }`}>
                     {intent.action} →
                   </span>
@@ -142,7 +142,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
 
         {/* Quick links */}
         <div className="mt-6 pt-6 border-t border-[var(--border-subtle)]">
-          <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] uppercase tracking-wide mb-3 text-center">
+          <p className="text-[length:var(--type-meta-size)] text-[var(--text-meta)] uppercase tracking-wide mb-3 text-center">
             Quick Links
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">

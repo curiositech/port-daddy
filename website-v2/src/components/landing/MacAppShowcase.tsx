@@ -105,7 +105,7 @@ function CapabilityRow({
   return (
     <article className="grid gap-[var(--space-4)] border-t-2 border-[var(--border-strong)] py-[var(--space-5)] md:grid-cols-[4.5rem_minmax(0,1fr)]">
       <div className="flex items-start gap-[var(--space-3)] md:flex-col">
-        <span className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--brand-primary)]">
+        <span className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--text-brand-primary)]">
           {capability.label}
         </span>
         <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]">
@@ -119,7 +119,7 @@ function CapabilityRow({
         <PanelBody className="max-w-[42rem]">
           {capability.description}
         </PanelBody>
-        <PanelBody size="compact" className="max-w-[42rem] text-[var(--text-muted)]">
+        <PanelBody size="compact" className="max-w-[42rem] text-[var(--text-meta)]">
           {capability.proof}
         </PanelBody>
       </div>
@@ -128,17 +128,6 @@ function CapabilityRow({
 }
 
 function SurfaceTitle({ title }: { title: string }) {
-  if (title.startsWith('Shipwright')) {
-    return (
-      <>
-        <RoleTerm role="shipwright">Shipwright</RoleTerm>
-        {title.slice('Shipwright'.length)}
-      </>
-    )
-  }
-  if (title === 'Spawned Runs') {
-    return <RoleTerm role="spawn">Spawned Runs</RoleTerm>
-  }
   return <>{title}</>
 }
 
@@ -178,7 +167,7 @@ function SurfacePreviewFallback({
             className="grid grid-cols-[0.75rem_minmax(0,1fr)] items-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-1)]"
             key={row}
           >
-            <span className="h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+            <span className="h-2 w-2 bg-[var(--action-accent-bg)]" aria-hidden="true" />
             <span className="min-w-0 font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)] [overflow-wrap:anywhere]">
               {row}
             </span>
@@ -205,7 +194,7 @@ function DialogSignalList({ appSurface }: { appSurface: AppSurface }) {
             className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] border-2 border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
             key={row}
           >
-            <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+            <span className="mt-[0.45em] h-2 w-2 bg-[var(--action-accent-bg)]" aria-hidden="true" />
             <span>{row}</span>
           </li>
         ))}
@@ -250,7 +239,7 @@ function SurfaceTile({
         <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
           <PanelEyebrow>
             {appSurface.surface === 'Shipwright' ? (
-              <RoleTerm role="shipwright">Shipwright</RoleTerm>
+              <span>Shipwright</span>
             ) : (
               appSurface.surface
             )}
@@ -275,13 +264,13 @@ function SurfaceTile({
         <PanelBody className="max-w-none">
           {appSurface.caption}
         </PanelBody>
-        <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+        <PanelBody size="compact" className="max-w-none text-[var(--text-meta)]">
           {appSurface.operatorValue}
         </PanelBody>
         <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
           <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
             <PanelEyebrow>What it unlocks</PanelEyebrow>
-            <span className="inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+            <span className="inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
               <Maximize2 size={13} />
               Open details
             </span>
@@ -292,7 +281,7 @@ function SurfaceTile({
                 key={highlight}
                 className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
               >
-                <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+                <span className="mt-[0.45em] h-2 w-2 bg-[var(--action-accent-bg)]" aria-hidden="true" />
                 <span>{highlight}</span>
               </li>
             ))}
@@ -352,7 +341,7 @@ function SurfaceDetailDialog({
             <PanelBody className="max-w-none">
               {appSurface.caption}
             </PanelBody>
-            <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+            <PanelBody size="compact" className="max-w-none text-[var(--text-meta)]">
               {appSurface.operatorValue}
             </PanelBody>
           </div>
@@ -381,7 +370,7 @@ function SurfaceDetailDialog({
                     key={highlight}
                     className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
                   >
-                    <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+                    <span className="mt-[0.45em] h-2 w-2 bg-[var(--action-accent-bg)]" aria-hidden="true" />
                     <span>{highlight}</span>
                   </li>
                 ))}
@@ -453,7 +442,7 @@ export function MacAppShowcase() {
                     loading="lazy"
                   />
                 </div>
-                <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+                <PanelBody size="compact" className="max-w-none text-[var(--text-meta)]">
                   The product captures follow the site theme: light site, light app shell; dark site,
                   dark app shell.
                 </PanelBody>

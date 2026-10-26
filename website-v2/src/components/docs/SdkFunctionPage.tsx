@@ -50,7 +50,7 @@ export function SdkFunctionPage({
 }: SdkFunctionPageProps) {
   return (
     <div className="space-y-[var(--space-7)]">
-      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+      <div className="flex items-center gap-2 text-sm text-[var(--text-meta)]">
         <Link to="/docs/sdk" className="hover:text-[var(--text-primary)]">
           SDK
         </Link>
@@ -96,7 +96,7 @@ export function SdkFunctionPage({
             {params.map((param) => (
               <SurfacePanel key={param.name} elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
                 <div className="flex flex-wrap items-center gap-[var(--space-2)]">
-                  <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+                  <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--text-brand-primary)]">
                     {param.name}
                   </PanelTitle>
                   {param.required ? (
@@ -126,7 +126,7 @@ export function SdkFunctionPage({
           titleSize="nav"
         >
           <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+            <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--text-brand-primary)]">
               {returns.type}
             </PanelTitle>
             <PanelBody size="compact" className="max-w-none">
@@ -182,14 +182,14 @@ export function SdkFunctionPage({
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-t border-[var(--border-subtle)] pt-[var(--space-5)]">
         <Link
           to={`/docs/sdk/${module.toLowerCase()}`}
-          className="flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          className="flex items-center gap-2 text-sm text-[var(--text-meta)] transition-colors hover:text-[var(--text-primary)]"
         >
           <ArrowLeft size={14} />
           {module} module
         </Link>
         <Link
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary)]"
+          className="flex items-center gap-2 text-sm text-[var(--text-brand-primary)] transition-colors hover:text-[var(--text-brand-primary)]"
         >
           All SDK functions
           <ArrowLeft size={14} className="rotate-180" />

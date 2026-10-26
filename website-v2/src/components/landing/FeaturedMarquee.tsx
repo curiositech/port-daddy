@@ -51,7 +51,7 @@ function MarqueeCardLink({ card, ariaHiddenClone }: { card: FeaturedCard; ariaHi
         <FeaturedCardMedia media={card.media} className="transition-transform duration-[var(--duration-normal)] group-hover:scale-[1.03]" />
       </div>
       <div className="flex flex-1 flex-col gap-[var(--space-1)] p-[var(--space-3)]">
-        <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
           {card.audience}
         </p>
         <h3 className="font-display text-[1.05rem] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
@@ -176,7 +176,7 @@ export function FeaturedMarquee() {
                   to={activeCard.href}
                   className="group grid content-end gap-[var(--space-3)] p-[var(--space-4)] text-[var(--text-primary)] no-underline sm:p-[var(--space-5)]"
                 >
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                     {activeCard.audience}
                   </span>
                   <span className="font-display text-[clamp(1.8rem,3vw,3.4rem)] font-black leading-[var(--leading-display-tight)]">
@@ -218,7 +218,7 @@ export function FeaturedMarquee() {
                     <span
                       className={cn(
                         'font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
-                        active ? 'text-[var(--brand-primary-foreground)]' : 'text-[var(--text-muted)]',
+                        active ? 'text-[var(--brand-primary-foreground)]' : 'text-[var(--text-meta)]',
                       )}
                     >
                       {card.audience}

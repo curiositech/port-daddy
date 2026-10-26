@@ -15,21 +15,21 @@ const PARTICIPANTS = [
     name: 'Nora',
     mark: '◆',
     role: 'Proposal author',
-    color: '#87d75f',
+    color: 'var(--text-status-success)',
     explanation: 'Owns checkout flow. Opens the plan, then revises it after both objections land.',
   },
   {
     name: 'Milo',
     mark: '◇',
     role: 'Adversarial reviewer',
-    color: '#5fd7ff',
+    color: 'var(--text-brand-accent)',
     explanation: 'Asks what happens when payment succeeds but inventory refuses the order.',
   },
   {
     name: 'Aya',
     mark: '●',
     role: 'Delivery safety owner',
-    color: '#ff8700',
+    color: 'var(--text-status-warning)',
     explanation: 'Requires one idempotency key across reservation, authorization, and capture.',
   },
 ] as const
@@ -63,10 +63,10 @@ type PaneArchive = {
 const PANE_ARCHIVE = paneArchiveData as PaneArchive
 
 function paneLineTone(line: string): string {
-  if (/\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b/i.test(line)) return 'text-[var(--status-error)] font-bold'
-  if (/PORT DADDY WITNESS|\bWITNESS\b|CAUGHT UP/.test(line)) return 'text-[var(--brand-primary)] font-semibold'
+  if (/\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b/i.test(line)) return 'text-[var(--text-status-error)] font-bold'
+  if (/PORT DADDY WITNESS|\bWITNESS\b|CAUGHT UP/.test(line)) return 'text-[var(--text-brand-primary)] font-semibold'
   if (/^(?:NORA◆|MILO◇|AYA●)\s+❯/.test(line)) return 'text-[var(--ph-command)] font-semibold'
-  if (/\b(?:session|agent)-[a-z0-9-]+\b/i.test(line)) return 'text-[var(--session)]'
+  if (/\b(?:session|agent)-[a-z0-9-]+\b/i.test(line)) return 'text-[var(--text-story-violet)]'
   return 'text-[var(--ph-text)]'
 }
 
@@ -81,10 +81,10 @@ function PaneScrollback({ pane }: { pane: PaneArchive['panes'][number] }) {
       <div className="flex flex-wrap items-start justify-between gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
         <div>
           <strong className="font-sans text-[length:var(--type-panel-title-nav-size)]">
-            <span aria-hidden="true" style={{ color: pane.color }}>{pane.mark}</span>{' '}
+            <span aria-hidden="true" style={{ color: PARTICIPANTS.find(participant => participant.name === pane.name)?.color ?? 'var(--text-brand-primary)' }}>{pane.mark}</span>{' '}
             {pane.name}
           </strong>
-          <span className="mt-1 block font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-muted)]">
+          <span className="mt-1 block font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-meta)]">
             {pane.role}
           </span>
         </div>
@@ -92,7 +92,7 @@ function PaneScrollback({ pane }: { pane: PaneArchive['panes'][number] }) {
           type="button"
           aria-controls={`pane-history-${pane.id}`}
           aria-label={`Jump ${pane.name} tmux pane scrollback to latest`}
-          className="inline-flex min-h-11 items-center gap-1 border border-[var(--border-strong)] px-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
+          className="inline-flex min-h-11 items-center gap-1 border border-[var(--border-strong)] px-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-brand-primary)] hover:bg-[var(--interactive-hover)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
           onClick={() => {
             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
           }}
@@ -106,7 +106,7 @@ function PaneScrollback({ pane }: { pane: PaneArchive['panes'][number] }) {
         role="region"
         tabIndex={0}
         aria-label={`${pane.name} tmux pane scrollback, ${pane.lines.length} lines`}
-        className="h-[19rem] min-h-0 max-w-none overflow-auto whitespace-pre-wrap break-words p-[var(--space-3)] font-mono text-[length:var(--type-code-size)] leading-[1.45] [scrollbar-color:var(--brand-primary)_var(--surface-sunken)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
+        className="h-[19rem] min-h-0 max-w-none overflow-auto whitespace-pre-wrap break-words p-[var(--space-3)] font-mono text-[length:var(--type-code-size)] leading-[1.45] [scrollbar-color:var(--text-brand-primary)_var(--surface-sunken)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
       >
         {pane.lines.map((line, index) => (
           <span className={`block min-h-[1.45em] ${paneLineTone(line)}`} key={`${pane.id}-${index}`}>
@@ -114,7 +114,7 @@ function PaneScrollback({ pane }: { pane: PaneArchive['panes'][number] }) {
           </span>
         ))}
       </pre>
-      <div className="flex flex-wrap justify-between gap-[var(--space-2)] border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+      <div className="flex flex-wrap justify-between gap-[var(--space-2)] border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
         <span>{pane.lines.length} captured lines</span>
         <span>{pane.historyLimitReached ? 'tmux history limit reached' : 'available history below limit'}</span>
       </div>
@@ -146,7 +146,7 @@ export function ParleyTmuxReplay() {
           </div>
           <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-3)]">
             <div className="flex items-start gap-[var(--space-2)]">
-              <ShieldCheck size={19} className="mt-0.5 shrink-0 text-[var(--brand-primary)]" />
+              <ShieldCheck size={19} className="mt-0.5 shrink-0 text-[var(--text-brand-primary)]" />
               <div>
                 <PanelEyebrow>Honesty boundary</PanelEyebrow>
                 <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
@@ -171,7 +171,7 @@ export function ParleyTmuxReplay() {
           <aside className="grid content-start gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)]" aria-label="Who is speaking in the tmux Parley">
             <div className="bg-[var(--surface-raised)] p-[var(--space-3)]">
               <div className="flex items-center gap-[var(--space-2)]">
-                <MessagesSquare size={18} className="text-[var(--brand-primary)]" />
+                <MessagesSquare size={18} className="text-[var(--text-brand-primary)]" />
                 <PanelEyebrow>Color commentary</PanelEyebrow>
               </div>
               <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
@@ -185,7 +185,7 @@ export function ParleyTmuxReplay() {
                     <span aria-hidden="true" style={{ color: participant.color }}>{participant.mark}</span>{' '}
                     {participant.name}
                   </strong>
-                  <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-muted)]">
+                  <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-meta)]">
                     {participant.role}
                   </span>
                 </div>
@@ -196,7 +196,7 @@ export function ParleyTmuxReplay() {
             ))}
             <article className="border-l-[0.45rem] border-l-[var(--brand-primary)] bg-[var(--surface-sunken)] p-[var(--space-3)]">
               <div className="flex items-center gap-[var(--space-2)]">
-                <Eye size={18} className="text-[var(--brand-primary)]" />
+                <Eye size={18} className="text-[var(--text-brand-primary)]" />
                 <strong className="font-sans text-[length:var(--type-panel-title-nav-size)]">Port Daddy witness</strong>
               </div>
               <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
@@ -222,7 +222,7 @@ export function ParleyTmuxReplay() {
                 Every pane reports its own history limit and whether that limit was reached.
               </PanelBody>
             </div>
-            <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)] lg:text-right">
+            <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)] lg:text-right">
               <div>{PANE_ARCHIVE.capture}</div>
               <div>sha256 {PANE_ARCHIVE.sourceCastSha256.slice(0, 12)}</div>
             </div>
@@ -234,17 +234,17 @@ export function ParleyTmuxReplay() {
 
         <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
           <div className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <TerminalSquare size={18} className="text-[var(--brand-primary)]" />
+            <TerminalSquare size={18} className="text-[var(--text-brand-primary)]" />
             <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">Three real shells</strong>
             <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">Different prompts, worktrees, and session anchors.</PanelBody>
           </div>
           <div className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <MessagesSquare size={18} className="text-[var(--brand-primary)]" />
+            <MessagesSquare size={18} className="text-[var(--text-brand-primary)]" />
             <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">Six durable turns</strong>
             <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">Proposal, two objections, revision, and two closures.</PanelBody>
           </div>
           <div className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <Eye size={18} className="text-[var(--brand-primary)]" />
+            <Eye size={18} className="text-[var(--text-brand-primary)]" />
             <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">One read-only witness</strong>
             <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">Commentary follows commits without changing receipts.</PanelBody>
           </div>

@@ -105,7 +105,7 @@ export function GiscusComments({ term }: GiscusCommentsProps) {
               href="https://github.com/curiositech/port-daddy"
               target="_blank"
               rel="noreferrer"
-              className="text-[var(--brand-primary)] underline underline-offset-4 hover:text-[var(--brand-secondary)]"
+              className="text-[var(--text-brand-primary)] underline underline-offset-4 hover:text-[var(--brand-secondary)]"
             >
               curiositech/port-daddy
             </a>{' '}
@@ -114,7 +114,7 @@ export function GiscusComments({ term }: GiscusCommentsProps) {
               href="https://github.com/apps/giscus"
               target="_blank"
               rel="noreferrer"
-              className="text-[var(--brand-primary)] underline underline-offset-4 hover:text-[var(--brand-secondary)]"
+              className="text-[var(--text-brand-primary)] underline underline-offset-4 hover:text-[var(--brand-secondary)]"
             >
               giscus app
             </a>

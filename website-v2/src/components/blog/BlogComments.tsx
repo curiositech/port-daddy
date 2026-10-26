@@ -180,7 +180,7 @@ function CommentCard({
           </Badge>
           <span
             className="text-xs"
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "var(--text-meta)" }}
           >
             {timeAgo(comment.created_at)}
           </span>
@@ -198,7 +198,7 @@ function CommentCard({
           <button
             onClick={() => onLike(comment.id)}
             className="flex items-center gap-1 text-xs transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "var(--text-meta)" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = "var(--brand-primary)";
             }}
@@ -219,7 +219,7 @@ function CommentCard({
                 onSetReplyTo(replyTo === comment.id ? null : comment.id)
               }
               className="flex items-center gap-1 text-xs transition-colors"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-meta)" }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "var(--brand-secondary)";
               }}
@@ -339,7 +339,7 @@ function CommentForm({
       <div className={compact ? "mb-2" : "mb-3"}>
         <label
           className="block mb-1 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--text-meta)" }}
         >
           Name
         </label>
@@ -365,7 +365,7 @@ function CommentForm({
       <div className={compact ? "mb-2" : "mb-3"}>
         <label
           className="block mb-1 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--text-meta)" }}
         >
           Comment
         </label>
@@ -385,7 +385,7 @@ function CommentForm({
         </Surface>
         <p
           className="text-xs mt-1"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--text-meta)" }}
         >
           Markdown: **bold** *italic* `code` [link](url)
         </p>
@@ -394,7 +394,7 @@ function CommentForm({
       {error && (
         <p
           className="text-xs mb-2 font-medium"
-          style={{ color: "var(--status-error)" }}
+          style={{ color: "var(--text-status-error)" }}
         >
           {error}
         </p>
@@ -431,7 +431,7 @@ function CommentForm({
             type="button"
             onClick={onCancel}
             className="px-3 py-2 text-xs font-medium transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "var(--text-meta)" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = "var(--text-primary)";
             }}
@@ -607,7 +607,7 @@ export function BlogComments({ slug }: BlogCommentsProps) {
           {loading ? (
             <div
               className="flex items-center justify-center py-8 gap-2"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-meta)" }}
             >
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-xs font-medium">Loading comments...</span>
@@ -616,7 +616,7 @@ export function BlogComments({ slug }: BlogCommentsProps) {
             <div className="py-8 text-center">
               <span
                 className="text-xs"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--text-meta)" }}
               >
                 Scroll down to load comments
               </span>
@@ -628,7 +628,7 @@ export function BlogComments({ slug }: BlogCommentsProps) {
                 <Surface depth="inset" radius="none" padding="md" className="mb-6">
                   <p
                     className="text-sm text-center"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--text-meta)" }}
                   >
                     No comments yet. Be the first to share your thoughts.
                   </p>

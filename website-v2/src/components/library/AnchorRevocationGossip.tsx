@@ -66,7 +66,7 @@ export function AnchorRevocationGossip() {
   const arrowId = `${uid}-gossip-arrow`
   return (
     <figure className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]">
-      <div className="overflow-x-auto p-[var(--space-5)]">
+      <div role="region" tabIndex={0} aria-label="Diagram" className="overflow-x-auto p-[var(--space-5)]">
         <svg
           viewBox="0 0 748 232"
           role="img"

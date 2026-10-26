@@ -308,11 +308,11 @@ export function EditorLightbulb() {
         {/* Right column: the agent's explanation + suggested change */}
         <SurfacePanel className="flex min-w-0 flex-col gap-[var(--space-4)] self-start">
           <div className="flex items-center justify-between gap-[var(--space-3)]">
-            <PanelEyebrow className={answered ? 'text-[var(--brand-accent)]' : undefined}>
+            <PanelEyebrow className={answered ? 'text-[var(--text-brand-accent)]' : undefined}>
               {answered ? 'Agent reply · explanation' : 'What the agent sends back'}
             </PanelEyebrow>
             {usingSample ? (
-              <span className="shrink-0 border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <span className="shrink-0 border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)]">
                 Sample shape
               </span>
             ) : null}
@@ -336,7 +336,7 @@ export function EditorLightbulb() {
               aria-disabled="true"
               title="Demo only — this does not edit files"
               className={cn(
-                'inline-flex cursor-not-allowed items-center gap-[var(--space-2)] border-2 border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] opacity-70',
+                'inline-flex cursor-not-allowed items-center gap-[var(--space-2)] border-2 border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-meta)] opacity-70',
               )}
             >
               Apply this change
@@ -412,8 +412,8 @@ function EditorPane({
   return (
     <div className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
-        <PanelEyebrow className="text-[var(--brand-primary)]">editor · {file}</PanelEyebrow>
-        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+        <PanelEyebrow className="text-[var(--text-brand-primary)]">editor · {file}</PanelEyebrow>
+        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-meta)]">
           lines {SELECTION_RANGE.startLine}–{SELECTION_RANGE.endLine} selected
         </span>
       </div>
@@ -433,7 +433,7 @@ function EditorPane({
               {/* Gutter: line number + (on the first selected line) the bulb. */}
               <div
                 className={cn(
-                  'relative flex w-[var(--space-8)] shrink-0 select-none items-center justify-end gap-[var(--space-1)] border-r-2 px-[var(--space-2)] text-[var(--text-muted)]',
+                  'relative flex w-[var(--space-8)] shrink-0 select-none items-center justify-end gap-[var(--space-1)] border-r-2 px-[var(--space-2)] text-[var(--text-meta)]',
                   line.selected
                     ? 'border-[var(--brand-primary)]'
                     : 'border-[var(--border-default)]',
@@ -453,6 +453,9 @@ function EditorPane({
 
               {/* Source text. Selected lines carry a cobalt left edge cue. */}
               <pre
+                role="region"
+                tabIndex={0}
+                aria-label={`Source line ${line.n}`}
                 className={cn(
                   'min-w-0 flex-1 overflow-x-auto whitespace-pre px-[var(--space-3)] py-[1px] text-[var(--text-primary)]',
                   line.selected && 'border-l-2 border-[var(--brand-primary)] pl-[calc(var(--space-3)-2px)]',
@@ -498,7 +501,7 @@ function GutterLamp({
         'relative -ml-[2px] inline-flex h-[18px] w-[18px] items-center justify-center border transition-colors',
         lit
           ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-          : 'border-[var(--brand-primary)] bg-transparent text-[var(--brand-primary)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)]',
+          : 'border-[var(--brand-primary)] bg-transparent text-[var(--text-brand-primary)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--interactive-focus)]',
         'disabled:cursor-not-allowed',
         lit && !reduced && 'shadow-[0_0_0_3px_rgba(0,63,184,0.20)]',
@@ -542,16 +545,16 @@ function ChangeCard({
     switch (kind) {
       case 'add':
         return {
-          color: 'var(--brand-accent)',
+          color: 'var(--text-brand-accent)',
           bg: 'color-mix(in srgb, var(--brand-accent) 9%, transparent)',
         }
       case 'del':
         return {
-          color: 'var(--status-error)',
+          color: 'var(--text-status-error)',
           bg: 'color-mix(in srgb, var(--status-error) 8%, transparent)',
         }
       case 'meta':
-        return { color: 'var(--text-muted)', bg: 'transparent' }
+        return { color: 'var(--text-meta)', bg: 'transparent' }
       default:
         return { color: 'var(--text-secondary)', bg: 'transparent' }
     }
@@ -567,7 +570,7 @@ function ChangeCard({
       <div className="border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
         <PanelEyebrow>suggested change · unified diff</PanelEyebrow>
       </div>
-      <div className="overflow-x-auto px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]">
+      <div role="region" tabIndex={0} aria-label="Unified diff" className="overflow-x-auto px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]">
         {lines.map((line, i) => {
           const tone = toneFor(line.kind)
           return (

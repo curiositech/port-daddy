@@ -200,7 +200,7 @@ export function HarborViz() {
       {/* Legend */}
       <motion.div
         className="absolute bottom-2 right-2 text-[12px] font-mono flex flex-col gap-1"
-        style={{ color: 'var(--text-muted)' }}
+        style={{ color: 'var(--text-meta)' }}
       >
         <motion.div className="flex items-center gap-1.5">
           <motion.span className="w-2 h-2 rounded-full inline-block" style={{ background: STATUS_COLORS.active }} />

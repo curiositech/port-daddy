@@ -51,7 +51,7 @@ export function MaturitySection() {
       {/* Background kinetic art */}
       <motion.div
         className="absolute top-0 right-0 p-20 opacity-[0.03] pointer-events-none"
-        style={{ color: 'var(--text-muted)' }}
+        style={{ color: 'var(--text-meta)' }}
         animate={{ rotate: 360 }}
         transition={{ duration: 120, repeat: Infinity, ease: 'linear' }}
       >
@@ -77,7 +77,7 @@ export function MaturitySection() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
             Production-grade <br />
-            <motion.span style={{ color: 'var(--brand-primary)' }}>Agentic Reliability.</motion.span>
+            <motion.span style={{ color: 'var(--text-brand-primary)' }}>Agentic Reliability.</motion.span>
           </motion.h2>
           <motion.p
             className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans opacity-80"
@@ -106,7 +106,7 @@ export function MaturitySection() {
               >
                 {/* Icon in inset circle */}
                 <Surface depth="inset" radius="3xl" padding="none" className="w-20 h-20 flex items-center justify-center transition-all group-hover:scale-110">
-                  <feature.icon size={40} style={{ color: 'var(--brand-accent)' }} />
+                  <feature.icon size={40} style={{ color: 'var(--text-brand-accent)' }} />
                 </Surface>
 
                 <div className="space-y-4 flex-1">
@@ -128,7 +128,7 @@ export function MaturitySection() {
                      }}
                    >
                       <motion.div className="w-2 h-2 rounded-full opacity-20 group-hover:opacity-100 transition-opacity" style={{ background: 'var(--brand-primary)' }} />
-                      <motion.span className="text-[12px] font-black uppercase tracking-widest opacity-30 group-hover:opacity-80" style={{ color: 'var(--text-muted)' }}>V4 Specs Included</motion.span>
+                      <motion.span className="text-[12px] font-black uppercase tracking-widest opacity-30 group-hover:opacity-80" style={{ color: 'var(--text-meta)' }}>V4 Specs Included</motion.span>
                    </motion.div>
                 </motion.div>
               </motion.div>
@@ -148,13 +148,13 @@ export function MaturitySection() {
           viewport={{ once: true }}
         >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <ShieldCheck size={600} style={{ color: 'var(--text-muted)' }} />
+              <ShieldCheck size={600} style={{ color: 'var(--text-meta)' }} />
            </div>
 
            <div className="space-y-8 relative z-10 flex flex-col items-center">
               <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-widest">V4 Roadmap</Badge>
               <motion.h3 className="text-3xl sm:text-5xl lg:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                What's <motion.span style={{ color: 'var(--brand-primary)' }}>Next.</motion.span>
+                What's <motion.span style={{ color: 'var(--text-brand-primary)' }}>Next.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
                 V4 will bring end-to-end encrypted networking via Noise Protocol, formal verification with ProVerif, and enforced harbor permission boundaries. Here's what's on the roadmap.
@@ -167,7 +167,7 @@ export function MaturitySection() {
                      boxShadow: 'var(--shadow-inset)',
                    }}
                  >
-                    <Zap size={20} style={{ color: 'var(--brand-accent)' }} />
+                    <Zap size={20} style={{ color: 'var(--text-brand-accent)' }} />
                     <motion.span className="text-[12px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>In Development</motion.span>
                  </motion.div>
                  <motion.div
@@ -177,7 +177,7 @@ export function MaturitySection() {
                      boxShadow: 'var(--shadow-inset)',
                    }}
                  >
-                    <Activity size={20} style={{ color: 'var(--brand-primary)' }} />
+                    <Activity size={20} style={{ color: 'var(--text-brand-primary)' }} />
                     <motion.span className="text-[12px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Planned for v4</motion.span>
                  </motion.div>
               </motion.div>

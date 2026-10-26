@@ -63,7 +63,7 @@ export function CTABanner() {
                   >
                     <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
                       <PanelEyebrow>{path.label}</PanelEyebrow>
-                      <Icon aria-hidden="true" size={18} className="text-[var(--brand-primary)]" />
+                      <Icon aria-hidden="true" size={18} className="text-[var(--text-brand-primary)]" />
                     </div>
                     <PanelTitle as="h3" size="nav" className="max-w-none">
                       {path.title}
@@ -100,7 +100,7 @@ export function CTABanner() {
 
           <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
             <div className="flex items-center gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-              <MonitorCheck size={17} className="text-[var(--brand-primary)]" />
+              <MonitorCheck size={17} className="text-[var(--text-brand-primary)]" />
               <PanelEyebrow>What you see in FleetBar</PanelEyebrow>
             </div>
             <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
@@ -133,7 +133,7 @@ pd setup`}
                   key={label}
                   className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-[var(--space-2)] last:border-b-0 last:pb-0"
                 >
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                     {label}
                   </span>
                   <span className="text-right text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
@@ -180,10 +180,10 @@ pd setup`}
               >
                 <div className="grid gap-[var(--space-3)]">
                   <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
-                    <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                       {paper.order}
                     </span>
-                    <FileText aria-hidden="true" size={16} className="text-[var(--brand-primary)]" />
+                    <FileText aria-hidden="true" size={16} className="text-[var(--text-brand-primary)]" />
                   </div>
                   <div className="space-y-[var(--space-2)]">
                     <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
@@ -216,7 +216,7 @@ pd setup`}
           </div>
           <Link
             to="/whitepaper"
-            className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
+            className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)] no-underline"
           >
             Read all {WHITE_PAPERS.length} in the Harbor Library
             <ArrowRight aria-hidden="true" size={14} className="transition-transform group-hover:translate-x-0.5" />

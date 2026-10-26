@@ -77,7 +77,7 @@ function FeatureDetailDialog({
             <div className="grid gap-[var(--space-2)]">
               <div className="flex flex-wrap items-center gap-[var(--space-2)]">
                 <BracketLabel>{feature.category}</BracketLabel>
-                <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
                   {feature.status}
                 </span>
               </div>
@@ -152,7 +152,7 @@ function FeatureDetailDialog({
                     <Link
                       key={link.href}
                       to={link.href}
-                      className="group flex items-center justify-between gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline transition-colors hover:bg-[var(--interactive-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                      className="group flex items-center justify-between gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)] no-underline transition-colors hover:bg-[var(--interactive-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                     >
                       <span>{link.label}</span>
                       <ArrowUpRight
@@ -216,7 +216,7 @@ function FeatureCard({
             </span>
             <span className="flex flex-wrap items-center justify-end gap-[var(--space-2)] text-right font-sans text-[12px] font-black uppercase tracking-[0.22em]">
               <span className="text-[var(--text-secondary)]">{feature.category}</span>
-              <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-2)] text-[var(--brand-primary)]">
+              <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-2)] text-[var(--text-brand-primary)]">
                 {feature.status}
               </span>
             </span>
@@ -236,7 +236,7 @@ function FeatureCard({
             </PanelBody>
           </div>
 
-          <div className="mt-auto flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          <div className="mt-auto flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-brand-primary)]">
             <span>Open full card</span>
             <Maximize2
               size={16}
