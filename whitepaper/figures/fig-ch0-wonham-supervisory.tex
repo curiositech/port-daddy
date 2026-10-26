@@ -4,57 +4,46 @@
 % Distinguish: safe target K, achievable controlled language and observation limits.
 % Grammar: nested languages and named transitions, not a universal safety gate.
 % Acceptance: state the controllability and observation conditions on K.
+\noindent\begin{minipage}{11.1cm}\centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- one grid, declared once --------------------------------------------
-  \def\R{13.90}      % legend rule width
-  % ---- left: the language containment, as nested sets ---------------------
-  \draw[pd neutral fill] (0.60,1.00) rectangle (6.00,5.30);
-  \node[pd label,anchor=north west] at (0.75,5.15) {$L(G)$};
-  \draw[pd focus fill] (1.70,1.60) rectangle (4.90,3.90);
-  \node[pd label,anchor=north west] at (1.85,3.75) {safe target $K$};
-  \node[pd label] at (3.30,0.65) {$L(S/G) \subseteq K \subseteq L(G)$};
-  \node[pd focus datum] (AD) at (3.00,2.60) {};
-  \node[pd badge] at (3.35,2.90) {1};
-  \node[pd breach datum] (DD) at (5.35,2.20) {};
-  \node[pd badge] at (5.35,2.65) {2};
-  % ---- right: the plant, with S as a boundary around Sigma_c only --------
-  \draw[pd trust boundary] (7.70,4.60) rectangle (13.00,6.50);
-  \node[pd kind,anchor=north] at (10.35,6.44) {S disables $\Sigma_c$};
-  \node[pd automaton state] (X0) at (8.60,3.30) {$x_0$};
-  \node[pd automaton state] (X1) at (8.60,5.60) {$x_1$};
-  \node[pd automaton state,draw=pderror,dash pattern=on 3.2pt off 2.2pt,line width=1.2pt]
-    (X3) at (12.40,5.60) {$x_3$};
-  \node[pd automaton state] (X2) at (8.60,1.00) {$x_2$};
-  \draw[pd initial] (7.30,2.60) -- (X0);
-  \draw[pd rule] (X0) -- (X1);
-  \node[pd badge] at (8.10,4.45) {1};
-  \node[pd label,anchor=east] at (7.75,4.45) {file write};
+  % Nested languages and a separate controllable-event boundary.
+  \draw[pd neutral fill] (.10,1.00) rectangle (4.80,5.20);
+  \node[pd label,anchor=north west] at (.25,5.05) {$L(G)$};
+  \draw[pd focus fill] (1.05,1.60) rectangle (3.85,3.95);
+  \node[pd label,anchor=north] at (2.45,3.78) {safe target $K$};
+  \node[pd focus datum] at (2.35,2.55) {};
+  \node[pd badge] at (2.70,2.90) {1};
+  \node[pd breach datum] at (4.25,2.20) {};
+  \node[pd badge] at (4.25,2.65) {2};
+  \node[pd label] at (2.45,.55) {$L(S/G)\subseteq K\subseteq L(G)$};
+  \draw[pd trust boundary] (6.30,4.00) rectangle (10.80,5.85);
+  \node[pd kind] at (8.55,5.55) {$S$ disables $\Sigma_c$};
+  \node[pd automaton state] (X0) at (7.20,2.65) {$x_0$};
+  \node[pd automaton state] (X1) at (7.20,4.70) {$x_1$};
+  \node[pd automaton state,draw=pderror,dash pattern=on 3.2pt off 2.2pt] (X3) at (9.80,4.70) {$x_3$};
+  \node[pd automaton state] (X2) at (7.20,.65) {$x_2$};
+  \draw[pd initial] (5.80,2.00) -- (X0);
+  \draw[pd arrow] (X0) -- (X1);
+  \node[pd badge] at (6.65,3.65) {1};
   \draw[pd breach arrow] (X1) -- (X3);
-  \node[pd badge] at (9.85,4.95) {2};
-  \node[pd label,anchor=west,text=pderror] at (10.20,4.95) {process spawn};
-  \draw[pd rule] (X0) -- (X2);
-  \node[pd label,anchor=east] at (8.15,2.15) {model tokens};
-  \node[pd note,anchor=north west,text width=6.3cm] at (7.70,0.60)
-    {$x_3$ is reached only inside $S$'s boundary; $x_2$, reached by an
-    uncontrollable event, is never a candidate for disablement.};
-  % ---- the legend: each event class, badge, what S may do -----------------
-  \def\ly{-0.90}
-  \draw[pd rule] (0,\ly) -- (\R,\ly);
-  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {event};
-  \node[pd title,anchor=north west] at (3.55,{\ly-.30}) {class};
-  \node[pd title,anchor=north west] at (5.35,{\ly-.30}) {the supervisor};
-  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
-  \foreach \i/\n/\h/\l/\s in {%
-    0/1/{file write}/{$\Sigma_c$}/{admitted: the trace stays inside $K$},
-    1/2/{process spawn}/{$\Sigma_c$}/{disabled: would leave $K$ (e.g.\ an unleased mutation)},
-    2/{--}/{model tokens, host signals,\\process exit}/{$\Sigma_u$}/{always executes; outside $S$'s authority}}{
-      \node[pd badge] at (.28,{\ly-1.35-\i*.95}) {\n};
-      \node[pd label,anchor=base west,align=left,text width=2.75cm] at (.62,{\ly-1.35-\i*.95}) {\h};
-      \node[pd label,anchor=base west] at (3.55,{\ly-1.35-\i*.95}) {\l};
-      \node[pd label,anchor=base west,align=left,text width=7.9cm] at (5.35,{\ly-1.35-\i*.95}) {\s};}
-  \node[pd note,anchor=north west,text width=13.4cm] at (.05,{\ly-1.35-2*.95-1.05})
-    {Containment requires implementability: every permitted prefix must admit
-    its uncontrollable continuations. Partial observation adds a condition;
-    $L(S/G)=K$ is not guaranteed for an arbitrary safe target.};
+  \node[pd badge] at (8.55,4.15) {2};
+  \draw[pd arrow] (X0) -- (X2);
+  \node[pd label,anchor=west] at (7.90,1.65) {$\Sigma_u$};
 \end{tikzpicture}
+\par\smallskip
+{\pdfiglabel\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{@{}c p{2.0cm}p{.65cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+ & \textbf{Event} & \textbf{Class} & \textbf{Supervisor}\\
+\midrule
+1 & file write & $\Sigma_c$ & Admitted: the trace stays inside $K$.\\
+2 & process spawn & $\Sigma_c$ & Disabled: would leave $K$.\\
+-- & tokens, signals, exit & $\Sigma_u$ & Cannot disable this continuation.\\
+\bottomrule
+\end{tabularx}}
+\par\smallskip
+{\pdfiglabelitalic\raggedright Containment requires implementability: permitted prefixes
+must admit their uncontrollable continuations. Partial observation adds a
+condition; an arbitrary safe target need not satisfy $L(S/G)=K$.\par}
+\end{minipage}

@@ -74,8 +74,8 @@
     % Wrapfig bypasses the Book's floating-owner registration. Use a normal
     % measured exhibit so its caption has the same placement contract.
     \begin{figure}[htbp]\centering
-      \IfFileExists{plates/margin-evidence/#5.png}{%
-        \includegraphics[width=#2,keepaspectratio]{plates/margin-evidence/#5.png}%
+      \IfFileExists{plates/margin-evidence/#5.pdf}{%
+        \includegraphics[width=#2,keepaspectratio]{plates/margin-evidence/#5.pdf}%
       }{\PackageError{pd-margin-layout}{Missing illustration #5}%
         {Generate and inspect the artwork before including it.}}%
       \caption{\if\relax\detokenize{#4}\relax\else\textbf{#4.} \fi #6}%

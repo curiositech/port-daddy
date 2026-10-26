@@ -6,59 +6,40 @@
 % Acceptance: an inform message does not itself verify its asserted fact.
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- one grid, shared by all three rows -----------------------------------
-  \def\colA{1.55}     % the leading performative
-  \def\colB{5.35}     % the guard / evaluation stage
-  \def\colC{9.15}     % terminal outcome(s)
-  \def\rowdy{4.35}  % pitch between the three protocol rows
-  \def\branch{0.95} % vertical spread of a two-way terminal branch
-  \def\tx{-1.95}    % left margin: row title and the initial arrow's tail
-  % ============================================================================
-  % ROW 0 (y=0): Directive request -- the one protocol with two branch points
-  % ============================================================================
-  \node[pd title,anchor=west] at (\tx,1.85) {1. \texttt{request}};
-  \node[pd kind,anchor=west] at (\tx,1.42) {directive};
-  \draw[pd initial] (\tx,0) -- (1.55-1.45,0);
-  \node[pd state,minimum width=2.5cm] (R1) at (\colA,0) {\texttt{request}};
-  \node[pd state,minimum width=2.3cm] (R2) at (\colB,0) {\texttt{agree}};
-  \draw[pd rule] (R1) -- (R2);
-  \node[pd ready state,minimum width=3.0cm] (R3) at (\colC,{\branch}) {\texttt{inform-done}};
-  \node[pd breach state,minimum width=2.3cm] (R4) at (\colC,{-\branch}) {\texttt{failure}};
+  % Native 10.9cm grid; the three protocols share columns and row pitch.
+  \def\colA{1.55}\def\colB{5.10}\def\colC{9.05}
+  \def\rowdy{3.20}\def\branch{0.65}
+  \foreach \i/\act/\kind in {0/request/directive,1/inform/assertive,2/propose/commissive}{
+    \node[pd title,anchor=west] at (0.05,{-\i*\rowdy+1.20})
+      {\number\numexpr\i+1\relax. \texttt{\act} --- \kind};}
+  \node[pd state,minimum width=2.2cm] (R1) at (\colA,0) {\texttt{request}};
+  \node[pd state,minimum width=2.0cm] (R2) at (\colB,0) {\texttt{agree}};
+  \node[pd ready state,minimum width=3.0cm] (R3) at (\colC,\branch) {\texttt{inform-done}};
+  \node[pd breach state,minimum width=2.4cm] (R4) at (\colC,-\branch) {\texttt{failure}};
+  \node[pd breach state,minimum width=2.2cm] (RX) at (\colA,-1.15) {\texttt{refuse}};
+  \draw[pd initial] (0.05,0) -- (R1.west);
+  \draw[pd arrow] (R1) -- (R2);
   \draw[pd ready arrow] (R2) -- (R3);
   \draw[pd breach arrow] (R2) -- (R4);
-  % the off-ramp: request may be refused before agreement is ever reached
-  \node[pd breach state,minimum width=2.3cm] (RX) at (\colA,-1.80) {\texttt{refuse}};
-  \draw[pd breach arrow,rounded corners=3pt] (R1.south) -- ({\colA},-1.20) -- (RX.north);
-  % ============================================================================
-  % ROW 1 (y=-rowdy): Assertive inform -- one straight chain, no off-ramp
-  % ============================================================================
-  \node[pd title,anchor=west] at ({\tx},{-\rowdy+1.85}) {2. \texttt{inform}($\phi$)};
-  \node[pd kind,anchor=west] at ({\tx},{-\rowdy+1.42}) {assertive};
-  \draw[pd initial] ({\tx},{-\rowdy}) -- ({1.55-1.45},{-\rowdy});
-  \node[pd state,minimum width=2.9cm] (I1) at (\colA,{-\rowdy}) {\texttt{inform}($\phi$)};
-  \node[pd state,minimum width=2.9cm] (I2) at (\colB,{-\rowdy}) {assess assertion};
-  \node[pd ready state,minimum width=3.0cm] (I3) at (\colC,{-\rowdy}) {possible revision};
-  \draw[pd rule] (I1) -- (I2);
+  \draw[pd breach arrow] (R1) -- (RX);
+  \node[pd state,minimum width=2.2cm] (I1) at (\colA,-\rowdy) {\texttt{inform}($\phi$)};
+  \node[pd state,text width=2.45cm] (I2) at (\colB,-\rowdy) {assess assertion};
+  \node[pd ready state,text width=2.7cm] (I3) at (\colC,-\rowdy) {possible revision};
+  \draw[pd initial] (0.05,-\rowdy) -- (I1.west);
+  \draw[pd arrow] (I1) -- (I2);
   \draw[pd ready arrow] (I2) -- (I3);
-  % ============================================================================
-  % ROW 2 (y=-2*rowdy): Commissive propose -- one branch, same shape as row 0's
-  % ============================================================================
-  \node[pd title,anchor=west] at ({\tx},{-2*\rowdy+1.85}) {3. \texttt{propose}};
-  \node[pd kind,anchor=west] at ({\tx},{-2*\rowdy+1.42}) {commissive};
-  \draw[pd initial] ({\tx},{-2*\rowdy}) -- ({1.55-1.45},{-2*\rowdy});
-  \node[pd state,minimum width=2.5cm] (P1) at (\colA,{-2*\rowdy}) {\texttt{propose}};
-  \node[pd state,minimum width=2.7cm] (P2) at (\colB,{-2*\rowdy}) {utility eval};
+  \node[pd state,minimum width=2.2cm] (P1) at (\colA,{-2*\rowdy}) {\texttt{propose}};
+  \node[pd state,minimum width=2.2cm] (P2) at (\colB,{-2*\rowdy}) {utility eval};
   \node[pd ready state,minimum width=3.2cm] (P3) at (\colC,{-2*\rowdy+\branch}) {\texttt{accept-proposal}};
   \node[pd breach state,minimum width=3.2cm] (P4) at (\colC,{-2*\rowdy-\branch}) {\texttt{reject-proposal}};
-  \draw[pd rule] (P1) -- (P2);
+  \draw[pd initial] (0.05,{-2*\rowdy}) -- (P1.west);
+  \draw[pd arrow] (P1) -- (P2);
   \draw[pd ready arrow] (P2) -- (P3);
   \draw[pd breach arrow] (P2) -- (P4);
-  % ---- the key: what each hue means, read once for all three rows ----------
-  \node[pd title,anchor=north west] at (\colA-1.30,{-2*\rowdy-1.60}) {what each hue means};
-  \foreach \i/\s/\w in {0/{pd state}/{a performative sent, or an internal check},
-                        1/{pd ready state}/{a protocol outcome, not proof of its content},
-                        2/{pd breach state}/{a refusal or a failure}}{
-    \node[\s,minimum width=.55cm,minimum height=.36cm,inner sep=0pt]
-      at ({\colA-1.10},{-2*\rowdy-2.45-\i*.54}) {};
-    \node[pd label,anchor=west] at ({\colA-0.72},{-2*\rowdy-2.45-\i*.54}) {\w};}
+  \node[pd title,anchor=west] at (.05,-8.00) {Outcome key};
+  \foreach \i/\s/\w in {0/{pd state}/{performative or internal assessment},
+    1/{pd ready state}/{protocol outcome; not proof of content},
+    2/{pd breach state}/{refusal or failure}}{
+    \node[\s,minimum width=.55cm,minimum height=.36cm,inner sep=0pt] at (.35,{-8.65-\i*.55}) {};
+    \node[pd label,anchor=west] at (.85,{-8.65-\i*.55}) {\w};}
 \end{tikzpicture}

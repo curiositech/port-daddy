@@ -17,6 +17,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \usepackage{float}
+\usepackage{placeins}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage[backref=page]{hyperref}
@@ -545,6 +546,8 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 \paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences. Figure~\ref{fig:anchor-verification-stack} draws the same table as one directed bridge: obligations descending the left rail, evidence climbing the right, the two gaps sitting where a human bridges the claim.
 
 \input{figures/fig-anchor-verification-stack}
+% Keep the verification-stack exhibit before the claim it introduces.
+\FloatBarrier
 
 \subsection{Symbolic Analysis with ProVerif}
 

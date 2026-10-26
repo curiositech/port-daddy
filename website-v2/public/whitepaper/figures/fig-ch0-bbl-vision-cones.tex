@@ -7,12 +7,12 @@
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % ---- the grid -------------------------------------------------------------
-  \def\Wl{0.0}  \def\Wr{11.6}  \def\Hb{0.55}  \def\Ht{5.85}
-  \coordinate (a1) at (1.35,2.35);
-  \coordinate (a2) at (6.05,3.45);
-  \coordinate (phi) at (10.05,4.35);
-  \def\angA{13.2}  \def\spreadA{21}  \def\radA{8.1}   % V(a1): wide, long
-  \def\angB{12.7}  \def\spreadB{17}  \def\radB{6.15}  % V(a2): narrower
+  \def\Wl{0.0}  \def\Wr{10.7}  \def\Hb{0.40}  \def\Ht{5.40}
+  \coordinate (a1) at (0.75,2.00);
+  \coordinate (a2) at (4.45,2.90);
+  \coordinate (phi) at (8.05,3.80);
+  \def\angA{13.2}  \def\spreadA{16}  \def\radA{6.60}   % V(a1): wide, long
+  \def\angB{12.7}  \def\spreadB{17}  \def\radB{4.60}  % V(a2): narrower
   \def\trim{0.52}  % clears the 8.5mm agent node, so no edition's pattern
                     % fill ever needs to occlude a stroke under its own text
   % ---- the field: unobserved by default, named once -----------------------
@@ -50,7 +50,7 @@
   % ---- the ruled legend: the two observations compose into the verdict ----
   % badges are set as bold numerals, not redrawn circles, so the table never
   % depends on font inheritance into a nested tikzpicture.
-  \node[anchor=north west,text width=11.5cm,align=left] at (\Wl,\Hb-0.35) {%
+  \node[anchor=north west,text width=10.7cm,align=left] at (\Wl,\Hb-0.35) {%
     \renewcommand{\arraystretch}{1.28}%
     \pdfiglabel
     \begin{tabular}{@{}cp{3.55cm}p{4.65cm}@{}}

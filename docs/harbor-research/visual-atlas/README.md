@@ -78,3 +78,31 @@ To regenerate the portable ZIP and refresh this ledger from the current
 review workspace, run `python3 scripts/book-visual-atlas/snapshot.py` after
 final browser QA. Rebuilding or extracting does not invent new aesthetic
 judgments; a changed PDF requires a new visual review and digest-bound ledger.
+
+
+## Frozen review and current source checks
+
+This 812-page PDF ledger is separate from the live source-label catalog at
+`skills/whitepaper-figure-system/references/semantic-figure-atlas.md`. That
+catalog's coverage checker scans the current canonical TeX roots. Update its
+rows and corpus-count tests when source figures change; keep this ledger's
+PDF digest, occurrence IDs and historical reviews tied to their original PDF.
+A new Book render needs a separate digest-bound review before it inherits any
+claims about rendered coverage or quality.
+
+The offline browser regression is `scripts/book-visual-atlas/test.cjs`. It
+uses a fresh headless browser context and closes it on success or failure;
+test decisions never use the operator's browser profile. With an installed
+Playwright module and Chrome, run from the linked feature worktree:
+
+```sh
+ATLAS_TEST_TMP="$PWD/.scratch/visual-atlas/test-tmp" \
+PLAYWRIGHT_MODULE="/absolute/path/to/playwright" \
+CHROME_EXECUTABLE="/absolute/path/to/chrome" \
+node scripts/book-visual-atlas/test.cjs .scratch/visual-atlas/site/index.html
+```
+
+Use the module and browser already installed on the machine. Temporary browser
+files must resolve under `~/coding/tmp/`; the worktree-local path above meets
+that rule when the worktree is in its required location. This smoke checks the
+existing packaged review UI, not the newly built Book's visual completeness.

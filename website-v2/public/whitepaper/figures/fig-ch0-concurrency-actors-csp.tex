@@ -1,93 +1,60 @@
-% Reader question: when does a sender continue relative to receiver readiness?
-% Claim: asynchronous sends and synchronous rendezvous differ in blocking.
-% Evidence: sender and receiver timelines on the upstream shared time grid.
-% Distinguish: buffering, joint readiness and implementation-specific ordering.
-% Grammar: aligned time panels; delay is illustrative, not measured.
-% Acceptance: find the sender that proceeds before the receiver is ready.
-\pdfigurehue{pdcobalt}%
+% Reader question: when may a sender continue relative to receiver readiness?
+% Claim: buffered sends and synchronous rendezvous have different blocking rules.
+% Evidence: two schematic schedules on a shared ordinal time axis.
+% Distinguish: nonblocking send, receiver progress, joint event and optional timeout.
+% Grammar: paired swimlanes with aligned time and a keyed semantics table.
+% Acceptance: find the send that proceeds before its receiver is ready.
+\begin{minipage}{11.1cm}
+\centering\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % ---- one grid, declared once: a shared time axis for both panels -------
-  \def\x0{3.05}    % lifeline start (after the row-label gutter)
-  \def\xe{12.30}   % lifeline end
-  \def\dy{1.05}    % row pitch: sender above, receiver below, within a panel
-  \def\py{-3.75}   % panel pitch: where the sync panel starts
-  \def\R{13.00}    % right margin of rules and the legend
-  % =========================================================================
-  % PANEL A: asynchronous actor send (chapter hue)
-  % =========================================================================
-  \node[pd title,anchor=west] at (0,{0+.62}) {asynchronous actor send};
-  \node[pd label,anchor=east] at ({\x0-.30},0)      {sender actor};
-  \node[pd label,anchor=east] at ({\x0-.30},{-\dy}) {receiver actor};
-  \def\sendx{5.80}   % send event: non-blocking, sender keeps running
-  \def\recvx{9.60}   % receive event: mailbox drained, receiver resumes
-  % sender: one continuous rule -- it never blocks
-  \draw[pd focus arrow] (\x0,0) -- (\xe,0);
+  \def\xzero{2.05}\def\xe{9.85}\def\dy{1.2}\def\py{-4.2}
+  \def\sendx{3.9}\def\recvx{7.8}
+  \node[pd title,anchor=west] at (0,.7) {Asynchronous actor send};
+  \node[pd label,anchor=east,text width=1.75cm,align=right] at (1.75,0) {sender actor};
+  \node[pd label,anchor=east,text width=1.75cm,align=right] at (1.75,-\dy) {receiver actor};
+  \draw[pd focus arrow] (\xzero,0)--(\xe,0);
   \node[pd focus datum] at (\sendx,0) {};
-  \node[pd label,anchor=east] at ({\sendx-.15},0.48) {send};
-  \node[pd badge] at ({\sendx+.20},0.48) {1};
-  % the mailbox: a subordinate artifact, buffering the message for Delta t > 0
-  \node[pd artifact,minimum width=2.6cm] (MB) at ({(\sendx+\recvx)/2},-.50) {mailbox};
-  \draw[pd thin arrow,shorten >=3pt,rounded corners=2pt] (\sendx,-.08) -- (\sendx,-.50) -- (MB.west);
-  \draw[pd thin arrow,shorten <=3pt,rounded corners=2pt] (MB.east) -- (\recvx,-.50) -- (\recvx,{-\dy+.08});
-  % receiver: idle (hairline) until the message is drained, then resumes
-  \draw[pd hairline]     (\x0,{-\dy}) -- (\recvx,{-\dy});
-  \draw[pd focus arrow]  (\recvx,{-\dy}) -- (\xe,{-\dy});
-  \node[pd focus datum] at (\recvx,{-\dy}) {};
-  \node[pd label,anchor=east] at ({\recvx-.15},{-\dy-.48}) {receive, become};
-  \node[pd badge] at ({\recvx+.20},{-\dy-.48}) {2};
-  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}]
-    (\x0,{-\dy-.82}) -- (\xe,{-\dy-.82});
-  \node[pd label,anchor=west] at (\xe,{-\dy-.82}) {time};
-  % =========================================================================
-  % PANEL B: synchronous CSP rendezvous (protocol hue) -- same grid
-  % =========================================================================
-  \node[pd title,anchor=west] at (0,{\py+.62}) {synchronous CSP rendezvous};
-  \node[pd label,anchor=east] at ({\x0-.30},\py)          {process $P_1$};
-  \node[pd label,anchor=east] at ({\x0-.30},{\py-\dy})    {process $P_2$};
-  \def\arrSx{6.45}    % P1 arrives first: it blocks and waits
-  \def\arrRx{7.55}    % P2 arrives later: a shorter wait
-  \def\rvx{8.65}       % the rendezvous: both occur together, Delta t = 0
-  % P1: runs, then blocks (hairline) until the rendezvous, then resumes
-  \draw[pd protocol rule]   (\x0,\py) -- (\arrSx,\py);
-  \draw[pd hairline]        (\arrSx,\py) -- (\rvx,\py);
-  \draw[pd protocol rule]   (\rvx,\py) -- (\xe,\py);
-  % P2: runs, blocks for a shorter span, then resumes
-  \draw[pd protocol rule]   (\x0,{\py-\dy}) -- (\arrRx,{\py-\dy});
-  \draw[pd hairline]        (\arrRx,{\py-\dy}) -- (\rvx,{\py-\dy});
-  \draw[pd protocol rule]   (\rvx,{\py-\dy}) -- (\xe,{\py-\dy});
-  % the rendezvous itself: one mark, shared by both lifelines, Delta t = 0
-  \draw[pd protocol rule] (\rvx,\py) -- (\rvx,{\py-\dy});
+  \node[pd label,anchor=east] at ({\sendx-.15},.48) {send};
+  \node[pd badge] at ({\sendx+.22},.48) {1};
+  \node[pd artifact,minimum width=2.6cm] (MB) at (5.85,-.6) {mailbox};
+  \draw[pd thin arrow,rounded corners=2pt] (\sendx,-.08)--(\sendx,-.6)--(MB.west);
+  \draw[pd thin arrow,rounded corners=2pt] (MB.east)--(\recvx,-.6)--(\recvx,{-\dy+.08});
+  \draw[pd hairline] (\xzero,-\dy)--(\recvx,-\dy);
+  \draw[pd focus arrow] (\recvx,-\dy)--(\xe,-\dy);
+  \node[pd focus datum] at (\recvx,-\dy) {};
+  \node[pd label,anchor=east] at ({\recvx-.15},{-\dy-.48}) {receive};
+  \node[pd badge] at ({\recvx+.22},{-\dy-.48}) {2};
+  \draw[pd thin arrow] (\xzero,{-\dy-.95})--(\xe,{-\dy-.95});
+  \node[pd label,anchor=north east] at (\xe,{-\dy-1.05}) {time};
+  \node[pd title,anchor=west] at (0,{\py+.7}) {Synchronous CSP rendezvous};
+  \node[pd label,anchor=east] at (1.75,\py) {process $P_1$};
+  \node[pd label,anchor=east] at (1.75,{\py-\dy}) {process $P_2$};
+  \def\arrSx{4.0}\def\arrRx{5.35}\def\rvx{6.65}
+  \foreach \y/\arr in {\py/\arrSx,{\py-\dy}/\arrRx}{
+    \draw[pd protocol rule] (\xzero,\y)--(\arr,\y);
+    \draw[pd hairline] (\arr,\y)--(\rvx,\y);
+    \draw[pd protocol rule] (\rvx,\y)--(\xe,\y);}
+  \draw[pd protocol rule] (\rvx,\py)--(\rvx,{\py-\dy});
   \node[pd protocol datum] at (\rvx,{\py-.5*\dy}) {};
   \node[pd badge] at ({\rvx-.55},{\py-.5*\dy}) {3};
-  \node[pd protocol label,anchor=west] at ({\rvx+.22},{\py-.5*\dy}) {joint communication};
-  % guarded choice: P1 also guards a lease-timeout channel while it waits
+  \node[pd protocol label,anchor=west,text width=2.85cm,align=left]
+    at ({\rvx+.2},{\py-.5*\dy}) {joint communication};
+  \node[pd breach state,minimum width=2.65cm] (TO) at (8.1,{\py-\dy-1.1}) {lease timeout};
   \draw[pd breach arrow,rounded corners=2pt]
-    (\arrSx,\py) |- ({(\arrSx+\rvx)/2},{\py-\dy-.85});
-  \node[pd breach state,minimum width=2.2cm] (TO) at ({(\arrSx+\rvx)/2+1.55},{\py-\dy-.85}) {lease timeout};
-  \draw[pd breach arrow] ({(\arrSx+\rvx)/2},{\py-\dy-.85}) -- (TO.west);
-  \node[pd badge] at ({(\arrSx+\rvx)/2-.05},{\py-\dy-1.20}) {4};
-  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}]
-    (\x0,{\py-\dy-1.75}) -- (\xe,{\py-\dy-1.75});
-  \node[pd label,anchor=west] at (\xe,{\py-\dy-1.75}) {time};
-  % ---- the legend: each numbered event, what it means --------------------
-  \def\ly{-7.15}   % = \py - \dy - 2.35, written as a literal for pgfmath
-  \draw[pd rule] (0,\ly) -- (\R,\ly);
-  \node[pd title,anchor=north west] at (.05,{\ly-.30}) {event};
-  \node[pd title,anchor=north west] at (3.55,{\ly-.30}) {semantics};
-  \draw[pd hairline] (0,{\ly-.95}) -- (\R,{\ly-.95});
-  \foreach \i/\n/\f/\s in {%
-    0/1/{send (actor)}/{sender proceeds without waiting for receiver readiness},
-    1/2/{receive, \texttt{become}}/{drains the mailbox; may adopt a new behaviour},
-    2/3/{rendezvous (CSP)}/{one abstract joint event; first arrival waits}}{
-      \node[pd badge] at (.28,{\ly-1.35-\i*.62}) {\n};
-      \node[pd label,anchor=base west] at (.62,{\ly-1.35-\i*.62}) {\f};
-      \node[pd label,anchor=base west,align=left] at (3.55,{\ly-1.35-\i*.62}) {\s};}
-  \node[pd badge] at (.28,{\ly-1.35-3*.62}) {4};
-  \node[pd label,anchor=base west,text=pderror] at (.62,{\ly-1.35-3*.62}) {\texttt{alt} / lease timeout};
-  \node[pd label,anchor=base west,align=left,text=pderror] at (3.55,{\ly-1.35-3*.62})
-    {guarded choice: a modeled timeout offers another transition};
-  \node[pd note,anchor=north west,text width=12.0cm] at (.05,{\ly-1.35-3*.62-.55})
-    {The drawn actor delay is illustrative. Ordering and delivery guarantees
-    depend on the actor implementation; rendezvous denotes joint readiness,
-    not zero physical communication latency.};
+    (\arrSx,\py)--(\arrSx,{\py-\dy-1.1})--(TO.west);
+  \node[pd badge] at (4.55,{\py-\dy-1.45}) {4};
+  \draw[pd thin arrow] (\xzero,{\py-\dy-1.95})--(\xe,{\py-\dy-1.95});
+  \node[pd label,anchor=north east] at (\xe,{\py-\dy-2.05}) {time};
 \end{tikzpicture}
+\par\smallskip
+{\pdfiglabel\setlength{\tabcolsep}{3pt}%
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule\textbf{Event} & \textbf{Semantics} \\\midrule
+1 Actor send & Sender proceeds without receiver readiness. \\
+2 Actor receive & Receiver drains the mailbox and may adopt a new behaviour. \\
+3 CSP rendezvous & One abstract joint event; the earlier arrival waits. \\
+4 Timeout choice & An optional modeled guard offers another transition. \\\bottomrule
+\end{tabularx}}
+\par\smallskip{\pdfiglabelitalic Delays are illustrative. Ordering depends on the actor
+implementation; rendezvous does not imply zero physical communication latency.\par}
+\end{minipage}

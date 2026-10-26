@@ -32,6 +32,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{float}
+\usepackage{placeins}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage[backref=page]{hyperref}
@@ -194,6 +195,8 @@ Timing & out of scope & declared out of model; padded and scheduled, not closed 
 \bottomrule
 \end{tabularx}
 \end{table}
+% Settle the comparison before the following paragraph and worked example.
+\FloatBarrier
 \paragraph{Why blocking tainted outputs is insufficient.}
 Consider a proposed ``silicon-enforced NDA'': tag Erin's agent the moment it
 reads Derek's data, drop any tainted egress packet, and declare that the data
