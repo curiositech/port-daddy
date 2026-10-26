@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch01-water-meter-dial.png",
     "source_sha256": "f05bee6fc762d4db1bb34a1e77e004eca3191b9b5696126a06436fd335e08e68",
     "file": "ch01-water-meter-dial.pdf",
-    "sha256": "f5b5dadc83455f8eb8471c1bc8299c7402c06e24044b59d82c874009eb8d4c90",
-    "bytes": 212975,
+    "sha256": "f24fcee549f400d8bbcba278699f5b7aefdbe4dcab59d43cc70677694790ee6f",
+    "bytes": 210529,
     "pixels": [
       720,
       614

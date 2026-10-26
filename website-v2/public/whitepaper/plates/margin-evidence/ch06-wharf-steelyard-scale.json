@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch06-wharf-steelyard-scale.png",
     "source_sha256": "2187d47b78013496221d05e8816c15ace662fc7a22f309bf32a77ef1c4b90999",
     "file": "ch06-wharf-steelyard-scale.pdf",
-    "sha256": "17abdd9d18ca17127a33d42c7d20de314308fa18ae182da1d40235f6fe6548de",
-    "bytes": 107317,
+    "sha256": "1198373ee092f26dc8567d537d75cdcf338191c6286f625aa9553b1b4ad6e86f",
+    "bytes": 104871,
     "pixels": [
       649,
       720

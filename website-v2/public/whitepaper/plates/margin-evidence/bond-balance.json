@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "bond-balance.png",
     "source_sha256": "e8947064855a3f7baa8ecca128409c514d3f0a02441994c52c1aa6ae18049d83",
     "file": "bond-balance.pdf",
-    "sha256": "fa1009e9739a45f461d2999ac00a244c0a8e0710ade77251dad885fbdd843607",
-    "bytes": 129666,
+    "sha256": "94856d7cec5ef244c370a6aeecec0cd06f5659b08e554e583d9db15fc61797a5",
+    "bytes": 127220,
     "pixels": [
       720,
       394

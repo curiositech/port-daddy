@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch02-finite-grant-parking-meter.png",
     "source_sha256": "3a9030926a55b7c6ca713a540fe559a21b5ae95c6dba1e37cac5516900cfe311",
     "file": "ch02-finite-grant-parking-meter.pdf",
-    "sha256": "fdbaf4ca6f8c7fa75d9de962f22468d4a815ea702a3c21930aac0caf1fbae3ca",
-    "bytes": 164428,
+    "sha256": "e32c573d701f23e3dce743d2e28836a047f2a57ceaada3e7dfd1943560553978",
+    "bytes": 161982,
     "pixels": [
       344,
       720
