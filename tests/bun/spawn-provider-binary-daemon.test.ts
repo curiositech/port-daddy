@@ -6,6 +6,8 @@
  * resolved binary, and persist a transcript for both successful and failed
  * launches. Fake binaries keep the test hermetic while still exercising the
  * real Fastify route, createSpawner(), cli-tube launcher, and transcript store.
+ * Fixture executables and invocation markers stay in the mounted spawn workdir
+ * so default confinement permits both launch and invocation-proof writes.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
@@ -271,14 +273,14 @@ describe('daemon /spawn provider binary launch path', () => {
     const harness = await startHarness();
     try {
       const workdir = makeWorkdir(tmp);
-      const binDir = join(tmp, 'provider-bin');
+      const binDir = join(workdir, 'provider-bin');
       const markers: Record<string, string> = {};
       const env: Record<string, string> = { PD_CLI_BIN_DIRS: binDir };
 
       for (const provider of PROVIDERS) {
         const fakeBinary = join(binDir, provider.binName);
         const staleOverride = join(tmp, 'stale', provider.binName);
-        const marker = join(tmp, `${provider.binName}-invoked.txt`);
+        const marker = join(workdir, `${provider.binName}-invoked.txt`);
         writeFakeProviderBinary(provider, fakeBinary);
         markers[provider.backend] = marker;
         env[provider.envOverride] = staleOverride;
@@ -323,13 +325,13 @@ describe('daemon /spawn provider binary launch path', () => {
     const harness = await startHarness();
     try {
       const workdir = makeWorkdir(tmp);
-      const binDir = join(tmp, 'provider-bin');
+      const binDir = join(workdir, 'provider-bin');
       const env: Record<string, string> = { PD_CLI_BIN_DIRS: binDir };
       const markers: Record<string, string> = {};
 
       for (const provider of PROVIDERS) {
         const fakeBinary = join(binDir, provider.binName);
-        const marker = join(tmp, `${provider.binName}-failed-invoked.txt`);
+        const marker = join(workdir, `${provider.binName}-failed-invoked.txt`);
         writeFailingProviderBinary(provider, fakeBinary);
         markers[provider.backend] = marker;
         env[provider.envOverride] = fakeBinary;
