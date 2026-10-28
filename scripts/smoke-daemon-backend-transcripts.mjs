@@ -342,8 +342,10 @@ async function runCiSafeSmoke() {
   const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-smoke-'));
   const spawnWorktree = createScratchSpawnWorktree(tmp);
   const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
-  const fakeClaude = join(tmp, 'bin', 'claude');
-  const fakeAgy = join(tmp, 'bin', 'agy');
+  // Keep shell-only fixture executables inside the project mounted by the
+  // default sandbox so transcript checks exercise the fake CLIs on every host.
+  const fakeClaude = join(spawnWorktree.workdir, '.smoke-bin', 'claude');
+  const fakeAgy = join(spawnWorktree.workdir, '.smoke-bin', 'agy');
   writeFakeClaudeBinary(fakeClaude);
   writeFakeAgyBinary(fakeAgy);
   const openai = await withFakeOpenAICompatibleServer();
