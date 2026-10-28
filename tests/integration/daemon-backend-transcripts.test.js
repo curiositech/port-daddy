@@ -85,9 +85,9 @@ describe('daemon backend transcript E2E smoke', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-claude-'));
     const spawnWorktree = createScratchSpawnWorktree(tmp);
     const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
-    const fakeBinDir = join(tmp, 'nvm', 'versions', 'node', 'v22.17.1', 'bin');
+    const fakeBinDir = join(spawnWorktree.workdir, 'nvm', 'versions', 'node', 'v22.17.1', 'bin');
     const fakeClaude = join(fakeBinDir, 'claude');
-    const fakeClaudeInvoked = join(tmp, 'fake-claude-invoked.txt');
+    const fakeClaudeInvoked = join(spawnWorktree.workdir, 'fake-claude-invoked.txt');
     writeFakeClaudeBinary(fakeClaude, 'pd-claude-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
@@ -141,7 +141,7 @@ describe('daemon backend transcript E2E smoke', () => {
   test('launches cli:agy through /spawn and records final stdout/stderr transcript only', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-agy-'));
     const spawnWorktree = createScratchSpawnWorktree(tmp);
-    const fakeAgy = join(tmp, 'bin', 'agy');
+    const fakeAgy = join(spawnWorktree.workdir, 'bin', 'agy');
     writeFakeAgyBinary(fakeAgy, 'pd-agy-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
@@ -273,7 +273,7 @@ describe('daemon backend transcript E2E smoke', () => {
     mkdirSync(safeScratchRoot, { recursive: true });
     const tmp = mkdtempSync(join(safeScratchRoot, 'pd-backend-fallback-'));
     const spawnWorktree = createScratchSpawnWorktree(tmp);
-    const fakeCodex = join(tmp, 'bin', 'codex');
+    const fakeCodex = join(spawnWorktree.workdir, 'bin', 'codex');
     writeFakeCodexBinary(fakeCodex, 'pd-codex-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,

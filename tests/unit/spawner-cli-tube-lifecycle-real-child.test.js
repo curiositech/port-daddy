@@ -5,6 +5,9 @@
  * spawner-cli-tube-backend.test.js. The regression under audit is process-tree
  * truth: forced settlement must not mark a timed-out CLI run final while an
  * inherited-stdio descendant from that same invocation is still alive.
+ * Temporary fake CLIs and their Node interpreter may sit outside Coast Guard's
+ * mounted paths. Each fixture spawn opts out of confinement so this suite
+ * isolates process lifecycle behavior across hosts.
  */
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
@@ -62,6 +65,7 @@ describe('cli-tube real timeout lifecycle', () => {
     try {
       const res = await spawnViaCliTube({
         cli: 'agy',
+        coastGuard: { spec: { coastGuard: false } },
         prompt: 'exit normally while liveness is sampled',
         timeoutMs: 10_000,
       });
@@ -80,6 +84,7 @@ describe('cli-tube real timeout lifecycle', () => {
 
     const res = await spawnViaCliTube({
       cli: 'agy',
+      coastGuard: { spec: { coastGuard: false } },
       prompt: 'hold open inherited stdout',
       timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
@@ -109,6 +114,7 @@ describe('cli-tube real timeout lifecycle', () => {
     try {
       const resultPromise = spawnViaCliTube({
         cli: 'agy',
+        coastGuard: { spec: { coastGuard: false } },
         prompt: 'run past the old hidden default',
         // No timeoutMs: no deadline.
       });
@@ -145,6 +151,7 @@ describe('cli-tube real timeout lifecycle', () => {
 
     const res = await spawnViaCliTube({
       cli: 'agy',
+      coastGuard: { spec: { coastGuard: false } },
       prompt: 'spawn survivor then exit parent',
       timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
