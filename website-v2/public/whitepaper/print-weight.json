@@ -92,588 +92,588 @@
       "transparency": "none"
     },
     "plates/margin-evidence/bond-balance": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "bond-balance.png",
       "source_sha256": "e8947064855a3f7baa8ecca128409c514d3f0a02441994c52c1aa6ae18049d83",
       "file": "bond-balance.pdf",
-      "sha256": "fa1009e9739a45f461d2999ac00a244c0a8e0710ade77251dad885fbdd843607",
-      "bytes": 129666,
+      "sha256": "94856d7cec5ef244c370a6aeecec0cd06f5659b08e554e583d9db15fc61797a5",
+      "bytes": 127220,
       "pixels": [
         720,
         394
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch01-fairness-ticket-dispenser": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch01-fairness-ticket-dispenser.png",
       "source_sha256": "6156226a0a48118f77296602de4ec03ace30e83a6bc05b29e08ac913ee23bb6c",
       "file": "ch01-fairness-ticket-dispenser.pdf",
-      "sha256": "4095250cff8c973499d7a49fc8eb6d26721fd27cd5302e55b6679a0768af628e",
-      "bytes": 130230,
+      "sha256": "dd57c256a8308e120b7e6a4f881aea49c9ba7a7fadb58d974a059de51e641533",
+      "bytes": 127784,
       "pixels": [
         584,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch01-flywheel-governor": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch01-flywheel-governor.png",
       "source_sha256": "d821beb1cffe3189437291a824c47e0f7cfdde6d58f10842649973e3b7e7d9d7",
       "file": "ch01-flywheel-governor.pdf",
-      "sha256": "a3b856e31dc1e8ab1e92bd98b533c20549a9b62b94a69b763555d60612dc0937",
-      "bytes": 111476,
+      "sha256": "95c93051d3eef46eaa764dde661b2a8054434c2f6ec9b77bb4c904a6cfad49a1",
+      "bytes": 109030,
       "pixels": [
         496,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch01-railway-token-staff": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch01-railway-token-staff.png",
       "source_sha256": "f89ba707e8e8ec99656fa9e5f11f96e4dd2cc15fbbada570ab8c82fc959cfc51",
       "file": "ch01-railway-token-staff.pdf",
-      "sha256": "c020d446a87f89a1b89eb7855ac63e7845bb14a7f09cabaaaa681f294b9395bf",
-      "bytes": 78604,
+      "sha256": "7c84231cb07ff46a06c9928ac9bfea1bba29659fe421cd1e703bedf41e140b23",
+      "bytes": 76158,
       "pixels": [
         211,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch01-water-meter-dial": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch01-water-meter-dial.png",
       "source_sha256": "f05bee6fc762d4db1bb34a1e77e004eca3191b9b5696126a06436fd335e08e68",
       "file": "ch01-water-meter-dial.pdf",
-      "sha256": "f5b5dadc83455f8eb8471c1bc8299c7402c06e24044b59d82c874009eb8d4c90",
-      "bytes": 212975,
+      "sha256": "f24fcee549f400d8bbcba278699f5b7aefdbe4dcab59d43cc70677694790ee6f",
+      "bytes": 210529,
       "pixels": [
         720,
         614
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 80 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch02-colander-mesh": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch02-colander-mesh.png",
       "source_sha256": "fe269190992342929a3d6b3e8b3b43fc583c584a63a507ab449f245adf725918",
       "file": "ch02-colander-mesh.pdf",
-      "sha256": "cb792db065ad086876765eeb827cd7e4188feb57132983d6de0b5fa6b1697d51",
-      "bytes": 199379,
+      "sha256": "24929e9d1670fafabae4d4a3438747b05faefd299e940fa7f9086db2166099c3",
+      "bytes": 196933,
       "pixels": [
         648,
         543
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 70 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch02-couriers-dispatch-pouch": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch02-couriers-dispatch-pouch.png",
       "source_sha256": "c369922d6ca4b689014f0c4de4f1c245835772262f477aaabe49add229c7914f",
       "file": "ch02-couriers-dispatch-pouch.pdf",
-      "sha256": "0b877f9b2c8622efb7c5f1e211c3394959e65e447c469c5a62a81487cda2493f",
-      "bytes": 186947,
+      "sha256": "f436b63b72509fd3dfbbc03414d9d8d93b2b29ecf41ed9adebfe0927d41630b4",
+      "bytes": 184501,
       "pixels": [
         523,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch02-finite-grant-parking-meter": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch02-finite-grant-parking-meter.png",
       "source_sha256": "3a9030926a55b7c6ca713a540fe559a21b5ae95c6dba1e37cac5516900cfe311",
       "file": "ch02-finite-grant-parking-meter.pdf",
-      "sha256": "fdbaf4ca6f8c7fa75d9de962f22468d4a815ea702a3c21930aac0caf1fbae3ca",
-      "bytes": 164428,
+      "sha256": "e32c573d701f23e3dce743d2e28836a047f2a57ceaada3e7dfd1943560553978",
+      "bytes": 161982,
       "pixels": [
         344,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch02-nested-measuring-spoons": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch02-nested-measuring-spoons.png",
       "source_sha256": "bc69dd3f2fc28a21380bc1c5014be9fee84393b93f60c63f94c3e879c86e95e1",
       "file": "ch02-nested-measuring-spoons.pdf",
-      "sha256": "7e3e2f0b82408bf8c70378c8ebda883cee139b4ef2bc6a31a7fe232012c23863",
-      "bytes": 113382,
+      "sha256": "f35e713e721a15bcfe108151650e8414955763e8b223bda0b8e9ddedabca90b7",
+      "bytes": 110936,
       "pixels": [
         300,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch03-authorized-speaking-tube": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch03-authorized-speaking-tube.png",
       "source_sha256": "06009b0a8713a8efaa77eb8f8a19dce1c9f7cba6a53de1c5ad982aa64a1066fb",
       "file": "ch03-authorized-speaking-tube.pdf",
-      "sha256": "58efa7492bd3c748f0ae2ad90de05058683ab152815052eb5658d79de1c70fb0",
-      "bytes": 106004,
+      "sha256": "d3764d31322d17dc5e54ac58112e281096a54b991dbdb9bac16910c95caca839",
+      "bytes": 103558,
       "pixels": [
         445,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch03-lead-lined-darkslide": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch03-lead-lined-darkslide.png",
       "source_sha256": "88ee3c8ce740e5cb64177698a1c75c263eb1ef1cd4f9876cffe0b8de15f5b57e",
       "file": "ch03-lead-lined-darkslide.pdf",
-      "sha256": "aa9ac009776a9849e99a4a0b18f44991dbfd6a27157de831c2bb772e1eb9a219",
-      "bytes": 144264,
+      "sha256": "f02331df88836482bceb3428d5b83cc3d05b6235b1e8bb0c2f0770c99602bfb1",
+      "bytes": 141814,
       "pixels": [
         376,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch03-sandglass-flow-orifice": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch03-sandglass-flow-orifice.png",
       "source_sha256": "bae7947e853ad1b007c8f01e41fd8c20d140c552f3b7f810448d7bacb07e16ef",
       "file": "ch03-sandglass-flow-orifice.pdf",
-      "sha256": "0c6be65e5679c62ab589e9af3b0a27033f6c4587edd790d2929effe79334f305",
-      "bytes": 140281,
+      "sha256": "c06129b722f9e30797ce6d74816d1948538169251a2582838a121da720994055",
+      "bytes": 137835,
       "pixels": [
         335,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch03-two-shutter-shadowbox": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch03-two-shutter-shadowbox.png",
       "source_sha256": "5b0d4da5a933e25eab5d3ffa0d140aea4c1f69b0ce05f491039ff1514842ab3a",
       "file": "ch03-two-shutter-shadowbox.pdf",
-      "sha256": "994322ef5851866b267cdbe371550dba59574b25977c5626a26e936e749d8455",
-      "bytes": 170011,
+      "sha256": "b4a348f04719b3aae41ec40b2bf022d92849467be322ea99c802a7c1c8c4f087",
+      "bytes": 167565,
       "pixels": [
         520,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch04-selective-attention-annunciator": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch04-selective-attention-annunciator.png",
       "source_sha256": "091bcc3516fa2e6738c2a955c40a5bcb5f4dcf7c1e9442086227a7097eca3293",
       "file": "ch04-selective-attention-annunciator.pdf",
-      "sha256": "e1e708bbb5ae7158dc9f7ce6501b523141c792bf37c9cbb6d03d40b5c353a1f2",
-      "bytes": 112750,
+      "sha256": "476e6295f89fd4bd5114cafdb60e0f128eae2bac688f2b3f193f8b77d2cff36f",
+      "bytes": 110304,
       "pixels": [
         440,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch04-sextant-index-mirror": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch04-sextant-index-mirror.png",
       "source_sha256": "8823fa6f8670914e4e12f19acf516a05effacf47d7e668b63ab40a4f50c492b5",
       "file": "ch04-sextant-index-mirror.pdf",
-      "sha256": "4780eff22389b812835156ccba6ba0a406dcfd4890e6de0d5bfde9b68d5388b1",
-      "bytes": 165769,
+      "sha256": "0da0148d63b194eed2c2c3301148b2aeba4e77d578bc63dca47ee458bbd0aeca",
+      "bytes": 163323,
       "pixels": [
         609,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch04-telegraph-sounder-key": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch04-telegraph-sounder-key.png",
       "source_sha256": "92757944aa7761625d7e5b4e0997b78a68404a38986cb2cb2b896cfd11b84182",
       "file": "ch04-telegraph-sounder-key.pdf",
-      "sha256": "ba898a2cd76b119febf093856a974588a70459ff28f9f22d95c2dd6c65802f34",
-      "bytes": 213627,
+      "sha256": "34325edd49e49b66998970f8ed6a1f7456a0d4a609fe377737d5c5de6f8e0a9b",
+      "bytes": 211181,
       "pixels": [
         720,
         674
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 80 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch04-tide-gauge-staff": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch04-tide-gauge-staff.png",
       "source_sha256": "7239926dc10265ef063bca0aae3f68c472c3bf2502eeb95e2d6aadcb881d6cbe",
       "file": "ch04-tide-gauge-staff.pdf",
-      "sha256": "b22eeb9462cd61e7013c0a8b0065d9836ce0abce7812afb4a9466f4d19d60966",
-      "bytes": 146499,
+      "sha256": "83a4d678b0b8e2450d65bc6c5ce3b713bb77581f0a4c0ad62e7f772b5d86f554",
+      "bytes": 144053,
       "pixels": [
         399,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch05-continuity-rope-splice": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch05-continuity-rope-splice.png",
       "source_sha256": "f0893d41e5a42b073c1794f9281736d7c3e701acc06758544f531a1443cedfde",
       "file": "ch05-continuity-rope-splice.pdf",
-      "sha256": "1d162cf1f8d8eb19656eef37ad936127cd892f209f5a25e97ada275d88316adf",
-      "bytes": 49077,
+      "sha256": "f1da75ca2eba78dfb38a202478aec039be3cf999e05c6e6c9ef9e65ff817585d",
+      "bytes": 46631,
       "pixels": [
         345,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch05-episodic-card-file": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch05-episodic-card-file.png",
       "source_sha256": "dad3d9ecbe42b27ceccdf26129d422c8f0f8dd7480b324aefb7d5c8e208f7616",
       "file": "ch05-episodic-card-file.pdf",
-      "sha256": "150ef2a58c69f3926e00c7224a5c7a37dcdc4d1485500a5cc6cbff48186c6a8b",
-      "bytes": 152681,
+      "sha256": "a8bda2635275aa8982e6387f7c3c8512ac6e164913f1f245984bb7a9c1f8c8a2",
+      "bytes": 150235,
       "pixels": [
         685,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch05-stagecoach-relay-post": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch05-stagecoach-relay-post.png",
       "source_sha256": "eb8ca5d52ec4232e558dffe92e8d78817d36840cc678ed3d77ffd07b893e8a29",
       "file": "ch05-stagecoach-relay-post.pdf",
-      "sha256": "a48914364bd44824485e7086871ea53f0ba15d1d9aa375ba35bd88953bf85e9e",
-      "bytes": 203852,
+      "sha256": "ce786b3ecf482ebec6b9bab2ea0d35accbcb856acc8553da4eee8131bc734b18",
+      "bytes": 201406,
       "pixels": [
         567,
         648
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 70 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch05-stepped-surveyors-pole": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch05-stepped-surveyors-pole.png",
       "source_sha256": "8e96b7d877b2d7393f21a4e31646f791b22e915ab694154a4f0d1f6c645054c6",
       "file": "ch05-stepped-surveyors-pole.pdf",
-      "sha256": "c84a137c53a789287e8ab153ce027bb75d088a1dca33dd1b46807e454dc0efc7",
-      "bytes": 117518,
+      "sha256": "ada303a0f7a9b881c4957fcab4e1020bf5ceda2055e2282b6068de0dae366a57",
+      "bytes": 115072,
       "pixels": [
         370,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch05-wax-seal-signet": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch05-wax-seal-signet.png",
       "source_sha256": "c3b6ee09e65820baf2286734b52d91c0c000861f445084f9a15070a0d3b9840c",
       "file": "ch05-wax-seal-signet.pdf",
-      "sha256": "da2e18bff171d331764a5d460f69e2f36357e25f513d7f3a864b075c569734a3",
-      "bytes": 194494,
+      "sha256": "2a45aa2259b10d4000f94efe91de45f5b5ac2a6640dd5a691b36c4bf52da85d2",
+      "bytes": 192048,
       "pixels": [
         603,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch06-dockyard-cargo-sling": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch06-dockyard-cargo-sling.png",
       "source_sha256": "568aeff59dffe2c624b56ba65daca9d64d37ea209cc93b1dd8bed55421a2e534",
       "file": "ch06-dockyard-cargo-sling.pdf",
-      "sha256": "c5bc7d422ce7de39f33b6bec523ac3ee30e3cd40e7fc8ae9ef150842fca60200",
-      "bytes": 186915,
+      "sha256": "b96d42ae9d72c5877565c946574046e8a57f561e10f212bcfc2f35f99b85983e",
+      "bytes": 184469,
       "pixels": [
         368,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch06-grain-tally-board": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch06-grain-tally-board.png",
       "source_sha256": "fb6ea05896cf64c5f7da046e686b2e63fdea8756c3fbfd1b0354267bd71462ef",
       "file": "ch06-grain-tally-board.pdf",
-      "sha256": "6941f6852cbe7ef408f53a7c49d2ef02b3c7f94870b5519be4fed502a27d2089",
-      "bytes": 207551,
+      "sha256": "e9c135d58086a093c03021ed54b3dc6f2dc8191e512220023a75ff130a71b255",
+      "bytes": 205105,
       "pixels": [
         490,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch06-reusable-printing-block": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch06-reusable-printing-block.png",
       "source_sha256": "baa8bbc79d4bafeb1191da37c105e01746f260ce26e3ced07b2fbc3911aa6a39",
       "file": "ch06-reusable-printing-block.pdf",
-      "sha256": "ac3bc54504635c19b9d4c9052a20b1b83bac197def64d4878464027d7bf3183a",
-      "bytes": 139591,
+      "sha256": "a8dafe25464ed26dc0efc9e156e77dba8bae2f159223deed0fef35056be29a28",
+      "bytes": 137145,
       "pixels": [
         720,
         600
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch06-wharf-steelyard-scale": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch06-wharf-steelyard-scale.png",
       "source_sha256": "2187d47b78013496221d05e8816c15ace662fc7a22f309bf32a77ef1c4b90999",
       "file": "ch06-wharf-steelyard-scale.pdf",
-      "sha256": "17abdd9d18ca17127a33d42c7d20de314308fa18ae182da1d40235f6fe6548de",
-      "bytes": 107317,
+      "sha256": "1198373ee092f26dc8567d537d75cdcf338191c6286f625aa9553b1b4ad6e86f",
+      "bytes": 104871,
       "pixels": [
         649,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch07-cleanup-repair-kit": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch07-cleanup-repair-kit.png",
       "source_sha256": "03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa",
       "file": "ch07-cleanup-repair-kit.pdf",
-      "sha256": "e444ba0b8da639266545a34a11360a43bff5cc8726a17d881f3c42e5d2e7c319",
-      "bytes": 179804,
+      "sha256": "f991001ca0858acc4ee7a19b58a2f1e4bbd63432e043f77b1e44affc3e0d4f47",
+      "bytes": 177358,
       "pixels": [
         600,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch07-dual-control-escrow-box": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch07-dual-control-escrow-box.png",
       "source_sha256": "ce07f093860cbf0d836e0f293c32e26bdeb577d4cbddaaeed7b62dba3069a4be",
       "file": "ch07-dual-control-escrow-box.pdf",
-      "sha256": "24a7db64fb2971cb459875cb3ff6c5cfdea01b80c9b06919d395037562a4008c",
-      "bytes": 210639,
+      "sha256": "6b22b2a382347147cef7eb4303280eb223c817903c6554b4362f585d7ee1ca25",
+      "bytes": 208193,
       "pixels": [
         648,
         629
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 70 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch07-shear-pin-fuse": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch07-shear-pin-fuse.png",
       "source_sha256": "5209f3860c7ed19702d02ff2ffa0a8090dda01785924cf646750519ca3c774c2",
       "file": "ch07-shear-pin-fuse.pdf",
-      "sha256": "d10c243c3174c641cfa9fbbd199e32122d3bfe2a93ce4867d578bbfc6a38e961",
-      "bytes": 209051,
+      "sha256": "8f90b24ee95b319c6a04e44fc593bc6b6bad217947c15d194be1d6f5401eab2f",
+      "bytes": 206605,
       "pixels": [
         703,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch08-closed-traverse-compass": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch08-closed-traverse-compass.png",
       "source_sha256": "ea1a770e27cf55129e0913df06556e4d312e5fa1993bfd34c31442b492bf8706",
       "file": "ch08-closed-traverse-compass.pdf",
-      "sha256": "e6cd28be14c8933f9dcb0335da08a64da492082f7ea9d70ca30ec666aabc04d8",
-      "bytes": 143565,
+      "sha256": "84df51cbdae69005c20ddd5c3000a7615d084acafe23fb56c0c85aa240c1d013",
+      "bytes": 141119,
       "pixels": [
         472,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch08-interlocking-railway-lever": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch08-interlocking-railway-lever.png",
       "source_sha256": "618cd92276222bbe9d1e919186b6b79dd14fe7bb1201a487a75765ec15e36791",
       "file": "ch08-interlocking-railway-lever.pdf",
-      "sha256": "c557b50aa30f1fa7476d0f18cd3daad390d8cbf6bd83e4981f8661a5cd5cf8e2",
-      "bytes": 131411,
+      "sha256": "aa808cc745100adc228038a86b0318949233043f966363a7c70f7f2f5691de08",
+      "bytes": 128965,
       "pixels": [
         529,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch08-local-admission-turnstile": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch08-local-admission-turnstile.png",
       "source_sha256": "e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12",
       "file": "ch08-local-admission-turnstile.pdf",
-      "sha256": "f2c756e0f06a3dc9c947c39103357de4d3be46aff60bf2de112a30a222169f04",
-      "bytes": 94019,
+      "sha256": "705b21c584feda16dbf59034f6e695b227b47c96d549a53d7da376a26c19e228",
+      "bytes": 91573,
       "pixels": [
         573,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch08-quarantine-inspection-lantern": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch08-quarantine-inspection-lantern.png",
       "source_sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
       "file": "ch08-quarantine-inspection-lantern.pdf",
-      "sha256": "1224d5bbdcfa1ce3a50c845599f311c1590783d3110379c0ebd77da7bdceb05c",
-      "bytes": 129072,
+      "sha256": "f9e9daaec16e724898172fa946ba962642e956d05aa6f29bda0a997ec2fcd8e0",
+      "bytes": 126626,
       "pixels": [
         317,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/ch08-transit-customs-seal": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "ch08-transit-customs-seal.png",
       "source_sha256": "47c518b7442341b30e259f9ebce15434ba8ca9d3b12e3d41474ec22223e9304b",
       "file": "ch08-transit-customs-seal.pdf",
-      "sha256": "52e9675210da9ebd25e5c25d632cbd10f1ef971e4a1d4ae7efe22a2295f63544",
-      "bytes": 134033,
+      "sha256": "8319aaddcc78d4007c0a31683964fd609058402dcd279bd12bc613d8399bc55a",
+      "bytes": 131587,
       "pixels": [
         495,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/map-and-lens": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "map-and-lens.png",
       "source_sha256": "7469c7f8f2493535a33f59b61cd0a4b77c89d4d655f31a077b7a8ea086add755",
       "file": "map-and-lens.pdf",
-      "sha256": "2cbb8509a5604f92001bf3e8af860bd3ee68280a05b68d4a5d3d0afdb3caeb89",
-      "bytes": 207875,
+      "sha256": "5be3f255959f071efc6fca2f984f6150e8974266c4199e76b2f08c5daf29ff7f",
+      "bytes": 205429,
       "pixels": [
         678,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/movable-type": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "movable-type.png",
       "source_sha256": "a50c3209d61ea09c2d9ee0bc6b48c77afa5fc9836406d24f1b00748ebd070814",
       "file": "movable-type.pdf",
-      "sha256": "86e469cf9078141a6f242f4936e10949e0299c978e2db8eedfabad03acb45f96",
-      "bytes": 178836,
+      "sha256": "d39af029f9cdbab0db2b5459065dd1767260568bfe6ab42316e82c0d740d7321",
+      "bytes": 176390,
       "pixels": [
         439,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/one-printing-press": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "one-printing-press.png",
       "source_sha256": "98633d2f170541ff1444d730960ac6094c110f0e41e07da7b0fb8ecefa51ca75",
       "file": "one-printing-press.pdf",
-      "sha256": "a8a01a2fb617ddb848bea84916e66b03be2d4ddeeb9790cc17ac9191ae1be8eb",
-      "bytes": 154052,
+      "sha256": "5ee4f45b6d3c78eff8ce6d9707db36d2d62640d25c90af6b913cd51e958754f0",
+      "bytes": 151606,
       "pixels": [
         720,
         659
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/reduced-key": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "reduced-key.png",
       "source_sha256": "3f8022c83ade0139af9b3e5fada2c3bd83ff2cffa40dfb69741f023604c0e663",
       "file": "reduced-key.pdf",
-      "sha256": "9cdd9f2b313b58ed9e40e87edbfb0f01028605444d64ac39237d4df3dafc3add",
-      "bytes": 120168,
+      "sha256": "5caf7060c04e23ee4fa24bbfe9368f2d42650a3c70d0ee34bc4aec95899253bc",
+      "bytes": 117722,
       "pixels": [
         434,
         720
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/margin-evidence/sealed-specimen": {
-      "date": "2026-10-19",
-      "tool": "scripts/whitepaper-plates/print_weight.py --sync-ledger",
+      "date": "2026-10-26",
+      "tool": "scripts/whitepaper-plates/print_weight.py",
       "from": "sealed-specimen.png",
       "source_sha256": "cddaa67d201728cdf4b2fbe46494bc2703fcbe9206b1a35500006aaf048ba217",
       "file": "sealed-specimen.pdf",
-      "sha256": "a8b9ebf2a49b6a416c899178cf95697be3c278eb01a6447975c9bb955016c78f",
-      "bytes": 101725,
+      "sha256": "2c2e070c074521decb471085dcdd860f5520c3487606c9741ebd9124ce990cd7",
+      "bytes": 99278,
       "pixels": [
         419,
         655
       ],
-      "encoding": "recorded from the derivative as found; see the plate's provenance for the encoding",
+      "encoding": "PDF wrapper: JPEG quality 85 (DCTDecode) with the original alpha as a lossless SMask",
       "transparency": "SMask"
     },
     "plates/marginalia/hickman": {

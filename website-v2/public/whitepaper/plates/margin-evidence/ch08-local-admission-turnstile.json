@@ -8,13 +8,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch08-local-admission-turnstile.png",
     "source_sha256": "e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12",
     "file": "ch08-local-admission-turnstile.pdf",
-    "sha256": "f2c756e0f06a3dc9c947c39103357de4d3be46aff60bf2de112a30a222169f04",
-    "bytes": 94019,
+    "sha256": "705b21c584feda16dbf59034f6e695b227b47c96d549a53d7da376a26c19e228",
+    "bytes": 91573,
     "pixels": [
       573,
       720

@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch08-closed-traverse-compass.png",
     "source_sha256": "ea1a770e27cf55129e0913df06556e4d312e5fa1993bfd34c31442b492bf8706",
     "file": "ch08-closed-traverse-compass.pdf",
-    "sha256": "e6cd28be14c8933f9dcb0335da08a64da492082f7ea9d70ca30ec666aabc04d8",
-    "bytes": 143565,
+    "sha256": "84df51cbdae69005c20ddd5c3000a7615d084acafe23fb56c0c85aa240c1d013",
+    "bytes": 141119,
     "pixels": [
       472,
       720

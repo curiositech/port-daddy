@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch04-sextant-index-mirror.png",
     "source_sha256": "8823fa6f8670914e4e12f19acf516a05effacf47d7e668b63ab40a4f50c492b5",
     "file": "ch04-sextant-index-mirror.pdf",
-    "sha256": "4780eff22389b812835156ccba6ba0a406dcfd4890e6de0d5bfde9b68d5388b1",
-    "bytes": 165769,
+    "sha256": "0da0148d63b194eed2c2c3301148b2aeba4e77d578bc63dca47ee458bbd0aeca",
+    "bytes": 163323,
     "pixels": [
       609,
       720

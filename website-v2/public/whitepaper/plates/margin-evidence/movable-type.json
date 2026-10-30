@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "movable-type.png",
     "source_sha256": "a50c3209d61ea09c2d9ee0bc6b48c77afa5fc9836406d24f1b00748ebd070814",
     "file": "movable-type.pdf",
-    "sha256": "86e469cf9078141a6f242f4936e10949e0299c978e2db8eedfabad03acb45f96",
-    "bytes": 178836,
+    "sha256": "d39af029f9cdbab0db2b5459065dd1767260568bfe6ab42316e82c0d740d7321",
+    "bytes": 176390,
     "pixels": [
       439,
       720

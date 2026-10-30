@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch01-flywheel-governor.png",
     "source_sha256": "d821beb1cffe3189437291a824c47e0f7cfdde6d58f10842649973e3b7e7d9d7",
     "file": "ch01-flywheel-governor.pdf",
-    "sha256": "a3b856e31dc1e8ab1e92bd98b533c20549a9b62b94a69b763555d60612dc0937",
-    "bytes": 111476,
+    "sha256": "95c93051d3eef46eaa764dde661b2a8054434c2f6ec9b77bb4c904a6cfad49a1",
+    "bytes": 109030,
     "pixels": [
       496,
       720

@@ -7,13 +7,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch08-quarantine-inspection-lantern.png",
     "source_sha256": "a2af8be8eb1c27f3f147a24c99cad852839857cdd4236845c4545c4ac9bdaa49",
     "file": "ch08-quarantine-inspection-lantern.pdf",
-    "sha256": "1224d5bbdcfa1ce3a50c845599f311c1590783d3110379c0ebd77da7bdceb05c",
-    "bytes": 129072,
+    "sha256": "f9e9daaec16e724898172fa946ba962642e956d05aa6f29bda0a997ec2fcd8e0",
+    "bytes": 126626,
     "pixels": [
       317,
       720

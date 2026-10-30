@@ -78,7 +78,28 @@ class PrintWeight(unittest.TestCase):
         with fitz.open(wrapper) as doc:
             xref = doc[0].get_images(full=True)[0][0]
             self.assertEqual(doc.xref_get_key(xref, "Filter"), ("name", "/DCTDecode"))
-            self.assertEqual(doc.xref_get_key(xref, "SMask")[0], "xref")
+            smask = doc.xref_get_key(xref, "SMask")
+            self.assertEqual(smask[0], "xref")
+            smask_xref = int(smask[1].split()[0])
+            self.assertEqual(doc.xref_get_key(smask_xref, "ColorSpace"), ("name", "/DeviceGray"))
+
+    def test_non_devicegray_smask_is_flagged_and_repaired(self):
+        import fitz
+        quiet(pw.write, [DIR], False)
+        wrapper = self.dir / "lantern.pdf"
+        with fitz.open(wrapper) as doc:
+            xref = doc[0].get_images(full=True)[0][0]
+            smask_xref = int(doc.xref_get_key(xref, "SMask")[1].split()[0])
+            doc.xref_set_key(smask_xref, "ColorSpace", "[/ICCBased 1 0 R]")
+            broken = doc.tobytes()
+        wrapper.write_bytes(broken)
+        self.assertEqual(quiet(pw.check, [DIR]), 1)
+        self.assertEqual(quiet(pw.write, [DIR], False), 0)
+        self.assertEqual(quiet(pw.check, [DIR]), 0)
+        with fitz.open(wrapper) as doc:
+            xref = doc[0].get_images(full=True)[0][0]
+            smask_xref = int(doc.xref_get_key(xref, "SMask")[1].split()[0])
+            self.assertEqual(doc.xref_get_key(smask_xref, "ColorSpace"), ("name", "/DeviceGray"))
 
     def test_a_second_write_changes_nothing(self):
         quiet(pw.write, [DIR], False)

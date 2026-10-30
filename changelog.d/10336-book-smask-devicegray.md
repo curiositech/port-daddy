@@ -1,0 +1,3 @@
+type: fixed
+
+- **The Book's 39 margin-evidence PDF wrappers now declare `/ColorSpace /DeviceGray` on their soft-mask (`SMask`) XObjects, as required by ISO 32000-1 §11.6.5.3.** PyMuPDF's `insert_image(..., mask=...)` defaulted to an `/ICCBased` gray profile on the subsidiary `SMask` stream, which Poppler (`pdftoppm`) and strict PDF renderers reject with `Syntax Error: Bad image parameters`, rendering all 39 margin drawings blank. `scripts/whitepaper-plates/print_weight.py` now sets `/ColorSpace /DeviceGray` when wrapping `SMask` streams, flags non-`DeviceGray` soft masks during `--check`, and updates the 39 `plates/margin-evidence/*.pdf` wrappers.

@@ -12,13 +12,13 @@
   "role": "generated editorial analogy, not measured evidence",
   "references_uploaded": [],
   "print_master": {
-    "date": "2026-10-19",
+    "date": "2026-10-26",
     "tool": "scripts/whitepaper-plates/print_weight.py",
     "from": "ch01-fairness-ticket-dispenser.png",
     "source_sha256": "6156226a0a48118f77296602de4ec03ace30e83a6bc05b29e08ac913ee23bb6c",
     "file": "ch01-fairness-ticket-dispenser.pdf",
-    "sha256": "4095250cff8c973499d7a49fc8eb6d26721fd27cd5302e55b6679a0768af628e",
-    "bytes": 130230,
+    "sha256": "dd57c256a8308e120b7e6a4f881aea49c9ba7a7fadb58d974a059de51e641533",
+    "bytes": 127784,
     "pixels": [
       584,
       720
