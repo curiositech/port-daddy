@@ -97,15 +97,18 @@ colliding*.
 
 **Publish, review and land:**
 - Code is not done until it is ready to merge to main. Publish a ready,
-  non-draft App/Fleetbot PR through the repository's authorized path; retain
-  ownership through the actual merge. Sign comments with the responsible
-  agent/session and exact head, not the operator's identity.
+  non-draft PR through the repository's authorized path; retain ownership through
+  the actual merge. Existing authenticated `gh` and Git credential helpers may
+  be used within task scope without a separate exception. App/Fleetbot
+  publication is optional when useful. Verify account, repository and exact
+  head/base without exporting credentials; report actual GitHub authorship with
+  responsible-agent/session and exact-head attribution.
 - Read-only inspection is distinct from publication and may use tools
   permitted by repository/operator policy; where all GitHub access is
-  broker-routed, honor that policy for reads too. Never use ambient personal
-  credentials for GitHub writes. A planned ActionReceipt API or ad-hoc helper
-  is not a shipped surface: preserve prepared work and report an exact missing
-  capability rather than inventing a verb or replaying an uncertain write.
+  broker-routed, honor that policy for reads too. A planned ActionReceipt API
+  or ad-hoc helper is not a shipped surface: preserve prepared work and report
+  an exact missing capability rather than inventing a verb. Read back an
+  uncertain write before any further mutation.
 - Respond graciously to every actionable review, incorporating feedback unless
   clearly wrong or harmful and explaining disagreements with evidence. Add
   regression tests and improve relevant CI/CD. Obtain independent review for
