@@ -433,6 +433,7 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
     source: 'lib/client.ts spawn and orchestration methods',
     items: [
       { name: 'spawn', description: 'Launch a run with backend, identity, model, and budget.' },
+      { name: 'getSpawnReceipt', description: 'Read the durable result for receiptId without starting work; resolves to success and runReceipt (AgentRunReceipt).' },
       { name: 'listSpawned', description: 'List spawned agents.' },
       { name: 'killSpawned', description: 'Kill a spawned agent.' },
       { name: 'cockpitMissions', description: 'Read typed cockpit mission cards from roadmap and recovery truth without mutating state.' },
