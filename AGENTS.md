@@ -496,29 +496,25 @@ Two corollaries when you hit a stuck whitepaper PR:
 - **Do not fix it with "Update branch".** That records a merge commit, which
   a rebase-merge then has to replay, and the PR gets *harder* to land.
 
-### GitHub mutations use the Fleetbot actuator only
+### Authorized GitHub publication
 
-Agents must not use the operator's GitHub identity or credentials for any
-mutation. This includes `gh pr create`, `gh pr comment`, `gh pr merge`, `gh api`
-with a write method, authenticated `git push` through an ambient credential
-helper, and direct REST/GraphQL writes with `GH_TOKEN`, `GITHUB_TOKEN`, a
-personal access token, OAuth token, browser cookie, or copied account bearer.
+Use ordinary `gh` and authenticated `git push` through the existing logged-in
+GitHub account and credential helper for authorized repository work. Verify the
+account, repository, exact head/base and requested scope without printing
+credentials. Existing task authorization is sufficient; using this path needs
+no separate exception or additional approval. Report the actual GitHub author.
 
-Use the repository's authorized GitHub App/Fleetbot actuator. The actuator must
-hold the App key outside the agent process, mint a repository-scoped short-lived
-installation token internally, execute only the exact approved operation, revoke
-the token, stamp the responsible agent/session/roadmap scope, and return a
-read-back receipt without returning any credential. Read
+The GitHub App/Fleetbot actuator is optional when its attribution and bounded
+receipts are useful. Read
 [`skills/github-app-actuator/SKILL.md`](skills/github-app-actuator/SKILL.md)
-before publishing or changing a PR.
+when choosing that path. Keep its private key and installation tokens inside the
+protected custodian; ordinary authenticated `gh` does not produce an App receipt.
 
-An operator sentence authorizing an action is not a credential and must never be
-converted into permission to fetch their token. If the actuator is unavailable,
-preserve the commit and prepared message and report the missing actuator
-operation. Never fall back to the operator identity. The one-time credential
-retirement/bootstrap ceremony is the sole exception: it must be explicitly
-authorized by the operator, perform only the named cutover, remove the ambient
-credential immediately afterward, and record non-secret verification.
+Do not extract, copy, print or export tokens, keys or browser cookies. Keep
+required checks, review and normal protected merge/queue rules; never use an
+admin bypass. Release and deployment actions still need their own task scope.
+The local Port Daddy runtime halt remains in force. After an uncertain write,
+read back exact provider state before deciding whether another action is needed.
 
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The

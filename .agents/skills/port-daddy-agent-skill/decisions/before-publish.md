@@ -1,7 +1,7 @@
 ---
 title: "Decision tree: before commit / push / deploy"
 purpose: "Every gate that exists between 'looks done locally' and 'visible to the fleet,' in the right order."
-last_verified: 2026-09-02
+last_verified: 2026-10-30
 ---
 
 # Before You Publish
@@ -57,9 +57,9 @@ START: I think my work is ready
 │   │      → commit often with verified agent author/committer; read back SHA,
 │   │        append its note. Keep publication/review/merge tasks unfinished.
 │   ├─ Ready source or requested research artifact
-│   │      → publish a ready, non-draft App/Fleetbot PR with exact agent/session
-│   │        attribution through the repository's authorized path, not as the
-│   │        operator using ambient personal credentials.
+│   │      → publish a ready, non-draft PR through existing authenticated gh/Git
+│   │        or optional App/Fleetbot within task scope, without a separate exception.
+│   │        Verify account/head/base; report actual authorship and agent/session.
 │   ├─ Missing publication capability
 │   │      → retain commits/body and exact missing route in a durable handoff;
 │   │        do not invent a publisher verb or planned ActionReceipt API.
@@ -100,8 +100,9 @@ START: I think my work is ready
 
 Read-only inspection is distinct from publication and may use tools permitted
 by repository/operator policy; where all GitHub access is broker-routed, honor
-that policy for reads too. This tree does not grant `gh`/API access forbidden
-by the operator, or permission for personal-token mutations.
+that policy for reads too. Use existing authentication without extracting,
+copying or exporting credentials. Keep required checks, review and normal
+protected merge/queue rules. An uncertain write needs exact provider readback.
 
 ## Rebase conflicts on overlapping files
 

@@ -60,10 +60,12 @@
   Code is not done when merely saved or committed. Use a linked worktree, commit
   small validated checkpoints often, and read back a scoped note after each commit.
   Publish implementation and requested research artifacts, not just chat summaries.
-  Agent-authored GitHub mutations use the configured App/Fleetbot publisher with
-  responsible-agent attribution; never fall back to the operator's personal account.
-  If unavailable, preserve the commit and record the exact missing capability,
-  responsible owner, and recovery action. Do not relabel an ad-hoc helper as shipped.
+  Authorized GitHub mutations may use existing authenticated `gh` and Git credential
+  helpers without a separate exception. App/Fleetbot publication is optional when
+  useful. Verify account, repository and exact head/base, report actual authorship,
+  and never export credentials. If no authorized path is available, preserve the
+  commit and name the missing capability, responsible owner and recovery action.
+  Do not relabel an ad-hoc helper as shipped.
 
   Ready for review means a non-draft PR with evidence. Own it through gracious
   review replies, regression tests, required checks green, and normal protected

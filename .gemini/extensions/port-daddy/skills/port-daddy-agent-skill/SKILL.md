@@ -191,7 +191,7 @@ pd session files add <path>
 # Work in a linked worktree; commit validated checkpoints with agent attribution.
 # Keep the complete plan and notes current. A checkpoint is not delivery.
 pd plan check "Setup X"
-# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Publish a ready, non-draft PR through the authorized path.
 # Own reviews, regression tests, required checks and the protected merge/queue.
 # Verify the actual merged-head receipt; queue admission is not merge.
 pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
@@ -431,17 +431,20 @@ often in a linked worktree; a commit or pushed branch is recoverable progress,
 not completion. Requested research and planning artifacts also belong in a PR.
 Keep their remaining publication, review and merge tasks in the complete plan.
 
-Publish ready, non-draft PRs, comments and review replies through the
-repository's authorized App/Fleetbot path, with the responsible agent, session,
-scope and exact head in the receipt. Do not publish as the operator with
-ambient personal credentials. Read-only inspection is distinct from
-publication and may use tools permitted by repository/operator policy; where
-**all GitHub access is broker-routed**, honor that policy for reads too.
-If a required publisher is unavailable, preserve the commits and prepared PR
-body, record the exact missing capability and arrange an attributable handoff.
+Publish ready, non-draft PRs, comments and review replies through an authorized
+repository path. Existing authenticated `gh` and Git credential helpers may be
+used within task scope without a separate exception; verify account, repository
+and exact head/base without exposing credentials, and report actual authorship.
+App/Fleetbot publication is optional when useful; preserve its scoped receipts
+when selected. Keep responsible-agent and session attribution in the work.
+Read-only inspection may use tools permitted by repository/operator policy;
+where **all GitHub access is broker-routed**, honor that policy for reads too.
+If no authorized path is available, preserve the commits and prepared PR body,
+record the exact missing capability and arrange an attributable handoff.
 An ad-hoc helper is not a shipped surface; do not invent a publisher command or
 pretend a planned ActionReceipt API is available. Uncertain writes require
-exact readback, not replay through another identity or transport.
+exact readback before any further mutation. Never export credentials or bypass
+required checks, review or protected merge/queue rules.
 
 Read-only reviewers and non-authoring agents must not push or merge merely
 because they read this contract. Their finish line is the assigned review or
@@ -650,7 +653,7 @@ git rebase origin/main           # use origin/master only when that remote branc
 pd sessions --all-worktrees
 pd notes --limit 20
 pd guard check --staged
-# Commit validated checkpoints; publish a ready, non-draft App/Fleetbot PR.
+# Commit validated checkpoints; publish a ready, non-draft PR.
 # Follow PR Finish Line: gracious reviews, regression tests, required checks,
 # protected merge/queue, and an actual merged-head receipt before completion.
 pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."

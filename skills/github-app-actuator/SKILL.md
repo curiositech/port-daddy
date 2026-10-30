@@ -1,14 +1,12 @@
 ---
 name: github-app-actuator
 description: >-
-  Publish branches, pull requests, comments, review replies, readiness changes,
-  reviewer requests, and merge-queue actions through Port Daddy's attributable
-  GitHub App actuator without exposing or falling back to an operator's personal
-  GitHub credentials. Use before any GitHub mutation, when a PR would otherwise
-  appear as the human operator, when retiring ambient gh authentication, or when
-  diagnosing a missing Fleetbot publication capability. NOT for read-only GitHub
-  inspection unless repository policy brokers reads too, and not authority to
-  start the halted local Port Daddy runtime.
+  Publish authorized GitHub effects through Port Daddy's optional attributable
+  GitHub App actuator while keeping App credentials inside its protected
+  custodian. Use when App authorship and signed receipts are useful or when
+  diagnosing Fleetbot publication. Ordinary existing authenticated gh and Git
+  credential helpers may also perform task-authorized GitHub actions without a
+  separate exception. NOT authority to start the halted local Port Daddy runtime.
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
@@ -35,24 +33,21 @@ metadata:
 The actuator performs an already-authorized GitHub effect. It does not decide
 what should happen, and the proposing agent never receives a GitHub credential.
 
-## Explicit operator override during bootstrap
+## Choose an authorized publication path
 
-An explicit operator instruction takes precedence over this skill. On
-2026-09-19, Erich authorized temporary use of his existing authenticated GitHub
-account for the scoped Book, Media and Hook PR work and the actuator follow-up,
-until the proper actuator is usable. Preserve the authorization's scope; this
-does not authorize unrelated work, merges, gate bypasses or credential export.
+Existing authenticated `gh` and Git credential helpers may perform authorized
+GitHub actions within task scope. Verify the account, repository and exact
+head/base without printing credentials, then report actual authorship. This
+ordinary path needs no separate exception or additional approval, including
+when Fleetbot is unavailable. Keep required checks, review and normal protected
+merge/queue rules; release and deployment still require their own task scope.
+Never extract, copy, print or export credentials.
 
-For that authorized fallback, verify the account, repository and exact head/base
-without printing tokens, use the existing authentication, and report the actual
-personal-account author. Never claim an App receipt or bot authorship. Continue
-building the daemon-independent actuator and return to it once its configured
-operation and readback are proven. Source presence alone does not end bootstrap.
-Without an explicit applicable operator override, the App-only boundary below
-remains the default. Do not ask again for authorization already present in the
-task's verified user instructions.
+Choose the App actuator when its bot attribution and signed receipts are
+useful. The requirements below govern that protected path. Never claim an App
+receipt or bot authorship for ordinary authenticated `gh` publication.
 
-## Non-negotiable boundary
+## Protected App boundary
 
 ```text
 agent proposal -> exact one-use grant -> protected actuator -> GitHub App token
@@ -78,7 +73,7 @@ Same-UID policy files are guidance, not confinement. A durable installation must
 run the credential custodian as a separate OS identity or remote service and
 deny the agent account access to its keychain, private key, and service secrets.
 
-## Use it
+## Use the App actuator
 
 1. Finish and validate a coherent commit in a linked worktree. Fetch and
    reconcile before publication; keep inherited repository hooks inert when the
@@ -164,22 +159,22 @@ Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
-Direct use of an operator credential or ambient `gh` login does **not** satisfy
-the protected actuator boundary. An explicit temporary operator override above
-is a separately attributed fallback, never App-publication evidence.
+Ordinary authenticated `gh` does **not** satisfy the protected actuator boundary;
+report its actual author and provider readback, never App-publication evidence.
 
 ## Missing actuator
 
-Do not turn infrastructure absence into authorship fraud. Preserve the commit,
-branch name, exact base/head, prepared PR body or comment, and required operation.
-Report which actuator operation or grant is missing. Without an applicable
-explicit operator override, publication remains pending; the code is recoverable
-but not delivered. If the operator already authorized the scoped fallback, use
-it and preserve truthful authorship instead of stopping at this paragraph.
+Use existing authenticated `gh` or Git credential helpers for authorized work
+when available. Report actual authorship and verify exact provider state. If no
+authorized publication path is available, preserve the commit, branch, exact
+base/head, prepared PR body or comment and missing operation for a recoverable
+handoff. Do not invent an App receipt or retry an uncertain write blindly.
 
 ## Personal-credential retirement ceremony
 
-This is exceptional and must name the one final allowed operation.
+Run this ceremony only when the operator explicitly asks to retire a personal
+credential. Ordinary publication does not require logout or credential removal.
+The retirement request must name the final allowed operation.
 
 1. Publish the cutover through `port-daddy[bot]` and verify bot authorship and
    exact provider state.
@@ -197,8 +192,8 @@ This is exceptional and must name the one final allowed operation.
 
 ## Reject these shortcuts
 
-- Inventing a personal-account fallback without explicit applicable operator
-  authorization, or broadening a scoped override into unrelated mutations.
+- Broadening task authorization into unrelated GitHub mutations, release,
+  deployment or an admin bypass.
 - Passing the App private key to a helper running as the agent.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
@@ -207,7 +202,7 @@ This is exceptional and must name the one final allowed operation.
   the original run id to the separate receipt-recovery workflow.
 - Claiming a policy prompt prevents credential use by a malicious same-UID process.
 
-## Completion evidence
+## App-path completion evidence
 
 - GitHub mutation author is the configured App, not the operator.
 - Exact mutation state and responsible-agent provenance read back.
