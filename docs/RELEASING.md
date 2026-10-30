@@ -20,11 +20,13 @@ version-bump PR with every version surface synced and the CHANGELOG stamped,
 auto-merges it on green, then tags and publishes the Release. To pause it,
 open an issue titled `Release train: hold`; to force a cut now, dispatch the
 workflow. The recipe below describes manual agent preparation and exceptional
-release phases (including deliberate major bumps). It is not an authentication
-fallback: a train/App configuration or authorization failure never permits
-publication through ambient or personal Git/`gh` credentials. Every GitHub write
-still requires the existing approved App-bound publisher and protected queue;
-exceptional release authorization and source preparation are separate decisions.
+release phases (including deliberate major bumps). Authorized manual GitHub
+publication may use existing authenticated `gh` and Git credential helpers;
+it needs no separate identity exception. Verify account, repository, exact
+head/base and actual authorship without exporting credentials. Keep normal
+required checks, review and protected queue rules. Exceptional release
+authorization and source preparation remain separate decisions. The automated
+train retains its App-only token custody and has no personal-token fallback.
 
 ### Release-train authority and recovery
 
@@ -155,20 +157,20 @@ node scripts/build-single-binary.mjs --outfile=dist/pd     # release workflow sh
 ./dist/port-daddy --version                                # reports 3.15.0
 SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
 
-# F. Prepare the reviewed commit, then publish through the approved App boundary
+# F. Prepare the reviewed commit, then publish through an authorized GitHub path
 pd guard check --staged
 git add <explicit paths>
 # Inspect author and committer first; use verified responsible-agent attribution.
 # Follow skills/port-daddy-agent-skill/references/git-discipline.md.
 git commit -m "chore(release): bump to 3.15.0"
-# Hand this exact branch/head and PR body to the existing approved App-bound
-# publisher. Read back App author/head, answer reviews, and use the protected
-# queue. Do not replace a failed publisher with personal git push / gh pr calls.
+# Use existing authenticated git push / gh pr calls, or the optional configured
+# App publisher. Read back the actual author/head, answer reviews, and use the
+# protected queue. Keep tokens and private keys out of output and evidence.
 
 # G. Normal path: the train identifies and tags the exact merged version transition.
 # H. Normal path: the App publishes the matching GitHub Release, triggering release.yml.
 # Exceptional manual tag/Release publication needs its own release authorization
-# through the same approved App boundary. Preserve exact target/tag/Release
+# through an authorized GitHub path. Preserve exact target/tag/Release
 # witnesses and monotonic version checks; never force-retag or bypass auth.
 
 # I. Babysit the binary build

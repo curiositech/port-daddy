@@ -444,18 +444,22 @@ carries the canonical copy — this is the contributor-repo mirror.
 "<purpose>" --identity port-daddy:contrib:<slug> --lifecycle durable` → full
 `pd plan set` → scope `pd note` → smallest claims *before* editing → edit and
 test → `pd guard check --staged` → frequent coherent checkpoints with verified
-agent author/committer attribution → ready, non-draft App/Fleetbot PR through
+agent author/committer attribution → ready, non-draft PR through
 the authorized publication path. A checkpoint is not delivery; **do not run
 `pd done` at PR creation**. Retain ownership through actual merge.
 
-GitHub writes (push, PR, comment, review and queue mutations) use that scoped
-App path, never ambient personal `gh`/API credentials. Read-only inspection is
-distinct from publication and may use tools permitted by repository/operator
-policy; where **all GitHub access is broker-routed**, honor that policy for
-reads too. A planned ActionReceipt API or an ad-hoc helper is not a shipped
-surface. If the required publisher is missing, preserve the exact commits and
-body, record the missing capability and arrange an accepting handoff; do not
-invent a command, switch identities or replay an uncertain write.
+GitHub writes (push, PR, comment, review and queue mutations) may use existing
+authenticated `gh` and Git credential helpers within task scope, without a
+separate exception. Verify account, repository and exact head/base without
+exposing credentials; report actual authorship. App/Fleetbot is optional when
+useful and retains its protected credential custody and receipt requirements.
+Read-only inspection may use tools permitted by repository/operator policy;
+where **all GitHub access is broker-routed**, honor that policy for reads too.
+A planned ActionReceipt API or an ad-hoc helper is not a shipped surface. If no
+authorized publication path is available, preserve the exact commits and body,
+record the missing capability and arrange an accepting handoff. Read back an
+uncertain write before any further mutation. Never export credentials or bypass
+required checks, review or normal protected merge/queue rules.
 
 **Update** (review + CI). Read live comments, replies and checks through the
 permitted inspection path. Respond graciously, incorporating actionable
@@ -941,7 +945,7 @@ node scripts/release-surface-audit.mjs   # if present
 git add <explicit paths>
 git status --porcelain          # MUST be clean of foreign files
 git commit -m "<scope>: <change>" # verified agent author AND committer
-# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Publish a ready, non-draft PR through the authorized path.
 # Respond graciously; add regression tests; fix required checks and reviews.
 # Use protected merge/queue and verify the actual merged-head receipt.
 

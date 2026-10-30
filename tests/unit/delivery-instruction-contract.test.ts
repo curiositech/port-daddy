@@ -34,7 +34,7 @@ function expectDeliveryOrder(text: string): void {
   // (with or without arguments), arrows, or a later valid completion command.
   const compact = text.replace(/\bdo not run\s+`pd done`/gi, '')
     .replace(/\s+/g, ' ');
-  const publish = compact.indexOf('ready, non-draft App/Fleetbot PR');
+  const publish = compact.indexOf('ready, non-draft PR');
   const review = compact.toLowerCase().indexOf('gracious', publish);
   const merge = compact.indexOf('actual merged-head receipt', review);
   const done = compact.indexOf('pd done');
@@ -124,7 +124,7 @@ describe('delivery instruction contract', () => {
 
   test.each(['pd done', '`pd done`', '→ `pd done` →', 'pd done "early"'])(
     'delivery-order assertion rejects an early command spelling: %s', (command) => {
-      const ordered = 'ready, non-draft App/Fleetbot PR\nRespond graciously\nactual merged-head receipt\npd done "complete"';
+      const ordered = 'ready, non-draft PR\nRespond graciously\nactual merged-head receipt\npd done "complete"';
       expect(() => expectDeliveryOrder(ordered)).not.toThrow();
       expect(() => expectDeliveryOrder(`${command}\n${ordered}`)).toThrow();
     },
@@ -132,7 +132,7 @@ describe('delivery instruction contract', () => {
 
   test('delivery-order assertion permits explicit prohibitions but still requires actual completion', () => {
     const prohibition = 'Do not run `pd done` at PR creation.\n**do not run\n`pd done` at PR creation**.';
-    const ordered = `${prohibition}\nready, non-draft App/Fleetbot PR\nRespond graciously\nactual merged-head receipt`;
+    const ordered = `${prohibition}\nready, non-draft PR\nRespond graciously\nactual merged-head receipt`;
     expect(() => expectDeliveryOrder(`${ordered}\npd done "complete"`)).not.toThrow();
     expect(() => expectDeliveryOrder(ordered)).toThrow();
     expect(() => expectDeliveryOrder(`${prohibition}\npd done "early"\n${ordered}\npd done "complete"`)).toThrow();
@@ -192,7 +192,7 @@ describe('delivery instruction contract', () => {
       section(text, '## Operating Loop', '## Decision Points')];
     for (const loop of loops) {
       const compact = loop.replace(/\s+/g, ' ');
-      const publish = compact.indexOf('ready, non-draft App/Fleetbot PR');
+      const publish = compact.indexOf('ready, non-draft PR');
       const merged = compact.indexOf('merged-head receipt', publish);
       expect(publish).toBeGreaterThan(-1);
       expect(merged).toBeGreaterThan(publish);
@@ -210,25 +210,47 @@ describe('delivery instruction contract', () => {
     expect(text).toContain('This verifier runs even when the branch is fully pushed');
   });
 
-  test('GitHub mutation instructions preserve the App boundary and scope an explicit bootstrap override', () => {
+  test('GitHub guidance permits existing authentication and preserves the optional App boundary', () => {
     const agents = source('AGENTS.md');
     const skill = source('skills/github-app-actuator/SKILL.md');
+    const compactAgents = agents.replace(/\s+/g, ' ');
     const compactSkill = skill.replace(/\s+/g, ' ');
     for (const phrase of [
-      'GitHub mutations use the Fleetbot actuator only',
-      "must not use the operator's GitHub identity or credentials",
-      'Never fall back to the operator identity',
-    ]) expect(agents).toContain(phrase);
+      'Authorized GitHub publication',
+      'Use ordinary `gh` and authenticated `git push`',
+      'no separate exception or additional approval',
+      'GitHub App/Fleetbot actuator is optional',
+      'normal protected merge/queue rules',
+      'local Port Daddy runtime halt remains in force',
+    ]) expect(compactAgents).toContain(phrase);
     for (const phrase of [
+      'Existing authenticated `gh` and Git credential helpers',
+      'no separate exception or additional approval',
       "operator's PAT, OAuth token, `pdu_` account bearer",
       'separate OS identity or remote service',
       'Local `gh auth logout` alone is not remote revocation',
       'does **not** satisfy the protected actuator boundary',
-      'Without an explicit applicable operator override',
-      'does not authorize unrelated work, merges, gate bypasses or credential export',
       'Never claim an App receipt or bot authorship',
-      'a separately attributed fallback, never App-publication evidence',
+      'Never extract, copy, print or export credentials',
     ]) expect(compactSkill).toContain(phrase);
+    for (const text of [agents, skill]) {
+      expect(text).not.toContain('Without an explicit applicable operator override');
+      expect(text).not.toContain('Never fall back to the operator identity');
+      expect(text).not.toContain('GitHub mutations use the Fleetbot actuator only');
+    }
+    // Inspect guidance as source: this contract never executes a halted hook or CLI.
+    for (const path of ['hooks/sessionstart-pilot.mjs', 'cli/commands/tutorial.ts',
+      '.github/PULL_REQUEST_TEMPLATE.md', 'skills/port-daddy-agent-skill/SKILL.md',
+      'skills/port-daddy-internal-dev/SKILL.md',
+      'skills/port-daddy-agent-skill/decisions/before-publish.md']) {
+      const guidance = source(path).replace(/\s+/g, ' ');
+      expect(guidance).toMatch(/(?:no|without a) separate exception/);
+      expect(guidance).toContain('App/Fleetbot');
+      expect(guidance).toContain('actual authorship');
+      expect(guidance).not.toContain('never fall back to the operator');
+      expect(guidance).not.toContain('never ambient personal');
+      expect(guidance).not.toContain('or post as the user');
+    }
   });
 
   test('contributor lifecycle and decision tree cannot turn PR creation or missing context into done', () => {
@@ -251,7 +273,7 @@ describe('delivery instruction contract', () => {
     expect(loop).not.toContain('git push -u');
     const tree = source('skills/port-daddy-agent-skill/decisions/before-publish.md');
     for (const phrase of ['not automatic `pd begin`', 'age is not authority', 'queue admission is not merge',
-      'all GitHub access is broker-routed', 'honor\nthat policy for reads too', 'ready, non-draft App/Fleetbot PR',
+      'all GitHub access is broker-routed', 'honor\nthat policy for reads too', 'ready, non-draft PR',
       'hotfix does not grant an exception', 'Only after actual merge']) expect(tree).toContain(phrase);
     expect(tree).not.toContain('safe to resolve');
     expect(tree).not.toContain('open PR if one is expected');

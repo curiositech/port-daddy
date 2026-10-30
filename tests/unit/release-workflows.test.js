@@ -77,14 +77,18 @@ describe('release workflow topology contracts', () => {
     expect(release).not.toContain('HOMEBREW_TAP_TOKEN');
   });
 
-  test('current release documentation uses App-only authority without rewriting historical changelog', () => {
+  test('release guidance permits authorized gh while preserving App-only train custody and history', () => {
     const releasing = readFileSync(join(ROOT, 'docs', 'RELEASING.md'), 'utf8');
     expect(releasing).toContain('RELEASE_TRAIN_APP_PRIVATE_KEY');
     expect(releasing).toContain('3810450');
     expect(releasing).toContain('cleanup UNCONFIRMED');
     expect(releasing).not.toContain('falls back automatically');
-    expect(releasing).toContain('publication through ambient or personal Git/`gh` credentials');
-    expect(releasing).toContain('Every GitHub write');
+    expect(releasing).toContain('existing authenticated `gh` and Git credential helpers');
+    expect(releasing).toContain('no separate identity exception');
+    expect(releasing).toContain('train retains its App-only token custody');
+    expect(releasing).toContain('no personal-token fallback');
+    expect(releasing).toContain('protected queue rules');
+    expect(releasing).not.toContain('Every GitHub write');
     const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
     expect(changelog).toContain('RELEASE_TRAIN_TOKEN');
     expect(changelog).toContain('HOMEBREW_TAP_TOKEN');

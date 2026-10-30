@@ -287,11 +287,12 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line('    reconcile with the canonical branch using this repository\'s required strategy');
   line(`    ${ANSI.fgCyan}pd guard check --staged${ANSI.reset}`);
   line();
-  line('  Publish a ready, non-draft PR through the configured GitHub App/Fleetbot publisher.');
-  line('  Sign it with the responsible agent, session, roadmap link, and evidence links.');
-  line('  Never silently fall back to the operator\'s personal GitHub credentials. If the');
-  line('  publisher is unavailable, preserve the commit and name the exact missing route,');
-  line('  responsible owner, and recovery action. An ad-hoc helper is not a shipped surface.');
+  line('  Publish a ready, non-draft PR through existing authenticated gh/Git or optional App/Fleetbot.');
+  line('  Task-authorized gh/Git needs no separate exception. Verify account, repository and head/base;');
+  line('  report actual authorship and responsible agent/session, roadmap link and evidence.');
+  line('  Never expose or export credentials. If no authorized path is available, preserve the');
+  line('  commit and name the exact missing route, responsible owner and recovery action.');
+  line('  An ad-hoc helper is not a shipped surface.');
   line();
   line('  Own the PR until merged or explicitly handed off to a named, accepting owner:');
   line('    Respond graciously to every actionable review; incorporate feedback unless');
