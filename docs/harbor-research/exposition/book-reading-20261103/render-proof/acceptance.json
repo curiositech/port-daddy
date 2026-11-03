@@ -162,9 +162,10 @@
     "compound-page-turns.json": "0f40aa5422ed40a38158a787dd7d8b023103bbcd556128efccbb7f877214b11f",
     "facing-copy.json": "275fc75db02ac0b1e7103f0511b250476c39caf65ce6b88af66c7bc3dde59a0e",
     "candidate26-independent-review.json": "f867639b8b050e286df1c0831c728fde5efd4b0b126d531b0a9665120b37098a",
-    "source-checks.json": "e91876adf87dc1fb877487a72296c85521caa6be35e2adac503cac9f15f555ba",
+    "source-checks.json": "0348f02701183db20a57c33d91ab6c9ecb7ed01102ae3fe3b451dbaa7b37cb63",
     "sybil-redraw/receipt.json": "6832ae66ecd2abe4849fc66c11552b5e524cd0597d8e12748ebcc8d370ae3c35",
-    "paired-plot-pareto-repair.json": "be97a399669d2022a257ad2d185db420dca2057f65e456ed23eef5a6496aee38"
+    "paired-plot-pareto-repair.json": "be97a399669d2022a257ad2d185db420dca2057f65e456ed23eef5a6496aee38",
+    "source-integration.json": "fca7453468b22ec8c7882cd5c1bd14ed75ff8dbc882fcbabb9d2c45d227961ce"
   },
   "local_evidence_hashes": {
     "candidate-build-26.log": "0526efe3c93d2fef063fe112683b4a5a684ec595e428836128676b3e2b1d7668",
