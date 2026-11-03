@@ -1,0 +1,56 @@
+{
+  "recorded_at": "2026-11-03T21:31:12.244936+00:00",
+  "failed_head": "e0daa29fdb27629f226f804887d22875e155fae9",
+  "failure": {
+    "job_url": "https://github.com/curiositech/port-daddy/actions/runs/41721108023/job/126213784306",
+    "test": "ProtocolSourceTests.test_current_fixture_dependencies_have_exact_reviewed_hashes",
+    "detail": "Current fixture binding retained 27259 bytes and prior SHA after deletion of two unused generated citation entries; current bytes are 27088.",
+    "hosted_suite": {
+      "run": 939,
+      "failed": 1,
+      "skipped": 122
+    },
+    "raw_log_sha256": "9d7137260738faf297388ed2e7a4f93d20a6fcaf74d3e67c4e8ff86bdf8edd21"
+  },
+  "repair": {
+    "path": "tests/harbor-research/fixtures/protocol-style-inputs.json",
+    "before_sha256": "199703232a722aa85dde2308932a64f6910363cced7e093dff73115f1a3a7e30",
+    "after_sha256": "27aae47f1ba0c2a63117e0f94f487ef409f4795dedba2092d6098952a23b742a",
+    "scope": "Only current fixture shortform hash, byte count, and its scoped review note. No test assertions, TeX, or historical render receipts changed.",
+    "source_provenance": "shortform-freshness-repair.json",
+    "removed_keys": [
+      "abdulrahman1997pgp",
+      "zimmermann1995pgp"
+    ],
+    "surviving_entry_changes": 0
+  },
+  "verification": {
+    "protocol_source_tests": {
+      "run": 14,
+      "passed": 14
+    },
+    "generated_shortform_check": "pass",
+    "complete_library_tests": {
+      "run": 939,
+      "passed": 818,
+      "skipped": 121,
+      "failures": 0,
+      "seconds": 33.135,
+      "log_sha256": "031ef5f2a95e34b178b73f97f67c80bdf4625b5dbeb8ae62adefaf150c58c789"
+    },
+    "print_input_count": 280,
+    "print_input_drift": [],
+    "accepted_pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed"
+  },
+  "historical_receipts_unchanged": {
+    "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.json": "e6984cfc919f0f977d1290c32e25ead72ce797f90141e3ef6b9413f9293ef5d2",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/protocol-main-render.json": "65a721b5f183fb4d34a87b65a2de960224e8564755e3d15d373ad9f5229b6166",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/protocol-heros-render.json": "0bc90a5dc750acce2f5bb3f38fedec3c9ae0b0f8b3669f2a62b1802d50608ead"
+  },
+  "limits": "Current dependency metadata is not new render evidence. Existing fragment render receipts keep their historical input hashes; the accepted Book print has a separate current 280-input snapshot. Hosted verdict remains pending the repair push.",
+  "independent_review": {
+    "reviewer": "craft_machine",
+    "verdict": "pass",
+    "scope": "Verified exact one-row hash/size and scoped-note delta, actual current shortform hash/size, unchanged historical receipts and Book inputs."
+  }
+}
