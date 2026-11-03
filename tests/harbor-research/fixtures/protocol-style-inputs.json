@@ -5,7 +5,7 @@
   "changes_reviewed": {
     "coordination-papers-mega-volume-preamble.tex": "Heading-only wrapping, publication copy-review switch, footer text and caption routing; protocol environment contracts unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Scoped landmark captions and removal of quotation marks from authored prose.",
-    "pd-cite-shortforms.tex": "Verified bibliography key and short-form corrections.",
+    "pd-cite-shortforms.tex": "Verified bibliography key and short-form corrections; follow-up at e0daa29fdb27629f226f804887d22875e155fae9 removes only unused abdulrahman1997pgp and zimmermann1995pgp entries. Historical render receipts retain their original hashes.",
     "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; protocol environments unchanged.",
     "pd-textbook-map.tex": "Primary-source epigraph wording and edition metadata corrections.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
@@ -39,8 +39,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
-      "sha256": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
-      "bytes": 27259
+      "sha256": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
+      "bytes": 27088
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-discharges.tex",
