@@ -241,6 +241,7 @@ function runSweep() {
     ].join('\t'),
   );
 
+  const baselineComparison = []; // reporting only; simulation inputs are unchanged
   for (const cfg of configs) {
     let sumSavings = 0,
       sumParity = 0,
@@ -271,6 +272,9 @@ function runSweep() {
         (sumDef / TRIALS_PER_CONFIG).toFixed(2),
       ].join('\t'),
     );
+    if (cfg.sigma_r === 0 && cfg.cartelSize === 0) {
+      baselineComparison.push(`n=${cfg.n_insurers}: ${(sumDominates / TRIALS_PER_CONFIG).toFixed(3)}`);
+    }
   }
 
   console.log('');
@@ -280,15 +284,16 @@ function runSweep() {
   console.log('# - commons_parity: comp_received / static_received. Should ≈ 1.0;');
   console.log('#   < 1 means commons is undercompensated (insurer defaults).');
   console.log('# - mean_insurer_profit: zero-economic-profit baseline ≈ 0.');
-  console.log('# - pareto_dominance_rate: trials where competitive Pareto-dominates.');
-  console.log('# - sigma_r ↑: reputation noise ↑ (Merkle binding incomplete).');
-  console.log('# - cartelSize ↑: collusion ↑ (detected via cartel-floor pattern).');
+  console.log('# - pareto_dominance_rate: fraction of trials passing a tolerance-based');
+  console.log('#   comparison: lower principal cost, commons receipts >= 97% of static');
+  console.log('#   receipts, and insurer profit >= -5% of static principal cost.');
+  console.log('#   This permits losses and is not exact Pareto dominance.');
+  console.log('# - sigma_r: simulated reputation-noise parameter.');
+  console.log('# - cartelSize: number of simulated colluding insurers.');
   console.log('');
-  console.log('# Headline: with no cartel and no reputation noise, competitive');
-  console.log('# Pareto-dominates the static regime in ≥ 90% of trials. With cartel');
-  console.log('# present and detection at p=0.3, dominance rate drops below 50%.');
-  console.log('# This empirically confirms the §8.4.4 conditional theorem: dominance');
-  console.log('# holds when the four assumptions hold; fails when they do not.');
+  console.log('# Observed no-noise/no-collusion comparison rates: ' + baselineComparison.join('; ') + '.');
+  console.log(`# Each rate summarizes ${TRIALS_PER_CONFIG} trials of ${TXNS_PER_TRIAL} transactions.`);
+  console.log('# This finite seeded sweep does not prove a general efficiency or Pareto guarantee.');
 }
 
 runSweep();

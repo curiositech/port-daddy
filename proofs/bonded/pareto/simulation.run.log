@@ -49,12 +49,13 @@ sigma_r	cartelSize	n_insurers	mean_principal_savings	commons_parity	mean_insurer
 # - commons_parity: comp_received / static_received. Should ≈ 1.0;
 #   < 1 means commons is undercompensated (insurer defaults).
 # - mean_insurer_profit: zero-economic-profit baseline ≈ 0.
-# - pareto_dominance_rate: trials where competitive Pareto-dominates.
-# - sigma_r ↑: reputation noise ↑ (Merkle binding incomplete).
-# - cartelSize ↑: collusion ↑ (detected via cartel-floor pattern).
+# - pareto_dominance_rate: fraction of trials passing a tolerance-based
+#   comparison: lower principal cost, commons receipts >= 97% of static
+#   receipts, and insurer profit >= -5% of static principal cost.
+#   This permits losses and is not exact Pareto dominance.
+# - sigma_r: simulated reputation-noise parameter.
+# - cartelSize: number of simulated colluding insurers.
 
-# Headline: with no cartel and no reputation noise, competitive
-# Pareto-dominates the static regime in ≥ 90% of trials. With cartel
-# present and detection at p=0.3, dominance rate drops below 50%.
-# This empirically confirms the §8.4.4 conditional theorem: dominance
-# holds when the four assumptions hold; fails when they do not.
+# Observed no-noise/no-collusion comparison rates: n=3: 0.906; n=5: 0.861; n=10: 0.739.
+# Each rate summarizes 2000 trials of 50 transactions.
+# This finite seeded sweep does not prove a general efficiency or Pareto guarantee.
