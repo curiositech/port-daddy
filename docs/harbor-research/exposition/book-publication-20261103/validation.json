@@ -1,0 +1,37 @@
+{
+  "scope": "Local artifact integration checks; separate suites with overlapping coverage. Hosted CI and deployment are not claimed.",
+  "logs": {
+    "metadata-check.log": {
+      "sha256": "0498aff30c753b051145b76c88cbaa75aff876b011bd45373d131370264e50ac",
+      "text": "Whitepaper metadata in sync (the Book (8 chapters) + 8 research papers checked; publication digests match).\n"
+    },
+    "cover-check.log": {
+      "sha256": "0816dc6046aea8cde6b745287d00b5ff415c0f75b96e3f5c340891917c038a3b",
+      "text": "ok: cover plate matches the committed Book (b589f090130f\u2026) and its record (d455ae0bbe42\u2026)\n"
+    },
+    "plate-provenance.log": {
+      "sha256": "e6515d26925748c22d0c669fa5c8da711395dfb91517329c2ca541102e05e0a2",
+      "text": "checked plate provenance and TeX plate paths: 0 provenance failure(s), 0 TeX path failure(s)\n"
+    },
+    "metadata-tests.log": {
+      "sha256": "d3c6a55c842e8a1bc84120e9de9d3613a45f47c49c17389995ddcecb1d5c27c7",
+      "text": "\n RUN  v4.1.2 /Users/erichowens/coding/tmp/book-publication-20261103/website-v2\n\n\n Test Files  1 passed (1)\n      Tests  27 passed (27)\n   Start at  12:05:34\n   Duration  706ms (transform 109ms, setup 0ms, import 370ms, tests 224ms, environment 0ms)\n\n"
+    },
+    "publication-tests.log": {
+      "sha256": "e26ab8f0b5a4f50f0634328b0e05ca5715144db04c525bb8680ff1bfdc510cbb",
+      "text": "..........................................                               [100%]\n=============================== warnings summary ===============================\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n42 passed, 5 warnings in 5.90s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+    },
+    "metadata-fix.log": {
+      "sha256": "7f56eb426daf30e68587b019dbcb38e0ef00f4811efce9f1d95f3503d480cc7b",
+      "text": "Whitepaper metadata drift detected:\n\n  - coordination-papers-mega-volume (/whitepaper/coordination-papers-mega-volume.pdf)\n      sizeKb: metadata=17988  pdf=17238 (tolerance max(2%, 4KB) = \u00b1359.8KB)\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nWhitepaper metadata drift detected:\n\n  - reputation-is-amortized-verification (/research/paper3.pdf)\n      sizeKb: metadata=345  pdf=325 (tolerance max(2%, 4KB) = \u00b16.9KB)\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nPublication digests drift (1):\n\n  website-v2/public/whitepaper/coordination-papers-mega-volume.pdf: expected 836pp/18419743B/209a3e1fe3eb\u2026, got 844pp/17652139B/b589f090130f\u2026\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/publication-digests.json for 1 drifted digest(s).\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/src/data/whitePapers.ts with corrected pages/sizeKb for 1 paper(s).\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/src/data/researchPapers.ts with corrected pages/sizeKb for 4 paper(s).\n"
+    },
+    "print-weight.log": {
+      "sha256": "9b57b2d0da58529b428cdaf6e320bf1504534f86e51354d6f2a49d4738e6d62d",
+      "text": "plates/swiss              34 files    6.6 MB\nplates/technical          14 files    4.7 MB\nplates                    15 files    4.5 MB\nplates/marginalia         16 files    1.0 MB\nplates/margin-evidence    39 files    5.8 MB\nplates/interstitial        4 files    1.3 MB\nfigures                   17 files    4.4 MB\n\nOK: every governed plate is at print weight\n"
+    },
+    "cover-write.log": {
+      "sha256": "b9c6098df80ac7ff896fc787202e6616f071dcd28e6cf9a2168f6b2bc702f550",
+      "text": "wrote website-v2/public/whitepaper/plates/cover-swiss.jpg (239 KB) from /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf (b589f090130f\u2026)\n"
+    }
+  }
+}

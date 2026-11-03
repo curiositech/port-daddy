@@ -1,16 +1,17 @@
 name: Whitepaper PDF Build & Deploy
 
-# Rebuilds the published whitepaper PDFs from their LaTeX source whenever the
-# source changes, so the artifacts the website serves never drift from the
-# .tex/figures. Closes the gap that let the trilogy PDFs ship a stale June-3
-# render (retired cinnabar) eight days after the source moved to cobalt.
+# Builds hosted proofs when the configured source paths change. Ordinary runs
+# restore the committed Book before staging derived output; an accepted local
+# Book and its metadata can therefore travel in a separate artifact PR.
 #
-# Modes:
-#   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
-#   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
-#       fork PRs remain advisory because their token is read-only.
-#   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
-#       protected and should only ever receive fresh PDFs via merged PRs.
+# Modes (the Book restoration rule applies unless refresh_book is true):
+#   * configured feature-branch push or same-repository PR -> commit eligible
+#       changed PDFs and their metadata to the existing branch.
+#   * fork PR -> read-only advisory result.
+#   * main push -> fail on remaining published-PDF drift; never commit to main.
+#   * explicit refresh_book dispatch on a feature branch -> retain and commit
+#       the new hosted Book rendering. This is not an import of local Suisse
+#       bytes. The agent opens the ordinary PR; no schedule or auto-PR is defined.
 #
 # The regen commit carries its own derived metadata. publication-digests.json
 # and whitePapers.ts record the byte length, SHA-256 and page count of each
@@ -27,9 +28,9 @@ name: Whitepaper PDF Build & Deploy
 # SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
 # container is byte-identical, and timestamp noise is fully excluded.
 #
-# They are NOT reproducible ACROSS renderer versions. This job runs in
-# `texlive/texlive:latest`, a floating tag, and a TeX Live package update
-# changes output on its own: on 2026-08-18 a PGF/TikZ update emitted line widths
+# They are NOT reproducible ACROSS renderer versions or font profiles. This
+# job pins its TeX Live image by digest below. A renderer update can still change
+# output on its own: on 2026-08-18 a PGF/TikZ update emitted line widths
 # as `0.39851` where the 2026-08-05 render emitted `0.3985`. So a byte
 # difference does NOT by itself mean a genuine source change, and the build step
 # below deliberately restores artifacts whose TeX sources did not move.
@@ -73,12 +74,11 @@ on:
   # skipped job reports success — so this healing/advisory workflow can never
   # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
   merge_group:
-  # The Book's refresh valve. Ordinary runs build it and throw it away (see
-  # "Keep the Book out of the diff" below); this is how a new Book is actually
-  # published. Dispatch it on a BRANCH cut from main, not on main itself: it
-  # commits the rebuilt Book and its derived metadata to that branch, which then
-  # opens one ordinary pull request. main stays protected and receives the Book
-  # the same way it receives everything else.
+  # Explicit hosted-render refresh. Ordinary runs retain the committed Book
+  # after testing the fresh proof. On a feature branch, refresh_book=true keeps
+  # and commits the new hosted rendering and metadata to that existing branch.
+  # It does not preserve an accepted local Suisse PDF. No PR is opened here;
+  # the agent reviews the new artifact and opens its ordinary publication PR.
   workflow_dispatch:
     inputs:
       refresh_book:
@@ -280,13 +280,13 @@ jobs:
       # committed, and check-whitepaper-metadata stays green because it
       # compares the record against the artifact, never against the .tex.
       #
-      # The cost is that main's Book lags its sources between refreshes. That
-      # is deliberate and bounded: `workflow_dispatch` with refresh_book=true
-      # (and the weekly schedule) rebuilds it and opens ONE pull request, so
-      # the Book moves in a single reviewable commit instead of in 23 racing
-      # ones. Chapter PDFs are untouched by this rule -- they are chapter-
-      # scoped, and two PRs collide on one only when they edit the same
-      # chapter, which is a real conflict a person should see.
+      # Main's Book may lag source changes until an artifact PR lands. An
+      # exact accepted local PDF can be copied into that PR with its metadata,
+      # cover/provenance and desk records; ordinary runs preserve those bytes.
+      # refresh_book=true instead commits a new hosted rendering to the existing
+      # feature branch. There is no weekly schedule or PR-creation step.
+      # The Book is the only published whitepaper edition (ADR-0143); retired
+      # chapter PDFs must not be restored by this process.
       - name: Keep the Book out of the diff unless this run is its refresh
         env:
           REFRESHING_BOOK: ${{ github.event_name == 'workflow_dispatch' && inputs.refresh_book }}
@@ -314,9 +314,9 @@ jobs:
           # Heal configured feature-branch pushes and same-repository PR heads.
           # Fork PRs retain a read-only token and stay advisory; main is protected
           # and receives the already-healed artifact through the merge queue.
-          # A refresh_book dispatch commits too, on the branch it was dispatched
-          # on -- that is the one path that publishes a new Book, and it is
-          # refused on main for the same reason every other write here is.
+          # A refresh_book dispatch may commit a new hosted Book to its feature
+          # branch. Exact local-artifact PRs use ordinary runs instead, which
+          # preserve the committed Book. Neither path writes directly to main.
           COMMITTABLE: ${{ (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.refresh_book && github.ref_name != 'main') }}
         run: |
           set -euo pipefail
