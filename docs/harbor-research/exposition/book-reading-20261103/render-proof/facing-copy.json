@@ -1,25 +1,25 @@
 {
-  "candidate": "20",
-  "created_at": "2026-11-03T18:11:05.814625+00:00",
-  "source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+  "candidate": "21",
+  "created_at": "2026-11-03T18:26:44.382792+00:00",
+  "source_head": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
   "source_pdf": {
     "name": "coordination-papers-mega-volume.pdf",
-    "sha256": "5408ad52d2f0bf02d226ef64bb8e4ca6e92233b477d505de5fac44944d8f9811",
+    "sha256": "d0fb8302d4521022dcc68b1a21d74cb252c153b485733e6935d0726ce1c6c049",
     "pages": 844
   },
   "facing_pdf": {
-    "name": "book-facing-spreads-20261103-3ad3b5ce.pdf",
-    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-3ad3b5ce.pdf",
+    "name": "book-facing-spreads-20261103-d7bd77b1.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-d7bd77b1.pdf",
     "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
-    "sha256": "3ad3b5cee802def17dd6cb3d410715a6d023abd95a7c1bee875c76c9be1be0de",
+    "sha256": "d7bd77b181cb1b140f24120ed9d49346ba60f715c53503cd267634baeebb7442",
     "pages": 423,
-    "bytes": 18581370
+    "bytes": 18579937
   },
   "verification": {
     "status": "pass",
     "halves_checked": 846,
     "character_stream_exact_equal_for_every_half": true,
-    "characters_checked": 1342128,
+    "characters_checked": 1342039,
     "every_character_position_checked": true,
     "maximum_coordinate_error_pt": 9.1552734375e-05,
     "coordinate_tolerance_pt": 0.025,
@@ -27,10 +27,10 @@
     "plain_text_difference_physical_pages": [
       105
     ],
-    "links": 3565,
+    "links": 3561,
     "link_target_kinds": {
       "uri": 95,
-      "goto": 3470
+      "goto": 3466
     },
     "bookmarks": 475,
     "named_destinations": 4202,
@@ -40,30 +40,30 @@
   },
   "representative_visual_review": {
     "status": "pass",
-    "scope": "Two actual candidate20 facing spreads individually opened and inspected: exercise0.2 folio63 points to solution714, whose margin points back to63. Both PNGs also byte-match the independently viewed candidate19 navigation images. This spot view is separate from exhaustive destination checks.",
+    "scope": "Two actual candidate21 facing spreads individually opened and inspected: exercise0.2 folio63 points to solution714, whose margin points back to63. Both PNGs also byte-match the independently viewed candidate20 navigation images. This spot view is separate from exhaustive destination checks.",
     "images": [
       {
-        "relative_local_path": ".scratch/textbook-craft-20261103/candidate20-facing-exercise.png",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate21-facing-exercise.png",
         "sha256": "651bd8ef038bfc3bb0df716900fb6d85155f2b827b5a4b712092db8ca66e6637",
         "spread_index": 43,
         "folio": "63"
       },
       {
-        "relative_local_path": ".scratch/textbook-craft-20261103/candidate20-facing-solution.png",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate21-facing-solution.png",
         "sha256": "dc59a6cb6e90eb8d69e2167d387b39e2e86b6824ae9f361ffe7e74ba4b97304a",
         "spread_index": 369,
         "folio": "714"
       }
     ]
   },
-  "full_facing_receipt_sha256": "23e45a6a7aff1dddb44d83ff98764c927d29111fb4cc531ace2f100c42696655",
+  "full_facing_receipt_sha256": "d6b0b9e3ced745b50feeff4a1acaa81a693f973b7ed8b95034a16cb69d5eeed4",
   "full_facing_receipt_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.receipt.json",
   "builder_sha256": "f9e04b3f7135116ff0b6496085dceccbede2f47aca95dafc13d1a7ba1d9ff855",
   "publication_status": {
-    "candidate": "20",
+    "candidate": "21",
     "status": "Independent conversion, navigation and all-font body-page-turn checks pass; parent final editorial acceptance pending.",
     "compound_receipt": "compound-page-turns.json",
-    "compound_receipt_sha256": "4e53cefea11c8f81f5660de836a68c26837782fa22364a1923b35f099bf69ab8",
+    "compound_receipt_sha256": "536e59ab3f440dd8f1b0cbbe352df042ec1f9148408c2f092be4606de55f7fdb",
     "all_font_body_page_turn_candidates": 0
   },
   "regular_copy_receipt": "regular-copy.json",

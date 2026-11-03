@@ -133,7 +133,7 @@
           1911
         ]
       ],
-      "after_sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+      "after_sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
       "after_lines": 2066,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
@@ -806,7 +806,7 @@
     },
     "admission_metrics_source_review": {
       "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+      "sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
       "read_range": [
         1706,
         1740
@@ -851,7 +851,7 @@
       },
       "source_repair": {
         "label": "ex:fh-equivocation-speed",
-        "source_sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+        "source_sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
         "line_range": [
           1742,
           1770
@@ -862,6 +862,20 @@
           "thm:fh-conv": "Theorem",
           "thm:fh-escrow-bound": "Design invariant"
         }
+      }
+    },
+    "candidate21_visual_findings": {
+      "source_commit": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+      "pdf_sha256": "d0fb8302d4521022dcc68b1a21d74cb252c153b485733e6935d0726ce1c6c049",
+      "selected_spreads": 51,
+      "direct_views": 4,
+      "exact_prior_reuses": 47,
+      "acceptance": "Diagnostic only: excessive justification in the TLA+ artifact opening line requires a prose-only filename/directory split. Final22 pending.",
+      "source_repair": {
+        "label": "app:fh-tla",
+        "source_sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
+        "line": 2062,
+        "scope": "Separate model filename, directory and configuration filename; every numerical and model-scope assertion is unchanged."
       }
     }
   },

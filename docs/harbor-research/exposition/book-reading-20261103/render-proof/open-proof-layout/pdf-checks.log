@@ -1,0 +1,153 @@
+checking 1 PDF(s): coordination-papers-mega-volume.pdf
+
+== check_book_caption_margins.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/check_book_caption_margins.py .scratch/textbook-craft-20261103/pr10345/open-proof-layout/coordination-papers-mega-volume.pdf
+263 Book captions checked; 0 placement failures
+
+== check_book_exercise_navigation.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/check_book_exercise_navigation.py .scratch/textbook-craft-20261103/pr10345/open-proof-layout/coordination-papers-mega-volume.pdf
+Exercise navigation: 212 labels, 212 rendered headings, 0 issues
+
+== audit_book_layout.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/audit_book_layout.py .scratch/textbook-craft-20261103/pr10345/open-proof-layout/coordination-papers-mega-volume.pdf
+792 pages; 1464/1464 margin objects; 0 margin issues; 83 pages in whitespace review
+
+== page_overflow.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/page_overflow.py .scratch/textbook-craft-20261103/pr10345/open-proof-layout/coordination-papers-mega-volume.pdf
+-- 0 page/kind rows with loss (ink past the paper edge or past the full width)
+-- advisory: 75 pictures set past the column by the safety net (redraw to the column):
+p 37 +108.0 pt  Figure 0.8.
+p 39 + 71.3 pt
+p 72 +108.0 pt
+p 89 +108.0 pt
+p 92 +108.0 pt  Figure 1.2.
+p 93 + 95.9 pt
+p103 + 38.6 pt  Figure 1.6 isolates thatguard as a four‑step sequence: the e
+p108 +108.0 pt
+p114 +108.0 pt  Figure 1.11.
+p119 +108.0 pt
+p137 +104.6 pt  Figure 1.18 draws the pipeline with its own exclusion: what
+p157 +108.0 pt
+p180 +108.0 pt  Table 2.1.
+p184 +108.0 pt
+p186 +108.0 pt  Figure 2.5.
+p189 + 53.9 pt
+p192 + 97.7 pt
+p231 + 74.4 pt
+p243 + 67.3 pt
+p251 + 65.5 pt
+p252 +108.0 pt
+p259 + 52.9 pt
+p266 + 89.5 pt
+p267 + 84.5 pt
+p268 + 99.3 pt
+p269 +108.0 pt
+p285 +108.0 pt  Table 4.1.
+p290 +108.0 pt
+p296 +105.8 pt
+p296 +108.0 pt
+p300 +108.0 pt
+p310 +102.6 pt
+p316 + 97.7 pt  Figure 4.8 draws the feasible debit band directly against th
+p328 +108.0 pt
+p331 +108.0 pt
+p340 +108.0 pt
+p345 + 84.3 pt  Figure 4.15.
+p359 + 60.2 pt  Table 4.12.
+p389 +106.1 pt
+p401 +108.0 pt
+p404 +107.4 pt
+p409 + 93.0 pt  Table 5.3.
+p414 +108.0 pt
+p420 +108.0 pt  Table 5.6.
+p421 + 90.7 pt
+p429 + 86.7 pt
+p452 +104.0 pt
+p479 + 64.8 pt
+p482 +108.0 pt
+p486 +104.8 pt
+p486 +108.0 pt
+p489 + 56.6 pt
+p491 + 70.6 pt  Figure 6.2.
+p519 +108.0 pt
+p530 +108.0 pt
+p551 +108.0 pt
+p555 +108.0 pt
+p567 +108.0 pt
+p568 + 97.7 pt  Figure 7.5.
+p574 +108.0 pt  Table 7.4.
+p575 +108.0 pt
+p579 + 82.3 pt
+p585 + 83.3 pt
+p591 + 95.1 pt
+p606 +108.0 pt
+p631 + 80.2 pt
+p644 +108.0 pt
+p649 + 68.6 pt
+p656 + 93.9 pt  Table 8.3.
+p667 + 67.9 pt
+p670 +107.2 pt
+p671 + 50.8 pt
+p676 +108.0 pt
+p681 +100.4 pt  Table 8.4.
+p686 +106.7 pt
+-- 0 margin-column collisions (two pieces of text in the same vertical space):
+-- 0 page(s) with column text below the text block's foot (over the running foot):
+
+== page_spills.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/page_spills.py .scratch/textbook-craft-20261103/pr10345/open-proof-layout/coordination-papers-mega-volume.pdf
+text foot at 653.7 pt; 45 finding(s): 0 O, 0 H, 45 W
+  W p.   5  299 pt empty above the foot; next page starts with 'vi'
+  W p.   6  166 pt empty above the foot; next page starts with 'The Harbor, the Person, and the Economy'
+  W p.  17  164 pt empty above the foot; next page starts with 'Contents'
+  W p.  25  206 pt empty above the foot; next page starts with '4'
+  W p.  52  211 pt empty above the foot; next page starts with 'Chapter 0. Foundations and Prerequisites'
+  W p.  71  234 pt empty above the foot; next page starts with '50'
+  W p.  81  342 pt empty above the foot; next page starts with 'Part I'
+  W p.  87  361 pt empty above the foot; next page starts with '66'
+  W p. 106  353 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 110  313 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 113  250 pt empty above the foot; next page starts with '92'
+  W p. 129  474 pt empty above the foot; next page starts with '108'
+  W p. 132  418 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 206  218 pt empty above the foot; next page starts with 'Chapter 2. The Anchor Protocol'
+  W p. 211  499 pt empty above the foot; next page starts with '190'
+  W p. 234  222 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 243  173 pt empty above the foot; next page starts with '222'
+  W p. 244  303 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 248  265 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 253  385 pt empty above the foot; next page starts with '232'
+  W p. 264  244 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 268  154 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 273  279 pt empty above the foot; next page starts with '252'
+  W p. 281  490 pt empty above the foot; next page starts with 'Part II'
+  W p. 315  192 pt empty above the foot; next page starts with '294'
+  W p. 322  349 pt empty above the foot; next page starts with 'Chapter 4. The Legible Swarm'
+  W p. 329  218 pt empty above the foot; next page starts with '308'
+  W p. 384  250 pt empty above the foot; next page starts with ''
+  W p. 390  182 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 394  298 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 405  388 pt empty above the foot; next page starts with '384'
+  W p. 406  187 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 427  515 pt empty above the foot; next page starts with '406'
+  W p. 472  453 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 474  181 pt empty above the foot; next page starts with ''
+  W p. 499  380 pt empty above the foot; next page starts with '478'
+  W p. 541  370 pt empty above the foot; next page starts with '520'
+  W p. 546  517 pt empty above the foot; next page starts with ''
+  W p. 598  224 pt empty above the foot; next page starts with 'Chapter 7. The Bonded Commons'
+  W p. 680  548 pt empty above the foot; next page starts with 'Chapter 8. The Federated Harbor'
+  W p. 691  323 pt empty above the foot; next page starts with '670'
+  W p. 762  400 pt empty above the foot; next page starts with 'Appendices'
+  W p. 774  244 pt empty above the foot; next page starts with 'Appendices'
+  W p. 781  200 pt empty above the foot; next page starts with '760'
+  W p. 792  481 pt empty above the foot; next page starts with ''
+
+== check_cover_title_band.py -- /Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/pr10345/open-proof-layout ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/whitepaper-plates/check_cover_title_band.py --pdf-dir /Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/pr10345/open-proof-layout
+maritime-cover: clean band 39.3% of the plate (floor 30%)
+swiss-cover: clean band 33.2% of the plate (floor 30%)
+swiss: every line of type over a plate clears WCAG AA
+type over art: every registered page leaves its type legible
+
+run_pdf_checks: 1 PDF(s), 5 per-PDF check(s), 1 per-directory check(s) -- all clean

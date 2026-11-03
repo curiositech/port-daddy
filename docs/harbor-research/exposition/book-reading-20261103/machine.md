@@ -153,3 +153,14 @@ Candidate14 placed Landmark12 between the two halves of the ticket-lock design s
 The existing Book generator deliberately removes literal `clearpage`; this repair uses the preserved `pdmarginpagebreak` wrapper, whose expansion is covered by the generator regression.
 
 The same actual14 review found Landmarks05,06,07 interrupting a reference-monitor sentence, the Algorithmic Pinning invariant, and a release-validity sentence. Each existing conditional figure now flushes through `pdmarginpagebreak` before following prose. No prose or formulas changed. Current source hashes and line counts for all three chapters are recorded in machine-concepts.json; assembled flow remains to be verified in the next build.
+
+
+## Open-proof caption-placement follow-up
+
+Read only the four inserted layout guards and their surrounding completed paragraphs/environments at source checkpoint `25676e9537493a0f3438520d2a2abb9f3b0b5c1d`. Chapter 1 now flushes the open-proof margin queue before the Commitments subsection; Chapter 3 does so before the Ryoan comparison and before the side-invariants table introduction. The corresponding Chapter 5 guard was independently reviewed but its reading record remains with the operator agent. Each guard checks the existing `pdbookfontprofile` inside `ifdefined`; only `open-proof` calls the generator-preserved `pdmarginpagebreak`. The Suisse and undefined-profile branches contain no action. Removing exactly those guards reproduces the committed manuscript bytes; no prose, formula, claim, or figure changed.
+
+Chapter 1 current source: 3613 lines, SHA-256 `d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8`. The initial sequential-reading hashes/ranges remain intact in machine-concepts.json; this follow-up is not a new complete read.
+
+Chapter 3 current source: 1938 lines, SHA-256 `594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03`. The initial sequential-reading hashes/ranges remain intact in machine-concepts.json; this follow-up is not a new complete read.
+
+The operator agent separately reports a six-pass Source Sans validation (`72783c15`): all 263 captions, 1464 margin objects and 212 exercise headings pass, zero off-page issues, and eight actual page contexts inspected. This agent has not independently inspected that isolated PDF. Candidate 22 still owns final assembled typography and edition acceptance.

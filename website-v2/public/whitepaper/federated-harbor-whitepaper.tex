@@ -2059,7 +2059,7 @@ The separate \path{proofs/bonded/federated/federated.pv} and its committed trans
 
 \section{TLA+ Artifact and Cross-Harbor Scope}\label{app:fh-tla}
 
-The executable artifact is \path{proofs/bonded/conservation/Conservation.tla}, with \texttt{Conservation.cfg}: three agents, \texttt{MaxBalance=3} (the per-action amount bound), and \texttt{MaxMint=6}. Its committed TLC transcript records 26,818 generated states, 1,716 distinct states, search depth 9, and no invariant violation. The invariant is total free plus escrowed plus burned value equals lifetime minted value.
+The executable model is \path{Conservation.tla}, in \path{proofs/bonded/conservation/}. Its \path{Conservation.cfg} configuration uses three agents, \texttt{MaxBalance=3} (the per-action amount bound), and \texttt{MaxMint=6}. Its committed TLC transcript records 26,818 generated states, 1,716 distinct states, search depth 9, and no invariant violation. The invariant is total free plus escrowed plus burned value equals lifetime minted value.
 
 This is an abstract single-machine accounting model. No \texttt{CrossHarborConservation.tla}, cross-harbor configuration, or four-harbor Apalache transcript is supplied. The cross-harbor lifecycle sketch therefore carries no claimed model-checking bound. Proving it requires an executable transition relation for custody, transfers, and recipient accounting; deployment conformance is a separate obligation.
 
