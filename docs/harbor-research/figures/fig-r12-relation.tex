@@ -12,17 +12,15 @@
 \centering
 \begin{tikzpicture}[
   every node/.style={font=\small},
-  rowbox/.style={regimebox,text width=4.8cm,inner sep=6pt},
+  rowbox/.style={regimebox,text width=4.4cm,inner sep=6pt,minimum height=2.8cm},
   rowlabel/.style={font=\bfseries\scriptsize,align=center,text width=3.2cm},
 ]
 \node[harborblue,font=\bfseries\normalsize] (title) at (0,0)
   {R12 --- reputation you cannot photocopy};
 
 % Row 1: honest instrument
-% Offsets kept at 2.1cm (not the wider spacing this once used): the row
-% boxes' combined half-width (offset + text width) must stay well inside
-% half the page text width, or the right-hand column clips off the page
-% edge -- a real bug found by rendering the CI build.
+% The 2.1cm offsets leave room for the arrow labels; 4.4cm text cells
+% keep both columns within the page without reducing the type size.
 \node[rowbox,draw=harborblue,fill=harborblue!10,anchor=north east] (b1) at ($(title.south)+(-2.1,-0.9)$)
   {\textbf{\textcolor{harborblue}{Bank Transfer}}\\ \$100 sent debits the sender's balance};
 \node[rowbox,draw=seagreen,fill=seagreen!10,anchor=north west] (t1) at ($(title.south)+(2.1,-0.9)$)
@@ -37,18 +35,17 @@
 % two row-2 boxes at different heights, a real misalignment found by
 % rendering the CI build. Taking both from the taller box's bottom keeps
 % row 2 level regardless of exactly how tall either row-1 box renders.
-\node[rowbox,draw=shipred,fill=shipred!10,anchor=north east] (b2) at ($(t1.south |- b1.south east)+(0,-1.5)$)
+\node[rowbox,draw=shipred,fill=shipred!10,anchor=north east] (b2) at ($(b1.south east |- t1.south)+(0,-1.5)$)
   {\textbf{\textcolor{shipred}{Photocopier}}\\ copies mint money from nothing};
 \node[rowbox,draw=shipred,fill=shipred!10,anchor=north west] (t2) at ($(t1.south west)+(0,-1.5)$)
   {\textbf{\textcolor{shipred}{Copy-Full (mutant)}}\\ child: $\mathrm{spend}(p)$\\ undebited\\ \textbf{8.2$\times$ quorum multiplication}};
 \draw[relarrow,shipred] (b2.east) -- (t2.west)
   node[rowlabel,midway,above,text=shipred] {photocopy\\$\Leftrightarrow$ quorum $\times$};
 
-\node[font=\itshape\small,align=center,text width=11.5cm] at ($(b2.south east)!0.5!(t2.south west)+(0,-0.9)$)
-  {The analogy predicts, correctly, where the danger sits: not in how much the child receives but in whether the source is debited.};
+\node[font=\itshape\small,align=center,text width=11.5cm] at ($(b2.south east |- t2.south west)!0.5!(t2.south west)+(0,-0.9)$)
+  {An inherited balance must be funded by a debit; copying an unchanged source creates new credit.};
 \end{tikzpicture}
 \caption{Relation-map for Theorem 1. Money maps to reputation by \emph{relations}: transfer's debit-on-send $\to$ the
-discount-and-split debit; the photocopier's mint $\to$ the copy-full mutant's quorum multiplication. The analogy predicts,
-correctly, where the danger sits: not in how much the child receives but in whether the source is debited.}
+discount-and-split debit; the photocopier's mint $\to$ the copy-full mutant's quorum multiplication. The inherited balance must be funded by a debit; copying an unchanged source creates new credit.}
 \label{fig:r12rel}
 \end{figure}

@@ -6,14 +6,10 @@
 % cheaper -- at the chapter's own horizon T=200 it has spent more than the
 % logarithmic schedule. Evidence: G=10, d=0.8, B=50, a=1, rho*=G/(dB)=0.25;
 % flat spend at T=200 is 50.00; model A (loss-if-audited) is 25.58; model B
-% (delayed revelation, rate r=0.05) is 35.08 at T=200, converging to
-% aG^2/(2dBrv)=41.67 and reaching zero audit at t*=G/(rv)=333 (b2_tower.py,
-% seed 20260816). Must distinguish: three different asymptotic classes
-% (linear, logarithmic, bounded), and that "eventually free" (model B) is
-% not the same claim as "cheaper at every horizon" -- model A is cheaper
-% than model B at T=200 even though model B's total is bounded. Grammar: an
-% xy plot, three schedules on one axis with the worked horizon marked,
-% rejected: three numbers in a paragraph (states the totals but hides the
+% (separate revelation loss, r=0.05) is 35.075 at T=200. Curves below
+% are continuous integrals, including plateau 125/3; dots are discrete sums.
+% Exact discrete plateau is 41.79175, first zero-rate integer grade 334.
+% Distinguish bounded total cost from being cheapest at every finite horizon.
 % shapes that explain them) and a bar chart at T=200 alone (hides that
 % model B is still climbing past its rivals at that horizon).
 % Five-second test: a reader says "B ends lowest eventually, but A is
@@ -31,9 +27,9 @@
   \addplot[pd series,mark=none,domain=0:400,samples=2] {0.25*x};
   \addplot[pd focus series,mark=none,domain=0:400,samples=120]
     {(1*10/(0.8*0.6))*ln(1+0.6*x/50)};
-  \addplot[pd ready series,mark=none,domain=0:333.33,samples=120]
+  \addplot[pd ready series,mark=none,domain=0:333.333333,samples=120]
     {(1/(0.8*50))*(10*x-(0.05*0.6/2)*x^2)};
-  \addplot[pd ready series,mark=none,domain=333.33:400,samples=2] {41.67};
+  \addplot[pd ready series,mark=none,domain=333.333333:400,samples=2] {125/3};
   \draw[pd guide] (axis cs:200,0) -- (axis cs:200,72);
   \node[pd label,anchor=south east,text width=2.3cm] at (axis cs:190,74) {$T{=}200$: this chapter's horizon};
   \node[pd datum] at (axis cs:200,50.00) {};
@@ -44,11 +40,10 @@
   \node[pd ready label,anchor=west] at (axis cs:405,41.67) {model B: $O(1)$};
   \draw[pd guide] (axis cs:333.33,0) -- (axis cs:333.33,10);
   \node[pd ready label,anchor=south west,text width=2.3cm] at (axis cs:337,2)
-    {$t^\star{=}333$: audit rate hits zero};
+    {continuous zero at $t^\star{=}333\tfrac13$};
 \end{axis}
 \end{tikzpicture}
 {\linespread{1.18}\selectfont
-\caption{Model A's audit rate falls, but its cumulative bill has no finite
-ceiling. [verified, \protect\path{b2_tower.py}, seed 20260816]}
+\caption{Curves are continuous integrals of the three schedules; dots at $T=200$ are the discrete bills $50$, $25.583785$, and $35.075$. Model B's continuous plateau is $41.666667$; the exact discrete plateau is $41.79175$, with first zero-rate grade $t=334$. Model A keeps growing. Parameters: $G=10,d=0.8,B=50,a=1,v=0.6,r=0.05$; sums are given in the text.}
 \label{fig:stp-audit-amortization}}
 \end{figure}

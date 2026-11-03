@@ -7,7 +7,7 @@
 %   another harbor's root authority.
 % Evidence: the chapter's A/S/B scene, Controller-7, the float32/float64
 %   mismatch, B_alpha with 24h TTL, Beta's six-month probation, and the
-%   illustrative three-round expectation for eight harbors.
+%   illustrative revocation delivery, without a finite-size timing estimate.
 % Must distinguish: local events from boundary messages and the two-hour delay.
 % Grammar chosen: five-party sequence with one admission precondition strip.
 %   Rejected: a Gantt, because every operative step is discrete and ordered.
@@ -81,7 +81,7 @@
   % 2. Destination-local verification and migration.
   \node[pd focus state,minimum width=3.3cm,minimum height=.92cm,
     inner xsep=6pt,inner ysep=5pt,align=center] (localS) at (\xS,.78)
-    {verify destination card\\snapshot; run migration};
+    {issue staging grant\\backup; run migration};
   \node[pd focus badge,anchor=east] at ([xshift=-6pt]localS.west) {2};
   \draw[pd focus arrow] (\xS,1.96) -- (localS.north);
 
@@ -123,13 +123,13 @@
   \draw[pd focus arrow,pd to badge] (\xA,-7.15) -- (m6);
   \draw[pd focus arrow,pd from badge] (m6) -- (\xW,-7.53);
   \node[pd tag,anchor=south,text width=7.0cm,align=center] at (7.45,-7.00)
-    {publish new epoch root; expect three reliable gossip rounds};
+    {publish revocation root; delivery depends on the overlay};
   \foreach \x in {\xA,\xS,\xB,\xE,\xW}
     \draw[pd uml lifeline] (\x,-7.1) -- (\x,-7.75);
 \end{tikzpicture}
 
-\caption{Beta's bound claim settles against Acme's bond. Revocation follows;
-the three-round estimate assumes reliable rounds, not a guaranteed deadline.
-[internal]}
+\caption{A constructed incident: $S$ grants staging access under its own
+resource-mapping policy; Beta's adjudicated claim then settles against Acme's
+bond. Revocation follows without a guaranteed delivery deadline. [internal]}
 \label{fig:fh-worked-example}
 \end{figure*}

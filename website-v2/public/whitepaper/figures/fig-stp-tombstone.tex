@@ -21,9 +21,9 @@
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.65,7.20) -- (9.45,7.20);
   \foreach \x/\ly/\lab in {0.95/7.60/$o_1$,2.45/7.60/$o_2$,
                        4.05/7.60/{$o_3$ fraudulent},5.65/8.40/{re-audit},
-                       7.05/7.60/{$t(o_3)$ appended},8.80/7.60/{imported tombstone}} {
+                       7.05/7.60/{$t(o_3)$ appended},8.80/7.60/{imported tomb\-stone}} {
     \draw[pd tick] (\x,6.95) -- (\x,7.45);
-    \node[pd label,anchor=south,align=center,text width=1.5cm] at (\x,\ly) {\lab};
+    \node[pd label,anchor=south,align=center,text width=1.7cm] at (\x,\ly) {\lab};
   }
   \draw[pd guide] (5.65,7.45) -- (5.65,8.25);
   \node[pd breach datum] at (4.05,7.20) {};

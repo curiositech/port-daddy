@@ -1,49 +1,23 @@
-% Reader question: why does recursive evaluator audit terminate, and what
-% assumption remains open? Claim: recursive auditing becomes finite only
-% because remaining corrupt opportunity G_k contracts each level under sealed
-% sampling; height alone proves nothing. Evidence: the chapter's reported
-% depths, heterogeneous sealed sampling across C=8 disjoint cliques reaching
-% the honest-root boundary near level 27, a monoculture (C=1) needing roughly
-% 53 levels; the governing conditions rho*d*B>=G_k and G_(k+1)=(1-rho*d)*G_k.
-% Must distinguish: the parameterized contraction curve from an asserted
-% termination, and the exogenously honest root (not manufactured by the
-% theorem) from the contraction result itself. Grammar: a recursive
-% contraction tower with a theorem/conditions panel, rejected: a two-tier
-% loop or infinite spiral (asserts recursion without the contraction that
-% bounds it) and self-looping bubbles (no measured quantity). Five-second
-% test: a reader says "heterogeneous pools reach the floor twice as fast."
+% Exact model coordinates: G0=400, B=50, rho*d=.2, beta=10.
+% C=8 uses the conditional geometric model from the start.
+% C=1 additionally assumes a non-replenishing self-funded budget while G>CB.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdviolet}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west] at (0,5.65) {remaining corrupt opportunity across audit levels};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (9.10,0);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.9,0) -- (0.9,4.65);
-  \node[pd label,anchor=north east] at (9.10,-.75) {audit level $k$};
-  \node[pd label,anchor=south,rotate=90,text width=2.6cm,align=center] at (0.20,2.30) {$G_k$ (log scale)};
-  \foreach \x/\lab in {0.9/0,2.19/10,3.47/20,4.76/30,6.05/40,7.34/50,8.43/56} {
-    \draw[pd tick] (\x,-.12) -- (\x,.12);
-    \node[pd label,anchor=north] at (\x,-.22) {\lab};
-  }
-  \foreach \y in {2.30,3.45,4.60} \draw[pd guide] (0.9,\y) -- (9.10,\y);
-  % ---- parameterized example: heterogeneous pools contract faster -----------
-  \draw[pd focus rule,line width=1.55pt]
-    plot[smooth] coordinates {(0.9,4.30) (1.84,3.55) (2.77,2.70) (3.55,1.70) (4.35,1.30)};
-  \draw[pd warn rule,line width=1.55pt]
-    plot[smooth] coordinates {(0.9,4.30) (2.19,3.65) (3.47,2.95) (4.76,2.15) (6.05,1.30) (7.70,1.30)};
-  \node[pd focus label,anchor=south] at (4.10,1.60) {$C=8$};
-  \node[pd label,anchor=south] at (6.05,1.50) {$C=1$};
-  % ---- the theorem ends at a separately owed root ----------------------------
-  \draw[pd warn fill] (0.9,-0.28) rectangle (9.10,0.95);
-  \node[pd tag,anchor=center,text width=7.6cm,align=center,fill=pdpage,inner sep=2pt] at (5.0,0.42)
-    {exogenously honest root required; the contraction theorem does not manufacture it};
-  \node[pd label,anchor=north west,text width=3.0cm] at (0.9,-1.35)
-    {$\rho d B\ge G_k$ at each level};
-  \node[pd label,anchor=north west,text width=4.6cm] at (4.10,-1.35)
-    {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,width=9cm,height=5.1cm,
+ xmin=0,xmax=56,ymin=.4,ymax=500,ymode=log,
+ xtick={0,10,20,30,40,50},ytick={1,10,100,400},
+ xlabel={audit level $k$},ylabel={model value $G_k$ (log scale)},
+ legend pos=north east]
+\addplot[pd focus series,mark=none] coordinates {(0,400.00000000) (1,320.00000000) (2,256.00000000) (3,204.80000000) (4,163.84000000) (5,131.07200000) (6,104.85760000) (7,83.88608000) (8,67.10886400) (9,53.68709120) (10,42.94967296) (11,34.35973837) (12,27.48779069) (13,21.99023256) (14,17.59218604) (15,14.07374884) (16,11.25899907) (17,9.00719925) (18,7.20575940) (19,5.76460752) (20,4.61168602) (21,3.68934881) (22,2.95147905) (23,2.36118324) (24,1.88894659) (25,1.51115727) (26,1.20892582) (27,0.96714066) (28,0.77371252) (29,0.61897002) (30,0.49517602) (31,0.39614081) (32,0.31691265) (33,0.25353012) (34,0.20282410) (35,0.16225928) (36,0.12980742) (37,0.10384594) (38,0.08307675) (39,0.06646140) (40,0.05316912) (41,0.04253530) (42,0.03402824) (43,0.02722259) (44,0.02177807) (45,0.01742246) (46,0.01393797) (47,0.01115037) (48,0.00892030) (49,0.00713624) (50,0.00570899) (51,0.00456719) (52,0.00365375) (53,0.00292300) (54,0.00233840) (55,0.00187072) (56,0.00149658)};
+\addlegendentry{$C=8$: conditional contraction}
+\addplot[pd series,dashed,mark=none] coordinates {(0,400.00000000) (1,390.00000000) (2,380.00000000) (3,370.00000000) (4,360.00000000) (5,350.00000000) (6,340.00000000) (7,330.00000000) (8,320.00000000) (9,310.00000000) (10,300.00000000) (11,290.00000000) (12,280.00000000) (13,270.00000000) (14,260.00000000) (15,250.00000000) (16,240.00000000) (17,230.00000000) (18,220.00000000) (19,210.00000000) (20,200.00000000) (21,190.00000000) (22,180.00000000) (23,170.00000000) (24,160.00000000) (25,150.00000000) (26,140.00000000) (27,130.00000000) (28,120.00000000) (29,110.00000000) (30,100.00000000) (31,90.00000000) (32,80.00000000) (33,70.00000000) (34,60.00000000) (35,50.00000000) (36,40.00000000) (37,32.00000000) (38,25.60000000) (39,20.48000000) (40,16.38400000) (41,13.10720000) (42,10.48576000) (43,8.38860800) (44,6.71088640) (45,5.36870912) (46,4.29496730) (47,3.43597384) (48,2.74877907) (49,2.19902326) (50,1.75921860) (51,1.40737488) (52,1.12589991) (53,0.90071993) (54,0.72057594) (55,0.57646075) (56,0.46116860)};
+\addlegendentry{$C=1$: extra budget model}
+\addplot[pd guide,forget plot] coordinates {(0,1) (56,1)};
+\node[pd label,anchor=south west] at (axis cs:1,1) {target $u=1$};
+\end{axis}
 \end{tikzpicture}
-\caption{In this parameterized example, eight cliques reach the honest-root
-boundary near level 27; one clique needs roughly 53. The bound assumes an
-honest root---it does not create one. [internal]}
+\caption{Exact recursions at $G_0=400,B=50,\rho d=0.2$. With $C=8$, conditional detection gives $G_k=400(0.8)^k$, first below one at $k=27$. The dashed $C=1$ trace additionally assumes a self-funded, non-replenishing budget: subtract $10$ while $G_k>50$, then multiply by $0.8$, first below one at $k=53$. A sound terminal judge is a separate requirement. These are model values, not measured audit performance.}
 \label{fig:rate-raters}
 \end{figure}

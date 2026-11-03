@@ -132733,7 +132733,7 @@
       "kind": "publication integration",
       "queue_state": "current_work",
       "priority": "P1",
-      "status": "local source and 817-page candidate accepted within recorded scope; hosted CI and publication blocked",
+      "status": "historical817-page local acceptance retained; current textbook review and delivery tracked separately",
       "result": "The identified probability, concurrency, control and incentive claims have explicit hypotheses. Conditional Jason failure handling is distinguished from plan-selection failure. A finite worst-case sanction-cost example makes neither a minimax-regret nor an automatic-logging claim. Twelve figures use native role type within the body column. Shared heading and opening styles, sentence-flow repairs and distinct chapter questions/epigraphs support a converged 817-page candidate. All registered PDF checks pass: 263 captions, 1473 margin objects, zero clipping/collision/footer findings, and 622 audited numbered body headings with no split words or body-width violations. Publication and complete data-driven figure standardization remain unfinished.",
       "assumptions": "Finite mathematical witnesses retain their stated scopes; diagrams distinguish conditional guarantees from universal safety, recovery or incentive claims. Local Port Daddy remains halted. Source integration, local artifact acceptance, hosted CI and authorized publication are distinct states.",
       "evidence": [
@@ -132747,7 +132747,8 @@
         "Remaining editorial advisories: 75 safety-net width reports, 78 whitespace-review pages, two contents entries with split words outside the body-heading audit, occasional normal top-float paragraph continuations and a complete final word on its own heading line. They remain visible rather than being hidden by smaller type.",
         "PR #10336 remains OPEN at e512336cd04deefae2529c5d736e02cf50ae3442, based on aba51f424d73027403e75e151ea519e86813a35a: 34 successful checks, 9 skipped, 2 failed (Ubuntu unit tests and dependent gate), with the only review thread resolved/outdated. Local test repair `320cd5411b91122ecd8472b5cff770bdfe7e8f67` is unpublished and awaits hosted verification.",
         "No new source PR, merge or deployment is established. AGENTS.md requires the Fleetbot actuator; the available route cannot adopt/merge the operator-owned PR or carry the complete canonical ledger. The scoped personal-identity exception question remains unanswered. Local runtime and hooks remain halted.",
-        "Final fetch discovered parallel PR #10339 for the four lifecycle fixtures and PR #10338 for Fleetbot GitHub request compatibility. Neither is part of this Book branch or proof of its delivery. Reconcile the parallel fixture change before pushing local `320cd`; its independent hooks-barrier repair is still relevant."
+        "Final fetch discovered parallel PR #10339 for the four lifecycle fixtures and PR #10338 for Fleetbot GitHub request compatibility. Neither is part of this Book branch or proof of its delivery. Reconcile the parallel fixture change before pushing local `320cd`; its independent hooks-barrier repair is still relevant.",
+        "2026-11-03 refresh: original PR10336 still open; source work rebased on origin/main in codex/book-textbook-craft-20261103. Current AGENTS authorized existing GitHub login. Its historical artifact acceptance does not cover the new textbook edits."
       ],
       "verification": {
         "as_of_utc": "2026-10-26T23:11:56.506738+00:00",
@@ -132823,7 +132824,7 @@
         "Hosted delivery requires authorized writes, exact-head CI/review verdicts and separate merge/refresh/public-byte receipts.",
         "Full figure-family standardization and final-PDF atlas review remain separate incomplete work."
       ],
-      "next": "Reconcile the parallel lifecycle repair in PR #10339 with the local `320cd` test commit; use authorized publishing identity and obtain passing hosted checks before landing PR #10336. Rebase the Book branch onto actual merged main, verify unchanged Book inputs or rebuild as needed, open the prepared source PR and follow its exact-head reviews/CI. Publish PDF plus metadata through a separately reviewed non-main refresh workflow. Then implement one shared layer registry for stack/table/margin views and the proposed family generators; refresh the atlas against the accepted publication PDF.",
+      "next": "Continue BOOK-TEXTBOOK-CRAFT-20261103. PR10336 remains open at e512336 with Ubuntu unit and gate failures as checked2026-11-03. Current main now permits authorized ordinary GitHub publication; the former identity-policy blocker no longer applies. Reconcile exact-head checks before protected landing.",
       "depends_on": [
         "BOOK-PUBLICATION-20261015",
         "BOOK-CANON"
@@ -132947,6 +132948,63 @@
           "locator": "existing shared role tokens and shapes"
         }
       ]
+    },
+    {
+      "id": "BOOK-TEXTBOOK-CRAFT-20261103",
+      "title": "Sequential whole-book exposition and concept-lifecycle review",
+      "papers": [
+        "Book",
+        "Chapter0",
+        "Chapter1",
+        "Chapter2",
+        "Chapter3",
+        "Chapter4",
+        "Chapter5",
+        "Chapter6",
+        "Chapter7",
+        "Chapter8"
+      ],
+      "kind": "editorial and mathematical reconciliation",
+      "queue_state": "current_work",
+      "priority": "P1",
+      "owner": "codex:paper-eight",
+      "status": "complete sequential source read; substantive repairs saved; rendered acceptance and delivery in progress",
+      "result": "All nine authored chapters and their exercises/solutions have been read in source order across four reviewers. The reader route, definitions, examples, nonexamples, theorem assumptions and later retellings were reconciled.148 substantive concept clusters have explicit treatment/use records. This is not a certification of every external citation or deployed runtime claim.",
+      "assumptions": "Canonical Book authority is textbook.json plus authored Chapter0 and volume appendices. A later mention is not sufficient concept development. Source reading, finite computation, rendered review and hosted publication are distinct evidence.",
+      "evidence": [
+        "docs/harbor-research/exposition/book-reading-20261103/reading-plan.json",
+        "docs/harbor-research/exposition/book-reading-20261103/foundations.md",
+        "docs/harbor-research/exposition/book-reading-20261103/machine.md",
+        "docs/harbor-research/exposition/book-reading-20261103/operator-identity.md",
+        "docs/harbor-research/exposition/book-reading-20261103/markets-federation.md",
+        "Four accompanying concept JSON files record original read coverage and source hashes.",
+        "Generator56/56 passed after authored Chapter0 solution integration and Dwork citation reconciliation.",
+        "Mathematical-boundary26/26 passed; propagated corrections14/14; library index including Markdown freshness passed. Render and final full suite remain pending."
+      ],
+      "next": "Converge the Book, repair layout regressions, inspect opener and repaired two-page spreads, run final source gates, publish the source PR and follow exact-head reviews/CI. Keep the frozen publication PDF unchanged until separately reviewed refresh.",
+      "acceptance": "All chapter sources read; foundational concepts have concrete first treatment and substantive reuse; examples and solutions agree with stated hypotheses; exact candidate passes PDF gates and facing-spread inspection; source delivery is separately evidenced.",
+      "depends_on": [
+        "BOOK-INTEGRATION-20261026",
+        "LIBRARY-CONTRACT"
+      ],
+      "sources": [
+        {
+          "path": "whitepaper/textbook.json",
+          "locator": "canonical eight chapter source map"
+        },
+        {
+          "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex",
+          "locator": "authored foundations and five exercises"
+        }
+      ],
+      "verification": {
+        "date": "2026-11-03",
+        "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+        "branch": "codex/book-textbook-craft-20261103",
+        "base": "4db6612e945a7c0555e5a1f6c6e8892d7d7b1fbd",
+        "scope": "sequential canonical-source read plus scoped primary-source and finite arithmetic verification; no live runtime proof"
+      },
+      "delivery": "uncommitted source repairs; no new PR or publication yet"
     }
   ],
   "coverage": {

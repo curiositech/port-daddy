@@ -205,7 +205,7 @@ ITEMS: list[Item] = [
         description=(
             "The clique/tower depth overclaim ('unbounded depth' / 'certifies "
             "unbounded levels') was corrected to a finite, C-dependent, "
-            "logarithmic-depth result in the body; the literal phrase must not "
+            "low-gain logarithmic-depth result in the body; the literal phrase must not "
             "survive in the figure fragments (outside the comment documenting "
             "the fix)."
         ),
@@ -214,13 +214,13 @@ ITEMS: list[Item] = [
                 "docs/harbor-research/tex/paper3.tex",
                 "body prose must not claim unbounded tower depth",
                 absent=r"[Uu]nbounded depth|certifies unbounded levels",
-                present=r"depth logarithmic in",
+                present=r"G_0\\le CB.*self-funded.*candidate pool|G_0\\le CB.*candidate pool.*self-funded",
             ),
             Check(
                 "docs/harbor-research/figures/fig-r7-relation.tex",
                 "relation-map figure must not (outside comments) claim unbounded depth",
                 absent=r"[Uu]nbounded depth|certifies unbounded levels",
-                present=r"depth logarithmic in the corrupt value",
+                present=r"[Ll]ow.gain.*(?:self-funded|selected)",
             ),
             Check(
                 "docs/harbor-research/figures/fig-r7-regime.tex",
@@ -559,7 +559,7 @@ ITEMS: list[Item] = [
                 # require an unrelated custody box to be added back to it.
                 "transfer sequence must preserve attenuation and avoid unconditional custody claims",
                 absent=r"(?:Non-Custodial: Can Refuse, Cannot Redirect|Authority Invariant|2-of-3 non-custodial settlement)",
-                present=r"(?:Conditionally bounded escrow custody|destination card has no more authority than the source card)",
+                present=r"same resource identifiers.*different\s+resource needs a new grant",
             ),
         ],
     ),

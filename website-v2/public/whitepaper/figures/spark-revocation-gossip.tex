@@ -1,27 +1,24 @@
-% Margin sparkline: epidemic gossip convergence F(r) = 1 / (1 + (m-1)e^{-k r}).
-% Fits inside the 1.3in book margin column.
-% Reader question: how fast does a revocation reach every daemon in the mesh?
-% Claim: the informed fraction F(r) saturates to 1 within O(log m) rounds --
-%   at m=8, by round r=3 (log2 8), the mesh is already fully informed.
-% Source: ch2 Theorem (Conditional Gossip Expectation), Theta(log m) rounds.
+% Reader question: what does an ideal doubling schedule look like?
+% Data: one initially informed daemon; eight total. Every informed daemon
+% contacts a distinct uninformed daemon in each reliable synchronous round.
+% Counts at rounds 0,1,2,3 are 1,2,4,8: fractions 1/8,1/4,1/2,1.
+% This favorable schedule illustrates growth, not random-gossip expectation
+% or a delivery deadline. Partitions invalidate any finite global deadline.
 \begingroup\makeatletter
 \ifdefined\pd@typesetpicturebox
   \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
 \fi
-\begin{tikzpicture}[pd figure,x=18pt,y=42pt]
-  % Baseline and ceiling: neutral references, never a drawn edge.
-  \draw[pd hairline] (0,0) -- (4.0,0);
-  \draw[pd guide] (0,1.0) -- (4.0,1.0);
-  % Convergence curve for m=8 daemons, log2(8)=3 rounds.
-  \draw[pd legible,line width=.9pt] plot[domain=0:4.0,samples=31]
-    (\x,{1.0 / (1.0 + 7.0 * exp(-1.2 * \x))});
-  % The start and the worked point (m=8 -> 3 rounds), dropped to their value.
-  \node[pd legible datum] at (0,0.125) {};
-  \node[pd legible datum] at (3,{1.0 / (1.0 + 7.0 * exp(-3.6))}) {};
-  % Labels: end values, the limit, and the worked range -- nothing else.
+\begin{tikzpicture}[pd figure,x=20pt,y=42pt]
+  \draw[pd hairline] (0,0) -- (3,0);
+  \draw[pd guide] (0,1) -- (3,1);
+  \draw[pd legible,line width=.9pt] plot coordinates
+    {(0,.125) (1,.25) (2,.5) (3,1)};
+  \foreach \r/\f in {0/.125,1/.25,2/.5,3/1}
+    \node[pd legible datum] at (\r,\f) {};
   \node[pd label,anchor=east] at (0,0) {$0$};
-  \node[pd label,anchor=west,inner xsep=3pt] at (4.0,1.0) {$1$};
-  \node[pd direct label,anchor=south] at (1.2,0.62) {$F(r)\to 1$};
-  \node[pd label,anchor=north] at (2.0,0) {$r \sim \log_2 m$};
+  \node[pd label,anchor=west,inner xsep=2pt] at (3,1) {$1$};
+  \node[pd direct label,anchor=south,text width=65pt,align=center]
+    at (1.5,1.06) {ideal doubling};
+  \node[pd label,anchor=north] at (1.5,0) {rounds 0--3};
 \end{tikzpicture}
 \makeatother\endgroup

@@ -365,7 +365,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/kernel/pd-anchor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. Scope: non-injective correspondence for the accepted principal/agent/message tuple. The model checks issued nonces and inserts consumed_nonce but never checks the consumed table; it does not establish at-most-once acceptance or rejection of an identical-chain replay. Those require a separate guarded or injective model and runtime conformance.",
       "ci": {
         "status": "wired",
         "job": [

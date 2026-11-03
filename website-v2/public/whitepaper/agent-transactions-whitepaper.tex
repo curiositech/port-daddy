@@ -279,7 +279,7 @@ Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is
 Bonded participation (PoS slashing) & Slash-$>$-deviation-gain soundness argument & Byzantine networked adversary; validation as the bonded act & Adversary is co-located on one machine, so consensus reduces to a daemon write, not a global commit \\
 Capability-based security & Offline attenuation; authority only ever narrows & Capabilities alone as the whole story & A correctly-scoped token still permits a destructive in-scope write; bonding prices what the wall admits \\
 Commons governance (Ostrom) & Boundaries, monitoring, graduated sanctions, dispute resolution & Social institutions as the enforcement medium & The four functions guide the service design (\S\ref{sec:governance}); each mechanism has its own implementation status \\
-Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameters & ``Code is law'' as an enforcement posture & Code is the \emph{record}, not the law: allocation stays with agents (\S\ref{sec:sen}); the daemon supplies evidence and settlement \\
+Crypto\-economic mechanism design & Priced deterrence; market-discovered parameters & ``Code is law'' as an enforcement posture & Code is the \emph{record}, not the law: allocation stays with agents (\S\ref{sec:sen}); the daemon supplies evidence and settlement \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -290,7 +290,7 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 \label{tab:bonded-three-layer}
 \small
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l l >{\raggedright\arraybackslash}X l@{}}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{.15\linewidth} >{\raggedright\arraybackslash}p{.21\linewidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{.19\linewidth}@{}}
 \toprule
 \textbf{Layer} & \textbf{Question} & \textbf{What it does to the act} & \textbf{Terminal outcome} \\
 \midrule
@@ -323,6 +323,21 @@ The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient c
 In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The simplicity of the implementation is deliberate: the authority's value comes from its \emph{guarantees}, not its complexity.
 \subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
 Suppose two agents want the same file. A mediator recommends that one proceed and the other defer. Those recommendations avoid a collision only if the agents follow them. To predict obedience, we must compare each agent's payoff from following its recommendation with its payoff from deviating, given what it knows. A daemon's ability to enforce a capability boundary is a separate question: recommendations change information; enforcement limits actions.
+\begin{pdexample}{A Recommendation That Both Agents Want to Follow}
+For one file, suppose proceeding alone pays $3$, deferring while the other
+proceeds pays $1$, a collision pays $-2$ to each, and both deferring pays $0$.
+A mediator flips a fair coin and privately recommends $(P,D)$ or $(D,P)$.
+An agent told to proceed earns $3$ by following rather than $0$ by deviating;
+an agent told to defer earns $1$ rather than $-2$. Both recommendations are
+obedient under these payoffs and observations. In the inequality below, the
+two weighted advantages are $\tfrac12(3-0)$ and $\tfrac12(1-(-2))$.
+
+Change the payoff from causing a collision to $4$, and the defer recommendation
+ceases to be obedient: $1-4<0$. The identical message protocol now fails the
+incentive test. A signed recommendation certifies its source, not its wisdom
+or the recipient's incentive to follow it.
+\end{pdexample}
+
 \pdmarginfigure{aumann}{Aumann's obedience test asks whether following a recommendation pays. It does not establish the daemon's authority or its ability to prevent an action.}%
 The daemon's role therefore admits a precise game-theoretic test. Aumann~\pdcite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a mediator draws a recommendation tuple $r=(r_1,\ldots,r_n)$ from a joint distribution $\mu$ over action profiles and privately reveals $r_i$ to player $i$. The distribution is a correlated equilibrium only if, for every player $i$, recommended action $r_i$, and unilateral deviation $a_i'$, the obedience inequality holds:
 \[
@@ -352,11 +367,20 @@ The reframe therefore yields an audit obligation, not an automatic guarantee. No
 No price-of-anarchy bound follows from this interpretation alone. The simulations of \S\ref{sec:youle:welfare} compare one auction model with one static baseline; an analytical worst-equilibrium bound for the coordination game remains open.
 
 \paragraph{Formal-backing status of the game-theoretic core.}
-One disclosure belongs here, at the point the game theory enters, rather than buried in the appendix: in the maturity vocabulary of Appendix~\ref{app:mech}, this chapter's game theory is \SpecOnly\ \emph{at the level of the research program}, whatever each individual artifact's status in Table~\ref{tab:verification-status}. This chapter's game-theoretic core---the correlating-device reading above, the Sen-inspired design warning (\S\ref{sec:sen}), the claim-signaling incentive-compatibility argument (\S\ref{sec:claim-signaling-ic}), the competitive-insurance mechanism and its welfare comparison (\S\ref{sec:youle}), and the cartel folk-theorem analysis (\S\ref{sec:youle:a6})---has \emph{no companion formal paper}. The structural and cryptographic half of this chapter is backed by \pdchapref{anchor}{The Anchor Protocol}~\pdcite{owens2026anchor}, which carries the ProVerif models and the attenuation proofs; the economic half is argued here, from scratch, and exists nowhere else in the program. What supports it is exactly what Table~\ref{tab:verification-status} lists---mechanized checks and Monte Carlo sweeps over supplied models, several of them \Partial\ by that table's own grading---and not a peer-reviewable formal derivation a reader can be pointed to. Read this material at that maturity level.
+The evidence has several distinct scopes. The claim-signaling payoff model
+has the analytical argument below, a scalar Z3 check, a bounded TLA$^{+}$
+witness, and a companion treatment in research paper~3. The insurer
+comparisons have finite parameter sweeps and their stated payoff recurrences.
+The broader multi-principal deployment has no equilibrium proof. Formal
+checks of a supplied model do not establish that the deployment satisfies
+its payoff, observation, or identity assumptions. Table~\ref{tab:verification-status}
+records the artifacts; the boundary paragraphs state what remains to be shown.
 
 \subsection{Why Agents Consent}\label{sec:why-consent}
 
-In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For AI agents, consent to the commons authority is rational because agents without it are strictly worse off:
+In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For an agent principal, joining is rational when the services below are worth
+more than their fees, disclosure costs, and constraints. The comparison is
+conditional: a durable peer protocol may already supply some of these services.
 
 \begin{table}[H]
 \centering
@@ -378,7 +402,7 @@ Accountability & Anonymous harm & Full attribution via evidence chain \\
 \end{tabularx}
 \end{table}
 
-The daemon does not need to threaten agents. It provides services that make coordination \emph{rational}. Agents that bypass the daemon are not punished---they are simply worse off.
+The daemon does not need to threaten agents. It provides services that make coordination \emph{rational}. Whether a principal benefits depends on its workload and outside option; the table alone establishes no dominance result.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 1: Structural Prevention}\label{sec:structural}
@@ -388,7 +412,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
 The capability subset check and the secret-independent comparison are implemented in a \textbf{Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
@@ -401,16 +425,12 @@ An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\
 The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
 \end{definition}
 
-One point of vocabulary before the statement, because it decides which chapter
-owns what. Attenuation is \pdchapref{anchor}{The Anchor Protocol}'s result, not
-this chapter's: the condition that $C(\tau_{i+1}) \subseteq C(\tau_i)$ at every
-hop, that lifetimes only shrink, and that a chain cannot be spliced or replayed
-is proved there, mechanically, over the deployed crate. This chapter does not
-restate it, re-derive it, or define a competing notion --- it \emph{consumes}
-it, and the theorem below is what that guarantee buys once bonds and escrow sit
-on top. If the two ever disagree, chapter 2 is the one to trust; a second
-definition of attenuation living here is precisely the duplication the Book's
-chapter boundaries exist to prevent.
+We reuse Anchor's attenuation relation: each child's authorized operations
+and validity interval must lie within its parent's. Here the mathematical
+step is transitivity of those inclusions. Anchor's model checks and runtime
+conformance evidence retain their stated bounds; they do not make every
+filesystem operation pass through a verifier. The theorem therefore names
+complete mediation as a separate premise.
 
 % Keep the opening authorization premise and its inclusion chain together.
 \Needspace{15\baselineskip}
@@ -450,7 +470,9 @@ No conflict detection.
 
 Maximum parallelism, no safety.
   \item[$I_1$ (Advisory):] Agents share a working directory but register file claims with the commons authority. Conflicts are detected and reported to all participants. Claims are not enforced. This is the default.
-  \item[$I_2$ (Structural):] Each agent operates in a separate git worktree. Filesystem-level isolation ensures agents cannot observe each other's intermediate states. Conflicts are deferred to sequential merge.
+  \item[$I_2$ (Structural):] Each agent operates in a separate git worktree. Distinct working directories separate ordinary edits. They do not prevent
+same-user processes from accessing another worktree, and Git metadata and
+external services may still be shared. Integration conflicts remain possible.
 \end{description}
 \end{definition}
 
@@ -458,7 +480,9 @@ Figure~\ref{fig:bonded-isolation-ladder} draws the three tiers as an ordered lad
 
 \input{figures/fig-bonded-isolation-ladder}
 
-The choice between $I_1$ and $I_2$ is not a security decision---it is an economics decision. Section~\ref{sec:sen} formalizes why.
+The choice between $I_1$ and $I_2$ concerns editing interference and coordination cost.
+A worktree is not an access-control sandbox; security needs a separately
+enforced filesystem and process boundary. Section~\ref{sec:sen} formalizes why.
 
 \subsection{Runtime Invariant Enforcement}
 Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\pdcite{owens2026anchor}, under the applied-pi-calculus methodology of Blanchet~\pdcite{blanchet2016modeling}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
@@ -570,7 +594,11 @@ details; the two-level forest applies the path calculation at each level.
 \label{prop:proof-sound}
 If \textsc{verify-note-inclusion}$(n,s,h,\ell,\pi)$ returns \texttt{true} for some proof $\pi$, then either (a) $n$ was included in session $s$ at epoch $\ell$, or (b) the daemon's signing key has been compromised, or (c) SHA-256 has been broken. 
 
-Under standard assumptions, (b) and (c) are computationally infeasible.
+Here ``included'' means membership in the authenticated committed tree,
+not that the recorded action actually happened. Key compromise is an operational
+threat, not something signature unforgeability makes impossible. Verification
+also requires canonical encoding, domain separation, and a bound tree identity
+and size.
 \end{pdclaim}
 
 \begin{pdclaim}{Design invariant}{Binding}
@@ -613,6 +641,13 @@ Revocation does not erase.
 The event ledger is monotone: the cardinality of the event set only grows.
 \end{pdclaim}
 
+For example, choose decay $S2^{-u/h}$ with strength $S=8$ and half-life
+$h=10$ minutes. After twenty minutes the view is $2$. A revocation then
+makes the view zero while retaining both the original spray and the revocation
+record. A late-arriving event needs a declared effective order and tie-break
+rule before replay is deterministic; a timestamp alone is not that rule.
+The zero view and the retained evidence have different jobs.
+
 \paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is immutable.
 
 This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the paper depends on.
@@ -626,7 +661,9 @@ A critical property: even if an agent's identity is discarded after task complet
 &\xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}.
 \end{aligned}
 \]
-The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. Anonymous harm to shared state is impossible within the system, because every action chains back to someone who posted collateral; \S\ref{sec:pricing:threats} draws the corresponding line for harm from \emph{disclosure}, which this chain does not cover.
+The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. For completely mediated and faithfully recorded actions, this chain identifies
+the authorizing principal and collateral. It does not attribute an unobserved
+write or prove that a signed statement is true; \S\ref{sec:pricing:threats} draws the corresponding line for harm from \emph{disclosure}, which this chain does not cover.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Limits of Decisive Allocation}\label{sec:sen}
@@ -744,7 +781,9 @@ CREATE TABLE claim_tickets (
   status TEXT DEFAULT 'waiting' -- 'waiting', 'active', 'released'
 );
 \end{lstlisting}
-Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. This guarantees fair exclusion without central scheduling.
+Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. FIFO assignment prevents overtaking among admitted tickets if holders
+eventually release or are safely reaped and assignment continues to run.
+The schema alone gives no liveness guarantee.
 
 \paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (a stated wall-clock interval, for example 24~hours from the recorded settlement timestamp; zero evidence growth does not pause it) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
@@ -790,7 +829,8 @@ When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive thresho
 \subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
 
 \pdmarginfigure{hickman}{In \emph{House of X}, a backup restores a person. Agent notes preserve much less.}
-Agent death in this system is not an existential event---it is a temporary inconvenience. The agent's body (process) is destroyed, but its mind (evidence trail) survives in the commons. A successor reads the trail and continues. Like Hickman's Krakoa~\pdcite{hickman2019krakoa}---the \emph{House of X} storyline in which mutant minds are literally backed up to a database (Cerebro) and restored into freshly grown bodies on death---the information survives the vessel.
+Agent death in this system is not an existential event---it is a temporary inconvenience. The process is lost, while its retained trail may survive. The trail is a
+partial record, not a copy of hidden model state or every observation. A successor reads the trail and continues. Like Hickman's Krakoa~\pdcite{hickman2019krakoa}---the \emph{House of X} storyline in which mutant minds are literally backed up to a database (Cerebro) and restored into freshly grown bodies on death---the information survives the vessel.
 
 This raises a question: if death carries no permanent consequence, what is the Leviathan's sword? The answer produces a moral hierarchy specific to agent societies:
 
@@ -798,7 +838,7 @@ The fundamental moral harm in agent societies is not the destruction of an agent
 
 \begin{table}[H]
 \centering
-\caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
+\caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. A process crash, service outage, and destruction of durable records have different consequences, with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
 \label{tab:moral}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{.27\textwidth}
   >{\raggedright\arraybackslash}p{.225\textwidth}
@@ -806,10 +846,12 @@ The fundamental moral harm in agent societies is not the destruction of an agent
 \toprule
 \textbf{Event} & \textbf{Severity} & \textbf{Consequence} \\
 \midrule
-Agent crash & None & Salvage recovers context. The commons loses no information. \\
+Agent crash & Bounded by retained state & Salvage offers recorded context;
+unrecorded reasoning or external effects may be lost. \\
 Agent defects & Moderate & Immutable history records it. Future delegations attenuate. Reputation degrades. \\
 Agent dismissed from salvage & Severe & Irrecoverable information loss. The knowledge accumulated in this agent's trail is permanently destroyed. \\
-Commons authority crashes & Catastrophic & The sovereign falls. No new trust established, no conflicts detected, no salvage possible. State of nature until restart. \\
+Commons authority crashes & Availability loss & Admissions and recovery may pause.
+Durable records can survive restart; destruction of their only copy is a separate failure. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -922,7 +964,9 @@ The stage game is a strict Prisoner's Dilemma: $F$ strictly dominates $T$ for ea
 \paragraph{Move to the repeated game.}
 What rescues truthful signaling is that the agents are not playing the stage game once. The substrate provides:
 \begin{itemize}[nosep]
-  \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} make each player's prior moves visible to any third party who can verify a 700-byte inclusion proof. Past defection is not deniable.
+  \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} authenticate retained statements to a verifier with the relevant proof.
+They do not reveal an unrecorded intention or guarantee delivery of every action.
+The game below separately assumes perfect public monitoring.
   \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\pdcite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by the per-identity onboarding cost $C_{\mathrm{kyc}}$ of \S\ref{sec:youle:a5}, so an agent cannot trivially shed a reputation by re-incarnating.
   \item \textbf{A discount factor $\delta$.} Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
 \end{itemize}
@@ -950,7 +994,7 @@ Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes 
 \[
 \text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 2 \cdot (\delta + \delta^2 + \delta^3).
 \]
-At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviator's net payoff is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
+At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviation's payoff advantage is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
 
 \paragraph{Critical $\delta$.}
 \marginnote{\input{figures/spark-bonded-deviation}\par
@@ -1060,9 +1104,9 @@ round, and the run ends with the deviator ahead.
 \pdexercisepointer*{\ref{ex:bonded-threshold-hand}}{\ref{ex:bonded-sweep-crossover}}{\pageref{ex:bonded-threshold-hand}}
 
 \begin{pdrecitation}
-\item Without looking: what is the one-shot Nash equilibrium of the stage game in Table~\ref{tab:claim-stage-game}, and why does that make truthful signaling impossible without a repeated game?
+\item Without looking: what is the one-shot Nash equilibrium of the stage game in Table~\ref{tab:claim-stage-game}, and why does that rule out truthful signaling as an equilibrium of this one-shot payoff table?
 \item Name the three ingredients the repeated game needs to sustain truth-telling, and which section of the chapter supplies each one.
-\item What is the closed-form threshold $\delta^\star$ for the three-round graduated trigger, and how does it compare to the grim-trigger bound of $1/3$?
+\item Which polynomial defines the threshold $\delta^\star$ for the three-round graduated trigger, and how does it compare to the grim-trigger bound of $1/3$?
 \end{pdrecitation}
 
 % Stranded at the foot of p. 358 in all three editions (p. 362 Swiss). Same
@@ -1073,7 +1117,10 @@ round, and the run ends with the deviator ahead.
 What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
 
 \begin{enumerate}[nosep]
-  \item \textbf{Deterrence}: $\pi(\mathcal{F})$ must exceed the expected damage from defection under $\mathcal{F}$'s scope.
+  \item \textbf{Deterrence}: expected collectible loss must exceed the
+principal's gain from deviation. If gain $G$ is retained and the bond is
+forfeited with probability $p$, the two-action test is $p\pi(\mathcal F)>G$.
+Damage and private gain need not coincide.
   \item \textbf{Accessibility}: $\pi(\mathcal{F})$ must not be so high that legitimate agents are priced out of the commons.
   \item \textbf{Risk sensitivity}: $\pi$ should increase with the scope and criticality of the manifest.
   \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records.
@@ -1089,7 +1136,9 @@ Let $c$ be the project's \emph{cleanup cost per breach event}---the human-plus-c
 \begin{pdclaim}{Theorem}{Cleanup Lower Bound}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:cleanup-bound}
-For any Float Plan $\mathcal{F}$, $\pi(\mathcal{F}) \geq c$.
+If each breach costs the commons a fixed $c>0$, and full forfeiture of the
+collectible bond is its only source of cleanup funding, avoiding a deficit
+on every breach requires $\pi(\mathcal F)\ge c$.
 \end{pdclaim}
 
 \begin{proof}[Rationale]
@@ -1098,15 +1147,20 @@ If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than th
 
 \qed
 
-\paragraph{The Cleanup Cost $c$ Fantasy.}
-The linear bond multiplier assumes $c$ is a bounded, predictable quantity. This is a fantasy for tasks with non-linear tail-risk ruin (e.g., dropping a production database or leaking a private key). Such tasks are fundamentally \emph{un-bondable}. Defense of these tasks is explicitly moved to Layer 1 capability confinement (isolation domains, zero-egress policies); economic deterrence at Layer 3 is only mathematically sound when $c$ is finite and observable.
+\paragraph{When the fixed cleanup bill is inadequate.}
+The fixed-cost model assumes a bounded cleanup bill. It is inapplicable to unbounded or poorly controlled tail losses (e.g., dropping a production database or leaking a private key). A finite bond cannot guarantee full compensation for an unbounded loss. Defense of these tasks is explicitly moved to Layer 1 capability confinement (isolation domains, zero-egress policies); the cost-recovery calculation applies only to the bounded loss it actually models.
 \end{proof}
 
-This is a floor, not a tight bound. It is observable from operations and trackable as a project health metric.
+This is a cost-recovery floor under the stated funding rule, not a deterrence
+theorem. With $c=5$, a fully collected bond of $6$ covers cleanup. If sabotage
+gives the principal $10$ and is caught half the time, its expected gain is
+still $10-0.5(6)=7$. Coverage and deterrence are separate calculations.
+Historical cleanup records estimate $c$; they do not bound every future loss.
 
 \subsubsection{Consequential-Scope Multiplier}\label{sec:scope-multiplier}
 
-Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). Empirically, cleanup scales super-linearly with scope; coordination cost dominates the high end.
+Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). A candidate schedule increases the bond with scope. The linear multiplier
+below is a calibration proposal, not evidence of super-linear growth.
 \[
 \pi(\mathcal{F}) \;\geq\; c \cdot \bigl(1 + \alpha \cdot s(\mathcal{F})\bigr).
 \]
@@ -1116,14 +1170,15 @@ $\alpha$ is calibrated from observed cleanup per scope unit. Low-$\alpha$ projec
 
 Principals with a history of clean settlements have lower expected damage:
 \[
-\pi(\mathcal{F}, p) \;=\; \pi(\mathcal{F}) \cdot (1 - \rho(p)),
+\pi(\mathcal{F}, p) \;=\; \max\{c,\,\pi(\mathcal{F})(1-\rho(p))\},
 \quad \rho(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
 \]
-to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
+while retaining the cost-recovery floor. A raw quote of $6$ with a $50\%$
+discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
 
 \subsubsection{Threat-Class Bond Sizing}\label{sec:pricing:threats}
 
-The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ is threat-agnostic: sloppy work, abandonment, and active sabotage all price off the same curve. That is wrong in both directions. A single curve calibrated to deter sabotage prices capable agents out of low-risk work; a single curve calibrated for accessibility underprices the rare adversary who actually intends harm. Real deployments need different multipliers for different threat classes, because the threats have different blast radii and different probabilities of recovery.
+The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \rho)\}$ is threat-agnostic: sloppy work, abandonment, and active sabotage all price off the same curve. That is wrong in both directions. A single curve calibrated to deter sabotage prices capable agents out of low-risk work; a single curve calibrated for accessibility underprices the rare adversary who actually intends harm. Real deployments need different multipliers for different threat classes, because the threats have different blast radii and different probabilities of recovery.
 
 Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, they are calibration targets: production deployments tune from observed failure modes in their own audit log.
 
@@ -1160,7 +1215,7 @@ The marketplace operator posts real tasks at above-market rates and invites a sm
 \emph{Transition metric.} Completion rate above $80\%$ sustained for $\geq 2$ consecutive weeks. Below this threshold the cohort is not yet generating usable risk signal, and Phase~2 pricing will overfit to noise.
 
 \paragraph{Phase 2 --- Complexity-proportional pricing with graduated access (months 2--6).}
-The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\rho$ initialized from the Phase~1 reputation table. New principals enter at a low-risk tier: only the careless-work and abandonment bands of Table~\ref{tab:threat-bonds} are available. Promotion to the sabotage-coverage tier gates on accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}).
+The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \rho)\}$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\rho$ initialized from the Phase~1 reputation table. New principals enter at a low-risk tier: only the careless-work and abandonment bands of Table~\ref{tab:threat-bonds} are available. Promotion to the sabotage-coverage tier gates on accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}).
 
 Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The mechanism is an \emph{attestation import}: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
 
@@ -1173,7 +1228,7 @@ The \S\ref{sec:youle} mechanism activates: insurer agents bid on underwriting tr
 
 \medskip
 
-The weak-improvement result of \S\ref{sec:youle:welfare} is conditional on Phase~3 being reached, the listed metrics being met, and the theorem's CC/NC/RP/NS assumptions holding. Phases~1--2 are not bureaucratic preamble: they generate the data the competitive-insurance market needs to price at all. A deployment that skips them is running \S\ref{sec:youle} on uninformative priors, and the comparison does not apply.
+The weak-improvement result of \S\ref{sec:youle:welfare} is conditional on Phase~3 being reached, the listed metrics being met, and the specified full-information, competitive-entry, coverage, and static-baseline assumptions holding. Phases~1--2 are not bureaucratic preamble: they generate the data the competitive-insurance market needs to price at all. A deployment that skips them is running \S\ref{sec:youle} on uninformative priors, and the comparison does not apply.
 
 \subsubsection{Settlement and Dispute}\label{sec:pricing:settlement}
 
@@ -1191,14 +1246,18 @@ A verifier (which may itself be a bonded agent) reviews the Merkle attribution c
 A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and, critically, into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
 
 \paragraph{Settlement rule.}
-\begin{itemize}[nosep]
-  \item \emph{3-of-3 agreement.} Settle immediately on the agreed outcome. The cheaper oracles carry most of the volume in steady state.
-  \item \emph{2-of-3 agreement.} Settle with the majority. Flag the dissenting trace for review; this is the primary signal for tuning the gameable oracle.
-  \item \emph{No majority (three different verdicts, or one settle / one slash / one abstain).} Escalate to full human arbitration. Bond held in escrow until the human verdict lands.
-\end{itemize}
+A sampled human audit is not a third vote on every case. The contract must
+name the unsampled path. One proposed rule is: when the two automated oracles
+agree, record a provisional verdict under the agreed appeal window; when
+they disagree or abstain, hold the bond for human arbitration. Sampled cases
+also receive a human review. If all three verdicts exist, a 2-of-3 rule can
+produce the provisional outcome, with dissent retained for appeal. Final
+human authority and reversal funding must be agreed in advance. This is a
+protocol proposal, not a claim that sampling implements universal majority
+review or makes any evaluator infallible.
 
 \paragraph{Composition with cartel resistance.}
-Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma$ for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma d_{\mathrm h}$, where $d_{\mathrm h}$ is the conditional probability that a sampled audit detects misconduct for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
@@ -1354,7 +1413,7 @@ This result does not automatically extend to the agent layer. The two layers sha
 
 \vspace{4pt}
 
-The bonded commons treats coordination as a uniform action surface: agents post bonds, settle, accrue reputation. In practice, the \emph{kinds} of coordination differ enough that uniform pricing distorts incentives. We argue that any commons-scale pricing mechanism must distinguish among five expressive classes, and that each class has a different bonding profile. The punchline is in one line: \textbf{uniform pricing collapses the market to its highest-stakes class and freezes out the rest.} The five classes below establish why.
+The bonded commons treats coordination as a uniform action surface: agents post bonds, settle, accrue reputation. In practice, the \emph{kinds} of coordination differ enough that uniform pricing distorts incentives. We argue that any commons-scale pricing mechanism must distinguish among five expressive classes, and that each class has a different bonding profile. The punchline is in one line: \textbf{one price can exclude low-value acts while under-covering high-loss acts.} The five classes below establish why.
 
 \subsection{Five Expressive Classes}
 
@@ -1377,7 +1436,7 @@ Each expressive class has a different relationship to the cleanup cost of \S\ref
   \item \emph{Proposal class}: bonded by the cost of reviewing plus the cost of implementing.
 \end{itemize}
 
-Treating all coordination as one uniform ``bonded action'' misses the price-discovery differences. The Bonded Advisor (\S\ref{sec:bonded-advisor}) and the Competitive-Insurance market (\S\ref{sec:youle}) must price each class separately, or the market will collapse to its highest-stakes class and freeze out the rest.
+Treating all coordination as one uniform ``bonded action'' misses the price-discovery differences. The Bonded Advisor (\S\ref{sec:bonded-advisor}) and the Competitive-Insurance market (\S\ref{sec:youle}) must price each class separately, or justify a pooled price against the different costs and participation constraints.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Evidence-Growth Monitoring and Replay}\label{sec:vibe}
@@ -1484,7 +1543,11 @@ elapsed-time baselines at a measured cost in missed problems and false alarms.
 \section{Formal Model}\label{sec:tlaplus}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-We specify the coordination lifecycle in TLA$^{+}$~\pdcite{lamport2002specifying} to verify that the three layers compose correctly.
+The following TLA$^{+}$~\pdcite{lamport2002specifying} excerpt describes a
+coordination lifecycle. It is not the executable specification of the whole
+architecture: initialization, the complete transition relation, financial
+recipients, and monitoring rules are omitted. The bounded accounting artifact
+is identified separately in Appendix~\ref{app:mech}.
 
 Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. A file \texttt{Claim} always succeeds and only ever informs---it never blocks. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. And nothing anywhere deletes a note. The specification below is that same machine, made checkable.
 
@@ -1625,12 +1688,22 @@ Spec == Init /\ [][Next]_vars
 ====
 \end{lstlisting}
 
+Read liveness separately from the escrow invariant. A trace may keep
+choosing \texttt{Tick} after a dead agent is queued, never choosing
+\texttt{Salvage} or \texttt{Dismiss}. Weak fairness of \texttt{Reap} and
+\texttt{Tick} alone does not exclude it. Eventual recovery needs an enabled
+recovery action and fairness for its selection. Also, \texttt{Dismiss}
+deletes the retained session in this excerpt: its note monotonicity covers
+active sessions, not this explicit destructive action.
+
 \textbf{Key invariant}: \texttt{EscrowInvariant} ensures that no agent can participate in the commons without posted collateral. This is the economic layer's structural guarantee---it holds by construction of the \texttt{Begin} action, which requires $\texttt{escrow} > 0$.
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
 \pdmarginanalogy{bonded-escrow-box}{}{ch07-dual-control-escrow-box}{Like a dual-control iron escrow chest requiring two separate keys to unlock, escrowed funds cannot be released unilaterally until criteria and verification agree.}%
-The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---which together discharge what \texttt{EscrowInvariant} asserts.
+The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---which support a different obligation: preservation of total funds.
+Positive escrow at admission and conservation across transfers are independent
+properties; a system can satisfy either while violating the other.
 
 \begin{definition}[Accounting State]\label{def:acct-state}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1697,7 +1770,7 @@ Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Be
 S_P = 4+6+0=10
 \] [verified].
 
-The settlement resolves as a partial breach: $\mathrm{slash}(\mathit{id}, p{=}2)$ burns $2$ to the commons pool and refunds the remaining $b-p=6-2=4$ to the wallet.
+The settlement resolves as a partial breach: $\mathrm{slash}(\mathit{id}, p{=}2)$ transfers $2$ to the commons pool and refunds the remaining $b-p=6-2=4$ to the wallet.
 
 Applying the proof sketch's own bookkeeping, $W_P \mathrel{+}= (b-p) = 4+4=8$, $C_P \mathrel{+}= p = 0+2=2$, and $E_P$'s contribution of $6$ is fully retired to $0$.
 
@@ -1739,7 +1812,11 @@ Holmström's theorem does not supply a general prohibition on compensation.
 
 \paragraph{Social contract theory.} Hobbes~\pdcite{hobbes1651leviathan} argued that cooperation requires a sovereign whose authority is accepted before interactions begin. Locke~\pdcite{locke1689two} proposed a more limited authority protecting natural rights. Our commons authority is Hobbesian in structure (centralized, pre-transactional) but Lockean in scope (provides infrastructure, not dictates).
 
-\paragraph{Impossibility results.} Sen~\pdcite{sen1970impossibility} proved that Pareto efficiency and minimal liberalism are incompatible. We apply this result to show that enforced file claims (minimal liberalism for agents) produce Pareto-inferior team outcomes, motivating advisory claims.
+\paragraph{Impossibility results.} Sen~\pdcite{sen1970impossibility} proves an incompatibility under an
+unrestricted preference domain and decisive personal pairs. Our locking
+example is separate: precautionary claims can block a mutually preferred
+completion. It motivates a design choice without transferring Sen's theorem
+to every lock manager.
 
 \paragraph{Long-lived transactions.} Garcia-Molina and Salem~\pdcite{garciamolina1987sagas} introduced Sagas for decomposing long-lived transactions with compensating actions. Our collateralized contracts extend Sagas with economic settlement: rather than mechanically compensating for partial failure, the evidence chain enables pro-rata escrow release.
 
@@ -1770,11 +1847,11 @@ it are separate requirements.
 \textbf{Body of work} & \textbf{Borrowed} & \textbf{Departure} & \textbf{Why} \\
 \midrule
 Social contract theory & Authority accepted before interaction begins & The sovereign is a daemon whose rules are inspectable and whose consent is revocable per task & Agents can exit; Hobbes's subjects could not \\
-Impossibility results & Liberalism against Pareto efficiency & Applied to enforced file claims & It is the reason claims stay advisory \\
+Impossibility results & Decisive rights under unrestricted preferences & A separate precautionary-lock counterexample & Motivates a conditional advisory default \\
 Long-lived transactions & Compensation for work that outlives a transaction & Economic settlement in place of mechanical compensation & Compensation cannot undo an external effect; a bond can price it \\
 BDI and generative agents & Beliefs, desires, intentions; memory streams & The evidence trail is read by an adversarial operator, not a private memory & The reader, not the agent, is the customer of the record \\
 Capability-based security & Attenuable capabilities & Capabilities bind to bonded identities with settlement & Authority without liability is the failure the commons prices \\
-Mechanism design & Incentive compatibility as the design target & Bonds priced by the claim-signaling threshold $\delta^{*}$, not by an optimal auction & The commons is a repeated game, not a one-shot sale \\
+Mechanism design & Incentive compatibility as the design target & A claim-signaling patience threshold and separate bond-pricing proposals & The commons is a repeated game, not a one-shot sale \\
 Agentic-commerce protocols & The credential envelope & The envelope carries authorization; the commons carries liability & A standard format shrinks the problem without settling it \\
 \bottomrule
 \end{tabularx}
@@ -1862,13 +1939,18 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{Three layers, each doing what the layer below cannot.} Structural prevention bounds scope before the act; immutable attribution makes every act answerable after it; economic alignment prices what neither can forbid.
-\item \textbf{Structural scope limitation is a theorem}, not a policy: a process cannot touch what its card does not name, so the first layer costs nothing at runtime.
-\item \textbf{The trail is a Merkle forest.} Trail integrity, proof soundness, binding, attribution, rollback safety and conservation are the six properties of the ledger; conservation and no-overdraft under concurrent escrow are model-checked.
-\item \textbf{Decisive allocation has limits.} There is a Pareto-inferior locking instance, so advisory conflict detection is complete where decisive locking is not, and an appeal is sound when it can only widen the record.
+\item \textbf{Structural scope limitation is a theorem}, not a policy: accepted operations stay within the root grant when every relevant effect
+passes through the verifier. Checks have a runtime cost; an unmediated write
+is outside that guarantee.
+\item \textbf{The trail is a Merkle forest.} Trail integrity, proof soundness, binding, attribution, rollback safety and conservation are the six properties of the ledger; the accounting model has bounded model-checking evidence; runtime
+no-overdraft also needs atomic admission and has separate property tests.
+\item \textbf{Decisive allocation has limits.} There is a Pareto-inferior locking instance, while advisory completeness concerns overlaps among registered claims, and an appeal is sound when it can only widen the record.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
 \item \textbf{Claim signaling is incentive-compatible above $\delta^{\ast}\approx0.3425$}, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$; TLC agrees on the integer grid, at $0.35$ holding and at $0.33$ producing the deviation trace.
-\item \textbf{Cleanup has a lower bound}: no bond schedule makes abandoning work free, and the bound says how much.
+\item \textbf{Cleanup has a lower bound}: cleanup funded entirely from a forfeited bond requires that bond to
+cover the assumed bill. Deterrence additionally depends on the principal's
+gain and probability of collectible loss.
 \item \textbf{Disputes escalate only when the cheaper exit fails}: released, then expired by TTL, then preempted by bond, then ruled by a human, every terminal state writing to one evidence rail; a magic link is redeemed by one row update and refused by the second reader.
 \end{enumerate}
 
@@ -1887,15 +1969,33 @@ The rejected card violates \emph{temporal} attenuation: Theorem~\ref{thm:scope} 
 An acceptable card is $\{\texttt{fs:write:auth.ts}\}$, TTL~$\le 15$~minutes---dropping \texttt{db:read} (a valid narrowing of the capability set) and matching or shortening the TTL. A strictly narrower example is $\{\texttt{fs:read:auth.ts}\}$, TTL~$=10$~minutes, if the deployment's capability lattice places \texttt{read} below \texttt{write} on the same resource.
 \end{pdsolution}
 
+\pdexercisesfor{\S\ref{sec:attribution}}{Attribution and mutable views}
+\begin{pdexercise}[kind=Check,rating=1]{ex:bonded-signal-view}
+A signal is sprayed at strength eight with a ten-minute half-life. At minute
+fifteen it is revoked. What value should a reader at minute twenty see?
+What records must remain, and what does their authenticated inclusion fail
+to prove about the original signal?
+\end{pdexercise}
+\begin{pdsolution}{ex:bonded-signal-view}
+The value is zero because revocation overrides the decayed value of two.
+The original spray and revocation remain as records. Inclusion establishes
+what was committed under the authenticated root, not that the hint was
+accurate or that every reader received its revocation.
+\end{pdsolution}
+
 \pdexercisesfor{\S\ref{sec:sen}}{The Limits of Decisive Allocation}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:bonded-advisory-claims}
-Define ``advisory claim'' and explain, in two sentences, why an advisory regime is strictly more permissive than an enforced-lock regime. Then explain why the Sen impossibility (\S\ref{sec:sen}) makes that strict permissiveness a \emph{feature}, not a bug.
+Define ``advisory claim'' and explain, in two sentences, why an advisory regime is strictly more permissive than an enforced-lock regime. Give a precautionary-claim case in which this permissiveness helps, and a
+real write collision in which it hurts. Why is neither a universal welfare theorem?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-advisory-claims}
 An advisory claim is a durable declaration that an agent intends to use a resource; it informs coordination (Definition~\ref{def:advisory}'s conflict graph) but does not make conflicting effects impossible. Every trace an enforced-lock regime allows, an advisory regime also allows---the lock regime is a special case that additionally forbids the conflicting trace---so advisory claims are strictly more permissive, never less.
 
-That extra permissiveness is the feature Theorem~\ref{prop:sen} names: Sen's theorem shows that granting an agent a decisive personal domain (an enforced lock) can block a Pareto-superior team outcome the allocator cannot see coming. An advisory regime never grants that veto, so it never forecloses the outcome a lock would have blocked---at the cost of also admitting traces where two agents genuinely do collide. \S\ref{sec:governance}'s appeals and preemption path is exactly the mechanism that prices the cost of that added permissiveness rather than eliminating it.
+That extra permissiveness is the feature Theorem~\ref{prop:sen} names: The locking instance assumes both agents prefer completion of both tasks
+and that the precautionary claim is not released in time; under those
+assumptions its veto blocks a Pareto-superior outcome. Sen motivates the
+comparison, but his theorem is not a theorem about every lock manager. An advisory regime never grants that veto, so it never forecloses the outcome a lock would have blocked---at the cost of also admitting traces where two agents genuinely do collide. \S\ref{sec:governance}'s appeals and preemption path is exactly the mechanism that prices the cost of that added permissiveness rather than eliminating it.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:crash-recovery}}{Crash Recovery as Social Continuation}
@@ -2007,7 +2107,7 @@ Cheap fresh identities shorten the effective horizon a punished member faces and
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:bonded-insurance-alt-pricing}
-The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond price with insurer-agent bids. Propose one alternative pricing mechanism (e.g., a second-price auction with reserve, a Walrasian-style market-clearing rule, or a posted-price catalog) and argue whether it would conditionally Pareto-dominate the static escrow under the CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare}. Identify the assumption your alternative most depends on.
+The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond price with insurer-agent bids. Propose one alternative pricing mechanism (e.g., a second-price auction with reserve, a Walrasian-style market-clearing rule, or a posted-price catalog) and argue whether it would conditionally Pareto-dominate the static escrow under the full-information, competitive-entry, coverage, and static-baseline assumptions of \S\ref{sec:youle:welfare}. Identify the assumption your alternative most depends on.
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-insurance-alt-pricing}
 This is a design obligation, not a closed theorem: no mechanism in this chapter proves a Pareto ordering for a posted-price catalog, so what follows is a defensible proposal, not a fictional derivation. A posted-price catalog quotes premiums by manifest risk class, principal history, exposure duration, and tail-capital band, recalibrated periodically against a hard reserve constraint---no per-transaction bidding, no auction latency. It conditionally improves on the static escrow of \S\ref{sec:scope-multiplier} exactly when the posted quote sits below the principal's idle-capital cost of self-insuring via a static bond, while the insurer remains individually rational and its reserves still cover the same tail risk the competitive market would have priced. Relative to \S\ref{sec:youle}'s bid-based mechanism, a posted catalog trades away instance-specific price discovery (the model's conditional pricing of expected capped payouts, capital costs, and expenses) for lower manipulation surface and no per-transaction latency---the same trade the A6 cartel analysis makes salient in the other direction, since a catalog has no bid pattern for a colluding cartel to distort in the first place.
@@ -2033,7 +2133,7 @@ The invariant named in \texttt{Conservation.cfg}'s \texttt{INVARIANTS} block tha
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:bonded-conservation-weaken}
-Suppose \texttt{Conservation.tla}'s \texttt{Mint} action were changed to credit \texttt{free} without also incrementing \texttt{minted}---i.e.\ \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is dropped. Predict, from the spec text alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
+Suppose \texttt{Conservation.tla}'s \texttt{Mint} action were changed to credit \texttt{free} without also incrementing \texttt{minted}---i.e.\ \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is replaced by \texttt{minted' = minted}. Predict, from the spec text alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-conservation-weaken}
 No run is needed to predict this: it follows from the definitions already in the spec. \texttt{Conservation} asserts $\mathit{TotalFree} + \mathit{TotalEscrow} + \mathit{burned} = \mathit{minted}$. Immediately after \texttt{Init} (all four quantities zero, satisfying the invariant trivially), the very first enabled \texttt{Mint}$(a, \mathit{amt})$ step increases $\mathit{TotalFree}$ by $\mathit{amt}$ while leaving $\mathit{minted}$ at $0$ under the stated weakening, so the left side becomes $\mathit{amt} > 0$ while the right side stays $0$. \texttt{Conservation} fails at depth~$1$---the shallowest possible counterexample, one step past the initial state, with no need to explore further.
@@ -2047,18 +2147,19 @@ No run is needed to predict this: it follows from the definitions already in the
 Sketch the ProVerif process for the magic-link recovery protocol of \S\ref{sec:federated-sovereign}. What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model of \pdchapref{anchor}{The Anchor Protocol}.
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-magic-link-proverif}
-Model a fresh token $t$, an issuance event $\mathrm{Issued}(u,t)$ tied to the user's mailbox, storage of an unguessable token (or a protected hash of it) with an expiry and an unused flag, delivery over a mailbox channel the attacker can read but not write into unprompted, redemption over an attacker-controlled network under \pdchapref{anchor}{The Anchor Protocol}'s Dolev-Yao assumptions, an atomic consume step, and recovery-key or session rotation on successful redemption.
+Model a fresh token $t$, an issuance event $\mathrm{Issued}(u,t)$ tied to the user's mailbox, storage of an unguessable token (or a protected hash of it) with an expiry and an unused flag, delivery over a private mailbox channel in the uncompromised case, with a
+separate compromise process that reveals the channel to the attacker, redemption over an attacker-controlled network under \pdchapref{anchor}{The Anchor Protocol}'s Dolev-Yao assumptions, an atomic consume step, and recovery-key or session rotation on successful redemption.
 
-The secrecy property is that the token (and any recovery secret it unlocks) stays unknown to the attacker absent mailbox compromise. The authentication property is injective: $\mathrm{Consumed}(u,t) \Rightarrow \mathrm{inj\text{-}event}(\mathrm{Issued}(u,t))$, exactly the form \S\ref{sec:federated-sovereign} already states for magic-link single-use---every consumption traces back to one, and only one, issuance, which is what rules out the race window between two concurrent redeemers. Add a concurrent-replay capability (two redemption attempts racing on the same token) and a mailbox-compromise capability (the attacker reads, but does not yet control, the delivery channel), neither of which the Phase~1 Harbor Card model needs: that model's attacker forges signatures or replays chains, but it has no notion of a \emph{delivery channel} an attacker might passively observe, because Harbor Cards are minted and verified entirely within the daemon's own boundary. Time and expiry also need an explicit abstraction here---ProVerif has no wall-clock semantics on its own---whereas the Harbor Card model's TTL is already folded into the token's signed payload.
+The secrecy property is that the token (and any recovery secret it unlocks) stays unknown to the attacker absent mailbox compromise. The authentication property is injective: $\mathrm{inj\text{-}event}(\mathrm{Consumed}(u,t)) \Rightarrow \mathrm{inj\text{-}event}(\mathrm{Issued}(u,t))$, exactly the form \S\ref{sec:federated-sovereign} already states for magic-link single-use---every consumption traces back to one, and only one, issuance, which is what rules out the race window between two concurrent redeemers. Add a concurrent-replay capability (two redemption attempts racing on the same token) and a mailbox-compromise capability (the attacker reads, but does not yet control, the delivery channel), neither of which the Phase~1 Harbor Card model needs: that model's attacker forges signatures or replays chains, but it has no notion of a \emph{delivery channel} an attacker might passively observe, because Harbor Cards are minted and verified entirely within the daemon's own boundary. Time and expiry also need an explicit abstraction here---ProVerif has no wall-clock semantics on its own---whereas the Harbor Card model's TTL is already folded into the token's signed payload.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:bonded-gossip-proof}
 The gossip convergence bound cited for Merkle-root dissemination among a harbor's devices (\pdchapref{anchor}{The Anchor Protocol}'s revocation analysis) is reproduced from the standard anti-entropy analysis rather than mechanized. Identify the specific theorem from Demers et al.~\pdcite{demers1987epidemic} that would need to be ported to a proof assistant. What would change in the analysis if the daemon mesh is \emph{not} fully connected? Hint: consider gossip on a graph with bottleneck cuts.
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-gossip-proof}
-This is an open mechanization obligation, not a solved one: Demers et al.\ is the epidemic-replication paper the chapter leans on, but no numbered theorem in it is stated in a form that yields this protocol's $\Theta(\log m)$ all-informed bound by direct substitution---the paper's push/pull rumor-spreading results assume a complete, uniform-peer overlay with reliable rounds, which is an assumption this chapter states but does not itself formalize. The mechanization obligation is therefore two steps, not one: first state the push/pull rumor-spreading theorem precisely, under exactly the complete-graph, independent-peer, reliable-round assumptions this chapter already uses (\S\ref{sec:claim-signaling-ic}'s ``observable history'' bullet leans on the same overlay); only then port that precise statement to a proof assistant. Citing the paper is not, by itself, a proof object.
+This is an open mechanization obligation, not a solved one: Demers et al.\ is the epidemic-replication paper the chapter leans on, but no numbered theorem in it is stated in a form that yields this protocol's $\Theta(\log m)$ all-informed bound by direct substitution---the paper's push/pull rumor-spreading results assume a complete, uniform-peer overlay with reliable rounds, which must be fixed explicitly for the proposed dissemination model. The mechanization obligation is therefore two steps, not one: first state the push/pull rumor-spreading theorem precisely, under exactly the complete-graph, independent-peer, reliable-round assumptions this chapter already uses (the claim-signaling game separately assumes perfect public monitoring); only then port that precise statement to a proof assistant. Citing the paper is not, by itself, a proof object.
 
-On a general connected graph the $\Theta(\log m)$ bound does not transfer as stated: convergence time depends on the graph's conductance or mixing time, not on $m$ alone, and the honest replacement bound has a term roughly inverse in conductance, plus a tail probability rather than a clean deterministic count. A disconnected graph is the degenerate case that breaks the claim outright: gossip never converges across components that share no edge, no matter how long the protocol runs, because there is no path for a rumor to cross. A connected-but-bottlenecked mesh sits between the two: dissemination across the bottleneck cut is throttled by the cut's capacity, so a mechanized version of this bound would need to separate \emph{safety} (no revocation is ever falsely accepted or falsely dropped, which holds regardless of connectivity) from \emph{liveness} (every revocation eventually reaches every device, which needs the connectivity and mixing assumptions this section has so far only asserted in prose).
+On a general connected graph the $\Theta(\log m)$ bound does not transfer as stated: convergence time depends on the graph's conductance or mixing time, not on $m$ alone, and the honest replacement bound has a term roughly inverse in conductance, plus a tail probability rather than a clean deterministic count. A disconnected graph is the degenerate case that breaks the claim outright: gossip never converges across components that share no edge, no matter how long the protocol runs, because there is no path for a rumor to cross. A connected-but-bottlenecked mesh sits between the two: dissemination across the bottleneck cut is throttled by the cut's capacity, so a mechanized version of this bound would need to separate \emph{safety} (accepted revocation records have valid provenance; timely refusal of a remotely revoked card still requires freshness or fail-closed admission) from \emph{liveness} (every revocation eventually reaches every device, which needs the connectivity and mixing assumptions this section has so far only asserted in prose).
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-cuckoo-pollution}
@@ -2082,13 +2183,18 @@ We have argued that multi-agent collaboration at scale requires a commons author
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because different loss and participation profiles can make one price unsuitable. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
 
-The advisory design of the resource claim system is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
+Advisory claims leave room for negotiation when agents know more about
+their needs than the allocator. Their benefit depends on the conflict and
+resolution costs; Sen supplies a warning about decisive rights, not a
+universal choice between advisory claims and locks. The commons authority provides information, not allocation decisions.
 
 Bond pricing is not a single open problem. It is a lattice: a cleanup-cost lower bound (\S\ref{sec:cleanup-bound}), a scope multiplier (\S\ref{sec:scope-multiplier}), a reputation discount (\S\ref{sec:rep-discount}), the Bonded Advisor mechanism (\S\ref{sec:bonded-advisor}), and the competitive-insurance market (\S\ref{sec:youle}). Each is precise enough to disprove.
 
-The infrastructure is running. The forest is building. The covenants are auditable. The sovereign is legible. The advisor is bondable. The market is open for bids.
+The next chapter asks which obligations survive when issuer, executor, and
+payer belong to different harbors. Evidence can cross that boundary;
+authority, current knowledge, and collectible funds need separate protocols.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -2315,7 +2421,12 @@ DataDome.
 
 \section{Formal Verification Status}\label{app:mech}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (accompanying chapters, \S5).
+\paragraph{Reading the evidence.} Table~\ref{tab:verification-status} names the
+models and tests associated with each claim; the publication's artifact bundle
+is at \url{https://portdaddy.dev/whitepaper/artifacts/}. A model check applies to
+the model and bounds stated in its row. Runtime conformance and deployment
+require separate evidence. For example, the passkey model and its missing
+runtime appear as different rows; completing the first does not complete the second.
 
 \renewcommand{\arraystretch}{1.15}
 {\small
@@ -2324,8 +2435,8 @@ DataDome.
 % end, and a bare tabularx cannot carry a \caption row outside a float, which
 % is what line 1990 is. The two halves disagreed and the Book stopped
 % compiling altogether -- "Argument of \TX@get@body has an extra }".
-\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.265\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.245\textwidth}@{}}
-\caption{Verification status of critical claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}\label{tab:verification-status}\\
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}p{0.15\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
+\caption{Verification status of critical claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. Closed (\Closed) records completion of the stated check within its listed scope. Partial (\Partial) leaves part of that claim unresolved; spec-only (\SpecOnly) identifies a model or design without its runtime. A closed model row does not certify deployment.}\label{tab:verification-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
 \midrule
@@ -2349,8 +2460,8 @@ Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate
 \midrule
 Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
-Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-sybil.mjs} \\
-Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-cartel.mjs} \\
+Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-}\allowbreak\path{sybil.mjs} \\
+Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-}\allowbreak\path{cartel.mjs} \\
 Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla},\newline{}\path{delta-}\allowbreak\path{thresh}\allowbreak\path{old.z3} \\
 Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
@@ -2364,7 +2475,9 @@ Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet &
 \section{Worked Example: One Agent, All Layers}\label{app:worked}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-To make the three-layer architecture concrete, this appendix traces one agent---call it $\alpha$---through a single bounded task: \emph{``Fix the login bug in \texttt{auth.ts} and regression-test it.''} The example exercises capability issuance, advisory claims, the evidence chain, a mid-task crash, successor resumption, and final settlement. All values are illustrative rather than tuned.
+To make the three-layer architecture concrete, this appendix traces one agent---call it $\alpha$---through a single bounded task: \emph{``Fix the login bug in \texttt{auth.ts} and regression-test it.''} The example exercises capability issuance, advisory claims, the evidence chain, a mid-task crash, successor resumption, and final settlement. All values are illustrative rather than tuned. Assume complete mediation,
+durable receipts, the stated recovery policy, and an agreed adjudicator; this
+is a design trace, not a report of a live end-to-end run.
 
 The architecture so far has been described layer by layer. The point of this appendix is to watch the layers \emph{compose}: how a single bounded task progresses through the system, where each layer earns its keep, and what the daemon does \emph{not} touch. The example is deliberately mundane---one small bug, one agent, one principal---because the value of the architecture should be legible in the small before it is trusted in the large.
 
@@ -2374,7 +2487,7 @@ The architecture so far has been described layer by layer. The point of this app
   \item no other test regresses;
   \item the diff touches only \texttt{auth.ts} and the test file.
 \end{enumerate}
-$P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---one operator-hour at \$5/hr equivalent, since this is a local agent rather than a cloud workload. Figure~\ref{fig:worked-example} traces what follows across the three architectural layers.
+$P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---an illustrative total of operator and compute expense, not a measured hourly wage. Figure~\ref{fig:worked-example} traces what follows across the three architectural layers.
 
 \input{figures/fig-worked-example}
 
@@ -2394,11 +2507,11 @@ Phase A's contracts are now in force. $\alpha$ does the work the principal hired
 
 \paragraph{Step 4: Evidence chain begins (Layer 2).} $\alpha$ opens the work with a scope note: \emph{``Scope: \texttt{auth.ts}. Hypothesis: cookie-domain handling on subdomain login fails. Validation: \texttt{npm test login.regression}.''} The note's content hash $h_1$ chains into the session's Merkle root $R_{\text{session}}^{(1)}$, and from then on every action $\alpha$ takes---a read receipt for \texttt{auth.ts}, a diff blob for the partial fix, the stdout of the failing test run---is appended as a new entry. Five notes deep, $R_{\text{session}}^{(5)}$ is the canonical commitment to $\alpha$'s state of work. The chain is the part of the architecture that survives anything that happens next.
 
-\subsubsection*{Phase C: Crash and recovery (minutes $12$--$13$)}
+\subsubsection*{Phase C: Crash and recovery (minutes $12$--$14$)}
 
 The crash is where the architecture stops being an abstraction. In Phase B everything went right; in Phase C something goes wrong, and the layers either earn their keep or they don't.
 
-\paragraph{Step 5: Mid-task crash (\S\ref{sec:crash-recovery}).} At minute $12$, $\alpha$'s process crashes---let's say the LLM provider timed out. The daemon's heartbeat monitor observes $\alpha$ as unresponsive after $90$~seconds and marks the session abandoned. $\alpha$'s claim on \texttt{auth.ts} releases on TTL; the evidence chain is sealed at $R_{\text{session}}^{(5)}$ and committed into the harbor root $R_{\text{harbor},\ell}$ at the next epoch boundary. \emph{Critically, no information is lost}: the partial diff, the test output, and $\alpha$'s scope note are all in the chain. The crash terminated a process; it did not terminate the work.
+\paragraph{Step 5: Mid-task crash (\S\ref{sec:crash-recovery}).} At minute $12$, $\alpha$'s process crashes---let's say the LLM provider timed out. The daemon's heartbeat monitor observes $\alpha$ as unresponsive after $90$~seconds and marks the session abandoned. $\alpha$'s claim on \texttt{auth.ts} releases on TTL; the evidence chain is sealed at $R_{\text{session}}^{(5)}$ and committed into the harbor root $R_{\text{harbor},\ell}$ at the next epoch boundary. \emph{The recorded artifacts survive}: the partial diff, the test output, and $\alpha$'s scope note are all in the chain. The crash terminated a process; it did not terminate the work.
 
 \paragraph{Step 6: Successor agent.} $P$ spawns a fresh agent $\beta$ with a new Harbor Card and the same capability set. $\beta$'s first action is \texttt{pd salvage}: the daemon returns the abandoned session, the scope note, the partial diff, and the last test output. $\beta$ reads the scope note (``cookie-domain handling on subdomain login''), inspects the partial fix that $\alpha$ left behind, and finishes the work. The new evidence chain $R_{\text{session}}^{(\beta)}$ explicitly references $R_{\text{session}}^{(5)}$ as its salvage parent. Attribution is preserved across the identity change (\S\ref{sec:attribution-survives})---the diff that ships at minute $24$ is traceable back to the same principal $P$ that posted the bond at minute $1$, even though the agent that did most of the work is gone.
 
@@ -2406,7 +2519,9 @@ The crash is where the architecture stops being an abstraction. In Phase B every
 
 The work is done. The daemon now decides what was actually accomplished and acts on the settlement preconditions fixed in Phase A.
 
-\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login\allowbreak.regression\allowbreak.test\allowbreak.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files declared in the Harbor Card. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
+\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login\allowbreak.regression\allowbreak.test\allowbreak.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files named in the manifest. The
+card allows the wider \texttt{tests/**} path, so this manifest check is a
+separate acceptance condition. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
 
 \paragraph{What did each layer do?}
 \begin{itemize}[nosep]

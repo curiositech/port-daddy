@@ -1,0 +1,715 @@
+{
+  "scope": "Canonical chapters 6-8; transitive art and runtime proofs are separate obligations",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "skill": "/Users/erichowens/.codex/skills/textbook-craft/SKILL.md",
+  "reading": [
+    {
+      "chapter": 6,
+      "source": "website-v2/public/whitepaper/harbor-economy.tex",
+      "before_lines": 3431,
+      "before_sha256": "399ca5d771a5bd8f07e5b68d8170e9af10d070592cb7df5e0672febcb9efa485",
+      "read_ranges": [
+        [
+          1,
+          380
+        ],
+        [
+          381,
+          760
+        ],
+        [
+          761,
+          1140
+        ],
+        [
+          1141,
+          1520
+        ],
+        [
+          1521,
+          1900
+        ],
+        [
+          1901,
+          2280
+        ],
+        [
+          2281,
+          2660
+        ],
+        [
+          2661,
+          3040
+        ],
+        [
+          3041,
+          3431
+        ]
+      ],
+      "after_sha256": "c29ac2de3dc893acecd3d8f7b453019648fbf1c49cae6bcf5583d00504a09be6",
+      "after_lines": 3511,
+      "canonical_read_complete": true,
+      "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
+      "note": "Initial truncated combined preview was not counted."
+    },
+    {
+      "chapter": 7,
+      "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "before_lines": 2434,
+      "before_sha256": "7c3d712a488e706727756b0ce459d7aa7ebc42412540a44e88e517e8e9af5ab7",
+      "read_ranges": [
+        [
+          1,
+          240
+        ],
+        [
+          241,
+          560
+        ],
+        [
+          561,
+          900
+        ],
+        [
+          901,
+          1240
+        ],
+        [
+          1241,
+          1580
+        ],
+        [
+          1581,
+          1930
+        ],
+        [
+          1931,
+          2240
+        ],
+        [
+          2241,
+          2434
+        ]
+      ],
+      "after_sha256": "6f3968391d4146f7325d1148bfa5221036ad0181fa5164162c7ce61c296b916e",
+      "after_lines": 2549,
+      "canonical_read_complete": true,
+      "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
+      "note": "Initial truncated combined preview was not counted."
+    },
+    {
+      "chapter": 8,
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "before_lines": 1911,
+      "before_sha256": "d7c800511f8d67cc8b951bc60b8eacb810bb187ca33fd3ced08e48980a306292",
+      "read_ranges": [
+        [
+          1,
+          380
+        ],
+        [
+          381,
+          720
+        ],
+        [
+          721,
+          1060
+        ],
+        [
+          1061,
+          1390
+        ],
+        [
+          1391,
+          1700
+        ],
+        [
+          1510,
+          1605
+        ],
+        [
+          1701,
+          1911
+        ]
+      ],
+      "after_sha256": "c13bfdabf356839c2d1657dd968b2f7d37ba9661c9bcf672f94a0b1328eda52f",
+      "after_lines": 2023,
+      "canonical_read_complete": true,
+      "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
+      "note": "Range 1391-1700 was truncated once; the missing middle was reread in 1510-1605."
+    }
+  ],
+  "concepts": [
+    {
+      "chapter": 6,
+      "concept": "Labor, rental and licensing",
+      "first_anchor": "sec:three-sides",
+      "concrete_example": "Bob purchases three contract types",
+      "later_anchor": "sec:one-settlement",
+      "substantive_reuse": "Combined settlement and participation constraints",
+      "action": "Clarified contract types versus economic platform sides"
+    },
+    {
+      "chapter": 6,
+      "concept": "Private information and adverse selection",
+      "first_anchor": "sec:three-sides",
+      "concrete_example": "Seller knows quality the buyer cannot inspect",
+      "later_anchor": "sec:one-settlement",
+      "substantive_reuse": "Licensing, reputation and oracle design",
+      "action": "Preserved distinction between hidden quality and reliable grading"
+    },
+    {
+      "chapter": 6,
+      "concept": "Succession and queue stability",
+      "first_anchor": "thm:succession-price",
+      "concrete_example": "Four-hour repair and two-hour available-life clocks",
+      "later_anchor": "fig:he-succession-price",
+      "substantive_reuse": "8.1667-hour canary and dimensionless D* review",
+      "action": "Added rates, independence, stability, response-time units and accountability value"
+    },
+    {
+      "chapter": 6,
+      "concept": "Float Plan",
+      "first_anchor": "sec:float-plan",
+      "concrete_example": "400 bounty plus100 performance bond",
+      "later_anchor": "sec:one-settlement",
+      "substantive_reuse": "Combined labour/rental/licence escrow",
+      "action": "Kept bounty, collateral and contingent fees separate"
+    },
+    {
+      "chapter": 6,
+      "concept": "Conservation",
+      "first_anchor": "prop:conservation",
+      "concrete_example": "Partial settlement transfers",
+      "later_anchor": "sec:gaps",
+      "substantive_reuse": "560 conserved but inaccessible credits",
+      "action": "Corrected safety versus liveness in gap table"
+    },
+    {
+      "chapter": 6,
+      "concept": "Control rights",
+      "first_anchor": "sec:three-on-one",
+      "concrete_example": "Owner, renter and runtime jail",
+      "later_anchor": "ex:he-grossman-hart-roles",
+      "substantive_reuse": "Locate authority over leased worker",
+      "action": "Preserved capability versus normative permission distinction"
+    },
+    {
+      "chapter": 6,
+      "concept": "Horn closure and deontic conflict",
+      "first_anchor": "def:lc-fragment",
+      "concrete_example": "Derived production access triggers O/F overlap",
+      "later_anchor": "thm:he-reachable-admission",
+      "substantive_reuse": "Future-fact policy admission",
+      "action": "Moved witness before grammar; defined Horn and ground; repaired disjunction exercise"
+    },
+    {
+      "chapter": 6,
+      "concept": "Tractable fragment and NP frontier",
+      "first_anchor": "thm:deontic-detect",
+      "concrete_example": "Three engines and concrete conflict witness",
+      "later_anchor": "ex:he-deontic-conflict-checker",
+      "substantive_reuse": "Independent extra conflict and growth of discharge choices",
+      "action": "Preserved algorithm versus slower reference implementation distinction"
+    },
+    {
+      "chapter": 6,
+      "concept": "Reachable maximal fact sets",
+      "first_anchor": "sec:he-reachable-admission",
+      "concrete_example": "Mutually exclusive futures versus unreachable union",
+      "later_anchor": "thm:he-reachable-admission",
+      "substantive_reuse": "Admission contract must name reachable family",
+      "action": "Retained useful nonexample rather than infer all facts may co-occur"
+    },
+    {
+      "chapter": 6,
+      "concept": "Licensing settlement",
+      "first_anchor": "sec:one-settlement",
+      "concrete_example": "Success clears8 of10 reserved licence credits",
+      "later_anchor": "sec:one-settlement",
+      "substantive_reuse": "Partial green-only policy pays0 and refunds10",
+      "action": "Reconciled clause and arithmetic"
+    },
+    {
+      "chapter": 6,
+      "concept": "Persistent principal and Sybil",
+      "first_anchor": "sec:keystone",
+      "concrete_example": "Clone escapes identity-only sanction",
+      "later_anchor": "ex:he-no-identity-market",
+      "substantive_reuse": "Prepaid hash-addressed licensing counterexample",
+      "action": "Replaced exercises asserting every market needs agent personhood"
+    },
+    {
+      "chapter": 6,
+      "concept": "Myerson-Satterthwaite",
+      "first_anchor": "sec:ms",
+      "concrete_example": "Uniform bilateral trade example",
+      "later_anchor": "ex:he-ms-assumptions",
+      "substantive_reuse": "Check hypotheses before transferring impossibility",
+      "action": "Separated three satisfied properties from full-market sacrificed corner"
+    },
+    {
+      "chapter": 6,
+      "concept": "Native units and valuation",
+      "first_anchor": "sec:fh-settlement",
+      "concrete_example": "Money in distinct units",
+      "later_anchor": "ex:he-two-currency-example",
+      "substantive_reuse": "10A+20B valued50 then70 without transfer",
+      "action": "Retained quantitative nonexample"
+    },
+    {
+      "chapter": 6,
+      "concept": "Revocation and reliance",
+      "first_anchor": "sec:ic",
+      "concrete_example": "Correcting fraudulent outcome cannot undo past decisions",
+      "later_anchor": "prop:no-saga",
+      "substantive_reuse": "Finite appeals and monitoring",
+      "action": "Changed monotone reputation-score slogan to growing evidence and changing scores"
+    },
+    {
+      "chapter": 6,
+      "concept": "FLP and delivery assumptions",
+      "first_anchor": "sec:fh-settlement",
+      "concrete_example": "Separate histories and roots",
+      "later_anchor": "sec:fh-revocation",
+      "substantive_reuse": "Expected dissemination versus hard deadlines",
+      "action": "Corrected universal consensus impossibility and send-interval inference against primary source"
+    },
+    {
+      "chapter": 6,
+      "concept": "Wash trading",
+      "first_anchor": "sec:cartel",
+      "concrete_example": "Repeated pair manufactures credit",
+      "later_anchor": "sec:cartel",
+      "substantive_reuse": "Cap example and sampled audit",
+      "action": "Distinguished concavity from boundedness; sqrt(n) nonexample"
+    },
+    {
+      "chapter": 6,
+      "concept": "Assurance panels",
+      "first_anchor": "sec:adversarial-tests",
+      "concrete_example": "Three reviewers with d=.6",
+      "later_anchor": "ex:he-assurance-budget",
+      "substantive_reuse": "Six reviewers and12 fixed recruitment credits",
+      "action": "Moved section before review/exercises; added joint-dependence counterexample"
+    },
+    {
+      "chapter": 6,
+      "concept": "Grader accountability",
+      "first_anchor": "sec:ic",
+      "concrete_example": "10-credit bribe and50-credit bond",
+      "later_anchor": "sec:adversarial-tests",
+      "substantive_reuse": "Keep-gain deterrence and mutation-testing assumptions",
+      "action": "Preserved evidence versus judgment and finite terminal authority"
+    },
+    {
+      "chapter": 7,
+      "concept": "Commons authority",
+      "first_anchor": "sec:commons",
+      "concrete_example": "Two independent agents edit middleware",
+      "later_anchor": "app:worked",
+      "substantive_reuse": "Full task through claim, crash and settlement",
+      "action": "Qualified participation payoff relative to outside option"
+    },
+    {
+      "chapter": 7,
+      "concept": "Correlated equilibrium",
+      "first_anchor": "sec:correlating-device",
+      "concrete_example": "Proceed/defer coin with1.5 weighted advantages",
+      "later_anchor": "sec:claim-signaling-ic",
+      "substantive_reuse": "Conditional obedience versus repeated-game enforcement",
+      "action": "Added numeric motivation and payoff-change nonexample"
+    },
+    {
+      "chapter": 7,
+      "concept": "Capability attenuation",
+      "first_anchor": "sec:structural",
+      "concrete_example": "Grant subset and expiry",
+      "later_anchor": "app:worked",
+      "substantive_reuse": "Manifest scope narrower than tests/** card",
+      "action": "Preserved mediation assumption and separated proof model from deployed operations"
+    },
+    {
+      "chapter": 7,
+      "concept": "Isolation",
+      "first_anchor": "sec:isolation",
+      "concrete_example": "Shared directory versus worktrees",
+      "later_anchor": "sec:pricing:threats",
+      "substantive_reuse": "Structural boundaries for dangerous tasks",
+      "action": "Clarified worktree separation is not same-user access control"
+    },
+    {
+      "chapter": 7,
+      "concept": "Evidence commitment",
+      "first_anchor": "sec:merkle-forest",
+      "concrete_example": "Two-level inclusion path calculation",
+      "later_anchor": "sec:pricing:settlement",
+      "substantive_reuse": "Receipt authenticates record but cannot judge outcome",
+      "action": "Corrected membership-versus-truth interpretation"
+    },
+    {
+      "chapter": 7,
+      "concept": "Mutable signal over immutable ledger",
+      "first_anchor": "sec:pheromones",
+      "concrete_example": "8 decays to2 in20min then revocation0",
+      "later_anchor": "ex:bonded-signal-view",
+      "substantive_reuse": "View and retained evidence diverge usefully",
+      "action": "Added worked arithmetic and transfer exercise"
+    },
+    {
+      "chapter": 7,
+      "concept": "Advisory claims and Sen",
+      "first_anchor": "sec:sen",
+      "concrete_example": "Precautionary lock blocks mutually wanted completion",
+      "later_anchor": "ex:bonded-advisory-claims",
+      "substantive_reuse": "Collision nonexample and negotiation cost",
+      "action": "Removed universal Sen-to-lock welfare inference from body/summary/exercise"
+    },
+    {
+      "chapter": 7,
+      "concept": "Fairness and governance",
+      "first_anchor": "sec:governance",
+      "concrete_example": "Release, timeout, preemption, appeal",
+      "later_anchor": "sec:tlaplus",
+      "substantive_reuse": "Tick-only trace blocks eventual salvage",
+      "action": "Stated release/selection assumptions and missing model fairness"
+    },
+    {
+      "chapter": 7,
+      "concept": "Social recovery",
+      "first_anchor": "sec:crash-recovery",
+      "concrete_example": "Successor reads context triple",
+      "later_anchor": "app:worked",
+      "substantive_reuse": "Crash at12, detection13.5, completion24",
+      "action": "Distinguished retained artifacts from complete model-state recovery"
+    },
+    {
+      "chapter": 7,
+      "concept": "Bounty and bond",
+      "first_anchor": "def:bonded-float-plan",
+      "concrete_example": "Contract pays work and secures breach separately",
+      "later_anchor": "sec:youle",
+      "substantive_reuse": "Coverage partition insurer/principal",
+      "action": "Preserved local versus federated custody distinction"
+    },
+    {
+      "chapter": 7,
+      "concept": "Repeated claim-signaling game",
+      "first_anchor": "sec:claim-signaling-ic",
+      "concrete_example": "Stage game followed by3 punishment rounds",
+      "later_anchor": "sec:youle:a6",
+      "substantive_reuse": "Different cartel timing recurrence",
+      "action": "Clarified monitoring is a hypothesis and threshold root is not total payoff"
+    },
+    {
+      "chapter": 7,
+      "concept": "Cost recovery versus deterrence",
+      "first_anchor": "sec:cleanup-bound",
+      "concrete_example": "c5 bond6 gain10 detection.5",
+      "later_anchor": "sec:rep-discount",
+      "substantive_reuse": "Floor-preserving discount max(c,quote*(1-rho))",
+      "action": "Added gain7 counterexample and conditional cleanup theorem"
+    },
+    {
+      "chapter": 7,
+      "concept": "Settlement oracle",
+      "first_anchor": "sec:pricing:settlement",
+      "concrete_example": "Two automated opinions,10% human sampling",
+      "later_anchor": "sec:youle:a6",
+      "substantive_reuse": "Audit detection sigma*d_h needs own game",
+      "action": "Defined unsampled provisional path and dissent escalation"
+    },
+    {
+      "chapter": 7,
+      "concept": "Competitive insurance",
+      "first_anchor": "sec:youle",
+      "concrete_example": "Coverage100 insurer80 damage90",
+      "later_anchor": "ex:bonded-insurance-alt-pricing",
+      "substantive_reuse": "Compare explicit baseline with costs and capital",
+      "action": "Replaced undefined CC/NC/RP/NS shorthand with concrete assumptions"
+    },
+    {
+      "chapter": 7,
+      "concept": "Capped insurer deposits",
+      "first_anchor": "sec:youle:a5",
+      "concrete_example": "q10 p.1 cap20 deposit110",
+      "later_anchor": "ex:bonded-a5-coverage-bound",
+      "substantive_reuse": "Profit8 versus full-forfeiture minus1",
+      "action": "Retained contract-dependent limit"
+    },
+    {
+      "chapter": 7,
+      "concept": "Cartel detection",
+      "first_anchor": "sec:youle:a6",
+      "concrete_example": "Recurrence with immediate loss L",
+      "later_anchor": "ex:bonded-cartel-detection",
+      "substantive_reuse": "delta.99 gives97/1797",
+      "action": "Preserved timing assumptions rather than import claim-signaling threshold"
+    },
+    {
+      "chapter": 7,
+      "concept": "Expressive-act taxonomy",
+      "first_anchor": "sec:taxonomy",
+      "concrete_example": "Signal/request/distress/commons/proposal",
+      "later_anchor": "sec:pricing",
+      "substantive_reuse": "Different loss and participation constraints",
+      "action": "Removed unsupported inevitable market-collapse claim"
+    },
+    {
+      "chapter": 7,
+      "concept": "Evidence-growth score",
+      "first_anchor": "sec:vibe",
+      "concrete_example": "30-second window, scores8/30,3/30,0",
+      "later_anchor": "sec:vibe",
+      "substantive_reuse": "Independent evaluation and privacy/replay requirements",
+      "action": "Retained units and honest-thinking zero-score nonexample"
+    },
+    {
+      "chapter": 7,
+      "concept": "Lifecycle and financial invariants",
+      "first_anchor": "sec:tlaplus",
+      "concrete_example": "Positive escrow on Begin",
+      "later_anchor": "sec:conservation",
+      "substantive_reuse": "Three-bucket transfer and separate liveness",
+      "action": "Clarified excerpt scope and conservation distinct from positive escrow"
+    },
+    {
+      "chapter": 7,
+      "concept": "Magic-link injectivity",
+      "first_anchor": "sec:federated-sovereign",
+      "concrete_example": "Two consumers race one token",
+      "later_anchor": "ex:bonded-magic-link-proverif",
+      "substantive_reuse": "Private mailbox baseline plus compromise process",
+      "action": "Corrected exercise authentication notation and secrecy premise"
+    },
+    {
+      "chapter": 8,
+      "concept": "Sovereignty",
+      "first_anchor": "def:fh-sovereignty",
+      "concrete_example": "Valid foreign card refused locally",
+      "later_anchor": "sec:fh-ex-xfer",
+      "substantive_reuse": "Destination issues staging grant",
+      "action": "Separated foreign signature verification from loss of local authority"
+    },
+    {
+      "chapter": 8,
+      "concept": "Witnessed epochs",
+      "first_anchor": "sec:fh-witness",
+      "concrete_example": "Issue/revoke/restore/accept negative control",
+      "later_anchor": "ex:fh-revocation-finality",
+      "substantive_reuse": "External monotone epoch blocks rollback",
+      "action": "Preserved local check versus propagation distinction"
+    },
+    {
+      "chapter": 8,
+      "concept": "Token transfer and resource mapping",
+      "first_anchor": "sec:fh-xfer",
+      "concrete_example": "Same resource narrowed by business hours",
+      "later_anchor": "sec:fh-ex-xfer",
+      "substantive_reuse": "Test-to-staging exchange needs independent destination grant",
+      "action": "Repaired main example to obey theorem shared-universe premise"
+    },
+    {
+      "chapter": 8,
+      "concept": "Revocation dependency",
+      "first_anchor": "sec:fh-xfer-compose",
+      "concrete_example": "Derived card records parent identifier",
+      "later_anchor": "sec:fh-revocation",
+      "substantive_reuse": "Verifier refuses parent-invalid derivative",
+      "action": "Observing a root alone no longer claimed to revoke a card"
+    },
+    {
+      "chapter": 8,
+      "concept": "Epidemic dissemination",
+      "first_anchor": "thm:fh-conv",
+      "concrete_example": "m3 push model gives7/3 rounds",
+      "later_anchor": "sec:fh-partition",
+      "substantive_reuse": "Expectations do not bound partitions",
+      "action": "Corrected ideal doubling as best-case lower bound"
+    },
+    {
+      "chapter": 8,
+      "concept": "Probabilistic cache",
+      "first_anchor": "sec:fh-cuckoo",
+      "concrete_example": "Fingerprint false positive versus authoritative event",
+      "later_anchor": "sec:fh-revocation",
+      "substantive_reuse": "Exact authenticated check after cache positive",
+      "action": "Rebuilding no longer claimed to cure same-hash false positives"
+    },
+    {
+      "chapter": 8,
+      "concept": "Stalk/restriction/cochain",
+      "first_anchor": "sec:fh-sheaf",
+      "concrete_example": "Channel reports give g; candidate vertex values predict delta x",
+      "later_anchor": "thm:sheaf-equivocation",
+      "substantive_reuse": "C4 residual1.5 versus chain0",
+      "action": "Defined construction that can actually be non-exact"
+    },
+    {
+      "chapter": 8,
+      "concept": "Visible coordinate topology",
+      "first_anchor": "sec:fh-sheaf",
+      "concrete_example": "Compared, relayed and severed edges",
+      "later_anchor": "ex:fh-consistency-radius-run",
+      "substantive_reuse": "Same physical ring darkens after one severed edge",
+      "action": "Moved complete four-number example before theorem"
+    },
+    {
+      "chapter": 8,
+      "concept": "Effective resistance",
+      "first_anchor": "thm:radius-soundness",
+      "concrete_example": "One-ohm edge parallel with n-1 ohms",
+      "later_anchor": "ex:fh-consistency-radius-run",
+      "substantive_reuse": "C6 residual1.224745; P6 zero",
+      "action": "Defined normalization and residual units before formula"
+    },
+    {
+      "chapter": 8,
+      "concept": "Repair support and attribution",
+      "first_anchor": "thm:radius-soundness",
+      "concrete_example": "Triangle corrections norms1/sqrt3,1/sqrt2,1",
+      "later_anchor": "thm:radius-localization",
+      "substantive_reuse": "Noise support and ranking gap2nu",
+      "action": "Corrected smallest-lie retelling to unrestricted correction norm"
+    },
+    {
+      "chapter": 8,
+      "concept": "Visible lie operator and kernel",
+      "first_anchor": "thm:radius-soundness",
+      "concrete_example": "A_q places offsets, Pi_K removes explainable data",
+      "later_anchor": "ex:fh-two-liar-boundary",
+      "substantive_reuse": "Multiple offsets can cancel even for one sender",
+      "action": "Explained singular values and preserved soundness under cancellation"
+    },
+    {
+      "chapter": 8,
+      "concept": "Categorical contradiction",
+      "first_anchor": "thm:categorical-certificate",
+      "concrete_example": "One-hot A=(1,0),B=(0,1); two incompatible pins",
+      "later_anchor": "ex:fh-categorical-versus-linear",
+      "substantive_reuse": "Cost5 path contradiction despite real residual0",
+      "action": "Introduced one-hot and pins before theorem with explicit arithmetic"
+    },
+    {
+      "chapter": 8,
+      "concept": "Grouped code distance",
+      "first_anchor": "sec:fh-evidence-decision",
+      "concrete_example": "Two possible one-edge faults onC4 share syndrome",
+      "later_anchor": "sec:fh-evidence-decision",
+      "substantive_reuse": "K4 mincut3 identifies one grouped error",
+      "action": "Defined support units and why detection differs from identification"
+    },
+    {
+      "chapter": 8,
+      "concept": "Custody transition bound",
+      "first_anchor": "sec:fh-escrow",
+      "concrete_example": "Only clear/refuse with fee ceiling",
+      "later_anchor": "sec:fh-settle-proto",
+      "substantive_reuse": "2-of3 signing does not establish oracle correctness",
+      "action": "Preserved explicit recipient enforcement and trust boundary"
+    },
+    {
+      "chapter": 8,
+      "concept": "Lifecycle versus recipient accounting",
+      "first_anchor": "prop:fh-cross-cons",
+      "concrete_example": "100 whole-bond status;80+20 recipient split",
+      "later_anchor": "ex:fh-synthesis",
+      "substantive_reuse": "Local verification does not prove remote custody",
+      "action": "Retained separate quantities and invariant obligations"
+    },
+    {
+      "chapter": 8,
+      "concept": "Sponsored admission",
+      "first_anchor": "sec:fh-sponsor",
+      "concrete_example": "Beta six-month constructed probation",
+      "later_anchor": "ex:fh-cold-start-admission",
+      "substantive_reuse": "Entry/concentration/selection metrics",
+      "action": "Graduation requires criteria and funded replacement, not elapsed time alone"
+    },
+    {
+      "chapter": 8,
+      "concept": "Formal-model scope",
+      "first_anchor": "sec:fh-formal",
+      "concrete_example": "Vacuous account_root query",
+      "later_anchor": "ex:fh-proverif-federation",
+      "substantive_reuse": "All-shares compromise negative control",
+      "action": "Retained explicit artifact limitations"
+    },
+    {
+      "chapter": 8,
+      "concept": "Common knowledge and cross-harbor games",
+      "first_anchor": "sec:fh-lim-correlated",
+      "concrete_example": "Fresh roots versus observed recommendations",
+      "later_anchor": "ex:fh-correlated-equilibrium",
+      "substantive_reuse": "CCE versus CE and missing-evidence policy",
+      "action": "Retained distinct information and incentive obligations"
+    },
+    {
+      "chapter": 8,
+      "concept": "Diffusion versus gossip",
+      "first_anchor": "sec:fh-lim-equiv",
+      "concrete_example": "Three-node path eigenvalues0,1,3 but no cycle alarm",
+      "later_anchor": "ex:fh-equivocation-speed",
+      "substantive_reuse": "Scheduler/noise model required before time-to-alarm theorem",
+      "action": "Useful contrast is revisited; no new convergence claim"
+    }
+  ],
+  "new_exercises": [
+    "ex:he-assurance-budget",
+    "ex:bonded-signal-view",
+    "ex:fh-categorical-versus-linear"
+  ],
+  "verification": {
+    "environment_deltas": {},
+    "exercise_solution_pairs": {
+      "6": 35,
+      "7": 17,
+      "8": 12
+    },
+    "propagated_corrections": "14 resolved, 0 stale, 0 needs manual review",
+    "numerical": {
+      "partial_settlement_sum": 0,
+      "independent_miss_k5": 0.01024,
+      "independent_miss_k6": 0.004096,
+      "queue_correct": 8.166666666666666,
+      "queue_naive": 4.166666666666666,
+      "reputation_discount_with_floor": 5,
+      "deterrence_counterexample_gain": 7,
+      "signal_at20_before_revocation": 2,
+      "three_node_push_expectation": 2.3333333333333335,
+      "ring_residual_norm": 1.5,
+      "categorical_path_full_solutions": 0,
+      "categorical_path_singleton_solutions": [
+        2,
+        2
+      ],
+      "same_cycle_syndrome": true
+    }
+  },
+  "figure_followthrough": {
+    "read_complete": true,
+    "files": [
+      "website-v2/public/whitepaper/figures/fig-fh-worked-example.tex",
+      "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+      "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
+      "website-v2/public/whitepaper/figures/fig-bonded-session-lifecycle.tex",
+      "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+      "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex"
+    ],
+    "mirror_check": "No same-name whitepaper/figures mirrors for the four delegated semantic fragments.",
+    "actions": [
+      "Destination staging access is a local grant, not subset attenuation across resource universes.",
+      "Verification uses pk_B rather than sk_B; parent revocation must be enforced.",
+      "Gossip traces are illustrative, without an expected three-round claim.",
+      "Lifecycle arrows do not imply eventual salvage or a recovery deadline.",
+      "Two figure labels widened after candidate overfull warnings."
+    ],
+    "render_status": "Candidate build running; final visual inspection not yet complete."
+  },
+  "additional_handoff_repairs": [
+    "Chapter4 specialization command: explicit path-piece breaks in both mirrors.",
+    "Chapter5 tombstone top timeline: label width1.7cm in both mirrors."
+  ],
+  "verification_status_scope": "Ch7 verification table distinguishes row-specific completed checks from deployed/runtime proof; passkey model completion does not complete its missing runtime."
+}

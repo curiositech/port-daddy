@@ -111,6 +111,10 @@ class BookEvidenceEditorial(unittest.TestCase):
         for rejected in ("rope-splice", "canal-lock"):
             self.assertNotIn("{" + rejected + "}", source)
         placed = re.findall(r"\\pd(?:margin|wrap)analogy(?:\[[^\]]*\])*\{[^}]+\}\{[^}]*\}\{([^}]+)\}", source)
+        # A purposeful object may move from the margin into the body.
+        placed += re.findall(r"\\includegraphics(?:\[[^\]]*\])?\{plates/margin-evidence/([^}]+)\.pdf\}", source)
+        # The darkslide asset is unplaced: its zero-knowledge analogy does not
+        # explain this chapter's mediated-disclosure guarantee.
         expected_placed = {
             "one-printing-press", "reduced-key",
             "sealed-specimen", "map-and-lens",
@@ -119,7 +123,7 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch01-railway-token-staff", "ch01-water-meter-dial",
             "ch02-colander-mesh", "ch02-couriers-dispatch-pouch",
             "ch02-finite-grant-parking-meter", "ch02-nested-measuring-spoons",
-            "ch03-authorized-speaking-tube", "ch03-lead-lined-darkslide",
+            "ch03-authorized-speaking-tube",
             "ch03-sandglass-flow-orifice", "ch03-two-shutter-shadowbox",
             "ch04-selective-attention-annunciator", "ch04-sextant-index-mirror",
             "ch04-telegraph-sounder-key", "ch04-tide-gauge-staff",

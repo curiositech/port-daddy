@@ -1,0 +1,411 @@
+{
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "reader": "craft_operator_identity",
+  "coverage": [
+    {
+      "chapter": "ls",
+      "source": "whitepaper/legible-swarm.tex",
+      "read_source_sha256": "ce4329ab1671ab000c98ac05a2bd0e609b4384a610d89fe69c5bbd5dffe0b40a",
+      "read_source_lines": 4461,
+      "contiguous_read_intervals": [
+        [
+          1,
+          350
+        ],
+        [
+          351,
+          760
+        ],
+        [
+          761,
+          1190
+        ],
+        [
+          1191,
+          1610
+        ],
+        [
+          1611,
+          2040
+        ],
+        [
+          2041,
+          2460
+        ],
+        [
+          2461,
+          2890
+        ],
+        [
+          2891,
+          3320
+        ],
+        [
+          3321,
+          3520
+        ],
+        [
+          3521,
+          3740
+        ],
+        [
+          3741,
+          3980
+        ],
+        [
+          3981,
+          4220
+        ],
+        [
+          4221,
+          4461
+        ]
+      ],
+      "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
+      "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
+      "edited_sha256": "5ba8e259059e2f4ac6220e5f797d2d6363f05433f8622cfdc099c867c173955a",
+      "edited_source_lines": 4465
+    },
+    {
+      "chapter": "stp",
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "read_source_sha256": "06757856d5483f28a44d74caa59df491d039d8e09cee2abef689b3b206f5a0f7",
+      "read_source_lines": 3983,
+      "contiguous_read_intervals": [
+        [
+          1,
+          320
+        ],
+        [
+          321,
+          660
+        ],
+        [
+          661,
+          1000
+        ],
+        [
+          1001,
+          1350
+        ],
+        [
+          1351,
+          1690
+        ],
+        [
+          1691,
+          2030
+        ],
+        [
+          2031,
+          2370
+        ],
+        [
+          2371,
+          2710
+        ],
+        [
+          2711,
+          3050
+        ],
+        [
+          3051,
+          3390
+        ],
+        [
+          3391,
+          3720
+        ],
+        [
+          3721,
+          3983
+        ]
+      ],
+      "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
+      "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
+      "edited_sha256": "a624c64ffb1cc3be2e0415df8d5034bd0a88e40425bdc9dff17514abd5e6d24f",
+      "edited_source_lines": 3798
+    }
+  ],
+  "concept_lifecycles": [
+    {
+      "chapter": "ls",
+      "concept": "Consent and override",
+      "first_teaching_anchor": "sec:consent",
+      "later_substantive_use": "sec:landing",
+      "first_anchor_line": 476,
+      "later_anchor_line": 1208,
+      "teaching_or_repair": "Mira’s scoped grant; committed effects remain outside revocation"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Digest and total zoom",
+      "first_teaching_anchor": "def:zoom",
+      "later_substantive_use": "sec:verifiable",
+      "first_anchor_line": 645,
+      "later_anchor_line": 705,
+      "teaching_or_repair": "Row A link versus authenticated runner evidence; source reachability is not truth"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Tacit knowledge",
+      "first_teaching_anchor": "sec:flatten",
+      "later_substantive_use": "sec:consent-canon",
+      "first_anchor_line": 671,
+      "later_anchor_line": 3140,
+      "teaching_or_repair": "Artifact access does not exhaust practitioner knowledge"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Specialization and pooling",
+      "first_teaching_anchor": "sec:sole-roles",
+      "later_substantive_use": "ex:ls-b8-specialization-run",
+      "first_anchor_line": 885,
+      "later_anchor_line": 1058,
+      "teaching_or_repair": "One arrival/hour, two servers, response4/3; specialist1.75 boundary"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Succession downtime",
+      "first_teaching_anchor": "sec:succession-corner",
+      "later_substantive_use": "ex:ls-succession-corner",
+      "first_anchor_line": 1072,
+      "later_anchor_line": 3407,
+      "teaching_or_repair": "K has response-time units; failure model and eta K<1 retained"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Escalation threshold",
+      "first_teaching_anchor": "thm:escalation-threshold",
+      "later_substantive_use": "ex:ls-b7-escalation-run",
+      "first_anchor_line": 1291,
+      "later_anchor_line": 1320,
+      "teaching_or_repair": "Linear b=V=u now stated before .05/1.05 calculation"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Inspection loss and base rate",
+      "first_teaching_anchor": "def:sdt",
+      "later_substantive_use": "ex:ls-sdt-limits",
+      "first_anchor_line": 1444,
+      "later_anchor_line": 1439,
+      "teaching_or_repair": "Perfect-inspection baseline, common units, zero-review can be optimal"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Coverage versus addressability",
+      "first_teaching_anchor": "thm:lowerbound",
+      "later_substantive_use": "ex:ls-adversarial-critical-set",
+      "first_anchor_line": 1887,
+      "later_anchor_line": 3536,
+      "teaching_or_repair": "Four artifacts/one critical/two opens gives one bit; adversarial estimator not certified"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Critical rate, flag rate, miss mass",
+      "first_teaching_anchor": "thm:pinned-joint",
+      "later_substantive_use": "ex:ls-b1-frontier-run",
+      "first_anchor_line": 2033,
+      "later_anchor_line": 2238,
+      "teaching_or_repair": "H(p) only exact-identification corner; sparse regime gives sufficient saving certificate"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Fit versus inspection benefit",
+      "first_teaching_anchor": "thm:split-ranker",
+      "later_substantive_use": "ex:ls-split-ranker-statement",
+      "first_anchor_line": 2474,
+      "later_anchor_line": 2806,
+      "teaching_or_repair": "Crossing order does not prove every general codec incompatible"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Staleness and lease authority",
+      "first_teaching_anchor": "prop:decay",
+      "later_substantive_use": "ex:ls-dead-claim-replay",
+      "first_anchor_line": 2767,
+      "later_anchor_line": 3628,
+      "teaching_or_repair": "Decay can leave old high score ahead; hard expiry and fencing remove authority"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Extractive summary budget",
+      "first_teaching_anchor": "thm:split-digest",
+      "later_substantive_use": "ex:ls-digest-is-compaction",
+      "first_anchor_line": 2868,
+      "later_anchor_line": 3131,
+      "teaching_or_repair": "Three feasible summaries exhaustively yield losses(1,10),(0,10),(1,0)"
+    },
+    {
+      "chapter": "ls",
+      "concept": "Competitive cache comparator",
+      "first_teaching_anchor": "thm:paging",
+      "later_substantive_use": "ex:ls-paging-ratio-hand",
+      "first_anchor_line": 3021,
+      "later_anchor_line": 3052,
+      "teaching_or_repair": "h is offline capacity; fixed common pins reduce both capacities"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Role, incarnation, accountable person",
+      "first_teaching_anchor": "def:role",
+      "later_substantive_use": "ex:stp-reputation-attachment",
+      "first_anchor_line": 515,
+      "later_anchor_line": 2846,
+      "teaching_or_repair": "Current role can change without fresh identity/history; no consciousness assertion"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Succession and directed ancestry",
+      "first_teaching_anchor": "inv:parfit-lineage",
+      "later_substantive_use": "ex:stp-connected-vs-continuous",
+      "first_anchor_line": 689,
+      "later_anchor_line": 738,
+      "teaching_or_repair": "a→b→c supplies reachability, not psychological identity or an equivalence relation"
+    },
+    {
+      "chapter": "stp",
+      "concept": "No-mint transfer",
+      "first_teaching_anchor": "sec:continuity",
+      "later_substantive_use": "ex:stp-nomint-sweep",
+      "first_anchor_line": 604,
+      "later_anchor_line": 783,
+      "teaching_or_repair": "Debit source; .9+.81+.729 copy versus .9^3 live transfer"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Memory, capsule, execution snapshot",
+      "first_teaching_anchor": "sec:organs",
+      "later_substantive_use": "ex:stp-three-organs-trace",
+      "first_anchor_line": 840,
+      "later_anchor_line": 2951,
+      "teaching_or_repair": "Closure record and exact commit; reputation does not require exact inference restoration"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Credential authenticity and abandonment",
+      "first_teaching_anchor": "thm:necessity",
+      "later_substantive_use": "ex:newcomer-floor",
+      "first_anchor_line": 1068,
+      "later_anchor_line": 1079,
+      "teaching_or_repair": "r0 baseline and all reset/access assumptions explicit; established-score loss survives"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Whitewashing opportunity cost",
+      "first_teaching_anchor": "thm:whitewash-cost",
+      "later_substantive_use": "ex:maturation-cost",
+      "first_anchor_line": 1198,
+      "later_anchor_line": 1238,
+      "teaching_or_repair": "Fixed attainable continuation payoffs; detection and discount factors separate"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Front-loaded holdbacks",
+      "first_teaching_anchor": "thm:probation-dominance",
+      "later_substantive_use": "ex:binding-probation",
+      "first_anchor_line": 1298,
+      "later_anchor_line": 1426,
+      "teaching_or_repair": "Equal-deterrence .60 now versus1 tomorrow; cap may preclude pure spike"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Engine value and cost",
+      "first_teaching_anchor": "thm:engine-swap",
+      "later_substantive_use": "sec:body-behind-name",
+      "first_anchor_line": 1597,
+      "later_anchor_line": 1560,
+      "teaching_or_repair": "One-delivery model and full price pass-through; not endogenous adoption or dynamic market proof"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Estimator input contract",
+      "first_teaching_anchor": "sec:substrate",
+      "later_substantive_use": "ex:stp-estimator-fit",
+      "first_anchor_line": 1934,
+      "later_anchor_line": 3131,
+      "teaching_or_repair": "Three of four pairwise wins imply log3 strength gap in two-player BT, not a pass-rate model"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Routing policy versus reputation evidence",
+      "first_teaching_anchor": "sec:not-bandit",
+      "later_substantive_use": "ex:stp-bandit-survives-where",
+      "first_anchor_line": 2008,
+      "later_anchor_line": 3170,
+      "teaching_or_repair": "Bandit extensions acknowledged; learned selection cannot authenticate a receipt"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Quality vector scales",
+      "first_teaching_anchor": "def:qvec",
+      "later_substantive_use": "proto:judge",
+      "first_anchor_line": 2071,
+      "later_anchor_line": 2135,
+      "teaching_or_repair": "Declare [0,1] scales and hard acceptance predicate before weighted tradeoff"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Exposure and causal helpfulness",
+      "first_teaching_anchor": "proto:skill",
+      "later_substantive_use": "ex:stp-skill-helpfulness-schema",
+      "first_anchor_line": 2237,
+      "later_anchor_line": 3222,
+      "teaching_or_repair": "Graft records verify exposure; causal claim needs assignment/confounding model"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Audit detection and clique sampling",
+      "first_teaching_anchor": "thm:tower-imported",
+      "later_substantive_use": "ex:audit-depth",
+      "first_anchor_line": 2365,
+      "later_anchor_line": 2409,
+      "teaching_or_repair": "Uniform sealed selection and prepaid bribes; conditional detection; pool capital separate"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Continuation value and audit spending",
+      "first_teaching_anchor": "sec:oracle",
+      "later_substantive_use": "ex:stp-tower-amortization",
+      "first_anchor_line": 2270,
+      "later_anchor_line": 2523,
+      "teaching_or_repair": "t0-based sums; Model B firstzero334 and sum41.79175; integrals identified"
+    },
+    {
+      "chapter": "stp",
+      "concept": "Tombstone and score projection",
+      "first_teaching_anchor": "prop:tombstone",
+      "later_substantive_use": "ex:stp-tombstone-walk",
+      "first_anchor_line": 2552,
+      "later_anchor_line": 3346,
+      "teaching_or_repair": "Append-only evidence versus nonmonotone estimate; pre-detection and propagation delays separate"
+    }
+  ],
+  "not_claimed": [
+    "Every external reference fully verified",
+    "Every implementation status re-proven against runtime",
+    "Rendered spread acceptance",
+    "Global novelty proof",
+    "Lint output as semantic reading evidence"
+  ],
+  "bounded_research_reconciliation": {
+    "sources": [
+      "docs/harbor-research/tex/paper1.tex",
+      "docs/harbor-research/tex/paper3.tex",
+      "docs/harbor-research/tex/paper5.tex"
+    ],
+    "scope": "Only dependent claims, examples, interpretation, and matching figures; not full-paper semantic review",
+    "paper7": "Inspected topic/title and searched paging terms; sheaf paper unrelated to paging correction, left untouched",
+    "claims_added": false,
+    "verified_arithmetic": {
+      "exact_amortization_parameter_cases": 144,
+      "affine_bribe_parameter_cases": 45,
+      "budget_model_depths": {
+        "C1": 53,
+        "C2": 36,
+        "C8": 27
+      }
+    }
+  }
+}

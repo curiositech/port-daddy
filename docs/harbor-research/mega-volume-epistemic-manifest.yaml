@@ -39,10 +39,11 @@ results:
     epistemic_status: proved
     claim: >-
       One scalar ranking can serve two readers at every budget exactly when
-      their preference orders are comonotone; successor value and operator
-      regret admit crossing pairs, so they require separate heads.
-    conditions: ["the crossing pair occurs in the domain"]
-    boundary: "Readers whose orders are comonotone may share a head."
+      their strict preference orders coincide; crossing pairs prevent a common
+      exact ranking. Under a one-item extractive budget, continuation and
+      oversight can also have disjoint minimizing digests.
+    conditions: ["exact scalar-order preservation for the ordinal result", "explicit extractive codec, loss functions and one-item budget for the digest example"]
+    boundary: "This is not an impossibility for arbitrary codecs or larger budgets; equal orders may share a ranking and both records fit at budget two."
     book_home: ["I"]
     evidence:
       - {kind: verified, locator: "docs/harbor-research/tex/paper1.tex"}
@@ -127,8 +128,8 @@ results:
       Audit probability, detection power, bond, and one-shot gain determine the
       deterrence threshold; sealed sampling across independent cliques raises
       the bribery cost, while earned history can reduce verification spend.
-    conditions: ["sealed sampling", "honest root evidence", "declared payoff convention"]
-    boundary: "If the audit draw leaks, the clique argument fails; constant versus finite total spend depends on independent revelation."
+    conditions: ["uniform sealed clique sampling", "all chosen bribes paid before the draw", "honest root evidence", "declared payoff convention"]
+    boundary: "Logarithmic contraction applies in the low-gain regime; the high-gain linear phase additionally assumes self-funded bribes reduce the next budget. Independent revelation controls finite lifetime audit spend."
     book_home: ["IV", "VI"]
     evidence:
       - {kind: verified, locator: "closed-form thresholds in docs/harbor-research/tex/paper3.tex"}
@@ -250,14 +251,15 @@ results:
     name: "Context paging with an untrusted pin oracle"
     epistemic_status: imported-theorem-plus-internal-validation
     claim: >-
-      Pin-augmented Landlord retains the weighted caching guarantee on honest
-      pages and pays an additive linear penalty for corrupted pin consultations
-      when repair occurs on touch.
-    conditions: ["unit cost density for the simple corruption charge", "repair on touch", "stated cache comparator"]
-    boundary: "Without repair on touch, one bad pin can cause unbounded stale service; stronger adaptive adversaries remain untested."
+      The imported Landlord theorem bounds retrieval cost by k/(k-h+1)
+      against an offline cache of capacity h under its weighted-file model.
+      Fixed common pins reduce usable capacities; the repository simulation
+      separately explores corrupted pin consultations.
+    conditions: ["initially empty caches", "integer file sizes and feasible requests", "h is comparator capacity, not number of pins", "fixed common pins only for the stated unit-page reduction"]
+    boundary: "Recency-plus-pin simulation is not Landlord; no additive corruption bound follows from Young's theorem or a finite parameter sweep."
     book_home: ["I"]
     evidence:
-      - {kind: verified, locator: "Young 2002 Landlord theorem"}
+      - {kind: verified, locator: "Neal Young, On-Line File Caching, Theorem 1.1; https://www.cs.ucr.edu/~neal/Young98Online.pdf"}
       - {kind: internal, locator: "skills/harbor-results/scripts/b9_context_paging.py", seed: 20260816}
 
   - id: R17

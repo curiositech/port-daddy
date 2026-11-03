@@ -15,9 +15,9 @@
 \pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure,x=.94cm,y=1cm]
   \node[pd title,anchor=west] at (-1.00,8.80)
-    {direct connectedness is local; continuity is the transitive closure};
+    {direct succession is local; ancestry follows the witnessed chain};
   % ---- three incarnation intervals, generously separated -------------------
-  \draw[pd hairline,line width=5.5pt] (1.40,7.50) -- (4.00,7.50);
+  \draw[pd hairline,line width=5.5pt] (1.40,7.50) -- (4.80,7.50);
   \node[pd label,anchor=east,text width=2.6cm,align=right] at (1.15,7.50) {incarnation 1};
   \draw[pd hairline,line width=5.5pt] (3.40,6.10) -- (8.00,6.10);
   \node[pd label,anchor=east,text width=2.6cm,align=right] at (3.15,6.10) {incarnation 2};
@@ -49,13 +49,8 @@
   \draw[pd breach rule] (4.25,1.45) -- (4.55,1.75);
   \draw[pd breach rule] (4.25,1.75) -- (4.55,1.45);
   \node[pd breach label,anchor=north,text width=8.0cm,align=center] at (4.50,1.15)
-    {same label, no shared witness $\Rightarrow$ no inherited continuity};
+    {same label, no valid succession record $\Rightarrow$ no inherited ledger};
 \end{tikzpicture}
-\caption{\textbf{Parfitian continuity is an overlap chain, not permanent
-connectedness.} Incarnation 1 shares witnessed outcome $o_2$ with incarnation 2;
-incarnation 2 shares $o_3$ with incarnation 3. No later body must directly
-remember $o_1$: the overlapping evidence establishes the transitive ledger rail
-$o_1\leadsto o_2\leadsto o_3\leadsto o_4$. The dashed counterexample repeats a
-label without a shared witness and therefore inherits nothing. [internal]}
+\caption{An engineering analogy inspired by Parfit's overlapping chains. Assume valid succession records connect incarnations 1 to 2 and 2 to 3; the shared outcome witnesses make those handoffs inspectable. The chain establishes directed ledger ancestry, not psychological identity or a symmetric equivalence. Reusing an outcome identifier alone does not validate a handoff. A repeated label without a valid succession record inherits no ledger. [illustrative]}
 \label{fig:parfit}
 \end{figure}

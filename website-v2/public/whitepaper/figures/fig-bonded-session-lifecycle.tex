@@ -88,6 +88,9 @@
 6 & Dismiss & $(\mathit{dead},\text{pending})\in\mathit{salvageQueue}$ & session $\to$ NULL; irrecoverable information loss \\
 \bottomrule
 \end{tabularx}}
-\caption{A crashed session becomes abandoned after the reaping threshold, then is salvaged or dismissed. File claims only inform; they do not exclude another claimant. [internal, \protect\path{BondedCommons.tla}]}
+\caption{Permitted lifecycle transitions. Reaping needs the timeout guard;
+eventually choosing Salvage or Dismiss needs an additional fairness assumption.
+The diagram alone gives no recovery deadline. Claims inform without excluding
+another claimant. [internal, \protect\path{BondedCommons.tla}]}
 \label{fig:bonded-session-lifecycle}
 \end{figure}

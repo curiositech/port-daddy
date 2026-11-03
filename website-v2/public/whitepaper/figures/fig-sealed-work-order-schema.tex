@@ -33,11 +33,11 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\w{11.2}  \def\h{2.15}
   \foreach \i/\name/\fields/\gloss/\s in {%
-    4/{pins}/{$H(\text{data})$, $H(\text{agent})$, $H(\text{runtime})$, $H(\text{policy})$}/{four hashes -- each pins an attested measurement, not the live thing}/{pd focus fill},
+    4/{pins}/{$H(\text{data})$, $H(\text{agent})$, $H(\text{runtime})$, $H(\text{policy})$}/{four digests identify approved data, agent, runtime and policy}/{pd focus fill},
     3/{permissions}/{function, tools}/{fixes what may run and what it may call}/{pd neutral fill},
     2/{recipients}/{recipients, output schemas}/{fixes who may receive a result, and in what shape}/{pd neutral fill},
     1/{bounds}/{budgets, retention}/{bounds output bits, queries, and time; retention fixes key destruction}/{pd neutral fill},
-    0/{remedies}/{validators, payment, liability}/{validators name the success evidence and dispute procedure; payment and liability are the guarantee}/{pd neutral fill}}{
+    0/{remedies}/{validators, payment, liability}/{validators name evidence; payment and liability specify remedies}/{pd neutral fill}}{
       \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
       \node[pd title,anchor=north west,text width=2.3cm] at (0.22,{\i*\h+\h-0.18}) {\name};
       \node[pd label,anchor=north west,text width=3.55cm,align=left]
@@ -48,8 +48,8 @@
   \node[pd kind] at (4.5,{5*\h+0.35}) {fields};
   \node[pd kind] at (8.8,{5*\h+0.35}) {what it fixes};
   \node[pd note,anchor=north west,align=left,text width=10.9cm]
-    at (0.22,-0.42) {any change to any field makes a new hash for $C$ and requires both Derek's and Erin's signatures again};
+    at (0.22,-0.42) {a changed canonical contract requires fresh matching signatures before key release};
 \end{tikzpicture}
-\caption{The work order binds measurements, permitted execution, recipients, limits, and remedies. Hashes identify attested measurements, not live query-time state. Any field change requires both principals to sign again. [internal]}
+\caption{The work order binds measurements, permitted execution, recipients, limits, and remedies. A digest identifies approved content; an attestation binds the reported runtime measurement. Neither implements the checks or proves correctness. Changed contract bytes require fresh matching signatures under the hash and signature assumptions. [internal]}
 \label{fig:sealed-work-order-schema}
 \end{figure}

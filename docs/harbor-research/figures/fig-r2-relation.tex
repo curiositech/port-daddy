@@ -45,8 +45,8 @@
 \node[align=center,font=\scriptsize,text width=4.25cm] at (2.55,2.75)
   {No crossing pair exists for temperature: hotter is hotter for both readers.};
 \node[align=center,font=\scriptsize,text width=4.25cm] at (9.45,3.1)
-  {$A$: routine working state --- high fit, low regret.\\
-   $B$: abandoned dead-end --- low fit, high regret.};
+  {$A$: required working bit --- successor loss $1$ if omitted.\\
+   $B$: audit item --- operator loss $10$ if omitted.};
 \node[align=center,font=\scriptsize\bfseries,text=seagreen!60!black,text width=4.25cm]
   at (9.45,2.1) {successor: $A\succ B$};
 \node[align=center,font=\scriptsize\bfseries,text=shipred,text width=4.25cm]
@@ -57,6 +57,6 @@
 \node[align=center,font=\scriptsize,text width=11.5cm] at (6.0,0.45)
   {\itshape The obstruction is ordinal, not numeric: infinite precision cannot make one number induce the two opposite orders. A tie in one reader's preference can be refined consistently.};
 \end{tikzpicture}
-\caption{The relation-map for Theorem 2. The transferred relation is not that a summary resembles a temperature; it is that one scalar ranking serves two readers with strict total orders iff their orders coincide. A tie in one reader's order may be refined to serve both. Row 3 draws the crossing pair the proof constructs --- a routine working state (high continuation value, negligible regret) against an abandoned dead-end with irreversible side effects (zero continuation value, maximal regret) --- which is what makes the impossibility bite in real fleets rather than merely in principle.}
+\caption{Theorem 2 concerns one shared selection order, with a common tie rule, serving both readers at every budget. A strict crossing forbids such an order. The worked instance allows one extractive item: $A$ avoids a successor prediction loss of one bit; $B$ avoids a stipulated oversight loss of ten. A jointly encoded representation or a larger extraction budget lies outside that counterexample. The relation map does not establish how frequently the conflict occurs in deployed fleets.}
 \label{fig:r2rel}
 \end{figure}
