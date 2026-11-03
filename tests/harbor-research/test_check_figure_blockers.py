@@ -3,9 +3,9 @@
 
 stdlib-only (unittest, tempfile, subprocess, json). Each fixture test writes
 a small blockers.json under a tempdir and runs the real script against it
-with --repo-root (and --as-of, to make expiry deterministic). One test runs
-the same checker with no --repo-root override against this repository's own
-committed blockers.json.
+with --repo-root (and --as-of, to make expiry deterministic). Two tests run
+the same checker against this repository's committed blockers.json, once at
+its triage snapshot date and once immediately after its waivers expire.
 
 Run:
     python3 -m unittest discover -s tests/harbor-research
@@ -51,7 +51,7 @@ def run(root: Path, *extra: str) -> subprocess.CompletedProcess:
 
 class TestCheckFigureBlockers(unittest.TestCase):
     def test_committed_blockers_json_matches_its_triage(self) -> None:
-        """This repo's real blockers.json is EXPECTED to carry entries today --
+        """This repo's blockers.json carried these entries at its triage date --
         that is the whole point of turning figcheck into a release blocker (see
         this directory's README.md, "Waivers" section). This test pins the
         current, known counts so a change in them is a deliberate, reviewed act
@@ -87,12 +87,28 @@ class TestCheckFigureBlockers(unittest.TestCase):
         the other 20, so 21/20 became 23/22; fig-stp-deterrence-regime is
         still the one figure that stays unwaived."""
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), "--verbose"],
+            [sys.executable, str(SCRIPT), "--verbose", "--as-of", "2026-09-15"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
         self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
         self.assertIn("23 total, 22 waived, 1 failure(s)", result.stdout)
         self.assertIn("fig-stp-deterrence-regime", result.stdout)
+
+    def test_committed_triage_waivers_expire_without_renewal(self) -> None:
+        """The snapshot test must not hide the real register's expiry boundary.
+
+        All 22 dated waivers expire on October 31. On November 1 none counts
+        as valid, while the separately unwaived deterrence figure still fails.
+        The production checker retains its default of today's date.
+        """
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--verbose", "--as-of", "2026-11-01"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+        self.assertIn("23 total, 0 waived, 23 failure(s)", result.stdout)
+        self.assertEqual(result.stdout.count("waiver expired 2026-10-31"), 22)
+        self.assertIn("'fig-stp-deterrence-regime' fails ['T4'] and carries no waiver", result.stdout)
 
     def test_all_waived_and_unexpired_passes(self) -> None:
         with TemporaryDirectory() as tmp:
