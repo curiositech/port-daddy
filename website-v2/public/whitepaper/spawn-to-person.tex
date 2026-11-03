@@ -376,8 +376,8 @@ maximum-likelihood latent-strength model for paired comparisons; \textbf{Elo}~\p
 trust that must \emph{propagate} through a network rather than accumulate per
 player, \textbf{EigenTrust}~\pdcite{kamvar2003eigentrust} (2003) computes a global
 trust vector as the principal eigenvector of the local-trust matrix --- the
-reputation analogue of PageRank. \textbf{Our departure:} these are the cheap, last
-part. We use Table~\ref{tab:estimators} to match each to its signal type, and the
+reputation analogue of PageRank, with pre-trusted peers anchoring the modified
+algorithm. \textbf{Our use:} estimation comes after evidence collection. We use Table~\ref{tab:estimators} to match each to its signal type, and the
 substrate argument (\S\ref{sec:substrate}) to insist that none of them buys
 anything over a forgeable identity or an agent-authored oracle.
 
@@ -394,12 +394,12 @@ estimators would need to score.
 \centering\small\renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Estimator} & \textbf{Signal it needs} & \textbf{Strength} & \textbf{Wrong if\ldots} \\
+\textbf{Estimator} & \textbf{Signal it needs} & \textbf{Strength} & \textbf{Check before use} \\
 \midrule
-Elo & online pairwise results & simple, streaming & full history available (use BT) \\
-Bradley--Terry & full pairwise history & stable MLE & population is non-stationary \\
-TrueSkill & pairwise, few games & calibrated $\sigma$ for cold start & you need network propagation \\
-EigenTrust & who-trusts-whom graph & resists collusive cliques & signal is per-task quality, not trust \\
+Elo & online pairwise results & incremental updates & update rate and changing skill \\
+Bradley--Terry & pairwise win/loss history & likelihood-based fit & separation can prevent a finite MLE \\
+TrueSkill & match outcomes and teams & modeled skill uncertainty & calibration and model fit \\
+EigenTrust & local-trust graph & anchored trust propagation & trusted seeds and attack model \\
 \bottomrule
 \end{tabularx}
 \caption{Match each estimator to its input signal.}
@@ -418,20 +418,21 @@ design. \textbf{Cheap pseudonyms} (Friedman \& Resnick~\pdcite{friedmanresnick20
 2001 --- \emph{when identities are cheap, society pays a tax because it must
 distrust all newcomers}) dictates the newcomer policy and is the economic engine
 behind our Theorem~\ref{thm:whitewash-cost}. \textbf{Limited records and reputation
-bubbles} (Liu \& Skrzypacz~\pdcite{liuskrzypacz2014}, 2014 --- \emph{with bounded
-memory and non-stationary types, reputation can build and collapse in cycles, and
-$\infty$-memory is rarely optimal}) is why \S\ref{sec:revoke} treats bounded memory
-as a \emph{parameter}, not a virtue. \textbf{Our departure:} the broader mechanism
-falls under mechanism design~\pdcite{nisan2007agt,myerson1981}, and we treat the
-grading oracle's own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
-core theorem rather than an assumption --- a move the platform-reputation
-literature, which usually takes the rating signal as exogenous, does not make.
+bubbles} (Liu \& Skrzypacz~\pdcite{liuskrzypacz2014}, 2014) shows how a finite
+observation window changes equilibrium incentives in a particular repeated
+interaction model. It does not establish a generally optimal memory horizon.
+Section~\ref{sec:revoke} therefore treats the horizon as a design parameter.
+The broader mechanism falls under mechanism design~\pdcite{nisan2007agt,myerson1981}.
+Our proposed ceremony makes the grader's incentives an explicit design obligation
+(\S\ref{sec:oracle}); the cited comparisons do not establish that this concern is
+absent from the wider reputation literature.
 
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
   \centering
   \pdswisslandmarkplate{02}{\linewidth}
 \end{figure}
+\pdmarginpagebreak
 \fi
 
 \subsection{LLM-as-judge, and why it cannot be the whole story}
@@ -451,38 +452,20 @@ bounds, and proposed evaluation procedure.
 \centering\small\renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Question} & \textbf{Closest prior art} & \textbf{This chapter's contribution} \\
+\textbf{Question} & \textbf{Cited comparison} & \textbf{Development here} \\
 \midrule
 What is a tradeable agent? & org-role theory; personal identity & role + continuity = \emph{person} (Defs.~\ref{def:role}--\ref{def:person}) \\
 Why is identity necessary? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
 How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
-Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
+Who grades the graders? & LLM-as-judge evaluation and bias studies & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
 \end{tabularx}
-\caption{Where this chapter departs from its closest prior art. The contributions are
-the impossibility/cost theorems, the multi-dimensional vector with a judge per
-axis, and treating the grader's incentive-compatibility as a first-class hole.}
+\caption{Questions, selected comparisons, and this chapter's definitions,
+conditional bounds, and proposed grading procedure. This is a map of the argument,
+not an exhaustive prior-art survey or a claim that vector reputation and grader
+incentives originate here.}
 \label{tab:contributions}
 \end{table}
-% SUBMISSION-SKILL: naming conflict -- the "How to score quality?" row lists
-% Elo/BT/TrueSkill as the closest prior art for the vector-vs-scalar move, but a
-% quote search turned up multi-dimensional / vector reputation work specifically
-% in multi-agent trust systems that this section does not cite: Teacy, Chalkiadakis,
-% Rogers & Jennings, "Rumours and Reputation: Evaluating Multi-Dimensional Trust
-% within a Decentralised Reputation System" (a per-dimension trust-vector model for
-% agent contracts), and the more recent "TrustFlow: Topic-Aware Vector Reputation
-% Propagation for Multi-Agent Ecosystems" (arXiv 2603.19452), which states plainly
-% that "a vector representation of reputation can capture multi-domain expertise
-% that a scalar reputation score cannot." The vector-over-scalar move itself is very
-% likely not novel to this paper; what may still be new is the specific
-% judge-per-axis, neutral/bonded evaluator market of \S\ref{sec:adr0049} and
-% Protocol~\ref{proto:judge}. Recommend narrowing the contribution-table cell and
-% \S\ref{sec:adr0049}'s framing to that narrower claim, and adding these (or
-% equivalent, verified) citations to \S\ref{sec:priorart} rather than leaving
-% "multi-dimensional vector" implicitly claimed as new. Not renamed or silently
-% cited here per the bounded-scope naming check -- left as a comment for the author
-% to resolve after checking the exact bibliographic record.
-
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The role / person distinction, made precise}\label{sec:role-person}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1572,14 +1555,15 @@ outcome and the next, and an identity whose provider dies can be resurrected
 from a checkpoint somewhere else. Both are body changes under a constant name,
 and the ledger must decide what follows the name and what follows the body.
 
-\medskip\noindent\textbf{In one breath.} Unattested, a price can never depend
-on the engine actually running, so swapping a cheap engine in behind a good
-record pays at every price and pooling on quality dies by Akerlof's spiral
-inside a single identity. Attest the engine on every witnessed outcome and,
-provided the attested price passes the full quality difference through, the
-substitution incentive flips to the planner's own efficiency rule at zero
-audit stake. A record may then cross providers exactly when three checks pass
-together, and dropping any one of them opens a named two-step attack.
+\medskip\noindent\textbf{In one breath.} For one delivery with an unobserved
+engine, no future reputation payoff, and no quality-contingent withholding,
+the same payment accompanies either engine. The cheaper engine then raises
+the seller's payoff by the cost difference. This establishes a substitution
+incentive; a market-wide exit spiral additionally needs entry, exit, and price
+dynamics. With engine attestation and full quality-value pass-through in prices,
+the substitution incentive agrees with the planner's efficiency comparison
+without an audit stake. The migration model then gives three jointly required
+checks and a named two-step attack when any one is dropped.
 
 \paragraph{The scene.} An identity builds a glowing record running a strong
 engine $\theta_H$, then quietly runs a cheap engine $\theta_L$ behind the same
@@ -2548,17 +2532,17 @@ happens when a witnessed outcome turns out to be \emph{fraudulent}, and when
 should old evidence lose weight? Keeping the evidence and estimating present
 reliability are distinct decisions.
 
-\subsection{Monotone in honest outcomes, individually revocable}
+\subsection{Append-only evidence, individually revocable outcomes}
 
-\begin{property}[Reputation monotonicity with tombstones]\label{prop:tombstone}
+\begin{property}[Append-only evidence with tombstones]\label{prop:tombstone}
 \setlength{\parskip}{4pt plus 1pt}
 The \textbf{evidence ledger is append-only}: a genuine delivery is never
 silently erased by the passage of time. A reputation estimate need not rise
 with every honest report; an honestly reported failure can lower it. Separately, a witnessed
 outcome is itself \textbf{individually revocable via a propagating tombstone}: a
 compensating, append-only entry that retracts a specific outcome later found
-fraudulent (a colluding judge, a faked oracle). ``Never decays'' applies to honest
-outcomes \emph{only}; it is \emph{not} an anti-revocation property.
+fraudulent (a colluding judge, a faked oracle). Retention preserves the outcome record; it does not require its score weight
+to remain constant or prevent a later invalidation.
 
 \emph{Kind:}
 \textbf{Design invariant} (\DESIGNED{}, not yet \BUILT{}, on the maturity scale) --- the
@@ -2585,8 +2569,10 @@ To retract a witnessed outcome $o$ later found fraudulent:
   identity of the retracting judge. The original $o$ stays in place; auditability
   is preserved because nothing is erased.
   \item \textbf{Recompute.} Every reputation score that consumed $o$ is recomputed
-  with $o$ nullified by $\bar{o}$. Because the estimator is cheap
-  (\S\ref{sec:substrate}), recomputation is not the bottleneck.
+  with $o$ nullified by $\bar{o}$. A local incremental update may be cheap,
+  but removing an older observation can require replaying retained history or
+  refitting a coupled estimator. Cost depends on the estimator and dependency
+  indexes; it is not bounded here by the cost of one forward update.
   \item \textbf{Propagate.} $\bar{o}$ gossips to every harbor that imported $o$,
   under the federation's declared delivery and freshness assumptions. Each
   harbor applies step 3 on receipt; an expired view must refuse decisions
@@ -2645,38 +2631,39 @@ read there in the meantime.
 
 \subsection{Bounded memory is a design parameter, not a virtue to assert away}
 
-The naive ``no decay window an agent can outrun'' framing sounds principled but is
-mechanism-design-hostile. Liu--Skrzypacz~\pdcite{liuskrzypacz2014} show that with
-\emph{bounded} memory, reputation can be welfare-\emph{improving} relative to
-infinite memory --- and that infinite memory ($\infty$) is rarely optimal, because
-it freezes types and removes the incentive to keep performing. Bounded memory is a
-\textbf{tunable parameter}, and the right setting is an empirical/mechanism-design
-question, not a slogan.
+An immutable evidence record and a reputation score's memory horizon are
+separate choices. The ledger can retain an outcome for audit while an estimator
+reduces its weight or excludes it from the current score. A tombstone records a
+finding that an outcome was invalid; ordinary aging does not make that finding.
 
-\noindent It is also, structurally, a \emph{commons} problem rather than a purely
-technical one. The memory window is a shared, rivalrous resource: every participant
-would privately prefer their own bad outcomes to age out quickly and everyone
-else's to persist forever, so a window chosen unilaterally by the party with the
-most to hide is the reputational analogue of an over-grazed pasture. Ostrom's
-finding on durable common-pool institutions~\pdcite{ostrom1990} is the relevant prior
-art here, and it argues against both of the framings this section rejects: not
-open access (a window each agent sets for itself), and not an imposed global
-constant (``$\infty$, forever, for everyone''), but a window set by the
-participants with clear boundaries, graduated sanctions, and cheap local conflict
-resolution --- which is a fair description of what a harbor's tombstone-plus-window
-policy actually has to be.
+Liu--Skrzypacz~\pdcite{liuskrzypacz2014} analyze a long-run player facing successive
+short-run opponents who see only a finite recent history. Under their stated
+stationary-equilibrium assumptions, reputation can repeatedly build and be
+exploited even when an opponent knows the player's opportunistic type. This
+shows that the observation window affects incentives. It does not prove that
+infinite memory is generally suboptimal or prescribe this market's window.
+Choosing a horizon here requires a model of changing skills, entry, observation,
+and incentives, together with an objective to evaluate.
 
-\pitfall[Permanent reputation can preserve fraud]{``Reputation never ends'' as a \emph{virtue} is wrong twice over: it
-makes a fraudulent outcome permanent (needs the tombstone of
-Property~\ref{prop:tombstone}), and it asserts $\infty$-memory is optimal when the
-reputation-bubble literature shows it usually is not. Engage bounded memory as a
-\emph{parameter}; do not assert no-decay as a feature.}
+Ostrom's work on common-pool institutions~\pdcite{ostrom1990} offers a governance
+analogy: people affected by a rule need a way to understand it, contest its
+application, and revise it. A reputation window is a jointly governed parameter,
+not itself a rivalrous stock consumed by use. Nor does the analogy prove that
+one particular governance arrangement is necessary. A harbor should state who
+sets the weighting rule, which evidence remains available, and how disputes and
+rule changes are handled. These are policy choices to evaluate, not a theorem
+inherited from the commons literature.
 
-\keyidea[Choose a memory horizon]{Two corrections to the cheerful framing: (1) reputation is monotone in
-\emph{honest} outcomes but \emph{individually revocable} via a propagating
-tombstone --- a saga compensation, not in-place mutation; (2) bounded memory is a
-\emph{design parameter} (Liu--Skrzypacz reputation bubbles), not an anti-feature to
-assert away.}
+\pitfall[Retention is not endorsement]{Keeping an outcome in an audit ledger
+does not require counting it forever in a score. Conversely, aging its score
+weight does not retract fraudulent evidence. Retain the record, record valid
+retractions, and state the estimator's horizon separately.}
+
+\keyidea[Choose a memory horizon]{Evidence can be append-only while scores rise
+or fall, old observations receive less weight, and specific outcomes are
+invalidated by tombstones. The appropriate weighting horizon depends on the
+incentive and prediction problem; neither finite nor infinite memory is
+universally optimal.}
 
 \pdexercisepointer{\ref{ex:stp-tombstone-vs-delete}}{\ref{ex:stp-revocation-convergence}}{\pageref{ex:stp-tombstone-vs-delete}}
 

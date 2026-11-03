@@ -727,7 +727,7 @@ The agent's self-narration is a \emph{secondary} lens, always
 labeled as such.
 
 Two LLMs agreeing (an agent acting and an LLM summarizing it) is
-not two checks; it may be one error reported twice.
+not by itself evidence of two independent checks; it may be one error reported twice.
 \end{pdclaim}
 
 This is why the source of truth must be the durable substrate --- the coordination
@@ -1652,7 +1652,7 @@ The proposed protocol measures detection of known defects on sandboxed replays; 
 \item \textbf{Attention queue surfacing.} The item is placed in the Attention Queue with standard high-regret scoring.
 \item \textbf{Illustrative adjudication cases:}
 \begin{itemize}[leftmargin=1.2em,nosep]
-\item \emph{Rubber-stamp failure:} If the operator approves without expanding the forced-zoom diff, the daemon halts execution pre-commit, logs an \textsc{Inception Canary Failed} event, and tightens the operator's autonomous policy lease (lowering the threshold at which future agent actions require manual confirmation).
+\item \emph{Rubber-stamp failure:} If the operator approves without expanding the forced-zoom diff, the daemon halts execution \mbox{pre-commit}, logs an \textsc{Inception Canary Failed} event, and tightens the operator's autonomous policy lease (lowering the threshold at which future agent actions require manual confirmation).
 \item \emph{Vigilant detection:} If the operator zooms, identifies the flaw, and rejects it, the daemon logs \textsc{Canary Defeated} and increases the \emph{Operator Trust Score}, unlocking extended autonomous execution grants (e.g., unattended batch merges).
 \end{itemize}
 Other responses, including inspecting and then approving the defect, require
@@ -1940,7 +1940,7 @@ It differs from a broken zoom link: a digest can link every selected item
 correctly while omitting the one item the operator needed.
 
 Hence the stated log-ratio is a lower bound for a
-zero-miss digest with review budget $m$. \qed
+zero-miss digest with review budget $m$.
 \end{proof}
 
 \noindent\Verified.\footnote{A standalone, submission-form version of the
@@ -3372,11 +3372,11 @@ the stderr of a failed test; ``the auth refactor felt risky so I split it''; a
 Port number: flatten, as structured administrative state. Failed-test stderr: preserve verbatim or by a content-addressed pointer. ``The auth refactor felt risky so I split it'': preserve verbatim and label it self-narration, not fact. Commitment-status enum: flatten. The 600-line diff: do not paraphrase away --- retain the immutable diff or a verified pointer and summarize only administrative metadata.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-two-llms-not-independent}
-Why is ``two LLMs agreeing''
-not two checks (Invariant~\ref{prop:verifiable-zoom})?
+Why does ``two LLMs agreeing'' not by itself establish two independent
+checks (Invariant~\ref{prop:verifiable-zoom})?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-two-llms-not-independent}
-Two models may share training biases, prompts, sources, and failure modes. Agreement over the same narration is correlated testimony, not independent evidence. A second check must derive from an independent channel --- repository state, a protected test runner, or a separately controlled reviewer.
+Two models may share training biases, prompts, sources, and failure modes. Agreement alone does not determine how often both checks miss the same defect. A check against repository state or a protected test result can add evidence beyond the original narration. A separately controlled reviewer can reduce conflicts of interest, but separate control does not itself prove independent errors; the evidence and common failure modes still need examination.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-four-questions-dashboard}
 Take a read-surface you use (a CI dashboard, a PR summary) and run the four
@@ -3479,7 +3479,7 @@ off the feasible debit band $[\delta_{\min},\delta_{\max}]$ at $A=3.3$ and at
 $A=2.0$. Confirm $u^\star(0.05)$ by hand first.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b7-escalation-run}
-By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the R3 constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = 0.071975 -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = 0.071975 -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
+By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the R3 constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
@@ -4015,11 +4015,11 @@ homework dressed up.
 \centering
 \small
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{0.40\textwidth}p{0.14\textwidth}p{0.36\textwidth}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.40\textwidth}>{\raggedright\arraybackslash}p{0.14\textwidth}>{\raggedright\arraybackslash}p{0.36\textwidth}@{}}
 \toprule
 \textbf{Open problem} & \textbf{Difficulty} & \textbf{Couples to} \\
 \midrule
-Forced-zoom rate $p(r,s,v)$ (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & reputation ($r$ term, Eq.~\ref{eq:sdt}) \\
+Forced-zoom rate $p(r,s,v)$ (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & reputation-to-risk calibration (\S\ref{sec:operator}) \\
 Operator-attention vs.\ token-COGS Pareto frontier (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & \S\ref{sec:tokens} \\
 Compaction-quality scalar as an attestation invariant (Ex.~\ref{ex:ls-replay-metric-soundness}) & $\star\star$ & honest attestation \\
 Completionist verification of the unverifiable (Ex.~\ref{ex:ls-honest-fallback-ladder}) & $\star\star$ & Invariant~\ref{def:completionist} \\

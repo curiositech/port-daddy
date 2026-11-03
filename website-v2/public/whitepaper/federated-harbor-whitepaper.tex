@@ -262,9 +262,9 @@ An operation $o$ has \emph{inter-harbor scope $(A, B)$} if its execution causes 
 Examples: an $A$-issued card used to write to a $B$-hosted database; a settlement clearing a bond posted at $A$ against damage measured at $B$; a revocation issued by $A$ becoming visible to a $B$-side verifier. 
 This boundary is a scoping decision this chapter's protocols are built to respect, not a theorem derived from a model: every later claim about what a protocol closes or defers (\S\ref{sec:fh-threat-model} onward) is checked against exactly this line.
 \end{pdclaim}
-Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and revoking cards under one harbor's authority, observed by agents under that same harbor. The Anchor Protocol's proofs cover the intra-harbor case end-to-end. The Federated Harbor's contribution is exactly the inter-harbor surface: every protocol that determines its guarantees lives at the boundary.
+Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and revoking cards under one harbor's authority, observed by agents under that same harbor. \pdchapref{anchor}{The Anchor Protocol} develops these intra-harbor authority checks under its stated model and implementation boundaries. The Federated Harbor's contribution is exactly the inter-harbor surface: every protocol that determines its guarantees lives at the boundary.
 \subsection{The witness log}\label{sec:fh-witness}
-The witness log is the device that makes the federation auditable without making any harbor sovereign over the others. It plays the same role that the Merkle Forest plays inside a single machine in \pdchapref{bonded}{The Bonded Commons} (\S4.1): a tamper-evident accumulator that any third party can verify without needing to trust the publisher.
+The witness log is the device that makes the federation auditable without making any harbor sovereign over the others. It plays the same role that the Merkle Forest plays for daemon evidence in \pdchapref{bonded}{The Bonded Commons} (\ifpdbook\S\ref{bonded:sec:merkle-forest}\else the subsection \emph{The Merkle Forest: Cross-Daemon Inclusion Proofs}\fi): an accumulator whose inclusion and append-only consistency proofs can be checked against authenticated roots. These checks do not establish that the publisher recorded every relevant event or that a recorded claim is true.
 \begin{pdclaim}{Design invariant}{Witness-Log Admissibility}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fh-witness}
@@ -528,7 +528,7 @@ rebuilding repairs a stale or damaged cache, not every fingerprint collision. sp
 
 \subsection{Visible discrepancies and their certificates}\label{sec:fh-sheaf}
 
-\pdmarginanalogy{fh-traverse-compass}{}{ch08-closed-traverse-compass}{Like a surveyor running a closed traverse with a vernier compass where bearing errors must cancel around a loop, the sheaf Laplacian computes cycle discrepancies that reveal equivocation.}%
+\pdmarginanalogy{fh-traverse-compass}{}{ch08-closed-traverse-compass}{Like a surveyor checking whether measured bearings close around a traverse, the residual tests consistency around visible loops. A discrepancy calls for investigation; it does not by itself identify dishonesty.}%
 Three harbors compare one numerical coordinate at a common snapshot. Orient
 the ring and add the three reported differences. A nonzero sum cannot come
 from three fixed vertex values: their differences would telescope to zero.
@@ -649,6 +649,7 @@ here and is not a theorem about arbitrary cellular sheaves.
   \centering
   \pdswisslandmarkplate{11}{\linewidth}
 \end{figure}
+\pdmarginpagebreak
 \fi
 
 \noindent Abramsky--Brandenburger contextuality~\pdcite{abramsky2011operational}
@@ -1326,7 +1327,7 @@ $\Theta(\log m)$ alone cannot supply its expectation or a deadline.
 
 \subsection{What this example shows}\label{sec:fh-ex-shows}
 
-\pdmarginanalogy{fh-interlocking-lever}{}{ch08-interlocking-railway-lever}{Like a mechanical interlocking lever that physically locks opposing railway points before a signal clears, cross-harbor synchronization enforces mutual exclusion across federation boundaries.}%
+\pdmarginanalogy{fh-interlocking-lever}{}{ch08-interlocking-railway-lever}{A local railway interlock permits a signal only after its own checks pass. Similarly, each receiving harbor checks its grant and revocation policy. Relayed evidence alone does not lock remote resources.}%
 The scenario is constructed; it demonstrates the protocol obligations, not a measured incident. The point of working it is to show that each of the four primitives --- transfer, revocation, settlement, admission --- is doing its job at exactly one step, and that the composition is straightforward when each primitive is honest about what it covers.
 
 Notice in particular what \emph{did not} happen:
