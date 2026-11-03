@@ -1,0 +1,12 @@
+{
+  "build_checkpoint": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+  "integration_checkpoint": "c0150389a38ad7f315ebe52c39445ce5fcfef7c3",
+  "metadata_bot_commit": "041b1878e905104dcf977a2301899d4877c89a37",
+  "accepted_pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "source_input_count": 280,
+  "input_mismatches": [],
+  "source_snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7",
+  "source_checks_sha256": "0348f02701183db20a57c33d91ab6c9ecb7ed01102ae3fe3b451dbaa7b37cb63",
+  "result": "pass",
+  "scope": "The build checkpoint predates the linear rebase. The bot changed only research-paper catalog metadata. Every recorded print input is byte-identical at the integration checkpoint; no new rendering or new visual inspection is claimed."
+}
