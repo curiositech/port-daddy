@@ -48,7 +48,7 @@
 \expandafter\def\csname pdlandmarktitle@01\endcsname{The Substrate Bedrock \& The Kernel Gap}
 \expandafter\def\csname pdlandmarkconcept@01\endcsname{Substrate Bedrock \& The Operating Kernel Gap}
 \expandafter\def\csname pdlandmarkquestion@01\endcsname{Which effects require mediation, and which records must survive a failure?}
-\expandafter\def\csname pdlandmarkquote@01\endcsname{A proposed action is not evidence that it occurred. When an invariant depends on shared state, the admitted effect must be checked against that state. When recovery depends on a past event, an adequate record must survive the failure being considered.}
+\expandafter\def\csname pdlandmarkquote@01\endcsname{A proposed action is not evidence that it occurred. A state-dependent admission rule needs adequate evidence of the state on which it depends. When recovery depends on a past event, an adequate record must survive the failure being considered.}
 
 \expandafter\def\csname pdlandmarktitle@02\endcsname{Agentic Continuity \& The Overlapping Strand}
 \expandafter\def\csname pdlandmarkconcept@02\endcsname{Substrate Continuity \& Overlapping Strands}
@@ -103,7 +103,7 @@
 \expandafter\def\csname pdlandmarktitle@12\endcsname{The Zombie Reclaim \& Salvage Graveyard}
 \expandafter\def\csname pdlandmarkconcept@12\endcsname{Zombie Salvage \& Dead-Man Leases}
 \expandafter\def\csname pdlandmarkquestion@12\endcsname{How can work be reassigned without admitting a stale worker?}
-\expandafter\def\csname pdlandmarkquote@12\endcsname{A missing heartbeat is evidence of silence, not proof of death. Reassignment requires an expiry rule, retained work state and fencing that prevents a stale holder from acting. Recovery must also account for effects whose completion was never recorded.}
+\expandafter\def\csname pdlandmarkquote@12\endcsname{A missing heartbeat is evidence of silence, not proof of death. Reassignment requires an expiry rule, retained work state and fencing that rejects a stale holder's writes to the reassigned resource. Recovery must also account for effects whose completion was never recorded.}
 
 % Single-digit alias fallbacks
 \expandafter\def\csname pdlandmarktitle@1\endcsname{\csname pdlandmarktitle@01\endcsname}

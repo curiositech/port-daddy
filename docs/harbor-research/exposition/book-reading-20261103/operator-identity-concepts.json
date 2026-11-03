@@ -64,8 +64,8 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "ca8311c11ea9135c431ad40097c222038ae5d856cbc0190039434f3e39e3fa67",
-      "edited_source_lines": 4465
+      "edited_sha256": "43916658ef2ef81934520e289597f16fe505d4059474b4d839d2eef086e4eca1",
+      "edited_source_lines": 4456
     },
     {
       "chapter": "stp",
@@ -136,7 +136,7 @@
       "later_substantive_use": "sec:landing",
       "first_anchor_line": 476,
       "later_anchor_line": 1208,
-      "teaching_or_repair": "Mira’s scoped grant; committed effects remain outside revocation"
+      "teaching_or_repair": "Mira\u2019s scoped grant; committed effects remain outside revocation"
     },
     {
       "chapter": "ls",
@@ -262,7 +262,7 @@
       "later_substantive_use": "ex:stp-connected-vs-continuous",
       "first_anchor_line": 689,
       "later_anchor_line": 738,
-      "teaching_or_repair": "a→b→c supplies reachability, not psychological identity or an equivalence relation"
+      "teaching_or_repair": "a\u2192b\u2192c supplies reachability, not psychological identity or an equivalence relation"
     },
     {
       "chapter": "stp",
