@@ -560,7 +560,15 @@ An actor can safely own a shared resource and process requests in order. A CSP n
 
 \subsection{Communicative Action and Speech Acts (FIPA-00037)}
 
-Standard computer networks exchange raw byte packets; autonomous multi-agent engineering systems exchange \textbf{speech acts}. Grounded in Austin's distinction between locutionary (syntactic utterance), illocutionary (communicative intent), and perlocutionary (consequential effect) acts~\pdcite{austin1962how}, and Searle's taxonomy of illocutionary forces~\pdcite{searle1969speech}, the Foundation for Intelligent Physical Agents standardized the \textbf{FIPA ACL Communicative Act Library} (FIPA-00037)~\pdcite{fipa2002acl}.
+A message has a role in a conversation as well as a byte representation. \textbf{Speech-act theory} distinguishes what is said, the act performed in saying it, and the consequences of saying it. Austin distinguishes locutionary acts (meaningful utterances), illocutionary acts (such as requests or promises), and perlocutionary acts (such as persuading a listener)~\pdcite{austin1962how}, and Searle's taxonomy of illocutionary forces~\pdcite{searle1969speech}, the Foundation for Intelligent Physical Agents standardized the \textbf{FIPA ACL Communicative Act Library} (FIPA-00037)~\pdcite{fipa2002acl}.
+
+Consider an operator saying, ``Please test revision 7.'' The words identify a
+particular requested action: that is their meaning. In this setting the
+operator is making a request, rather than reporting a completed test: that is
+its force. The request may persuade the worker to stop another task and run
+the test: that is a possible consequence. A worker can understand the request
+and still refuse it. Recording the utterance therefore does not establish
+that the requested work occurred, or that an obligation was accepted.
 
 FIPA distinguishes the sender's feasibility conditions from the intended
 rational effect of a communicative act. An intended effect is not a guarantee
