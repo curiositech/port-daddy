@@ -1,33 +1,32 @@
 {
   "status": "local artifact prepared; source merge and hosted publication pending",
   "source_pr": 10345,
-  "reviewed_source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
-  "integration_base": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
+  "reviewed_source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
   "accepted_print_receipt": {
     "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-    "sha256": "b5395c7106b1f16f1f6d09d8beaeab74969d4572cb9d268c05a3720617e4b2a6"
+    "sha256": "1bd08c3b0c1bb479d69f360970e569a8d705eeffb33cd4abc8bb246170104ab0"
   },
   "input_reconciliation": {
     "count": 280,
     "mismatches": [],
     "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
     "snapshot_path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-snapshot.json",
-    "snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7"
+    "snapshot_sha256": "47ea3989793e05a6bd804156984503ce6e889bb1d4752f7bd6ff92f803d460f8"
   },
   "pdf": {
     "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
-    "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-    "bytes": 17652139,
+    "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "bytes": 17652261,
     "pages": 844,
     "font_profile": "private Suisse; font files excluded"
   },
   "artifacts": {
-    "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-    "website-v2/public/whitepaper/publication-digests.json": "8366dc148b0b0e7bd4f4be9f994254eaa21d7a1e33780249112eefd34f549513",
-    "website-v2/src/data/whitePapers.ts": "83434601ed4d7863c08492d306a84ff34c824965e897862b99ba4b849d3cb971",
+    "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "website-v2/public/whitepaper/publication-digests.json": "eb75eafa878bd5269500eb19104dbbfb8775603654bcd424be929b9583e8d61f",
+    "website-v2/src/data/whitePapers.ts": "5035697f86fd311c2e80d8d2e65ac85f3027f6fa5a110624e5a6c9dae3fb0e2d",
     "website-v2/src/data/researchPapers.ts": "076cb1e343d476487b6a04aefd47f7b4be16d29fffad9d7b6d15bf3959b2a4d4",
     "website-v2/public/whitepaper/plates/cover-swiss.jpg": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
-    "website-v2/public/whitepaper/plates/PROVENANCE.json": "749d01db8a0c0c7c26537e2f438eee389e86f709de5f37c64481695aabf5cbc3",
+    "website-v2/public/whitepaper/plates/PROVENANCE.json": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30",
     "docs/harbor-research/exposition/figures/desk/data/FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
     "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d"
   },
@@ -42,9 +41,9 @@
     "website_typescript": "tsc -b passes after removal of unused reference count"
   },
   "evidence": {
-    "validation.json": "ef2c24049c2111d01c3cdf4814b60d7770d07bcca7354ea0b3249ee0958f3652",
-    "figure-desk.json": "0e48886d405f8b290ce76fb975465c6ead39d4339272f565296899708a429ad1",
-    "independent-review.json": "f72c13316b83d06033bb4a42a08766a86bcc4e302cc6e554b529ba33181ef300"
+    "validation.json": "d87cb778963fc2eb68ec810b6d2d1b6ebb6023af98bec508c654d680114a058c",
+    "figure-desk.json": "6a4ac77e51a6ea22fcd31438f6d4f931970e54f0e1daf23987fabf61ca7ca1b5",
+    "independent-review.json": "41e19c6a8342e9d50aac664db25314220430f45969f2569c5218bf7fb9203bdb"
   },
   "limits": [
     "Source reading and selected-spread scope remain those in the accepted print receipt.",
@@ -52,8 +51,10 @@
     "Hosted font-profile proof, protected source/artifact merges, deployment and live byte verification remain distinct.",
     "Research-paper metadata was already synchronized by the source PR; no research PDF or catalog row changes remain in the artifact diff."
   ],
-  "prepared_after_source_commit": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
-  "integration_checkpoint": "7ef830fbfcef9a0916b6d4c2fa15b8433a632989",
-  "reconciliation_scope": "The source PR removed two unused libraries and retained every surviving print input; its fresh PDF is byte-identical. Independent artifact checks remain applicable to these bytes. Guard-only verification-script fixes do not alter print inputs.",
-  "metadata_reference_count": "Removed unsupported unused221 count; chapter-bibliography collation and Chapter0 registration are separate conventions, so no replacement total is asserted."
+  "prepared_after_source_commit": "e0daa29fdb27629f226f804887d22875e155fae9",
+  "integration_checkpoint": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+  "reconciliation_scope": "All 280 accepted print inputs match the candidate28 source inventory. The canonical PDF is an exact copy of the accepted 844-page Suisse print. Current artifact checks bind these bytes; historical receipts remain explicitly scoped to their own hashes.",
+  "metadata_reference_count": "Removed unsupported unused221 count; chapter-bibliography collation and Chapter0 registration are separate conventions, so no replacement total is asserted.",
+  "preparation_base": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
+  "source_integration_base": "e0daa29fdb27629f226f804887d22875e155fae9"
 }

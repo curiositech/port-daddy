@@ -94,7 +94,7 @@
     "cover-swiss": {
       "file": "cover-swiss.jpg",
       "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf, page 1 — the cover of the Book as published (the canonical PDF renders the Swiss edition)",
-      "source_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+      "source_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
       "source_pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
       "render": "scripts/whitepaper-plates/render_cover_plate.py --write: page one rasterised at 1000x1429 with PyMuPDF and JPEG-encoded at quality 90; no image model was involved",
       "size": [
