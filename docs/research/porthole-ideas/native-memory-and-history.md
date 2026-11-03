@@ -34,6 +34,8 @@ The developer-memory plan explicitly proposes purpose-specific local-agent recal
 
 The product contract rules out collecting model-private chain of thought. Observable tool calls, output, public explanations, the actual supplied context and declared omissions can still be recorded within permission. It proposes joining a decision to its `ContextEnvelope` (the supplied context record), `CompactionPacket` (the cited continuity packet), command/process events and `WorkReceipt` (the work/outcome evidence record). Replay seeking is distinct from resuming execution. [N8]
 
+Adjacent transcript plans also describe adapters for external Claude/Codex-style logs and a common versioned JSONL format (one JSON event per line), rather than another unrelated recording database. The persistence contract names visible turns, tool/control actions, file touches, cost, denials, approvals, checkpoints and stop reasons. The earlier ingestion sketch also contains a role named `thinking`; a schema label is not permission to collect model-private reasoning. Likewise, an older fleet RFC's cloud transcript storage proposal does not authorize uploading a person's private Porthole archive. These are separate source classes and policies that need reconciliation. [N11][N12][N13]
+
 This gives a specific continuity story: after a handoff or context compaction, find what the earlier worker actually received, what warning was omitted, which obligation survived, and what is unavailable. A summary never retroactively proves that its author saw the underlying source. [N8]
 
 ## 4. Recurring-friction review
@@ -89,7 +91,7 @@ These are recommendations for a future reconciliation. No implementation or road
 
 ## Sources and reading scope
 
-The root reader fully read the current PRODUCT, historical PRODUCT/PERSONAS, native system specification, private-memory checklist, cooperative-loop plan, native README, MediaKit README, support-buffer source, operator ledger parts 01–02 and the historical Book-response document. Retrieval-fabric roles/privacy/pipeline/failure sections, source type exports, the third operator-ledger part and adjacent product experiences were targeted reads. Parallel readers recorded their own coverage in the sibling notes. The JSON inventory records 71 matching Markdown documents, not 71 claimed complete reads. Local Git history was searched across refs; selected historical objects were inspected. Every branch and attachment was not read.
+The root reader fully read the current PRODUCT, historical PRODUCT/PERSONAS, native system specification, private-memory checklist, cooperative-loop plan, native README, MediaKit README, support-buffer source, operator ledger parts 01–02 and the historical Book-response document. Retrieval-fabric roles/privacy/pipeline/failure sections, source type exports, the third operator-ledger part, adjacent product experiences, and the opening architecture/format sections of the external-ingestion, fleet-transcript and persistence documents were targeted reads. Parallel readers recorded their own coverage in the sibling notes. The JSON inventory records 71 matching Markdown documents, not 71 claimed complete reads. Local Git history was searched across refs; selected historical objects were inspected. Every branch and attachment was not read.
 
 [N1]: https://github.com/curiositech/port-daddy/blob/94f6f6dca8a4120ef8748fc84e9777b06151f9f5/docs/architecture/PORTHOLE-SYSTEM-SPECIFICATION-AND-MILESTONES.md#L11-L24
 [N2]: https://github.com/curiositech/port-daddy/blob/94f6f6dca8a4120ef8748fc84e9777b06151f9f5/docs/operations/porthole-private-memory-delivery.md#L8-L144
@@ -105,3 +107,7 @@ The root reader fully read the current PRODUCT, historical PRODUCT/PERSONAS, nat
 [H2]: https://github.com/curiositech/port-daddy/blob/2c639df8f7/docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#L23-L32
 
 [H3]: https://github.com/curiositech/port-daddy/blob/b4c4a19d77e07fdb1a65e00e88bf15ab7700ca0b/docs/adr/0135-porthole-universal-pov-evidence.md#L401-L447
+
+[N11]: https://github.com/curiositech/port-daddy/blob/94f6f6dca8a4120ef8748fc84e9777b06151f9f5/docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md#L27-L78
+[N12]: https://github.com/curiositech/port-daddy/blob/94f6f6dca8a4120ef8748fc84e9777b06151f9f5/.scratch/transcript-ingestion-design.md#L1-L110
+[N13]: https://github.com/curiositech/port-daddy/blob/94f6f6dca8a4120ef8748fc84e9777b06151f9f5/docs/FLEET-SESSION-TRANSCRIPTS.md#L1-L124

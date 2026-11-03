@@ -119,5 +119,16 @@
     "Launching or capturing any application",
     "Treating historical roadmap statuses as current authority"
   ],
-  "primaryRelevantSourceChangesObserved": 0
+  "primaryRelevantSourceChangesObserved": 0,
+  "additionalTargetedSources": [
+    ".scratch/transcript-ingestion-design.md",
+    "docs/FLEET-SESSION-TRANSCRIPTS.md",
+    "docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md"
+  ],
+  "namedEchoSearch": {
+    "pattern": "DolphinOverlay|Project Echo|Echo overlay",
+    "scope": "tracked Markdown, JSON and TeX at sourceRevision",
+    "matches": 0,
+    "limit": "Does not inspect the separate user-provided January Echo attachment or other repositories."
+  }
 }
