@@ -1,5 +1,5 @@
 {
-  "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+  "source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
   "concept_records": 152,
   "source_records": [
     {
@@ -59,7 +59,7 @@
     {
       "reader": "operator-identity",
       "source": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "saved_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "saved_sha256": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d",
       "reading_record": "operator-identity-concepts.json"
     },
     {

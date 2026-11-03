@@ -278,7 +278,7 @@
     "resolves": "operator24-sybil-introduction-split",
     "manifest_sha256": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60"
   },
-  "current_verdict": "Accepted candidate26 production context via exact candidate25 PDF/image bytes",
+  "current_verdict": "Candidate28 production context accepted through verified per-image reuse of25actualviews. Candidate28 solution punctuation repair separately passed actual inspection; hosted checks/publication remain separate.",
   "production26": {
     "source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
     "source_input_count": 280,
@@ -295,5 +295,100 @@
     "actual_view_evidence": "production25 retains the three directly viewed physical450\u2013455 context spreads.",
     "inventory_reconciliation": "Only two unused glyph-library source files removed; source figure/data/caption/placement unchanged.",
     "verdict": "accepted-owned-production-context; no new views claimed"
+  },
+  "production27": {
+    "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+    "source_input_count": 280,
+    "source_sha256": "33287b156bcc2965d16e88767b7e9b4434dccc29aba9eb3dfdc4f15288e6ea2e",
+    "pdf": {
+      "path": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+      "sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+      "pages": 844
+    },
+    "review_receipt": ".scratch/textbook-craft-20261103/operator-spread-review-27.json",
+    "review_receipt_sha256": "709f129985864f39b9b19b82ee73a93c384d3609c4d6e2dbf452cd19323e2382",
+    "manifest_sha256": "57982e0e6d0aad4038f4c7f6e35896a2666609e2bae1af9fab28af63d6da1df3",
+    "views": [
+      {
+        "image": "production25/candidate25-context-450-451.png",
+        "sha256": "7891a3eff399deb27564fc7e6998f7c5552a9fa63fdbd857ef0b1b77033a97cf",
+        "verdict": "pass",
+        "observations": [
+          "The Figure5.8 introduction follows the completed probation example. It turns the page after Retaining, then continues immediately at the top of452, with no figure or other interruption."
+        ]
+      },
+      {
+        "image": "production25/spread-452-453.png",
+        "sha256": "387c2f21d9940d9b8f0083ffe138e710f21822c3a9ee1d3b042c309e1f6122a8",
+        "verdict": "pass",
+        "observations": [
+          "The introductory paragraph completes above Figure5.8; the H placement resolves the candidate24 sentence interruption.",
+          "Both discrete panels, numeric baseline, same-colour key and margin caption fit cleanly. The principal subsection begins intact on453; its definition and scope note are readable."
+        ]
+      },
+      {
+        "image": "production25/spread-454-455.png",
+        "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
+        "verdict": "pass",
+        "observations": [
+          "Landmark03 remains at a completed subsection boundary, followed by the intact engine-substitution section and its scoped summary. No clipping, collisions or sentence interruption."
+        ]
+      }
+    ],
+    "method": "Current27PDF differs from26. Allthree physical450\u2013455 context PNGs match accepted25 actual views; preceding450\u2013451 was freshly rendered from27 before comparison. No new Sybil actual views claimed.",
+    "actual_view_evidence": "production25 retains the directly inspected context; candidate27 exact-byte comparison permits reuse.",
+    "verdict": "accepted-owned-production-context",
+    "scope_note": "The Sybil450\u2013455 context remains accepted by exactimage reuse. Overalloperator27receipt is diagnostic for an unrelated punctuation gap on776."
+  },
+  "production28": {
+    "source_head": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "source_input_count": 280,
+    "source_sha256": "33287b156bcc2965d16e88767b7e9b4434dccc29aba9eb3dfdc4f15288e6ea2e",
+    "pdf": {
+      "path": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+      "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+      "pages": 844
+    },
+    "review_receipt": ".scratch/textbook-craft-20261103/operator-spread-review-28.json",
+    "review_receipt_sha256": "11481a14ed6829f7a48456aebe06e185825e86134d7afb4a7cf28a6f992e4830",
+    "manifest_sha256": "f39571a27d02a4b2423eb97db3beca5ab219eb71698e5064e130eff4d5586a0f",
+    "physical_pages": [
+      450,
+      451,
+      452,
+      453,
+      454,
+      455
+    ],
+    "views": [
+      {
+        "image": "production25/candidate25-context-450-451.png",
+        "sha256": "7891a3eff399deb27564fc7e6998f7c5552a9fa63fdbd857ef0b1b77033a97cf",
+        "verdict": "pass",
+        "observations": [
+          "The Figure5.8 introduction follows the completed probation example. It turns the page after Retaining, then continues immediately at the top of452, with no figure or other interruption."
+        ]
+      },
+      {
+        "image": "production25/spread-452-453.png",
+        "sha256": "387c2f21d9940d9b8f0083ffe138e710f21822c3a9ee1d3b042c309e1f6122a8",
+        "verdict": "pass",
+        "observations": [
+          "The introductory paragraph completes above Figure5.8; the H placement resolves the candidate24 sentence interruption.",
+          "Both discrete panels, numeric baseline, same-colour key and margin caption fit cleanly. The principal subsection begins intact on453; its definition and scope note are readable."
+        ]
+      },
+      {
+        "image": "production25/spread-454-455.png",
+        "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
+        "verdict": "pass",
+        "observations": [
+          "Landmark03 remains at a completed subsection boundary, followed by the intact engine-substitution section and its scoped summary. No clipping, collisions or sentence interruption."
+        ]
+      }
+    ],
+    "method": "Fresh28render of allthree physical450\u2013455 context spreads matches accepted25 actual-view PNGs exactly. Whole PDF differs; no whole-PDF or fresh Sybil-view claim.",
+    "actual_view_evidence": "production25 retains original directly viewed images; production28 verifies their reuse against current PDF.",
+    "verdict": "accepted-owned-production-context"
   }
 }

@@ -1,6 +1,6 @@
 {
-  "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
-  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
+  "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
   "status": "all selected spreads covered",
   "targets": 109,
   "unique_spreads": 148,
@@ -888,8 +888,9 @@
       ]
     },
     "spread-776-777.png": {
-      "sha256": "34866810bd594d3208eef1abbe21a8a3af47e4008a91239d44105683de1650e6",
+      "sha256": "a4472272650986e8dc14dbe5b14b0a3ce84db92177170680ac0a1954720f3cbc",
       "readers": [
+        "root",
         "operator"
       ]
     },
@@ -915,7 +916,7 @@
     }
   },
   "supplementary_images": {
-    "candidate25-context-450-451.png": {
+    "candidate28-context-450-451.png": {
       "sha256": "7891a3eff399deb27564fc7e6998f7c5552a9fa63fdbd857ef0b1b77033a97cf",
       "readers": [
         "operator"

@@ -1,0 +1,141 @@
+{
+  "candidate": "27",
+  "created_at": "2026-11-03T21:03:58.215943+00:00",
+  "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+  "pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+  "verdict": "navigation_and_conversion_pass_minor_typesetting_nit_reported",
+  "scope": "Independent bounded source-delta review, fresh full exercise/solution navigation, fresh all-font page-turn scan, fresh all-page facing conversion, and four actual spread views. No new whole-Book mathematical review or publication claim.",
+  "source_reconciliation": {
+    "count": 280,
+    "changed_from26": [
+      "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
+      "website-v2/public/whitepaper/spawn-to-person.tex",
+      "whitepaper/figures/pd-cite-shortforms.tex"
+    ],
+    "added": [],
+    "removed": [],
+    "mismatches_current": [],
+    "source_snapshot_sha256": "d52e2ef49fe40e99c52f46c84ad590063346a2b11c7342a46ea13cdf061095b2"
+  },
+  "source_review": [
+    "Two deleted shortform keys have no remaining TeX references; surviving entries unchanged.",
+    "The STP solution adds script/seed provenance to an existing bounded enumeration, retaining the enumerated-state qualification and numerical claims."
+  ],
+  "checks": {
+    "status": "pass",
+    "halves_checked": 846,
+    "character_stream_exact_equal_for_every_half": true,
+    "characters_checked": 1342203,
+    "every_character_position_checked": true,
+    "maximum_coordinate_error_pt": 0.0001220703125,
+    "coordinate_tolerance_pt": 0.025,
+    "plain_text_extraction_difference_count": 1,
+    "plain_text_difference_physical_pages": [
+      105
+    ],
+    "links": 3562,
+    "link_target_kinds": {
+      "uri": 95,
+      "goto": 3467
+    },
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "unsupported_items": [],
+    "exercise_destinations": 212,
+    "solution_destinations": 212
+  },
+  "all_font_body_page_turn_candidates": 0,
+  "visual_review": {
+    "status": "four_spreads_viewed_minor_spacing_nit_reported",
+    "scope": "Fresh four-spread inspection covers navigation, the migration context, the exercise and changed solution. No fresh entire-book visual claim.",
+    "images": [
+      {
+        "label": "navigation-exercise",
+        "sha256": "c68eb963c1db1806c54f83c7219d8511a27a7d6c9d92d4962e579926770151c9",
+        "spread_index": 43,
+        "source_physical_page": 87,
+        "folio": "63",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate27-facing-navigation-exercise.png",
+        "review_method": "Fresh actual candidate27 facing spread individually viewed.",
+        "assessment": "Exercise0.2 begins on folio63 and its solution pointer remains714; page pair is legible."
+      },
+      {
+        "label": "engine-context",
+        "sha256": "e922ce7f196c54e19f29e846ac6611f31bb8d86d6dde6310db536b521f5f6ff1",
+        "spread_index": 230,
+        "source_physical_page": 461,
+        "folio": "437",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate27-facing-engine-context.png",
+        "review_method": "Fresh actual candidate27 facing spread individually viewed.",
+        "assessment": "Migration cutover figure, stated principal/engine conditions and adjoining model-check qualification remain legible and consistent."
+      },
+      {
+        "label": "resurrection-exercise",
+        "sha256": "7f78035a060a1192bf1950a8da9ed9aa821f766363622ba4d571aae13deff4b1",
+        "spread_index": 247,
+        "source_physical_page": 495,
+        "folio": "471",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate27-facing-resurrection-exercise.png",
+        "review_method": "Fresh actual candidate27 facing spread individually viewed.",
+        "assessment": "Exercise5.18 on folio471 names the existing script/seed and links to solution752; no overlap."
+      },
+      {
+        "label": "resurrection-solution",
+        "sha256": "252753f0eb90fe98843257d204c7bef0851bde517de9af95ade0bdb1069617a0",
+        "spread_index": 388,
+        "source_physical_page": 776,
+        "folio": "752",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate27-facing-resurrection-solution.png",
+        "review_method": "Fresh actual candidate27 facing spread individually viewed.",
+        "assessment": "Solution5.18 on folio752 links back to471; the new provenance margin note is legible and separate from the backlink. A small space before the semicolon after states was reported to root."
+      }
+    ]
+  },
+  "finding": {
+    "severity": "minor_typographic",
+    "location": "website-v2/public/whitepaper/spawn-to-person.tex:3084; solution5.18,physical776,folio752",
+    "observed": "The space before the margin-only pdprov macro renders as states ; before the next clause.",
+    "bounded_fix": "Attach pdprov directly to states, as its macro documentation specifies.",
+    "disposition": "Reported to root; no source edit by this reviewer."
+  },
+  "regular_copy": {
+    "schema": 1,
+    "candidate": "27",
+    "created_at": "2026-11-03T21:03:58.215943+00:00",
+    "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+    "name": "book-20261103-0dc9c3f8.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-20261103-0dc9c3f8.pdf",
+    "sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+    "bytes": 17652250,
+    "pages": 844,
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "links": 3562,
+    "method": "Independent byte copy of stable converged candidate27 PDF; hashes verified before/after, distinct inode from mutable cache.",
+    "copy_verification": "pass",
+    "publication_status": "Candidate27 navigation and exact-copy checks pass; final editorial acceptance and hosted publication are separate."
+  },
+  "facing_copy": {
+    "name": "book-facing-spreads-20261103-cec57fa2.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-cec57fa2.pdf",
+    "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
+    "sha256": "cec57fa246074cfaaa8f54cc493cceabd63045cecfe9976f2af2514a9800bdd5",
+    "pages": 423,
+    "bytes": 18580098
+  },
+  "receipts": {
+    "exercise-navigation.json": "934233545ce277edf1ba8c8b48862ca4d9a0fa49d9fa32c8f1b1a6d3c13a7972",
+    "compound-page-turns.json": "9391ce642550d0505799bdd7a0aec83fa104c9b7a515ead304fcdda05a77c438",
+    "regular-copy.json": "65d7b066e30c55ed5e9d2b40bba9e39944ef38a3fae01ab4828fea983c6f8af0",
+    "facing-copy.json": "60252db98f507f1e9d8c6fdf629eed61ac7a66744bde05d0a3f6a3b219711285"
+  },
+  "preserved26_receipts": "reader-proof-history/candidate26/",
+  "limits": [
+    "Conversion checks preserve glyphs and navigation; they do not certify global appearance or mathematical content.",
+    "Plain extractor differs only in inferred whitespace on physical105; ordered glyph streams and every position match."
+  ]
+}
