@@ -4,7 +4,7 @@
   "reviewed_source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
   "accepted_print_receipt": {
     "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-    "sha256": "1bd08c3b0c1bb479d69f360970e569a8d705eeffb33cd4abc8bb246170104ab0"
+    "sha256": "3c080f7b27a948c83f65dc1bf3d060d58b44d65bb9e374f99c149c9653bf0d68"
   },
   "input_reconciliation": {
     "count": 280,
@@ -56,5 +56,9 @@
   "reconciliation_scope": "All 280 accepted print inputs match the candidate28 source inventory. The canonical PDF is an exact copy of the accepted 844-page Suisse print. Current artifact checks bind these bytes; historical receipts remain explicitly scoped to their own hashes.",
   "metadata_reference_count": "Removed unsupported unused221 count; chapter-bibliography collation and Chapter0 registration are separate conventions, so no replacement total is asserted.",
   "preparation_base": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
-  "source_integration_base": "e0daa29fdb27629f226f804887d22875e155fae9"
+  "source_integration_base": "e0daa29fdb27629f226f804887d22875e155fae9",
+  "post_review_reconciliation": {
+    "path": "docs/harbor-research/exposition/book-publication-20261103/proof-metadata-reconciliation.json",
+    "sha256": "f2cdfaa8030570ec02c5c85262b238fcf0c25c24649aa0b8df1ffaffb66447f7"
+  }
 }

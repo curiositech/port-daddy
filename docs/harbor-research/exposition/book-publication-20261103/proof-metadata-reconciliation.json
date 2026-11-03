@@ -1,0 +1,30 @@
+{
+  "created_at": "2026-11-03T21:52:02.327699+00:00",
+  "source_pr_head": "a9ac80ebb305b7f89ad914eebc9578cf26852411",
+  "source_pr_merged": false,
+  "publication_checkpoint": "a6891b7291d5809c31eb7e9c28ca9fed8ee6a7ba",
+  "accepted_receipt_before": "1bd08c3b0c1bb479d69f360970e569a8d705eeffb33cd4abc8bb246170104ab0",
+  "accepted_receipt_after": "3c080f7b27a948c83f65dc1bf3d060d58b44d65bb9e374f99c149c9653bf0d68",
+  "sole_acceptance_change": {
+    "field": "companion_receipts/ci-repairs/library-preflight.json",
+    "before": "d56b107c44b572989991d8909f22255b8c9ecc86c4444a563284dc996ab21de4",
+    "after": "b916ad15a11f1b2bbdd5c109309d50ff958bf85f93cf6a7749f7af1c291472c4"
+  },
+  "reason": "A workflow display label in the validation receipt was corrected to satisfy the prose guard. Commands, outcomes and logs remain unchanged. Historical test and independent-review records retain their actual execution checkpoints.",
+  "input_checks": [
+    {
+      "name": "print",
+      "count": 280,
+      "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+      "mismatches": []
+    },
+    {
+      "name": "publication",
+      "count": 462,
+      "scope": "Listed website source/config inputs, publication artifacts and focused test/check helpers; not a full transitive runtime/dependency inventory.",
+      "mismatches": []
+    }
+  ],
+  "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "pass": true
+}
