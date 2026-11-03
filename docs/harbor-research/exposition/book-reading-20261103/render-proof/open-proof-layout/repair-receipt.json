@@ -528,12 +528,13 @@
     "No source PR merge or Book publication is established."
   ],
   "artifacts": {
-    "build-isolated.py": "998b292b9db9a74cd087069c9426dec857387b71d218ed7e31a2755bca2eca90",
     "build-receipt.json": "cee34faf375e2b79d236db0de3ed6201c755c91d3433c850b560fb19ccc6da5f",
     "coordination-papers-mega-volume.pdf": "72783c15dc2684cb30263ef46a3a96d50e8a836b33c57d9353f76f3b459ab43a",
     "coordination-papers-mega-volume.aux": "81799c1fa2714884fb5c91647db2514723778011c968cfca72c49da979ae5372",
     "coordination-papers-mega-volume.log": "37f20ed2608a78741a63b9b18f1106f64ae60ec8c2b5db479ff9358108c303f2",
-    "coordination-papers-mega-volume.fls": "5534995f5194cdfa341f1c4f353f4692c89cf3c23889a8bacee79bcbc85b4d33"
+    "coordination-papers-mega-volume.fls": "5534995f5194cdfa341f1c4f353f4692c89cf3c23889a8bacee79bcbc85b4d33",
+    "build-isolated.before-runtime-guards.py.txt": "998b292b9db9a74cd087069c9426dec857387b71d218ed7e31a2755bca2eca90",
+    "build-isolated.py": "786760c5b140ccb62daa045202f03de5fb3bde05cd9c9cf47956566799e593e6"
   },
   "portable_log": {
     "readable_copy": "pdf-checks.log",
@@ -541,5 +542,13 @@
     "normalization": "Trailing whitespace removed only; complete original bytes preserved as JSON text.",
     "original": "pdf-checks-original.json",
     "original_sha256": "034400884260cb5b285055721bafcc10f3b6b2128260509d4772aa57f1e7e1b3"
+  },
+  "diagnostic_guard_repair": {
+    "receipt": "guard-safety-repair.json",
+    "recorded_build_script": "build-isolated.before-runtime-guards.py.txt",
+    "recorded_build_script_sha256": "998b292b9db9a74cd087069c9426dec857387b71d218ed7e31a2755bca2eca90",
+    "current_script": "build-isolated.py",
+    "current_script_sha256": "786760c5b140ccb62daa045202f03de5fb3bde05cd9c9cf47956566799e593e6",
+    "scope": "The recorded historical render used the exact archived script bytes. The current diagnostic has optimization-safe guards tested separately; no historical build is attributed to the updated script."
   }
 }

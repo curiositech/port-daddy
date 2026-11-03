@@ -1,0 +1,106 @@
+{
+  "reviewed_at": "2026-11-03T20:33:26.325898+00:00",
+  "scope": "Diagnostic script only; no Book manuscript, accepted source input, PDF, runtime, build-loop or tool invocation changes. Historical proof is preserved, not rerun.",
+  "base_head": "3a60ee9b22d89fa9cf7539b73a55bf663396e282",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "changes": [
+    "Worktree root and branch subprocesses execute independently of Python assertions.",
+    "All five safety checks raise RuntimeError explicitly, including source drift, accepted PDF preservation and canonical-cache isolation."
+  ],
+  "historical_script": {
+    "path": "build-isolated.before-runtime-guards.py.txt",
+    "sha256": "998b292b9db9a74cd087069c9426dec857387b71d218ed7e31a2755bca2eca90",
+    "matches_base_head_bytes": true
+  },
+  "repaired_script": {
+    "path": "build-isolated.py",
+    "sha256": "786760c5b140ccb62daa045202f03de5fb3bde05cd9c9cf47956566799e593e6"
+  },
+  "regression": {
+    "path": "test_build_isolated_guards.py",
+    "sha256": "04042c908dec827aa896eac606cc0ae99fc273778155a095a8f18b34fddd0234",
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 test_build_isolated_guards.py -v",
+    "test_methods": 5,
+    "optimization_levels": [
+      0,
+      1,
+      2
+    ],
+    "mode_state_cases": 33,
+    "structural_checks": 1,
+    "result": "pass",
+    "scope": "Executes only guard AST nodes and mocks Git calls; no TeX, build, daemon or file-writing code is run.",
+    "output": "test_accepted_pdf_check_survives_optimization (__main__.GuardTests.test_accepted_pdf_check_survives_optimization) ... ok\ntest_all_five_safety_guards_are_explicit (__main__.GuardTests.test_all_five_safety_guards_are_explicit) ... ok\ntest_cache_isolation_check_survives_optimization (__main__.GuardTests.test_cache_isolation_check_survives_optimization) ... ok\ntest_source_drift_check_survives_optimization (__main__.GuardTests.test_source_drift_check_survives_optimization) ... ok\ntest_worktree_boundaries_survive_optimization (__main__.GuardTests.test_worktree_boundaries_survive_optimization) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.005s\n\nOK\n"
+  },
+  "related_assert_scan": {
+    "python_files_scanned": 44,
+    "paths": [
+      "docs/harbor-research/exposition/book-reading-20261103/render-proof/open-proof-layout/build-isolated.py",
+      "scripts/book-visual-atlas/build.py",
+      "scripts/book-visual-atlas/inventory/add_main_listings_and_diagram_sources.py",
+      "scripts/book-visual-atlas/inventory/add_margin_tables_and_solution_listings.py",
+      "scripts/book-visual-atlas/inventory/audit_source_candidates.py",
+      "scripts/book-visual-atlas/inventory/bind_caption_sources.py",
+      "scripts/book-visual-atlas/inventory/bind_raster_sources.py",
+      "scripts/book-visual-atlas/inventory/crop_layer_ladder.py",
+      "scripts/book-visual-atlas/inventory/crop_shipped_listings.py",
+      "scripts/book-visual-atlas/inventory/make_source_maps.py",
+      "scripts/book-visual-atlas/inventory/normalize_art_reviews.py",
+      "scripts/book-visual-atlas/inventory/run.py",
+      "scripts/book-visual-atlas/inventory/screen_reviewed_candidates.py",
+      "scripts/book-visual-atlas/inventory/verify_inventory.py",
+      "scripts/book-visual-atlas/snapshot.py",
+      "scripts/book-visual-atlas/validate.py",
+      "scripts/book_visual_atlas_inventory.py",
+      "scripts/harbor-research/check_book_decisions.py",
+      "scripts/harbor-research/check_book_exercise_navigation.py",
+      "scripts/harbor-research/check_book_foundations.py",
+      "scripts/harbor-research/check_book_mechanisms.py",
+      "scripts/harbor-research/check_propagated_corrections.py",
+      "scripts/harbor-research/run_pdf_checks.py",
+      "skills/harbor-results/scripts/b3_controllability.py",
+      "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+      "skills/tikz-diagram-craft/tests/test_review_status.py",
+      "skills/whitepaper-figure-system/tests/test_check_atlas_coverage.py",
+      "tests/harbor-research/test_assurance_figure.py",
+      "tests/harbor-research/test_book_contents_pdf.py",
+      "tests/harbor-research/test_book_decompressed_blocks.py",
+      "tests/harbor-research/test_book_evidence_editorial.py",
+      "tests/harbor-research/test_book_exercise_navigation.py",
+      "tests/harbor-research/test_book_layout.py",
+      "tests/harbor-research/test_book_margin_object_batch.py",
+      "tests/harbor-research/test_book_protocol_style.py",
+      "tests/harbor-research/test_book_publication_math.py",
+      "tests/harbor-research/test_book_typography.py",
+      "tests/harbor-research/test_check_delegation_chain_vocabulary.py",
+      "tests/harbor-research/test_definition_margin_note.py",
+      "tests/harbor-research/test_delegation_containment_figure.py",
+      "tests/harbor-research/test_protocol_style.py",
+      "tests/harbor-research/test_sealed_remaining_examples.py",
+      "tests/harbor-research/test_sealed_residuals_figure.py",
+      "tests/harbor-research/test_semantic_block_styles.py"
+    ],
+    "subprocess_in_assert": [],
+    "parse_errors": [],
+    "scope": "All 44 tracked Python paths changed by the PR, inspected from the current working tree after the repair. Ordinary test assertions were not rewritten."
+  },
+  "accepted_book_preserved": {
+    "snapshot": "../source-snapshot.json",
+    "snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7",
+    "recorded_inputs": 280,
+    "mismatches": [],
+    "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "new_render_claimed": false
+  },
+  "review_threads": [
+    "PRRT_kwDOROCq1c6zT3XR",
+    "PRRT_kwDOROCq1c6zT3Xd"
+  ],
+  "independent_review": {
+    "reviewer": "craft_machine",
+    "result": "pass",
+    "scope": "Read full repaired script, regression, archive and receipt delta; independently ran all five test methods, verified original bytes against base3a60, unchanged280 inputs and accepted b589 PDF. Build loop and tool commands unchanged; no source edits.",
+    "script_sha256": "786760c5b140ccb62daa045202f03de5fb3bde05cd9c9cf47956566799e593e6"
+  }
+}
