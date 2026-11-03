@@ -39,7 +39,9 @@ The build must converge before copying its PDF. Run
 `scripts/harbor-research/run_pdf_checks.py` on the exact candidate, inspect facing
 spreads for all chapter openers and repaired pages, and record its hash. Publication
 uses `\pdcopyreviewfalse`; editorial review sheets must not appear. Source review,
-local rendered acceptance, and the authorized hosted PDF refresh are distinct gates.
+local rendered acceptance, hosted proof generation, and public artifact delivery
+establish distinct facts. Use the exact-artifact procedure below when publishing
+an accepted local Suisse PDF.
 Full-page plates must not interrupt a sentence or definition. In chapters
 assembled by the generator, use `\pdmarginpagebreak` at a paragraph boundary:
 chapter transformation strips literal `\clearpage` but preserves this macro.
@@ -491,14 +493,48 @@ page count, so they moved with it. Landing any one PR conflicted the other 22,
 and the cluster could only be drained by hand at one PR per full rebuild.
 
 So: **render a collated artifact on every run, commit it on almost none.**
-`whitepaper-build` builds the Book, hands it to the cover-band check, then
-restores it — an uncompilable Book still fails at exactly the same step. A new
-Book is published by dispatching `whitepaper-build` on a branch with
-`refresh_book=true`, which commits it there and opens one reviewable PR.
-Freezing the artifact freezes its derived metadata for free: `--fix` and the
-digests read the file on **disk**, so a restored Book reproduces the committed
-values and `check-whitepaper-metadata` stays green (it compares the record
-against the artifact, never against the `.tex`).
+Ordinary `whitepaper-build` runs build a hosted proof, upload it for the
+cover-band check, then restore the committed Book before staging derived output.
+This preserves an accepted PDF carried by an artifact PR. Metadata and digests
+read the PDF on **disk**; they describe that artifact, not whether it matches
+current `.tex` sources.
+
+**Publish the exact accepted local Suisse artifact in one artifact PR:**
+
+1. After the source PR lands, fetch main and use a dedicated linked publication
+   worktree on a feature branch. Compare the accepted build's recorded consumed
+   input hashes with the merged inputs, retaining the stated inventory scope and
+   font/toolchain/asset evidence. A changed commit SHA after rebase is not itself
+   a content change; changed consumed inputs require a new accepted build and
+   review rather than relabeling the old PDF.
+2. Take the reviewed PDF path and SHA-256 from its acceptance receipt. Copy those
+   exact bytes to `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`
+   and verify the hash after copying. Retain the source, font-profile, build,
+   PDF-gate and facing-spread receipts. Keep private font files out of Git and
+   CI artifacts.
+3. With that PDF on disk, run the metadata fixer and then its strict check from
+   `website-v2`: `npx tsx scripts/check-whitepaper-metadata.ts --fix`, then the
+   same command without `--fix`. From the repository root, run
+   `python3 scripts/whitepaper-plates/render_cover_plate.py --write` and `--check`,
+   then `python3 scripts/harbor-research/build_figure_desk.py --write` and `--check`.
+   Review the resulting Book metadata/digests, cover and provenance, and generated
+   desk changes together; do not sweep unrelated publication drift into this PR.
+4. Carry that artifact and its derived records in an ordinary PR, distinct from
+   the source PR. Run the publication/provenance checks and follow current-head
+   CI and reviews through the normal protected merge path. Leave `refresh_book`
+   false: ordinary CI preserves the committed reviewed Book while testing a
+   separate hosted proof.
+5. After deployment, fetch the public Book independently and compare its SHA-256
+   with the acceptance receipt; verify the served cover and metadata too. Report
+   source merge, artifact merge, deployment and public-byte verification separately.
+
+`workflow_dispatch` with `refresh_book=true` is a different operation: on a
+feature branch it retains and commits the **new hosted rendering** and derived
+metadata. It does not import the accepted local PDF. The hosted configuration
+uses the labelled `open-proof` font profile when private Suisse fonts are absent;
+its bytes and pagination are not the local Suisse proof. Review that new artifact
+if this is the intended publication path. The workflow has no scheduled refresh
+or PR-creation step; the agent opens the ordinary PR for the branch it updates.
 
 The Book is the only published whitepaper edition (ADR-0143). Do not restore
 the retired per-chapter PDFs, thumbnails, or catalog entries in a chapter PR.
