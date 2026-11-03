@@ -1,7 +1,11 @@
 import pathlib,subprocess,os,json,hashlib,re,sys,time
 root=pathlib.Path('/Users/erichowens/coding/tmp/book-textbook-craft-20261103');out=pathlib.Path(__file__).parent;pub=root/'website-v2/public/whitepaper'
-assert subprocess.check_output(['git','rev-parse','--show-toplevel'],cwd=root,text=True).strip()==str(root)
-assert subprocess.check_output(['git','branch','--show-current'],cwd=root,text=True).strip()=='codex/book-textbook-craft-20261103'
+actual_root = subprocess.check_output(['git','rev-parse','--show-toplevel'],cwd=root,text=True).strip()
+if actual_root != str(root):
+ raise RuntimeError(f'Unexpected worktree root: {actual_root}')
+actual_branch = subprocess.check_output(['git','branch','--show-current'],cwd=root,text=True).strip()
+if actual_branch != 'codex/book-textbook-craft-20261103':
+ raise RuntimeError(f'Unexpected worktree branch: {actual_branch}')
 paths=sorted(set(root.glob('whitepaper/**/*.tex'))|set(root.glob('website-v2/public/whitepaper/**/*.tex')))
 inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 accepted=root/'.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf';before=hashlib.sha256(accepted.read_bytes()).hexdigest()
@@ -22,9 +26,14 @@ for n in range(1,9):
  log=(out/'coordination-papers-mega-volume.log').read_text(errors='replace')
  if n>=2 and not pattern.search(log):break
 else:raise RuntimeError('Eight passes did not converge')
-drift=[p for p,h in inputs.items() if hashlib.sha256((root/p).read_bytes()).hexdigest()!=h];assert not drift,drift
-assert hashlib.sha256(accepted.read_bytes()).hexdigest()==before,'Accepted Suisse cache PDF changed'
-fls=(out/'coordination-papers-mega-volume.fls').read_text();bad=[l for l in fls.splitlines() if l.startswith('INPUT ') and '.cache/whitepaper-build' in l];assert not bad,bad
+drift=[p for p,h in inputs.items() if hashlib.sha256((root/p).read_bytes()).hexdigest()!=h]
+if drift:
+ raise RuntimeError(f'Source inputs changed: {drift}')
+if hashlib.sha256(accepted.read_bytes()).hexdigest() != before:
+ raise RuntimeError('Accepted Suisse cache PDF changed')
+fls=(out/'coordination-papers-mega-volume.fls').read_text();bad=[l for l in fls.splitlines() if l.startswith('INPUT ') and '.cache/whitepaper-build' in l]
+if bad:
+ raise RuntimeError(f'Isolated proof read canonical cache inputs: {bad}')
 pdf=out/'coordination-papers-mega-volume.pdf'
 r={'scope':'Isolated local Source Sans open-proof, no publication','head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),'source_inputs':inputs,'font_profile':'open-proof','passes':n,'pdf_sha256':hashlib.sha256(pdf.read_bytes()).hexdigest(),'accepted_suisse_sha256_before_and_after':before,'source_drift':drift,'cache_inputs':bad,'overfull_hboxes':len(re.findall(r'Overfull \\hbox',log)),'driver_only_changes':'Generated input paths and appendix path rebound to isolated output; no content changes.'}
 (out/'build-receipt.json').write_text(json.dumps(r,indent=2)+'\n');print('CONVERGED',json.dumps({k:v for k,v in r.items() if k!='source_inputs'}),flush=True)
