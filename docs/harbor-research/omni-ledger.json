@@ -132968,10 +132968,10 @@
         "Chapter8"
       ],
       "kind": "editorial and mathematical reconciliation",
-      "queue_state": "current_work",
+      "queue_state": "research_record",
       "priority": "P1",
       "owner": "codex:paper-eight",
-      "status": "complete sequential source read and locally accepted rendered Book; source PR 10345 checks pending",
+      "status": "complete source reading and accepted print; publication tracked by PR10346",
       "result": "All nine authored chapters and their exercises/solutions have been read in source order across four reviewers. The reader route, definitions, examples, nonexamples, theorem assumptions and later retellings were reconciled. 152 substantive concept records have explicit treatment/use records. This is not a certification of every external citation or deployed runtime claim.",
       "assumptions": "Canonical Book authority is textbook.json plus authored Chapter0 and volume appendices. A later mention is not sufficient concept development. Source reading, finite computation, rendered review and hosted publication are distinct evidence.",
       "evidence": [
@@ -132989,37 +132989,19 @@
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate19-independent-review.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate23-independent-review.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate25-independent-review.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/sybil-redraw/receipt.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate25-independent-review.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/sybil-redraw/receipt.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate26-independent-review.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/sybil-redraw/receipt.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json",
         "Full source gates at 90aeef0b2171bf86793a023132025f20e1723a33: generator 73/73; Book 119 passed and 45 fixture-only skips; mathematical-boundary 26/26; citations zero issues; index clean; propagation 14/14; 595 input hashes stable.",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate28-independent-review.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/sybil-redraw/receipt.json",
-        "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json"
+        "docs/harbor-research/exposition/book-publication-20261103/receipt.json",
+        "docs/harbor-research/exposition/book-publication-20261103/source-merge.json",
+        "docs/harbor-research/exposition/book-publication-20261103/source-reconciliation.json",
+        "docs/harbor-research/exposition/book-publication-20261103/independent-review.json"
       ],
-      "next": "Own PR #10345 exact-head hosted checks and review resolution, then complete the separately reviewed publication-artifact refresh. Preserve local Suisse acceptance separately from hosted open-font proofs.",
+      "next": "Use PR #10346 delivery receipts for protected artifact merge, deployment and public-byte verification. Diagram-family standardization remains separate work.",
       "acceptance": "All chapter sources read; foundational concepts have concrete first treatment and substantive reuse; examples and solutions agree with stated hypotheses; exact candidate passes PDF gates and facing-spread inspection; source delivery is separately evidenced.",
       "depends_on": [
         "BOOK-INTEGRATION-20261026",
@@ -133042,15 +133024,26 @@
         "base": "4db6612e945a7c0555e5a1f6c6e8892d7d7b1fbd",
         "scope": "sequential canonical-source read plus scoped primary-source and finite arithmetic verification; no live runtime proof",
         "source_checkpoint": "90aeef0b2171bf86793a023132025f20e1723a33",
-        "current_base": "0bd6a38fa3b6020c16ed060a256e45ce4f169561",
+        "current_base": "24ae0dfe59ad0b5e25e56c36d7368a7898ec5429",
         "rendered_acceptance": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
         "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
         "pages": 844,
         "selected_spreads": 148,
         "semantic_targets": 109
       },
-      "delivery": "Local 844-page Book accepted at source 90aeef0b2171bf86793a023132025f20e1723a33, with complete source reading and 148 selected spread views. Branch descends from protected-rebase merged PR #10336. Source PR #10345 owns hosted verification; no published-PDF refresh is claimed.",
-      "source_pr": "https://github.com/curiositech/port-daddy/pull/10345"
+      "delivery": "Source PR #10345 merged by rebase at 24ae0dfe59ad0b5e25e56c36d7368a7898ec5429 with 50 successful and 8 skipped checks, no failures or pending checks, and all 12 review threads resolved. PR #10346 carries the exact accepted 844-page PDF and generated publication records. Its delivery comments are the current source for artifact merge, hosted deployment and public-download verification; the manuscript acceptance does not itself prove deployment.",
+      "source_pr": "https://github.com/curiositech/port-daddy/pull/10345",
+      "source_merge": {
+        "headRefOid": "a9ac80ebb305b7f89ad914eebc9578cf26852411",
+        "mergeCommit": {
+          "oid": "24ae0dfe59ad0b5e25e56c36d7368a7898ec5429"
+        },
+        "mergedAt": "2026-11-03T22:24:41Z",
+        "number": 10345,
+        "state": "MERGED",
+        "url": "https://github.com/curiositech/port-daddy/pull/10345"
+      },
+      "publication_pr": "https://github.com/curiositech/port-daddy/pull/10346"
     }
   ],
   "coverage": {

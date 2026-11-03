@@ -1,5 +1,5 @@
 {
-  "status": "local artifact prepared; source merge and hosted publication pending",
+  "status": "exact artifact verified against merged source; publication tracked by PR10346",
   "source_pr": 10345,
   "reviewed_source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
   "accepted_print_receipt": {
@@ -60,5 +60,14 @@
   "post_review_reconciliation": {
     "path": "docs/harbor-research/exposition/book-publication-20261103/proof-metadata-reconciliation.json",
     "sha256": "f2cdfaa8030570ec02c5c85262b238fcf0c25c24649aa0b8df1ffaffb66447f7"
+  },
+  "source_reconciliation": {
+    "path": "docs/harbor-research/exposition/book-publication-20261103/source-reconciliation.json",
+    "sha256": "f1c23aabcfc59706facda0a4bab91d866f32fd515c4d7f5f17f55dec0f4f4742"
+  },
+  "publication_pr": 10346,
+  "source_merge": {
+    "path": "docs/harbor-research/exposition/book-publication-20261103/source-merge.json",
+    "sha256": "aa19a0e0584ec30c66093b531323a8788cf0238ab230ab826127a3070699ddff"
   }
 }

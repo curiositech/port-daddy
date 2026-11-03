@@ -1,0 +1,29 @@
+{
+  "created_at": "2026-11-03T22:25:10.361791+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
+  "branch": "codex/book-publication-20261103",
+  "publication_checkpoint": "4db83d4b35f1ac8b0cd5dedb8386866deb35e660",
+  "source_main": "24ae0dfe59ad0b5e25e56c36d7368a7898ec5429",
+  "source_pr": 10345,
+  "publication_pr": 10346,
+  "accepted_source": "90aeef0b2171bf86793a023132025f20e1723a33",
+  "accepted_pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "actual_pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "accepted_receipt_sha256": "3c080f7b27a948c83f65dc1bf3d060d58b44d65bb9e374f99c149c9653bf0d68",
+  "checks": [
+    {
+      "name": "accepted_print_inputs",
+      "count": 280,
+      "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+      "mismatches": []
+    },
+    {
+      "name": "artifact_validation_inputs",
+      "count": 462,
+      "scope": "Listed website source/config inputs, publication artifacts and focused test/check helpers; not a full transitive runtime/dependency inventory.",
+      "mismatches": []
+    }
+  ],
+  "pass": true,
+  "scope": "Reconciliation after integrating the merged source. This compares recorded inputs and exact accepted PDF bytes; it does not replace or restate historical test execution checkpoints."
+}

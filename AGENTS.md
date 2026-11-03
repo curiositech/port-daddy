@@ -519,6 +519,9 @@ current `.tex` sources.
    then `python3 scripts/harbor-research/build_figure_desk.py --write` and `--check`.
    Review the resulting Book metadata/digests, cover and provenance, and generated
    desk changes together; do not sweep unrelated publication drift into this PR.
+   Write the portable evidence receipts before the final prose, citation and
+   freshness checks. Those checks inspect generated evidence too; a preflight
+   run before the receipts exist does not validate the final tree.
 4. Carry that artifact and its derived records in an ordinary PR, distinct from
    the source PR. Run the publication/provenance checks and follow current-head
    CI and reviews through the normal protected merge path. Leave `refresh_book`
