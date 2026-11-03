@@ -5,8 +5,8 @@
 % Claim: the Inception Canary replays a known, already-fixed defect into a
 %   sandboxed replay at a disclosed rate, surfaces it in the attention
 %   queue like live traffic, and adjudicates the operators response as
-%   either a rubber-stamp failure (halt, tighten lease) or a vigilant
-%   detection (log defeated, widen grant) -- never a silent third option.
+%   two illustrative outcomes: failure (halt, tighten lease) and detection
+%   (log defeated, widen grant). Other responses require separate rules.
 % Evidence: Protocol The Inception Canary protocol, prot:canary,
 %   whitepaper/legible-swarm.tex sec 4.5.4 (this pass).
 % Must distinguish: the two adjudication outcomes and their opposite
@@ -26,7 +26,7 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \node[pd state,text width=2.4cm] (S1) at (.90,4.20) {replay known\\defect};
   \node[pd state,text width=2.4cm] (S2) at (4.40,4.20) {surface in\\queue};
-  \node[pd focus state,text width=2.4cm] (S3) at (7.90,4.20) {operator\\zooms?};
+  \node[pd focus state,text width=2.4cm] (S3) at (7.90,4.20) {operator\\response};
   \node[pd breach state,minimum width=2.6cm] (FA) at (5.30,1.30) {rubber-stamp failure};
   \node[pd ready state,minimum width=2.6cm]  (FB) at (8.80,1.30) {vigilant detection};
   \draw[pd focus arrow] (S1) -- (S2);
@@ -40,8 +40,9 @@
   \node[pd focus label,anchor=north,text width=3.0cm,align=center] at (8.80,0.35)
     {log Canary Defeated;\\widen autonomy grant};
 \end{tikzpicture}
-\caption{A sandbox replay tests whether the operator catches a known defect.
-Missing it tightens the autonomy grant; rejecting it widens the grant.
-The probe cannot alter production. [internal]}
+\caption{Two proposed responses to a sandboxed defect replay. The replay
+cannot modify production; score-driven changes to future grants still require
+policy limits and evaluation. Other responses need separate scoring rules.
+[internal]}
 \label{fig:inception-canary}
 \end{figure}
