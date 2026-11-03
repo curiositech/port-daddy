@@ -124,7 +124,7 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
+      "edited_sha256": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d",
       "edited_source_lines": 3823
     }
   ],
@@ -504,22 +504,21 @@
     "scope": "Bounded reread of summaries dependent on the repaired identity, attestation, tower and checkpoint claims; not a fresh whole-chapter read."
   },
   "final_spread_followthrough": {
-    "candidate": "19",
-    "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-    "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
-    "manifest_sha256": "eb7c3746e5002d069e79bbaf81e7bcbed802ee96f514dbbdf090d8b7ade619f3",
-    "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-19.json",
-    "receipt_sha256": "97b833acce25994e54abbcd561d5da52a0184e111d75a95e42f8506bc3acb057",
-    "covered_unique_spreads": 58,
-    "fresh_views": 4,
-    "identical_reuses": 54,
-    "source_repairs_pending_render": false,
+    "candidate": "27",
+    "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+    "pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+    "manifest_sha256": "57982e0e6d0aad4038f4c7f6e35896a2666609e2bae1af9fab28af63d6da1df3",
+    "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-27.json",
+    "receipt_sha256": "709f129985864f39b9b19b82ee73a93c384d3609c4d6e2dbf452cd19323e2382",
+    "covered_unique_spreads": 61,
+    "fresh_views": 1,
+    "identical_reuses": 60,
+    "source_repairs_pending_render": true,
     "source_hashes": {
       "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
-      "website-v2/public/whitepaper/spawn-to-person.tex": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32"
+      "website-v2/public/whitepaper/spawn-to-person.tex": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028"
     },
-    "scope_status": "Accepted assigned sample; no remaining concrete owned-source defect. Full sequential source-read evidence remains distinct from selected rendered review.",
-    "independent_source_review": "Machine accepted complete bounded final mathematical corrections, including the full-Q0 union bound and endpoint domains."
+    "scope_status": "Candidate27 diagnostic: one punctuation gap on776; one-space source repair awaiting28."
   },
   "historical_spread_followthrough": [
     {
@@ -650,16 +649,34 @@
         "ex:stp-rotten-substrate"
       ],
       "retracted_visual_suspicion": "Solution4.49 uses Exercise4.8 correctly; AUX and PDF text confirm the colon was misread at spread scale. No reference repair performed."
+    },
+    {
+      "candidate": "19",
+      "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+      "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+      "manifest_sha256": "eb7c3746e5002d069e79bbaf81e7bcbed802ee96f514dbbdf090d8b7ade619f3",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-19.json",
+      "receipt_sha256": "97b833acce25994e54abbcd561d5da52a0184e111d75a95e42f8506bc3acb057",
+      "covered_unique_spreads": 58,
+      "fresh_views": 4,
+      "identical_reuses": 54,
+      "source_repairs_pending_render": false,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32"
+      },
+      "scope_status": "Accepted assigned sample; no remaining concrete owned-source defect. Full sequential source-read evidence remains distinct from selected rendered review.",
+      "independent_source_review": "Machine accepted complete bounded final mathematical corrections, including the full-Q0 union bound and endpoint domains."
     }
   ],
   "pending_render_checkpoint": {
-    "head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-    "status": "Complete: candidate19 assigned rendered sample accepted, no owned-source repairs pending."
+    "head": "pending28",
+    "status": "One-space provenance/punctuation correction requires fresh28 image inspection."
   },
   "provenance_only_reread_27": {
     "source": "website-v2/public/whitepaper/spawn-to-person.tex",
     "before_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
-    "after_sha256": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
+    "after_sha256": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d",
     "read_lines": [
       3072,
       3095
@@ -681,6 +698,6 @@
     },
     "state_scope": "Depth7, at most2migrations, delta3, window4, scorecap3; no general proof inferred from enumeration.",
     "source_math_changed": false,
-    "render_status": "Pending candidate27; candidate25/26 passing records retained with their original hashes."
+    "render_status": "Candidate27 diagnostic: actual punctuation gap confirmed; one-space source repair awaits28."
   }
 }
