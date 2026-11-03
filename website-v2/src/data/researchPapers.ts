@@ -89,7 +89,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
     pages: 16,
-    sizeKb: 438,
+    sizeKb: 440,
     claim:
       'A zero-miss digest has a combinatorial bit lower bound under a fixed inspection budget. Decision-specific rankings and adaptive group queries have separate, explicit assumptions.',
     pullQuote:
@@ -106,8 +106,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Regimented or Enforced',
     subtitle: 'The Controllability Boundary for Agent Governance',
     pdfPath: '/research/paper2.pdf',
-    pages: 14,
-    sizeKb: 363,
+    pages: 13,
+    sizeKb: 362,
     claim:
       'In the declared full-observation event model, controllability determines which safety policies a mediator can enforce before an effect.',
     pullQuote:
@@ -130,8 +130,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Reputation is Amortized Verification',
     subtitle: 'Inspection Games for Agent Economies',
     pdfPath: '/research/paper3.pdf',
-    pages: 12,
-    sizeKb: 345,
+    pages: 11,
+    sizeKb: 325,
     claim:
       'In the inspection game, deterrence requires audit probability times detection probability times penalty to cover the deviation gain. Hierarchy guarantees depend on bounded depth and the stated collusion model.',
     pullQuote:
@@ -178,8 +178,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Continuity Without Metaphysics',
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
-    pages: 15,
-    sizeKb: 335,
+    pages: 16,
+    sizeKb: 336,
     claim:
       'Ledger rules can conserve credit and inherited obligations across agent changes. Safe continuation of an unknown remote effect additionally requires an adapter-specific deduplication or fencing contract.',
     pullQuote:
