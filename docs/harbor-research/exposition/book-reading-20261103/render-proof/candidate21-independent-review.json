@@ -1,0 +1,72 @@
+{
+  "reviewed_at": "2026-11-03T18:18:42.798692+00:00",
+  "reviewer": "craft_operator_identity",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+  "sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+  "line_count": 2066,
+  "scope": "Independent review of final candidate21 FH equivocation-speed prompt/solution, status explanation and two result-type table labels",
+  "reviewed_ranges": [
+    {
+      "start": 1742,
+      "end": 1770,
+      "purpose": "Complete changed exercise and solution"
+    },
+    {
+      "start": 2052,
+      "end": 2052,
+      "purpose": "Complete changed status explanation"
+    },
+    {
+      "start": 473,
+      "end": 491,
+      "purpose": "Referenced theorem and operational window hypotheses"
+    },
+    {
+      "start": 1529,
+      "end": 1550,
+      "purpose": "Referenced diffusion/gossip open problem"
+    },
+    {
+      "start": 1087,
+      "end": 1093,
+      "purpose": "Exact escrow design-invariant declaration"
+    },
+    {
+      "start": 2037,
+      "end": 2052,
+      "purpose": "Final table row names and verification-status explanation"
+    }
+  ],
+  "verdict": "pass",
+  "findings": [],
+  "reasoning": [
+    "Proof and counterexample concern specified models and observables; deployment traces are explicitly unnecessary as a logical prerequisite.",
+    "Scheduler, loss/adversary model, state correspondence, compared quantity and alarm stopping rule are named. No rate transfer from a real linear diffusion state to signed append-only record propagation is asserted.",
+    "Deployment measurements retain no-delivery/no-alarm runs at the observation cutoff; an observed quantile is distinguished from a guaranteed bound, with estimation uncertainty and model applicability required.",
+    "Theta(log m) restatement preserves complete overlay, reliable synchronous rounds and independently uniform peer contacts from the local theorem. No finite partition deadline or deployment tail guarantee is inferred.",
+    "Status paragraph separates row-specific mathematical, artifact, empirical and runtime obligations. It no longer requires collaborators or traces to close every open mathematical question.",
+    "Both corrected table type labels exactly match their pdclaim declarations; neither changes mathematical scope."
+  ],
+  "limitations": [
+    "No new proof of the classical epidemic-dissemination theorem or new citation audit is claimed.",
+    "Visual acceptance awaits candidate21; this is exact-source independent review."
+  ],
+  "resolved_findings": [
+    {
+      "line": 2040,
+      "finding": "The table called a declared Theorem a Proposition.",
+      "resolution": "Theorem now matches thm:fh-conv."
+    },
+    {
+      "line": 2042,
+      "finding": "The table called a declared Design invariant a Proposition.",
+      "resolution": "Design invariant now matches thm:fh-escrow-bound."
+    }
+  ],
+  "prior_review": {
+    "path": "fh-equivocation-independent-review-initial.json",
+    "sha256": "d2605bb31a3cae53a509b4c265feb17a078df073086829fad94a453c80cb23f8"
+  }
+}

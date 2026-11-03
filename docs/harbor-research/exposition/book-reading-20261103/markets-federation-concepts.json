@@ -133,8 +133,8 @@
           1911
         ]
       ],
-      "after_sha256": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
-      "after_lines": 2043,
+      "after_sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+      "after_lines": 2066,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Range 1391-1700 was truncated once; the missing middle was reread in 1510-1605."
@@ -651,8 +651,8 @@
       "first_anchor": "sec:fh-lim-equiv",
       "concrete_example": "Three-node path eigenvalues0,1,3 but no cycle alarm",
       "later_anchor": "ex:fh-equivocation-speed",
-      "substantive_reuse": "Scheduler/noise model required before time-to-alarm theorem",
-      "action": "Useful contrast is revisited; no new convergence claim"
+      "substantive_reuse": "Specified processes/observables for proof or counterexample, separately from deployment traces and pricing",
+      "action": "Exercise separates mathematical correspondence from empirical model validation; expected gossip rounds do not supply a deployment tail or diffusion transfer."
     }
   ],
   "new_exercises": [
@@ -806,7 +806,7 @@
     },
     "admission_metrics_source_review": {
       "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "sha256": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
+      "sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
       "read_range": [
         1706,
         1740
@@ -836,6 +836,33 @@
         ]
       },
       "new_empirical_or_theorem_claim": false
+    },
+    "candidate20_visual_findings": {
+      "source_commit": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+      "pdf_sha256": "5408ad52d2f0bf02d226ef64bb8e4ca6e92233b477d505de5fac44944d8f9811",
+      "selected_spreads": 50,
+      "direct_views": 4,
+      "exact_prior_reuses": 46,
+      "acceptance": "Diagnostic: root identified adjacent theory-versus-deployment-data errors in Exercise8.11 and the verification-table explanation. Both bounded source repairs await candidate21.",
+      "rendered_suite": {
+        "run": 122,
+        "passed": 115,
+        "skipped": 7
+      },
+      "source_repair": {
+        "label": "ex:fh-equivocation-speed",
+        "source_sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+        "line_range": [
+          1742,
+          1770
+        ],
+        "scope": "Exercise8.11 prompt/solution, verification-table explanation, and two table reference-type prefixes. No theorem or empirical claim changed.",
+        "status_explanation_line": 2052,
+        "table_reference_types": {
+          "thm:fh-conv": "Theorem",
+          "thm:fh-escrow-bound": "Design invariant"
+        }
+      }
     }
   },
   "figure_followthrough": {

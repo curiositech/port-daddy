@@ -1,0 +1,12 @@
+/Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/check_maritime_gold_ink.py:2: SyntaxWarning: invalid escape sequence '\c'
+  """check_maritime_gold_ink.py -- the --print-maritime-gold ink stays what
+/Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/build_cite_shortforms.py:299: SyntaxWarning: invalid escape sequence '\`'
+  """Title extraction for the two \\newblock-free bibliography styles:
+.....ss..s....................sssssssssss........................ss......................sss..ssssss................ssss..............ssssssss...............ssssssssss........s..............................................................................................................................................................................................................................................................................s..s.....ssssss...........s...ss..s..s..sssss......s..............s....ss...............s..........................................................s.....s.........................................................................................................................
+Fresh reproduction (NOT run-02): /Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/receipt-gap-tests/reproduction-k8pggaez/matrix/experiment-results.json
+Fresh result SHA256: 2430a31e28edc354726b355b9bc0eda42bae74cebcd1f3c483f31680f43a07c9
+...................s...s.................................................................ss....sssss........sss...sssssss..........sss..ssss...........ss...sss....sssssssss....s..s.......sss.sss........................
+----------------------------------------------------------------------
+Ran 939 tests in 28.303s
+
+OK (skipped=121)

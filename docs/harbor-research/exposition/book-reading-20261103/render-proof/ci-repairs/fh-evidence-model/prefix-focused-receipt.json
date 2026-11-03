@@ -1,0 +1,128 @@
+{
+  "head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+  "created_at": "2026-11-03T18:19:15.813330+00:00",
+  "scope": "Focused follow-up after exactly two claim-kind prefixes changed following the complete 939-test run. Exact reverse substitutions reproduce the tested FH source hash; formal declaration names verified. No mathematical or empirical claim changed. Rendered table fit remains for candidate21.",
+  "source_fh_sha256": "401a8d9df93c415347c66181ca9369f0b4c066cb5f17899b23bf6298879855ab",
+  "preceding_source_fh_sha256": "1b66a80a2abbb9b3d1b73fa41ae196035be56162dac29fd1d925a0c58a70665e",
+  "preceding_full_suite_receipt": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/library-full-receipt.json",
+  "tracked_input_count": 603,
+  "delta_from_complete_suite": [
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex"
+  ],
+  "regenerated_desk_outputs": [],
+  "checks": [
+    {
+      "name": "focused",
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/harbor-research",
+        "-p",
+        "test_book*.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.565,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-focused.log",
+      "log_sha256": "781145851d7ff4d606bbaf4ddfe9ac83340ca354d53d7b058c4988e8ce3d0d10",
+      "summary": [
+        "................sssssssssss........................ss......................sss..ssssss................ssss..............ssssssss...............ssssssssss........s..",
+        "----------------------------------------------------------------------",
+        "Ran 164 tests in 0.433s",
+        "",
+        "OK (skipped=45)"
+      ]
+    },
+    {
+      "name": "figure-desk",
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/harbor-research",
+        "-p",
+        "test_build_figure_desk.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 7.59,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-figure-desk.log",
+      "log_sha256": "77d89a944e81211d851e1caa6715485e3385092fc0cdd12fa03c717bdf042c7d",
+      "summary": [
+        ".....................................................",
+        "----------------------------------------------------------------------",
+        "Ran 53 tests in 7.539s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "name": "duplicate-theorems",
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/harbor-research",
+        "-p",
+        "test_check_duplicate_theorems.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.188,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-duplicate-theorems.log",
+      "log_sha256": "244e24f6541366f6588d2d6e31032ce0d46cfffc139d504ee4adc427bb4e6966",
+      "summary": [
+        "................",
+        "----------------------------------------------------------------------",
+        "Ran 16 tests in 0.143s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "name": "citations",
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/check_citations.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.413,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-citations.log",
+      "log_sha256": "61354311ddda8396eeed87cddb7afafa5e77b5a7250fe9a2f8bc8da79749c419",
+      "summary": [
+        "  (none \u2014 every fuzzy-matched, actually-cited \\bibitem resolves to `verified`)",
+        "",
+        "==============================================================================",
+        "SUMMARY: 0 orphaned bibitem(s), 0 dangling cite(s), 0 duplicate bibitem(s), 0 advisory confidence mismatch(es)",
+        "=============================================================================="
+      ]
+    },
+    {
+      "name": "library-index",
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/check_library_index.py",
+        "--check-md"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.826,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-library-index.log",
+      "log_sha256": "55f8f95324facbf4195b97268894284eb22b33158eec0a4b35665b0679f3ced7",
+      "summary": [
+        "CHECK (f) LIBRARY-INDEX.md freshness: 0 failure(s)",
+        "==============================================================================",
+        "==============================================================================",
+        "SUMMARY: 0 total failure(s) across 5 checks + (f) markdown freshness",
+        "=============================================================================="
+      ]
+    }
+  ],
+  "input_drift_during_checks": [],
+  "pass": true,
+  "input_manifest": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/prefix-focused-inputs.json",
+  "input_manifest_sha256": "9eb574dff53cda9e1020ef14c4befe021df0c6b11dce71ab9529e2b777d15947"
+}

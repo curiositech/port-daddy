@@ -1,0 +1,134 @@
+{
+  "scope": "Historical hosted Source Sans open-proof comparison; not current-head acceptance or Suisse layout proof",
+  "base": {
+    "head": "0bd6a38fa3b6020c16ed060a256e45ce4f169561",
+    "run_id": 41652122007,
+    "job_id": 125977423400,
+    "url": "https://github.com/curiositech/port-daddy/actions/runs/41652122007/job/125977423400",
+    "pages": 790,
+    "caption_count": 263,
+    "caption_failures": 29,
+    "off_page_ink_loss_rows": 3,
+    "final_log_overfull_entries": 25,
+    "caption_inventory_artifact_id": 13237708370,
+    "caption_inventory_zip_sha256": "553bf0b0f08aa5bf4dcd66339f621bd8c3b36a436b8132899dc0c10f2a81fa40",
+    "excerpts": [
+      "2026-11-03T14:25:47.0243257Z 263 Book captions checked; 29 placement failures",
+      "2026-11-03T14:25:47.0243622Z p9 figure 1: exhibit exceeds body column; recompose without shrinking labels",
+      "2026-11-03T14:25:47.0244050Z p35 figure 0.1: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0244457Z p36 figure 0.2: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0244887Z p37 figure 0.3: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0245300Z p39 figure 0.4: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0245704Z p40 figure 0.5: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0246102Z p41 figure 0.6: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0246520Z p43 figure 0.7: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0246954Z p44 figure 0.8: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0247364Z p49 figure 0.9: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0247802Z p53 figure 0.10: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0248240Z p56 figure 0.11: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0248851Z p59 figure 0.12: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0249314Z p62 figure 0.13: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0249756Z p66 figure 0.14: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0250195Z p78 figure 0.15: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0250620Z p80 figure 0.16: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0251064Z p85 figure 0.17: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0251490Z p86 figure 0.18: missing figure-owner geometry; not wholly in the outer margin",
+      "2026-11-03T14:25:47.0251857Z p143 figure 1.20: missing figure-owner geometry",
+      "2026-11-03T14:25:47.0252199Z p151 figure 1.22: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0252571Z p244 table 3.1: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0252938Z p313 figure 4.5: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0253792Z p352 figure 4.15: exhibit exceeds body column; recompose without shrinking labels",
+      "2026-11-03T14:25:47.0254034Z p364 figure 4.16: not wholly in the outer margin",
+      "2026-11-03T14:25:47.0254253Z p365 table 4.12: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0254465Z p410 figure 5.4: missing figure-owner geometry",
+      "2026-11-03T14:25:47.0254676Z p577 table 7.4: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0254910Z p655 figure 8.7: caption top more than two lines from exhibit top",
+      "2026-11-03T14:25:47.0256599Z 790 pages; 1449/1449 margin objects; 0 margin issues; 83 pages in whitespace review",
+      "2026-11-03T14:25:47.0258250Z -- 3 page/kind rows with loss (ink past the paper edge or past the full width)",
+      "2026-11-03T14:25:50.0140919Z run_pdf_checks: FAIL (2 check/PDF combination(s) failed)"
+    ]
+  },
+  "initial_pr": {
+    "head": "0d1469d11dc0862033e388ff5864e30beb006399",
+    "run_id": 41686173894,
+    "build_job_id": 126092394175,
+    "page_check_job_id": 126104051402,
+    "url": "https://github.com/curiositech/port-daddy/actions/runs/41686173894/job/126104051402",
+    "pages": 788,
+    "caption_count": 263,
+    "caption_failures": 4,
+    "off_page_ink_loss_rows": 0,
+    "final_log_overfull_entries": 2,
+    "exercise_navigation": {
+      "labels": 212,
+      "headings": 212,
+      "issues": 0
+    },
+    "workflow_conclusion": "success despite advisory run_pdf_checks exit1",
+    "caption_inventory_artifact_id": 13257391384,
+    "caption_inventory_zip_sha256": "e1df6aacb67fbe3a40fe86be0fccff66dd2d9ddb022e22a8bdd1128aed1e39b8",
+    "excerpts": [
+      "2026-11-03T18:04:34.2878845Z 263 Book captions checked; 4 placement failures",
+      "2026-11-03T18:04:34.2879514Z p132 figure 1.16: caption top more than two lines from exhibit top",
+      "2026-11-03T18:04:34.2880180Z p234 table 3.1: caption top more than two lines from exhibit top",
+      "2026-11-03T18:04:34.2880747Z p245 table 3.3: caption detached from exhibit (no vertical overlap); caption top more than two lines from exhibit top",
+      "2026-11-03T18:04:34.2881737Z p417 table 5.6: caption detached from exhibit (no vertical overlap); caption top more than two lines from exhibit top",
+      "2026-11-03T18:04:34.2884988Z Exercise navigation: 212 labels, 212 rendered headings, 0 issues",
+      "2026-11-03T18:04:34.2888224Z 788 pages; 1465/1465 margin objects; 0 margin issues; 75 pages in whitespace review",
+      "2026-11-03T18:04:34.2891362Z -- 0 page/kind rows with loss (ink past the paper edge or past the full width)",
+      "2026-11-03T18:04:39.0365625Z run_pdf_checks: FAIL (1 check/PDF combination(s) failed)"
+    ]
+  },
+  "identity_comparison": [
+    {
+      "label": "swk:fig:swk-commitment-oracle",
+      "number": "Figure1.16",
+      "initial_physical_page": 132,
+      "base_failure": false,
+      "initial_failure": "caption top more than two lines from exhibit top"
+    },
+    {
+      "label": "sealed:tab:sealed-ryoan",
+      "number": "Table3.1",
+      "base_physical_page": 244,
+      "initial_physical_page": 234,
+      "base_failure": true,
+      "initial_failure": "caption top more than two lines from exhibit top"
+    },
+    {
+      "label": "sealed:tab:sealed-side-invariants",
+      "number": "Table3.3",
+      "initial_physical_page": 245,
+      "base_failure": false,
+      "initial_failure": "caption detached, no vertical overlap; caption top more than two lines from exhibit top"
+    },
+    {
+      "label": "stp:tab:whitewash-numbers",
+      "number": "Table5.6",
+      "initial_physical_page": 417,
+      "base_failure": false,
+      "initial_failure": "caption detached, no vertical overlap; caption top more than two lines from exhibit top"
+    }
+  ],
+  "overfull_comparison": [
+    {
+      "width_pt": 0.18124,
+      "status": "inherited",
+      "text": "sessions die, containers are reaped, providers churn. Model the corner"
+    },
+    {
+      "width_pt": 2.30772,
+      "status": "new in initial PR open-proof",
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "label": "app:fh-tla",
+      "current_source_line": 2039,
+      "text": "The executable artifact is \\path{proofs/bonded/conservation/Conservation.tla}, with \\texttt{Conservation.cfg}...",
+      "corpus_policy_shortening_affects_this": false
+    }
+  ],
+  "next_action": "Inspect corresponding current-head hosted advisory after combined repair push. Do not alter accepted Suisse layout from this stale artifact or treat baseline improvement as a waiver.",
+  "limits": [
+    "The base workflow used its then-current registered checker; the branch additionally registers exercise navigation. Caption identities were matched through downloaded exact aux inventories.",
+    "No current-head or production publication claim."
+  ]
+}

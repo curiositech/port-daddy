@@ -444,7 +444,7 @@
     "initial_failure_retained": true,
     "no_manuscript_change": true
   },
-  "updated_at": "2026-11-03T17:27:27.056133+00:00",
+  "updated_at": "2026-11-03T18:04:58.408117+00:00",
   "final_source_runs": [
     {
       "source_head": "ee20d6d34d6ddebc4526e618c6e8cfe04cee68ba",
@@ -3742,15 +3742,235 @@
         }
       ],
       "pass": true
+    },
+    {
+      "source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+      "head_after": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+      "created_at": "2026-11-03T18:04:58.408117+00:00",
+      "scope": "Final admission-observability solution, bounded CI repairs, and committed recipe; six source gates at the candidate20 source checkpoint",
+      "input_files": 597,
+      "input_manifest_sha256": "a82ddf3e1f2fce76a4e0c6d2bdf3fe43b7beeae0c837d445b7b42bcc4e53e666",
+      "local_input_manifest": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/input-manifest.json",
+      "inputs_changed_since_previous_run": [
+        {
+          "path": "tests/harbor-research/fixtures/protocol-style-book.tex",
+          "before_sha256": "b17cc5304e720d6037795ec0c71cc75d34dbcb8908d9303e5f2b4091655c94a6",
+          "after_sha256": "524579184b8a7e9a6f5808599c9ae23b8d5c483325bf61c52373b94339cc2b7e"
+        },
+        {
+          "path": "tests/harbor-research/fixtures/protocol-style-fixture.tex",
+          "before_sha256": "619d77213e578a6dd40220d873e079d5430785c77a171070c697d68aa61d4188",
+          "after_sha256": "3575f918dc070ec441478c101652199692d7799bfa3199938b98e91a115a5afc"
+        },
+        {
+          "path": "tests/harbor-research/fixtures/sealed-readability-20260920.json",
+          "before_sha256": "8666456f50f369fe77fb98dd31194d07365cd6e2bea63baac7982e2e5f45d385",
+          "after_sha256": "83bf1621d3f91418900f97bf6dd1635766ad3094766ab8fb2734ef594c7fdc23"
+        },
+        {
+          "path": "tests/harbor-research/test_assurance_figure.py",
+          "before_sha256": "4afa98ab7f1e79a47f95d6789f2c991196d49b587b33032b35e80fed48a4e89a",
+          "after_sha256": "971f8545eba48bdf87ca656b64f0b1bbb955effdd345b9fe4c4a343e810eecf2"
+        },
+        {
+          "path": "tests/harbor-research/test_check_delegation_chain_vocabulary.py",
+          "before_sha256": "cd25f529adadc65cd261a2063a72066bf8d1e591f2aca18fa4f925727afed56b",
+          "after_sha256": "a067e40a2aa30424d6e5170f70ce6298cdb24986a9243f8ba87287966ee2cf42"
+        },
+        {
+          "path": "tests/harbor-research/test_definition_margin_note.py",
+          "before_sha256": "581225e41ef4e4c4a430f8b31d515a54497313a62ddcfdf9d7155210954c39d9",
+          "after_sha256": "577110b1994c67996b82ebb31fd027638bf75c4f789ca8cbb65869e745a9d4f9"
+        },
+        {
+          "path": "tests/harbor-research/test_delegation_containment_figure.py",
+          "before_sha256": "a99bcf9959bfc71d3061199118b8d392b105730743b1d0548efb94f79b4fc4ca",
+          "after_sha256": "5f3004be96132fed084614e1ada7c2d0f83f0392e7836a942eff143c3474e26a"
+        },
+        {
+          "path": "tests/harbor-research/test_protocol_style.py",
+          "before_sha256": "646fe37123ca76bb22bf35cb60b2a6e6ee5d0188e7974520a297d3464d9eb331",
+          "after_sha256": "5f26733a98dcdec5cde386f2dcba499c4f068874fe9294d389ff9841f632c6f8"
+        },
+        {
+          "path": "tests/harbor-research/test_sealed_remaining_examples.py",
+          "before_sha256": "bf55895d8a65166b805a1f32dc2fbf2bc3772367d9616f03cfa153b79d59e88a",
+          "after_sha256": "636540826176f62846fd2fa608682eec5c13774d1b5e1d9331d93fea9d27d673"
+        },
+        {
+          "path": "tests/harbor-research/test_sealed_residuals_figure.py",
+          "before_sha256": "864c2978302958b6a3c059d592fa014151431ed72e419fef54c9c62db615d829",
+          "after_sha256": "9b3e080373e6591d58518d8f95e67611b0abbd8f3b173c75e458b0e0e6b9bef5"
+        },
+        {
+          "path": "tests/harbor-research/test_semantic_block_styles.py",
+          "before_sha256": "f854ff513650c393778c7a9437e2050e804e052fff23bcaf9c7c86c18d531be1",
+          "after_sha256": "5cc7ef6b9e2e6874160eba8ba3d209f643c853717f104bc9adf8f930f705dd5d"
+        },
+        {
+          "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+          "before_sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
+          "after_sha256": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b"
+        },
+        {
+          "path": "whitepaper/corpus.json",
+          "before_sha256": "1b6dbb3bf35ca01962e8da73145a852869edf774a29f1587210c7840d1403e7a",
+          "after_sha256": "9b55d10b61b1b593bc34d332e0ae8ec102f7e2f92a6dda00d1c28a4ee6de2e5d"
+        }
+      ],
+      "inputs_changed_during_checks": [],
+      "results": [
+        {
+          "name": "generator",
+          "argv": [
+            "node",
+            "--test",
+            "scripts/generate-mega-whitepaper.test.mjs",
+            "scripts/generate-mega-mechanized.test.mjs"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.242,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/generator.log",
+          "stdout_sha256": "f4c58064d4b0d8500519319ebfd622a77f439651aeecd840361415714267114f",
+          "collected": 73,
+          "passed": 73,
+          "skipped": 0
+        },
+        {
+          "name": "book-source",
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harbor-research",
+            "-p",
+            "test_book*.py",
+            "-v"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.645,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/book-source.log",
+          "stdout_sha256": "a460992a91975f741cd79418b4617198e03b453e4e401b5d9ba11ca573352448",
+          "collected": 164,
+          "skipped": 45,
+          "passed": 119,
+          "named_skips": [
+            "test_caption_edge_cases (test_book_caption_margins.RenderedCaptionFixture.test_caption_edge_cases) ... skipped 'Set BOOK_CAPTION_FIXTURE for rendered edge-case regression tests'",
+            "test_heading_is_not_stranded_by_example_reservation (test_book_caption_margins.RenderedCaptionFixture.test_heading_is_not_stranded_by_example_reservation) ... skipped 'Set BOOK_CAPTION_FIXTURE for rendered edge-case regression tests'",
+            "test_short_table_reservations_use_persisted_actual_heights (test_book_caption_margins.RenderedCaptionFixture.test_short_table_reservations_use_persisted_actual_heights) ... skipped 'Set BOOK_CAPTION_FIXTURE for rendered edge-case regression tests'",
+            "test_short_tables_stay_on_the_source_page (test_book_caption_margins.RenderedCaptionFixture.test_short_tables_stay_on_the_source_page) ... skipped 'Set BOOK_CAPTION_FIXTURE for rendered edge-case regression tests'",
+            "test_worked_example_can_split_without_overflow_retries (test_book_caption_margins.RenderedCaptionFixture.test_worked_example_can_split_without_overflow_retries) ... skipped 'Set BOOK_CAPTION_FIXTURE for rendered edge-case regression tests'",
+            "test_every_caption_is_in_the_correct_margin (test_book_caption_margins.RenderedCaptionMargins.test_every_caption_is_in_the_correct_margin) ... skipped 'Set BOOK_CAPTION_PDF for exhaustive rendered caption checks'",
+            "test_all_page_numbers_match_the_destination_page_labels (test_book_contents_pdf.AssembledBookContentsTests.test_all_page_numbers_match_the_destination_page_labels) ... skipped 'Set BOOK_CONTENTS_PDF to a Tectonic assembled Book; PyMuPDF required'",
+            "test_complete_backmatter_and_existing_part_art_are_present (test_book_contents_pdf.AssembledBookContentsTests.test_complete_backmatter_and_existing_part_art_are_present) ... skipped 'Set BOOK_CONTENTS_PDF to a Tectonic assembled Book; PyMuPDF required'",
+            "test_contents_and_reader_spread_ink_stays_inside_trim (test_book_contents_pdf.AssembledBookContentsTests.test_contents_and_reader_spread_ink_stays_inside_trim) ... skipped 'Set BOOK_CONTENTS_PDF to a Tectonic assembled Book; PyMuPDF required'",
+            "test_every_live_entry_has_both_title_and_page_links (test_book_contents_pdf.AssembledBookContentsTests.test_every_live_entry_has_both_title_and_page_links) ... skipped 'Set BOOK_CONTENTS_PDF to a Tectonic assembled Book; PyMuPDF required'",
+            "test_reader_prose_belongs_below_its_even_left_and_odd_right_map (test_book_contents_pdf.AssembledBookContentsTests.test_reader_prose_belongs_below_its_even_left_and_odd_right_map) ... skipped 'Set BOOK_CONTENTS_PDF to a Tectonic assembled Book; PyMuPDF required'",
+            "test_every_exercise_heading_has_one_label (test_book_exercise_navigation.RenderedExerciseNavigationTests.test_every_exercise_heading_has_one_label) ... skipped 'Set BOOK_EXERCISE_PDF to a converged Book with sibling AUX'",
+            "test_every_exercise_label_and_destination_follow_its_heading (test_book_exercise_navigation.RenderedExerciseNavigationTests.test_every_exercise_label_and_destination_follow_its_heading) ... skipped 'Set BOOK_EXERCISE_PDF to a converged Book with sibling AUX'",
+            "test_boundary_introductions_do_not_get_nearly_empty_pages (test_book_layout.RenderedBoundaryLayoutTests.test_boundary_introductions_do_not_get_nearly_empty_pages) ... skipped 'Set BOOK_LAYOUT_PDF to the assembled Book'",
+            "test_final_credits_keep_their_own_running_header (test_book_layout.RenderedBoundaryLayoutTests.test_final_credits_keep_their_own_running_header) ... skipped 'Set BOOK_LAYOUT_PDF to the assembled Book'",
+            "test_each_native_image_is_beside_its_owner (test_book_margin_object_batch.IntegratedObjects.test_each_native_image_is_beside_its_owner) ... skipped 'exact integrated PDF not supplied'",
+            "test_expiry_has_three_visible_category_colours_and_shapes (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_expiry_has_three_visible_category_colours_and_shapes) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_expiry_is_beside_the_admission_paragraph (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_expiry_is_beside_the_admission_paragraph) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_four_sampling_guides_and_unknown_commit_span (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_four_sampling_guides_and_unknown_commit_span) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_headings_are_not_repeated_above_captions (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_headings_are_not_repeated_above_captions) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_heavy_tail_axes_are_named_in_the_render (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_heavy_tail_axes_are_named_in_the_render) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_split_has_two_intermediate_and_two_discounted_values (test_book_margin_revision_pdf.RenderedMarginRevisionTests.test_split_has_two_intermediate_and_two_discounted_values) ... skipped 'Set BOOK_MARGIN_REVISION_PDF to a compiled Book or fixture'",
+            "test_all_nine_protocols_keep_identity_and_approved_teal_frame (test_book_protocol_style.ProtocolActualBook.test_all_nine_protocols_keep_identity_and_approved_teal_frame) ... skipped 'actual Book proof not supplied'",
+            "test_downstream_judge_remedy_heading_is_not_split_across_pages (test_book_protocol_style.ProtocolActualBook.test_downstream_judge_remedy_heading_is_not_split_across_pages) ... skipped 'actual Book proof not supplied'",
+            "test_gossip_postcondition_does_not_become_a_two_line_page_tail (test_book_protocol_style.ProtocolActualBook.test_gossip_postcondition_does_not_become_a_two_line_page_tail) ... skipped 'actual Book proof not supplied'",
+            "test_long_protocol_title_does_not_stretch_interword_spaces (test_book_protocol_style.ProtocolActualBook.test_long_protocol_title_does_not_stretch_interword_spaces) ... skipped 'actual Book proof not supplied'",
+            "test_each_protected_kind_rejects_number_change (test_book_reference_numbering.NumberingTests.test_each_protected_kind_rejects_number_change) ... skipped 'dated migration report not supplied'",
+            "test_exact_allowances_pass (test_book_reference_numbering.NumberingTests.test_exact_allowances_pass) ... skipped 'dated migration report not supplied'",
+            "test_insertion_and_removal_required (test_book_reference_numbering.NumberingTests.test_insertion_and_removal_required) ... skipped 'dated migration report not supplied'",
+            "test_migration_is_exact_not_a_type_wildcard (test_book_reference_numbering.NumberingTests.test_migration_is_exact_not_a_type_wildcard) ... skipped 'dated migration report not supplied'",
+            "test_missing_unapproved_new_and_duplicate_rejected (test_book_reference_numbering.NumberingTests.test_missing_unapproved_new_and_duplicate_rejected) ... skipped 'dated migration report not supplied'",
+            "test_page_and_title_changes_do_not_affect_numbering (test_book_reference_numbering.NumberingTests.test_page_and_title_changes_do_not_affect_numbering) ... skipped 'dated migration report not supplied'",
+            "test_wrong_baseline_hash_rejected (test_book_reference_numbering.NumberingTests.test_wrong_baseline_hash_rejected) ... skipped 'dated migration report not supplied'",
+            "test_registered_plates_survive_as_facing_spreads (test_book_reflection_plates.ReflectionRenderTests.test_registered_plates_survive_as_facing_spreads) ... skipped 'Set BOOK_REFLECTION_PDF'",
+            "test_actual_prose_uses_selected_sans_not_legacy_pagella (test_book_typography.RenderedBookTypographyTests.test_actual_prose_uses_selected_sans_not_legacy_pagella) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_backmatter_replaces_chapter_headers_on_both_sides (test_book_typography.RenderedBookTypographyTests.test_backmatter_replaces_chapter_headers_on_both_sides) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_every_chapter_keeps_its_epigraph_on_the_opener (test_book_typography.RenderedBookTypographyTests.test_every_chapter_keeps_its_epigraph_on_the_opener) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_evidence_records_preserve_every_manifest_identifier (test_book_typography.RenderedBookTypographyTests.test_evidence_records_preserve_every_manifest_identifier) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_expected_font_profile_is_actually_embedded (test_book_typography.RenderedBookTypographyTests.test_expected_font_profile_is_actually_embedded) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_federated_conclusion_keeps_its_limitations_together (test_book_typography.RenderedBookTypographyTests.test_federated_conclusion_keeps_its_limitations_together) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_four_part_opening_spreads_are_retained (test_book_typography.RenderedBookTypographyTests.test_four_part_opening_spreads_are_retained) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_navigation_paragraph_stays_in_reader_guidance (test_book_typography.RenderedBookTypographyTests.test_navigation_paragraph_stays_in_reader_guidance) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_publication_has_no_editorial_copy_review_pages (test_book_typography.RenderedBookTypographyTests.test_publication_has_no_editorial_copy_review_pages) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_retired_serif_is_not_loaded_anywhere_in_swiss (test_book_typography.RenderedBookTypographyTests.test_retired_serif_is_not_loaded_anywhere_in_swiss) ... skipped 'Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks'",
+            "test_six_actual_headings_are_bold_and_correctly_numbered (test_book_worked_examples.WorkedExampleChecks.test_six_actual_headings_are_bold_and_correctly_numbered) ... skipped 'assembled Book PDF not supplied'"
+          ]
+        },
+        {
+          "name": "math-boundaries",
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harbor-research",
+            "-p",
+            "test_review_math_boundaries.py",
+            "-v"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.157,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/math-boundaries.log",
+          "stdout_sha256": "e07077fa35e4aa8cdb9b2607511455da0a536abf9451f22e7025d6d89e362daa",
+          "collected": 26,
+          "skipped": 0,
+          "passed": 26,
+          "named_skips": []
+        },
+        {
+          "name": "citations",
+          "argv": [
+            "python3",
+            "scripts/harbor-research/check_citations.py"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.415,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/citations.log",
+          "stdout_sha256": "61354311ddda8396eeed87cddb7afafa5e77b5a7250fe9a2f8bc8da79749c419"
+        },
+        {
+          "name": "library-index",
+          "argv": [
+            "python3",
+            "scripts/harbor-research/check_library_index.py",
+            "--check-md"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.832,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/library-index.log",
+          "stdout_sha256": "55f8f95324facbf4195b97268894284eb22b33158eec0a4b35665b0679f3ced7"
+        },
+        {
+          "name": "propagated-corrections",
+          "argv": [
+            "python3",
+            "scripts/harbor-research/check_propagated_corrections.py"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.158,
+          "local_log": ".scratch/textbook-craft-20261103/source-checks-786ff7802a/propagated-corrections.log",
+          "stdout_sha256": "72234ceebfb1b760cbdd5c0584e8226bcc387df1789c1e79859adf1f65122d3b"
+        }
+      ],
+      "pass": true
     }
   ],
   "current_source_check": {
-    "head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-    "run_index": 10,
+    "head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+    "run_index": 11,
     "run_index_convention": "zero-based index into final_source_runs",
     "lastpass": true,
-    "scope": "Fresh source suites after exactly two editorial lines: FH five-lineage count and STP exercise provenance premise. No mathematical model or theorem change. Rendered acceptance is separate; overlapping suite totals are not summed.",
-    "input_manifest_sha256": "4926c241db3a15c79e2d4db19d6a942382de978e9a191cb7cc44af0c48ba3134",
+    "scope": "Final admission-observability solution, bounded CI repairs, and committed recipe; six source gates at the candidate20 source checkpoint",
+    "input_manifest_sha256": "a82ddf3e1f2fce76a4e0c6d2bdf3fe43b7beeae0c837d445b7b42bcc4e53e666",
     "summary": [
       {
         "name": "generator",
@@ -3789,27 +4009,27 @@
     "historical_state": "Historical runs and initial failures are retained unchanged; this pointer identifies the current source verdict."
   },
   "final_build_provenance": {
-    "candidate": "19",
-    "created_at": "2026-11-03T17:32:36.919164+00:00",
-    "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+    "candidate": "20",
+    "created_at": "2026-11-03T18:11:05.814625+00:00",
+    "source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
     "source_pdf": {
       "name": "coordination-papers-mega-volume.pdf",
-      "sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+      "sha256": "5408ad52d2f0bf02d226ef64bb8e4ca6e92233b477d505de5fac44944d8f9811",
       "pages": 844
     },
     "facing_pdf": {
-      "name": "book-facing-spreads-20261103-56ec6015.pdf",
-      "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-56ec6015.pdf",
+      "name": "book-facing-spreads-20261103-3ad3b5ce.pdf",
+      "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-3ad3b5ce.pdf",
       "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
-      "sha256": "56ec601511e045b0df6b318612d57258a3e0c9730bb0813d5d919b90d7047b16",
+      "sha256": "3ad3b5cee802def17dd6cb3d410715a6d023abd95a7c1bee875c76c9be1be0de",
       "pages": 423,
-      "bytes": 18580705
+      "bytes": 18581370
     },
     "verification": {
       "status": "pass",
       "halves_checked": 846,
       "character_stream_exact_equal_for_every_half": true,
-      "characters_checked": 1341604,
+      "characters_checked": 1342128,
       "every_character_position_checked": true,
       "maximum_coordinate_error_pt": 9.1552734375e-05,
       "coordinate_tolerance_pt": 0.025,
@@ -3830,30 +4050,30 @@
     },
     "representative_visual_review": {
       "status": "pass",
-      "scope": "Two actual candidate19 facing spreads individually opened and inspected: exercise0.2 folio63 points to solution714, whose margin points back to63. Both PNGs also byte-match the independently viewed candidate18 navigation images. This spot view is separate from exhaustive destination checks.",
+      "scope": "Two actual candidate20 facing spreads individually opened and inspected: exercise0.2 folio63 points to solution714, whose margin points back to63. Both PNGs also byte-match the independently viewed candidate19 navigation images. This spot view is separate from exhaustive destination checks.",
       "images": [
         {
-          "relative_local_path": ".scratch/textbook-craft-20261103/candidate19-facing-exercise.png",
+          "relative_local_path": ".scratch/textbook-craft-20261103/candidate20-facing-exercise.png",
           "sha256": "651bd8ef038bfc3bb0df716900fb6d85155f2b827b5a4b712092db8ca66e6637",
           "spread_index": 43,
           "folio": "63"
         },
         {
-          "relative_local_path": ".scratch/textbook-craft-20261103/candidate19-facing-solution.png",
+          "relative_local_path": ".scratch/textbook-craft-20261103/candidate20-facing-solution.png",
           "sha256": "dc59a6cb6e90eb8d69e2167d387b39e2e86b6824ae9f361ffe7e74ba4b97304a",
           "spread_index": 369,
           "folio": "714"
         }
       ]
     },
-    "full_facing_receipt_sha256": "2b5fc640915064260a54799b3890191d91a738d03a4be63ac4104f337dbb55c7",
+    "full_facing_receipt_sha256": "23e45a6a7aff1dddb44d83ff98764c927d29111fb4cc531ace2f100c42696655",
     "full_facing_receipt_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.receipt.json",
     "builder_sha256": "f9e04b3f7135116ff0b6496085dceccbede2f47aca95dafc13d1a7ba1d9ff855",
     "publication_status": {
-      "candidate": "19",
-      "status": "Independent conversion, navigation and all-font body-page-turn checks pass; parent global rendered/editorial acceptance pending.",
+      "candidate": "20",
+      "status": "Independent conversion, navigation and all-font body-page-turn checks pass; parent final editorial acceptance pending.",
       "compound_receipt": "compound-page-turns.json",
-      "compound_receipt_sha256": "da163bba8cd8e1738ac94ab379c678709d8a2a2f753c099122621f61205c7a96",
+      "compound_receipt_sha256": "4e53cefea11c8f81f5660de836a68c26837782fa22364a1923b35f099bf69ab8",
       "all_font_body_page_turn_candidates": 0
     },
     "regular_copy_receipt": "regular-copy.json",
