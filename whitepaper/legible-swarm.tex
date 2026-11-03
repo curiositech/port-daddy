@@ -1866,6 +1866,7 @@ unqualified verdict. This motivates the zoom requirement
   \centering
   \pdswisslandmarkplate{08}{\linewidth}
 \end{figure}
+\pdmarginpagebreak
 \fi
 
 \subsection{Value at different swarm sizes}\label{sec:value-curve}
@@ -2770,14 +2771,16 @@ empty-with-explanation, not a confident wrong answer --- ``I don't know'' must b
 guess, because sending an agent to the wrong door is high-cost and silent. This is the
 exact dual of the completion gate's fail-loud (Invariant~\ref{def:completionist}): both are
 the same refuse-to-guess discipline, one on the read side, one on the authority side.
-\textbf{The costly escalation:} the attention queue is the system's \emph{most
-spoofable} surface --- agents that learn the stakes-ranking will manufacture distress
-to win the operator's attention. Goodhart's law applies more sharply here than to the
-discovery ranker (\textbf{Strathern 1997}~\pdcite{strathern1997}). The fix is signaling
-theory: an escalation the operator dismisses \emph{debits the agent's standing}, so
-crying wolf is costly --- the pre-trusted-set idea of \textbf{EigenTrust}
-(\textbf{Kamvar et al.\ 2003}~\pdcite{kamvar2003}) applied to the distress lane. This
-arms the abdication-resistance and Goodhart gaps at once.
+\textbf{The costly escalation:} a stakes-ranked attention queue creates an
+incentive to exaggerate distress. Strathern's discussion of target-driven
+measurement~\pdcite{strathern1997} motivates testing for that distortion; it does
+not establish that every agent will exploit the queue. A proposed standing
+debit for an adjudicated false escalation could make manipulation costly.
+Mere dismissal is insufficient evidence of falsity: penalizing it may suppress
+valid warnings. The design therefore owes an adjudication rule, an appeal path,
+and tests of both manipulation and missed warnings. This proposed sanction is
+not EigenTrust's pretrusted-peer mechanism and has no guarantee from that
+algorithm.
 
 \subsection{Staleness and decay on every read-surface}\label{sec:staleness}
 
@@ -3889,11 +3892,13 @@ classical database remedy --- an index --- recast as a directory over agents.
 The directory substrate has deep prior art in \textbf{FIPA}'s Directory Facilitator
 and Agent Management System~\pdcite{fipa00023}, re-invented for LLM agents as the Agent
 Name Service (\textbf{Ren et al.}~\pdcite{ren2025}). For the trust layer that sits above
-discovery, the canonical reputation primitive is \textbf{EigenTrust}'s pre-trusted-set
-construction~\pdcite{kamvar2003}, with Sybil resistance per
-\textbf{Douceur}~\pdcite{douceur2002} and commons governance per
-\textbf{Ostrom}~\pdcite{ostrom1990} --- machinery the wedge defers but must not
-contradict. Our specific result here is the \emph{split ranker}
+discovery, \textbf{EigenTrust}~\pdcite{kamvar2003} supplies a trust-propagation
+model whose modified algorithm relies on pretrusted peers. \textbf{Douceur}'s
+Sybil analysis~\pdcite{douceur2002} makes identity assumptions a separate issue;
+it does not turn an aggregate trust score into a general Sybil defense.
+\textbf{Ostrom}~\pdcite{ostrom1990} offers governance comparisons, not a theorem
+selecting this architecture. The proposed trust layer still owes explicit
+anchors, admission rules, and an attack model. Our specific result here is the \emph{split ranker}
 (Thm.~\ref{thm:split-ranker}): collaborator fit and inspection priorities can
 strictly conflict. The comonotonicity result states when a common ordering can
 nevertheless serve both readers.
