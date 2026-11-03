@@ -1226,15 +1226,15 @@ Figure~\ref{fig:fh-sponsor-lifecycle} draws the four-state lifecycle end to end.
 
 \subsection{Cold-start failure modes}\label{sec:fh-cold-start}
 
-A new harbor that cannot find a sponsor cannot join. This is a real limitation. In the worst case, the federation collapses to invitation-only --- which is the failure mode of every interesting federated identity system from PGP web-of-trust~\pdcite{zimmermann1995pgp} to SAML~\pdcite{maler2008venn}. The structural pushback is:
+A new harbor that cannot find a sponsor cannot join. Entry can remain restricted to parties the existing sponsors already know. The design offers three ways to reduce that barrier, but none guarantees an available sponsor:
 
 \begin{itemize}[nosep]
-\item \emph{Many sponsors.} The market is many-to-many; a new harbor needs only one sponsor. As long as sponsors are paid (via fees or reputation), the supply is nonzero.
+\item \emph{Many sponsors.} A new harbor needs only one willing sponsor. Fees can compensate a sponsor for risk, but payment alone does not establish that anyone will accept that risk.
 \item \emph{Small probationary scope.} New harbors during probation are restricted from large-stake operations; the sponsor's risk is bounded.
 \item \emph{Witness-log permanence.} The admission record is permanent; once a harbor has graduated probation, it does not need a sponsor again.
 \end{itemize}
 
-This is engineering discipline, not a theorem. The historical evidence on whether invitation-bounded federations stay open is mixed~\pdcite{maler2008venn}; the Federated Harbor's pushback against centralization is to make the cost of being a centralizing hub bounded above by the cost of running mirrored witness logs, which is small. Whether that pushback is enough is empirical.
+These are design choices, not an openness theorem. Running several witness logs permits independent inspection only if their operators and accepted roots are actually independent. It does not establish sponsor availability, low switching costs, or resistance to concentrated control. A deployment must measure those properties; \S\ref{sec:fh-centralization} separates the configurable topology from that empirical obligation.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Worked Example}\label{sec:fh-worked-example}
@@ -1413,15 +1413,15 @@ We are explicit about which claims live in which band (Figure~\ref{fig:fh-threat
 \section{Failure Modes}\label{sec:fh-failure-modes}
 % ═════════════════════════════════════════════════════════════════════════════
 
-A federation paper that does not engage formally with the historical failure modes of federated systems is unserious. The literature is heavy with examples: SAML federations that concentrated on a small set of identity providers~\pdcite{maler2008venn}; PGP web-of-trust that never achieved meaningful adoption outside enthusiast circles~\pdcite{abdulrahman1997pgp}; Sigstore's gravitation toward a single deployment of Fulcio~\pdcite{newman2022sigstore}. We engage with three failure modes specifically.
+The design must account for three operational risks: concentration of accepted authority, equivocation by a witness, and network partitions. Protocol support for multiple participants does not by itself resolve any of them. The following subsections distinguish architectural choices from guarantees and deployment evidence.
 
 \subsection{Centralization gravity}\label{sec:fh-centralization}
 
-Federated identity systems have a well-documented tendency to centralize on a small number of trust anchors within five to ten years of deployment~\pdcite{maler2008venn}. The Federated Harbor's structural pushback is the replicable witness log: any harbor can run its own witness instance, any harbor can audit any other instance's roots, and equivocation between witnesses is detectable. This makes it more expensive to be a centralizing hub than to be a peer.
+Distinct endpoints need not mean independent administrative control. Maler and Reed describe both SAML circles organized around an identity-provider hub and InCommon with multiple institutional identity providers~\pdcite{maler2008venn}. These are alternative trust topologies, not a numerical law about how quickly control concentrates. A Harbor deployment can run separate witness instances and compare their authenticated roots. Receivers still decide which roots to accept; replication alone establishes neither administrative diversity nor a cost disadvantage for a dominant hub.
 
-The pushback is not a theorem; it is design discipline, and Figure~\ref{fig:fh-threat-bands} places it in the cobalt band for that reason. The historical evidence is mixed. Tailscale~\pdcite{tailscale2020} has remained operationally centralized on its own coordination server despite Headscale~\pdcite{headscale} being a viable alternative; in-toto~\pdcite{torres2019intoto} has stayed decentralized but is consumed mostly by SLSA~\pdcite{slsa2023} which has Google as its de facto center. Time will tell which pattern the Federated Harbor exhibits.
+The control-plane distinction is concrete: Tailscale describes centralized coordination with a mesh data plane~\pdcite{tailscale2020}, while Headscale supplies a self-hostable control-server implementation~\pdcite{headscale}. Implementation choice and the distribution of actual administrative control are separate questions. Harbor's deployment obligation is to measure who controls accepted roots, how much work depends on each authority, and the cost of switching while preserving record continuity. Figure~\ref{fig:fh-threat-bands} therefore leaves resistance to concentrated control open.
 
-% The preceding historical comparison uses the citation rail. Start the
+% The preceding topology comparison uses the citation rail. Start the
 % witness subsection on a fresh page so its sketch has its own margin band.
 \pagebreak[4]
 \subsection{Equivocation by a malicious witness}\label{sec:fh-equiv}
@@ -1447,7 +1447,7 @@ Table~\ref{tab:fh-partition} lays out all three protocols side by side.
 
 The Federated Harbor sits at the intersection of four bodies of work. We are concrete about where we draw on each and where we depart.
 
-\paragraph{Federated identity.} The OpenID Federation 1.0 specification~\pdcite{hedberg2024openidfed} is the closest existing analogue: each entity publishes a signed Entity Statement, trust chains assemble by walking up to a Trust Anchor, trust marks express property claims. The Federated Harbor is structurally similar in the trust-anchor pattern but differs in two places: (a) we add a capability/attenuation layer (OpenID Federation is identity-only), and (b) we do not assume HTTP-based fetching of entity statements, since Port Daddy daemons cannot reliably expose HTTP endpoints (NAT, sleep, etc.). We draw also on SAML/Shibboleth historical experience~\pdcite{maler2008venn} as cautionary lineage; the centralization gravity we discuss in \S\ref{sec:fh-failure-modes} is exactly the SAML-era failure mode.
+\paragraph{Federated identity.} The OpenID Federation 1.0 specification~\pdcite{hedberg2024openidfed} is the closest existing analogue: each entity publishes a signed Entity Statement, trust chains assemble by walking up to a Trust Anchor, trust marks express property claims. The Federated Harbor is structurally similar in the trust-anchor pattern but differs in two places: (a) we add a capability/attenuation layer (OpenID Federation is identity-only), and (b) we do not assume HTTP-based fetching of entity statements, since Port Daddy daemons cannot reliably expose HTTP endpoints (NAT, sleep, etc.). SAML/Shibboleth also exposes identity-provider discovery and trust-topology choices~\pdcite{maler2008venn}; these motivate the distinction between multiple endpoints and independent control in \S\ref{sec:fh-centralization}.
 
 \paragraph{Capability-based federation.} Macaroons~\pdcite{birgisson2014macaroons} are the foundational capability-with-attenuation construction; our transfer ceremony extends Macaroon-style third-party-caveat chains across an administrative boundary. UCAN~\pdcite{ucan2024} is the current production-deployed answer to ``Macaroons with public-key principals,'' and we treat it as the operationally most relevant existing system; the Federated Harbor differs in keeping the daemon as a structural commons authority rather than going fully peer-to-peer, and in pricing delegation through insurance-priced bonds rather than pure capability constraints. The object-capability lineage~\pdcite{miller2006robust, dennis1966programming} continues to be relevant: cross-realm operations are exactly a mutual-suspicion scenario in Miller's vocabulary, and his defensive-consistency framework is the right lens.
 
