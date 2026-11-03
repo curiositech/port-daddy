@@ -3601,7 +3601,7 @@ zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first an
 compare it to the row's flat-opens count.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the theorem's guaranteed speedup requires a sufficiently sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
 Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
@@ -3617,29 +3617,42 @@ bounds the probability of losing any given positive, state the query cost it
 pays, and then say what the scheme does \emph{not} fix.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-noisy-zoom-oracle}
-Repeat every \emph{negative} verdict: accept ``clean'' only when $r$ independent
-queries on the same group all report clean. A group is then wrongly discarded with
-probability at most $\alpha^{r}$, so $r=\lceil\log(1/\eta)/\log(1/\alpha)\rceil$
-buys per-node error $\eta$ --- at $\alpha=0.1$, three repetitions give $10^{-3}$.
-Positive verdicts are never repeated, since by hypothesis they are not wrong, and
-the recursion only ever spends queries on groups it has already decided to split.
-The cost is therefore at most $r$ times the noiseless bound,
-$Q\le r\bigl(2k\lceil\log_2(F/k)\rceil+4k\bigr)$, which is the noiseless bound with
-$\alpha$'s cost folded into a constant: sparsity, not oracle quality, is still what
-decides whether zoom beats flat inspection, and the advantage
-$\mathrm{adv}(d)$ simply divides by $r$.
+For $0<\alpha<1$, accept ``clean'' only when $r$ independent queries
+on the same group all report clean; stop as soon as any query reports dirty.
+A positive group is wrongly discarded with probability at most $\alpha^r$.
+For $0<\eta<1$, choosing
+$r=\lceil\log(1/\eta)/\log(1/\alpha)\rceil$ gives per-group error at most
+$\eta$; at $\alpha=0.1$, three calls give $10^{-3}$. A dirty verdict needs
+no confirmation because false positives are excluded by hypothesis.
+The noisy recursion visits a subset of the groups visited by the noiseless
+algorithm: an erroneous clean verdict can prune that tree but cannot add nodes.
+Writing the theorem's full bound as
+\[
+Q_0=2k\lceil\log_2(F/k)\rceil+4k,
+\]
+the repetition scheme therefore uses at most $rQ_0$ oracle calls. For a fixed
+repetition count, this bound retains its sparsity dependence; whether it beats
+flat inspection also depends on $r$ and the required reliability.
 
-Three things this does not fix, and the exercise is Open because of the third.
-First, the union bound over the tree, not the node, is what an operator cares
-about: with $O(k\log_2(F/k))$ negative decisions, per-node $\eta$ gives an overall
-miss probability of roughly $\eta\cdot 2k\lceil\log_2(F/k)\rceil$, so $r$ has to
-grow like $\log k+\log\log F$ to hold a fixed end-to-end guarantee. Second, the
-independence assumption is doing heavy work and is the least defensible part:
-repeating the same linter on the same group is perfectly correlated, not
-independent, so $r$ repetitions of one tool buy nothing at all and the scheme
-needs $r$ \emph{different} tools --- which is the same diversity argument
-\pdchapref{stp}{From Spawn to Person} makes about correlated auditors, arriving
-here from a different direction. Third, and unresolved: the guarantee above is
+Three limitations remain. First, per-group error is not the probability of
+losing a positive anywhere in the tree. A union bound over the at most $Q_0$
+visited groups gives
+\[
+\Pr(\text{any positive is lost})\le Q_0\alpha^r.
+\]
+Thus, for $0<\varepsilon<1$, choosing
+$r=\lceil\log(Q_0/\varepsilon)/\log(1/\alpha)\rceil$ suffices for a whole-run
+failure bound of $\varepsilon$, and hence for each individual positive as well.
+The $4k$ term must be retained when $k$ is near $F$. If $k$ is unknown, use
+the theorem's $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
+At $\alpha=0$, one call per group is exact; at $\alpha=1$, the assumed error
+bound supplies no finite repetition guarantee. Second, the
+independence assumption is doing heavy work. Repeating a deterministic linter
+on the same input gives no new evidence. Independently randomized calls to one
+tool may satisfy the assumed error model; different tools may still share errors.
+The requirement concerns the sampling and errors, not the tool names. This is
+the same distinction between diversity and conditional detection developed in
+\pdchapref{stp}{From Spawn to Person}. Third, and unresolved: the guarantee above is
 probabilistic where Theorem~\ref{thm:zoom-advantage} is exact, so a chapter that
 prices oversight in bits now owes an account of what a $10^{-3}$ chance of a
 silently dropped subtree is worth against the queries it saves, and that is a
